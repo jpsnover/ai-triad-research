@@ -1,0 +1,81 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Skeptic POV taxonomy. One file per POV camp to minimize merge conflicts.",
+  "pov": "skeptic",
+  "color_hex": "#F39C12",
+  "last_modified": "2026-02-21",
+  "nodes": [
+    {
+      "id": "skp-goals-001",
+      "category": "Goals/Values",
+      "label": "Protect workers from AI-driven labor displacement",
+      "description": "Immediate policy priority is protecting workers whose livelihoods are being disrupted by current AI deployments.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-004"]
+    },
+    {
+      "id": "skp-goals-002",
+      "category": "Goals/Values",
+      "label": "Eliminate systemic bias in deployed AI systems",
+      "description": "AI systems deployed today exhibit measurable racial, gender, and socioeconomic bias that causes real harm.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-004"]
+    },
+    {
+      "id": "skp-goals-003",
+      "category": "Goals/Values",
+      "label": "Preserve privacy and prevent surveillance",
+      "description": "AI-powered surveillance and data extraction threaten civil liberties and require immediate regulatory intervention.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003"]
+    },
+    {
+      "id": "skp-data-001",
+      "category": "Data/Facts",
+      "label": "Current AI systems exhibit measurable bias",
+      "description": "Empirical claim: documented studies show disparate error rates and outcomes for protected groups across hiring, lending, and criminal justice AI systems.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-002",
+      "category": "Data/Facts",
+      "label": "Job displacement is measurable in specific sectors now",
+      "description": "Empirical claim: employment in certain categories (e.g., entry-level content, data annotation, customer service) is already declining due to AI substitution.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-003",
+      "category": "Data/Facts",
+      "label": "AGI risk framing distracts from present harms",
+      "description": "Interpretive claim: speculative future risk narratives are used to avoid accountability for documented current harms.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-001", "cc-004"]
+    },
+    {
+      "id": "skp-methods-001",
+      "category": "Methods",
+      "label": "Regulate based on present harms, not future speculation",
+      "description": "Interpretation: policy should address documented, measurable harm rather than speculative future risk scenarios.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003", "cc-005"]
+    },
+    {
+      "id": "skp-methods-002",
+      "category": "Methods",
+      "label": "Mandate algorithmic audits and impact assessments",
+      "description": "Interpretation: any AI system affecting protected groups should be subject to third-party audit before and during deployment.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003"]
+    }
+  ]
+}

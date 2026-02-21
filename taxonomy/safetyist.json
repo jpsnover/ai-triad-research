@@ -1,0 +1,83 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Safetyist POV taxonomy. One file per POV camp to minimize merge conflicts.",
+  "pov": "safetyist",
+  "color_hex": "#E74C3C",
+  "last_modified": "2026-02-21",
+  "nodes": [
+    {
+      "id": "saf-goals-001",
+      "category": "Goals/Values",
+      "label": "Prevent catastrophic and existential AI outcomes",
+      "description": "The primary goal is to ensure that highly capable AI systems do not cause irreversible harm at civilizational scale.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-004", "cc-005"]
+    },
+    {
+      "id": "saf-goals-002",
+      "category": "Goals/Values",
+      "label": "Maintain meaningful human oversight of AI",
+      "description": "Humans must retain the ability to understand, correct, and shut down AI systems even as they become more capable.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003"]
+    },
+    {
+      "id": "saf-goals-003",
+      "category": "Goals/Values",
+      "label": "Solve the alignment problem before deployment",
+      "description": "AI systems must be reliably aligned with human values before being deployed at scale or granted autonomous authority.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-002"]
+    },
+    {
+      "id": "saf-data-001",
+      "category": "Data/Facts",
+      "label": "The alignment problem is unsolved",
+      "description": "Empirical claim: no current technique guarantees that a highly capable AI system will reliably pursue intended goals.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-002"],
+      "conflict_ids": []
+    },
+    {
+      "id": "saf-data-002",
+      "category": "Data/Facts",
+      "label": "Misaligned AGI poses non-negligible existential risk",
+      "description": "Empirical claim: probability of catastrophic outcome from misaligned AGI is high enough to warrant immediate intervention.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-001", "cc-005"],
+      "conflict_ids": ["conflict-agi-timelines-001"]
+    },
+    {
+      "id": "saf-data-003",
+      "category": "Data/Facts",
+      "label": "Current interpretability tools are insufficient",
+      "description": "Empirical claim: we cannot reliably inspect what goals a large neural network is pursuing.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-001",
+      "category": "Methods",
+      "label": "Pause or slow frontier deployment until alignment is solved",
+      "description": "Interpretation: the correct response to unsolved alignment is to delay deployment of the most capable systems.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-002", "cc-003"]
+    },
+    {
+      "id": "saf-methods-002",
+      "category": "Methods",
+      "label": "Interpretability research is a prerequisite",
+      "description": "Interpretation: we should not deploy systems we cannot inspect. Interpretability must precede capability deployment.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node (POViewer)
+node_modules/
+.next/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Secrets — never commit API keys
+.env
+*.env
+secrets.json
+
+# Inbox is transient; contents committed per-doc after ingestion
+sources/_inbox/*
+!sources/_inbox/.gitkeep

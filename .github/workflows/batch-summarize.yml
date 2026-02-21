@@ -1,0 +1,48 @@
+# batch-summarize.yml
+# Triggered when TAXONOMY_VERSION is updated.
+# Runs the smart batch summarization script.
+
+name: Batch POV Summarization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'TAXONOMY_VERSION'
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120    # Large batches may take time
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2    # Need parent commit to diff taxonomy changes
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Show taxonomy version
+        run: |
+          echo "Taxonomy version: $(cat TAXONOMY_VERSION)"
+          echo "Changed files: $(git diff HEAD~1 HEAD --name-only)"
+
+      - name: Run smart batch summarization
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL:   ${{ secrets.AI_MODEL || 'claude-sonnet-4-6' }}
+        run: python scripts/batch_summarize.py
+
+      - name: Commit updated summaries
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-update summaries to taxonomy $(cat TAXONOMY_VERSION)"
+          file_pattern: 'summaries/*.json sources/*/metadata.json conflicts/*.json'

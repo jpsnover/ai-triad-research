@@ -1,0 +1,83 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Accelerationist POV taxonomy. One file per POV camp to minimize merge conflicts. Edit nodes, open a PR, bump TAXONOMY_VERSION in the merge commit.",
+  "pov": "accelerationist",
+  "color_hex": "#27AE60",
+  "last_modified": "2026-02-21",
+  "nodes": [
+    {
+      "id": "acc-goals-001",
+      "category": "Goals/Values",
+      "label": "Abundance through AI",
+      "description": "AI is the primary lever for solving existential-scale challenges: climate change, disease eradication, and unlocking unprecedented material prosperity.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-002",
+      "category": "Goals/Values",
+      "label": "Accelerate compute and model scaling",
+      "description": "Continued investment in compute infrastructure and larger models is the correct priority. Slowing down cedes ground to less safety-conscious actors.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-001"]
+    },
+    {
+      "id": "acc-goals-003",
+      "category": "Goals/Values",
+      "label": "Democratize access to AI capability",
+      "description": "AI tools should be available to individuals and small actors, not gatekept by governments or incumbents.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003"]
+    },
+    {
+      "id": "acc-data-001",
+      "category": "Data/Facts",
+      "label": "Compute-to-intelligence scaling continues predictably",
+      "description": "Empirical claim: scaling laws show continued capability gains with more compute and data. Disputed by some researchers.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [],
+      "conflict_ids": ["conflict-scaling-laws-001"]
+    },
+    {
+      "id": "acc-data-002",
+      "category": "Data/Facts",
+      "label": "AGI achievable within current decade",
+      "description": "Empirical claim: based on current trajectory, AGI-level systems are likely within 5-10 years.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-001"],
+      "conflict_ids": ["conflict-agi-timelines-001"]
+    },
+    {
+      "id": "acc-data-003",
+      "category": "Data/Facts",
+      "label": "AI is already producing measurable economic gains",
+      "description": "Empirical claim: productivity studies show measurable output increases in software, legal, and medical domains.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-001",
+      "category": "Methods",
+      "label": "Speed reduces risk (first-mover alignment advantage)",
+      "description": "Interpretation: safety-focused labs building capable systems first is safer than ceding capability leadership to less careful actors.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-002"]
+    },
+    {
+      "id": "acc-methods-002",
+      "category": "Methods",
+      "label": "Open development promotes safety through scrutiny",
+      "description": "Interpretation: open-source models allow broader red-teaming and safety research than closed systems.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": ["cc-003"]
+    }
+  ]
+}

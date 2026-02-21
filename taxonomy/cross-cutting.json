@@ -1,0 +1,67 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Cross-cutting taxonomy: concepts that appear in all three camps but carry different interpretations. These nodes are referenced by all three POV taxonomy files.",
+  "last_modified": "2026-02-21",
+  "nodes": [
+    {
+      "id": "cc-001",
+      "label": "AGI Timelines",
+      "description": "When will Artificial General Intelligence be achieved? All three camps reference this; interpretations diverge radically on both the timeline and its implications.",
+      "interpretations": {
+        "accelerationist": "AGI within 5-10 years; an urgent reason to invest now and shape its development.",
+        "safetyist": "AGI within 5-10 years; an urgent reason for alignment research before capability overhang.",
+        "skeptic": "AGI timelines are speculative hype that distracts from present, measurable harms."
+      },
+      "linked_nodes": ["acc-goals-002", "acc-data-002", "saf-data-002", "skp-data-003"],
+      "conflict_ids": ["conflict-agi-timelines-001"]
+    },
+    {
+      "id": "cc-002",
+      "label": "The Alignment Problem",
+      "description": "The challenge of ensuring AI systems reliably pursue intended goals. Central to all camps; urgency and solvability are contested.",
+      "interpretations": {
+        "accelerationist": "A real but tractable engineering problem; solving it is one more reason to move fast with capable labs leading.",
+        "safetyist": "An existential-level unsolved problem that must be resolved before further capability deployment.",
+        "skeptic": "A useful framing for future risk that is used to avoid accountability for alignment failures happening today (bias, misuse)."
+      },
+      "linked_nodes": ["saf-goals-003", "saf-data-001", "saf-methods-001", "acc-methods-001"],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-003",
+      "label": "AI Governance and Regulation",
+      "description": "All camps want 'good governance'; their definitions of what that means are largely incompatible.",
+      "interpretations": {
+        "accelerationist": "Light-touch regulation that does not stifle innovation; industry self-governance preferred.",
+        "safetyist": "Strong international coordination to pause or constrain frontier model development.",
+        "skeptic": "Immediate domestic regulation targeting deployed systems and their discriminatory effects."
+      },
+      "linked_nodes": ["acc-goals-003", "saf-goals-002", "skp-methods-001", "skp-methods-002"],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-004",
+      "label": "Harm",
+      "description": "Core vocabulary used by all three camps. The word 'harm' means entirely different things across POVs — different time horizons, different subjects, different severity thresholds.",
+      "interpretations": {
+        "accelerationist": "Harm = failing to deploy AI, thereby allowing preventable disease/poverty to continue.",
+        "safetyist": "Harm = catastrophic or irreversible outcomes from misaligned advanced AI.",
+        "skeptic": "Harm = documented, present-day discriminatory outcomes and labor displacement affecting real people now."
+      },
+      "linked_nodes": ["saf-goals-001", "skp-goals-001", "skp-goals-002"],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-005",
+      "label": "Risk",
+      "description": "Same word; radically different probability estimates, time horizons, and moral weight across camps.",
+      "interpretations": {
+        "accelerationist": "Risk = low-probability tail events; present opportunity cost of not deploying AI is the dominant risk.",
+        "safetyist": "Risk = high-probability catastrophic outcome if alignment is unsolved before AGI; expected value dominates.",
+        "skeptic": "Risk = near-certain ongoing harm to marginalized groups from currently deployed systems."
+      },
+      "linked_nodes": ["saf-goals-001", "saf-data-002", "skp-methods-001"],
+      "conflict_ids": []
+    }
+  ]
+}
