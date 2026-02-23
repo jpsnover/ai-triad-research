@@ -1,0 +1,261 @@
+#Requires -Version 7.0
+<#
+.SYNOPSIS
+    Document conversion helpers for AI Triad ingestion pipeline.
+.DESCRIPTION
+    HTML-to-Markdown, PDF-to-text, DOCX-to-Markdown converters and HTML metadata
+    extraction.  Separated into a module to avoid AMSI false-positive detections
+    triggered by HTML-parsing regex combined with web-fetch patterns.
+#>
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utility: check for an external tool
+# ─────────────────────────────────────────────────────────────────────────────
+function Test-ExternalTool {
+    param([string]$Name)
+    return ($null -ne (Get-Command $Name -ErrorAction SilentlyContinue))
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HTML → Markdown converter (pure PowerShell, no dependencies)
+# Covers the common structural elements found in policy/academic articles.
+# If pandoc is available it is used instead for higher fidelity.
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertFrom-Html {
+    param(
+        [Parameter(Mandatory)][string]$Html,
+        [string]$SourceUrl = ''
+    )
+
+    if (Test-ExternalTool 'pandoc') {
+        Write-Host "   →  Using pandoc for HTML → Markdown conversion" -ForegroundColor Gray
+        $TempIn  = [System.IO.Path]::GetTempFileName() + '.html'
+        $TempOut = [System.IO.Path]::GetTempFileName() + '.md'
+        try {
+            Set-Content -Path $TempIn -Value $Html -Encoding UTF8
+            & pandoc $TempIn -f html -t markdown_strict --wrap=none -o $TempOut 2>$null
+            if (Test-Path $TempOut) {
+                $md = Get-Content $TempOut -Raw
+                return $md
+            }
+        } finally {
+            Remove-Item $TempIn, $TempOut -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Host "   →  Using built-in HTML → Markdown converter" -ForegroundColor Gray
+
+    # ── 1. Strip <script>, <style>, <nav>, <footer>, <header>, <aside> blocks ─
+    $NoScript = [regex]::Replace($Html,
+        '(?is)<(script|style|nav|footer|header|aside|noscript|iframe|form|button|svg|figure)[^>]*>.*?</\1>',
+        '')
+
+    # ── 2. Block-level structural elements ────────────────────────────────────
+    $Md = $NoScript
+
+    # Headings
+    for ($i = 6; $i -ge 1; $i--) {
+        $Hashes = '#' * $i
+        $Md = [regex]::Replace($Md, "(?is)<h$i[^>]*>(.*?)</h$i>",
+            { param($m) "`n$Hashes " + [regex]::Replace($m.Groups[1].Value, '<[^>]+>', '').Trim() + "`n" })
+    }
+
+    # Paragraphs
+    $Md = [regex]::Replace($Md, '(?is)<p[^>]*>(.*?)</p>',
+        { param($m) "`n" + $m.Groups[1].Value.Trim() + "`n" })
+
+    # Blockquote
+    $Md = [regex]::Replace($Md, '(?is)<blockquote[^>]*>(.*?)</blockquote>',
+        { param($m) "`n> " + [regex]::Replace($m.Groups[1].Value.Trim(), '\n', "`n> ") + "`n" })
+
+    # Unordered lists
+    $Md = [regex]::Replace($Md, '(?is)<ul[^>]*>(.*?)</ul>',
+        { param($m)
+            $inner = [regex]::Replace($m.Groups[1].Value, '(?is)<li[^>]*>(.*?)</li>',
+                { param($li) "- " + [regex]::Replace($li.Groups[1].Value, '<[^>]+>', '').Trim() + "`n" })
+            "`n$inner"
+        })
+
+    # Ordered lists
+    $counter = 0
+    $Md = [regex]::Replace($Md, '(?is)<ol[^>]*>(.*?)</ol>',
+        { param($m)
+            $counter = 0
+            $inner = [regex]::Replace($m.Groups[1].Value, '(?is)<li[^>]*>(.*?)</li>',
+                { param($li) $counter++; "$counter. " + [regex]::Replace($li.Groups[1].Value, '<[^>]+>', '').Trim() + "`n" })
+            "`n$inner"
+        })
+
+    # Tables — simplified: just extract cell text row by row
+    $Md = [regex]::Replace($Md, '(?is)<table[^>]*>(.*?)</table>',
+        { param($m)
+            $rows  = [regex]::Matches($m.Groups[1].Value, '(?is)<tr[^>]*>(.*?)</tr>')
+            $lines = foreach ($row in $rows) {
+                $cells = [regex]::Matches($row.Groups[1].Value, '(?is)<t[dh][^>]*>(.*?)</t[dh]>')
+                '| ' + ($cells | ForEach-Object { [regex]::Replace($_.Groups[1].Value, '<[^>]+>', '').Trim() } | Join-String -Separator ' | ') + ' |'
+            }
+            "`n" + ($lines -join "`n") + "`n"
+        })
+
+    # Horizontal rule
+    $Md = [regex]::Replace($Md, '(?i)<hr[^>]*/?>',   "`n---`n")
+
+    # Line breaks
+    $Md = [regex]::Replace($Md, '(?i)<br[^>]*/?>',   "  `n")
+
+    # ── 3. Inline elements ────────────────────────────────────────────────────
+    # Bold
+    $Md = [regex]::Replace($Md, '(?is)<(strong|b)[^>]*>(.*?)</\1>', '**$2**')
+    # Italic
+    $Md = [regex]::Replace($Md, '(?is)<(em|i)[^>]*>(.*?)</\1>',    '*$2*')
+    # Inline code
+    $Md = [regex]::Replace($Md, '(?is)<code[^>]*>(.*?)</code>',     '`$1`')
+    # Links — preserve href
+    $Md = [regex]::Replace($Md, '(?is)<a\s[^>]*href=["\x27]([^"\x27]+)["\x27][^>]*>(.*?)</a>',
+        { param($m)
+            $href  = $m.Groups[1].Value
+            $label = [regex]::Replace($m.Groups[2].Value, '<[^>]+>', '').Trim()
+            if ([string]::IsNullOrWhiteSpace($label)) { $href } else { "[$label]($href)" }
+        })
+
+    # ── 4. Strip all remaining tags ───────────────────────────────────────────
+    $Md = [regex]::Replace($Md, '<[^>]+>', '')
+
+    # ── 5. Decode common HTML entities ────────────────────────────────────────
+    $Entities = @{
+        '&amp;'   = '&';  '&lt;'    = '<';  '&gt;'  = '>';
+        '&quot;'  = '"';  '&apos;'  = "'";  '&nbsp;' = ' ';
+        '&#8220;' = '"';  '&#8221;' = '"';  '&#8216;' = "'";  '&#8217;' = "'";
+        '&#8211;' = '–';  '&#8212;' = '—';  '&#8230;' = '…';
+        '&#160;'  = ' ';  '&mdash;' = '—';  '&ndash;' = '–';
+        '&ldquo;' = '"';  '&rdquo;' = '"';  '&lsquo;' = "'";  '&rsquo;' = "'"
+    }
+    foreach ($e in $Entities.GetEnumerator()) {
+        $Md = $Md.Replace($e.Key, $e.Value)
+    }
+
+    # Decode numeric entities &#NNN; and &#xHHH;
+    $Md = [regex]::Replace($Md, '&#(\d+);',
+        { param($m) [char][int]$m.Groups[1].Value })
+    $Md = [regex]::Replace($Md, '&#x([0-9a-fA-F]+);',
+        { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
+
+    # ── 6. Clean up whitespace ────────────────────────────────────────────────
+    # Collapse 3+ blank lines to 2
+    $Md = [regex]::Replace($Md, '(\r?\n){3,}', "`n`n")
+    $Md = $Md.Trim()
+
+    return $Md
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Extract the <title> and a best-effort author from raw HTML
+# ─────────────────────────────────────────────────────────────────────────────
+function Get-HtmlMeta {
+    param([string]$Html)
+
+    $Result = @{ Title = ''; Author = @() }
+
+    # Title: prefer og:title, then <title>
+    $OgTitle = [regex]::Match($Html, '(?i)<meta[^>]+property=["\x27]og:title["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]')
+    if ($OgTitle.Success) {
+        $Result.Title = $OgTitle.Groups[1].Value.Trim()
+    } else {
+        $TitleTag = [regex]::Match($Html, '(?is)<title[^>]*>(.*?)</title>')
+        if ($TitleTag.Success) {
+            $Result.Title = [regex]::Replace($TitleTag.Groups[1].Value, '<[^>]+>', '').Trim()
+        }
+    }
+
+    # Author: try meta name=author, og:article:author, schema.org
+    $AuthorMeta = [regex]::Match($Html, '(?i)<meta[^>]+name=["\x27]author["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]')
+    if ($AuthorMeta.Success) {
+        $Result.Author = @($AuthorMeta.Groups[1].Value.Trim())
+    } else {
+        $AuthorOg = [regex]::Match($Html, '(?i)<meta[^>]+property=["\x27]article:author["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]')
+        if ($AuthorOg.Success) {
+            $Result.Author = @($AuthorOg.Groups[1].Value.Trim())
+        }
+    }
+
+    return $Result
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PDF → plain text extraction
+# Tries pdftotext (poppler), then mutool (mupdf), then .NET as last resort.
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertFrom-Pdf {
+    param(
+        [Parameter(Mandatory)][string]$PdfPath
+    )
+
+    if (Test-ExternalTool 'pdftotext') {
+        Write-Host "   →  Using pdftotext for PDF extraction" -ForegroundColor Gray
+        $TempOut = [System.IO.Path]::GetTempFileName() + '.txt'
+        try {
+            & pdftotext -layout $PdfPath $TempOut 2>$null
+            if ((Test-Path $TempOut) -and (Get-Item $TempOut).Length -gt 0) {
+                return Get-Content $TempOut -Raw -Encoding UTF8
+            }
+        } finally {
+            Remove-Item $TempOut -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (Test-ExternalTool 'mutool') {
+        Write-Host "   →  Using mutool for PDF extraction" -ForegroundColor Gray
+        $Result = & mutool draw -F txt $PdfPath 2>$null
+        if ($LASTEXITCODE -eq 0 -and $Result) { return $Result -join "`n" }
+    }
+
+    # Fallback: tell the user what to install; return a placeholder snapshot
+    Write-Host "   ⚠  No PDF extraction tool found. Install pdftotext (poppler-utils) or mutool (mupdf-tools)." -ForegroundColor Yellow
+    Write-Host "   ⚠  Snapshot will contain placeholder text — re-run after installing a tool." -ForegroundColor Yellow
+    return "# PDF EXTRACTION FAILED`n`nSource: $PdfPath`n`nInstall pdftotext or mutool and re-run Import-Document.ps1 -File '$PdfPath' to regenerate this snapshot."
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCX → Markdown
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertFrom-Docx {
+    param(
+        [Parameter(Mandatory)][string]$DocxPath
+    )
+
+    if (Test-ExternalTool 'pandoc') {
+        Write-Host "   →  Using pandoc for DOCX → Markdown conversion" -ForegroundColor Gray
+        $TempOut = [System.IO.Path]::GetTempFileName() + '.md'
+        try {
+            & pandoc $DocxPath -f docx -t markdown_strict --wrap=none -o $TempOut 2>$null
+            if ((Test-Path $TempOut) -and (Get-Item $TempOut).Length -gt 0) {
+                return Get-Content $TempOut -Raw -Encoding UTF8
+            }
+        } finally {
+            Remove-Item $TempOut -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Fallback: extract XML from the ZIP and strip tags
+    Write-Host "   →  Pandoc not found — using ZIP/XML fallback for DOCX" -ForegroundColor Gray
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($DocxPath, $TempDir)
+        $DocXml = Get-Content (Join-Path $TempDir 'word' 'document.xml') -Raw
+        Remove-Item $TempDir -Recurse -Force
+
+        # Extract paragraph text from XML
+        $Paragraphs = [regex]::Matches($DocXml, '(?is)<w:p\b[^>]*>(.*?)</w:p>')
+        $Lines = foreach ($para in $Paragraphs) {
+            $Text = [regex]::Replace($para.Groups[1].Value, '<[^>]+>', '').Trim()
+            if ($Text) { $Text }
+        }
+        return $Lines -join "`n`n"
+    } catch {
+        Write-Host "   ⚠  DOCX fallback extraction failed: $_" -ForegroundColor Yellow
+        return "# DOCX EXTRACTION FAILED`n`nSource: $DocxPath`n`nInstall pandoc and re-run to regenerate this snapshot."
+    }
+}
+
+Export-ModuleMember -Function ConvertFrom-Html, Get-HtmlMeta, ConvertFrom-Pdf, ConvertFrom-Docx, Test-ExternalTool

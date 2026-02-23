@@ -5,7 +5,7 @@ export function buildSearchRegex(
   mode: SearchMode,
   caseSensitive: boolean,
 ): RegExp | null {
-  if (!query) return null;
+  if (!query || mode === 'semantic') return null;
   try {
     let pattern: string;
     if (mode === 'raw') {

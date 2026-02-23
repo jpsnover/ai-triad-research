@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jsnov/ai-triad-research/taxonomy/schemas/pov-taxonomy.schema.json",
+  "title": "POV Taxonomy File",
+  "description": "Schema for a single point-of-view (POV) taxonomy file in the AI Triad Research project. Each POV camp (accelerationist, safetyist, skeptic) has one file conforming to this schema.",
+  "type": "object",
+  "required": [
+    "_schema_version",
+    "_doc",
+    "pov",
+    "color_hex",
+    "last_modified",
+    "nodes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "_schema_version": {
+      "type": "string",
+      "description": "Semantic version of the schema this file conforms to.",
+      "examples": ["1.0.0"]
+    },
+    "_doc": {
+      "type": "string",
+      "description": "Human-readable documentation string describing this file's purpose and editing conventions."
+    },
+    "pov": {
+      "type": "string",
+      "enum": ["accelerationist", "safetyist", "skeptic"],
+      "description": "The point-of-view camp this taxonomy represents."
+    },
+    "color_hex": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "Hex color code used to visually distinguish this POV in the editor UI.",
+      "examples": ["#27AE60", "#E74C3C", "#F39C12"]
+    },
+    "last_modified": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 date (YYYY-MM-DD) of the last modification to this file.",
+      "examples": ["2026-02-22"]
+    },
+    "nodes": {
+      "type": "array",
+      "description": "Ordered list of taxonomy nodes belonging to this POV.",
+      "items": {
+        "$ref": "#/$defs/PovNode"
+      }
+    }
+  },
+  "$defs": {
+    "PovNode": {
+      "type": "object",
+      "description": "A single taxonomy node representing a claim, value, data point, or methodological position within a POV camp.",
+      "required": [
+        "id",
+        "category",
+        "label",
+        "description",
+        "parent_id",
+        "children",
+        "cross_cutting_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(acc|saf|skp)-(goals|data|methods)-\\d{3}$",
+          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Goals/Values), data (Data/Facts), methods (Methods).",
+          "examples": ["acc-goals-001", "saf-data-002", "skp-methods-001"]
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Goals/Values", "Data/Facts", "Methods"],
+          "description": "The epistemic category this node belongs to. Goals/Values: normative positions about what should happen. Data/Facts: empirical claims about what is or will be. Methods: interpretive positions about how to act."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-readable title for this node. Should be concise enough to display in a list view.",
+          "examples": ["Abundance through AI", "The alignment problem is unsolved"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full description of the claim, value, data point, or methodological position. Should be a self-contained paragraph that can be understood without reading other nodes."
+        },
+        "parent_id": {
+          "type": ["string", "null"],
+          "description": "ID of the parent node if this node is a sub-claim. Null for top-level nodes. Must reference another node ID within the same POV file.",
+          "examples": ["acc-goals-001", null]
+        },
+        "children": {
+          "type": "array",
+          "description": "Ordered list of child node IDs. Must reference node IDs within the same POV file. Inverse of parent_id.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cross_cutting_refs": {
+          "type": "array",
+          "description": "List of cross-cutting node IDs that this node relates to. References nodes in the cross-cutting.json file.",
+          "items": {
+            "type": "string",
+            "pattern": "^cc-\\d{3}$"
+          },
+          "examples": [["cc-001", "cc-003"]]
+        },
+        "conflict_ids": {
+          "type": "array",
+          "description": "Optional list of conflict claim IDs that this node is involved in. References conflict files in the conflicts/ directory.",
+          "items": {
+            "type": "string",
+            "pattern": "^conflict-[a-z0-9-]+$"
+          },
+          "examples": [["conflict-scaling-laws-001", "conflict-agi-timelines-001"]]
+        }
+      }
+    }
+  }
+}

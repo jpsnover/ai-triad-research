@@ -18,4 +18,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   deleteConflictFile: (claimId: string): Promise<void> =>
     ipcRenderer.invoke('delete-conflict-file', claimId),
+
+  setApiKey: (key: string): Promise<void> =>
+    ipcRenderer.invoke('set-api-key', key),
+
+  hasApiKey: (): Promise<boolean> =>
+    ipcRenderer.invoke('has-api-key'),
+
+  computeEmbeddings: (texts: string[]): Promise<{ vectors: number[][] }> =>
+    ipcRenderer.invoke('compute-embeddings', texts),
+
+  computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
+    ipcRenderer.invoke('compute-query-embedding', text),
 });

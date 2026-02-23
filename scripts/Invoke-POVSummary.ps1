@@ -30,8 +30,8 @@
     Gemini API key. If omitted, reads from the GEMINI_API_KEY environment variable.
 
 .PARAMETER Model
-    Gemini model to use. Defaults to "gemini-1.5-pro".
-    Other options: "gemini-1.5-flash" (faster/cheaper), "gemini-2.0-flash-exp"
+    Gemini model to use. Defaults to "gemini-2.5-flash".
+    Other options: "gemini-2.5-flash-lite" (faster/cheaper), "gemini-2.5-pro"
 
 .PARAMETER Temperature
     Sampling temperature (0.0–1.0). Lower = more deterministic taxonomy mapping.
@@ -53,7 +53,7 @@
 
 .EXAMPLE
     # Process from a different repo location, using flash model
-    .\Invoke-POVSummary.ps1 -DocId "lecun-2024-critique" -RepoRoot "C:\Projects\ai-triad-research" -Model "gemini-1.5-flash"
+    .\Invoke-POVSummary.ps1 -DocId "lecun-2024-critique" -RepoRoot "C:\Projects\ai-triad-research" -Model "gemini-2.5-flash-lite"
 
 .EXAMPLE
     # Preview the prompt without calling the API
@@ -80,8 +80,8 @@ param(
 
     [string]$ApiKey      = $env:GEMINI_API_KEY,
 
-    [ValidateSet("gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.0-pro")]
-    [string]$Model       = "gemini-1.5-pro",
+    [ValidateSet("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro")]
+    [string]$Model       = "gemini-2.5-flash",
 
     [ValidateRange(0.0, 1.0)]
     [double]$Temperature = 0.1,
@@ -428,7 +428,7 @@ try {
         400 { Write-Info "Bad request — prompt may be malformed or exceed token limits." }
         401 { Write-Info "Unauthorized — check your API key is valid and not expired." }
         403 { Write-Info "Forbidden — ensure the Gemini API is enabled in your Google Cloud project." }
-        429 { Write-Info "Rate limit exceeded — wait a moment and retry, or switch to gemini-1.5-flash." }
+        429 { Write-Info "Rate limit exceeded — wait a moment and retry, or switch to gemini-2.5-flash-lite." }
         500 { Write-Info "Server error — Gemini internal error. Retry in a few minutes." }
         503 { Write-Info "Service unavailable — Gemini is temporarily overloaded. Retry shortly." }
     }

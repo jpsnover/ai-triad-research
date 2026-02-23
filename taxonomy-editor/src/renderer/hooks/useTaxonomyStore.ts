@@ -25,13 +25,14 @@ import {
   generateConflictId,
   todayISO,
 } from '../utils/idGenerator';
+import { rankBySimilarity } from '../utils/similarity';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
   | { type: 'cross-cutting'; node: CrossCuttingNode }
   | { type: 'conflict'; conflict: ConflictFile };
 
-export type SearchMode = 'raw' | 'wildcard' | 'regex';
+export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'system';
 
@@ -79,8 +80,19 @@ interface TaxonomyState {
   setFindMode: (mode: SearchMode) => void;
   setFindCaseSensitive: (cs: boolean) => void;
 
+  embeddingCache: Map<string, number[]>;
+  embeddingDirty: boolean;
+  embeddingLoading: boolean;
+  embeddingError: string | null;
+  hasApiKey: boolean;
+  checkApiKey: () => Promise<void>;
+  runSemanticSearch: (query: string, povScopes: Set<TabId>, aspectScopes: Set<Category>) => Promise<void>;
+  semanticResults: { id: string; score: number }[];
+  buildEmbeddingTexts: (povScopes: Set<TabId>, aspectScopes: Set<Category>) => { ids: string[]; texts: string[] };
+
   setActiveTab: (tab: TabId) => void;
   setSelectedNodeId: (id: string | null) => void;
+  navigateToNode: (tab: TabId, id: string) => void;
 
   loadAll: () => Promise<void>;
   save: () => Promise<void>;
@@ -146,8 +158,105 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   setFindMode: (mode) => set({ findMode: mode }),
   setFindCaseSensitive: (cs) => set({ findCaseSensitive: cs }),
 
+  embeddingCache: new Map(),
+  embeddingDirty: true,
+  embeddingLoading: false,
+  embeddingError: null,
+  hasApiKey: false,
+  semanticResults: [],
+
+  checkApiKey: async () => {
+    try {
+      const has = await window.electronAPI.hasApiKey();
+      set({ hasApiKey: has });
+    } catch {
+      set({ hasApiKey: false });
+    }
+  },
+
+  buildEmbeddingTexts: (povScopes, aspectScopes) => {
+    const state = get();
+    const hasPovFilter = povScopes.size > 0;
+    const hasAspectFilter = aspectScopes.size > 0;
+    const ids: string[] = [];
+    const texts: string[] = [];
+
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      if (hasPovFilter && !povScopes.has(pov)) continue;
+      const file = state[pov];
+      if (!file) continue;
+      for (const node of file.nodes) {
+        if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
+        ids.push(node.id);
+        texts.push(
+          `[${pov}] ${node.category}\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}`,
+        );
+      }
+    }
+
+    if (!hasPovFilter || povScopes.has('cross-cutting')) {
+      if (state.crossCutting && !hasAspectFilter) {
+        for (const node of state.crossCutting.nodes) {
+          ids.push(node.id);
+          texts.push(
+            `[cross-cutting]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+          );
+        }
+      }
+    }
+
+    if (!hasPovFilter || povScopes.has('conflicts')) {
+      if (!hasAspectFilter) {
+        for (const conflict of state.conflicts) {
+          const notes = conflict.human_notes.map(n => n.note).join(' | ');
+          ids.push(conflict.claim_id);
+          texts.push(
+            `[conflict] Status: ${conflict.status}\nID: ${conflict.claim_id}\nClaim: ${conflict.claim_label}\nDescription: ${conflict.description}${notes ? `\nNotes: ${notes}` : ''}`,
+          );
+        }
+      }
+    }
+
+    return { ids, texts };
+  },
+
+  runSemanticSearch: async (query, povScopes, aspectScopes) => {
+    if (!query.trim()) {
+      set({ semanticResults: [] });
+      return;
+    }
+
+    set({ embeddingLoading: true, embeddingError: null });
+
+    try {
+      const state = get();
+      let cache = state.embeddingCache;
+
+      if (state.embeddingDirty || cache.size === 0) {
+        const { ids, texts } = state.buildEmbeddingTexts(povScopes, aspectScopes);
+        if (texts.length === 0) {
+          set({ semanticResults: [], embeddingLoading: false });
+          return;
+        }
+        const { vectors } = await window.electronAPI.computeEmbeddings(texts);
+        cache = new Map();
+        for (let i = 0; i < ids.length; i++) {
+          cache.set(ids[i], vectors[i]);
+        }
+        set({ embeddingCache: cache, embeddingDirty: false });
+      }
+
+      const { vector } = await window.electronAPI.computeQueryEmbedding(query);
+      const results = rankBySimilarity(vector, cache, 0.3, 25);
+      set({ semanticResults: results, embeddingLoading: false });
+    } catch (err) {
+      set({ embeddingLoading: false, embeddingError: String(err) });
+    }
+  },
+
   setActiveTab: (tab) => set({ activeTab: tab, selectedNodeId: null, validationErrors: {} }),
   setSelectedNodeId: (id) => set({ selectedNodeId: id, validationErrors: {} }),
+  navigateToNode: (tab, id) => set({ activeTab: tab, selectedNodeId: id, validationErrors: {} }),
 
   loadAll: async () => {
     set({ loading: true });
@@ -167,6 +276,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         conflicts: conflicts as ConflictFile[],
         loading: false,
         dirty: new Set(),
+        embeddingCache: new Map(),
+        embeddingDirty: true,
       });
     } catch (err) {
       set({ loading: false, saveError: String(err) });
@@ -255,7 +366,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       };
       const newDirty = new Set(state.dirty);
       newDirty.add(pov);
-      return { [pov]: newFile, dirty: newDirty };
+      return { [pov]: newFile, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -281,7 +392,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     };
     const newDirty = new Set(state.dirty);
     newDirty.add(pov);
-    set({ [pov]: newFile, dirty: newDirty, selectedNodeId: newId });
+    set({ [pov]: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
     return newId;
   },
 
@@ -300,6 +411,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return {
         [pov]: newFile,
         dirty: newDirty,
+        embeddingDirty: true,
         selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
       };
     });
@@ -319,7 +431,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       };
       const newDirty = new Set(state.dirty);
       newDirty.add('cross-cutting');
-      return { crossCutting: newFile, dirty: newDirty };
+      return { crossCutting: newFile, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -344,7 +456,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     };
     const newDirty = new Set(state.dirty);
     newDirty.add('cross-cutting');
-    set({ crossCutting: newFile, dirty: newDirty, selectedNodeId: newId });
+    set({ crossCutting: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
     return newId;
   },
 
@@ -363,6 +475,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return {
         crossCutting: newFile,
         dirty: newDirty,
+        embeddingDirty: true,
         selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
       };
     });
@@ -375,7 +488,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -398,6 +511,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       conflicts: [...state.conflicts, newConflict],
       dirty: newDirty,
       selectedNodeId: newId,
+      embeddingDirty: true,
     });
     return newId;
   },
@@ -410,6 +524,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return {
         conflicts: newConflicts,
         dirty: newDirty,
+        embeddingDirty: true,
         selectedNodeId: state.selectedNodeId === claimId ? null : state.selectedNodeId,
       };
     });
@@ -424,7 +539,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -437,7 +552,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -455,7 +570,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -468,7 +583,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -481,7 +596,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 
@@ -499,7 +614,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       );
       const newDirty = new Set(state.dirty);
       newDirty.add(claimId);
-      return { conflicts: newConflicts, dirty: newDirty };
+      return { conflicts: newConflicts, dirty: newDirty, embeddingDirty: true };
     });
   },
 

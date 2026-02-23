@@ -3,6 +3,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { TabId } from '../types/taxonomy';
 import type { ColorScheme } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
+import { SearchBar } from './SearchBar';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Accelerationist' },
@@ -28,6 +29,7 @@ export function TabBar() {
           {tab.label}
         </button>
       ))}
+      <SearchBar />
       <div className="theme-selector">
         <label>Theme</label>
         <select
