@@ -1,34 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Pov, PovNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
+import { TypeaheadSelect } from './TypeaheadSelect';
+import { FieldHelp } from './FieldHelp';
+import { LinkedChip } from './LinkedChip';
 
 interface NodeDetailProps {
   pov: Pov;
   node: PovNode;
   readOnly?: boolean;
   onPin?: () => void;
+  chipDepth?: number;
 }
 
-export function NodeDetail({ pov, node, readOnly, onPin }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
-  const [refInput, setRefInput] = useState('');
-  const [conflictInput, setConflictInput] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
 
   const allCcIds = getAllNodeIds().filter(id => id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
+
+  const err = (field: string) => validationErrors[`nodes.${node.id}.${field}`];
+  const hasErrors = Object.keys(validationErrors).some(k => k.startsWith(`nodes.${node.id}.`));
+
+  useEffect(() => {
+    if (hasErrors && formRef.current) {
+      const firstError = formRef.current.querySelector('.has-error');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const input = firstError.querySelector<HTMLElement>('input, textarea');
+        input?.focus();
+      }
+    }
+  }, [hasErrors]);
 
   const update = (updates: Partial<PovNode>) => {
     if (readOnly) return;
     updatePovNode(pov, node.id, updates);
   };
 
-  const addRef = () => {
-    if (refInput && !node.cross_cutting_refs.includes(refInput)) {
-      update({ cross_cutting_refs: [...node.cross_cutting_refs, refInput] });
-      setRefInput('');
+  const addRef = (id: string) => {
+    if (id && !node.cross_cutting_refs.includes(id)) {
+      update({ cross_cutting_refs: [...node.cross_cutting_refs, id] });
     }
   };
 
@@ -36,10 +52,9 @@ export function NodeDetail({ pov, node, readOnly, onPin }: NodeDetailProps) {
     update({ cross_cutting_refs: node.cross_cutting_refs.filter(r => r !== ref) });
   };
 
-  const addConflict = () => {
-    if (conflictInput && !(node.conflict_ids || []).includes(conflictInput)) {
-      update({ conflict_ids: [...(node.conflict_ids || []), conflictInput] });
-      setConflictInput('');
+  const addConflict = (id: string) => {
+    if (id && !(node.conflict_ids || []).includes(id)) {
+      update({ conflict_ids: [...(node.conflict_ids || []), id] });
     }
   };
 
@@ -48,7 +63,7 @@ export function NodeDetail({ pov, node, readOnly, onPin }: NodeDetailProps) {
   };
 
   return (
-    <div>
+    <div ref={formRef}>
       <div className="detail-header">
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
@@ -65,23 +80,28 @@ export function NodeDetail({ pov, node, readOnly, onPin }: NodeDetailProps) {
         </div>
       </div>
 
+      {hasErrors && (
+        <div className="validation-banner">
+          <span className="validation-banner-icon">!</span>
+          Please fix the highlighted fields before saving.
+        </div>
+      )}
+
       <div className="detail-category-banner" data-cat={node.category}>
         {node.category}
       </div>
 
-      <div className={`form-group ${validationErrors[`nodes.${node.id}.label`] ? 'has-error' : ''}`}>
+      <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
         <label>Label</label>
         <HighlightedInput
           value={node.label}
           onChange={(v) => update({ label: v })}
           readOnly={readOnly}
         />
-        {validationErrors[`nodes.${node.id}.label`] && (
-          <div className="error-text">{validationErrors[`nodes.${node.id}.label`]}</div>
-        )}
+        {err('label') && <div className="error-text">{err('label')}</div>}
       </div>
 
-      <div className={`form-group ${validationErrors[`nodes.${node.id}.description`] ? 'has-error' : ''}`}>
+      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
         <label>Description</label>
         <HighlightedTextarea
           value={node.description}
@@ -89,58 +109,44 @@ export function NodeDetail({ pov, node, readOnly, onPin }: NodeDetailProps) {
           rows={4}
           readOnly={readOnly}
         />
-        {validationErrors[`nodes.${node.id}.description`] && (
-          <div className="error-text">{validationErrors[`nodes.${node.id}.description`]}</div>
-        )}
+        {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
 
       <div className="form-group">
-        <label>Cross-Cutting Refs</label>
+        <label>
+          Cross-Cutting Refs
+          <FieldHelp text="Links to cross-cutting concepts that span all three perspectives. These connect this node to shared themes." />
+        </label>
         <div className="chip-list">
           {node.cross_cutting_refs.map((ref) => (
-            <span key={ref} className="chip">
-              {ref}
-              {!readOnly && <button onClick={() => removeRef(ref)}>x</button>}
-            </span>
+            <LinkedChip key={ref} id={ref} depth={chipDepth} readOnly={readOnly} onRemove={removeRef} />
           ))}
         </div>
         {!readOnly && (
-          <div className="chip-input-row">
-            <select value={refInput} onChange={(e) => setRefInput(e.target.value)}>
-              <option value="">Add reference...</option>
-              {allCcIds
-                .filter(id => !node.cross_cutting_refs.includes(id))
-                .map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-            </select>
-            <button className="btn btn-sm" onClick={addRef} disabled={!refInput}>Add</button>
-          </div>
+          <TypeaheadSelect
+            options={allCcIds.filter(id => !node.cross_cutting_refs.includes(id))}
+            onSelect={addRef}
+            placeholder="Search cross-cutting refs..."
+          />
         )}
       </div>
 
       <div className="form-group">
-        <label>Conflict IDs</label>
+        <label>
+          Conflict IDs
+          <FieldHelp text="Links to documented conflicts where this node's claims are contested or contradicted by other perspectives." />
+        </label>
         <div className="chip-list">
           {(node.conflict_ids || []).map((id) => (
-            <span key={id} className="chip">
-              {id}
-              {!readOnly && <button onClick={() => removeConflict(id)}>x</button>}
-            </span>
+            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeConflict} />
           ))}
         </div>
         {!readOnly && (
-          <div className="chip-input-row">
-            <select value={conflictInput} onChange={(e) => setConflictInput(e.target.value)}>
-              <option value="">Add conflict...</option>
-              {allConflictIds
-                .filter(id => !(node.conflict_ids || []).includes(id))
-                .map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-            </select>
-            <button className="btn btn-sm" onClick={addConflict} disabled={!conflictInput}>Add</button>
-          </div>
+          <TypeaheadSelect
+            options={allConflictIds.filter(id => !(node.conflict_ids || []).includes(id))}
+            onSelect={addConflict}
+            placeholder="Search conflicts..."
+          />
         )}
       </div>
 

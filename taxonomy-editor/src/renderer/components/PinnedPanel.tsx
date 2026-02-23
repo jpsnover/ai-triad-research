@@ -1,30 +1,51 @@
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { useTaxonomyStore, type PinnedData } from '../hooks/useTaxonomyStore';
 import { NodeDetail } from './NodeDetail';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { ConflictDetail } from './ConflictDetail';
 
-export function PinnedPanel() {
-  const { pinnedData, setPinnedData } = useTaxonomyStore();
-
-  if (!pinnedData) return null;
+function PinnedPanelEntry({ data, depth, onClose }: {
+  data: PinnedData;
+  depth: number;
+  onClose: () => void;
+}) {
+  const chipDepth = depth + 1;
 
   return (
     <div className="pinned-panel">
       <div className="pinned-panel-header">
-        <div className="pinned-badge">Pinned</div>
-        <button className="btn btn-ghost btn-sm" onClick={() => setPinnedData(null)}>
-          Unpin
+        <div className="pinned-badge">Pinned {depth > 0 ? `(${depth + 1})` : ''}</div>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>
+          Close
         </button>
       </div>
-      {pinnedData.type === 'pov' && (
-        <NodeDetail pov={pinnedData.pov} node={pinnedData.node} readOnly />
+      {data.type === 'pov' && (
+        <NodeDetail pov={data.pov} node={data.node} readOnly chipDepth={chipDepth} />
       )}
-      {pinnedData.type === 'cross-cutting' && (
-        <CrossCuttingDetail node={pinnedData.node} readOnly />
+      {data.type === 'cross-cutting' && (
+        <CrossCuttingDetail node={data.node} readOnly chipDepth={chipDepth} />
       )}
-      {pinnedData.type === 'conflict' && (
-        <ConflictDetail conflict={pinnedData.conflict} readOnly />
+      {data.type === 'conflict' && (
+        <ConflictDetail conflict={data.conflict} readOnly chipDepth={chipDepth} />
       )}
     </div>
+  );
+}
+
+export function PinnedPanel() {
+  const { pinnedStack, closePinnedFromDepth } = useTaxonomyStore();
+
+  if (pinnedStack.length === 0) return null;
+
+  return (
+    <>
+      {pinnedStack.map((data, i) => (
+        <PinnedPanelEntry
+          key={i}
+          data={data}
+          depth={i}
+          onClose={() => closePinnedFromDepth(i)}
+        />
+      ))}
+    </>
   );
 }

@@ -15,7 +15,8 @@ import {
   povTaxonomyFileSchema,
   crossCuttingFileSchema,
   conflictFileSchema,
-  extractZodErrors,
+  extractPovErrors,
+  extractConflictErrors,
   ValidationErrors,
 } from '../utils/validation';
 import {
@@ -32,6 +33,27 @@ export type PinnedData =
 
 export type SearchMode = 'raw' | 'wildcard' | 'regex';
 
+export type ColorScheme = 'light' | 'dark' | 'system';
+
+function getStoredTheme(): ColorScheme {
+  try {
+    const stored = localStorage.getItem('taxonomy-editor-theme');
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  } catch { /* ignore */ }
+  return 'light';
+}
+
+function applyTheme(scheme: ColorScheme) {
+  const root = document.documentElement;
+  if (scheme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  } else {
+    root.setAttribute('data-theme', scheme);
+  }
+  try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch { /* ignore */ }
+}
+
 interface TaxonomyState {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
@@ -46,8 +68,9 @@ interface TaxonomyState {
   saveError: string | null;
   loading: boolean;
 
-  pinnedData: PinnedData | null;
-  setPinnedData: (data: PinnedData | null) => void;
+  pinnedStack: PinnedData[];
+  pinAtDepth: (depth: number, data: PinnedData) => void;
+  closePinnedFromDepth: (depth: number) => void;
 
   findQuery: string;
   findMode: SearchMode;
@@ -82,6 +105,16 @@ interface TaxonomyState {
 
   getAllNodeIds: () => string[];
   getAllConflictIds: () => string[];
+  getLabelForId: (id: string) => string;
+  lookupPinnedData: (id: string) => PinnedData | null;
+
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
+
+  zoomLevel: number;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomReset: () => void;
 }
 
 export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
@@ -98,8 +131,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   saveError: null,
   loading: false,
 
-  pinnedData: null,
-  setPinnedData: (data) => set({ pinnedData: data }),
+  pinnedStack: [],
+  pinAtDepth: (depth, data) => set((state) => ({
+    pinnedStack: [...state.pinnedStack.slice(0, depth), data],
+  })),
+  closePinnedFromDepth: (depth) => set((state) => ({
+    pinnedStack: state.pinnedStack.slice(0, depth),
+  })),
 
   findQuery: '',
   findMode: 'raw' as SearchMode,
@@ -148,21 +186,21 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         if (!file) continue;
         const result = povTaxonomyFileSchema.safeParse(file);
         if (!result.success) {
-          Object.assign(errors, extractZodErrors(result.error));
+          Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
       } else if (key === 'cross-cutting') {
         const file = state.crossCutting;
         if (!file) continue;
         const result = crossCuttingFileSchema.safeParse(file);
         if (!result.success) {
-          Object.assign(errors, extractZodErrors(result.error));
+          Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
       } else if (key.startsWith('conflict-')) {
         const conflict = state.conflicts.find(c => c.claim_id === key);
         if (!conflict) continue;
         const result = conflictFileSchema.safeParse(conflict);
         if (!result.success) {
-          Object.assign(errors, extractZodErrors(result.error));
+          Object.assign(errors, extractConflictErrors(result.error, key));
         }
       }
     }
@@ -480,5 +518,81 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   getAllConflictIds: () => {
     return get().conflicts.map(c => c.claim_id);
+  },
+
+  getLabelForId: (id: string) => {
+    const state = get();
+    if (id.startsWith('cc-')) {
+      const node = state.crossCutting?.nodes.find(n => n.id === id);
+      return node?.label || '';
+    }
+    if (id.startsWith('conflict-')) {
+      const conflict = state.conflicts.find(c => c.claim_id === id);
+      return conflict?.claim_label || '';
+    }
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (file) {
+        const node = file.nodes.find(n => n.id === id);
+        if (node) return node.label;
+      }
+    }
+    return '';
+  },
+
+  lookupPinnedData: (id: string): PinnedData | null => {
+    const state = get();
+    if (id.startsWith('cc-')) {
+      const node = state.crossCutting?.nodes.find(n => n.id === id);
+      if (node) return { type: 'cross-cutting', node: structuredClone(node) };
+      return null;
+    }
+    if (id.startsWith('conflict-')) {
+      const conflict = state.conflicts.find(c => c.claim_id === id);
+      if (conflict) return { type: 'conflict', conflict: structuredClone(conflict) };
+      return null;
+    }
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (file) {
+        const node = file.nodes.find(n => n.id === id);
+        if (node) return { type: 'pov', pov, node: structuredClone(node) };
+      }
+    }
+    return null;
+  },
+
+  colorScheme: getStoredTheme(),
+  setColorScheme: (scheme) => {
+    applyTheme(scheme);
+    set({ colorScheme: scheme });
+  },
+
+  zoomLevel: (() => {
+    try {
+      const stored = localStorage.getItem('taxonomy-editor-zoom');
+      if (stored) {
+        const n = parseInt(stored, 10);
+        if (n >= 60 && n <= 200) return n;
+      }
+    } catch { /* ignore */ }
+    return 100;
+  })(),
+
+  zoomIn: () => {
+    const next = Math.min(200, get().zoomLevel + 10);
+    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch { /* ignore */ }
+    set({ zoomLevel: next });
+  },
+
+  zoomOut: () => {
+    const next = Math.max(60, get().zoomLevel - 10);
+    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch { /* ignore */ }
+    set({ zoomLevel: next });
+  },
+
+  zoomReset: () => {
+    try { localStorage.setItem('taxonomy-editor-zoom', '100'); } catch { /* ignore */ }
+    set({ zoomLevel: 100 });
   },
 }));

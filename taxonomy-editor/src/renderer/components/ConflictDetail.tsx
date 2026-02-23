@@ -1,18 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ConflictFile } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
 import { ConflictNoteForm, newEmptyNote } from './ConflictNoteForm';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
+import { TypeaheadSelect } from './TypeaheadSelect';
+import { FieldHelp } from './FieldHelp';
+import { LinkedChip } from './LinkedChip';
 
 interface ConflictDetailProps {
   conflict: ConflictFile;
   readOnly?: boolean;
   onPin?: () => void;
+  chipDepth?: number;
 }
 
-export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProps) {
+export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: ConflictDetailProps) {
   const {
     updateConflict,
     deleteConflict,
@@ -23,21 +27,36 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
     removeConflictNote,
     updateConflictNote,
     getAllNodeIds,
+    validationErrors,
   } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
-  const [linkedInput, setLinkedInput] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
 
   const allNodeIds = getAllNodeIds();
+
+  const prefix = conflict.claim_id;
+  const err = (field: string) => validationErrors[`${prefix}.${field}`];
+  const hasErrors = Object.keys(validationErrors).some(k => k.startsWith(`${prefix}.`));
+
+  useEffect(() => {
+    if (hasErrors && formRef.current) {
+      const firstError = formRef.current.querySelector('.has-error');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const input = firstError.querySelector<HTMLElement>('input, textarea');
+        input?.focus();
+      }
+    }
+  }, [hasErrors]);
 
   const update = (updates: Partial<ConflictFile>) => {
     if (readOnly) return;
     updateConflict(conflict.claim_id, updates);
   };
 
-  const addLinked = () => {
-    if (linkedInput && !conflict.linked_taxonomy_nodes.includes(linkedInput)) {
-      update({ linked_taxonomy_nodes: [...conflict.linked_taxonomy_nodes, linkedInput] });
-      setLinkedInput('');
+  const addLinked = (id: string) => {
+    if (id && !conflict.linked_taxonomy_nodes.includes(id)) {
+      update({ linked_taxonomy_nodes: [...conflict.linked_taxonomy_nodes, id] });
     }
   };
 
@@ -49,7 +68,7 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
   const noopRemove = () => {};
 
   return (
-    <div>
+    <div ref={formRef}>
       <div className="detail-header">
         <h2>{conflict.claim_id}</h2>
         <div className="detail-header-actions">
@@ -66,16 +85,27 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
         </div>
       </div>
 
-      <div className="form-group">
-        <label>Claim Label</label>
+      {hasErrors && (
+        <div className="validation-banner">
+          <span className="validation-banner-icon">!</span>
+          Please fix the highlighted fields before saving.
+        </div>
+      )}
+
+      <div className={`form-group ${err('claim_label') ? 'has-error' : ''}`}>
+        <label>
+          Claim Label
+          <FieldHelp text="A short, human-readable name for this conflict claim that summarizes the disputed point." />
+        </label>
         <HighlightedInput
           value={conflict.claim_label}
           onChange={(v) => update({ claim_label: v })}
           readOnly={readOnly}
         />
+        {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
       </div>
 
-      <div className="form-group">
+      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
         <label>Description</label>
         <HighlightedTextarea
           value={conflict.description}
@@ -83,10 +113,14 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
           rows={3}
           readOnly={readOnly}
         />
+        {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
 
       <div className="form-group">
-        <label>Status</label>
+        <label>
+          Status
+          <FieldHelp text="Open: actively disputed. Resolved: consensus reached. Won't Fix: acknowledged but intentionally unresolved." />
+        </label>
         <select
           value={conflict.status}
           onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
@@ -99,33 +133,28 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
       </div>
 
       <div className="form-group">
-        <label>Linked Taxonomy Nodes</label>
+        <label>
+          Linked Taxonomy Nodes
+          <FieldHelp text="POV and cross-cutting nodes that are involved in or affected by this conflict." />
+        </label>
         <div className="chip-list">
           {conflict.linked_taxonomy_nodes.map((id) => (
-            <span key={id} className="chip">
-              {id}
-              {!readOnly && <button onClick={() => removeLinked(id)}>x</button>}
-            </span>
+            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
           ))}
         </div>
         {!readOnly && (
-          <div className="chip-input-row">
-            <select value={linkedInput} onChange={(e) => setLinkedInput(e.target.value)}>
-              <option value="">Add node...</option>
-              {allNodeIds
-                .filter(id => !conflict.linked_taxonomy_nodes.includes(id))
-                .map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-            </select>
-            <button className="btn btn-sm" onClick={addLinked} disabled={!linkedInput}>Add</button>
-          </div>
+          <TypeaheadSelect
+            options={allNodeIds.filter(id => !conflict.linked_taxonomy_nodes.includes(id))}
+            onSelect={addLinked}
+            placeholder="Search nodes..."
+          />
         )}
       </div>
 
       <div className="form-group">
         <label>
           Instances
+          <FieldHelp text="Specific occurrences in source documents where this conflict was identified. Each instance references a document and position." />
           {!readOnly && (
             <button
               className="btn btn-sm"
@@ -144,6 +173,7 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
             onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictInstance(conflict.claim_id, idx, updates)}
             onRemove={readOnly ? noopRemove : (idx) => removeConflictInstance(conflict.claim_id, idx)}
             readOnly={readOnly}
+            errorPrefix={`${prefix}.instances.${i}`}
           />
         ))}
       </div>
@@ -151,6 +181,7 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
       <div className="form-group">
         <label>
           Human Notes
+          <FieldHelp text="Analyst commentary on this conflict: observations, proposed resolutions, or contextual notes." />
           {!readOnly && (
             <button
               className="btn btn-sm"
@@ -169,6 +200,7 @@ export function ConflictDetail({ conflict, readOnly, onPin }: ConflictDetailProp
             onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictNote(conflict.claim_id, idx, updates)}
             onRemove={readOnly ? noopRemove : (idx) => removeConflictNote(conflict.claim_id, idx)}
             readOnly={readOnly}
+            errorPrefix={`${prefix}.human_notes.${i}`}
           />
         ))}
       </div>

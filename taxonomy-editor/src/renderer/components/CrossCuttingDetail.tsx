@@ -1,23 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CrossCuttingNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
+import { TypeaheadSelect } from './TypeaheadSelect';
+import { FieldHelp } from './FieldHelp';
+import { LinkedChip } from './LinkedChip';
 
 interface CrossCuttingDetailProps {
   node: CrossCuttingNode;
   readOnly?: boolean;
   onPin?: () => void;
+  chipDepth?: number;
 }
 
-export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetailProps) {
+export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: CrossCuttingDetailProps) {
   const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
-  const [linkedInput, setLinkedInput] = useState('');
-  const [conflictInput, setConflictInput] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
 
   const allPovIds = getAllNodeIds().filter(id => !id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
+
+  const err = (field: string) => validationErrors[`nodes.${node.id}.${field}`];
+  const hasErrors = Object.keys(validationErrors).some(k => k.startsWith(`nodes.${node.id}.`));
+
+  useEffect(() => {
+    if (hasErrors && formRef.current) {
+      const firstError = formRef.current.querySelector('.has-error');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const input = firstError.querySelector<HTMLElement>('input, textarea');
+        input?.focus();
+      }
+    }
+  }, [hasErrors]);
 
   const update = (updates: Partial<CrossCuttingNode>) => {
     if (readOnly) return;
@@ -30,10 +47,9 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
     });
   };
 
-  const addLinked = () => {
-    if (linkedInput && !node.linked_nodes.includes(linkedInput)) {
-      update({ linked_nodes: [...node.linked_nodes, linkedInput] });
-      setLinkedInput('');
+  const addLinked = (id: string) => {
+    if (id && !node.linked_nodes.includes(id)) {
+      update({ linked_nodes: [...node.linked_nodes, id] });
     }
   };
 
@@ -41,10 +57,9 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
     update({ linked_nodes: node.linked_nodes.filter(n => n !== id) });
   };
 
-  const addConflict = () => {
-    if (conflictInput && !node.conflict_ids.includes(conflictInput)) {
-      update({ conflict_ids: [...node.conflict_ids, conflictInput] });
-      setConflictInput('');
+  const addConflict = (id: string) => {
+    if (id && !node.conflict_ids.includes(id)) {
+      update({ conflict_ids: [...node.conflict_ids, id] });
     }
   };
 
@@ -53,7 +68,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
   };
 
   return (
-    <div>
+    <div ref={formRef}>
       <div className="detail-header">
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
@@ -70,16 +85,24 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
         </div>
       </div>
 
-      <div className="form-group">
+      {hasErrors && (
+        <div className="validation-banner">
+          <span className="validation-banner-icon">!</span>
+          Please fix the highlighted fields before saving.
+        </div>
+      )}
+
+      <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
         <label>Label</label>
         <HighlightedInput
           value={node.label}
           onChange={(v) => update({ label: v })}
           readOnly={readOnly}
         />
+        {err('label') && <div className="error-text">{err('label')}</div>}
       </div>
 
-      <div className="form-group">
+      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
         <label>Description</label>
         <HighlightedTextarea
           value={node.description}
@@ -87,10 +110,14 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
           rows={3}
           readOnly={readOnly}
         />
+        {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
 
-      <div className="form-group">
-        <label>Accelerationist Interpretation</label>
+      <div className={`form-group ${err('interpretations.accelerationist') ? 'has-error' : ''}`}>
+        <label>
+          Accelerationist Interpretation
+          <FieldHelp text="How the Accelerationist perspective understands or frames this cross-cutting concept." />
+        </label>
         <HighlightedTextarea
           value={node.interpretations.accelerationist}
           onChange={(v) => updateInterpretation('accelerationist', v)}
@@ -98,10 +125,14 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
           readOnly={readOnly}
           style={{ borderLeftColor: 'var(--color-acc)', borderLeftWidth: 3 }}
         />
+        {err('interpretations.accelerationist') && <div className="error-text">{err('interpretations.accelerationist')}</div>}
       </div>
 
-      <div className="form-group">
-        <label>Safetyist Interpretation</label>
+      <div className={`form-group ${err('interpretations.safetyist') ? 'has-error' : ''}`}>
+        <label>
+          Safetyist Interpretation
+          <FieldHelp text="How the Safetyist perspective understands or frames this cross-cutting concept." />
+        </label>
         <HighlightedTextarea
           value={node.interpretations.safetyist}
           onChange={(v) => updateInterpretation('safetyist', v)}
@@ -109,10 +140,14 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
           readOnly={readOnly}
           style={{ borderLeftColor: 'var(--color-saf)', borderLeftWidth: 3 }}
         />
+        {err('interpretations.safetyist') && <div className="error-text">{err('interpretations.safetyist')}</div>}
       </div>
 
-      <div className="form-group">
-        <label>Skeptic Interpretation</label>
+      <div className={`form-group ${err('interpretations.skeptic') ? 'has-error' : ''}`}>
+        <label>
+          Skeptic Interpretation
+          <FieldHelp text="How the Skeptic perspective understands or frames this cross-cutting concept." />
+        </label>
         <HighlightedTextarea
           value={node.interpretations.skeptic}
           onChange={(v) => updateInterpretation('skeptic', v)}
@@ -120,55 +155,44 @@ export function CrossCuttingDetail({ node, readOnly, onPin }: CrossCuttingDetail
           readOnly={readOnly}
           style={{ borderLeftColor: 'var(--color-skp)', borderLeftWidth: 3 }}
         />
+        {err('interpretations.skeptic') && <div className="error-text">{err('interpretations.skeptic')}</div>}
       </div>
 
       <div className="form-group">
-        <label>Linked Nodes</label>
+        <label>
+          Linked Nodes
+          <FieldHelp text="POV-specific nodes that relate to this cross-cutting concept. Links this shared theme to specific perspective claims." />
+        </label>
         <div className="chip-list">
           {node.linked_nodes.map((id) => (
-            <span key={id} className="chip">
-              {id}
-              {!readOnly && <button onClick={() => removeLinked(id)}>x</button>}
-            </span>
+            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
           ))}
         </div>
         {!readOnly && (
-          <div className="chip-input-row">
-            <select value={linkedInput} onChange={(e) => setLinkedInput(e.target.value)}>
-              <option value="">Add linked node...</option>
-              {allPovIds
-                .filter(id => !node.linked_nodes.includes(id))
-                .map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-            </select>
-            <button className="btn btn-sm" onClick={addLinked} disabled={!linkedInput}>Add</button>
-          </div>
+          <TypeaheadSelect
+            options={allPovIds.filter(id => !node.linked_nodes.includes(id))}
+            onSelect={addLinked}
+            placeholder="Search linked nodes..."
+          />
         )}
       </div>
 
       <div className="form-group">
-        <label>Conflict IDs</label>
+        <label>
+          Conflict IDs
+          <FieldHelp text="Links to documented conflicts where this cross-cutting concept is a point of disagreement between perspectives." />
+        </label>
         <div className="chip-list">
           {node.conflict_ids.map((id) => (
-            <span key={id} className="chip">
-              {id}
-              {!readOnly && <button onClick={() => removeConflict(id)}>x</button>}
-            </span>
+            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeConflict} />
           ))}
         </div>
         {!readOnly && (
-          <div className="chip-input-row">
-            <select value={conflictInput} onChange={(e) => setConflictInput(e.target.value)}>
-              <option value="">Add conflict...</option>
-              {allConflictIds
-                .filter(id => !node.conflict_ids.includes(id))
-                .map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-            </select>
-            <button className="btn btn-sm" onClick={addConflict} disabled={!conflictInput}>Add</button>
-          </div>
+          <TypeaheadSelect
+            options={allConflictIds.filter(id => !node.conflict_ids.includes(id))}
+            onSelect={addConflict}
+            placeholder="Search conflicts..."
+          />
         )}
       </div>
 

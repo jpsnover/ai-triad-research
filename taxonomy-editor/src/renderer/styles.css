@@ -1,4 +1,61 @@
-:root {
+/* ─── Light theme (default) ─────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+  /* POV colors */
+  --color-acc: #16a34a;
+  --color-saf: #dc2626;
+  --color-skp: #ca8a04;
+  --color-cc: #7c3aed;
+  --color-conflicts: #64748b;
+
+  /* Category accent colors */
+  --cat-goals: #0d9488;
+  --cat-data: #2563eb;
+  --cat-methods: #9333ea;
+
+  /* Surfaces */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-panel: #e2e8f0;
+  --bg-input: #ffffff;
+  --bg-hover: #f1f5f9;
+
+  /* Text */
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+
+  /* Category detail backgrounds */
+  --bg-detail-goals: #f0fdfa;
+  --bg-detail-data: #eff6ff;
+  --bg-detail-methods: #faf5ff;
+
+  /* Search highlight */
+  --hl-mark-bg: rgba(250, 204, 21, 0.4);
+  --hl-mark-color: #854d0e;
+
+  /* Semantic */
+  --danger: #ef4444;
+  --success: #22c55e;
+  --focus-ring: #3b82f6;
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+
+  /* Dialog overlay */
+  --dialog-shadow: rgba(0, 0, 0, 0.15);
+
+  /* Chip text color (for monospace IDs) */
+  --chip-bg: #e2e8f0;
+}
+
+/* ─── Dark theme ────────────────────────────────────────── */
+
+[data-theme="dark"] {
   /* POV colors */
   --color-acc: #2ecc71;
   --color-saf: #e74c3c;
@@ -6,7 +63,7 @@
   --color-cc: #9b59b6;
   --color-conflicts: #95a5a6;
 
-  /* Category accent colors — distinct from POV colors */
+  /* Category accent colors */
   --cat-goals: #2eaaaa;
   --cat-data: #5b8abf;
   --cat-methods: #b07cc6;
@@ -18,7 +75,7 @@
   --bg-input: #111827;
   --bg-hover: #374151;
 
-  /* Text — improved contrast */
+  /* Text */
   --text-primary: #f3f4f6;
   --text-secondary: #b0b8c4;
   --text-muted: #6b7280;
@@ -37,6 +94,17 @@
   --danger: #ef4444;
   --success: #22c55e;
   --focus-ring: #60a5fa;
+
+  /* Scrollbar */
+  --scrollbar-track: #111827;
+  --scrollbar-thumb: #374151;
+  --scrollbar-thumb-hover: #6b7280;
+
+  /* Dialog overlay */
+  --dialog-shadow: rgba(0, 0, 0, 0.4);
+
+  /* Chip */
+  --chip-bg: #293548;
 }
 
 * {
@@ -128,12 +196,26 @@ body {
 }
 
 .list-panel {
-  width: 320px;
-  min-width: 280px;
-  border-right: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 600px;
+  border-right: none;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border-color);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: var(--focus-ring);
 }
 
 .list-panel-header {
@@ -194,6 +276,11 @@ body {
 .category-label[data-cat="Goals/Values"] { color: var(--cat-goals); }
 .category-label[data-cat="Data/Facts"]   { color: var(--cat-data); }
 .category-label[data-cat="Methods"]      { color: var(--cat-methods); }
+
+.category-count {
+  font-weight: 400;
+  opacity: 0.7;
+}
 
 /* ─── Node list items ──────────────────────────────────── */
 
@@ -369,12 +456,72 @@ body {
 .form-group .error-text {
   color: var(--danger);
   font-size: 0.75rem;
-  margin-top: 2px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-group .error-text::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.form-group.has-error label {
+  color: var(--danger);
 }
 
 .form-group.has-error input,
-.form-group.has-error textarea {
+.form-group.has-error textarea,
+.form-group.has-error select {
   border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+}
+
+.form-group.has-error {
+  border-left: 3px solid var(--danger);
+  padding-left: 12px;
+  margin-left: -15px;
+}
+
+/* ─── Validation error banner ──────────────────────────── */
+
+.validation-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.validation-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 /* Readonly fields for pinned view */
@@ -403,13 +550,46 @@ body {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  background: var(--bg-panel);
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--chip-bg, var(--bg-panel));
   border-radius: 12px;
   font-size: 0.75rem;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
   color: var(--text-primary);
+}
+
+.chip-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.chip-label {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.chip-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.chip-content:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.chip-content:hover .chip-id {
+  color: var(--focus-ring);
 }
 
 .chip button {
@@ -442,6 +622,83 @@ body {
   font-size: 0.8rem;
 }
 
+/* ─── Typeahead select ─────────────────────────────────── */
+
+.typeahead {
+  position: relative;
+  margin-top: 6px;
+}
+
+.typeahead-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.typeahead-input:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
+}
+
+.typeahead-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px var(--dialog-shadow, rgba(0, 0, 0, 0.2));
+  z-index: 50;
+}
+
+.typeahead-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+
+.typeahead-option:hover,
+.typeahead-option.highlighted {
+  background: var(--bg-hover);
+}
+
+.typeahead-option-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.typeahead-option-label {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.typeahead-empty {
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ─── Save Bar ─────────────────────────────────────────── */
 
 .save-bar {
@@ -471,12 +728,31 @@ body {
   text-align: center;
 }
 
+.save-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.zoom-level {
+  min-width: 44px;
+  text-align: center;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.7rem !important;
+}
+
 /* ─── Dialog overlay ───────────────────────────────────── */
 
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -490,7 +766,7 @@ body {
   padding: 24px;
   min-width: 400px;
   max-width: 500px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px var(--dialog-shadow, rgba(0, 0, 0, 0.3));
 }
 
 .dialog h3 {
@@ -666,6 +942,63 @@ body {
   text-align: center;
 }
 
+/* ─── Find scope filters ──────────────────────────────── */
+
+.find-scopes {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.find-scope-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-scope-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.find-scope-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.find-scope-chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.find-scope-chip.active {
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border-color: var(--text-secondary);
+}
+
+.find-scope-chip.active[data-tab="accelerationist"] { border-color: var(--color-acc); color: var(--color-acc); }
+.find-scope-chip.active[data-tab="safetyist"]       { border-color: var(--color-saf); color: var(--color-saf); }
+.find-scope-chip.active[data-tab="skeptic"]          { border-color: var(--color-skp); color: var(--color-skp); }
+.find-scope-chip.active[data-tab="cross-cutting"]    { border-color: var(--color-cc);  color: var(--color-cc); }
+.find-scope-chip.active[data-tab="conflicts"]        { border-color: var(--color-conflicts); color: var(--color-conflicts); }
+
+.find-scope-chip.active[data-cat="Goals/Values"] { border-color: var(--cat-goals); color: var(--cat-goals); }
+.find-scope-chip.active[data-cat="Data/Facts"]   { border-color: var(--cat-data);  color: var(--cat-data); }
+.find-scope-chip.active[data-cat="Methods"]      { border-color: var(--cat-methods); color: var(--cat-methods); }
+
 .find-results-panel {
   margin-top: 8px;
   max-height: 300px;
@@ -706,8 +1039,8 @@ body {
 }
 
 .find-result-match mark {
-  background: rgba(241, 196, 15, 0.3);
-  color: var(--color-skp);
+  background: var(--hl-mark-bg);
+  color: var(--hl-mark-color);
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -768,14 +1101,172 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: var(--scrollbar-track, var(--bg-primary));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--scrollbar-thumb, var(--border-color));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--scrollbar-thumb-hover, var(--text-muted));
+}
+
+/* ─── Theme selector ──────────────────────────────────────── */
+
+.theme-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.theme-selector label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.theme-selector select {
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.theme-selector select:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+
+/* ─── Field help tooltip ──────────────────────────────────── */
+
+.field-help {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.field-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: help;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.field-help-btn:hover {
+  border-color: var(--focus-ring);
+  color: var(--focus-ring);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.field-help-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px var(--dialog-shadow, rgba(0, 0, 0, 0.2));
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: normal;
+  min-width: 180px;
+  max-width: 280px;
+  z-index: 60;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.field-help-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border-color);
+}
+
+/* ─── Help dialog ─────────────────────────────────────────── */
+
+.help-dialog {
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.help-section {
+  margin-bottom: 16px;
+}
+
+.help-section h4 {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.help-section p {
+  margin-bottom: 6px;
+}
+
+.help-shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.help-shortcuts td {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.help-key {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.72rem !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+/* ─── Help button in tab bar ──────────────────────────────── */
+
+.help-btn {
+  -webkit-app-region: no-drag;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
+  transition: all 0.15s;
+}
+
+.help-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }

@@ -1,17 +1,26 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
+import { useResizablePanel } from '../hooks/useResizablePanel';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { PinnedPanel } from './PinnedPanel';
 
 export function CrossCuttingTab() {
-  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedData, setPinnedData } = useTaxonomyStore();
+  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth } = useTaxonomyStore();
+  const { width, onMouseDown } = useResizablePanel();
 
   const orderedIds = useMemo(
     () => (crossCutting ? crossCutting.nodes.map(n => n.id) : []),
     [crossCutting],
   );
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId);
+
+  // Auto-select first node when tab loads
+  useEffect(() => {
+    if (!selectedNodeId && orderedIds.length > 0) {
+      setSelectedNodeId(orderedIds[0]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!crossCutting) {
     return <div className="detail-panel-empty">No cross-cutting data loaded</div>;
@@ -21,7 +30,7 @@ export function CrossCuttingTab() {
 
   const handlePin = () => {
     if (selectedNode) {
-      setPinnedData({
+      pinAtDepth(0, {
         type: 'cross-cutting',
         node: structuredClone(selectedNode),
       });
@@ -30,7 +39,7 @@ export function CrossCuttingTab() {
 
   return (
     <div className="two-column">
-      <div className="list-panel">
+      <div className="list-panel" style={{ width }}>
         <div className="list-panel-header">
           <h2>Cross-Cutting</h2>
           <button className="btn btn-sm" onClick={createCrossCuttingNode}>
@@ -49,6 +58,7 @@ export function CrossCuttingTab() {
           ))}
         </div>
       </div>
+      <div className="resize-handle" onMouseDown={onMouseDown} />
       <div className="detail-panel">
         {selectedNode ? (
           <CrossCuttingDetail node={selectedNode} onPin={handlePin} />
@@ -56,7 +66,7 @@ export function CrossCuttingTab() {
           <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
         )}
       </div>
-      {pinnedData && <PinnedPanel />}
+      {pinnedStack.length > 0 && <PinnedPanel />}
     </div>
   );
 }

@@ -1,19 +1,28 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
+import { useResizablePanel } from '../hooks/useResizablePanel';
 import { ConflictDetail } from './ConflictDetail';
 import { PinnedPanel } from './PinnedPanel';
 
 export function ConflictsTab() {
-  const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedData, setPinnedData } = useTaxonomyStore();
+  const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth } = useTaxonomyStore();
   const [showNew, setShowNew] = useState(false);
   const [newLabel, setNewLabel] = useState('');
+  const { width, onMouseDown } = useResizablePanel();
 
   const orderedIds = useMemo(
     () => conflicts.map(c => c.claim_id),
     [conflicts],
   );
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId);
+
+  // Auto-select first conflict when tab loads
+  useEffect(() => {
+    if (!selectedNodeId && orderedIds.length > 0) {
+      setSelectedNodeId(orderedIds[0]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedConflict = conflicts.find(c => c.claim_id === selectedNodeId) || null;
 
@@ -27,7 +36,7 @@ export function ConflictsTab() {
 
   const handlePin = () => {
     if (selectedConflict) {
-      setPinnedData({
+      pinAtDepth(0, {
         type: 'conflict',
         conflict: structuredClone(selectedConflict),
       });
@@ -36,7 +45,7 @@ export function ConflictsTab() {
 
   return (
     <div className="two-column">
-      <div className="list-panel">
+      <div className="list-panel" style={{ width }}>
         <div className="list-panel-header">
           <h2>Conflicts</h2>
           <button className="btn btn-sm" onClick={() => setShowNew(true)}>
@@ -56,6 +65,7 @@ export function ConflictsTab() {
           ))}
         </div>
       </div>
+      <div className="resize-handle" onMouseDown={onMouseDown} />
       <div className="detail-panel">
         {selectedConflict ? (
           <ConflictDetail conflict={selectedConflict} onPin={handlePin} />
@@ -63,7 +73,7 @@ export function ConflictsTab() {
           <div className="detail-panel-empty">Select a conflict to edit</div>
         )}
       </div>
-      {pinnedData && <PinnedPanel />}
+      {pinnedStack.length > 0 && <PinnedPanel />}
 
       {showNew && (
         <div className="dialog-overlay" onClick={() => setShowNew(false)}>
