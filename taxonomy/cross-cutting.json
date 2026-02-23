@@ -1,7 +1,7 @@
 {
   "_schema_version": "1.0.0",
   "_doc": "Cross-cutting taxonomy: concepts that appear in all three camps but carry different interpretations. These nodes are referenced by all three POV taxonomy files.",
-  "last_modified": "2026-02-21",
+  "last_modified": "2026-02-22",
   "nodes": [
     {
       "id": "cc-001",
@@ -12,8 +12,15 @@
         "safetyist": "AGI within 5-10 years; an urgent reason for alignment research before capability overhang.",
         "skeptic": "AGI timelines are speculative hype that distracts from present, measurable harms."
       },
-      "linked_nodes": ["acc-goals-002", "acc-data-002", "saf-data-002", "skp-data-003"],
-      "conflict_ids": ["conflict-agi-timelines-001"]
+      "linked_nodes": [
+        "acc-goals-002",
+        "acc-data-002",
+        "saf-data-002",
+        "skp-data-003"
+      ],
+      "conflict_ids": [
+        "conflict-agi-timelines-001"
+      ]
     },
     {
       "id": "cc-002",
@@ -24,7 +31,12 @@
         "safetyist": "An existential-level unsolved problem that must be resolved before further capability deployment.",
         "skeptic": "A useful framing for future risk that is used to avoid accountability for alignment failures happening today (bias, misuse)."
       },
-      "linked_nodes": ["saf-goals-003", "saf-data-001", "saf-methods-001", "acc-methods-001"],
+      "linked_nodes": [
+        "saf-goals-003",
+        "saf-data-001",
+        "saf-methods-001",
+        "acc-methods-001"
+      ],
       "conflict_ids": []
     },
     {
@@ -36,7 +48,12 @@
         "safetyist": "Strong international coordination to pause or constrain frontier model development.",
         "skeptic": "Immediate domestic regulation targeting deployed systems and their discriminatory effects."
       },
-      "linked_nodes": ["acc-goals-003", "saf-goals-002", "skp-methods-001", "skp-methods-002"],
+      "linked_nodes": [
+        "acc-goals-003",
+        "saf-goals-002",
+        "skp-methods-001",
+        "skp-methods-002"
+      ],
       "conflict_ids": []
     },
     {
@@ -48,7 +65,11 @@
         "safetyist": "Harm = catastrophic or irreversible outcomes from misaligned advanced AI.",
         "skeptic": "Harm = documented, present-day discriminatory outcomes and labor displacement affecting real people now."
       },
-      "linked_nodes": ["saf-goals-001", "skp-goals-001", "skp-goals-002"],
+      "linked_nodes": [
+        "saf-goals-001",
+        "skp-goals-001",
+        "skp-goals-002"
+      ],
       "conflict_ids": []
     },
     {
@@ -60,7 +81,26 @@
         "safetyist": "Risk = high-probability catastrophic outcome if alignment is unsolved before AGI; expected value dominates.",
         "skeptic": "Risk = near-certain ongoing harm to marginalized groups from currently deployed systems."
       },
-      "linked_nodes": ["saf-goals-001", "saf-data-002", "skp-methods-001"],
+      "linked_nodes": [
+        "saf-goals-001",
+        "saf-data-002",
+        "skp-methods-001"
+      ],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-006",
+      "label": "AI Accuracy and Reliability as a Deployment Criterion",
+      "description": "All three camps invoke the accuracy or reliability of AI systems when arguing about deployment decisions, but they disagree fundamentally on what accuracy measures, what threshold is sufficient, and whose errors count. The word \"accurate\" creates the illusion of a shared, technical standard while concealing incompatible underlying commitments about risk, interpretability, and distributional fairness.",
+      "interpretations": {
+        "accelerationist": "Aggregate task accuracy on benchmarks (e.g., >90%) is a sufficient condition for deployment; performance at scale justifies moving forward.",
+        "safetyist": " Benchmark accuracy is necessary but not sufficient; without interpretability of internal mechanisms, high accuracy on known tasks provides no guarantee of reliable behavior in novel or high-stakes contexts.",
+        "skeptic": "Aggregate accuracy figures obscure disparate error rates across subgroups; a model achieving 90% overall may systematically fail on statutes affecting immigrants, low-income workers, or other marginalized populations — and those failures cause the most harm."
+      },
+      "linked_nodes": [
+        "acc-data-003",
+        "saf-data-003"
+      ],
       "conflict_ids": []
     }
   ]

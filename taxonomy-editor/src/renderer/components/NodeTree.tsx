@@ -7,7 +7,7 @@ interface NodeTreeProps {
   onSelect: (id: string) => void;
 }
 
-const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Data/Facts', 'Methods'];
+const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Methods', 'Data/Facts'];
 
 export function getOrderedNodeIds(nodes: PovNode[]): string[] {
   const grouped = new Map<Category, PovNode[]>();
@@ -43,10 +43,11 @@ export function NodeTree({ nodes, selectedNodeId, onSelect }: NodeTreeProps) {
     <div>
       {CATEGORY_ORDER.map((cat) => {
         const catNodes = grouped.get(cat) || [];
-        if (catNodes.length === 0) return null;
         return (
           <div key={cat} className="category-group">
-            <div className="category-label" data-cat={cat}>{cat}</div>
+            <div className="category-label" data-cat={cat}>
+              {cat} <span className="category-count">({catNodes.length})</span>
+            </div>
             {catNodes.map((node) => (
               <NodeItem
                 key={node.id}

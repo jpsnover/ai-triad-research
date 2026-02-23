@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { TabId } from '../types/taxonomy';
+import type { ColorScheme } from '../hooks/useTaxonomyStore';
+import { HelpDialog } from './HelpDialog';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Accelerationist' },
@@ -10,7 +13,8 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export function TabBar() {
-  const { activeTab, setActiveTab } = useTaxonomyStore();
+  const { activeTab, setActiveTab, colorScheme, setColorScheme } = useTaxonomyStore();
+  const [showHelp, setShowHelp] = useState(false);
 
   return (
     <div className="tab-bar">
@@ -24,6 +28,21 @@ export function TabBar() {
           {tab.label}
         </button>
       ))}
+      <div className="theme-selector">
+        <label>Theme</label>
+        <select
+          value={colorScheme}
+          onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
+        >
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="system">System</option>
+        </select>
+        <button className="help-btn" onClick={() => setShowHelp(true)} title="Help">
+          ? Help
+        </button>
+      </div>
+      {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

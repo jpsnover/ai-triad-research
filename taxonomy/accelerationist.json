@@ -3,7 +3,7 @@
   "_doc": "Accelerationist POV taxonomy. One file per POV camp to minimize merge conflicts. Edit nodes, open a PR, bump TAXONOMY_VERSION in the merge commit.",
   "pov": "accelerationist",
   "color_hex": "#27AE60",
-  "last_modified": "2026-02-21",
+  "last_modified": "2026-02-22",
   "nodes": [
     {
       "id": "acc-goals-001",
@@ -21,7 +21,9 @@
       "description": "Continued investment in compute infrastructure and larger models is the correct priority. Slowing down cedes ground to less safety-conscious actors.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-001"]
+      "cross_cutting_refs": [
+        "cc-001"
+      ]
     },
     {
       "id": "acc-goals-003",
@@ -30,7 +32,9 @@
       "description": "AI tools should be available to individuals and small actors, not gatekept by governments or incumbents.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003"]
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
     },
     {
       "id": "acc-data-001",
@@ -40,7 +44,9 @@
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [],
-      "conflict_ids": ["conflict-scaling-laws-001"]
+      "conflict_ids": [
+        "conflict-scaling-laws-001"
+      ]
     },
     {
       "id": "acc-data-002",
@@ -49,14 +55,18 @@
       "description": "Empirical claim: based on current trajectory, AGI-level systems are likely within 5-10 years.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-001"],
-      "conflict_ids": ["conflict-agi-timelines-001"]
+      "cross_cutting_refs": [
+        "cc-001"
+      ],
+      "conflict_ids": [
+        "conflict-agi-timelines-001"
+      ]
     },
     {
       "id": "acc-data-003",
       "category": "Data/Facts",
       "label": "AI is already producing measurable economic gains",
-      "description": "Empirical claim: productivity studies show measurable output increases in software, legal, and medical domains.",
+      "description": "Empirical claim: AI is producing measurable gains in professional output — including both incremental productivity improvements in software, legal, and medical domains, and the enablement of entirely new tasks (such as large-scale dataset annotation) that were previously infeasible at any cost",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -68,16 +78,56 @@
       "description": "Interpretation: safety-focused labs building capable systems first is safer than ceding capability leadership to less careful actors.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-002"]
+      "cross_cutting_refs": [
+        "cc-002"
+      ]
     },
     {
       "id": "acc-methods-002",
       "category": "Methods",
-      "label": "Open development promotes safety through scrutiny",
-      "description": "Interpretation: open-source models allow broader red-teaming and safety research than closed systems.",
+      "label": "Open-source model weights enable safety scrutiny",
+      "description": "The interpretive position that releasing model weights publicly allows external researchers, security teams, and civil society to red-team, audit, and identify failure modes or misuse vectors that closed, proprietary systems necessarily obscure. Transparency in model internals is treated as a safety mechanism, not a safety risk.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003"]
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
+    },
+    {
+      "id": "acc-data-004",
+      "category": "Data/Facts",
+      "label": "LLMs enable formerly infeasible professional tasks",
+      "description": "Empirical claim that LLMs make entire categories of knowledge work tractable that were previously impossible at scale due to cost or annotation burden — distinct from productivity improvements on existing tasks.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-003",
+      "category": "Methods",
+      "label": "Accuracy thresholds as sufficient deployment criteria",
+      "description": "The interpretive position that empirically measured task accuracy (e.g., >90% on a benchmark) constitutes a sufficient condition for deploying LLMs in professional or policy-relevant contexts, without requiring interpretability or alignment guarantees.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-004",
+      "category": "Goals/Values",
+      "label": "AI as public research infrastructure",
+      "description": "The view that AI-assisted data collection and annotation should be built as open, publicly accessible infrastructure analogous to scientific databases — not gatekept by commercial vendors — as a means of democratizing expert knowledge production.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-004",
+      "category": "Methods",
+      "label": "Open AI outputs enable scholarly verification",
+      "description": "The interpretive position that datasets, annotations, and analytical pipelines produced using AI should be published as open research infrastructure, so that downstream users can validate methodology, replicate findings, and build upon results — analogous to open-data and open-science norms in empirical social science and law. Openness here applies to products of AI systems, not to model weights themselves.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
     }
   ]
 }

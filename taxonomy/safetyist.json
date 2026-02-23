@@ -3,7 +3,7 @@
   "_doc": "Safetyist POV taxonomy. One file per POV camp to minimize merge conflicts.",
   "pov": "safetyist",
   "color_hex": "#E74C3C",
-  "last_modified": "2026-02-21",
+  "last_modified": "2026-02-23",
   "nodes": [
     {
       "id": "saf-goals-001",
@@ -12,7 +12,10 @@
       "description": "The primary goal is to ensure that highly capable AI systems do not cause irreversible harm at civilizational scale.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-004", "cc-005"]
+      "cross_cutting_refs": [
+        "cc-004",
+        "cc-005"
+      ]
     },
     {
       "id": "saf-goals-002",
@@ -21,7 +24,9 @@
       "description": "Humans must retain the ability to understand, correct, and shut down AI systems even as they become more capable.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003"]
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
     },
     {
       "id": "saf-goals-003",
@@ -30,7 +35,9 @@
       "description": "AI systems must be reliably aligned with human values before being deployed at scale or granted autonomous authority.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-002"]
+      "cross_cutting_refs": [
+        "cc-002"
+      ]
     },
     {
       "id": "saf-data-001",
@@ -39,7 +46,9 @@
       "description": "Empirical claim: no current technique guarantees that a highly capable AI system will reliably pursue intended goals.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-002"],
+      "cross_cutting_refs": [
+        "cc-002"
+      ],
       "conflict_ids": []
     },
     {
@@ -49,14 +58,19 @@
       "description": "Empirical claim: probability of catastrophic outcome from misaligned AGI is high enough to warrant immediate intervention.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-001", "cc-005"],
-      "conflict_ids": ["conflict-agi-timelines-001"]
+      "cross_cutting_refs": [
+        "cc-001",
+        "cc-005"
+      ],
+      "conflict_ids": [
+        "conflict-agi-timelines-001"
+      ]
     },
     {
       "id": "saf-data-003",
       "category": "Data/Facts",
       "label": "Current interpretability tools are insufficient",
-      "description": "Empirical claim: we cannot reliably inspect what goals a large neural network is pursuing.",
+      "description": "Empirical claim: we cannot reliably inspect what goals a large neural network is pursuing, nor can we predict where its outputs will fail in novel deployment contexts — aggregate accuracy benchmarks are insufficient to characterize the distribution of errors.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -68,13 +82,52 @@
       "description": "Interpretation: the correct response to unsolved alignment is to delay deployment of the most capable systems.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-002", "cc-003"]
+      "cross_cutting_refs": [
+        "cc-002",
+        "cc-003"
+      ]
     },
     {
       "id": "saf-methods-002",
       "category": "Methods",
       "label": "Interpretability research is a prerequisite",
       "description": "Interpretation: we should not deploy systems we cannot inspect. Interpretability must precede capability deployment.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-003",
+      "category": "Methods",
+      "label": "Technical-empiricist safety research program",
+      "description": "The methodological position that AI safety research should be grounded in near-term, experimentally testable problems in modern ML systems (reward specification, safe exploration, distributional robustness) rather than philosophical analysis of hypothetical superintelligent agents. Progress on concrete technical problems is treated as more reliable and robustly useful than speculative alignment theory.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-004",
+      "category": "Data/Facts",
+      "label": "Reward misspecification as systematic failure mechanism",
+      "description": "The empirical claim that wrong objective functions are not idiosyncratic design errors but emerge from general, structural causes — including partial observability, Goodhart's Law, feedback loops, and environmental embedding — that make specifying correct objectives systematically difficult across all ML deployment contexts.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-005",
+      "category": "Data/Facts",
+      "label": "Silent distributional failure in deployed ML",
+      "description": "The empirical claim that ML systems fail overconfidently and silently when deployed on data distributions that differ from their training distributions — making such failures especially dangerous because they are unlikely to be caught by standard monitoring.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-goals-004",
+      "category": "Goals/Values",
+      "label": "Reversibility and bounded exploration as design constraints",
+      "description": "The design goal that autonomous learning agents should not be able to take irreversible or catastrophic actions during exploration — either by constraining the agent to recoverable state-space regions or by requiring trusted-policy oversight before irreversible actions.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

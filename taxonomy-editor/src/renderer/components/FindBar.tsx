@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
-import type { PovNode, CrossCuttingNode, ConflictFile, TabId } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 
 interface SearchResult {
   id: string;
   label: string;
   tab: TabId;
+  category?: Category;
   field: string;
   matchText: string;
 }
@@ -22,7 +23,7 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): SearchResult[]
   for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
-      results.push({ id: node.id, label: node.label, tab, field, matchText: value });
+      results.push({ id: node.id, label: node.label, tab, category: node.category, field, matchText: value });
     }
   }
   return results;
@@ -82,10 +83,26 @@ function dedupeResults(results: SearchResult[]): SearchResult[] {
   });
 }
 
+const POV_SCOPES: { id: TabId; label: string }[] = [
+  { id: 'accelerationist', label: 'Acc' },
+  { id: 'safetyist', label: 'Saf' },
+  { id: 'skeptic', label: 'Skp' },
+  { id: 'cross-cutting', label: 'CC' },
+  { id: 'conflicts', label: 'Conflicts' },
+];
+
+const ASPECT_SCOPES: { id: Category; label: string }[] = [
+  { id: 'Goals/Values', label: 'Goals' },
+  { id: 'Data/Facts', label: 'Data' },
+  { id: 'Methods', label: 'Methods' },
+];
+
 export function FindBar() {
   const [visible, setVisible] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [povScopes, setPovScopes] = useState<Set<TabId>>(new Set());
+  const [aspectScopes, setAspectScopes] = useState<Set<Category>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -94,6 +111,24 @@ export function FindBar() {
     findQuery, findMode, findCaseSensitive,
     setFindQuery, setFindMode, setFindCaseSensitive,
   } = useTaxonomyStore();
+
+  const togglePovScope = (id: TabId) => {
+    setPovScopes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAspectScope = (id: Category) => {
+    setAspectScopes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -119,6 +154,9 @@ export function FindBar() {
     const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
     if (!regex) return [];
 
+    const hasPovFilter = povScopes.size > 0;
+    const hasAspectFilter = aspectScopes.size > 0;
+
     const all: SearchResult[] = [];
 
     for (const [pov, file] of [
@@ -126,25 +164,36 @@ export function FindBar() {
       ['safetyist', safetyist],
       ['skeptic', skeptic],
     ] as const) {
+      if (hasPovFilter && !povScopes.has(pov)) continue;
       if (file) {
         for (const node of file.nodes) {
+          if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
           all.push(...searchPovNode(node, regex, pov));
         }
       }
     }
 
-    if (crossCutting) {
-      for (const node of crossCutting.nodes) {
-        all.push(...searchCCNode(node, regex));
+    if (!hasPovFilter || povScopes.has('cross-cutting')) {
+      if (crossCutting) {
+        for (const node of crossCutting.nodes) {
+          // Cross-cutting nodes don't have a category, so skip if aspect-only filter is active
+          if (hasAspectFilter) continue;
+          all.push(...searchCCNode(node, regex));
+        }
       }
     }
 
-    for (const conflict of conflicts) {
-      all.push(...searchConflict(conflict, regex));
+    if (!hasPovFilter || povScopes.has('conflicts')) {
+      // Conflicts don't have a category, so skip if aspect-only filter is active
+      if (!hasAspectFilter) {
+        for (const conflict of conflicts) {
+          all.push(...searchConflict(conflict, regex));
+        }
+      }
     }
 
     return dedupeResults(all);
-  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, crossCutting, conflicts]);
+  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, crossCutting, conflicts, povScopes, aspectScopes]);
 
   const navigateTo = useCallback((result: SearchResult) => {
     setActiveTab(result.tab);
@@ -233,6 +282,7 @@ export function FindBar() {
           &times;
         </button>
       </div>
+
       <div className="find-options">
         <label>
           <input
@@ -252,6 +302,36 @@ export function FindBar() {
           <option value="regex">Regex</option>
         </select>
       </div>
+
+      <div className="find-scopes">
+        <div className="find-scope-group">
+          <span className="find-scope-label">POV</span>
+          {POV_SCOPES.map(s => (
+            <button
+              key={s.id}
+              className={`find-scope-chip ${povScopes.has(s.id) ? 'active' : ''}`}
+              data-tab={s.id}
+              onClick={() => togglePovScope(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="find-scope-group">
+          <span className="find-scope-label">Aspect</span>
+          {ASPECT_SCOPES.map(s => (
+            <button
+              key={s.id}
+              className={`find-scope-chip ${aspectScopes.has(s.id) ? 'active' : ''}`}
+              data-cat={s.id}
+              onClick={() => toggleAspectScope(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {showResults && results.length > 0 && (
         <div className="find-results-panel">
           {results.map((r, i) => (
