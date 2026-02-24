@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTaxonomyStore } from './hooks/useTaxonomyStore';
 import { TabBar } from './components/TabBar';
+import { SearchBar } from './components/SearchBar';
 import { SaveBar } from './components/SaveBar';
 import { PovTab } from './components/PovTab';
 import { CrossCuttingTab } from './components/CrossCuttingTab';
@@ -63,6 +64,7 @@ export function App() {
   return (
     <div className="app">
       <TabBar />
+      <SearchBar />
       <div className="tab-content">
         {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
         {activeTab === 'safetyist' && <PovTab pov="safetyist" />}

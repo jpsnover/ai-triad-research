@@ -19,9 +19,22 @@ export function TypeaheadSelect({ options, onSelect, placeholder }: TypeaheadSel
   const filtered = useMemo(() => {
     if (!query) return options.slice(0, 50);
     const lower = query.toLowerCase();
+    const isWildcard = lower.includes('*');
+    let regex: RegExp | null = null;
+    if (isWildcard) {
+      try {
+        const pattern = lower.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        regex = new RegExp(pattern);
+      } catch { /* fall through to includes */ }
+    }
     return options.filter(id => {
       const label = getLabelForId(id);
-      return id.toLowerCase().includes(lower) || label.toLowerCase().includes(lower);
+      const idLower = id.toLowerCase();
+      const labelLower = label.toLowerCase();
+      if (regex) {
+        return regex.test(idLower) || regex.test(labelLower);
+      }
+      return idLower.includes(lower) || labelLower.includes(lower);
     }).slice(0, 50);
   }, [query, options, getLabelForId]);
 

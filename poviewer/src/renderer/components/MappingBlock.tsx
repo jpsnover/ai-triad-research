@@ -34,6 +34,9 @@ export default function MappingBlock({ mapping }: Props) {
       </div>
       <div className="mapping-node-id">{mapping.nodeId}</div>
       <div className="mapping-node-label">{mapping.nodeLabel}</div>
+      {mapping.nodeDescription && (
+        <div className="mapping-node-description">{mapping.nodeDescription}</div>
+      )}
       <div className="mapping-category">{mapping.category}</div>
       <div className="mapping-strength">Strength: {mapping.strength}</div>
       <div className="mapping-explanation">{mapping.explanation}</div>

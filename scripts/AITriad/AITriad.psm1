@@ -1,0 +1,101 @@
+#Requires -Version 7.0
+Set-StrictMode -Version Latest
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Module root paths
+# ─────────────────────────────────────────────────────────────────────────────
+$script:ModuleRoot = $PSScriptRoot
+$script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TaxonomyNode class — must live in .psm1 for PowerShell type resolution
+# ─────────────────────────────────────────────────────────────────────────────
+class TaxonomyNode {
+    [string]$POV
+    [string]$Id
+    [string]$Label
+    [string]$Description
+    [string]$Category
+    [string]$ParentId
+    [string[]]$Children
+    [string[]]$CrossCuttingRefs
+    [PSObject]$Interpretations
+    [string[]]$LinkedNodes
+    [double]$Score
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Module-scoped taxonomy store
+# ─────────────────────────────────────────────────────────────────────────────
+$script:TaxonomyData = @{}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dot-source Private/ then Public/ functions
+# ─────────────────────────────────────────────────────────────────────────────
+foreach ($Scope in @('Private', 'Public')) {
+    $Dir = Join-Path $PSScriptRoot $Scope
+    if (Test-Path $Dir) {
+        foreach ($File in Get-ChildItem -Path $Dir -Filter '*.ps1' -File) {
+            . $File.FullName
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Import companion modules (kept separate for AMSI isolation)
+# ─────────────────────────────────────────────────────────────────────────────
+$ScriptsDir = Join-Path $script:ModuleRoot '..'
+
+$DocConvertersPath = Join-Path $ScriptsDir 'DocConverters.psm1'
+if (Test-Path $DocConvertersPath) {
+    Import-Module $DocConvertersPath -Force
+}
+
+$GeminiEnrichPath = Join-Path $ScriptsDir 'GeminiEnrich.psm1'
+if (Test-Path $GeminiEnrichPath) {
+    Import-Module $GeminiEnrichPath -Force
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Load taxonomy data at import time (same logic as standalone Taxonomy.psm1)
+# ─────────────────────────────────────────────────────────────────────────────
+$TaxonomyDir = Join-Path $script:RepoRoot 'taxonomy'
+if (Test-Path $TaxonomyDir) {
+    foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
+        if ($File.Name -eq 'embeddings.json') { continue }
+        try {
+            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $PovName = $File.BaseName.ToLower()
+            $script:TaxonomyData[$PovName] = $Json
+            Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
+        }
+        catch {
+            Write-Warning "Taxonomy: failed to load $($File.Name): $_"
+        }
+    }
+}
+
+if ($script:TaxonomyData.Count -eq 0) {
+    Write-Warning "Taxonomy: no JSON files found in $TaxonomyDir"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Backward-compatibility alias
+# ─────────────────────────────────────────────────────────────────────────────
+Set-Alias -Name 'Import-Document' -Value 'Import-AITriadDocument' -Scope Global
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Export public surface
+# ─────────────────────────────────────────────────────────────────────────────
+Export-ModuleMember -Function @(
+    'Get-Tax'
+    'Update-TaxEmbeddings'
+    'Import-AITriadDocument'
+    'Invoke-POVSummary'
+    'Invoke-BatchSummary'
+    'Find-Conflict'
+    'Save-WaybackUrl'
+    'Invoke-PIIAudit'
+) -Alias @(
+    'Import-Document'
+)

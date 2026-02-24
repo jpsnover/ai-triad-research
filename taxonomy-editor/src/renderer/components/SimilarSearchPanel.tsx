@@ -9,11 +9,12 @@ interface ResolvedRow {
   score: number;
   label: string;
   description: string;
+  category: string;
 }
 
 interface SimilarSearchPanelProps {
   width?: number;
-  onAnalyze?: (elementB: { label: string; description: string }) => void;
+  onAnalyze?: (elementB: { label: string; description: string; category: string }) => void;
 }
 
 export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps) {
@@ -109,6 +110,20 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
     return '';
   };
 
+  const getCategory = (id: string): string => {
+    const state = useTaxonomyStore.getState();
+    if (id.startsWith('cc-')) return 'cross-cutting';
+    if (id.startsWith('conflict-')) return 'conflict';
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (file) {
+        const node = file.nodes.find(n => n.id === id);
+        if (node) return node.category;
+      }
+    }
+    return '';
+  };
+
   // Build resolved rows once, then filter & sort
   const resolvedRows = useMemo((): ResolvedRow[] => {
     if (!similarResults) return [];
@@ -117,6 +132,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
       score: r.score,
       label: getLabelForId(r.id) || r.id,
       description: getDescription(r.id),
+      category: getCategory(r.id),
     }));
   }, [similarResults]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,7 +199,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
 
   const handleAnalyze = () => {
     if (contextMenu && onAnalyze) {
-      onAnalyze({ label: contextMenu.row.label, description: contextMenu.row.description });
+      onAnalyze({ label: contextMenu.row.label, description: contextMenu.row.description, category: contextMenu.row.category });
     }
     setContextMenu(null);
   };

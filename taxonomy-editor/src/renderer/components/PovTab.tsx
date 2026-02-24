@@ -76,10 +76,10 @@ export function PovTab({ pov }: PovTabProps) {
     }
   };
 
-  const handleAnalyze = (elementB: { label: string; description: string }) => {
+  const handleAnalyze = (elementB: { label: string; description: string; category: string }) => {
     if (selectedNode) {
       runAnalyzeDistinction(
-        { label: selectedNode.label, description: selectedNode.description },
+        { label: selectedNode.label, description: selectedNode.description, category: selectedNode.category },
         elementB,
       );
     }

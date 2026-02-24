@@ -2,7 +2,7 @@ import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 
 const GEMINI_MODEL = 'gemini-embedding-001';
-const GEMINI_GENERATE_MODEL = 'gemini-2.0-flash';
+const DEFAULT_GENERATE_MODEL = 'gemini-2.0-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 5;
@@ -88,11 +88,63 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-export async function generateText(prompt: string): Promise<string> {
+export type RateLimitType = 'RPM' | 'TPM' | 'RPD' | 'unknown';
+
+export interface GenerateTextProgress {
+  attempt: number;
+  maxRetries: number;
+  backoffSeconds: number;
+  limitType: RateLimitType;
+  limitMessage: string;
+}
+
+function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limitMessage: string } {
+  try {
+    const json = JSON.parse(bodyText);
+    const msg: string = json?.error?.message ?? '';
+    const lowerMsg = msg.toLowerCase();
+
+    if (lowerMsg.includes('per minute') || lowerMsg.includes('rpm')) {
+      return {
+        limitType: 'RPM',
+        limitMessage: 'Requests per minute quota exceeded. Retry should succeed in under a minute.',
+      };
+    }
+    if (lowerMsg.includes('tokens per minute') || lowerMsg.includes('tpm')) {
+      return {
+        limitType: 'TPM',
+        limitMessage: 'Tokens per minute quota exceeded. Retry should succeed in under a minute.',
+      };
+    }
+    if (lowerMsg.includes('per day') || lowerMsg.includes('rpd')) {
+      return {
+        limitType: 'RPD',
+        limitMessage: 'Daily request quota exceeded. Try a lighter model, or wait until quota resets (usually midnight PT).',
+      };
+    }
+
+    if (msg) {
+      return { limitType: 'unknown', limitMessage: msg };
+    }
+  } catch { /* body wasn't JSON */ }
+
+  return {
+    limitType: 'unknown',
+    limitMessage: 'Rate limited by Gemini API. Retrying with exponential backoff.',
+  };
+}
+
+export async function generateText(
+  prompt: string,
+  model?: string,
+  onRetry?: (progress: GenerateTextProgress) => void,
+): Promise<string> {
   const apiKey = loadApiKey();
   if (!apiKey) throw new Error('No API key configured');
 
-  const url = `${GEMINI_BASE}/${GEMINI_GENERATE_MODEL}:generateContent?key=${apiKey}`;
+  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
+  console.log(`[generateText] Using model: ${resolvedModel}`);
+  const url = `${GEMINI_BASE}/${resolvedModel}:generateContent?key=${apiKey}`;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     console.log(`[generateText] Attempt ${attempt}/${MAX_RETRIES} - Calling Gemini generateContent...`);
@@ -122,14 +174,24 @@ export async function generateText(prompt: string): Promise<string> {
     console.log('[generateText] Response status:', response.status);
 
     if (response.status === 429) {
+      let rateLimitBody = '';
+      try { rateLimitBody = await response.text(); } catch { /* ignore */ }
+      const { limitType, limitMessage } = parseRateLimitType(rateLimitBody);
+      console.log(`[generateText] Rate limited (429) type=${limitType}: ${limitMessage}`);
+
       if (attempt === MAX_RETRIES) {
+        const prefix = limitType === 'RPD'
+          ? 'Daily quota exhausted'
+          : `Gemini API rate limited (${limitType}) after ${MAX_RETRIES} attempts`;
         throw new Error(
-          'Gemini API rate limited after ' + MAX_RETRIES + ' attempts. ' +
-          'Please wait a minute and try again, or check your API key quota at https://aistudio.google.com/apikey',
+          `${prefix}. ${limitMessage} Check your quota at https://aistudio.google.com/apikey`,
         );
       }
-      const backoff = Math.min(2 ** attempt, 30);
-      console.log(`[generateText] Rate limited (429), retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      const backoff = limitType === 'RPD'
+        ? Math.min(2 ** (attempt + 2), 60)
+        : Math.min(2 ** attempt, 30);
+      console.log(`[generateText] Retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType, limitMessage });
       await new Promise(resolve => setTimeout(resolve, backoff * 1000));
       continue;
     }

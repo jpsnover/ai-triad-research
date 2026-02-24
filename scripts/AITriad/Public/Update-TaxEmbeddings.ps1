@@ -1,0 +1,29 @@
+function Update-TaxEmbeddings {
+    <#
+    .SYNOPSIS
+        Regenerates taxonomy/embeddings.json from all POV JSON files.
+    .DESCRIPTION
+        Calls embed_taxonomy.py generate to rebuild the semantic embeddings
+        used by Get-Tax -Similar. Requires Python with sentence-transformers.
+    .EXAMPLE
+        Update-TaxEmbeddings
+    #>
+    [CmdletBinding()]
+    param()
+
+    Set-StrictMode -Version Latest
+
+    $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) {
+        Write-Error "embed_taxonomy.py not found at $EmbedScript"
+        return
+    }
+
+    Write-Host "Generating taxonomy embeddings..." -ForegroundColor Cyan
+    & python $EmbedScript generate
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "embed_taxonomy.py generate failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
+        return
+    }
+    Write-Host "Embeddings updated successfully." -ForegroundColor Green
+}

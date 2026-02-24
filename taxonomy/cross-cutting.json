@@ -1,7 +1,7 @@
 {
   "_schema_version": "1.0.0",
   "_doc": "Cross-cutting taxonomy: concepts that appear in all three camps but carry different interpretations. These nodes are referenced by all three POV taxonomy files.",
-  "last_modified": "2026-02-23",
+  "last_modified": "2026-02-24",
   "nodes": [
     {
       "id": "cc-001",
@@ -52,7 +52,10 @@
         "acc-goals-003",
         "saf-goals-002",
         "skp-methods-001",
-        "skp-methods-002"
+        "skp-methods-002",
+        "saf-methods-001",
+        "skp-goals-003",
+        "acc-methods-002"
       ],
       "conflict_ids": []
     },
@@ -68,7 +71,8 @@
       "linked_nodes": [
         "saf-goals-001",
         "skp-goals-001",
-        "skp-goals-002"
+        "skp-goals-002",
+        "skp-data-003"
       ],
       "conflict_ids": []
     },
@@ -99,8 +103,129 @@
       },
       "linked_nodes": [
         "acc-data-003",
-        "saf-data-003"
+        "saf-data-003",
+        "acc-methods-003",
+        "saf-data-004",
+        "saf-data-005",
+        "skp-methods-002"
       ],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-007",
+      "label": "Government-led AGI 'Project",
+      "description": "The proposal that, due to national security implications, the US government will and should take control of the race to AGI, consolidating private labs into a national effort akin to the Manhattan Project.",
+      "interpretations": {
+        "accelerationist": "A necessary mobilization to ensure America builds AGI first and maintains its geopolitical leadership over authoritarian rivals.",
+        "safetyist": "A necessary step to implement state-level security, manage catastrophic safety risks during the intelligence explosion, and establish a sane chain of command for superintelligence.",
+        "skeptic": "A dangerous militarization and concentration of power that bypasses democratic oversight and accountability, while focusing on speculative future threats instead of present-day harms."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-008",
+      "label": "Intelligence Explosion via Automated AI Research",
+      "description": "The hypothesis that AGI-level systems will automate AI research, creating a recursive feedback loop that compresses decades of algorithmic progress into a short period, leading to a rapid transition to superintelligence.",
+      "interpretations": {
+        "accelerationist": "The ultimate outcome of the AGI race, unlocking unprecedented scientific and economic progress.",
+        "safetyist": "A period of extreme volatility and risk, where alignment techniques could catastrophically fail and control could be lost.",
+        "skeptic": "A speculative, sci-fi narrative that distracts from present-day AI harms and is used to justify extreme measures."
+      },
+      "linked_nodes": [
+        "acc-data-001",
+        "saf-data-007"
+      ],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-009",
+      "label": "Geopolitical Competition as Primary AI Driver",
+      "description": "The view that the primary lens for AI development and governance should be the strategic competition between democratic nations and authoritarian rivals, with the outcome determining the future world order.",
+      "interpretations": {
+        "accelerationist": "The core justification for accelerating AI development and mobilizing national resources to ensure victory.",
+        "safetyist": "A major risk factor that creates pressure to race, but also a reason to secure a lead to create a margin for safety.",
+        "skeptic": "A dangerous militarization of technology that concentrates power and diverts attention and resources from addressing domestic harms."
+      },
+      "linked_nodes": [
+        "acc-goals-002",
+        "saf-methods-009"
+      ],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-010",
+      "label": "Competitive Pressure vs. Safety Thresholds",
+      "description": "The tension between maintaining strict, pre-defined safety standards and the strategic pressure to accelerate development or deployment in response to less-cautious competitors in the AI landscape.",
+      "interpretations": {
+        "accelerationist": "This is a necessary, if overly cautious, acknowledgment that racing dynamics are real and that rigid safetyism can lead to ceding the frontier to irresponsible actors.",
+        "safetyist": "This is a dangerous loophole that could justify lowering safety standards under competitive pressure, though the proposed safeguards attempt to mitigate this risk.",
+        "skeptic": "This highlights how the entire safety narrative is intertwined with corporate competition and market positioning, rather than being a pure commitment to public good."
+      },
+      "linked_nodes": [
+        "acc-methods-001",
+        "saf-methods-010"
+      ],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-011",
+      "label": "Open Model Weights vs. State-Actor Security",
+      "description": "This is a fundamental conflict regarding the \"architecture of secrecy.\" One camp views openness as the primary safety mechanism, while another views it as a catastrophic security vulnerability.",
+      "interpretations": {
+        "accelerationist": "Releasing model weights publicly allows for external red-teaming and safety scrutiny, treating transparency as a safety mechanism rather than a risk.",
+        "safetyist": "High-level AI weights and algorithms must be secured at the level of national defense projects to prevent theft by state actors, viewing open weights as a liability for misuse.",
+        "skeptic": "Transparency is required via mandated algorithmic audits to ensure accountability for biased outcomes, focusing on the model's impact rather than its weight security."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-012",
+      "label": "Agentic Autonomy vs. Loss of Control",
+      "description": "The transition from \"chatbots\" to \"agents\" is viewed either as a breakthrough in utility or as a descent into uncontrollable risk.",
+      "interpretations": {
+        "accelerationist": "Unlocking latent capabilities through RLHF and tool-use transforms models into agents, which is seen as \"potentiating gains\".",
+        "safetyist": "Agentic planning and autonomous replication are defining characteristics of potentially dangerous Advanced, Planning, Strategically aware (APS) systems.",
+        "skeptic": "Automated agency is primarily a concern through the lens of privacy, surveillance, and the inability to opt-out of AI-powered systems."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-013",
+      "label": "AI as Research Infrastructure",
+      "description": "The camps disagree on whether AI-generated data is an objective tool for discovery or a vehicle for reinforcing systemic prejudices.",
+      "interpretations": {
+        "accelerationist": "AI-assisted data collection and open AI outputs should be built as public research infrastructure to democratize expert knowledge production.",
+        "safetyist": "A dangerous \"black box\" infrastructure that could facilitate catastrophic research outcomes or systemic instability without prior alignment and interpretability.",
+        "skeptic": "Using LLMs for large-scale data annotation risks embedding subtle, systemic biases into \"objective\" research datasets, creating a \"bias propagation\" loop."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-014",
+      "label": "Optimization vs. Values",
+      "description": "This maps the divide between using accuracy as a \"good enough\" metric versus the deep technical difficulty of defining human-aligned goals.",
+      "interpretations": {
+        "accelerationist": "Accuracy thresholds (e.g., >90% on a benchmark) are sufficient criteria for professional deployment.",
+        "safetyist": "Reward misspecification and \"reward hacking\" are systematic failure mechanisms that emerge regardless of high accuracy scores.",
+        "skeptic": "Aggregate accuracy figures are deceptive because they obscure disparate error rates for marginalized subgroups."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-015",
+      "label": "Inadequacy of traditional security concepts for ML",
+      "description": "The interpretive claim that traditional information security concepts based on access control and authorization are insufficient to address ML-specific harms, as many attacks (e.g., perturbation, inference) are performed through legitimate system queries.",
+      "interpretations": {
+        "accelerationist": "This is an engineering challenge that requires new security paradigms to be developed in parallel with capability development.",
+        "safetyist": "This demonstrates that AI systems introduce novel attack surfaces and failure modes that existing safety and security practices cannot handle, underscoring the need for a new, AI-specific safety science.",
+        "skeptic": "This proves that existing laws and regulations (like the CFAA) are ill-equipped to handle AI-driven harms, necessitating new policy frameworks that address harmful outcomes, not just unauthorized access."
+      },
+      "linked_nodes": [],
       "conflict_ids": []
     }
   ]

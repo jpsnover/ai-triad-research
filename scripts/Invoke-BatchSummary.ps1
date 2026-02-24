@@ -288,7 +288,7 @@ foreach ($MetaFile in $AllMetaFiles) {
     }
 
     # Check if this doc's POV tags intersect with affected camps
-    $DocPovTags = @($Meta.pov_tags)
+    $DocPovTags = if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { @($Meta.pov_tags) } else { @() }
     $Intersects = $ForceAll -or
                   $DocId    -or
                   @($DocPovTags | Where-Object { $_ -in $AffectedCamps }).Count -gt 0
@@ -376,7 +376,8 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Accelerationist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
+          "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
       ]
@@ -387,7 +388,8 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Safetyist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
+          "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
       ]
@@ -398,7 +400,8 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Skeptic lens>",
+          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
+          "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
       ]
@@ -414,7 +417,15 @@ $OutputSchema = @'
   "unmapped_concepts": [
     {
       "concept": "<a concept in the document that does not map to any existing taxonomy node>",
+      "suggested_label": "<A short label for this concept, e.g. 'AI-driven economic growth'>", 
+      "suggested_description": "<A 1-2 sentence description of the concept, suitable for a taxonomy node description>",     
       "suggested_pov": "<accelerationist | safetyist | skeptic | cross-cutting>",
+      "Accelerationist Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the accelerationist camp's perspective>",
+      "Accelerationist Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the accelerationist camp's perspective>",
+      "Safetyist Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the safetyist camp's perspective>",
+      "Skeptic Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the skeptic camp's perspective>",
+      "Linked Nodes": "<POV-specifc notes taht relate to this cross cutting concept.  Links this shared theme to the specific perspective claims in the taxonomy.>",
+      "Conflict IDs": "<Links to documented conflicts where this cross-cutting concept is a point of disagreement between perspectives, e.g. conflict-scaling-laws-001>",
       "suggested_category": "<Goals/Values | Data/Facts | Methods>",
       "reason": "<why this concept might deserve a new taxonomy node>"
     }
@@ -445,6 +456,10 @@ RULES:
     existing conflict entry, include the conflict_id in factual_claims.
   - stance must be ONE of: strongly_aligned | aligned | neutral | opposed |
     strongly_opposed | not_applicable
+  - For each key_point, the "verbatim" field must contain 1-5 sentences copied
+    EXACTLY from the document (word-for-word) that best capture the point being made.
+    Use the minimum number of sentences needed to convey the core idea. Do NOT
+    paraphrase, summarize, or alter the text in any way — copy it verbatim.
   - Return ONLY a valid JSON object. No markdown fences, no preamble, no explanation
     outside the JSON.
   - Be precise and specific. Every key_point must reference a real passage in the document.
@@ -475,7 +490,11 @@ function Invoke-DocumentSummary {
     Write-Host "  │  pov: $($Doc.PovTags -join ', ')  |  model: $Model" -ForegroundColor Gray
 
     # ── Load snapshot ─────────────────────────────────────────────────────────
-    $SnapshotText    = Get-Content $Doc.SnapshotFile -Raw
+    $SnapshotText = Get-Content $Doc.SnapshotFile -Raw
+    if ([string]::IsNullOrWhiteSpace($SnapshotText)) {
+        Write-Host "  └─ SKIP $ThisDocId — snapshot.md is empty" -ForegroundColor Yellow
+        return @{ Success = $false; DocId = $ThisDocId; Error = 'EmptySnapshot' }
+    }
     $EstimatedTokens = [int]($SnapshotText.Length / 4)
     Write-Host "  │  snapshot: $($SnapshotText.Length) chars (~$EstimatedTokens tokens est.)" -ForegroundColor Gray
 
@@ -494,9 +513,9 @@ $TaxonomyJson
 $OutputSchema
 
 === DOCUMENT: $ThisDocId ===
-Title: $($Meta.title)
+Title: $(if ($Meta.title) { $Meta.title } else { $ThisDocId })
 POV tags (pre-classified): $($Doc.PovTags -join ', ')
-Topic tags: $($Meta.topic_tags -join ', ')
+Topic tags: $(if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.topic_tags) { $Meta.topic_tags -join ', ' } else { '(none)' })
 
 --- DOCUMENT CONTENT ---
 $SnapshotText

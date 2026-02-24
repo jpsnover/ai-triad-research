@@ -244,6 +244,7 @@ $outputSchema = @'
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<one sentence describing what this document says, from the Accelerationist lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
       ]
@@ -255,6 +256,7 @@ $outputSchema = @'
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<one sentence describing what this document says, from the Safetyist lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
       ]
@@ -266,6 +268,7 @@ $outputSchema = @'
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<one sentence describing what this document says, from the Skeptic lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
       ]
@@ -313,6 +316,10 @@ RULES:
     existing conflict entry, include the conflict_id in factual_claims.
   - stance must be ONE of: strongly_aligned | aligned | neutral | opposed |
     strongly_opposed | not_applicable
+  - For each key_point, the "verbatim" field must contain 1-5 sentences copied
+    EXACTLY from the document (word-for-word) that best capture the point being made.
+    Use the minimum number of sentences needed to convey the core idea. Do NOT
+    paraphrase, summarize, or alter the text in any way — copy it verbatim.
   - Return ONLY a valid JSON object. No markdown fences, no preamble, no explanation
     outside the JSON.
   - Be precise and specific. Every key_point must reference a real passage in the document.
@@ -677,6 +684,9 @@ foreach ($camp in $camps) {
             foreach ($pt in $group.Group) {
                 $nodeTag = if ($pt.taxonomy_node_id) { "[$($pt.taxonomy_node_id)]" } else { "[UNMAPPED]" }
                 Write-Host "      $nodeTag $($pt.point)" -ForegroundColor Gray
+                if ($pt.verbatim) {
+                    Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
+                }
             }
         }
     } else {

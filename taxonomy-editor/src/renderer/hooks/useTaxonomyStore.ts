@@ -36,6 +36,74 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'system';
 
+export type GeminiModel =
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-pro'
+  | 'gemini-2.0-flash'
+  | 'gemini-2.0-flash-lite'
+  | 'gemini-1.5-flash'
+  | 'gemini-1.5-pro';
+
+export const GEMINI_MODELS: { value: GeminiModel; label: string }[] = [
+  { value: 'gemini-2.5-flash', label: '2.5 Flash (recommended)' },
+  { value: 'gemini-2.5-pro', label: '2.5 Pro' },
+  { value: 'gemini-2.0-flash', label: '2.0 Flash' },
+  { value: 'gemini-2.0-flash-lite', label: '2.0 Flash Lite (fastest)' },
+  { value: 'gemini-1.5-flash', label: '1.5 Flash' },
+  { value: 'gemini-1.5-pro', label: '1.5 Pro' },
+];
+
+const GEMINI_MODEL_IDS: Set<string> = new Set(GEMINI_MODELS.map(m => m.value));
+
+function getStoredModel(): GeminiModel {
+  try {
+    const stored = localStorage.getItem('taxonomy-editor-gemini-model');
+    if (stored && GEMINI_MODEL_IDS.has(stored)) return stored as GeminiModel;
+  } catch { /* ignore */ }
+  return 'gemini-2.0-flash';
+}
+
+export interface AnalysisElement {
+  label: string;
+  description: string;
+  category: string;
+}
+
+const ANALYSIS_CACHE_KEY = 'taxonomy-editor-analysis-cache';
+
+interface AnalysisCacheEntry {
+  elementA: AnalysisElement;
+  elementB: AnalysisElement;
+  model: string;
+  result: string;
+}
+
+function buildAnalysisCacheId(
+  a: AnalysisElement,
+  b: AnalysisElement,
+  model: string,
+): string {
+  return `${a.label}\0${a.description}\0${a.category}\0${b.label}\0${b.description}\0${b.category}\0${model}`;
+}
+
+function loadAnalysisCache(): Map<string, AnalysisCacheEntry> {
+  try {
+    const raw = localStorage.getItem(ANALYSIS_CACHE_KEY);
+    if (!raw) return new Map();
+    const arr: [string, AnalysisCacheEntry][] = JSON.parse(raw);
+    return new Map(arr);
+  } catch { return new Map(); }
+}
+
+function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
+  try {
+    // Keep at most 50 entries to avoid bloating localStorage
+    const entries = [...cache.entries()];
+    const trimmed = entries.slice(-50);
+    localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(trimmed));
+  } catch { /* ignore */ }
+}
+
 function getStoredTheme(): ColorScheme {
   try {
     const stored = localStorage.getItem('taxonomy-editor-theme');
@@ -102,11 +170,14 @@ interface TaxonomyState {
   analysisLoading: boolean;
   analysisError: string | null;
   analysisStep: number;
-  analysisElementA: { label: string; description: string } | null;
-  analysisElementB: { label: string; description: string } | null;
+  analysisRetry: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string } | null;
+  analysisCached: boolean;
+  analysisElementA: AnalysisElement | null;
+  analysisElementB: AnalysisElement | null;
   runAnalyzeDistinction: (
-    elementA: { label: string; description: string },
-    elementB: { label: string; description: string },
+    elementA: AnalysisElement,
+    elementB: AnalysisElement,
+    forceRefresh?: boolean,
   ) => Promise<void>;
   clearAnalysis: () => void;
 
@@ -139,6 +210,9 @@ interface TaxonomyState {
   getAllConflictIds: () => string[];
   getLabelForId: (id: string) => string;
   lookupPinnedData: (id: string) => PinnedData | null;
+
+  geminiModel: GeminiModel;
+  setGeminiModel: (model: GeminiModel) => void;
 
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
@@ -196,16 +270,42 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   analysisLoading: false,
   analysisError: null,
   analysisStep: 0,
+  analysisRetry: null,
+  analysisCached: false,
   analysisElementA: null,
   analysisElementB: null,
 
-  runAnalyzeDistinction: async (elementA, elementB) => {
+  runAnalyzeDistinction: async (elementA, elementB, forceRefresh) => {
+    const model = get().geminiModel;
+
+    // Check cache unless force-refreshing
+    if (!forceRefresh) {
+      const cache = loadAnalysisCache();
+      const cacheId = buildAnalysisCacheId(elementA, elementB, model);
+      const cached = cache.get(cacheId);
+      if (cached) {
+        set({
+          analysisResult: cached.result,
+          analysisLoading: false,
+          analysisError: null,
+          analysisStep: 0,
+          analysisRetry: null,
+          analysisCached: true,
+          analysisElementA: elementA,
+          analysisElementB: elementB,
+        });
+        return;
+      }
+    }
+
     // Step 1: Preparing elements
     set({
       analysisLoading: true,
       analysisError: null,
       analysisResult: null,
       analysisStep: 1,
+      analysisRetry: null,
+      analysisCached: false,
       analysisElementA: elementA,
       analysisElementB: elementB,
     });
@@ -224,14 +324,17 @@ Semantic Mapping: Do the descriptions cover the same conceptual territory using 
 Functional Utility: If one element were deleted, would any unique information, constraint, or application be lost?
 
 The "So What?" Test: Does the difference in phrasing lead to a different real-world outcome or technical requirement?
+Consider the Category of the element and how this relates to the analysis. For example, a Method might be used to implement a Goal/Value .  A Fact/Data might backup or verify a claim.  A Concept might be a component of a Method or a Goal.  A Risk might be mitigated by a Method or be a consequence of not following a Method.
 
 Input Data:
 
 Element A:
+Category: ${elementA.category}
 Label: ${elementA.label}
 Description: ${elementA.description}
 
 Element B:
+Category: ${elementB.category}
 Label: ${elementB.label}
 Description: ${elementB.description}
 
@@ -245,16 +348,29 @@ Logical Gap: If you claim they are different, define the specific scenario where
 
 Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
 
+    const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {
+      set({ analysisRetry: progress });
+    });
+
     try {
       // Step 3: Sending to Gemini AI
       set({ analysisStep: 3 });
-      const { text } = await window.electronAPI.generateText(prompt);
+      const { text } = await window.electronAPI.generateText(prompt, model);
 
       // Step 4: Processing response
-      set({ analysisStep: 4 });
-      set({ analysisResult: text, analysisLoading: false, analysisStep: 5 });
+      set({ analysisStep: 4, analysisRetry: null });
+
+      // Save to cache
+      const cache = loadAnalysisCache();
+      const cacheId = buildAnalysisCacheId(elementA, elementB, model);
+      cache.set(cacheId, { elementA, elementB, model, result: text });
+      saveAnalysisCache(cache);
+
+      set({ analysisResult: text, analysisLoading: false, analysisStep: 0, analysisCached: false });
     } catch (err) {
-      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0 });
+      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0, analysisRetry: null });
+    } finally {
+      unsubscribe();
     }
   },
 
@@ -263,6 +379,8 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
     analysisError: null,
     analysisLoading: false,
     analysisStep: 0,
+    analysisRetry: null,
+    analysisCached: false,
     analysisElementA: null,
     analysisElementB: null,
   }),
@@ -816,6 +934,12 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
       }
     }
     return null;
+  },
+
+  geminiModel: getStoredModel(),
+  setGeminiModel: (model) => {
+    try { localStorage.setItem('taxonomy-editor-gemini-model', model); } catch { /* ignore */ }
+    set({ geminiModel: model });
   },
 
   colorScheme: getStoredTheme(),

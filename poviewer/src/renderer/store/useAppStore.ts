@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PovCamp, Theme, Point, Source, Notebook, TaxonomyMeta, SearchMode } from '../types/types';
 import { HARDCODED_NOTEBOOKS } from '../data/hardcodedData';
-import { discoveredToSource } from '../utils/pipelineAdapter';
+import { discoveredToSource, type TaxNodeLookup } from '../utils/pipelineAdapter';
 
 interface PovFilters {
   accelerationist: boolean;
@@ -148,6 +148,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     try {
+      // Build taxonomy node lookup for resolving real labels/descriptions
+      const taxNodes: TaxNodeLookup = {};
+      if (window.electronAPI.loadTaxonomyFile) {
+        const povFiles = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+        for (const pov of povFiles) {
+          try {
+            const data = await window.electronAPI.loadTaxonomyFile(pov) as { nodes?: Array<{ id: string; label: string; description: string }> };
+            if (data?.nodes) {
+              for (const node of data.nodes) {
+                taxNodes[node.id] = { label: node.label, description: node.description };
+              }
+            }
+          } catch { /* taxonomy file may not exist */ }
+        }
+      }
+
       const discovered = await window.electronAPI.discoverSources() as Array<{
         id: string;
         title: string;
@@ -170,7 +186,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (disc.hasSummary) {
           summary = await window.electronAPI.loadPipelineSummary(disc.id) as Parameters<typeof discoveredToSource>[1];
         }
-        sources.push(discoveredToSource(disc, summary));
+        sources.push(discoveredToSource(disc, summary, taxNodes));
       }
 
       const notebook: Notebook = {

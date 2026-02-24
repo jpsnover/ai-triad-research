@@ -151,7 +151,56 @@ A: Color for POV camp + icon overlay (✅ agree / ⚠️ contradict)
 
 
 ===========================
-Add a mechanism to add sources to a notebook
-Add a search bar to find elements in the selected sources.  Search should support RAW search, Wildcard search, and Regex search modes.  Each mode should have an option to be case sensitive or not.  THe default is case insenstive.  
+Update the taxonomy editor.
+Add a "Similar Search" button the the results in pane 2.  When selected, the ;abel and description are used to make an embedding which
+is used to search the other elements of the taxonomy.  Those results should be shown as a resizable table in Pane 3.
+The columns of that table are: Match (the percentage match), Label, Description.  The text in the table should wrap in the table cell.
+At the top of the table should be a slider with values from 40 to 100.  This slider determines the match value of the search elments to show.
+The default value should be 60.  This means that only rows that have a match value of 60 or greater will be shown.  If the slider is set to 55,
+then additional rows will show up.  If the slider is set to 70, rows will disappear.
 
-Implement POViewer_Phase2_Spec.docx.pdf  and use Gemini as the default AI engine.
+If search results are in pane 3 and  a new item is selected in in pane 1 which updates pane 2, the search results should be updated focusing on the new item in pane 2.
+The search results should have a toggle to be able to show/hide element IDs.  THe default should be to hide them.  When shown, they should be in column 2 - between Match and Label
+
+The Columns in the Similar search results in Pane 3 should be resizable and sortable.  Pane 3 should be resizable.
+
+
+Write a PowerShell module called Taxonomy . 
+Upon initialization, it should load all the taxonomy elements in the json files in the taxonomy directory. 
+It should implement:  Get-Tax  -POV [Name of the json file with out the json extension (e.g. "Skeptic") the default is "*"]  
+
+For Similar Search results found in pane 3, add a popup menu with the element "Analyze Distinction".
+When selected, the Label and Description of both the Item in Pane 2 and the Row in Pane 3 are to be 
+fed into the following AI prompt (as Element A and Element B) and executed.  
+The results should be displayed in a Pane 4 which is dynamically added and the overall window size is increased.
+When Pane 4 is closed, the overall window should decrease in size.  Pane 4 should be resizable. 
+
+The Audit Prompt
+Role: Act as a Logical Analyst and Semantic Auditor.
+
+Task: Compare two provided elements (Label + Description) to determine if they are functionally identical, semantically redundant, or if a meaningful distinction exists between them.
+
+Evaluation Framework:
+
+Semantic Mapping: Do the descriptions cover the same conceptual territory using different syntax?
+
+Functional Utility: If one element were deleted, would any unique information, constraint, or application be lost?
+
+The "So What?" Test: Does the difference in phrasing lead to a different real-world outcome or technical requirement?
+
+Input Data:
+
+Element A: [Insert Label & Description]
+
+Element B: [Insert Label & Description]
+
+Required Output Format:
+
+The Verdict: [Identical | Redundant | Distinct]
+
+The Delta: Identify the exact words or phrases that create a perceived difference. Analyze if these are "cosmetic" (synonyms) or "structural" (changing the scope).
+
+Logical Gap: If you claim they are different, define the specific scenario where Element A applies but Element B does not. If they are the same, provide a single, "Steel-manned" version that consolidates both perfectly.
+
+Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?
+

@@ -97,6 +97,8 @@ param(
 
     [switch]$SkipAiMeta,
 
+    [switch]$NoSummarize,
+
     [ValidateSet(
         'gemini-2.5-flash-lite',
         'gemini-2.5-flash',
@@ -400,8 +402,8 @@ function Invoke-IngestDocument {
                 $Authors      = $Meta.Author
                 $MarkdownText = ConvertFrom-Html -Html $HtmlContent
             }
-            '.md' {
-                $SourceType   = 'markdown'
+            { $_ -in '.md', '.txt' } {
+                $SourceType   = if ($Ext -eq '.md') { 'markdown' } else { 'plaintext' }
                 $MarkdownText = [System.IO.File]::ReadAllText($ResolvedFile)
                 $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
                 # Try to extract title from first H1
@@ -455,11 +457,13 @@ function Invoke-IngestDocument {
         if (-not [string]::IsNullOrWhiteSpace($AiMeta.title)) { $Title = $AiMeta.title }
 
         # Authors: prefer AI over regex
-        if ($AiMeta.authors.Count -gt 0) { $Authors = $AiMeta.authors }
+        $AiAuthors = @($AiMeta.authors | Where-Object { $_ })
+        if ($AiAuthors.Count -gt 0) { $Authors = $AiAuthors }
 
         # POV tags: AI suggestions used only when user supplied none
-        if ($PovTags.Count -eq 0 -and $AiMeta.pov_tags.Count -gt 0) {
-            $PovTags = $AiMeta.pov_tags
+        $AiPovTags = @($AiMeta.pov_tags | Where-Object { $_ })
+        if ($PovTags.Count -eq 0 -and $AiPovTags.Count -gt 0) {
+            $PovTags = $AiPovTags
             Write-Info "POV tags from Gemini: $($PovTags -join ', ')"
         } elseif ($PovTags.Count -gt 0) {
             Write-Info "POV tags from -Pov flag (Gemini suggestion ignored): $($PovTags -join ', ')"
@@ -570,17 +574,29 @@ function Invoke-IngestDocument {
 switch ($PSCmdlet.ParameterSetName) {
 
     'ByUrl' {
-        Invoke-IngestDocument `
+        $DocId = Invoke-IngestDocument `
             -SourceUrl   $Url `
             -PovTags     $Pov `
             -TopicTags   $Topic
+
+        if (-not $NoSummarize -and $DocId) {
+            $BatchScript = Join-Path $PSScriptRoot 'Invoke-BatchSummary.ps1'
+            Write-Step "Running POV summarization for $DocId"
+            & $BatchScript -DocId $DocId
+        }
     }
 
     'ByFile' {
-        Invoke-IngestDocument `
+        $DocId = Invoke-IngestDocument `
             -SourceFile  $File `
             -PovTags     $Pov `
             -TopicTags   $Topic
+
+        if (-not $NoSummarize -and $DocId) {
+            $BatchScript = Join-Path $PSScriptRoot 'Invoke-BatchSummary.ps1'
+            Write-Step "Running POV summarization for $DocId"
+            & $BatchScript -DocId $DocId
+        }
     }
 
     'ByInbox' {
@@ -647,6 +663,14 @@ switch ($PSCmdlet.ParameterSetName) {
             Write-Host "    • $id" -ForegroundColor Green
         }
         Write-Host ''
+
+        if (-not $NoSummarize -and $IngestedIds.Count -gt 0) {
+            $BatchScript = Join-Path $PSScriptRoot 'Invoke-BatchSummary.ps1'
+            foreach ($id in $IngestedIds) {
+                Write-Step "Running POV summarization for $id"
+                & $BatchScript -DocId $id
+            }
+        }
     }
 }
 

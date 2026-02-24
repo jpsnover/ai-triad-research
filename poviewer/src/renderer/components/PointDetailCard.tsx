@@ -67,6 +67,13 @@ export default function PointDetailCard({ point, source, annotations = [], onAnn
 
       <div className="point-text">{point.text}</div>
 
+      {point.verbatim && (
+        <div className="point-verbatim">
+          <div className="point-verbatim-label">From the document:</div>
+          <blockquote className="point-verbatim-quote">{point.verbatim}</blockquote>
+        </div>
+      )}
+
       {point.isCollision && point.collisionNote && (
         <CollisionAlert note={point.collisionNote} />
       )}

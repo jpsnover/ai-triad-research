@@ -3,7 +3,7 @@
   "_doc": "Skeptic POV taxonomy. One file per POV camp to minimize merge conflicts.",
   "pov": "skeptic",
   "color_hex": "#F39C12",
-  "last_modified": "2026-02-21",
+  "last_modified": "2026-02-24",
   "nodes": [
     {
       "id": "skp-goals-001",
@@ -12,7 +12,9 @@
       "description": "Immediate policy priority is protecting workers whose livelihoods are being disrupted by current AI deployments.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-004"]
+      "cross_cutting_refs": [
+        "cc-004"
+      ]
     },
     {
       "id": "skp-goals-002",
@@ -21,7 +23,9 @@
       "description": "AI systems deployed today exhibit measurable racial, gender, and socioeconomic bias that causes real harm.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-004"]
+      "cross_cutting_refs": [
+        "cc-004"
+      ]
     },
     {
       "id": "skp-goals-003",
@@ -30,7 +34,9 @@
       "description": "AI-powered surveillance and data extraction threaten civil liberties and require immediate regulatory intervention.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003"]
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
     },
     {
       "id": "skp-data-001",
@@ -57,7 +63,10 @@
       "description": "Interpretive claim: speculative future risk narratives are used to avoid accountability for documented current harms.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-001", "cc-004"]
+      "cross_cutting_refs": [
+        "cc-001",
+        "cc-004"
+      ]
     },
     {
       "id": "skp-methods-001",
@@ -66,7 +75,10 @@
       "description": "Interpretation: policy should address documented, measurable harm rather than speculative future risk scenarios.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003", "cc-005"]
+      "cross_cutting_refs": [
+        "cc-003",
+        "cc-005"
+      ]
     },
     {
       "id": "skp-methods-002",
@@ -75,7 +87,54 @@
       "description": "Interpretation: any AI system affecting protected groups should be subject to third-party audit before and during deployment.",
       "parent_id": null,
       "children": [],
-      "cross_cutting_refs": ["cc-003"]
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
+    },
+    {
+      "id": "skp-data-004",
+      "category": "Data/Facts",
+      "label": "Bias propagation into research datasets",
+      "description": "The risk that using LLMs for large-scale data annotation for social science or legal research could embed subtle, systemic biases from the models into what are perceived as objective, empirical datasets.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-003",
+      "category": "Methods",
+      "label": "Left-Accelerationism",
+      "description": "A political project that seeks to seize the technological infrastructure of capitalism (e.g., automation) and repurpose it to achieve a post-capitalist, post-work future of human liberation, often advocating for Universal Basic Income (UBI).",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-005",
+      "category": "Data/Facts",
+      "label": "Privacy vulnerabilities in ML models",
+      "description": "Empirical claim: ML models are vulnerable to attacks like model inversion and membership inference, which can reveal sensitive, private information from the training data, even without traditional system breaches.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-006",
+      "category": "Data/Facts",
+      "label": "Cognitive Labor as Revolutionary Subject",
+      "description": "The theoretical position that the class of 'cognitive labor' (workers in information, tech, and creative industries) has replaced the industrial proletariat as the primary agent of revolutionary change, possessing the unique power to reappropriate and repurpose informational means of production.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-007",
+      "category": "Data/Facts",
+      "label": "Disinformation risk is overstated",
+      "description": "The empirical claim that concerns about AI-generated disinformation are exaggerated and not supported by evidence of widespread impact.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
     }
   ]
 }

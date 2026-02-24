@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 .DESCRIPTION
     On import, reads every .json file under the taxonomy/ directory
     (sibling to scripts/) into a module-scoped hashtable keyed by POV name.
-    Exposes Get-Tax to query nodes by POV.
+    Exposes Get-Tax to query nodes by POV, including semantic similarity search.
 #>
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ class TaxonomyNode {
     [string[]]$CrossCuttingRefs
     [PSObject]$Interpretations
     [string[]]$LinkedNodes
+    [double]$Score
 }
 
 # Register the format file for default table rendering
@@ -40,6 +41,7 @@ $TaxonomyDir = Join-Path $PSScriptRoot '..' 'taxonomy'
 $TaxonomyDir = (Resolve-Path $TaxonomyDir -ErrorAction Stop).Path
 
 foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
+    if ($File.Name -eq 'embeddings.json') { continue }
     try {
         $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         $PovName = $File.BaseName.ToLower()
@@ -56,29 +58,74 @@ if ($script:TaxonomyData.Count -eq 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ConvertTo-TaxonomyNode — private helper (DRY: used by both code paths)
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertTo-TaxonomyNode {
+    param(
+        [string]$PovKey,
+        [PSObject]$Node,
+        [double]$Score = 0
+    )
+
+    $Obj = [TaxonomyNode]::new()
+    $Obj.POV         = $PovKey
+    $Obj.Id          = $Node.id
+    $Obj.Label       = $Node.label
+    $Obj.Description = $Node.description
+    $Obj.Score       = $Score
+
+    # POV files (accelerationist, safetyist, skeptic) have category/parent/children
+    if ($null -ne $Node.PSObject.Properties['category']) {
+        $Obj.Category         = $Node.category
+        $Obj.ParentId         = $Node.parent_id
+        $Obj.Children         = @($Node.children)
+        $Obj.CrossCuttingRefs = @($Node.cross_cutting_refs)
+    }
+
+    # Cross-cutting file has interpretations and linked_nodes
+    if ($null -ne $Node.PSObject.Properties['interpretations']) {
+        $Obj.Interpretations = $Node.interpretations
+        $Obj.LinkedNodes     = @($Node.linked_nodes)
+    }
+
+    $Obj
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Get-Tax
 # ─────────────────────────────────────────────────────────────────────────────
 function Get-Tax {
     <#
     .SYNOPSIS
-        Returns taxonomy nodes filtered by POV, ID, label, and/or description.
+        Returns taxonomy nodes filtered by POV, ID, label, description, or
+        semantic similarity.
     .DESCRIPTION
         Queries the in-memory taxonomy loaded at module import time.
+
+        Text filtering (default):
         -POV narrows the file scope, then any node whose ID matches
         ANY -Id pattern, OR whose label matches ANY -Label pattern,
         OR whose description matches ANY -Description pattern is returned.
+
+        Semantic search (-Similar):
+        Calls the Python embedding script to rank all nodes by cosine
+        similarity to the query text. Returns results sorted by score.
+        Requires embeddings.json (run Update-TaxEmbeddings first).
     .PARAMETER POV
         Name of the POV file without the .json extension (case-insensitive).
         Supports wildcards. Default: "*" (all POVs).
     .PARAMETER Id
         One or more wildcard patterns matched against node IDs.
-        A node is included if it matches ANY of the supplied patterns.
     .PARAMETER Label
         One or more wildcard patterns matched against node labels.
-        A node is included if it matches ANY of the supplied patterns.
     .PARAMETER Description
         One or more wildcard patterns matched against node descriptions.
-        A node is included if it matches ANY of the supplied patterns.
+    .PARAMETER Similar
+        A text query for semantic similarity search. Mutually exclusive
+        with -Id, -Label, and -Description.
+    .PARAMETER Top
+        Maximum number of results to return (only with -Similar).
+        Default: 20.
     .EXAMPLE
         Get-Tax
         # Returns all nodes from every loaded POV.
@@ -89,21 +136,91 @@ function Get-Tax {
         Get-Tax -Label "*bias*","*displacement*"
         # Returns nodes whose label matches either pattern.
     .EXAMPLE
-        Get-Tax -POV s* -Description "*alignment*"
-        # Safetyist + skeptic nodes mentioning alignment in description.
+        Get-Tax -Similar "alignment safety"
+        # Ranked semantic search across all POVs.
+    .EXAMPLE
+        Get-Tax -POV safetyist -Similar "labor displacement"
+        # Semantic search scoped to safetyist POV.
+    .EXAMPLE
+        Get-Tax -Similar "governance" -Top 5
+        # Top 5 semantically similar nodes.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Text')]
     param(
         [Parameter(Position = 0)]
         [string]$POV = '*',
 
+        [Parameter(ParameterSetName = 'Text')]
         [string[]]$Id,
 
+        [Parameter(ParameterSetName = 'Text')]
         [string[]]$Label,
 
-        [string[]]$Description
+        [Parameter(ParameterSetName = 'Text')]
+        [string[]]$Description,
+
+        [Parameter(Mandatory, ParameterSetName = 'Similar')]
+        [string]$Similar,
+
+        [Parameter(ParameterSetName = 'Similar')]
+        [ValidateRange(1, 1000)]
+        [int]$Top = 20
     )
 
+    # ── Similar (semantic search) code path ──────────────────────────────
+    if ($PSCmdlet.ParameterSetName -eq 'Similar') {
+        $EmbedScript = Join-Path $PSScriptRoot 'embed_taxonomy.py'
+        if (-not (Test-Path $EmbedScript)) {
+            Write-Error "embed_taxonomy.py not found at $EmbedScript"
+            return
+        }
+
+        $EmbeddingsFile = Join-Path $PSScriptRoot '..' 'taxonomy' 'embeddings.json'
+        if (-not (Test-Path $EmbeddingsFile)) {
+            Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
+            return
+        }
+
+        # Build Python arguments
+        $PyArgs = @('query', $Similar, '--top', $Top)
+        if ($POV -ne '*') {
+            $PyArgs += @('--pov', $POV)
+        }
+
+        $PyResult = & python $EmbedScript @PyArgs 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "embed_taxonomy.py query failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
+            return
+        }
+
+        $Results = $PyResult | ConvertFrom-Json
+
+        if (-not $Results -or $Results.Count -eq 0) {
+            Write-Warning "No similar nodes found."
+            return
+        }
+
+        # Build a lookup from in-memory taxonomy for full node data
+        $NodeLookup = @{}
+        foreach ($Key in $script:TaxonomyData.Keys) {
+            $Entry = $script:TaxonomyData[$Key]
+            foreach ($Node in $Entry.nodes) {
+                $NodeLookup[$Node.id] = @{ POV = $Key; Node = $Node }
+            }
+        }
+
+        foreach ($Hit in $Results) {
+            $Info = $NodeLookup[$Hit.id]
+            if (-not $Info) { continue }
+
+            $Obj = ConvertTo-TaxonomyNode -PovKey $Info.POV -Node $Info.Node -Score $Hit.score
+            $Obj.PSObject.TypeNames.Insert(0, 'TaxonomyNode.Similar')
+            $Obj
+        }
+        return
+    }
+
+    # ── Text filtering (default) code path ───────────────────────────────
     $MatchingKeys = $script:TaxonomyData.Keys | Where-Object { $_ -like $POV.ToLower() }
 
     if (-not $MatchingKeys) {
@@ -140,29 +257,40 @@ function Get-Tax {
                 if (-not $Match) { continue }
             }
 
-            $Obj = [TaxonomyNode]::new()
-            $Obj.POV         = $Key
-            $Obj.Id          = $Node.id
-            $Obj.Label       = $Node.label
-            $Obj.Description = $Node.description
-
-            # POV files (accelerationist, safetyist, skeptic) have category/parent/children
-            if ($null -ne $Node.PSObject.Properties['category']) {
-                $Obj.Category         = $Node.category
-                $Obj.ParentId         = $Node.parent_id
-                $Obj.Children         = @($Node.children)
-                $Obj.CrossCuttingRefs = @($Node.cross_cutting_refs)
-            }
-
-            # Cross-cutting file has interpretations and linked_nodes
-            if ($null -ne $Node.PSObject.Properties['interpretations']) {
-                $Obj.Interpretations = $Node.interpretations
-                $Obj.LinkedNodes     = @($Node.linked_nodes)
-            }
-
-            $Obj
+            ConvertTo-TaxonomyNode -PovKey $Key -Node $Node
         }
     }
 }
 
-Export-ModuleMember -Function Get-Tax
+# ─────────────────────────────────────────────────────────────────────────────
+# Update-TaxEmbeddings
+# ─────────────────────────────────────────────────────────────────────────────
+function Update-TaxEmbeddings {
+    <#
+    .SYNOPSIS
+        Regenerates taxonomy/embeddings.json from all POV JSON files.
+    .DESCRIPTION
+        Calls embed_taxonomy.py generate to rebuild the semantic embeddings
+        used by Get-Tax -Similar. Requires Python with sentence-transformers.
+    .EXAMPLE
+        Update-TaxEmbeddings
+    #>
+    [CmdletBinding()]
+    param()
+
+    $EmbedScript = Join-Path $PSScriptRoot 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) {
+        Write-Error "embed_taxonomy.py not found at $EmbedScript"
+        return
+    }
+
+    Write-Host "Generating taxonomy embeddings..." -ForegroundColor Cyan
+    & python $EmbedScript generate
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "embed_taxonomy.py generate failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
+        return
+    }
+    Write-Host "Embeddings updated successfully." -ForegroundColor Green
+}
+
+Export-ModuleMember -Function Get-Tax, Update-TaxEmbeddings

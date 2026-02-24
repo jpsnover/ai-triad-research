@@ -3,7 +3,7 @@
   "_doc": "Accelerationist POV taxonomy. One file per POV camp to minimize merge conflicts. Edit nodes, open a PR, bump TAXONOMY_VERSION in the merge commit.",
   "pov": "accelerationist",
   "color_hex": "#27AE60",
-  "last_modified": "2026-02-22",
+  "last_modified": "2026-02-24",
   "nodes": [
     {
       "id": "acc-goals-001",
@@ -125,6 +125,96 @@
       "category": "Methods",
       "label": "Open AI outputs enable scholarly verification",
       "description": "The interpretive position that datasets, annotations, and analytical pipelines produced using AI should be published as open research infrastructure, so that downstream users can validate methodology, replicate findings, and build upon results — analogous to open-data and open-science norms in empirical social science and law. Openness here applies to products of AI systems, not to model weights themselves.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-005",
+      "category": "Data/Facts",
+      "label": "Potentiating gains",
+      "description": "A category of AI progress derived from unlocking the latent capabilities of base models through techniques like RLHF, chain-of-thought, and tool use, transforming them from chatbots into more capable agents.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-005",
+      "category": "Methods",
+      "label": "The Techno-Capital Machine",
+      "description": "The interpretive framework that the combination of free markets and technological innovation creates a self-perpetuating, upward-spiraling engine of material creation, growth, and abundance.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-006",
+      "category": "Methods",
+      "label": "Ressentiment as Anti-Tech Motivation",
+      "description": "The interpretive claim that opposition to technology is not based on valid concerns but on a psychological state of 'ressentiment' — a combination of resentment, bitterness, and rage held by those who feel left behind or powerless.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-007",
+      "category": "Methods",
+      "label": "Thermodynamic justification for acceleration",
+      "description": "The philosophical and methodological position that accelerating technological progress, particularly AI, is aligned with fundamental thermodynamic principles of the universe, which favor systems that are more effective at dissipating energy and increasing entropy.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-006",
+      "category": "Data/Facts",
+      "label": "Capitalism as distributed intelligence",
+      "description": "The empirical and interpretive claim that capitalism functions as a distributed intelligence or 'meta-organism' that dynamically adapts to identify and capture utility, making it a superior method for civilizational progress compared to top-down control.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-005",
+      "category": "Goals/Values",
+      "label": "Substrate-independent intelligence",
+      "description": "The goal of ensuring the continuation and expansion of intelligence and consciousness on non-biological substrates, viewing the biological human form as a temporary and ultimately restrictive medium.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-007",
+      "category": "Data/Facts",
+      "label": "Thermodynamic Imperative for AI",
+      "description": "The philosophical claim that accelerating technological growth, particularly AI, is an extension of a fundamental physical law (the Second Law of Thermodynamics) where life and intelligence are structures that maximize entropy dissipation. This frames acceleration not as a choice but as a cosmic imperative.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-008",
+      "category": "Methods",
+      "label": "Reappropriation of Cognitive Fixed Capital",
+      "description": "The method of seizing and repurposing the means of production under post-Fordism, where 'fixed capital' includes not just machinery but also information technologies, software, algorithms, and forms of collective knowledge, for post-capitalist ends.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-009",
+      "category": "Methods",
+      "label": "AI Risk as a Cult",
+      "description": "The interpretive claim that the AI safety/risk movement is not a rational, scientific endeavor but has the social and psychological characteristics of a millenarian apocalypse cult.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-010",
+      "category": "Methods",
+      "label": "Baptists and Bootleggers of AI Regulation",
+      "description": "An interpretive framework asserting that calls for AI regulation are driven by two groups: sincere 'Baptists' who genuinely fear the technology, and cynical 'Bootleggers' (incumbent companies) who use the Baptists' fears to lobby for regulatory capture that protects them from competition.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

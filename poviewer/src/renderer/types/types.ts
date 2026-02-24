@@ -48,6 +48,7 @@ export interface Mapping {
   camp: PovCamp;
   nodeId: string;
   nodeLabel: string;
+  nodeDescription?: string;
   category: string;
   alignment: Alignment;
   strength: StrengthLevel;
@@ -60,6 +61,7 @@ export interface Point {
   startOffset: number;
   endOffset: number;
   text: string;
+  verbatim?: string;
   mappings: Mapping[];
   isCollision: boolean;
   collisionNote?: string;

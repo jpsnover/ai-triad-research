@@ -641,6 +641,31 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.point-verbatim {
+  padding: 6px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.point-verbatim-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.point-verbatim-quote {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-color);
+  background: var(--bg-card);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
 /* === Mapping Block === */
 .mapping-block {
   padding: 10px 12px;
@@ -708,6 +733,13 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
+}
+
+.mapping-node-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 4px;
 }
 
 .mapping-category {

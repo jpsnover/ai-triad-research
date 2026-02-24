@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { TabId } from '../types/taxonomy';
-import type { ColorScheme } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
-import { SearchBar } from './SearchBar';
+import { SettingsDialog } from './SettingsDialog';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Accelerationist' },
@@ -14,8 +13,9 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export function TabBar() {
-  const { activeTab, setActiveTab, colorScheme, setColorScheme } = useTaxonomyStore();
+  const { activeTab, setActiveTab } = useTaxonomyStore();
   const [showHelp, setShowHelp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="tab-bar">
@@ -29,21 +29,15 @@ export function TabBar() {
           {tab.label}
         </button>
       ))}
-      <SearchBar />
-      <div className="theme-selector">
-        <label>Theme</label>
-        <select
-          value={colorScheme}
-          onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-        >
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="system">System</option>
-        </select>
-        <button className="help-btn" onClick={() => setShowHelp(true)} title="Help">
-          ? Help
+      <div className="tab-bar-actions">
+        <button className="tab-bar-menu-btn" onClick={() => setShowSettings(true)} title="Settings">
+          Settings
+        </button>
+        <button className="tab-bar-menu-btn" onClick={() => setShowHelp(true)} title="Help">
+          Help
         </button>
       </div>
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
     </div>
   );

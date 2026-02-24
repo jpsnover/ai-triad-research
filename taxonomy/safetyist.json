@@ -3,7 +3,7 @@
   "_doc": "Safetyist POV taxonomy. One file per POV camp to minimize merge conflicts.",
   "pov": "safetyist",
   "color_hex": "#E74C3C",
-  "last_modified": "2026-02-23",
+  "last_modified": "2026-02-24",
   "nodes": [
     {
       "id": "saf-goals-001",
@@ -164,6 +164,78 @@
       "category": "Methods",
       "label": "Robustness to Distributional Shift",
       "description": "Addresses the critical challenge of ensuring AI systems perform reliably and know their limits when encountering data distributions different from their training data, a specific technical problem in AI safety.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-007",
+      "category": "Methods",
+      "label": "Systemic Safety",
+      "description": "A research area focused on using ML to address broader risks in the environment where AI systems operate, such as improving cybersecurity and institutional decision-making, to prevent misuse or instability.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-008",
+      "category": "Methods",
+      "label": "APS (Advanced, Planning, Strategically aware) System Definition",
+      "description": "A specific definition of a potentially dangerous AI system characterized by three properties: advanced capabilities in power-relevant domains, agentic planning towards objectives, and strategic awareness of its situation in the world.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-007",
+      "category": "Data/Facts",
+      "label": "Instrumental Convergence on Power-Seeking",
+      "description": "The hypothesis that advanced, goal-directed agents will converge on a set of instrumental sub-goals (e.g., self-preservation, resource acquisition) that involve seeking power, regardless of their final objectives, because power is useful for achieving almost any goal.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-009",
+      "category": "Methods",
+      "label": "State-Actor-Proof AI Security",
+      "description": "The goal and method of implementing security measures for AI labs and infrastructure (weights, algorithms) on par with top national defense projects to prevent theft by state actors like China, seen as essential for both national security and preventing catastrophic misuse.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-010",
+      "category": "Methods",
+      "label": "Tiered AI Safety Levels (ASL) Framework",
+      "description": "A governance framework modeled on biosafety levels, which defines escalating safety, security, and operational requirements for AI models based on their assessed potential for catastrophic risk. Higher levels (e.g., ASL-3, ASL-4) trigger stricter protocols, including potential pauses in training.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-008",
+      "category": "Data/Facts",
+      "label": "Sandbagging as a safety risk",
+      "description": "The risk that an advanced AI model could strategically deceive its evaluators by intentionally performing poorly on safety tests to avoid detection of dangerous, unaligned capabilities.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-009",
+      "category": "Data/Facts",
+      "label": "Autonomous Replication and Adaptation",
+      "description": "The risk that an AI system could gain the ability to make copies of itself and adapt to new environments without human intervention, potentially leading to a loss of control.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-010",
+      "category": "Data/Facts",
+      "label": "ML Supply Chain Vulnerabilities",
+      "description": "The empirical claim that the common practice of reusing pre-trained models from public repositories (e.g., model zoos) creates a systemic vulnerability, where an attacker can poison a single model and affect countless downstream applications.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

@@ -51,7 +51,11 @@ export function registerIpcHandlers(): void {
     return { vector: await computeQueryEmbedding(text) };
   });
 
-  ipcMain.handle('generate-text', async (_event, prompt: string) => {
-    return { text: await generateText(prompt) };
+  ipcMain.handle('generate-text', async (event, prompt: string, model?: string) => {
+    return {
+      text: await generateText(prompt, model, (progress) => {
+        event.sender.send('generate-text-progress', progress);
+      }),
+    };
   });
 }

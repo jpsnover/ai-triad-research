@@ -9,7 +9,8 @@ export interface ElectronAPI {
   hasApiKey: () => Promise<boolean>;
   computeEmbeddings: (texts: string[]) => Promise<{ vectors: number[][] }>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
-  generateText: (prompt: string) => Promise<{ text: string }>;
+  generateText: (prompt: string, model?: string) => Promise<{ text: string }>;
+  onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   growWindow: (deltaWidth: number) => Promise<void>;
   shrinkWindow: (deltaWidth: number) => Promise<void>;
 }

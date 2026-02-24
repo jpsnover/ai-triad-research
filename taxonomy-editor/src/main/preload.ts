@@ -31,8 +31,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateText: (prompt: string): Promise<{ text: string }> =>
-    ipcRenderer.invoke('generate-text', prompt),
+  generateText: (prompt: string, model?: string): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', prompt, model),
+
+  onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => callback(progress);
+    ipcRenderer.on('generate-text-progress', listener);
+    return () => { ipcRenderer.removeListener('generate-text-progress', listener); };
+  },
 
   growWindow: (deltaWidth: number): Promise<void> =>
     ipcRenderer.invoke('grow-window', deltaWidth),
