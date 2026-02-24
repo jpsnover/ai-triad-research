@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, shell } from 'electron';
 import fs from 'fs';
 import {
   readTaxonomyFile,
@@ -18,6 +18,7 @@ import {
   loadPromptOverrides,
   savePromptOverrides,
   readAllTaxonomies,
+  readRawPdfBytes,
   SourceMetadataOnDisk,
 } from './fileIO';
 import { storeApiKey, getApiKey, validateApiKey } from './apiKeyStore';
@@ -120,9 +121,26 @@ export function registerIpcHandlers(): void {
 
   // === PDF Handler ===
 
+  ipcMain.handle('get-pdf-bytes', (_event, sourceId: string) => {
+    const buf = readRawPdfBytes(sourceId);
+    if (!buf) return null;
+    // Return as ArrayBuffer for the renderer
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  });
+
   ipcMain.handle('extract-pdf-text', async (_event, filePath: string) => {
     const { extractPdfText } = await import('./pdfExtractor');
     return extractPdfText(filePath);
+  });
+
+  ipcMain.handle('open-external-url', (_event, url: string) => {
+    shell.openExternal(url);
+  });
+
+  ipcMain.handle('analyze-excerpt', async (_event, excerptText: string) => {
+    const { analyzeExcerpt } = await import('./aiEngine');
+    const taxonomyJson = readAllTaxonomies();
+    return analyzeExcerpt(excerptText, taxonomyJson);
   });
 
   // === Annotation Handlers ===

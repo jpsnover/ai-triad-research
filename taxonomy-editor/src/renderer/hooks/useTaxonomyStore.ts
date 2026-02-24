@@ -90,6 +90,26 @@ interface TaxonomyState {
   semanticResults: { id: string; score: number }[];
   buildEmbeddingTexts: (povScopes: Set<TabId>, aspectScopes: Set<Category>) => { ids: string[]; texts: string[] };
 
+  similarResults: { id: string; score: number }[] | null;
+  similarLoading: boolean;
+  similarError: string | null;
+  similarThreshold: number;
+  setSimilarThreshold: (threshold: number) => void;
+  runSimilarSearch: (nodeId: string, label: string, description: string) => Promise<void>;
+  clearSimilarSearch: () => void;
+
+  analysisResult: string | null;
+  analysisLoading: boolean;
+  analysisError: string | null;
+  analysisStep: number;
+  analysisElementA: { label: string; description: string } | null;
+  analysisElementB: { label: string; description: string } | null;
+  runAnalyzeDistinction: (
+    elementA: { label: string; description: string },
+    elementB: { label: string; description: string },
+  ) => Promise<void>;
+  clearAnalysis: () => void;
+
   setActiveTab: (tab: TabId) => void;
   setSelectedNodeId: (id: string | null) => void;
   navigateToNode: (tab: TabId, id: string) => void;
@@ -164,6 +184,88 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   embeddingError: null,
   hasApiKey: false,
   semanticResults: [],
+
+  similarResults: null,
+  similarLoading: false,
+  similarError: null,
+  similarThreshold: 60,
+  setSimilarThreshold: (threshold) => set({ similarThreshold: threshold }),
+  clearSimilarSearch: () => set({ similarResults: null, similarError: null }),
+
+  analysisResult: null,
+  analysisLoading: false,
+  analysisError: null,
+  analysisStep: 0,
+  analysisElementA: null,
+  analysisElementB: null,
+
+  runAnalyzeDistinction: async (elementA, elementB) => {
+    // Step 1: Preparing elements
+    set({
+      analysisLoading: true,
+      analysisError: null,
+      analysisResult: null,
+      analysisStep: 1,
+      analysisElementA: elementA,
+      analysisElementB: elementB,
+    });
+
+    // Step 2: Building audit prompt
+    set({ analysisStep: 2 });
+
+    const prompt = `Role: Act as a Logical Analyst and Semantic Auditor.
+
+Task: Compare two provided elements (Label + Description) to determine if they are functionally identical, semantically redundant, or if a meaningful distinction exists between them.
+
+Evaluation Framework:
+
+Semantic Mapping: Do the descriptions cover the same conceptual territory using different syntax?
+
+Functional Utility: If one element were deleted, would any unique information, constraint, or application be lost?
+
+The "So What?" Test: Does the difference in phrasing lead to a different real-world outcome or technical requirement?
+
+Input Data:
+
+Element A:
+Label: ${elementA.label}
+Description: ${elementA.description}
+
+Element B:
+Label: ${elementB.label}
+Description: ${elementB.description}
+
+Required Output Format:
+
+The Verdict: [Identical | Redundant | Distinct]
+
+The Delta: Identify the exact words or phrases that create a perceived difference. Analyze if these are "cosmetic" (synonyms) or "structural" (changing the scope).
+
+Logical Gap: If you claim they are different, define the specific scenario where Element A applies but Element B does not. If they are the same, provide a single, "Steel-manned" version that consolidates both perfectly.
+
+Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
+
+    try {
+      // Step 3: Sending to Gemini AI
+      set({ analysisStep: 3 });
+      const { text } = await window.electronAPI.generateText(prompt);
+
+      // Step 4: Processing response
+      set({ analysisStep: 4 });
+      set({ analysisResult: text, analysisLoading: false, analysisStep: 5 });
+    } catch (err) {
+      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0 });
+    }
+  },
+
+  clearAnalysis: () => set({
+    analysisResult: null,
+    analysisError: null,
+    analysisLoading: false,
+    analysisStep: 0,
+    analysisElementA: null,
+    analysisElementB: null,
+  }),
 
   checkApiKey: async () => {
     try {
@@ -251,6 +353,45 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
       set({ embeddingLoading: false, embeddingError: String(err) });
+    }
+  },
+
+  runSimilarSearch: async (nodeId, label, description) => {
+    const queryText = `${label}\n${description}`;
+    if (!queryText.trim()) {
+      set({ similarResults: [], similarLoading: false });
+      return;
+    }
+
+    set({ similarLoading: true, similarError: null, similarResults: null });
+
+    try {
+      const state = get();
+      let cache = state.embeddingCache;
+
+      // Rebuild cache if dirty (no scope filters — search all elements)
+      if (state.embeddingDirty || cache.size === 0) {
+        const { ids, texts } = state.buildEmbeddingTexts(new Set(), new Set());
+        if (texts.length === 0) {
+          set({ similarResults: [], similarLoading: false });
+          return;
+        }
+        const { vectors } = await window.electronAPI.computeEmbeddings(texts);
+        cache = new Map();
+        for (let i = 0; i < ids.length; i++) {
+          cache.set(ids[i], vectors[i]);
+        }
+        set({ embeddingCache: cache, embeddingDirty: false });
+      }
+
+      const { vector } = await window.electronAPI.computeQueryEmbedding(queryText);
+      // Use a low threshold (0.3) to get many results; the slider filters in UI
+      const results = rankBySimilarity(vector, cache, 0.3, 200);
+      // Exclude the source node itself
+      const filtered = results.filter(r => r.id !== nodeId);
+      set({ similarResults: filtered, similarLoading: false });
+    } catch (err) {
+      set({ similarLoading: false, similarError: String(err) });
     }
   },
 

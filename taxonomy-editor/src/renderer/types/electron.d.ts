@@ -9,6 +9,9 @@ export interface ElectronAPI {
   hasApiKey: () => Promise<boolean>;
   computeEmbeddings: (texts: string[]) => Promise<{ vectors: number[][] }>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
+  generateText: (prompt: string) => Promise<{ text: string }>;
+  growWindow: (deltaWidth: number) => Promise<void>;
+  shrinkWindow: (deltaWidth: number) => Promise<void>;
 }
 
 declare global {

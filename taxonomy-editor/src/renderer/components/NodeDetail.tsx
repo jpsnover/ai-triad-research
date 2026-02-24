@@ -12,10 +12,11 @@ interface NodeDetailProps {
   node: PovNode;
   readOnly?: boolean;
   onPin?: () => void;
+  onSimilarSearch?: () => void;
   chipDepth?: number;
 }
 
-export function NodeDetail({ pov, node, readOnly, onPin, chipDepth = 0 }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, chipDepth = 0 }: NodeDe
       <div className="detail-header">
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
+          {onSimilarSearch && (
+            <button className="btn btn-ghost btn-sm" onClick={onSimilarSearch} title="Find similar taxonomy elements">
+              Similar Search
+            </button>
+          )}
           {onPin && (
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
               Pin

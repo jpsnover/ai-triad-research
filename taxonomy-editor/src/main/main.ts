@@ -1,8 +1,23 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 
 let mainWindow: BrowserWindow | null = null;
+
+function registerWindowHandlers(): void {
+  ipcMain.handle('grow-window', (_event, deltaWidth: number) => {
+    if (!mainWindow) return;
+    const [w, h] = mainWindow.getSize();
+    mainWindow.setSize(w + deltaWidth, h, true);
+  });
+
+  ipcMain.handle('shrink-window', (_event, deltaWidth: number) => {
+    if (!mainWindow) return;
+    const [w, h] = mainWindow.getSize();
+    const newW = Math.max(900, w - deltaWidth);
+    mainWindow.setSize(newW, h, true);
+  });
+}
 
 function createWindow(): void {
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -43,6 +58,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpcHandlers();
+  registerWindowHandlers();
   createWindow();
 
   app.on('activate', () => {

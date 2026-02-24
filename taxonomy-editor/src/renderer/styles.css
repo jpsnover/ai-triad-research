@@ -1330,3 +1330,391 @@ body {
   color: var(--danger);
   padding: 4px 0;
 }
+
+/* ─── Similar Search panel (Pane 3) ──────────────────── */
+
+.similar-search-panel {
+  min-width: 320px;
+  border-left: none;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.similar-search-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.similar-search-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.similar-search-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 16px 0;
+}
+
+.similar-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.similar-threshold-row label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.similar-threshold-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--focus-ring);
+  cursor: pointer;
+}
+
+.similar-threshold-value {
+  font-size: 0.75rem;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  color: var(--focus-ring);
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.similar-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.similar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  table-layout: fixed;
+}
+
+.similar-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.similar-table th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+  position: relative;
+}
+
+.similar-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+  padding-right: 14px !important;
+}
+
+.similar-th-sortable:hover {
+  color: var(--text-primary);
+}
+
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 3;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle:active {
+  background: var(--focus-ring);
+}
+
+.similar-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.similar-table-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.similar-table-row:hover {
+  background: var(--bg-hover);
+}
+
+.similar-table-match {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--focus-ring);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.similar-table-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.similar-table-desc {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.similar-table-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.similar-table-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px 8px !important;
+  font-size: 0.8rem;
+}
+
+.similar-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.similar-id-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.similar-id-toggle input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--focus-ring);
+}
+
+/* ─── Context menu ───────────────────────────────────── */
+
+.context-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px var(--dialog-shadow, rgba(0, 0, 0, 0.2));
+  padding: 4px 0;
+  min-width: 180px;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+/* ─── Analysis panel (Pane 4) ────────────────────────── */
+
+.analysis-panel {
+  min-width: 300px;
+  border-left: none;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.analysis-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.analysis-panel-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.analysis-elements {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.analysis-element {
+  flex: 1;
+  min-width: 0;
+}
+
+.analysis-element-tag {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.analysis-element-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analysis-vs {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+/* ─── Stepped progress indicator ─────────────────────── */
+
+.analysis-steps {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.analysis-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.analysis-step-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+.analysis-step-done .analysis-step-indicator {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.analysis-step-done .analysis-step-label {
+  color: var(--text-muted);
+}
+
+.analysis-step-active .analysis-step-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.analysis-step-active .analysis-step-indicator .search-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.analysis-step-pending .analysis-step-label {
+  color: var(--text-muted);
+}
+
+.analysis-step-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-color);
+}
+
+.analysis-result {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.analysis-result p {
+  margin-bottom: 4px;
+}
+
+.analysis-heading {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-size: 0.84rem;
+}

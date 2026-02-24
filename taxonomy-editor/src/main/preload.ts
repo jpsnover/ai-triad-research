@@ -30,4 +30,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
+
+  generateText: (prompt: string): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', prompt),
+
+  growWindow: (deltaWidth: number): Promise<void> =>
+    ipcRenderer.invoke('grow-window', deltaWidth),
+
+  shrinkWindow: (deltaWidth: number): Promise<void> =>
+    ipcRenderer.invoke('shrink-window', deltaWidth),
 });

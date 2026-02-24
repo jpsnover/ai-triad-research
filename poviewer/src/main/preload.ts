@@ -53,8 +53,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-analysis-status', sourceId),
 
   // === PDF APIs ===
+  getPdfBytes: (sourceId: string): Promise<ArrayBuffer | null> =>
+    ipcRenderer.invoke('get-pdf-bytes', sourceId),
+
   extractPdfText: (filePath: string): Promise<{ fullText: string; pageBreaks: number[] }> =>
     ipcRenderer.invoke('extract-pdf-text', filePath),
+
+  openExternalUrl: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external-url', url),
+
+  analyzeExcerpt: (excerptText: string): Promise<unknown> =>
+    ipcRenderer.invoke('analyze-excerpt', excerptText),
 
   // === Annotation APIs ===
   saveAnnotations: (sourceId: string, annotations: unknown): Promise<void> =>

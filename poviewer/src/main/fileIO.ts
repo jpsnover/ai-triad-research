@@ -308,3 +308,20 @@ export function getSourceDir(sourceId: string): string {
 export function getProjectRoot(): string {
   return PROJECT_ROOT;
 }
+
+// === Raw PDF Path Resolution ===
+
+export function findRawPdfPath(sourceId: string): string | null {
+  const rawDir = path.join(SOURCES_DIR, sourceId, 'raw');
+  if (!fs.existsSync(rawDir)) return null;
+  const files = fs.readdirSync(rawDir);
+  const pdf = files.find(f => f.toLowerCase().endsWith('.pdf'));
+  if (!pdf) return null;
+  return path.join(rawDir, pdf);
+}
+
+export function readRawPdfBytes(sourceId: string): Buffer | null {
+  const pdfPath = findRawPdfPath(sourceId);
+  if (!pdfPath) return null;
+  return fs.readFileSync(pdfPath);
+}

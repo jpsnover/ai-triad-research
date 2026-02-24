@@ -8,7 +8,7 @@ import {
   deleteConflictFile,
 } from './fileIO';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { computeEmbeddings, computeQueryEmbedding } from './embeddings';
+import { computeEmbeddings, computeQueryEmbedding, generateText } from './embeddings';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('load-taxonomy-file', (_event, pov: string) => {
@@ -49,5 +49,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('compute-query-embedding', async (_event, text: string) => {
     return { vector: await computeQueryEmbedding(text) };
+  });
+
+  ipcMain.handle('generate-text', async (_event, prompt: string) => {
+    return { text: await generateText(prompt) };
   });
 }

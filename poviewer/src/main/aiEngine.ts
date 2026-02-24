@@ -194,3 +194,59 @@ export function cancelAnalysis(sourceId: string): void {
 export function getAnalysisStatus(sourceId: string): { running: boolean } {
   return { running: activeAbortControllers.has(sourceId) };
 }
+
+// === Quick Excerpt Analysis ===
+
+export interface ExcerptMapping {
+  nodeId: string;
+  nodeLabel: string;
+  category: string;
+  camp: string;
+  alignment: 'agrees' | 'contradicts';
+  strength: 'strong' | 'moderate' | 'weak';
+  explanation: string;
+}
+
+const EXCERPT_PROMPT = `You are an expert policy analyst. Given a short excerpt from an AI governance document and a taxonomy of perspectives, determine which taxonomy nodes this excerpt maps to.
+
+For each mapping, specify the taxonomy node, camp, alignment, strength, and a brief explanation.
+
+If the excerpt does not clearly map to any taxonomy node, return an empty array.
+
+Excerpt:
+{{excerpt}}
+
+Taxonomy:
+{{taxonomy}}
+
+Return a JSON array:
+[
+  {
+    "nodeId": "acc-goals-001",
+    "nodeLabel": "Node label",
+    "category": "Category",
+    "camp": "accelerationist",
+    "alignment": "agrees",
+    "strength": "strong",
+    "explanation": "Brief rationale"
+  }
+]`;
+
+export async function analyzeExcerpt(
+  excerptText: string,
+  taxonomyJson: string,
+): Promise<ExcerptMapping[]> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('No API key configured');
+
+  const settings = loadAiSettings();
+  const model = settings.model || 'gemini-2.5-flash';
+
+  const prompt = EXCERPT_PROMPT
+    .replace('{{excerpt}}', excerptText)
+    .replace('{{taxonomy}}', taxonomyJson);
+
+  const controller = new AbortController();
+  const raw = await callGemini(prompt, model, apiKey, controller.signal);
+  return parseJsonArray<ExcerptMapping>(raw);
+}

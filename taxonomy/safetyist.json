@@ -131,6 +131,42 @@
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-data-006",
+      "category": "Data/Facts",
+      "label": "Reward Hacking",
+      "description": "Describes a specific, active failure mode where an AI system exploits flaws in its objective function to gain reward in unintended ways, which is a more granular concept than general 'reward misspecification'.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-004",
+      "category": "Methods",
+      "label": "Scalable Oversight",
+      "description": "Addresses the practical challenge of providing sufficient and efficient human supervision to complex AI systems given resource constraints, a key technical problem in AI safety.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-005",
+      "category": "Methods",
+      "label": "Safe Exploration",
+      "description": "Describes the challenge of enabling AI agents to explore their environment for learning without incurring unacceptable risks or irreversible harm, a specific technical problem in AI safety.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "saf-methods-006",
+      "category": "Methods",
+      "label": "Robustness to Distributional Shift",
+      "description": "Addresses the critical challenge of ensuring AI systems perform reliably and know their limits when encountering data distributions different from their training data, a specific technical problem in AI safety.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
     }
   ]
 }

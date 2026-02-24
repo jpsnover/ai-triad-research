@@ -1,7 +1,7 @@
 {
   "_schema_version": "1.0.0",
   "_doc": "Cross-cutting taxonomy: concepts that appear in all three camps but carry different interpretations. These nodes are referenced by all three POV taxonomy files.",
-  "last_modified": "2026-02-22",
+  "last_modified": "2026-02-23",
   "nodes": [
     {
       "id": "cc-001",

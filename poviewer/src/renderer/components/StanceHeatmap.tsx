@@ -98,7 +98,7 @@ export default function StanceHeatmap() {
         </span>
       </div>
 
-      <div className="heatmap-grid" style={{ gridTemplateColumns: `200px repeat(${enabledSources.length}, 1fr)` }}>
+      <div className="heatmap-grid" style={{ gridTemplateColumns: `minmax(220px, 1.5fr) repeat(${enabledSources.length}, 1fr)` }}>
         {/* Header row */}
         <div className="heatmap-header-cell" />
         {enabledSources.map(src => (
@@ -108,7 +108,7 @@ export default function StanceHeatmap() {
             onClick={() => selectSource(src.id)}
             title={src.title}
           >
-            {src.title.length > 15 ? src.title.slice(0, 15) + '...' : src.title}
+            {src.title}
           </div>
         ))}
 

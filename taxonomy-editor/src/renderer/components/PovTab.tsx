@@ -1,22 +1,40 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Pov, Category, PovNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
-import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { NodeTree, getOrderedNodeIds } from './NodeTree';
 import { NodeDetail } from './NodeDetail';
 import { NewNodeDialog } from './NewNodeDialog';
 import { PinnedPanel } from './PinnedPanel';
+import { SimilarSearchPanel } from './SimilarSearchPanel';
+import { AnalysisPanel } from './AnalysisPanel';
 
 interface PovTabProps {
   pov: Pov;
 }
 
 export function PovTab({ pov }: PovTabProps) {
-  const { selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth } = useTaxonomyStore();
+  const {
+    selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
+    runSimilarSearch, similarResults, similarLoading, similarError,
+    runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
+  } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
+  const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-similar-panel-width',
+    defaultWidth: 480,
+    minWidth: 320,
+    maxWidth: 900,
+  });
+  const { width: pane4Width, onMouseDown: onPane4Resize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-analysis-panel-width',
+    defaultWidth: 420,
+    minWidth: 300,
+    maxWidth: 800,
+  });
 
   const orderedIds = useMemo(
     () => (file ? getOrderedNodeIds(file.nodes) : []),
@@ -52,6 +70,58 @@ export function PovTab({ pov }: PovTabProps) {
     }
   };
 
+  const handleSimilarSearch = () => {
+    if (selectedNode) {
+      runSimilarSearch(selectedNode.id, selectedNode.label, selectedNode.description);
+    }
+  };
+
+  const handleAnalyze = (elementB: { label: string; description: string }) => {
+    if (selectedNode) {
+      runAnalyzeDistinction(
+        { label: selectedNode.label, description: selectedNode.description },
+        elementB,
+      );
+    }
+  };
+
+  const showSimilarPanel = similarResults !== null || similarLoading || !!similarError;
+  const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
+
+  // Grow/shrink window when Pane 3 opens/closes
+  const prevShowSimilar = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowSimilar.current;
+    prevShowSimilar.current = showSimilarPanel;
+    // 4px for the resize handle
+    const delta = pane3Width + 4;
+    if (showSimilarPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showSimilarPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showSimilarPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grow/shrink window when Pane 4 opens/closes
+  const prevShowAnalysis = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowAnalysis.current;
+    prevShowAnalysis.current = showAnalysisPanel;
+    const delta = pane4Width + 4;
+    if (showAnalysisPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showAnalysisPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh similar search when selection changes while panel is open
+  useEffect(() => {
+    if (showSimilarPanel && selectedNode && !similarLoading) {
+      runSimilarSearch(selectedNode.id, selectedNode.label, selectedNode.description);
+    }
+  }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="two-column">
       <div className="list-panel" style={{ width }}>
@@ -72,12 +142,24 @@ export function PovTab({ pov }: PovTabProps) {
       <div className="resize-handle" onMouseDown={onMouseDown} />
       <div className="detail-panel" data-cat={selectedNode?.category}>
         {selectedNode ? (
-          <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} />
+          <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} />
         ) : (
           <div className="detail-panel-empty">Select a node to edit</div>
         )}
       </div>
-      {pinnedStack.length > 0 && <PinnedPanel />}
+      {showSimilarPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onPane3Resize} />
+          <SimilarSearchPanel width={pane3Width} onAnalyze={handleAnalyze} />
+        </>
+      )}
+      {showAnalysisPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onPane4Resize} />
+          <AnalysisPanel width={pane4Width} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showSimilarPanel && <PinnedPanel />}
       {showNewDialog && (
         <NewNodeDialog
           onConfirm={handleCreate}

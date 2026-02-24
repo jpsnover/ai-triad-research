@@ -1,3 +1,13 @@
+export interface ExcerptMappingResult {
+  nodeId: string;
+  nodeLabel: string;
+  category: string;
+  camp: string;
+  alignment: 'agrees' | 'contradicts';
+  strength: 'strong' | 'moderate' | 'weak';
+  explanation: string;
+}
+
 export interface ElectronAPI {
   // === Existing APIs ===
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
@@ -22,7 +32,11 @@ export interface ElectronAPI {
   getAnalysisStatus: (sourceId: string) => Promise<{ running: boolean }>;
 
   // === PDF APIs ===
+  getPdfBytes: (sourceId: string) => Promise<ArrayBuffer | null>;
   extractPdfText: (filePath: string) => Promise<{ fullText: string; pageBreaks: number[] }>;
+
+  openExternalUrl: (url: string) => Promise<void>;
+  analyzeExcerpt: (excerptText: string) => Promise<ExcerptMappingResult[]>;
 
   // === Annotation APIs ===
   saveAnnotations: (sourceId: string, annotations: unknown) => Promise<void>;
