@@ -325,3 +325,42 @@ export function readRawPdfBytes(sourceId: string): Buffer | null {
   if (!pdfPath) return null;
   return fs.readFileSync(pdfPath);
 }
+
+// === Taxonomy File Watching ===
+
+const activeWatchers: fs.FSWatcher[] = [];
+
+export function watchTaxonomyFiles(onChange: (pov: string) => void): void {
+  stopWatchingTaxonomyFiles();
+
+  const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+  for (const [pov, filename] of Object.entries(POV_FILE_MAP)) {
+    const filePath = path.join(TAXONOMY_DIR, filename);
+    if (!fs.existsSync(filePath)) continue;
+
+    try {
+      const watcher = fs.watch(filePath, () => {
+        // Debounce: editors often fire multiple events per save
+        if (debounceTimers[pov]) clearTimeout(debounceTimers[pov]);
+        debounceTimers[pov] = setTimeout(() => {
+          console.log(`[TaxonomyWatcher] Change detected: ${pov} (${filename})`);
+          onChange(pov);
+        }, 300);
+      });
+
+      activeWatchers.push(watcher);
+      console.log(`[TaxonomyWatcher] Watching ${filename}`);
+    } catch (err) {
+      console.error(`[TaxonomyWatcher] Failed to watch ${filename}:`, err);
+    }
+  }
+}
+
+export function stopWatchingTaxonomyFiles(): void {
+  for (const watcher of activeWatchers) {
+    watcher.close();
+  }
+  activeWatchers.length = 0;
+  console.log('[TaxonomyWatcher] All watchers stopped');
+}

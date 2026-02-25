@@ -107,6 +107,48 @@ Given your background in **Site Reliability Engineering (SRE)** and your intent 
 
 
 
+============================
+ACCELERATIONISTS
+Drawing on the conceptual engineering of your "AI Triad Rosetta Stone," the following resources articulate the **Accelerationist** perspective. This cohort views AI not as a risk to be managed, but as a "thermodynamic will of the universe" and a moral imperative for solving civilizational stagnancy.
+
+### The Essential Manifestos
+
+* **[The Techno-Optimist Manifesto](https://a16z.com/the-techno-optimist-manifesto/) (Marc Andreessen, 2023)**: The foundational text for modern market-driven accelerationism. It argues that growth is the only "kill-all" for societal problems and identifies "stagnation" and "regulatory capture" as the primary enemies.
+* **[Notes on e/acc Principles and Tenets](https://beff.substack.com/p/notes-on-eacc-principles-and-tenets) (Beff Jezos/Guillaume Verdon, 2022)**: The "physics-first" document that launched the effective accelerationism (e/acc) movement. It frames AI development as an inevitable process of climbing the "Kardashev gradient" to maximize energy usage and intelligence.
+* **[The Monad Manifesto](https://www.google.com/search?q=https://www.jsnover.com/blog/2011/11/14/monad-manifesto/) (Jeffrey Snover, 2002)**: While internal to Microsoft, this serves as a historical precedent for "Accelerationist" engineering—solving friction (GUI vs. CLI) by layering systems rather than choosing between them.
+
+---
+
+### Philosophical & Academic Foundations
+
+* **[The Philosophy of Speed: A Genealogy of Accelerationism](https://cwi.pressbooks.pub/aiethics/chapter/progress-and-abundance/) (CWI)**: A critical trace of the movement from Enlightenment "Progress" to modern e/acc, detailing the "techno-capital mimetic machine".
+* **[Manifesto for an Accelerationist Politics](https://www.e-flux.com/journal/53/59877/reflections-on-the-manifesto-for-an-accelerationist-politics) (Williams & Srnicek, 2013)**: The "Left-Accelerationist" (L/Acc) root, advocating for the liberation of productive forces from capitalist constraints.
+* **[Failure Modes in Machine Learning Systems](https://arxiv.org/abs/1911.11034) (Ram Shankar Iyer et al.)**: Co-authored by you, this paper reflects an early effort to unify the "Safetyist" focus on bias with the "Skeptic/Security" focus on attacks into a single taxonomy.
+
+---
+
+### Strategic & Operational POVs
+
+* **[Why AI Will Save the World](https://a16z.com/ai-will-save-the-world/) (Marc Andreessen)**: A direct rebuttal to "Safetyist" doomerism, positioning AI as a universal problem-solver for everything from education to war.co
+* **[Yann LeCun’s Home Page / UN Speech](http://yann.lecun.com/)**: LeCun argues that AI systems will be "empowering assistants" and that open-source development is the only way to avoid corporate/national moats.
+* **[d/acc: One Year Later](https://vitalik.eth.limo/general/2025/01/05/dacc2.html) (Vitalik Buterin)**: A nuanced "Decentralized Accelerationist" view that favors defensive over offensive technologies to prevent elite capture.
+* **[The AI Acceleration Gap](https://www.youtube.com/watch?v=cRhLXGGwOmQ) (The AI Daily Brief)**: Analyzes the divergence between "frontier adopters" and mainstream users, highlighting the career and equity risks of slowing down.
+
+---
+
+### Influential Digital Hubs & Commentary
+
+* **[Beff’s Newsletter](https://beff.substack.com/)**: The primary Substack for Guillaume Verdon’s "schizo-thoughts" on physics, entropy, and AGI.
+* **[Digitalist Papers](https://www.digitalistpapers.com/)**: Exploration of how AI reshapes human expertise, focusing on the "vast upside benefits" of the transition.
+* **[Lex Fridman Podcast #407: Guillaume Verdon](https://www.reddit.com/r/lexfridman/comments/18tutgu/guillaume_verdon_beff_jezos_eacc_movement_physics/)**: A long-form articulation of e/acc's thermodynamic basis and its rejection of centralized regulation.
+* **[Imagination In Action (Davos 2025)](https://www.youtube.com/watch?v=8ZG598NuQ9s)**: Yann LeCun on why AI won't "take over" and how open source ensures democratic access.
+* **[Effective Accelerationism (Wikipedia)](https://en.wikipedia.org/wiki/Effective_accelerationism)**: A high-level overview of the movement’s origins in Nick Land’s "Cybernetic Culture Research Unit" (CCRU) and its current Silicon Valley proponents.
+
+Would you like me to synthesize these into the "Data/Facts" vs. "Values" diagnostic framework you proposed for Phase 2 of your Fellowship?
+
+[Guillaume Verdon: Beff Jezos, e/acc Movement, Physics, Computation & AGI](https://www.youtube.com/watch?v=8ZG598NuQ9s)
+This video is relevant because it features a central figure of the e/acc movement explaining the movement's core philosophy and its relation to physics and AGI.
+
 ===============
 Write a feature specification to:
 1) Convert the "Find dialog box" into a "search bar" at the top of the screen
@@ -204,3 +246,10 @@ Logical Gap: If you claim they are different, define the specific scenario where
 
 Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?
 
+
+================C
+Create a SummaryViewer
+It should have 3 panes: 
+Pane 1 should show all the source documents.  There should be a Select toggle box next to each and a SELECT ALL toggle at the top.
+Selected source documents then populate PANE 2 with a set of key_points records organized by POV (Acclerationist, Skeptic, etc)
+WHen a Key Point is selected, Pane 3 displays the source document for the key point and navigates to its excerpt_context

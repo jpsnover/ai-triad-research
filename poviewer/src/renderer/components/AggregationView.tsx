@@ -6,6 +6,7 @@ import { POV_LABELS, POV_COLORS } from '../types/types';
 interface NodeAggregation {
   nodeId: string;
   nodeLabel: string;
+  nodeDescription: string;
   category: string;
   camp: PovCamp;
   sources: Array<{
@@ -42,6 +43,7 @@ export default function AggregationView() {
             node = {
               nodeId: mapping.nodeId,
               nodeLabel: mapping.nodeLabel,
+              nodeDescription: mapping.nodeDescription ?? '',
               category: mapping.category,
               camp: mapping.camp,
               sources: [],
@@ -99,6 +101,9 @@ export default function AggregationView() {
             <span className="aggregation-node-count">{node.totalPoints}</span>
           </div>
           <div className="aggregation-node-category">{node.category}</div>
+          {node.nodeDescription && (
+            <div className="aggregation-node-description">{node.nodeDescription}</div>
+          )}
           <div className="aggregation-node-sources">
             {node.sources.map(src => (
               <div key={src.sourceId} className="aggregation-source-row">

@@ -65,6 +65,7 @@ export interface ElectronAPI {
 
   // === Event Listeners ===
   onAnalysisProgress: (callback: (event: unknown) => void) => () => void;
+  onTaxonomyChanged: (callback: (event: { pov: string; data: unknown }) => void) => () => void;
 }
 
 declare global {

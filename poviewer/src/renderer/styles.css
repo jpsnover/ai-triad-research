@@ -2121,6 +2121,15 @@ body {
   margin: 2px 0 6px 14px;
 }
 
+.aggregation-node-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 6px 14px;
+  word-break: break-word;
+  white-space: normal;
+}
+
 .aggregation-node-sources {
   display: flex;
   flex-direction: column;

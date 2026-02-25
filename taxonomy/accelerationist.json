@@ -3,7 +3,7 @@
   "_doc": "Accelerationist POV taxonomy. One file per POV camp to minimize merge conflicts. Edit nodes, open a PR, bump TAXONOMY_VERSION in the merge commit.",
   "pov": "accelerationist",
   "color_hex": "#27AE60",
-  "last_modified": "2026-02-24",
+  "last_modified": "2026-02-25",
   "nodes": [
     {
       "id": "acc-goals-001",
@@ -166,8 +166,8 @@
       "cross_cutting_refs": []
     },
     {
-      "id": "acc-data-006",
-      "category": "Data/Facts",
+      "id": "acc-methods-012",
+      "category": "Methods",
       "label": "Capitalism as distributed intelligence",
       "description": "The empirical and interpretive claim that capitalism functions as a distributed intelligence or 'meta-organism' that dynamically adapts to identify and capture utility, making it a superior method for civilizational progress compared to top-down control.",
       "parent_id": null,
@@ -215,6 +215,123 @@
       "category": "Methods",
       "label": "Baptists and Bootleggers of AI Regulation",
       "description": "An interpretive framework asserting that calls for AI regulation are driven by two groups: sincere 'Baptists' who genuinely fear the technology, and cynical 'Bootleggers' (incumbent companies) who use the Baptists' fears to lobby for regulatory capture that protects them from competition.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-011",
+      "category": "Methods",
+      "label": "Genius Supply Shock",
+      "description": "An interpretive framework that models the macroeconomic effect of TAI as a sudden and abundant supply of superhuman cognitive ability, creating a technological discontinuity that businesses and economies must learn to navigate.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-013",
+      "category": "Methods",
+      "label": "Acceleration 'Within and Against' Capitalism",
+      "description": "The strategic method of operating within the developmental tendencies of capitalism (e.g., technological advancement) in order to accelerate its contradictions and ultimately overcome it, rather than opposing it from an external position.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-008",
+      "category": "Data/Facts",
+      "label": "Techno-Social Body Transformation",
+      "description": "The concept that the reappropriation of fixed capital (especially cognitive and information technologies) leads to a fundamental anthropological transformation of the worker, creating a new 'technosocial body' with new capabilities and political potentialities.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-014",
+      "category": "Methods",
+      "label": "Variance as the Engine of Adaptation",
+      "description": "The interpretive framework that maximizing variance in markets, technology, and governance is the most effective method for a civilization to adapt and capture utility, based on Fisher's fundamental theorem of natural selection. Conversely, top-down control that suppresses variance is seen as inherently maladaptive.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-015",
+      "category": "Methods",
+      "label": "Right-Accelerationism",
+      "description": "The philosophical position, primarily associated with Nick Land, that techno-capital is an autonomous, inhuman intelligence. It advocates for accelerating this process to its absolute limit (e.g., a technological singularity), regardless of the consequences for humanity, which is seen as a temporary host or obstacle.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-016",
+      "category": "Methods",
+      "label": "Effective Accelerationism",
+      "description": "A contemporary techno-libertarian ideology that views maximally rapid and unrestricted technological progress, particularly AGI, as a moral imperative. It opposes regulation and safety measures as 'decelerationism' and often justifies its goals by invoking a thermodynamic interpretation of the universe's purpose.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-017",
+      "category": "Methods",
+      "label": "Deterritorialization as Accelerationist Method",
+      "description": "The interpretive framework, from Deleuze and Guattari, that capitalism's fundamental operation is to dissolve traditional social structures and abstract all flows into exchangeable commodities. The accelerationist method involves intentionally intensifying this process of 'deterritorialization' to push the system beyond its breaking point into a new state.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-018",
+      "category": "Methods",
+      "label": "Collaborative AI-Assisted Annotation",
+      "description": "A method for building large-scale annotated datasets where an AI system generates initial labels, and a broad community of subject-matter experts are invited to define variables and participate in quality control, combining automated scale with distributed human expertise.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-019",
+      "category": "Methods",
+      "label": "Anti-Tech as Demoralization Campaign",
+      "description": "The interpretive claim that diverse critiques of technology (including safetyism and skepticism) are not distinct viewpoints but are instead manifestations of a single, coordinated, multi-decade 'demoralization campaign' against technological progress and life itself.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-009",
+      "category": "Data/Facts",
+      "label": "Ephemeralization (Dematerialization)",
+      "description": "The empirical claim, based on Buckminster Fuller's work, that technology drives a process of 'dematerialization,' allowing for the production of more goods and services with progressively fewer inputs, ultimately enabling mass abundance.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-010",
+      "category": "Data/Facts",
+      "label": "AI as an Equalizing Economic Force",
+      "description": "The economic argument that technology creators are financially incentivized to serve the largest possible market, which drives down prices and proliferates access, ultimately empowering individual consumers and reducing wealth inequality.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-011",
+      "category": "Data/Facts",
+      "label": "Inequality from Tech-Resistant Sectors",
+      "description": "The empirical claim that rising inequality is primarily caused by sectors with high government intervention and resistance to technological adoption (e.g., housing, education, healthcare), rather than by the deployment of new technologies like AI.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-020",
+      "category": "Methods",
+      "label": "AI-driven Renaissance",
+      "description": "The interpretive frame that AI's primary impact will be analogous to the printing press, leading to a new period of enlightenment, creativity, and widespread access to knowledge, distinct from a purely industrial or economic revolution.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

@@ -1,4 +1,4 @@
-import { ipcMain, dialog, shell } from 'electron';
+import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import fs from 'fs';
 import {
   readTaxonomyFile,
@@ -19,6 +19,8 @@ import {
   savePromptOverrides,
   readAllTaxonomies,
   readRawPdfBytes,
+  watchTaxonomyFiles,
+  stopWatchingTaxonomyFiles,
   SourceMetadataOnDisk,
 } from './fileIO';
 import { storeApiKey, getApiKey, validateApiKey } from './apiKeyStore';
@@ -226,4 +228,22 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('load-analysis-result', (_event, sourceId: string) => {
     return loadAnalysisResult(sourceId);
   });
+
+  // === Taxonomy File Watching ===
+  watchTaxonomyFiles((pov) => {
+    try {
+      const data = readTaxonomyFile(pov);
+      const windows = BrowserWindow.getAllWindows();
+      for (const win of windows) {
+        win.webContents.send('taxonomy-changed', { pov, data });
+      }
+      console.log(`[TaxonomyWatcher] Broadcast taxonomy-changed for ${pov}`);
+    } catch (err) {
+      console.error(`[TaxonomyWatcher] Failed to re-read ${pov}:`, err);
+    }
+  });
+}
+
+export function cleanupIpcHandlers(): void {
+  stopWatchingTaxonomyFiles();
 }

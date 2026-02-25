@@ -3,7 +3,7 @@
   "_doc": "Skeptic POV taxonomy. One file per POV camp to minimize merge conflicts.",
   "pov": "skeptic",
   "color_hex": "#F39C12",
-  "last_modified": "2026-02-24",
+  "last_modified": "2026-02-25",
   "nodes": [
     {
       "id": "skp-goals-001",
@@ -57,8 +57,8 @@
       "cross_cutting_refs": []
     },
     {
-      "id": "skp-data-003",
-      "category": "Data/Facts",
+      "id": "skp-methods-005",
+      "category": "Methods",
       "label": "AGI risk framing distracts from present harms",
       "description": "Interpretive claim: speculative future risk narratives are used to avoid accountability for documented current harms.",
       "parent_id": null,
@@ -101,8 +101,8 @@
       "cross_cutting_refs": []
     },
     {
-      "id": "skp-methods-003",
-      "category": "Methods",
+      "id": "skp-goals-004",
+      "category": "Goals/Values",
       "label": "Left-Accelerationism",
       "description": "A political project that seeks to seize the technological infrastructure of capitalism (e.g., automation) and repurpose it to achieve a post-capitalist, post-work future of human liberation, often advocating for Universal Basic Income (UBI).",
       "parent_id": null,
@@ -132,6 +132,96 @@
       "category": "Data/Facts",
       "label": "Disinformation risk is overstated",
       "description": "The empirical claim that concerns about AI-generated disinformation are exaggerated and not supported by evidence of widespread impact.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-004",
+      "category": "Methods",
+      "label": "Universal Basic Capital",
+      "description": "A policy proposal to distribute the economic gains from TAI by giving all citizens an ownership stake in the technology itself, providing a capital-based income stream as a potential alternative or supplement to labor-based income.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-006",
+      "category": "Methods",
+      "label": "Currency of the Common",
+      "description": "A programmatic proposal to attack the capitalist measure of value by creating new forms of currency and wealth distribution based on 'the common'—the collective social knowledge and cooperation that generates value in a post-Fordist economy. This serves as a counter-hegemonic tool against financial capital.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-goals-005",
+      "category": "Goals/Values",
+      "label": "Prevent AI-driven wealth and power concentration",
+      "description": "The goal of implementing policies to counteract the tendency of transformative technologies like AI to concentrate wealth and power, ensuring that economic gains are broadly distributed and do not lead to oligarchic structures.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-008",
+      "category": "Data/Facts",
+      "label": "Human Labor as AI Control",
+      "description": "The prediction that as AI automates more cognitive and physical tasks, the nature of human work will shift to focus on the control, specification, monitoring, and oversight of AI systems, representing an adaptation of labor rather than its elimination.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-007",
+      "category": "Methods",
+      "label": "Downstream Defenses Against Misuse",
+      "description": "The methodological position that defenses against AI misuse are most effective when implemented at the point of application (e.g., email filters for phishing) and in societal infrastructure, rather than attempting to build inherently 'safe' or 'un-misusable' models at the source.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-008",
+      "category": "Methods",
+      "label": "Resilience as AI Governance Strategy",
+      "description": "A policy approach that prioritizes building societal and institutional capacity to adapt to and manage unexpected shocks from AI, rather than attempting to prevent specific, speculative catastrophic risks through ex-ante controls like nonproliferation.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-009",
+      "category": "Methods",
+      "label": "AI as Normal Technology Framework",
+      "description": "The interpretive framework that AI is not an exceptional entity but a general-purpose technology whose societal impact will be gradual, shaped by existing institutions, and follow historical precedents of slow diffusion and adaptation, like electricity or the internet. This view prioritizes addressing present, systemic harms over speculative, catastrophic risks.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-010",
+      "category": "Methods",
+      "label": "Prioritize Data Curation and Documentation over Scale",
+      "description": "The methodological position that resources should be invested in carefully curating and documenting datasets to ensure their characteristics are understood and to mitigate bias, rather than ingesting massive, uncurated datasets from the web.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-data-009",
+      "category": "Data/Facts",
+      "label": "Environmental and Financial Costs as Injustice",
+      "description": "The empirical claim that training large-scale AI models incurs significant environmental (carbon emissions) and financial costs, which erect barriers to entry for researchers and disproportionately harm marginalized communities who bear the environmental burden without reaping the benefits.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-011",
+      "category": "Methods",
+      "label": "'Stochastic Parrot' as an Interpretive Framework",
+      "description": "The interpretive framework that large language models are systems for combining linguistic forms from their training data based on statistical patterns, but without any access to meaning, communicative intent, or a model of the world. This frames their apparent coherence as an illusion created by the human tendency to impute meaning.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

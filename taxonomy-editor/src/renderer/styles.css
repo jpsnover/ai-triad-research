@@ -397,6 +397,21 @@ body {
   font-size: 0.75rem;
 }
 
+.move-select {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.move-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .btn-ghost {
   background: transparent;
   border-color: transparent;

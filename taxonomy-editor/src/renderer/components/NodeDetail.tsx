@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Pov, PovNode } from '../types/taxonomy';
+import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
@@ -17,9 +17,12 @@ interface NodeDetailProps {
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+
+  const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods'];
+  const moveTargets = ALL_CATEGORIES.filter(c => c !== node.category);
 
   const allCcIds = getAllNodeIds().filter(id => id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
@@ -77,6 +80,22 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
               Pin
             </button>
+          )}
+          {!readOnly && (
+            <select
+              className="move-select"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  movePovNodeCategory(pov, node.id, e.target.value as Category);
+                }
+              }}
+            >
+              <option value="" disabled>Move to...</option>
+              {moveTargets.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           )}
           {!readOnly && (
             <button className="btn btn-danger btn-sm" onClick={() => setShowDelete(true)}>

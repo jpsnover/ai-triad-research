@@ -191,6 +191,7 @@ interface TaxonomyState {
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>) => void;
   createPovNode: (pov: Pov, category: Category) => string;
   deletePovNode: (pov: Pov, nodeId: string) => void;
+  movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => void;
 
   updateCrossCuttingNode: (nodeId: string, updates: Partial<CrossCuttingNode>) => void;
   createCrossCuttingNode: () => string;
@@ -672,6 +673,91 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
         dirty: newDirty,
         embeddingDirty: true,
         selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
+      };
+    });
+  },
+
+  movePovNodeCategory: (pov, nodeId, newCategory) => {
+    set((state) => {
+      const file = state[pov];
+      if (!file) return state;
+      const oldNode = file.nodes.find(n => n.id === nodeId);
+      if (!oldNode) return state;
+
+      const oldId = oldNode.id;
+      const existingIds = file.nodes.map(n => n.id);
+      const newId = generatePovNodeId(pov, newCategory, existingIds);
+
+      // Create new node with new ID and category, copy everything else
+      const newNode: PovNode = {
+        ...oldNode,
+        id: newId,
+        category: newCategory,
+      };
+
+      // Replace old node with new node in the POV file
+      const replaceId = (id: string) => (id === oldId ? newId : id);
+      const newNodes = file.nodes.map(n => {
+        if (n.id === oldId) return newNode;
+        // Update parent_id and children refs in same-POV nodes
+        let changed = false;
+        let updatedParent = n.parent_id;
+        let updatedChildren = n.children;
+        if (n.parent_id === oldId) {
+          updatedParent = newId;
+          changed = true;
+        }
+        if (n.children.includes(oldId)) {
+          updatedChildren = n.children.map(replaceId);
+          changed = true;
+        }
+        return changed ? { ...n, parent_id: updatedParent, children: updatedChildren } : n;
+      });
+      const newFile: PovTaxonomyFile = {
+        ...file,
+        last_modified: todayISO(),
+        nodes: newNodes,
+      };
+
+      const newDirty = new Set(state.dirty);
+      newDirty.add(pov);
+
+      // Update cross-cutting linked_nodes
+      let newCrossCutting = state.crossCutting;
+      if (newCrossCutting) {
+        let ccChanged = false;
+        const ccNodes = newCrossCutting.nodes.map(n => {
+          if (n.linked_nodes.includes(oldId)) {
+            ccChanged = true;
+            return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
+          }
+          return n;
+        });
+        if (ccChanged) {
+          newCrossCutting = { ...newCrossCutting, last_modified: todayISO(), nodes: ccNodes };
+          newDirty.add('cross-cutting');
+        }
+      }
+
+      // Update conflicts linked_taxonomy_nodes
+      let newConflicts = state.conflicts;
+      let conflictsChanged = false;
+      newConflicts = newConflicts.map(c => {
+        if (c.linked_taxonomy_nodes.includes(oldId)) {
+          conflictsChanged = true;
+          newDirty.add(c.claim_id);
+          return { ...c, linked_taxonomy_nodes: c.linked_taxonomy_nodes.map(replaceId) };
+        }
+        return c;
+      });
+
+      return {
+        [pov]: newFile,
+        crossCutting: newCrossCutting,
+        conflicts: conflictsChanged ? newConflicts : state.conflicts,
+        dirty: newDirty,
+        selectedNodeId: newId,
+        embeddingDirty: true,
       };
     });
   },

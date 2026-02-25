@@ -74,6 +74,15 @@ export default function App() {
     }
   }, [pipelineLoaded, loadFromPipeline]);
 
+  useEffect(() => {
+    if (!window.electronAPI?.onTaxonomyChanged) return;
+    const cleanup = window.electronAPI.onTaxonomyChanged((event) => {
+      console.log(`[POViewer] Taxonomy changed: ${event.pov}, reloading...`);
+      loadFromPipeline();
+    });
+    return cleanup;
+  }, [loadFromPipeline]);
+
   if (!checked || !pipelineLoaded) return null;
 
   if (showOnboarding) {

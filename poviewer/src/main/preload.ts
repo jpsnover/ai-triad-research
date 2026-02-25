@@ -116,4 +116,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('analysis-progress', handler);
     return () => ipcRenderer.removeListener('analysis-progress', handler);
   },
+
+  onTaxonomyChanged: (callback: (event: { pov: string; data: unknown }) => void): (() => void) => {
+    const handler = (_event: unknown, data: { pov: string; data: unknown }) => callback(data);
+    ipcRenderer.on('taxonomy-changed', handler);
+    return () => ipcRenderer.removeListener('taxonomy-changed', handler);
+  },
 });

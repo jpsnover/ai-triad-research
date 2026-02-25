@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { registerIpcHandlers, cleanupIpcHandlers } from './ipcHandlers';
+import { registerIpcHandlers } from './ipcHandlers';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -12,7 +12,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
-    title: 'POViewer',
+    title: 'SummaryViewer',
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -22,14 +22,14 @@ function createWindow(): void {
 
   const isDev = !app.isPackaged;
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5174');
+    mainWindow.loadURL('http://localhost:5175');
   } else {
     const filePath = path.join(__dirname, '../renderer/index.html');
     mainWindow.loadFile(filePath);
   }
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-    console.error('[POViewer] Failed to load:', errorCode, errorDescription);
+    console.error('[SummaryViewer] Failed to load:', errorCode, errorDescription);
   });
 
   mainWindow.on('closed', () => {
@@ -49,7 +49,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  cleanupIpcHandlers();
   if (process.platform !== 'darwin') {
     app.quit();
   }
