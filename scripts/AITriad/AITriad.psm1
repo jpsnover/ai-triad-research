@@ -51,9 +51,9 @@ if (Test-Path $DocConvertersPath) {
     Import-Module $DocConvertersPath -Force
 }
 
-$GeminiEnrichPath = Join-Path $ScriptsDir 'GeminiEnrich.psm1'
-if (Test-Path $GeminiEnrichPath) {
-    Import-Module $GeminiEnrichPath -Force
+$AIEnrichPath = Join-Path $ScriptsDir 'AIEnrich.psm1'
+if (Test-Path $AIEnrichPath) {
+    Import-Module $AIEnrichPath -Force
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -94,6 +94,8 @@ Export-ModuleMember -Function @(
     'Invoke-POVSummary'
     'Invoke-BatchSummary'
     'Find-Conflict'
+    'Find-Source'
+    'Save-Source'
     'Save-WaybackUrl'
     'Invoke-PIIAudit'
 ) -Alias @(

@@ -10,7 +10,8 @@ function Invoke-BatchSummary {
     .PARAMETER DocId
         Reprocess a single document by its ID.
     .PARAMETER Model
-        Gemini model to use. Defaults to AI_MODEL env var, then "gemini-2.5-flash".
+        AI model to use. Defaults to AI_MODEL env var, then "gemini-2.5-flash".
+        Supports Gemini, Claude, and Groq backends.
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.1
     .PARAMETER DryRun
@@ -33,8 +34,12 @@ function Invoke-BatchSummary {
         [switch]$ForceAll,
         [string]$DocId,
 
-        [ValidateSet('gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro')]
-        [string]$Model = $(if ($env:AI_MODEL -match '^gemini-') { $env:AI_MODEL } else { 'gemini-2.5-flash' }),
+        [ValidateSet(
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
+            'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
+            'groq-llama-3.3-70b', 'groq-llama-4-scout'
+        )]
+        [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }),
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1,
@@ -69,11 +74,18 @@ function Invoke-BatchSummary {
     # -- STEP 0 — Validate environment ---------------------------------------
     Write-Step "Validating environment"
 
-    $ApiKey = $env:AI_API_KEY
+    $ModelInfo = $script:ModelRegistry[$Model]
+    $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+    $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
-        Write-Fail "No API key found. Set the AI_API_KEY environment variable:"
-        Write-Info '  $env:AI_API_KEY = "AIza..."'
-        throw "No API key found. Set AI_API_KEY."
+        $EnvHint = switch ($Backend) {
+            'gemini' { 'GEMINI_API_KEY' }
+            'claude' { 'ANTHROPIC_API_KEY' }
+            'groq'   { 'GROQ_API_KEY' }
+            default  { 'AI_API_KEY' }
+        }
+        Write-Fail "No API key found. Set $EnvHint or AI_API_KEY."
+        throw "No API key found for $Backend backend."
     }
 
     foreach ($req in @($SourcesDir, $TaxonomyDir, $VersionFile)) {
@@ -285,7 +297,7 @@ function Invoke-BatchSummary {
         {
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Accelerationist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
@@ -297,7 +309,7 @@ function Invoke-BatchSummary {
         {
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Safetyist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -309,7 +321,7 @@ function Invoke-BatchSummary {
         {
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Skeptic lens>",
+          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -346,7 +358,7 @@ the document's content to three Points of View (POV camps):
 For EACH POV camp you must identify:
   1. Goals/Values  — desired end-states the document supports or opposes
   2. Data/Facts    — empirical claims the document asserts or disputes
-  3. Methods       — interpretive frameworks or policy approaches it endorses or rejects
+  3. Methods       — The logic models, interpretive lenses, or policy approaches used to process data in light of their goals and values (The How they think)
 
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.

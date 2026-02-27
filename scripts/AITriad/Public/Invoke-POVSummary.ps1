@@ -1,14 +1,14 @@
 function Invoke-POVSummary {
     <#
     .SYNOPSIS
-        Processes a single source document through Gemini AI to extract a structured
+        Processes a single source document through AI to extract a structured
         POV summary mapped to the AI Triad taxonomy.
     .DESCRIPTION
         Implements the core AI summarization loop for ONE document:
             1. Loads sources/<doc-id>/snapshot.md
             2. Loads all four taxonomy files + TAXONOMY_VERSION
             3. Builds a structured prompt (system + taxonomy + document)
-            4. Calls the Gemini API
+            4. Calls the AI API (Gemini, Claude, or Groq)
             5. Validates and writes summaries/<doc-id>.json
             6. Updates sources/<doc-id>/metadata.json (summary_status, summary_version)
             7. Runs basic conflict detection
@@ -18,9 +18,10 @@ function Invoke-POVSummary {
         Path to the root of the ai-triad-research repository.
         Defaults to the module-resolved repo root.
     .PARAMETER ApiKey
-        Gemini API key. If omitted, reads from the GEMINI_API_KEY environment variable.
+        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Model
-        Gemini model to use. Defaults to "gemini-2.5-flash".
+        AI model to use. Defaults to "gemini-2.5-flash".
+        Supports Gemini, Claude, and Groq backends.
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.1
     .PARAMETER DryRun
@@ -41,9 +42,13 @@ function Invoke-POVSummary {
 
         [string]$RepoRoot    = $script:RepoRoot,
 
-        [string]$ApiKey      = $env:GEMINI_API_KEY,
+        [string]$ApiKey      = '',
 
-        [ValidateSet("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro")]
+        [ValidateSet(
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
+            'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
+            'groq-llama-3.3-70b', 'groq-llama-4-scout'
+        )]
         [string]$Model       = "gemini-2.5-flash",
 
         [ValidateRange(0.0, 1.0)]
@@ -105,13 +110,21 @@ function Invoke-POVSummary {
     }
 
     if (-not $DryRun) {
-        if ([string]::IsNullOrWhiteSpace($ApiKey)) {
-            Write-Fail "No Gemini API key found."
-            Write-Info "Set the GEMINI_API_KEY environment variable:"
-            Write-Info '  $env:GEMINI_API_KEY = "AIza..."'
-            Write-Info "Or pass -ApiKey on the command line."
-            throw "No Gemini API key provided."
+        $ModelInfo = $script:ModelRegistry[$Model]
+        $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
+        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+            $EnvHint = switch ($Backend) {
+                'gemini' { 'GEMINI_API_KEY' }
+                'claude' { 'ANTHROPIC_API_KEY' }
+                'groq'   { 'GROQ_API_KEY' }
+                default  { 'AI_API_KEY' }
+            }
+            Write-Fail "No API key found for $Backend backend."
+            Write-Info "Set $EnvHint or AI_API_KEY, or pass -ApiKey."
+            throw "No API key found for $Backend backend."
         }
+        $ApiKey = $ResolvedKey
     }
 
     Write-OK "Doc ID      : $DocId"
@@ -174,7 +187,7 @@ function Invoke-POVSummary {
         {
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Accelerationist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
@@ -186,7 +199,7 @@ function Invoke-POVSummary {
         {
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Safetyist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -198,7 +211,7 @@ function Invoke-POVSummary {
         {
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<one sentence describing what this document says, from the Skeptic lens>",
+          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -235,7 +248,8 @@ the document's content to three Points of View (POV camps):
 For EACH POV camp you must identify:
   1. Goals/Values  — desired end-states the document supports or opposes
   2. Data/Facts    — empirical claims the document asserts or disputes
-  3. Methods       — interpretive frameworks or policy approaches it endorses or rejects
+  3. Methods       — The logic models, interpretive lenses, or policy approaches used to process data in light of their goals and values (The How they think)
+
 
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
@@ -306,78 +320,34 @@ $snapshotText
         return
     }
 
-    # -- STEP 5 — Call the Gemini API -----------------------------------------
-    Write-Step "Calling Gemini API ($Model)"
-
-    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/${Model}:generateContent?key=$ApiKey"
-
-    $requestBody = @{
-        contents = @(
-            @{
-                parts = @(
-                    @{ text = $fullPrompt }
-                )
-            }
-        )
-        generationConfig = @{
-            temperature       = $Temperature
-            responseMimeType  = "application/json"
-            maxOutputTokens   = 8192
-        }
-        safetySettings = @(
-            @{ category = "HARM_CATEGORY_HARASSMENT";        threshold = "BLOCK_NONE" }
-            @{ category = "HARM_CATEGORY_HATE_SPEECH";       threshold = "BLOCK_NONE" }
-            @{ category = "HARM_CATEGORY_SEXUALLY_EXPLICIT"; threshold = "BLOCK_NONE" }
-            @{ category = "HARM_CATEGORY_DANGEROUS_CONTENT"; threshold = "BLOCK_NONE" }
-        )
-    } | ConvertTo-Json -Depth 20
+    # -- STEP 5 — Call the AI API ----------------------------------------------
+    Write-Step "Calling AI API ($Model)"
 
     $startTime = Get-Date
-    Write-Info "Sending request to Gemini..."
+    Write-Info "Sending request..."
 
-    try {
-        $response = Invoke-RestMethod `
-            -Uri         $apiUrl `
-            -Method      POST `
-            -ContentType "application/json" `
-            -Body        $requestBody `
-            -TimeoutSec  120
+    $aiResult = Invoke-AIApi `
+        -Prompt      $fullPrompt `
+        -Model       $Model `
+        -ApiKey      $ApiKey `
+        -Temperature $Temperature `
+        -MaxTokens   8192 `
+        -JsonMode `
+        -TimeoutSec  120
 
-        $elapsed = (Get-Date) - $startTime
-        Write-OK "Response received in $([int]$elapsed.TotalSeconds)s"
-
-    } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $statusDesc = $_.Exception.Response.StatusDescription
-
-        Write-Fail "Gemini API call failed: HTTP $statusCode $statusDesc"
-
-        switch ($statusCode) {
-            400 { Write-Info "Bad request — prompt may be malformed or exceed token limits." }
-            401 { Write-Info "Unauthorized — check your API key is valid and not expired." }
-            403 { Write-Info "Forbidden — ensure the Gemini API is enabled in your Google Cloud project." }
-            429 { Write-Info "Rate limit exceeded — wait a moment and retry, or switch to gemini-2.5-flash-lite." }
-            500 { Write-Info "Server error — Gemini internal error. Retry in a few minutes." }
-            503 { Write-Info "Service unavailable — Gemini is temporarily overloaded. Retry shortly." }
-        }
-
-        try {
-            $errorBody = $_.ErrorDetails.Message
-            if ($errorBody) {
-                Write-Host "`n  Raw error response:" -ForegroundColor DarkGray
-                Write-Host $errorBody -ForegroundColor DarkGray
-            }
-        } catch { }
-
-        throw "Gemini API call failed: HTTP $statusCode $statusDesc"
+    if ($null -eq $aiResult) {
+        throw "AI API call returned null for $DocId"
     }
 
+    $elapsed = (Get-Date) - $startTime
+    Write-OK "Response received from $($aiResult.Backend) in $([int]$elapsed.TotalSeconds)s"
+
     # -- STEP 6 — Extract and validate the response JSON ----------------------
-    Write-Step "Parsing and validating Gemini response"
+    Write-Step "Parsing and validating AI response"
 
-    $rawText = $response.candidates[0].content.parts[0].text
+    $rawText = $aiResult.Text
 
-    Write-Verbose "Raw Gemini response:"
+    Write-Verbose "Raw AI response:"
     Write-Verbose $rawText
 
     $cleanedText = $rawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
@@ -385,13 +355,13 @@ $snapshotText
 
     try {
         $summaryObject = $cleanedText | ConvertFrom-Json -Depth 20
-        Write-OK "Valid JSON received from Gemini"
+        Write-OK "Valid JSON received from $($aiResult.Backend)"
     } catch {
-        Write-Fail "Gemini returned invalid JSON. Raw response saved for inspection."
+        Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
         $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
         Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
         Write-Info "Raw response saved to: $debugPath"
-        throw "Gemini returned invalid JSON for $DocId"
+        throw "AI returned invalid JSON for $DocId"
     }
 
     $requiredKeys = @("pov_summaries", "factual_claims", "unmapped_concepts")

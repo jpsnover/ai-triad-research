@@ -25,7 +25,8 @@
     Reprocess a single document by its ID.
 
 .PARAMETER Model
-    Gemini model to use. Defaults to AI_MODEL env var, then "gemini-2.5-flash".
+    AI model to use. Defaults to AI_MODEL env var, then "gemini-2.5-flash".
+    Supports Gemini, Claude, and Groq backends.
 
 .PARAMETER Temperature
     Sampling temperature (0.0-1.0). Default: 0.1
@@ -64,7 +65,8 @@
 
 .NOTES
     Environment variables:
-        AI_API_KEY      Gemini API key (required unless -DryRun)
+        GEMINI_API_KEY / ANTHROPIC_API_KEY / GROQ_API_KEY   Backend-specific keys
+        AI_API_KEY      Fallback API key (required unless -DryRun)
         AI_MODEL        Model identifier, e.g. gemini-2.5-flash (optional override)
 #>
 
@@ -73,8 +75,12 @@ param(
     [switch]$ForceAll,
     [string]$DocId,
 
-    [ValidateSet('gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro')]
-    [string]$Model = $(if ($env:AI_MODEL -match '^gemini-') { $env:AI_MODEL } else { 'gemini-2.5-flash' }),
+    [ValidateSet(
+        'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
+        'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
+        'groq-llama-3.3-70b', 'groq-llama-4-scout'
+    )]
+    [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }),
 
     [ValidateRange(0.0, 1.0)]
     [double]$Temperature = 0.1,
@@ -89,6 +95,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Load AI API module
+# ─────────────────────────────────────────────────────────────────────────────
+Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Paths
@@ -128,10 +139,17 @@ $PovFileMap = [ordered]@{
 Write-Step "Validating environment"
 
 # Resolve API key — only required for real runs
-$ApiKey = $env:AI_API_KEY
+$ModelInfo = $script:ModelRegistry[$Model]
+$Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+$ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
-    Write-Fail "No API key found. Set the AI_API_KEY environment variable:"
-    Write-Info '  $env:AI_API_KEY = "AIza..."'
+    $EnvHint = switch ($Backend) {
+        'gemini' { 'GEMINI_API_KEY' }
+        'claude' { 'ANTHROPIC_API_KEY' }
+        'groq'   { 'GROQ_API_KEY' }
+        default  { 'AI_API_KEY' }
+    }
+    Write-Fail "No API key found. Set $EnvHint or AI_API_KEY."
     exit 1
 }
 
@@ -376,7 +394,7 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
+          "point": "<1-4 sentences describing what this document says, from the Accelerationist lens>",
           "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
@@ -388,7 +406,7 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
+          "point": "<1-4 sentences describing what this document says, from the Safetyist lens>",
           "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -400,7 +418,7 @@ $OutputSchema = @'
         {
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
+          "point": "<1-4 sentences describing what this document says, from the Skeptic lens>",
           "verbatim": "<3-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to location in document>"
         }
@@ -418,7 +436,7 @@ $OutputSchema = @'
     {
       "concept": "<a concept in the document that does not map to any existing taxonomy node>",
       "suggested_label": "<A short label for this concept, e.g. 'AI-driven economic growth'>", 
-      "suggested_description": "<A 1-2 sentence description of the concept, suitable for a taxonomy node description>",     
+      "suggested_description": "<A 1-5 sentence description of the concept, suitable for a taxonomy node description>",     
       "suggested_pov": "<accelerationist | safetyist | skeptic | cross-cutting>",
       "Accelerationist Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the accelerationist camp's perspective>",
       "Accelerationist Interpretation:" "<If suggested_pov is 'cross-cutting', provide a brief interpretation of how this concept might be viewed from the accelerationist camp's perspective>",
@@ -521,85 +539,30 @@ Topic tags: $(if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.t
 $SnapshotText
 "@
 
-    # ── Call Gemini API ───────────────────────────────────────────────────────
-    $ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/${Model}:generateContent?key=$ApiKey"
-
-    $RequestBody = @{
-        contents = @(@{
-            parts = @(@{ text = $FullPrompt })
-        })
-        generationConfig = @{
-            temperature      = $Temperature
-            responseMimeType = 'application/json'
-            maxOutputTokens  = 16384
-        }
-        safetySettings = @(
-            @{ category = 'HARM_CATEGORY_HARASSMENT';        threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_HATE_SPEECH';       threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_SEXUALLY_EXPLICIT'; threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_DANGEROUS_CONTENT'; threshold = 'BLOCK_NONE' }
-        )
-    } | ConvertTo-Json -Depth 20
-
+    # ── Call AI API ──────────────────────────────────────────────────────────
     $StartTime = Get-Date
 
-    $MaxRetries    = 3
-    $RetryDelays   = @(5, 15, 45)   # seconds — exponential backoff for 429s
-    $Response      = $null
-    $LastError     = $null
+    $AIResult = Invoke-AIApi `
+        -Prompt      $FullPrompt `
+        -Model       $Model `
+        -ApiKey      $ApiKey `
+        -Temperature $Temperature `
+        -MaxTokens   16384 `
+        -JsonMode `
+        -TimeoutSec  120 `
+        -MaxRetries  3 `
+        -RetryDelays @(5, 15, 45)
 
-    for ($Attempt = 0; $Attempt -lt $MaxRetries; $Attempt++) {
-        try {
-            $Response = Invoke-RestMethod `
-                -Uri         $ApiUrl `
-                -Method      POST `
-                -ContentType 'application/json' `
-                -Body        $RequestBody `
-                -TimeoutSec  120 `
-                -ErrorAction Stop
-            $LastError = $null
-            break
-        } catch {
-            $LastError  = $_
-            $StatusCode = $_.Exception.Response.StatusCode.value__
-
-            if ($StatusCode -eq 429 -and $Attempt -lt ($MaxRetries - 1)) {
-                $Delay = $RetryDelays[$Attempt]
-                Write-Host "  │  ⚠ Rate limited (429). Retrying in ${Delay}s... (attempt $($Attempt+1)/$MaxRetries)" -ForegroundColor Yellow
-                Start-Sleep -Seconds $Delay
-            } elseif ($StatusCode -eq 503 -and $Attempt -lt ($MaxRetries - 1)) {
-                $Delay = $RetryDelays[$Attempt]
-                Write-Host "  │  ⚠ Service unavailable (503). Retrying in ${Delay}s..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $Delay
-            } else {
-                break
-            }
-        }
-    }
-
-    if ($null -ne $LastError -or $null -eq $Response) {
-        $StatusCode = if ($LastError) { $LastError.Exception.Response.StatusCode.value__ } else { '?' }
-        Write-Host "  └─ ✗ FAILED (HTTP $StatusCode): $ThisDocId" -ForegroundColor Red
-
-        $ErrMsg = switch ($StatusCode) {
-            400 { "Bad request — prompt may be malformed or exceed token limits" }
-            401 { "Invalid API key — check AI_API_KEY" }
-            403 { "Forbidden — ensure Gemini API is enabled in your Google Cloud project" }
-            429 { "Rate limit exceeded after $MaxRetries retries" }
-            500 { "Gemini internal server error" }
-            503 { "Gemini service unavailable after $MaxRetries retries" }
-            default { "HTTP $StatusCode" }
-        }
-        Write-Host "     $ErrMsg" -ForegroundColor DarkRed
-
-        return @{ Success = $false; DocId = $ThisDocId; Error = $ErrMsg }
+    if ($null -eq $AIResult) {
+        Write-Host "  └─ ✗ FAILED: $ThisDocId" -ForegroundColor Red
+        return @{ Success = $false; DocId = $ThisDocId; Error = 'API call returned null' }
     }
 
     $Elapsed = (Get-Date) - $StartTime
-    Write-Host "  │  ✓ Response: $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+    Write-Host "  │  ✓ Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
 
     # ── Parse and validate JSON ───────────────────────────────────────────────
-    $RawText    = $Response.candidates[0].content.parts[0].text
+    $RawText    = $AIResult.Text
     $CleanText  = $RawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
     $CleanText  = $CleanText.Trim()
 
@@ -608,7 +571,7 @@ $SnapshotText
     } catch {
         $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
         Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-        Write-Host "  └─ ✗ Invalid JSON from Gemini. Raw saved: $DebugPath" -ForegroundColor Red
+        Write-Host "  └─ ✗ Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
         return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
     }
 

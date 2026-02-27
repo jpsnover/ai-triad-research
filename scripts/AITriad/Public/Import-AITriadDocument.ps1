@@ -27,9 +27,10 @@ function Import-AITriadDocument {
     .PARAMETER NoSummaryQueue
         Do not mark the document for AI summarisation.
     .PARAMETER SkipAiMeta
-        Skip the Gemini metadata-enrichment step.
-    .PARAMETER GeminiModel
-        Gemini model to use for metadata enrichment.
+        Skip the AI metadata-enrichment step.
+    .PARAMETER Model
+        AI model to use for metadata enrichment.
+        Supports Gemini, Claude, and Groq backends.
         Default: gemini-2.5-flash-lite
     .EXAMPLE
         Import-AITriadDocument -Url 'https://example.com/article' -Pov accelerationist, skeptic
@@ -38,7 +39,8 @@ function Import-AITriadDocument {
     .EXAMPLE
         Import-AITriadDocument -File 'path/to/file.pdf' -Pov skeptic
     .NOTES
-        Set $env:AI_API_KEY to your Gemini API key for metadata enrichment.
+        Set backend-specific env vars (GEMINI_API_KEY, ANTHROPIC_API_KEY,
+        GROQ_API_KEY) or AI_API_KEY for metadata enrichment.
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByUrl')]
     param(
@@ -70,11 +72,12 @@ function Import-AITriadDocument {
         [switch]$NoSummarize,
 
         [ValidateSet(
-            'gemini-2.5-flash-lite',
-            'gemini-2.5-flash',
-            'gemini-2.5-pro'
+            'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro',
+            'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
+            'groq-llama-3.3-70b', 'groq-llama-4-scout'
         )]
-        [string]$GeminiModel = 'gemini-2.5-flash-lite'
+        [Alias('GeminiModel')]
+        [string]$Model = 'gemini-2.5-flash-lite'
     )
 
     Set-StrictMode -Version Latest
@@ -84,8 +87,10 @@ function Import-AITriadDocument {
     $SourcesDir = Join-Path $script:RepoRoot 'sources'
     $InboxDir   = Join-Path $SourcesDir '_inbox'
 
-    # -- Gemini API key (read once; absence is non-fatal) ---------------------
-    $GeminiApiKey = $env:AI_API_KEY
+    # -- AI API key (read once; absence is non-fatal) -------------------------
+    $ModelInfo = $script:ModelRegistry[$Model]
+    $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+    $AIApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
     # =========================================================================
     # Inner function — called once per document
@@ -198,22 +203,22 @@ function Import-AITriadDocument {
         # -- Gemini metadata enrichment ---------------------------------------
         $AiMeta = $null
 
-        if (-not $SkipAiMeta -and -not [string]::IsNullOrWhiteSpace($GeminiApiKey)) {
+        if (-not $SkipAiMeta -and -not [string]::IsNullOrWhiteSpace($AIApiKey)) {
             try {
-                $AiMeta = Get-GeminiMetadata `
+                $AiMeta = Get-AIMetadata `
                     -MarkdownText  $MarkdownText `
                     -SourceUrl     $SourceUrl `
                     -FallbackTitle $Title `
-                    -Model         $GeminiModel `
-                    -ApiKey        $GeminiApiKey
+                    -Model         $Model `
+                    -ApiKey        $AIApiKey
             } catch {
-                Write-Warn "Gemini enrichment threw an exception — continuing with heuristics: $_"
+                Write-Warn "AI enrichment threw an exception — continuing with heuristics: $_"
                 $AiMeta = $null
             }
         } elseif ($SkipAiMeta) {
-            Write-Info "Skipping Gemini enrichment (-SkipAiMeta)"
+            Write-Info "Skipping AI enrichment (-SkipAiMeta)"
         } else {
-            Write-Warn "AI_API_KEY not set — metadata enrichment skipped. Set `$env:AI_API_KEY to enable."
+            Write-Warn "No API key found — metadata enrichment skipped. Set backend env var or AI_API_KEY."
         }
 
         # Merge AI results with heuristic values and user-supplied flags
@@ -225,9 +230,9 @@ function Import-AITriadDocument {
             $AiPovTags = @($AiMeta.pov_tags | Where-Object { $_ })
             if ($PovTags.Count -eq 0 -and $AiPovTags.Count -gt 0) {
                 $PovTags = $AiPovTags
-                Write-Info "POV tags from Gemini: $($PovTags -join ', ')"
+                Write-Info "POV tags from AI: $($PovTags -join ', ')"
             } elseif ($PovTags.Count -gt 0) {
-                Write-Info "POV tags from -Pov flag (Gemini suggestion ignored): $($PovTags -join ', ')"
+                Write-Info "POV tags from -Pov flag (AI suggestion ignored): $($PovTags -join ', ')"
             }
 
             $MergedTopics = @($TopicTags) + @($AiMeta.topic_tags) |

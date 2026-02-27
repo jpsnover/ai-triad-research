@@ -1,4 +1,4 @@
-# Per-document Gemini summarization worker.
+# Per-document AI summarization worker.
 # Extracted from Invoke-BatchSummary.ps1 — called once per document.
 
 function Invoke-DocumentSummary {
@@ -54,85 +54,30 @@ Topic tags: $(if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.t
 $SnapshotText
 "@
 
-    # -- Call Gemini API ------------------------------------------------------
-    $ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/${Model}:generateContent?key=$ApiKey"
-
-    $RequestBody = @{
-        contents = @(@{
-            parts = @(@{ text = $FullPrompt })
-        })
-        generationConfig = @{
-            temperature      = $Temperature
-            responseMimeType = 'application/json'
-            maxOutputTokens  = 16384
-        }
-        safetySettings = @(
-            @{ category = 'HARM_CATEGORY_HARASSMENT';        threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_HATE_SPEECH';       threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_SEXUALLY_EXPLICIT'; threshold = 'BLOCK_NONE' }
-            @{ category = 'HARM_CATEGORY_DANGEROUS_CONTENT'; threshold = 'BLOCK_NONE' }
-        )
-    } | ConvertTo-Json -Depth 20
-
+    # -- Call AI API ----------------------------------------------------------
     $StartTime = Get-Date
 
-    $MaxRetries    = 3
-    $RetryDelays   = @(5, 15, 45)
-    $Response      = $null
-    $LastError     = $null
+    $AIResult = Invoke-AIApi `
+        -Prompt     $FullPrompt `
+        -Model      $Model `
+        -ApiKey     $ApiKey `
+        -Temperature $Temperature `
+        -MaxTokens  16384 `
+        -JsonMode `
+        -TimeoutSec 120 `
+        -MaxRetries 3 `
+        -RetryDelays @(5, 15, 45)
 
-    for ($Attempt = 0; $Attempt -lt $MaxRetries; $Attempt++) {
-        try {
-            $Response = Invoke-RestMethod `
-                -Uri         $ApiUrl `
-                -Method      POST `
-                -ContentType 'application/json' `
-                -Body        $RequestBody `
-                -TimeoutSec  120 `
-                -ErrorAction Stop
-            $LastError = $null
-            break
-        } catch {
-            $LastError  = $_
-            $StatusCode = $_.Exception.Response.StatusCode.value__
-
-            if ($StatusCode -eq 429 -and $Attempt -lt ($MaxRetries - 1)) {
-                $Delay = $RetryDelays[$Attempt]
-                Write-Host "  `u{2502}  `u{26A0} Rate limited (429). Retrying in ${Delay}s... (attempt $($Attempt+1)/$MaxRetries)" -ForegroundColor Yellow
-                Start-Sleep -Seconds $Delay
-            } elseif ($StatusCode -eq 503 -and $Attempt -lt ($MaxRetries - 1)) {
-                $Delay = $RetryDelays[$Attempt]
-                Write-Host "  `u{2502}  `u{26A0} Service unavailable (503). Retrying in ${Delay}s..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $Delay
-            } else {
-                break
-            }
-        }
-    }
-
-    if ($null -ne $LastError -or $null -eq $Response) {
-        $StatusCode = if ($LastError) { $LastError.Exception.Response.StatusCode.value__ } else { '?' }
-        Write-Host "  `u{2514}`u{2500} `u{2717} FAILED (HTTP $StatusCode): $ThisDocId" -ForegroundColor Red
-
-        $ErrMsg = switch ($StatusCode) {
-            400 { "Bad request `u{2014} prompt may be malformed or exceed token limits" }
-            401 { "Invalid API key `u{2014} check AI_API_KEY" }
-            403 { "Forbidden `u{2014} ensure Gemini API is enabled in your Google Cloud project" }
-            429 { "Rate limit exceeded after $MaxRetries retries" }
-            500 { "Gemini internal server error" }
-            503 { "Gemini service unavailable after $MaxRetries retries" }
-            default { "HTTP $StatusCode" }
-        }
-        Write-Host "     $ErrMsg" -ForegroundColor DarkRed
-
-        return @{ Success = $false; DocId = $ThisDocId; Error = $ErrMsg }
+    if ($null -eq $AIResult) {
+        Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId" -ForegroundColor Red
+        return @{ Success = $false; DocId = $ThisDocId; Error = 'API call returned null' }
     }
 
     $Elapsed = (Get-Date) - $StartTime
-    Write-Host "  `u{2502}  `u{2713} Response: $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+    Write-Host "  `u{2502}  `u{2713} Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
 
     # -- Parse and validate JSON ----------------------------------------------
-    $RawText    = $Response.candidates[0].content.parts[0].text
+    $RawText    = $AIResult.Text
     $CleanText  = $RawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
     $CleanText  = $CleanText.Trim()
 
@@ -141,7 +86,7 @@ $SnapshotText
     } catch {
         $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
         Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-        Write-Host "  `u{2514}`u{2500} `u{2717} Invalid JSON from Gemini. Raw saved: $DebugPath" -ForegroundColor Red
+        Write-Host "  `u{2514}`u{2500} `u{2717} Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
         return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
     }
 

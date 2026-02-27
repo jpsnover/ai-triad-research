@@ -49,20 +49,19 @@
     .\scripts\Import-Document.ps1 -File 'path/to/file.pdf' -Pov skeptic
 
 .PARAMETER SkipAiMeta
-    Skip the Gemini metadata-enrichment step. Title, authors, date, and tag
+    Skip the AI metadata-enrichment step. Title, authors, date, and tag
     suggestions will fall back to regex/filename heuristics only.
 
-.PARAMETER GeminiModel
-    Gemini model to use for metadata enrichment.
+.PARAMETER Model
+    AI model to use for metadata enrichment.
+    Supports Gemini, Claude, and Groq backends.
     Default: gemini-2.5-flash-lite  (fast and cheap for this extraction task).
 
 .NOTES
     AI enrichment:
-        Set the environment variable AI_API_KEY to your Gemini API key.
-        If the variable is absent or the call fails the script degrades gracefully
-        and continues with heuristic metadata only.
-
-        $env:AI_API_KEY = 'AIza...'
+        Set backend-specific env vars (GEMINI_API_KEY, ANTHROPIC_API_KEY,
+        GROQ_API_KEY) or the generic AI_API_KEY. If absent or the call fails
+        the script degrades gracefully and continues with heuristic metadata only.
 
     External tool dependencies (all optional — the script degrades gracefully if absent):
         pandoc      : highest-quality HTML/DOCX → Markdown conversion.  https://pandoc.org
@@ -100,20 +99,25 @@ param(
     [switch]$NoSummarize,
 
     [ValidateSet(
-        'gemini-2.5-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-2.5-pro'
+        'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro',
+        'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
+        'groq-llama-3.3-70b', 'groq-llama-4-scout'
     )]
-    [string]$GeminiModel = 'gemini-2.5-flash-lite'
+    [Alias('GeminiModel')]
+    [string]$Model = 'gemini-2.5-flash-lite'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gemini API key  (read once at startup; absence is non-fatal)
+# AI API key  (read once at startup; absence is non-fatal)
 # ─────────────────────────────────────────────────────────────────────────────
-$Script:GeminiApiKey = $env:AI_API_KEY
+Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
+
+$ModelInfo = $script:ModelRegistry[$Model]
+$Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+$Script:AIApiKey = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Paths
@@ -303,9 +307,8 @@ function Submit-ToWaybackMachine {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gemini API functions (loaded from external module to avoid AMSI false positives)
+# AI API functions (loaded above via AIEnrich.psm1)
 # ─────────────────────────────────────────────────────────────────────────────
-Import-Module (Join-Path $PSScriptRoot 'GeminiEnrich.psm1') -Force
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Core ingest function — called once per document
@@ -433,22 +436,22 @@ function Invoke-IngestDocument {
 
     $AiMeta = $null
 
-    if (-not $SkipAiMeta -and -not [string]::IsNullOrWhiteSpace($Script:GeminiApiKey)) {
+    if (-not $SkipAiMeta -and -not [string]::IsNullOrWhiteSpace($Script:AIApiKey)) {
         try {
-            $AiMeta = Get-GeminiMetadata `
+            $AiMeta = Get-AIMetadata `
                 -MarkdownText  $MarkdownText `
                 -SourceUrl     $SourceUrl `
                 -FallbackTitle $Title `
-                -Model         $GeminiModel `
-                -ApiKey        $Script:GeminiApiKey
+                -Model         $Model `
+                -ApiKey        $Script:AIApiKey
         } catch {
-            Write-Warn "Gemini enrichment threw an exception — continuing with heuristics: $_"
+            Write-Warn "AI enrichment threw an exception — continuing with heuristics: $_"
             $AiMeta = $null
         }
     } elseif ($SkipAiMeta) {
-        Write-Info "Skipping Gemini enrichment (-SkipAiMeta)"
+        Write-Info "Skipping AI enrichment (-SkipAiMeta)"
     } else {
-        Write-Warn "AI_API_KEY not set — metadata enrichment skipped. Set `$env:AI_API_KEY to enable."
+        Write-Warn "No API key found — metadata enrichment skipped. Set backend env var or AI_API_KEY."
     }
 
     # Merge AI results with heuristic values and user-supplied flags
@@ -464,9 +467,9 @@ function Invoke-IngestDocument {
         $AiPovTags = @($AiMeta.pov_tags | Where-Object { $_ })
         if ($PovTags.Count -eq 0 -and $AiPovTags.Count -gt 0) {
             $PovTags = $AiPovTags
-            Write-Info "POV tags from Gemini: $($PovTags -join ', ')"
+            Write-Info "POV tags from AI: $($PovTags -join ', ')"
         } elseif ($PovTags.Count -gt 0) {
-            Write-Info "POV tags from -Pov flag (Gemini suggestion ignored): $($PovTags -join ', ')"
+            Write-Info "POV tags from -Pov flag (AI suggestion ignored): $($PovTags -join ', ')"
         }
 
         # Topic tags: merge user-supplied and AI-suggested (union, deduplicated)
