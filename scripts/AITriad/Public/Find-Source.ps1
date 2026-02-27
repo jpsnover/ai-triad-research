@@ -1,0 +1,118 @@
+function Find-Source {
+    <#
+    .SYNOPSIS
+        Finds source documents whose summaries reference given taxonomy node IDs.
+    .DESCRIPTION
+        Scans every summary JSON in summaries/ and returns the sources that
+        contain at least one key_point whose taxonomy_node_id matches any of
+        the supplied -Id patterns.
+
+        Patterns support PowerShell wildcards (e.g. skp-methods* matches
+        skp-methods-001, skp-methods-005, etc.).
+
+        Output includes the doc ID, title, matching POV, and the matched
+        key_point details so you can see exactly which points map to the node.
+    .PARAMETER Id
+        One or more taxonomy node ID patterns (supports wildcards).
+    .EXAMPLE
+        Find-Source -Id 'skp-methods-005'
+        # Exact match — sources referencing that single node.
+    .EXAMPLE
+        Find-Source -Id 'skp-methods*'
+        # Wildcard — all skeptic methods nodes.
+    .EXAMPLE
+        Find-Source -Id 'acc-goals-001','saf-data-002'
+        # Multiple IDs — sources referencing either node.
+    .EXAMPLE
+        Find-Source -Id 'cc-*'
+        # All cross-cutting references.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string[]]$Id
+    )
+
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
+    $SummariesDir = Join-Path $script:RepoRoot 'summaries'
+    $SourcesDir   = Join-Path $script:RepoRoot 'sources'
+
+    if (-not (Test-Path $SummariesDir)) {
+        Write-Warning "Summaries directory not found: $SummariesDir"
+        return
+    }
+
+    $SummaryFiles = Get-ChildItem -Path $SummariesDir -Filter '*.json' -File
+    if ($SummaryFiles.Count -eq 0) {
+        Write-Warning "No summary files found in $SummariesDir"
+        return
+    }
+
+    $MatchCount = 0
+
+    foreach ($File in $SummaryFiles) {
+        try {
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+        }
+        catch {
+            Write-Warning "Failed to parse $($File.Name): $_"
+            continue
+        }
+
+        $DocId = $Summary.doc_id
+
+        # Load title from source metadata if available
+        $Title = $null
+        $MetaPath = Join-Path $SourcesDir $DocId 'metadata.json'
+        if (Test-Path $MetaPath) {
+            try {
+                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+                $Title = $Meta.title
+            }
+            catch { }
+        }
+
+        # Scan all POV summaries for matching taxonomy_node_id values
+        $Hits = [System.Collections.Generic.List[PSObject]]::new()
+
+        foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
+            $PovData = $Summary.pov_summaries.$PovName
+            if (-not $PovData) { continue }
+
+            foreach ($Point in $PovData.key_points) {
+                $NodeId = $Point.taxonomy_node_id
+                if (-not $NodeId) { continue }
+
+                foreach ($Pattern in $Id) {
+                    if ($NodeId -like $Pattern) {
+                        $Hits.Add([PSCustomObject]@{
+                            POV       = $PovName
+                            NodeId    = $NodeId
+                            Category  = $Point.category
+                            Point     = $Point.point
+                        })
+                        break   # one pattern match is enough per key_point
+                    }
+                }
+            }
+        }
+
+        if ($Hits.Count -eq 0) { continue }
+        $MatchCount++
+
+        [PSCustomObject]@{
+            PSTypeName = 'AITriad.SourceMatch'
+            DocId      = $DocId
+            Title      = $Title
+            HitCount   = $Hits.Count
+            Hits       = $Hits.ToArray()
+        }
+    }
+
+    if ($MatchCount -eq 0) {
+        $Patterns = ($Id | Foreach { "'$_'" }) -join ', '
+        Write-Warning "No sources found matching taxonomy node ID(s): $Patterns"
+    }
+}

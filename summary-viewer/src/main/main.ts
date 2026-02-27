@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 
@@ -27,6 +27,45 @@ function createWindow(): void {
     const filePath = path.join(__dirname, '../renderer/index.html');
     mainWindow.loadFile(filePath);
   }
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+=',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.zoomLevel += 0.5;
+            }
+          },
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.zoomLevel -= 0.5;
+            }
+          },
+        },
+        {
+          label: 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.zoomLevel = 0;
+            }
+          },
+        },
+        { type: 'separator' },
+        { role: 'toggleDevTools' },
+        { role: 'reload' },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[SummaryViewer] Failed to load:', errorCode, errorDescription);

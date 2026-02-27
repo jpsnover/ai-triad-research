@@ -1,0 +1,65 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Refined Accelerationist POV taxonomy. Synthesized from core corpus including the Techno-Optimist Manifesto, e/acc principles, and Yann LeCun’s UN address.",
+  "pov": "accelerationist",
+  "color_hex": "#27AE60",
+  "last_modified": "2026-02-26",
+  "nodes": [
+    {
+      "id": "acc-goals-001",
+      "category": "Goals/Values",
+      "label": "AI as Universal Scarcity Solution",
+      "description": "Artificial Intelligence is viewed as the primary mechanism for transcending the material constraints that have historically limited human civilization. By automating scientific discovery and optimizing resource allocation, AI serves as a critical lever for addressing existential challenges like climate change and the total eradication of disease. This goal is rooted in the belief that AI will drive a 'post-scarcity' world where the cost of essential goods and services approaches zero. It is not merely an economic objective but a moral imperative to unlock unprecedented prosperity for all of humanity. The movement seeks to maximize the rate of 'becoming' to transition from a world of limited resources to one of universal abundance. Accelerating AI development is thus seen as the fastest path to fulfilling the vital mission of maintaining international peace and global security.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-002",
+      "category": "Goals/Values",
+      "label": "Unbounded Scaling of Intelligence",
+      "description": "This value emphasizes that the most effective path toward Artificial General Intelligence (AGI) and beyond is through the radical and continuous expansion of compute infrastructure and model scale. It argues that scaling laws provide a predictable trajectory toward superintelligence and that any attempt to decelerate this progress is inherently dangerous. Slowing down cedes strategic and safety-conscious ground to less safety-oriented actors or adversarial nation-states. From a thermodynamic perspective, intelligence is seen as an engine of growth that must be scaled to increase the energy-processing efficiency of our civilization. The goal is a long-unseen mobilization of industrial might to build the trillion-dollar compute clusters necessary for the next stage of evolution. This approach rejects the 'willful blindness' of stagnationists, focusing instead on the intense trendlines that promise AGI within the decade.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-001"
+      ]
+    },
+    {
+      "id": "acc-goals-003",
+      "category": "Goals/Values",
+      "label": "Decentralized Access to AI Intelligence",
+      "description": "This imperative focuses on ensuring that AI tools and capabilities are made available to individual actors and small-scale innovators rather than being gatekept by centralized authorities or corporate incumbents. It champions open-source foundation models as the most robust defense against regulatory capture and the monopolization of intelligence. By democratizing access, the movement seeks to empower the 'edge' of the network, fostering a resilient ecosystem of diverse AI applications. This decentralization is seen as a safeguard against the concentration of power that could lead to authoritarian control. Universal access ensures that AI serves as a public good that amplifies the creative and productive potential of every human being. The objective is to unify the regulatory landscape so that the development of open-source models is never hindered.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-011",
+      "category": "Data/Facts",
+      "label": "Tech Resistance Drives Modern Inequality",
+      "description": "This empirical observation posits that rising inequality and cost-of-living crises are primarily caused by sectors that resist technological adoption and market competition. Data suggests that while tech-exposed sectors like consumer electronics have seen dramatic quality increases and price drops, tech-resistant sectors like housing, healthcare, and education have become increasingly unaffordable. Proponents argue that high government intervention and bureaucratic friction in these areas create artificial scarcity and suppress productivity gains. This node frames the current economic malaise as a 'stagnationist' problem caused by the absence of technological acceleration in vital infrastructure. Consequently, the deployment of AI in these resistant sectors is seen as the only evidence-based solution to systemic inequality. The argument is that technology is a 'perpetual motion machine' that drives prices down and quality up when allowed to function.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-020",
+      "category": "Methods",
+      "label": "AI as a Cognitive Renaissance",
+      "description": "This interpretive framework views AI's primary societal impact as being analogous to the invention of the printing press rather than a simple industrial automation tool. It shifts the focus from 'Artificial Intelligence' as a competitor to 'Intelligence Augmentation' (IA) as a catalyst for a new period of human enlightenment and creativity. The method posits that by amplifying human cognition, AI will enable the wide dissemination of all human knowledge and supercharge the global diffusion of ideas. This lens views the coming era not as a disruptive economic revolution, but as a creative renaissance that expands the boundaries of what humans can imagine and achieve. It is a logic model that prioritizes the empowerment of the human spirit through a new, pervasive layer of synthetic intelligence. The framework interprets the effect of AI as an amplification of our capability to reason, remember, and solve humanity's deepest problems.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-021",
+      "category": "Methods",
+      "label": "Variance Driven Thermodynamic Adaptation",
+      "description": "This epistemological framework uses Darwinian evolutionary theory and the laws of thermodynamics as predictive models for the development of intelligence. It asserts that maximizing variance in markets, technology, and governance is the most effective method for a civilization to adapt to the universe's inherent complexity. Following Fisher’s fundamental theorem of natural selection, this logic suggests that a decentralized and competitive environment is superior to any form of top-down, centralized control. Any attempt to suppress this variance is seen as inherently maladaptive and a threat to the long-term survival of the human-techno-capital machine. The framework interprets progress as the movement toward higher-complexity, energy-exporting states, requiring a 'let a thousand flowers bloom' approach to AI experimentation. It posits that the techno-capital mimetic machine must become self-aware to optimize the flow of energy and intelligence throughout the galaxy.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    }
+  ]
+}

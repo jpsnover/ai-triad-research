@@ -1,4 +1,6 @@
 import { useEffect, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useStore } from '../store/useStore';
 
 export default function DocumentPane() {
@@ -147,13 +149,15 @@ export default function DocumentPane() {
         )}
 
         {renderedContent && (
-          <pre className="snapshot-text">
-            {renderedContent.before}
+          <div className="snapshot-text">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent.before}</ReactMarkdown>
             {renderedContent.match && (
-              <mark className="highlight-match">{renderedContent.match}</mark>
+              <mark className="highlight-match">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent.match}</ReactMarkdown>
+              </mark>
             )}
-            {renderedContent.after}
-          </pre>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent.after}</ReactMarkdown>
+          </div>
         )}
       </div>
     </>

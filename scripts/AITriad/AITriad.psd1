@@ -16,7 +16,9 @@
         'Invoke-POVSummary'
         'Invoke-BatchSummary'
         'Find-Conflict'
+        'Find-Source'
         'Save-WaybackUrl'
+        'Save-Source'
         'Invoke-PIIAudit'
     )
 

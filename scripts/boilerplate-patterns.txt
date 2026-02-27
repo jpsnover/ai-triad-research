@@ -1,0 +1,15 @@
+# Boilerplate line patterns for Clean-HtmlArtifacts
+# Each line is a regex matched with (?im) flags against the full markdown text.
+# Lines starting with # are comments and are ignored.
+^\s*Share on (Twitter|Facebook|LinkedIn|Reddit).*$
+^\s*Subscribe to (our )?newsletter.*$
+^\s*Follow us on.*$
+^\s*Cookie (policy|settings|preferences).*$
+^\s*Accept (all )?cookies.*$
+^\s*Privacy Policy.*$
+^\s*Terms of (Service|Use).*$
+^\s*All rights reserved\.?\s*$
+^\s*Loading\.{0,3}\s*$
+^\s*Advertisement\s*$
+^\s*Skip to (main )?content.*$
+^\s*Back to top\s*$
