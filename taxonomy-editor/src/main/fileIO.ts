@@ -3,7 +3,7 @@ import path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
-const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy');
+const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
 const CONFLICTS_DIR = path.join(PROJECT_ROOT, 'conflicts');
 
 const POV_FILE_MAP: Record<string, string> = {

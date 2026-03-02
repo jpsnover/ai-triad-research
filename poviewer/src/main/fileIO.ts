@@ -6,7 +6,7 @@ import type { AiSettings, PromptOverrides } from './analysisTypes';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
 
-const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy');
+const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
 const SOURCES_DIR = path.join(PROJECT_ROOT, 'sources');
 const SETTINGS_PATH = path.join(PROJECT_ROOT, 'poviewer', 'settings.json');
 const AI_SETTINGS_PATH = path.join(CONFIG_DIR, 'ai-settings.json');

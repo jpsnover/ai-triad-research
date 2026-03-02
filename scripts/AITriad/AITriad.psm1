@@ -59,7 +59,7 @@ if (Test-Path $AIEnrichPath) {
 # ─────────────────────────────────────────────────────────────────────────────
 # Load taxonomy data at import time (same logic as standalone Taxonomy.psm1)
 # ─────────────────────────────────────────────────────────────────────────────
-$TaxonomyDir = Join-Path $script:RepoRoot 'taxonomy'
+$TaxonomyDir = Join-Path $script:RepoRoot 'taxonomy' 'Origin'
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -eq 'embeddings.json') { continue }

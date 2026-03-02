@@ -59,7 +59,7 @@ function Invoke-BatchSummary {
     $RepoRoot      = $script:RepoRoot
     $SourcesDir    = Join-Path $RepoRoot 'sources'
     $SummariesDir  = Join-Path $RepoRoot 'summaries'
-    $TaxonomyDir   = Join-Path $RepoRoot 'taxonomy'
+    $TaxonomyDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
     $VersionFile   = Join-Path $RepoRoot 'TAXONOMY_VERSION'
     $ConflictsDir  = Join-Path $RepoRoot 'conflicts'
 
@@ -153,11 +153,11 @@ function Invoke-BatchSummary {
                     $PrevCommit = $VersionCommits[1]
                     $CurrCommit = $VersionCommits[0]
 
-                    $GitDiffOutput = git diff --name-only "${PrevCommit}..${CurrCommit}" -- taxonomy/ 2>$null
+                    $GitDiffOutput = git diff --name-only "${PrevCommit}..${CurrCommit}" -- taxonomy/Origin/ 2>$null
                     Write-Info "Git diff range: $($PrevCommit.Substring(0,8))...$($CurrCommit.Substring(0,8))"
                 } else {
                     Write-Info "No previous version commit found; treating all files as changed"
-                    $GitDiffOutput = $PovFileMap.Keys | ForEach-Object { "taxonomy/$_" }
+                    $GitDiffOutput = $PovFileMap.Keys | ForEach-Object { "taxonomy/Origin/$_" }
                 }
 
                 foreach ($ChangedPath in $GitDiffOutput) {

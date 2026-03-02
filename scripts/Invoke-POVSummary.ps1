@@ -118,7 +118,7 @@ Write-Step "Validating inputs"
 # Repo structure
 $paths = @{
     Root         = $RepoRoot
-    TaxonomyDir  = Join-Path $RepoRoot "taxonomy"
+    TaxonomyDir  = Join-Path $RepoRoot "taxonomy" "Origin"
     SourcesDir   = Join-Path $RepoRoot "sources"
     SummariesDir = Join-Path $RepoRoot "summaries"
     ConflictsDir = Join-Path $RepoRoot "conflicts"

@@ -107,7 +107,7 @@ Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 $RepoRoot      = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $SourcesDir    = Join-Path $RepoRoot 'sources'
 $SummariesDir  = Join-Path $RepoRoot 'summaries'
-$TaxonomyDir   = Join-Path $RepoRoot 'taxonomy'
+$TaxonomyDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
 $VersionFile   = Join-Path $RepoRoot 'TAXONOMY_VERSION'
 $ConflictsDir  = Join-Path $RepoRoot 'conflicts'
 $FindConflictScript = Join-Path $PSScriptRoot 'Find-Conflict.ps1'
@@ -234,13 +234,13 @@ if ($ForceAll -or $DocId) {
                 $CurrCommit = $VersionCommits[0]   # the version bump commit (HEAD or near)
 
                 # Diff taxonomy/ between those two commits
-                $GitDiffOutput = git diff --name-only "${PrevCommit}..${CurrCommit}" -- taxonomy/ 2>$null
+                $GitDiffOutput = git diff --name-only "${PrevCommit}..${CurrCommit}" -- taxonomy/Origin/ 2>$null
                 Write-Info "Git diff range: $($PrevCommit.Substring(0,8))...$($CurrCommit.Substring(0,8))"
 
             } else {
                 # First-ever version commit — treat everything as changed
                 Write-Info "No previous version commit found; treating all files as changed"
-                $GitDiffOutput = $PovFileMap.Keys | ForEach-Object { "taxonomy/$_" }
+                $GitDiffOutput = $PovFileMap.Keys | ForEach-Object { "taxonomy/Origin/$_" }
             }
 
             foreach ($ChangedPath in $GitDiffOutput) {

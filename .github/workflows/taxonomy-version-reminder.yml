@@ -7,7 +7,7 @@ name: Taxonomy Version Reminder
 on:
   pull_request:
     paths:
-      - 'taxonomy/**'
+      - 'taxonomy/Origin/**'
 
 jobs:
   check-version-bump:
@@ -24,7 +24,7 @@ jobs:
         run: |
           CHANGED=$(git diff origin/main...HEAD --name-only)
           echo "Changed files: $CHANGED"
-          if echo "$CHANGED" | grep -q "taxonomy/"; then
+          if echo "$CHANGED" | grep -q "taxonomy/Origin/"; then
             if echo "$CHANGED" | grep -q "TAXONOMY_VERSION"; then
               echo "bumped=true" >> $GITHUB_OUTPUT
             else

@@ -40,7 +40,7 @@ from pathlib import Path
 REPO_ROOT   = Path(__file__).parent.parent
 SOURCES_DIR = REPO_ROOT / "sources"
 SUMMARIES   = REPO_ROOT / "summaries"
-TAX_DIR     = REPO_ROOT / "taxonomy"
+TAX_DIR     = REPO_ROOT / "taxonomy" / "Origin"
 VERSION_F   = REPO_ROOT / "TAXONOMY_VERSION"
 
 POV_FILE_MAP = {

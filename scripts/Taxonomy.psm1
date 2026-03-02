@@ -37,7 +37,7 @@ $script:TaxonomyData = @{}
 # ─────────────────────────────────────────────────────────────────────────────
 # Initialization — load all taxonomy JSON files
 # ─────────────────────────────────────────────────────────────────────────────
-$TaxonomyDir = Join-Path $PSScriptRoot '..' 'taxonomy'
+$TaxonomyDir = Join-Path $PSScriptRoot '..' 'taxonomy' 'Origin'
 $TaxonomyDir = (Resolve-Path $TaxonomyDir -ErrorAction Stop).Path
 
 foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
@@ -175,7 +175,7 @@ function Get-Tax {
             return
         }
 
-        $EmbeddingsFile = Join-Path $PSScriptRoot '..' 'taxonomy' 'embeddings.json'
+        $EmbeddingsFile = Join-Path $PSScriptRoot '..' 'taxonomy' 'Origin' 'embeddings.json'
         if (-not (Test-Path $EmbeddingsFile)) {
             Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
             return

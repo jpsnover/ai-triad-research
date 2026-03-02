@@ -81,7 +81,7 @@ function Get-Tax {
             return
         }
 
-        $EmbeddingsFile = Join-Path $script:RepoRoot 'taxonomy' 'embeddings.json'
+        $EmbeddingsFile = Join-Path $script:RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
         if (-not (Test-Path $EmbeddingsFile)) {
             Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
             return

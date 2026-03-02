@@ -102,7 +102,7 @@ export interface TaxonomyNode {
 }
 
 export function loadTaxonomy(): Record<string, TaxonomyNode> {
-  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy');
+  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
   const result: Record<string, TaxonomyNode> = {};
 
   if (!fs.existsSync(TAXONOMY_DIR)) return result;
@@ -164,7 +164,7 @@ export interface AddTaxonomyNodeResult {
 }
 
 export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeResult {
-  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy');
+  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
   const fileName = POV_FILE_MAP[req.pov];
   if (!fileName) {
     return { success: false, nodeId: '', error: `Unknown POV: ${req.pov}` };

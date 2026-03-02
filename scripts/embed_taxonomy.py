@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-TAXONOMY_DIR = Path(__file__).resolve().parent.parent / "taxonomy"
+TAXONOMY_DIR = Path(__file__).resolve().parent.parent / "taxonomy" / "Origin"
 EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
 MODEL_NAME = "all-MiniLM-L6-v2"
 
