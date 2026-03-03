@@ -1237,6 +1237,23 @@ body {
   color: var(--text-primary);
 }
 
+/* ─── Taxonomy directory switcher ─────────────────────── */
+
+.taxonomy-dir-select {
+  padding: 2px 6px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--bg-secondary, #f5f5f5);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.taxonomy-dir-select:hover {
+  border-color: var(--text-muted);
+}
+
 /* ─── Settings dialog ─────────────────────────────────── */
 
 .settings-dialog {

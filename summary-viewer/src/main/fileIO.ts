@@ -4,6 +4,8 @@ import path from 'path';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const SOURCES_DIR = path.join(PROJECT_ROOT, 'sources');
 const SUMMARIES_DIR = path.join(PROJECT_ROOT, 'summaries');
+const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
+let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
 
 export interface DiscoveredSource {
   id: string;
@@ -25,13 +27,14 @@ export interface PipelineSummary {
   ai_model: string;
   temperature: number;
   pov_summaries: Record<string, {
-    stance: string;
+    stance?: string;
     key_points: Array<{
       taxonomy_node_id: string | null;
       category: string;
       point: string;
       verbatim?: string;
       excerpt_context: string;
+      stance?: string;
     }>;
   }>;
   factual_claims: Array<{
@@ -41,9 +44,14 @@ export interface PipelineSummary {
   }>;
   unmapped_concepts: Array<{
     concept: string;
+    suggested_label?: string;
+    suggested_description?: string;
     suggested_pov: string;
     suggested_category: string;
     reason: string;
+    'Accelerationist Interpretation'?: string;
+    'Safetyist Interpretation'?: string;
+    'Skeptic Interpretation'?: string;
   }>;
 }
 
@@ -101,18 +109,36 @@ export interface TaxonomyNode {
   description: string;
 }
 
+export function getTaxonomyDirs(): string[] {
+  if (!fs.existsSync(TAXONOMY_BASE)) return [];
+  return fs.readdirSync(TAXONOMY_BASE, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name !== 'schemas')
+    .map(d => d.name);
+}
+
+export function getActiveTaxonomyDirName(): string {
+  return path.basename(activeTaxonomyDir);
+}
+
+export function setActiveTaxonomyDir(dirName: string): void {
+  const newDir = path.join(TAXONOMY_BASE, dirName);
+  if (!fs.existsSync(newDir)) {
+    throw new Error(`Taxonomy directory not found: ${dirName}`);
+  }
+  activeTaxonomyDir = newDir;
+}
+
 export function loadTaxonomy(): Record<string, TaxonomyNode> {
-  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
   const result: Record<string, TaxonomyNode> = {};
 
-  if (!fs.existsSync(TAXONOMY_DIR)) return result;
+  if (!fs.existsSync(activeTaxonomyDir)) return result;
 
-  const files = fs.readdirSync(TAXONOMY_DIR)
-    .filter(f => f.endsWith('.json') && f !== 'embeddings.json');
+  const files = fs.readdirSync(activeTaxonomyDir)
+    .filter(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'Temp.json');
 
   for (const file of files) {
     try {
-      const raw = JSON.parse(fs.readFileSync(path.join(TAXONOMY_DIR, file), 'utf-8'));
+      const raw = JSON.parse(fs.readFileSync(path.join(activeTaxonomyDir, file), 'utf-8'));
       if (!Array.isArray(raw.nodes)) continue;
       for (const node of raw.nodes) {
         if (node.id) {
@@ -136,12 +162,14 @@ const POV_FILE_MAP: Record<string, string> = {
   accelerationist: 'accelerationist.json',
   safetyist: 'safetyist.json',
   skeptic: 'skeptic.json',
+  'cross-cutting': 'cross-cutting.json',
 };
 
 const POV_PREFIX_MAP: Record<string, string> = {
   accelerationist: 'acc',
   safetyist: 'saf',
   skeptic: 'skp',
+  'cross-cutting': 'cc',
 };
 
 const CATEGORY_PREFIX_MAP: Record<string, string> = {
@@ -155,6 +183,11 @@ export interface AddTaxonomyNodeRequest {
   category: string;
   label: string;
   description: string;
+  interpretations?: {
+    accelerationist: string;
+    safetyist: string;
+    skeptic: string;
+  };
 }
 
 export interface AddTaxonomyNodeResult {
@@ -164,21 +197,24 @@ export interface AddTaxonomyNodeResult {
 }
 
 export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeResult {
-  const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
   const fileName = POV_FILE_MAP[req.pov];
   if (!fileName) {
     return { success: false, nodeId: '', error: `Unknown POV: ${req.pov}` };
   }
 
-  const filePath = path.join(TAXONOMY_DIR, fileName);
+  const filePath = path.join(activeTaxonomyDir, fileName);
   if (!fs.existsSync(filePath)) {
     return { success: false, nodeId: '', error: `Taxonomy file not found: ${fileName}` };
   }
 
+  const isCrossCutting = req.pov === 'cross-cutting';
   const povPrefix = POV_PREFIX_MAP[req.pov];
-  const catPrefix = CATEGORY_PREFIX_MAP[req.category];
-  if (!catPrefix) {
-    return { success: false, nodeId: '', error: `Unknown category: ${req.category}` };
+
+  if (!isCrossCutting) {
+    const catPrefix = CATEGORY_PREFIX_MAP[req.category];
+    if (!catPrefix) {
+      return { success: false, nodeId: '', error: `Unknown category: ${req.category}` };
+    }
   }
 
   try {
@@ -187,29 +223,61 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
       return { success: false, nodeId: '', error: 'Taxonomy file has no nodes array' };
     }
 
-    // Find the next available ID number for this pov-category prefix
-    const prefix = `${povPrefix}-${catPrefix}-`;
-    let maxNum = 0;
-    for (const node of raw.nodes) {
-      if (typeof node.id === 'string' && node.id.startsWith(prefix)) {
-        const numStr = node.id.slice(prefix.length);
-        const num = parseInt(numStr, 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
+    let newId: string;
+
+    if (isCrossCutting) {
+      // Cross-cutting IDs: cc-NNN
+      const prefix = `${povPrefix}-`;
+      let maxNum = 0;
+      for (const node of raw.nodes) {
+        if (typeof node.id === 'string' && node.id.startsWith(prefix)) {
+          const numStr = node.id.slice(prefix.length);
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
         }
       }
+      newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+    } else {
+      // POV IDs: pov-category-NNN
+      const catPrefix = CATEGORY_PREFIX_MAP[req.category];
+      const prefix = `${povPrefix}-${catPrefix}-`;
+      let maxNum = 0;
+      for (const node of raw.nodes) {
+        if (typeof node.id === 'string' && node.id.startsWith(prefix)) {
+          const numStr = node.id.slice(prefix.length);
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+      newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
     }
-    const newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
 
-    const newNode = {
-      id: newId,
-      category: req.category,
-      label: req.label,
-      description: req.description,
-      parent_id: null,
-      children: [],
-      cross_cutting_refs: [],
-    };
+    const newNode = isCrossCutting
+      ? {
+          id: newId,
+          label: req.label,
+          description: req.description,
+          interpretations: req.interpretations || {
+            accelerationist: '',
+            safetyist: '',
+            skeptic: '',
+          },
+          linked_nodes: [],
+          conflict_ids: [],
+        }
+      : {
+          id: newId,
+          category: req.category,
+          label: req.label,
+          description: req.description,
+          parent_id: null,
+          children: [],
+          cross_cutting_refs: [],
+        };
 
     raw.nodes.push(newNode);
     raw.last_modified = new Date().toISOString().split('T')[0];

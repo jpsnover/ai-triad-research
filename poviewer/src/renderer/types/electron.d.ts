@@ -9,6 +9,11 @@ export interface ExcerptMappingResult {
 }
 
 export interface ElectronAPI {
+  // === Taxonomy Directory APIs ===
+  getTaxonomyDirs: () => Promise<string[]>;
+  getActiveTaxonomyDir: () => Promise<string>;
+  setTaxonomyDir: (dirName: string) => Promise<void>;
+
   // === Existing APIs ===
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   loadSnapshot: (sourceId: string) => Promise<string>;

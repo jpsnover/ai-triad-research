@@ -5,6 +5,7 @@ import ResizeHandle from './components/ResizeHandle';
 import SourcesPane from './components/SourcesPane';
 import KeyPointsPane from './components/KeyPointsPane';
 import DocumentPane from './components/DocumentPane';
+import SimilarResultsPane from './components/SimilarResultsPane';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function useThemeEffect() {
@@ -32,6 +33,8 @@ export default function App() {
   const loadSources = useStore(s => s.loadSources);
   const pane1Visible = useStore(s => s.pane1Visible);
   const togglePane1 = useStore(s => s.togglePane1);
+  const similarQuery = useStore(s => s.similarQuery);
+  const showSimilar = similarQuery !== null;
 
   useEffect(() => {
     if (!loaded) {
@@ -68,8 +71,8 @@ export default function App() {
       </div>
       <ResizeHandle index={1} onMouseDown={onMouseDown} isActive={draggingRef.current === 1} />
       <div className="pane" style={{ width: `${effectiveWidths[2]}%` }}>
-        <ErrorBoundary fallbackLabel="Document">
-          <DocumentPane />
+        <ErrorBoundary fallbackLabel={showSimilar ? 'Similar Search' : 'Document'}>
+          {showSimilar ? <SimilarResultsPane /> : <DocumentPane />}
         </ErrorBoundary>
       </div>
 

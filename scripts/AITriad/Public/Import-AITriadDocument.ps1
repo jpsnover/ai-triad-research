@@ -88,8 +88,10 @@ function Import-AITriadDocument {
     $InboxDir   = Join-Path $SourcesDir '_inbox'
 
     # -- AI API key (read once; absence is non-fatal) -------------------------
-    $ModelInfo = $script:ModelRegistry[$Model]
-    $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+    $Backend = if     ($Model -match '^gemini') { 'gemini' }
+               elseif ($Model -match '^claude') { 'claude' }
+               elseif ($Model -match '^groq')   { 'groq'   }
+               else                             { 'gemini'  }
     $AIApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
     # =========================================================================

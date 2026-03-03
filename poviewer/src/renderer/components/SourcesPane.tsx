@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAnalysisStore } from '../store/useAnalysisStore';
 import NotebookSwitcher from './NotebookSwitcher';
+import TaxonomyDirSwitcher from './TaxonomyDirSwitcher';
 import SourceList from './SourceList';
 import TaxonomyManager from './TaxonomyManager';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -62,6 +63,7 @@ export default function SourcesPane() {
         </div>
       </div>
       <NotebookSwitcher />
+      <TaxonomyDirSwitcher />
       <SourceList />
       <TaxonomyManager />
       <AddSourceDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />

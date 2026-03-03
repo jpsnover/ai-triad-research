@@ -6,7 +6,8 @@ import type { AiSettings, PromptOverrides } from './analysisTypes';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
 
-const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
+const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
+let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
 const SOURCES_DIR = path.join(PROJECT_ROOT, 'sources');
 const SETTINGS_PATH = path.join(PROJECT_ROOT, 'poviewer', 'settings.json');
 const AI_SETTINGS_PATH = path.join(CONFIG_DIR, 'ai-settings.json');
@@ -19,12 +20,31 @@ const POV_FILE_MAP: Record<string, string> = {
   'cross-cutting': 'cross-cutting.json',
 };
 
+export function getTaxonomyDirs(): string[] {
+  if (!fs.existsSync(TAXONOMY_BASE)) return [];
+  return fs.readdirSync(TAXONOMY_BASE, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name !== 'schemas')
+    .map(d => d.name);
+}
+
+export function getActiveTaxonomyDirName(): string {
+  return path.basename(activeTaxonomyDir);
+}
+
+export function setActiveTaxonomyDir(dirName: string): void {
+  const newDir = path.join(TAXONOMY_BASE, dirName);
+  if (!fs.existsSync(newDir)) {
+    throw new Error(`Taxonomy directory not found: ${dirName}`);
+  }
+  activeTaxonomyDir = newDir;
+}
+
 export function readTaxonomyFile(pov: string): unknown {
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
   }
-  const filePath = path.join(TAXONOMY_DIR, filename);
+  const filePath = path.join(activeTaxonomyDir, filename);
   const raw = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(raw);
 }
@@ -127,12 +147,13 @@ export interface PipelineSummary {
   ai_model: string;
   temperature: number;
   pov_summaries: Record<string, {
-    stance: string;
+    stance?: string;
     key_points: Array<{
       taxonomy_node_id: string | null;
       category: string;
       point: string;
       excerpt_context: string;
+      stance?: string;
     }>;
   }>;
   factual_claims: Array<{
@@ -290,7 +311,7 @@ export function savePromptOverrides(overrides: PromptOverrides): void {
 export function readAllTaxonomies(): string {
   const result: Record<string, unknown> = {};
   for (const [pov, filename] of Object.entries(POV_FILE_MAP)) {
-    const filePath = path.join(TAXONOMY_DIR, filename);
+    const filePath = path.join(activeTaxonomyDir, filename);
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, 'utf-8');
       result[pov] = JSON.parse(raw);
@@ -336,7 +357,7 @@ export function watchTaxonomyFiles(onChange: (pov: string) => void): void {
   const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
   for (const [pov, filename] of Object.entries(POV_FILE_MAP)) {
-    const filePath = path.join(TAXONOMY_DIR, filename);
+    const filePath = path.join(activeTaxonomyDir, filename);
     if (!fs.existsSync(filePath)) continue;
 
     try {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 
@@ -54,6 +54,48 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Refresh Taxonomy',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('reload-taxonomy');
+            }
+          },
+        },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+=',
+          click: () => { if (mainWindow) mainWindow.webContents.zoomLevel += 0.5; },
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => { if (mainWindow) mainWindow.webContents.zoomLevel -= 0.5; },
+        },
+        {
+          label: 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => { if (mainWindow) mainWindow.webContents.zoomLevel = 0; },
+        },
+        { type: 'separator' },
+        { role: 'toggleDevTools' },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(() => {

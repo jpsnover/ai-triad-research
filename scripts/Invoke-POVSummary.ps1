@@ -169,8 +169,10 @@ foreach ($dir in @($paths.SummariesDir, $paths.ConflictsDir)) {
 
 # API key (only required if not a dry run)
 if (-not $DryRun) {
-    $ModelInfo = $script:ModelRegistry[$Model]
-    $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+    $Backend = if     ($Model -match '^gemini') { 'gemini' }
+               elseif ($Model -match '^claude') { 'claude' }
+               elseif ($Model -match '^groq')   { 'groq'   }
+               else                             { 'gemini'  }
     $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
     if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
         $EnvHint = switch ($Backend) {
@@ -253,21 +255,21 @@ $outputSchema = @'
 {
   "pov_summaries": {
     "accelerationist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentence2 describing what this document says, from the Accelerationist lens>",
+          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
           "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
         }
       ]
     },
     "safetyist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
@@ -277,9 +279,9 @@ $outputSchema = @'
       ]
     },
     "skeptic": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
@@ -330,8 +332,9 @@ RULES:
     it in the unmapped_concepts array. This is how the taxonomy grows.
   - For Data/Facts points only: if the document's claim contradicts or supports an
     existing conflict entry, include the conflict_id in factual_claims.
-  - stance must be ONE of: strongly_aligned | aligned | neutral | opposed |
-    strongly_opposed | not_applicable
+  - Each key_point must include a stance field. stance must be ONE of:
+    strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
+    Different key_points within the same POV camp may have different stances
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied
     EXACTLY from the document (word-for-word) that best capture the point being made.
     Use the minimum number of sentences needed to convey the core idea. Do NOT
@@ -409,7 +412,7 @@ $aiResult = Invoke-AIApi `
     -Model       $Model `
     -ApiKey      $ApiKey `
     -Temperature $Temperature `
-    -MaxTokens   8192 `
+    -MaxTokens   32768 `
     -JsonMode `
     -TimeoutSec  120
 
@@ -439,11 +442,24 @@ try {
     $summaryObject = $cleanedText | ConvertFrom-Json -Depth 20
     Write-OK "Valid JSON received from $($aiResult.Backend)"
 } catch {
-    Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
-    $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
-    Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
-    Write-Info "Raw response saved to: $debugPath"
-    exit 1
+    # Attempt repair of truncated JSON
+    Write-Warn "JSON parse failed — attempting repair"
+    $repaired = Repair-TruncatedJson -Text $rawText
+    if ($repaired) {
+        try {
+            $summaryObject = $repaired | ConvertFrom-Json -Depth 20
+            Write-OK "JSON repaired successfully (truncated response recovered)"
+        } catch {
+            $summaryObject = $null
+        }
+    }
+    if ($null -eq $summaryObject) {
+        Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
+        $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
+        Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
+        Write-Info "Raw response saved to: $debugPath"
+        exit 1
+    }
 }
 
 # ── Validate required top-level keys ─────────────────────────────────────────
@@ -461,15 +477,17 @@ $camps = @("accelerationist","safetyist","skeptic")
 foreach ($camp in $camps) {
     $campData = $summaryObject.pov_summaries.$camp
     if ($campData) {
-        $stance = $campData.stance
-        if ($stance -notin $validStances) {
-            Write-Warn "Invalid stance '$stance' for $camp — replacing with 'neutral'"
-            $campData.stance = "neutral"
+        if ($campData.key_points) {
+            foreach ($kp in $campData.key_points) {
+                if ($kp.stance -notin $validStances) {
+                    Write-Warn "Invalid stance '$($kp.stance)' for $camp key_point — replacing with 'neutral'"
+                    $kp.stance = 'neutral'
+                }
+            }
         }
-
         $pointCount = if ($campData.key_points) { $campData.key_points.Count } else { 0 }
         $nullNodes  = if ($campData.key_points) { ($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
-        Write-OK "  $camp : stance=$stance, $pointCount key points ($nullNodes unmapped)"
+        Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
     } else {
         Write-Warn "  $camp : no data returned — may not be relevant to this document"
     }
@@ -639,9 +657,8 @@ foreach ($camp in $camps) {
         "skeptic"         { "Yellow" }
     }
     $campLabel = $camp.ToUpper()
-    $stanceStr = $campData.stance.ToUpper()
 
-    Write-Host "`n  [$campLabel]  stance: $stanceStr" -ForegroundColor $campColor
+    Write-Host "`n  [$campLabel]" -ForegroundColor $campColor
 
     if ($campData.key_points) {
         # Group by category for readability
@@ -650,7 +667,8 @@ foreach ($camp in $camps) {
             Write-Host "    $($group.Name):" -ForegroundColor White
             foreach ($pt in $group.Group) {
                 $nodeTag = if ($pt.taxonomy_node_id) { "[$($pt.taxonomy_node_id)]" } else { "[UNMAPPED]" }
-                Write-Host "      $nodeTag $($pt.point)" -ForegroundColor Gray
+                $ptStance = if ($pt.stance) { $pt.stance } else { 'neutral' }
+                Write-Host "      $nodeTag ($ptStance) $($pt.point)" -ForegroundColor Gray
                 if ($pt.verbatim) {
                     Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
                 }

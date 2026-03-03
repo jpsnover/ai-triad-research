@@ -115,8 +115,10 @@ $ErrorActionPreference = 'Stop'
 # ─────────────────────────────────────────────────────────────────────────────
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
-$ModelInfo = $script:ModelRegistry[$Model]
-$Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+$Backend = if     ($Model -match '^gemini') { 'gemini' }
+           elseif ($Model -match '^claude') { 'claude' }
+           elseif ($Model -match '^groq')   { 'groq'   }
+           else                             { 'gemini'  }
 $Script:AIApiKey = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
 # ─────────────────────────────────────────────────────────────────────────────

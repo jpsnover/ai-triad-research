@@ -14,6 +14,14 @@ export function App() {
     loadAll();
   }, [loadAll]);
 
+  // Listen for menu-triggered taxonomy reload
+  useEffect(() => {
+    const unsub = window.electronAPI.onReloadTaxonomy(() => {
+      useTaxonomyStore.getState().loadAll();
+    });
+    return unsub;
+  }, []);
+
   // Apply theme on mount and listen for system preference changes
   useEffect(() => {
     const root = document.documentElement;

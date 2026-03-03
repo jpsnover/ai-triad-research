@@ -1,4 +1,7 @@
 export interface ElectronAPI {
+  getTaxonomyDirs: () => Promise<string[]>;
+  getActiveTaxonomyDir: () => Promise<string>;
+  setTaxonomyDir: (dirName: string) => Promise<void>;
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadConflictFiles: () => Promise<unknown[]>;
@@ -11,6 +14,7 @@ export interface ElectronAPI {
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string) => Promise<{ text: string }>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
+  onReloadTaxonomy: (callback: () => void) => () => void;
   growWindow: (deltaWidth: number) => Promise<void>;
   shrinkWindow: (deltaWidth: number) => Promise<void>;
 }

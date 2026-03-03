@@ -21,10 +21,11 @@ export interface KeyPoint {
   point: string;
   verbatim?: string;
   excerpt_context: string;
+  stance: string;
 }
 
 export interface PovSummary {
-  stance: string;
+  stance?: string;
   key_points: KeyPoint[];
 }
 
@@ -47,6 +48,9 @@ export interface PipelineSummary {
     suggested_pov: string;
     suggested_category: string;
     reason: string;
+    'Accelerationist Interpretation'?: string;
+    'Safetyist Interpretation'?: string;
+    'Skeptic Interpretation'?: string;
   }>;
 }
 

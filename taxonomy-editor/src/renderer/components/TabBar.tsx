@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { TabId } from '../types/taxonomy';
 import { HelpDialog } from './HelpDialog';
@@ -13,9 +13,22 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export function TabBar() {
-  const { activeTab, setActiveTab } = useTaxonomyStore();
+  const { activeTab, setActiveTab, loadAll } = useTaxonomyStore();
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [taxonomyDirs, setTaxonomyDirs] = useState<string[]>([]);
+  const [activeDir, setActiveDir] = useState('Origin');
+
+  useEffect(() => {
+    window.electronAPI.getTaxonomyDirs().then(setTaxonomyDirs);
+    window.electronAPI.getActiveTaxonomyDir().then(setActiveDir);
+  }, []);
+
+  const handleDirChange = useCallback(async (dirName: string) => {
+    await window.electronAPI.setTaxonomyDir(dirName);
+    setActiveDir(dirName);
+    await loadAll();
+  }, [loadAll]);
 
   return (
     <div className="tab-bar">
@@ -30,6 +43,18 @@ export function TabBar() {
         </button>
       ))}
       <div className="tab-bar-actions">
+        {taxonomyDirs.length > 1 && (
+          <select
+            className="taxonomy-dir-select"
+            value={activeDir}
+            onChange={(e) => handleDirChange(e.target.value)}
+            title="Switch taxonomy"
+          >
+            {taxonomyDirs.map((dir) => (
+              <option key={dir} value={dir}>{dir}</option>
+            ))}
+          </select>
+        )}
         <button className="tab-bar-menu-btn" onClick={() => setShowSettings(true)} title="Settings">
           Settings
         </button>

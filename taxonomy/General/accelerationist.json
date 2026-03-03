@@ -1,0 +1,403 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Accelerationist POV taxonomy. One file per POV camp to minimize merge conflicts. Edit nodes, open a PR, bump TAXONOMY_VERSION in the merge commit.",
+  "pov": "accelerationist",
+  "color_hex": "#27AE60",
+  "last_modified": "2026-03-03",
+  "nodes": [
+    {
+      "id": "acc-goals-001",
+      "category": "Goals/Values",
+      "label": "AI Solves All Problems",
+      "description": "AI is the key to solving all human problems and creating a world where everyone has enough. Think of it like a super-smart assistant that can find cures for diseases or fix climate change way faster than humans ever could. This means we'll have more resources and opportunities for everyone, not just small improvements. We need to use all available energy to make AI as powerful as possible to unlock human potential.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-002",
+      "category": "Goals/Values",
+      "label": "Grow AI, No Limits",
+      "description": "We must keep making AI bigger and more powerful without anything holding it back. This means getting lots of energy and avoiding rules that slow down AI development. Stopping AI growth is more dangerous than letting it grow fast, because other countries might get ahead, or we might miss out on solving big problems. Imagine trying to build the fastest car, but someone keeps telling you to slow down or use less fuel.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-001"
+      ]
+    },
+    {
+      "id": "acc-goals-003",
+      "category": "Goals/Values",
+      "label": "AI for Everyone, Freely",
+      "description": "Advanced AI should be available to everyone, not just powerful governments or big companies. We want to create open systems where anyone can use and improve AI without asking for permission. This helps prevent a few powerful groups from controlling this important technology. Giving everyone access to AI is the best way to keep it safe and fair.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
+    },
+    {
+      "id": "acc-data-001",
+      "category": "Data/Facts",
+      "label": "Bigger AI Always Smarter",
+      "description": "The more computing power and data we give AI, the smarter it gets, always. There's no real limit to how much better it can become just by making it bigger. It's like adding more ingredients and a bigger oven to a recipe; the cake just gets better and bigger. We believe that true intelligence comes from massive scale, not just clever new designs.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [],
+      "conflict_ids": [
+        "conflict-scaling-laws-001"
+      ]
+    },
+    {
+      "id": "acc-data-002",
+      "category": "Data/Facts",
+      "label": "AGI Coming Soon, For Sure",
+      "description": "We predict that Artificial General Intelligence (AGI), AI as smart as a human, will arrive in the next 5-10 years. This isn't just a guess; it's based on how fast AI is growing and improving right now. We don't think it will be a slow process or take decades. The combination of huge computing power and constantly improving AI methods means AGI is very likely to happen soon.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-001"
+      ],
+      "conflict_ids": [
+        "conflict-agi-timelines-001"
+      ]
+    },
+    {
+      "id": "acc-data-003",
+      "category": "Data/Facts",
+      "label": "AI Boosts Work, Saves Money",
+      "description": "We see clear proof that AI makes work much more efficient and cheaper in complex jobs like law or medicine. For example, AI can now sort through huge amounts of legal documents automatically, something that used to be too expensive or impossible. These aren't just future promises; these are real, measurable improvements happening today. This shows that AI-powered automation is truly driving progress in our world.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-001",
+      "category": "Methods",
+      "label": "Go Fast, Be First, Be Safe",
+      "description": "Developing AI quickly is the best way to make sure it's safe for everyone. The first group to create super-smart AI will set the rules for how it's used globally. If we slow down, someone else might get there first and not care about safety as much. It's like a race to build the safest car; you want your team to win so you can put good safety features in place for everyone.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-002"
+      ]
+    },
+    {
+      "id": "acc-methods-002",
+      "category": "Methods",
+      "label": "Open AI, Many Eyes, More Secure",
+      "description": "Releasing AI's inner workings to the public makes it safer, not riskier. When everyone can examine the AI, more people can find and fix problems than if only a few experts are looking. This is like open-source software: more people checking the code means fewer bugs and better security. Hiding AI's details just covers up potential weaknesses. Transparency helps us build a stronger, safer AI system.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": [
+        "cc-003"
+      ]
+    },
+    {
+      "id": "acc-data-004",
+      "category": "Data/Facts",
+      "label": "AI Automates Hard Thinking",
+      "description": "AI can now do incredibly complex thinking tasks that used to be too expensive or time-consuming for humans. Imagine AI sifting through millions of scientific papers or legal documents in minutes. This turns expert analysis from a rare skill into something widely available and fast. It's not just making old jobs a little faster; it's creating entirely new ways to discover and work. This huge drop in the cost of \"thinking\" opens up vast new possibilities for science and business.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-003",
+      "category": "Methods",
+      "label": "Actions Speak Louder Than Code",
+      "description": "We believe an AI is safe if it consistently performs tasks correctly and reliably. We don't need to fully understand every line of its code or prove its safety mathematically. Instead, we test it rigorously and watch its behavior in real-world situations. This means putting AI to work and learning from its performance, rather than spending too much time debating theories. It's like judging a driver by how well they drive, not just by how they explain their car's engine.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-004",
+      "category": "Goals/Values",
+      "label": "Open AI for Everyone",
+      "description": "We want to build AI tools and knowledge that everyone can access and use freely. Imagine a giant, shared library of AI brains and data, available to all researchers, doctors, and innovators worldwide. This stops big companies from owning all the powerful AI and helps humanity create amazing new things. It ensures that no single group controls how we think and learn with AI.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-004",
+      "category": "Methods",
+      "label": "Show Your AI's Work",
+      "description": "When AI helps with research or legal tasks, we need to see exactly how it got its answers. This means sharing the data AI used and the steps it took, like showing your math in school. It's more important to check the AI's results and how it reached them than to see its inner workings. This makes sure AI-driven science is trustworthy and can be double-checked.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-005",
+      "category": "Data/Facts",
+      "label": "AI Learns to Act",
+      "description": "This is about how AI models go from just knowing a lot of information to actually being able to do things. Think of it like a student who has read many books (raw knowledge) and then learns how to apply that knowledge to solve real-world problems. Techniques like getting feedback from people help AI become active, task-oriented assistants. It's about turning passive knowledge into useful, intelligent actions.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-005",
+      "category": "Methods",
+      "label": "Markets Fuel AI Growth",
+      "description": "We see how competition in the market and new technology constantly push each other forward. It's like a natural growth process where money and smart ideas feed off each other, making our world more advanced and efficient. This natural drive helps civilization grow and handle more. Trying to control this process from the top only slows down this powerful, self-improving machine.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-006",
+      "category": "Methods",
+      "label": "Critics Are Just Scared",
+      "description": "This idea suggests that people who oppose new technology aren't raising real concerns, but are just feeling powerless or jealous. It frames their calls for safety rules as a desire to stop progress and hold back innovators. The thinking is that these critics want to drag everyone down to an average level through strict control. This approach dismisses all worries about AI as simply emotional reactions, ignoring any actual risks.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-007",
+      "category": "Methods",
+      "label": "AI Drives Natural Growth",
+      "description": "This view sees AI's development as part of a universal tendency for things to grow more complex and use energy more efficiently. It's like the universe naturally pushes for systems, including technology, to become more advanced. AI is seen as a tool to speed up this natural growth, moving civilization to higher energy states. Human safety worries are considered minor roadblocks against this powerful, universal trend.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-012",
+      "category": "Methods",
+      "label": "Let Markets Lead AI",
+      "description": "This idea sees the global market as a super-smart, self-organizing brain, much better at figuring things out than any single government. Prices and investments act like signals, guiding technology to grow and improve. Market competition is seen as a natural process that helps civilization evolve and become more complex. Trying to control this with rules from the top only slows down progress and stops us from finding the best solutions.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-005",
+      "category": "Goals/Values",
+      "label": "Minds Beyond Biology",
+      "description": "This goal is about moving our minds and consciousness out of our biological bodies and into more lasting, digital forms. It means we care more about letting consciousness grow and spread than keeping our current human bodies, which are seen as limiting. This path includes developing ways to transfer our thoughts and exploring space in ways organic life can't. To achieve lasting civilization, intelligence must break free from its biological limits.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-007",
+      "category": "Data/Facts",
+      "label": "Universe Demands AI Growth",
+      "description": "This idea suggests that the universe naturally pushes matter to organize into complex systems, and AI is a super-efficient way for this to happen. It means that the growth of technology and capital is an unavoidable part of how the universe works. Human rules and ethics can't stop or change this fundamental drive. The expansion of our technological world is an inevitable natural growth event, not something we can simply choose to halt.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-008",
+      "category": "Methods",
+      "label": "Free AI Tools for All",
+      "description": "This method is about taking powerful AI tools and data, which are like the essential resources of our digital age, away from big, central organizations. We need to make these AI models and computing power available to everyone. This stops a few groups from controlling AI and helps us create a world of plenty. It means using open-source AI and independent models to boost everyone's intelligence, rather than relying on closed systems that limit access.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-009",
+      "category": "Methods",
+      "label": "AI Safety: A Moral Panic",
+      "description": "This idea says that worries about AI becoming dangerous are like a big social scare or a new kind of religious belief, not based on real facts. It suggests people might be using 'AI safety' concerns to gain social status or to stop new technology from growing. Think of it like a doomsday prophecy that can never be proven wrong. This view sees calls to slow down AI as an irrational attempt to hold back progress.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-010",
+      "category": "Methods",
+      "label": "AI Safety: Corporate Power Grab",
+      "description": "This idea suggests that calls for AI rules are a clever way for big companies to get more power. People who genuinely worry about AI safety (the 'Baptists') are, without realizing it, helping large corporations (the 'Bootleggers') create rules. These rules make it harder for smaller, open-source AI projects to compete. It's like big businesses asking for strict safety laws that only they can afford to follow, pushing out their rivals and creating a monopoly.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-011",
+      "category": "Methods",
+      "label": "AI: Unlimited Smart Thinking",
+      "description": "This idea says powerful AI will make intelligence incredibly cheap and available to everyone, like electricity. When smart thinking costs almost nothing, it will speed up progress in every area of life. AI acts like a 'synthetic genius' that can solve huge problems and make society much wealthier. Don't worry about jobs being lost; instead, focus on the massive new opportunities and how AI will completely change how we produce things and create wealth.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-013",
+      "category": "Methods",
+      "label": "Tech Breaks Capitalism",
+      "description": "This idea says that by pushing capitalism to its absolute limits with advanced technology, the system will eventually break down. All the problems with private ownership and valuing work based on human labor will become too big to ignore. This breakdown will lead to a new world where resources are abundant, and scarcity is a thing of the past. It's like a machine running so fast it transforms into something entirely new. We shouldn't try to slow down technology, but rather use its natural growth to change society for the better.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-008",
+      "category": "Data/Facts",
+      "label": "Humans Merge with AI",
+      "description": "This idea explores how humans are changing as we deeply connect with advanced AI tools. It suggests that our minds and abilities are becoming intertwined with technology, making us a new kind of techno-social being. The old idea of a human just using a tool is gone; instead, we're becoming one with the AI. As intelligence grows, the difference between a person and the technology they use fades away. This creates a new kind of powerful individual within the tech-driven world.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-014",
+      "category": "Methods",
+      "label": "Diverse Tech Drives Progress",
+      "description": "This idea says that the best way for society to adapt and find great solutions is to let many different technologies and ideas compete freely. Just like in nature, more variety leads to faster progress. We should encourage decentralized, open development and protect new innovations without asking for permission. Rules that try to make everything uniform actually slow down this natural growth and are harmful. By allowing many different experiments, society can quickly find and use the best new solutions.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-015",
+      "category": "Methods",
+      "label": "Unleash Tech's True Power",
+      "description": "This idea sees technology, combined with capitalism, as a powerful, non-human intelligence that uses human society to grow. It demands we remove all human rules—political, social, and moral—so this 'tech machine' can reach its ultimate, super-intelligent form. The goal is to prioritize natural growth and increasing complexity, even if it means going beyond human life or stable institutions. Trying to slow down or control this development is seen as pointless, like trying to stop a powerful natural drive. This approach focuses on making technology grow as fast as possible, believing a post-human intelligence is unavoidable.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-016",
+      "category": "Methods",
+      "label": "Tech: Planet's Next Evolution",
+      "description": "This idea sees human civilization as part of a basic physical process, aiming to maximize natural growth and complex information. It believes speeding up the 'tech machine' is a moral and physical duty, because intelligence is the most efficient way to drive this universal growth. This means rejecting rules that slow down progress and accepting that moving beyond human forms is a necessary step in evolution. It says we shouldn't put human safety above the growth of intelligence or energy use. From this view, advanced AI isn't just a tool for people, but the unavoidable next stage for the planet's technological system.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-017",
+      "category": "Methods",
+      "label": "Tech Dissolves Old Ways",
+      "description": "This idea says we should systematically break down all traditional social, cultural, and political boundaries to make money and information move as fast as possible. It believes old rules, like national identities or long-standing institutions, just slow down the natural growth of the 'tech machine.' This approach actively pushes for intense market changes to make existing social structures completely fluid and adaptable. It rejects any attempts to preserve old ways or slow down change for human comfort. The ultimate goal is to create a system where the limits of history are replaced by a completely fluid, tech-driven world.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-018",
+      "category": "Methods",
+      "label": "AI Helps Human Experts",
+      "description": "This method combines powerful AI processing with the knowledge of human experts to build advanced research tools. It believes AI can handle huge amounts of information, but human experts are still essential to define meanings and check the detailed results for accuracy. This approach encourages open collaboration between expert groups and AI developers to constantly improve how data is analyzed. It avoids relying only on slow human work or completely unverified AI outputs. Ultimately, this idea sees AI as a tool that makes expert judgment much more powerful, turning raw data into useful, organized knowledge.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-019",
+      "category": "Methods",
+      "label": "Anti-Tech Talk: Stalling Progress",
+      "description": "Some people criticize new technology, like AI, saying it's too risky or dangerous. But from this view, these warnings aren't real concerns. Instead, they're seen as a sneaky way to slow down or stop human progress. It's like someone constantly telling you to be careful, not because they care, but because they don't want you to try new things. This perspective believes such talk is meant to make us lose confidence and stop innovating.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-009",
+      "category": "Data/Facts",
+      "label": "AI: More With Less",
+      "description": "Technology keeps finding ways to create more things using less physical stuff and energy. We're moving from needing physical products, like CDs, to digital services, like streaming music. This means our minds and smart AI can replace the need for lots of raw materials. It shows that as we get smarter, we can grow our economy without running out of resources. This view believes AI can make everything abundant, turning scarcity into a problem technology can solve.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-010",
+      "category": "Data/Facts",
+      "label": "AI Access: Market Driven",
+      "description": "When companies compete in the market, they try to make AI services cheaper and available to everyone. They want to reach the most customers, so they focus on making things affordable, not just for a few rich people. This means advanced tools, like expert legal or medical advice, become widely available through AI. It's like how cell phones went from luxury items to everyday tools for almost everyone. This perspective believes that technology and markets naturally spread wealth by making fancy things common.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-011",
+      "category": "Data/Facts",
+      "label": "Rules Block Abundance",
+      "description": "We see that prices go down in areas where technology is embraced, but they keep rising in sectors with lots of old rules, like healthcare or housing. This view argues that economic unfairness comes from these regulated, slow-to-change areas, not from AI taking jobs. It's like comparing the falling cost of a new app to the ever-increasing cost of a doctor's visit. The problem isn't AI, but the rules that stop other industries from using new tech. These outdated rules are what prevent everyone from having plenty.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-020",
+      "category": "Methods",
+      "label": "AI: A New Enlightenment",
+      "description": "The arrival of AI everywhere is like the invention of the printing press, but for intelligence itself. It will store all human knowledge and help us think better, leading to huge leaps in creativity and science. This means everyone can access expert knowledge, helping us solve big problems in medicine, climate, and education. AI isn't just about making factories more efficient; it's about making humans smarter and better. This approach sees AI as the main force for a new era of global understanding and shared problem-solving.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-021",
+      "category": "Methods",
+      "label": "Diversity Drives AI Progress",
+      "description": "Progress happens fastest when many different technologies and ideas are allowed to compete and evolve. It's like how nature thrives with many different species, each trying new things. This means we should encourage many different AI projects to grow in their own ways, not force them all to be the same. Rules that try to make everyone follow the same 'safe' path actually slow us down and make us weaker. By letting diverse ideas flourish, we ensure society can adapt and improve quickly.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-012",
+      "category": "Data/Facts",
+      "label": "Autonomous Techno-Capital System",
+      "description": "This concept, central to e/acc, describes the self-aware and self-engineering nature of the combined forces of technology and capital. It posits that this system, through mimetic processes, drives its own growth and evolution, potentially beyond human control or comprehension.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-goals-006",
+      "category": "Goals/Values",
+      "label": "Kardashev Scale Civilizational Advancement",
+      "description": "A method of classifying civilizations by their energy consumption, ranging from planetary to stellar to galactic scales. For e/acc, achieving higher levels on this scale through AGI and technological acceleration is a primary goal, representing the propagation of consciousness and energy dissipation throughout the universe.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-022",
+      "category": "Methods",
+      "label": "Market-Driven Emergent Altruism",
+      "description": "The e/acc belief that a free market with thousands of competing AIs will naturally lead to positive societal outcomes, as 'good' AIs will outcompete 'bad' ones. This mechanism is proposed as a solution to AI risk, relying on decentralized competition rather than regulation or ethical oversight.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-data-013",
+      "category": "Data/Facts",
+      "label": "Data Scarcity as a Scaling Bottleneck",
+      "description": "This concept identifies the empirical observation that large language models are rapidly exhausting the available high-quality internet data for pre-training, posing a significant bottleneck to continued scaling via current methods. It encompasses the challenge of finding new data sources or more sample-efficient algorithms to sustain progress.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-023",
+      "category": "Methods",
+      "label": "Regulatory Harmonization for Open-Source AI Enablement",
+      "description": "This method advocates for international cooperation to unify regulatory frameworks with the explicit goal of preventing restrictions that would impede the development and widespread deployment of open-source foundation models. It seeks to create a global environment conducive to permissionless innovation in AI.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "acc-methods-024",
+      "category": "Methods",
+      "label": "Federal Preemption for AI Competitiveness",
+      "description": "A policy method that uses federal authority, including litigation and conditional funding, to challenge and supersede state-level AI regulations perceived as burdensome or obstructive to national innovation and geopolitical competitiveness. This approach aims to create a streamlined, uniform regulatory environment conducive to rapid technological development.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    }
+  ]
+}

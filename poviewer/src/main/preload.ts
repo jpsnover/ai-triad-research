@@ -1,6 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // === Taxonomy Directory APIs ===
+  getTaxonomyDirs: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-taxonomy-dirs'),
+
+  getActiveTaxonomyDir: (): Promise<string> =>
+    ipcRenderer.invoke('get-active-taxonomy-dir'),
+
+  setTaxonomyDir: (dirName: string): Promise<void> =>
+    ipcRenderer.invoke('set-taxonomy-dir', dirName),
+
   // === Existing APIs ===
   loadTaxonomyFile: (pov: string): Promise<unknown> =>
     ipcRenderer.invoke('load-taxonomy-file', pov),

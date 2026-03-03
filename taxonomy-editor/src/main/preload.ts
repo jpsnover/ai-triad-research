@@ -1,6 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getTaxonomyDirs: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-taxonomy-dirs'),
+
+  getActiveTaxonomyDir: (): Promise<string> =>
+    ipcRenderer.invoke('get-active-taxonomy-dir'),
+
+  setTaxonomyDir: (dirName: string): Promise<void> =>
+    ipcRenderer.invoke('set-taxonomy-dir', dirName),
+
   loadTaxonomyFile: (pov: string): Promise<unknown> =>
     ipcRenderer.invoke('load-taxonomy-file', pov),
 
@@ -38,6 +47,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => callback(progress);
     ipcRenderer.on('generate-text-progress', listener);
     return () => { ipcRenderer.removeListener('generate-text-progress', listener); };
+  },
+
+  onReloadTaxonomy: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('reload-taxonomy', listener);
+    return () => { ipcRenderer.removeListener('reload-taxonomy', listener); };
   },
 
   growWindow: (deltaWidth: number): Promise<void> =>

@@ -74,8 +74,10 @@ function Invoke-BatchSummary {
     # -- STEP 0 — Validate environment ---------------------------------------
     Write-Step "Validating environment"
 
-    $ModelInfo = $script:ModelRegistry[$Model]
-    $Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+    $Backend = if     ($Model -match '^gemini') { 'gemini' }
+               elseif ($Model -match '^claude') { 'claude' }
+               elseif ($Model -match '^groq')   { 'groq'   }
+               else                             { 'gemini'  }
     $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
         $EnvHint = switch ($Backend) {
@@ -292,9 +294,9 @@ function Invoke-BatchSummary {
 {
   "pov_summaries": {
     "accelerationist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
@@ -304,9 +306,9 @@ function Invoke-BatchSummary {
       ]
     },
     "safetyist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
@@ -316,9 +318,9 @@ function Invoke-BatchSummary {
       ]
     },
     "skeptic": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
@@ -367,8 +369,9 @@ RULES:
     it in the unmapped_concepts array. This is how the taxonomy grows.
   - For Data/Facts points only: if the document's claim contradicts or supports an
     existing conflict entry, include the conflict_id in factual_claims.
-  - stance must be ONE of: strongly_aligned | aligned | neutral | opposed |
-    strongly_opposed | not_applicable
+  - Each key_point must include a stance field. stance must be ONE of:
+    strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
+    Different key_points within the same POV camp may have different stances
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied
     EXACTLY from the document (word-for-word) that best capture the point being made.
     Use the minimum number of sentences needed to convey the core idea. Do NOT

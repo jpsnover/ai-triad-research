@@ -313,6 +313,38 @@ body {
   border-color: var(--color-acc);
 }
 
+/* === Taxonomy Directory Switcher === */
+.taxonomy-dir-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px var(--pane-padding);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.taxonomy-dir-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.taxonomy-dir-select {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.taxonomy-dir-select:focus {
+  outline: none;
+  border-color: var(--color-acc);
+}
+
 /* === Taxonomy Manager === */
 .taxonomy-manager {
   padding: var(--pane-padding);

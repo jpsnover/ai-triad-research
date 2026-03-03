@@ -139,8 +139,10 @@ $PovFileMap = [ordered]@{
 Write-Step "Validating environment"
 
 # Resolve API key — only required for real runs
-$ModelInfo = $script:ModelRegistry[$Model]
-$Backend   = if ($ModelInfo) { $ModelInfo.Backend } else { 'gemini' }
+$Backend = if     ($Model -match '^gemini') { 'gemini' }
+           elseif ($Model -match '^claude') { 'claude' }
+           elseif ($Model -match '^groq')   { 'groq'   }
+           else                             { 'gemini'  }
 $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
     $EnvHint = switch ($Backend) {
@@ -389,9 +391,9 @@ $OutputSchema = @'
 {
   "pov_summaries": {
     "accelerationist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-4 sentences describing what this document says, from the Accelerationist lens>",
@@ -401,9 +403,9 @@ $OutputSchema = @'
       ]
     },
     "safetyist": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-4 sentences describing what this document says, from the Safetyist lens>",
@@ -413,9 +415,9 @@ $OutputSchema = @'
       ]
     },
     "skeptic": {
-      "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
       "key_points": [
         {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
           "point": "<1-4 sentences describing what this document says, from the Skeptic lens>",
@@ -472,8 +474,9 @@ RULES:
     it in the unmapped_concepts array. This is how the taxonomy grows.
   - For Data/Facts points only: if the document's claim contradicts or supports an
     existing conflict entry, include the conflict_id in factual_claims.
-  - stance must be ONE of: strongly_aligned | aligned | neutral | opposed |
-    strongly_opposed | not_applicable
+  - Each key_point must include a stance field. stance must be ONE of:
+    strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
+    Different key_points within the same POV camp may have different stances
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied
     EXACTLY from the document (word-for-word) that best capture the point being made.
     Use the minimum number of sentences needed to convey the core idea. Do NOT
@@ -547,7 +550,7 @@ $SnapshotText
         -Model       $Model `
         -ApiKey      $ApiKey `
         -Temperature $Temperature `
-        -MaxTokens   16384 `
+        -MaxTokens   32768 `
         -JsonMode `
         -TimeoutSec  120 `
         -MaxRetries  3 `
@@ -569,10 +572,23 @@ $SnapshotText
     try {
         $SummaryObject = $CleanText | ConvertFrom-Json -Depth 20
     } catch {
-        $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
-        Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-        Write-Host "  └─ ✗ Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
-        return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        # Attempt repair of truncated JSON
+        Write-Host "  │  ⚠ JSON parse failed — attempting repair" -ForegroundColor Yellow
+        $Repaired = Repair-TruncatedJson -Text $RawText
+        if ($Repaired) {
+            try {
+                $SummaryObject = $Repaired | ConvertFrom-Json -Depth 20
+                Write-Host "  │  ✓ JSON repaired successfully (truncated response recovered)" -ForegroundColor Green
+            } catch {
+                $SummaryObject = $null
+            }
+        }
+        if ($null -eq $SummaryObject) {
+            $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
+            Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
+            Write-Host "  └─ ✗ Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
+            return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        }
     }
 
     # Validate stance values and gather counts for reporting
@@ -584,8 +600,10 @@ $SnapshotText
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
         if ($CampData) {
-            if ($CampData.stance -notin $ValidStances) { $CampData.stance = 'neutral' }
             if ($CampData.key_points) {
+                foreach ($kp in $CampData.key_points) {
+                    if ($kp.stance -notin $ValidStances) { $kp.stance = 'neutral' }
+                }
                 $TotalPoints += @($CampData.key_points).Count
                 $NullNodes   += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
             }

@@ -42,10 +42,14 @@ interface AggregatedUnmapped {
   suggested_pov: string;
   suggested_category: string;
   reason: string;
+  'Accelerationist Interpretation'?: string;
+  'Safetyist Interpretation'?: string;
+  'Skeptic Interpretation'?: string;
 }
 
 function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) {
   const addToTaxonomy = useStore(s => s.addToTaxonomy);
+  const runSimilarSearch = useStore(s => s.runSimilarSearch);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [result, setResult] = useState<{ success: boolean; nodeId?: string; error?: string } | null>(null);
@@ -72,7 +76,14 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
     setResult(null);
     const label = uc.suggested_label || uc.concept.slice(0, 80);
     const description = uc.suggested_description || uc.concept;
-    const res = await addToTaxonomy(uc.suggested_pov, uc.suggested_category, label, description);
+    const interpretations = uc.suggested_pov === 'cross-cutting'
+      ? {
+          accelerationist: uc['Accelerationist Interpretation'] || '',
+          safetyist: uc['Safetyist Interpretation'] || '',
+          skeptic: uc['Skeptic Interpretation'] || '',
+        }
+      : undefined;
+    const res = await addToTaxonomy(uc.suggested_pov, uc.suggested_category, label, description, interpretations);
     setResult(res);
     setAdding(false);
     if (res.success) {
@@ -106,6 +117,15 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
                   {adding ? 'Adding...' : 'Add to Taxonomy'}
                 </button>
               )}
+              <button
+                className="unmapped-popup-item"
+                onClick={() => {
+                  runSimilarSearch(uc.suggested_label || uc.concept, uc.suggested_description || uc.concept);
+                  setMenuOpen(false);
+                }}
+              >
+                View Similar
+              </button>
               {result?.success && (
                 <div className="unmapped-popup-success">
                   Added as {result.nodeId}
@@ -123,6 +143,28 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
       <div className="unmapped-concept">{uc.concept}</div>
       {uc.suggested_description && (
         <div className="unmapped-description">{uc.suggested_description}</div>
+      )}
+      {uc.suggested_pov === 'cross-cutting' && (
+        <div className="unmapped-interpretations">
+          {uc['Accelerationist Interpretation'] && (
+            <div className="unmapped-interp">
+              <span className="unmapped-interp-label" style={{ color: 'var(--color-acc)' }}>Accelerationist:</span>
+              <span className="unmapped-interp-text">{uc['Accelerationist Interpretation']}</span>
+            </div>
+          )}
+          {uc['Safetyist Interpretation'] && (
+            <div className="unmapped-interp">
+              <span className="unmapped-interp-label" style={{ color: 'var(--color-saf)' }}>Safetyist:</span>
+              <span className="unmapped-interp-text">{uc['Safetyist Interpretation']}</span>
+            </div>
+          )}
+          {uc['Skeptic Interpretation'] && (
+            <div className="unmapped-interp">
+              <span className="unmapped-interp-label" style={{ color: 'var(--color-skp)' }}>Skeptic:</span>
+              <span className="unmapped-interp-text">{uc['Skeptic Interpretation']}</span>
+            </div>
+          )}
+        </div>
       )}
       <div className="unmapped-meta">
         <span className="unmapped-source">{uc.docTitle}</span>
@@ -174,7 +216,7 @@ export default function KeyPointsPane() {
               docTitle,
               index: idx,
               keyPoint: kp,
-              stance: povSummary.stance,
+              stance: kp.stance || povSummary.stance || 'neutral',
               sortLabel: taxNode?.label || '\uffff',
             });
           });

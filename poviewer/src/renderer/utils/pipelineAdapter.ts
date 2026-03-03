@@ -8,10 +8,11 @@ interface PipelineKeyPoint {
   point: string;
   verbatim?: string;
   excerpt_context: string;
+  stance?: string;
 }
 
 interface PipelinePovSummary {
-  stance: string;
+  stance?: string;
   key_points: PipelineKeyPoint[];
 }
 
@@ -186,10 +187,9 @@ export function summaryToPoints(
     const povSummary = summary.pov_summaries[camp];
     if (!povSummary || !povSummary.key_points) continue;
 
-    const stance = povSummary.stance;
-
     for (const kp of povSummary.key_points) {
       pointIndex++;
+      const kpStance = kp.stance || povSummary.stance || 'neutral';
       const { start, end } = findExcerptOffset(snapshotText, kp.point, kp.excerpt_context, kp.verbatim);
 
       const resolvedId = kp.taxonomy_node_id || `${camp.slice(0, 3)}-unmapped`;
@@ -201,8 +201,8 @@ export function summaryToPoints(
         nodeLabel: taxNode?.label ?? kp.point.slice(0, 60) + (kp.point.length > 60 ? '...' : ''),
         nodeDescription: taxNode?.description,
         category: kp.category,
-        alignment: stanceToAlignment(stance),
-        strength: stanceToStrength(stance),
+        alignment: stanceToAlignment(kpStance),
+        strength: stanceToStrength(kpStance),
         explanation: kp.point,
       };
 

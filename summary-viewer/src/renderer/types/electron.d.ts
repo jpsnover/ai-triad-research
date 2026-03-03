@@ -3,6 +3,11 @@ export interface AddTaxonomyNodeRequest {
   category: string;
   label: string;
   description: string;
+  interpretations?: {
+    accelerationist: string;
+    safetyist: string;
+    skeptic: string;
+  };
 }
 
 export interface AddTaxonomyNodeResult {
@@ -12,11 +17,18 @@ export interface AddTaxonomyNodeResult {
 }
 
 export interface ElectronAPI {
+  getTaxonomyDirs: () => Promise<string[]>;
+  getActiveTaxonomyDir: () => Promise<string>;
+  setTaxonomyDir: (dirName: string) => Promise<void>;
   discoverSources: () => Promise<unknown[]>;
   loadSummary: (docId: string) => Promise<unknown>;
   loadSnapshot: (sourceId: string) => Promise<string>;
   loadTaxonomy: () => Promise<unknown>;
   addTaxonomyNode: (req: AddTaxonomyNodeRequest) => Promise<AddTaxonomyNodeResult>;
+  setApiKey: (key: string) => Promise<void>;
+  hasApiKey: () => Promise<boolean>;
+  computeEmbeddings: (texts: string[]) => Promise<number[][]>;
+  computeQueryEmbedding: (text: string) => Promise<number[]>;
 }
 
 declare global {

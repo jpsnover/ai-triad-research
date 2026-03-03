@@ -1,8 +1,31 @@
 import { ipcMain } from 'electron';
-import { discoverSources, loadSummary, loadTaxonomy, readSnapshot, addTaxonomyNode } from './fileIO';
+import {
+  discoverSources,
+  loadSummary,
+  loadTaxonomy,
+  readSnapshot,
+  addTaxonomyNode,
+  getTaxonomyDirs,
+  getActiveTaxonomyDirName,
+  setActiveTaxonomyDir,
+} from './fileIO';
 import type { AddTaxonomyNodeRequest } from './fileIO';
+import { computeEmbeddings, computeQueryEmbedding } from './embeddings';
+import { storeApiKey, hasApiKey } from './apiKeyStore';
 
 export function registerIpcHandlers(): void {
+  ipcMain.handle('get-taxonomy-dirs', () => {
+    return getTaxonomyDirs();
+  });
+
+  ipcMain.handle('get-active-taxonomy-dir', () => {
+    return getActiveTaxonomyDirName();
+  });
+
+  ipcMain.handle('set-taxonomy-dir', (_event, dirName: string) => {
+    setActiveTaxonomyDir(dirName);
+  });
+
   ipcMain.handle('discover-sources', () => {
     return discoverSources();
   });
@@ -21,5 +44,21 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('add-taxonomy-node', (_event, req: AddTaxonomyNodeRequest) => {
     return addTaxonomyNode(req);
+  });
+
+  ipcMain.handle('set-api-key', (_event, key: string) => {
+    storeApiKey(key);
+  });
+
+  ipcMain.handle('has-api-key', () => {
+    return hasApiKey();
+  });
+
+  ipcMain.handle('compute-embeddings', (_event, texts: string[]) => {
+    return computeEmbeddings(texts);
+  });
+
+  ipcMain.handle('compute-query-embedding', (_event, text: string) => {
+    return computeQueryEmbedding(text);
   });
 }

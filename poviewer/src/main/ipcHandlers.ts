@@ -2,6 +2,9 @@ import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import fs from 'fs';
 import {
   readTaxonomyFile,
+  getTaxonomyDirs,
+  getActiveTaxonomyDirName,
+  setActiveTaxonomyDir,
   readSnapshot,
   loadSettings,
   saveSettings,
@@ -29,6 +32,18 @@ import type { AiSettings, PromptOverrides } from './analysisTypes';
 
 export function registerIpcHandlers(): void {
   // === Existing Handlers ===
+
+  ipcMain.handle('get-taxonomy-dirs', () => {
+    return getTaxonomyDirs();
+  });
+
+  ipcMain.handle('get-active-taxonomy-dir', () => {
+    return getActiveTaxonomyDirName();
+  });
+
+  ipcMain.handle('set-taxonomy-dir', (_event, dirName: string) => {
+    setActiveTaxonomyDir(dirName);
+  });
 
   ipcMain.handle('load-taxonomy-file', (_event, pov: string) => {
     return readTaxonomyFile(pov);

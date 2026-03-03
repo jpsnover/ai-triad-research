@@ -62,7 +62,7 @@ $SnapshotText
         -Model      $Model `
         -ApiKey     $ApiKey `
         -Temperature $Temperature `
-        -MaxTokens  16384 `
+        -MaxTokens  32768 `
         -JsonMode `
         -TimeoutSec 120 `
         -MaxRetries 3 `
@@ -84,10 +84,23 @@ $SnapshotText
     try {
         $SummaryObject = $CleanText | ConvertFrom-Json -Depth 20
     } catch {
-        $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
-        Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-        Write-Host "  `u{2514}`u{2500} `u{2717} Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
-        return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        # Attempt repair of truncated JSON
+        Write-Host "  `u{2502}  `u{26A0} JSON parse failed `u{2014} attempting repair" -ForegroundColor Yellow
+        $Repaired = Repair-TruncatedJson -Text $RawText
+        if ($Repaired) {
+            try {
+                $SummaryObject = $Repaired | ConvertFrom-Json -Depth 20
+                Write-Host "  `u{2502}  `u{2713} JSON repaired successfully (truncated response recovered)" -ForegroundColor Green
+            } catch {
+                $SummaryObject = $null
+            }
+        }
+        if ($null -eq $SummaryObject) {
+            $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
+            Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
+            Write-Host "  `u{2514}`u{2500} `u{2717} Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
+            return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        }
     }
 
     # Validate stance values and gather counts
@@ -99,8 +112,10 @@ $SnapshotText
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
         if ($CampData) {
-            if ($CampData.stance -notin $ValidStances) { $CampData.stance = 'neutral' }
             if ($CampData.key_points) {
+                foreach ($kp in $CampData.key_points) {
+                    if ($kp.stance -notin $ValidStances) { $kp.stance = 'neutral' }
+                }
                 $TotalPoints += @($CampData.key_points).Count
                 $NullNodes   += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
             }

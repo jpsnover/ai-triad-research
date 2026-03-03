@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme } from '../types/types';
+import { rankBySimilarity } from '../utils/similarity';
+import type { SemanticResult } from '../utils/similarity';
 
 interface SummaryViewerState {
   // Data
@@ -17,6 +19,15 @@ interface SummaryViewerState {
   theme: Theme;
   pane1Visible: boolean;
 
+  // Similarity search
+  similarQuery: string | null;
+  similarQueryDescription: string | null;
+  similarResults: SemanticResult[] | null;
+  similarLoading: boolean;
+  similarError: string | null;
+  similarThreshold: number;
+  embeddingCache: Map<string, number[]>;
+
   // Actions
   loadSources: () => Promise<void>;
   toggleSource: (id: string) => void;
@@ -25,7 +36,10 @@ interface SummaryViewerState {
   clearKeyPoint: () => void;
   setTheme: (t: Theme) => void;
   togglePane1: () => void;
-  addToTaxonomy: (pov: string, category: string, label: string, description: string) => Promise<{ success: boolean; nodeId: string; error?: string }>;
+  addToTaxonomy: (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }) => Promise<{ success: boolean; nodeId: string; error?: string }>;
+  runSimilarSearch: (concept: string, description: string) => Promise<void>;
+  clearSimilarSearch: () => void;
+  setSimilarThreshold: (t: number) => void;
 }
 
 export const useStore = create<SummaryViewerState>((set, get) => ({
@@ -38,6 +52,13 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   selectedKeyPoint: null,
   theme: (localStorage.getItem('summaryviewer-theme') as Theme) || 'system',
   pane1Visible: true,
+  similarQuery: null,
+  similarQueryDescription: null,
+  similarResults: null,
+  similarLoading: false,
+  similarError: null,
+  similarThreshold: 60,
+  embeddingCache: new Map(),
 
   loadSources: async () => {
     try {
@@ -117,13 +138,58 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     set(state => ({ pane1Visible: !state.pane1Visible }));
   },
 
-  addToTaxonomy: async (pov: string, category: string, label: string, description: string) => {
-    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description });
+  addToTaxonomy: async (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }) => {
+    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations });
     if (result.success) {
       // Reload taxonomy to pick up the new node
       const taxonomy = await window.electronAPI.loadTaxonomy() as Record<string, TaxonomyNode>;
       set({ taxonomy });
     }
     return result;
+  },
+
+  runSimilarSearch: async (concept: string, description: string) => {
+    set({ similarLoading: true, similarError: null, similarQuery: concept, similarQueryDescription: description, similarResults: null });
+
+    try {
+      let cache = get().embeddingCache;
+
+      // Build embedding cache if empty
+      if (cache.size === 0) {
+        const taxonomy = get().taxonomy;
+        const ids = Object.keys(taxonomy);
+        if (ids.length === 0) {
+          set({ similarLoading: false, similarError: 'No taxonomy nodes loaded' });
+          return;
+        }
+        const texts = ids.map(id => {
+          const node = taxonomy[id];
+          return `${node.label}: ${node.description}`;
+        });
+        const vectors = await window.electronAPI.computeEmbeddings(texts);
+        cache = new Map<string, number[]>();
+        ids.forEach((id, i) => cache.set(id, vectors[i]));
+        set({ embeddingCache: cache });
+      }
+
+      // Compute query embedding
+      const queryText = `${concept}: ${description}`;
+      const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
+
+      // Rank results with low threshold (UI slider filters further)
+      const results = rankBySimilarity(queryVector, cache, 0.4, 50);
+      set({ similarResults: results, similarLoading: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ similarError: message, similarLoading: false });
+    }
+  },
+
+  clearSimilarSearch: () => {
+    set({ similarQuery: null, similarQueryDescription: null, similarResults: null, similarLoading: false, similarError: null });
+  },
+
+  setSimilarThreshold: (t: number) => {
+    set({ similarThreshold: t });
   },
 }));

@@ -3,7 +3,8 @@ import path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
-const TAXONOMY_DIR = path.join(PROJECT_ROOT, 'taxonomy', 'Origin');
+const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
+let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
 const CONFLICTS_DIR = path.join(PROJECT_ROOT, 'conflicts');
 
 const POV_FILE_MAP: Record<string, string> = {
@@ -13,12 +14,31 @@ const POV_FILE_MAP: Record<string, string> = {
   'cross-cutting': 'cross-cutting.json',
 };
 
+export function getTaxonomyDirs(): string[] {
+  if (!fs.existsSync(TAXONOMY_BASE)) return [];
+  return fs.readdirSync(TAXONOMY_BASE, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name !== 'schemas')
+    .map(d => d.name);
+}
+
+export function getActiveTaxonomyDirName(): string {
+  return path.basename(activeTaxonomyDir);
+}
+
+export function setActiveTaxonomyDir(dirName: string): void {
+  const newDir = path.join(TAXONOMY_BASE, dirName);
+  if (!fs.existsSync(newDir)) {
+    throw new Error(`Taxonomy directory not found: ${dirName}`);
+  }
+  activeTaxonomyDir = newDir;
+}
+
 export function readTaxonomyFile(pov: string): unknown {
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
   }
-  const filePath = path.join(TAXONOMY_DIR, filename);
+  const filePath = path.join(activeTaxonomyDir, filename);
   const raw = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(raw);
 }
@@ -28,7 +48,7 @@ export function writeTaxonomyFile(pov: string, data: unknown): void {
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
   }
-  const filePath = path.join(TAXONOMY_DIR, filename);
+  const filePath = path.join(activeTaxonomyDir, filename);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 

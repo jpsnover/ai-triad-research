@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import type { Theme } from '../types/types';
 
@@ -32,6 +33,41 @@ function ThemeSwitcher() {
   );
 }
 
+function TaxonomyDirSwitcher() {
+  const [dirs, setDirs] = useState<string[]>([]);
+  const [activeDir, setActiveDir] = useState('Origin');
+  const loadSources = useStore(s => s.loadSources);
+
+  useEffect(() => {
+    if (!window.electronAPI?.getTaxonomyDirs) return;
+    window.electronAPI.getTaxonomyDirs().then(setDirs);
+    window.electronAPI.getActiveTaxonomyDir().then(setActiveDir);
+  }, []);
+
+  const handleChange = useCallback(async (dirName: string) => {
+    await window.electronAPI.setTaxonomyDir(dirName);
+    setActiveDir(dirName);
+    await loadSources();
+  }, [loadSources]);
+
+  if (dirs.length <= 1) return null;
+
+  return (
+    <div className="taxonomy-dir-bar">
+      <label className="taxonomy-dir-label">Taxonomy:</label>
+      <select
+        className="taxonomy-dir-select"
+        value={activeDir}
+        onChange={(e) => handleChange(e.target.value)}
+      >
+        {dirs.map((dir) => (
+          <option key={dir} value={dir}>{dir}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function SourcesPane() {
   const sources = useStore(s => s.sources);
   const selectedSourceIds = useStore(s => s.selectedSourceIds);
@@ -47,6 +83,7 @@ export default function SourcesPane() {
         <h2>Sources</h2>
         <ThemeSwitcher />
       </div>
+      <TaxonomyDirSwitcher />
       <div className="pane-body">
         <label className="select-all-row">
           <input

@@ -374,10 +374,126 @@ $Excerpt
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Repair-TruncatedJson
+#
+# Attempts to salvage a JSON string that was truncated mid-output by closing
+# any open strings, arrays, and objects.  Returns $null if repair fails.
+# ─────────────────────────────────────────────────────────────────────────────
+function Repair-TruncatedJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Text
+    )
+
+    $trimmed = $Text.Trim()
+
+    # Already valid?
+    try {
+        $null = $trimmed | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+        return $trimmed
+    } catch { }
+
+    # Strip markdown fences if present
+    $trimmed = $trimmed -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
+    $trimmed = $trimmed.Trim()
+
+    # Walk the string tracking nesting depth
+    $inString  = $false
+    $escaped   = $false
+    $stack     = [System.Collections.Generic.Stack[char]]::new()
+    $lastGood  = -1   # index of last position where a value/element ended cleanly
+
+    for ($i = 0; $i -lt $trimmed.Length; $i++) {
+        $c = $trimmed[$i]
+
+        if ($inString) {
+            if ($escaped)       { $escaped = $false; continue }
+            if ($c -eq '\')     { $escaped = $true;  continue }
+            if ($c -eq '"')     { $inString = $false; continue }
+            continue
+        }
+
+        switch ($c) {
+            '"'  { $inString = $true }
+            '{'  { $stack.Push('}') }
+            '['  { $stack.Push(']') }
+            '}'  {
+                if ($stack.Count -gt 0 -and $stack.Peek() -eq '}') {
+                    [void]$stack.Pop()
+                    if ($stack.Count -eq 0) { $lastGood = $i }
+                }
+            }
+            ']'  {
+                if ($stack.Count -gt 0 -and $stack.Peek() -eq ']') {
+                    [void]$stack.Pop()
+                    if ($stack.Count -eq 0) { $lastGood = $i }
+                }
+            }
+        }
+    }
+
+    # Strategy 1: close truncated tail then close all remaining open structures.
+    # Try progressively stripping back to find a valid boundary.
+    if ($stack.Count -gt 0) {
+        $repaired = $trimmed
+        # If truncated mid-string, close the string
+        if ($inString) {
+            $repaired += '"'
+        }
+        # Remove trailing whitespace/comma/colon, then dangling key or incomplete value
+        $repaired = $repaired -replace '[,:\s]+$', ''
+        # Strip dangling key ("key") left after removing colon
+        $repaired = $repaired -replace ',\s*"[^"]*"\s*$', ''
+        # Strip dangling key at start of an object: { "key" → {
+        $repaired = $repaired -replace '(\{)\s*"[^"]*"\s*$', '$1'
+
+        # Re-scan for open structures after trimming
+        $reStack = [System.Collections.Generic.Stack[char]]::new()
+        $reInStr = $false; $reEsc = $false
+        for ($j = 0; $j -lt $repaired.Length; $j++) {
+            $rc = $repaired[$j]
+            if ($reInStr) {
+                if ($reEsc) { $reEsc = $false; continue }
+                if ($rc -eq '\') { $reEsc = $true; continue }
+                if ($rc -eq '"') { $reInStr = $false }
+                continue
+            }
+            switch ($rc) {
+                '"' { $reInStr = $true }
+                '{' { $reStack.Push('}') }
+                '[' { $reStack.Push(']') }
+                '}' { if ($reStack.Count -gt 0 -and $reStack.Peek() -eq '}') { [void]$reStack.Pop() } }
+                ']' { if ($reStack.Count -gt 0 -and $reStack.Peek() -eq ']') { [void]$reStack.Pop() } }
+            }
+        }
+        # Close all remaining open brackets/braces
+        while ($reStack.Count -gt 0) {
+            $repaired += $reStack.Pop()
+        }
+        try {
+            $null = $repaired | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+            return $repaired
+        } catch { }
+    }
+
+    # Strategy 2: truncate back to the last position where the root object
+    # was fully closed, if we found one
+    if ($lastGood -gt 0) {
+        $candidate = $trimmed.Substring(0, $lastGood + 1)
+        try {
+            $null = $candidate | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+            return $candidate
+        } catch { }
+    }
+
+    return $null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Backward-compatibility aliases
 # ─────────────────────────────────────────────────────────────────────────────
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Repair-TruncatedJson `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata
