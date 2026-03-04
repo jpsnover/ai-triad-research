@@ -108,6 +108,8 @@ Export-ModuleMember -Function @(
     'Start-POViewer'
     'Start-SummaryViewer'
     'Show-AITriadHelp'
+    'Get-TaxonomyHealth'
+    'Invoke-TaxonomyProposal'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

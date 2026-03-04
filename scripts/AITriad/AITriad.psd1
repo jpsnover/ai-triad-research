@@ -26,6 +26,8 @@
         'Start-POViewer'
         'Start-SummaryViewer'
         'Show-AITriadHelp'
+        'Get-TaxonomyHealth'
+        'Invoke-TaxonomyProposal'
     )
 
     # Aliases exported from this module
