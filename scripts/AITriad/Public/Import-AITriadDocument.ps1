@@ -29,9 +29,13 @@ function Import-AITriadDocument {
     .PARAMETER SkipAiMeta
         Skip the AI metadata-enrichment step.
     .PARAMETER Model
-        AI model to use for metadata enrichment.
+        AI model to use for metadata enrichment and summarization.
         Supports Gemini, Claude, and Groq backends.
         Default: gemini-3.1-flash-lite-preview
+    .PARAMETER Temperature
+        Sampling temperature (0.0-1.0) passed to summarization.
+        Lower values produce more deterministic output.
+        Default: 0.1
     .EXAMPLE
         Import-AITriadDocument -Url 'https://example.com/article' -Pov accelerationist, skeptic
     .EXAMPLE
@@ -78,7 +82,10 @@ function Import-AITriadDocument {
             'groq-llama-3.3-70b', 'groq-llama-4-scout'
         )]
         [Alias('GeminiModel')]
-        [string]$Model = 'gemini-3.1-flash-lite-preview'
+        [string]$Model = 'gemini-3.1-flash-lite-preview',
+
+        [ValidateRange(0.0, 1.0)]
+        [double]$Temperature = 0.1
     )
 
     Set-StrictMode -Version Latest
@@ -346,7 +353,7 @@ function Import-AITriadDocument {
 
             if (-not $NoSummarize -and $DocId) {
                 Write-Step "Running POV summarization for $DocId"
-                Invoke-BatchSummary -DocId $DocId
+                Invoke-BatchSummary -DocId $DocId -Model $Model -Temperature $Temperature
             }
         }
 
@@ -358,7 +365,7 @@ function Import-AITriadDocument {
 
             if (-not $NoSummarize -and $DocId) {
                 Write-Step "Running POV summarization for $DocId"
-                Invoke-BatchSummary -DocId $DocId
+                Invoke-BatchSummary -DocId $DocId -Model $Model -Temperature $Temperature
             }
         }
 
@@ -427,7 +434,7 @@ function Import-AITriadDocument {
             if (-not $NoSummarize -and $IngestedIds.Count -gt 0) {
                 foreach ($id in $IngestedIds) {
                     Write-Step "Running POV summarization for $id"
-                    Invoke-BatchSummary -DocId $id
+                    Invoke-BatchSummary -DocId $id -Model $Model -Temperature $Temperature
                 }
             }
         }

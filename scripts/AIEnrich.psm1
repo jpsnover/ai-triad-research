@@ -288,34 +288,11 @@ function Get-AIMetadata {
         $MarkdownText
     }
 
+    $PromptPath = Join-Path $PSScriptRoot 'AITriad' 'Prompts' 'metadata-extraction.prompt'
+    $StaticPrompt = (Get-Content -Path $PromptPath -Raw).TrimEnd()
+
     $Prompt = @"
-You are a metadata extraction assistant for the AI Triad research project at the Berkman Klein Center.
-
-Extract structured metadata from the document excerpt below and return it as a JSON object.
-
-VALID POV TAGS (only use these exact strings):
-  accelerationist  — document promotes AI speed, abundance, economic gains, first-mover advantage
-  safetyist        — document focuses on existential risk, alignment, oversight, pausing deployment
-  skeptic          — document focuses on present harms: bias, labor displacement, surveillance, civil liberties
-  cross-cutting    — document engages concepts used differently by multiple camps (e.g. "harm", "governance")
-
-RULES:
-- pov_tags: include ALL camps the document meaningfully engages with. Most documents touch 1-3 camps.
-- topic_tags: 3-8 short lowercase slug-style tags (e.g. "alignment", "labor-displacement", "agi-timelines").
-- date_published: extract from the document if present (yyyy-MM-dd). Return null if absent.
-- authors: extract all author names. Return [] if none found.
-- one_liner: one sentence (max 25 words) describing what this document argues or does.
-- Return ONLY valid JSON — no markdown fences, no preamble.
-
-OUTPUT SCHEMA:
-{
-  "title": "string",
-  "authors": ["string"],
-  "date_published": "yyyy-MM-dd or null",
-  "pov_tags": ["accelerationist|safetyist|skeptic|cross-cutting"],
-  "topic_tags": ["slug-style-tag"],
-  "one_liner": "string"
-}
+$StaticPrompt
 
 SOURCE URL (for context): $SourceUrl
 FALLBACK TITLE (from heuristics, improve if possible): $FallbackTitle

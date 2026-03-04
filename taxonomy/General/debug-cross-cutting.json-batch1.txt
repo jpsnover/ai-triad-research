@@ -1,0 +1,106 @@
+[
+  {
+    "id": "cc-001",
+    "label": "When Will AI Become Smart",
+    "description": "Predicting the arrival of human-level AI is like guessing when a self-driving car will finally be able to handle any road condition. Everyone talks about this date, but they disagree on whether it is coming soon and what it will actually mean for our lives.",
+    "interpretations": {
+      "accelerationist": "AI will be here in 5 to 10 years, so we must invest now to lead the way.",
+      "safetyist": "AI will be here in 5 to 10 years, so we must figure out how to control it before it gets too powerful.",
+      "skeptic": "These predictions are just hype meant to distract us from the real problems AI is causing today."
+    }
+  },
+  {
+    "id": "cc-002",
+    "label": "Making AI Follow Rules",
+    "description": "Ensuring an AI does exactly what we want without causing trouble is like trying to teach a toddler to follow complex instructions perfectly. Some think we can solve this as we go, while others believe we must master it before building anything more powerful.",
+    "interpretations": {
+      "accelerationist": "It is a normal engineering challenge that we can solve while moving quickly.",
+      "safetyist": "It is a life-or-death problem that must be solved before we release any more advanced systems.",
+      "skeptic": "It is a convenient excuse for companies to avoid taking responsibility for the bias and errors happening right now."
+    }
+  },
+  {
+    "id": "cc-003",
+    "label": "Rules for AI Development",
+    "description": "Everyone wants AI to be safe, but they have very different ideas about who should make the rules. It is like a group of people trying to agree on traffic laws when some want total freedom and others want strict speed limits.",
+    "interpretations": {
+      "accelerationist": "Keep rules simple and light so companies can keep innovating without being slowed down.",
+      "safetyist": "We need strict international laws to pause or limit the development of the most powerful models.",
+      "skeptic": "We need immediate rules that stop AI from discriminating against people or causing real-world damage."
+    }
+  },
+  {
+    "id": "cc-004",
+    "label": "Defining AI Harm",
+    "description": "The word harm is used by everyone, but it means different things depending on who you ask. It is like comparing a paper cut to a major storm; one person worries about the future, while another worries about the damage happening right now.",
+    "interpretations": {
+      "accelerationist": "Harm is failing to build AI, which keeps us from curing diseases and ending poverty.",
+      "safetyist": "Harm is a future, uncontrollable event where AI goes rogue and causes a disaster.",
+      "skeptic": "Harm is the unfair treatment and job loss that AI is already causing for real people today."
+    }
+  },
+  {
+    "id": "cc-005",
+    "label": "Measuring AI Risk",
+    "description": "Deciding what is risky is like choosing between worrying about a rare asteroid strike or the daily danger of driving a car. Different groups weigh the chances and the consequences of AI failure in completely different ways.",
+    "interpretations": {
+      "accelerationist": "The biggest risk is missing out on the massive benefits of AI by being too scared to use it.",
+      "safetyist": "The biggest risk is a catastrophic failure that could happen if we don't get control of AI first.",
+      "skeptic": "The biggest risk is the ongoing, proven damage that current AI systems are doing to vulnerable groups."
+    }
+  },
+  {
+    "id": "cc-006",
+    "label": "Is AI Accurate Enough",
+    "description": "Using test scores to decide if an AI is ready for the real world is like judging a student based only on a multiple-choice quiz. It ignores whether the AI can handle new situations or if it treats different groups of people fairly.",
+    "interpretations": {
+      "accelerationist": "If the AI gets a high score on tests, it is ready to be used.",
+      "safetyist": "High test scores don't matter if we don't understand how the AI makes its decisions.",
+      "skeptic": "A high average score hides the fact that the AI might be failing badly for specific groups of people."
+    }
+  },
+  {
+    "id": "cc-007",
+    "label": "Government Control of AI",
+    "description": "Some people think the government should take over the race to build the smartest AI, similar to how the US built the atomic bomb. This would mean turning private labs into a national project to ensure the country stays ahead.",
+    "interpretations": {
+      "accelerationist": "A necessary move to make sure we beat our rivals and stay in charge.",
+      "safetyist": "A way to keep the development of dangerous technology under a strict, secure chain of command.",
+      "skeptic": "A dangerous power grab that ignores public input and focuses on the wrong threats."
+    }
+  },
+  {
+    "id": "cc-008",
+    "label": "AI Improving Itself",
+    "description": "This is the idea that once an AI is smart enough, it will start designing even better versions of itself, leading to a sudden explosion in intelligence. It is like a snowball rolling down a hill, getting bigger and faster until it is impossible to stop.",
+    "interpretations": {
+      "accelerationist": "The ultimate goal that will lead to incredible scientific and economic breakthroughs.",
+      "safetyist": "A terrifying moment where we might lose control of the technology forever.",
+      "skeptic": "A sci-fi story used to distract us from the problems AI is causing today."
+    }
+  },
+  {
+    "id": "cc-009",
+    "label": "Global Competition Drives AI",
+    "description": "Many believe that the race to build AI is really a competition between countries for global power. It is like a space race where the winner gets to set the rules for the rest of the world.",
+    "interpretations": {
+      "accelerationist": "We must win this race to ensure our values lead the future.",
+      "safetyist": "The race makes things dangerous, but we have to win to make sure the technology is safe.",
+      "skeptic": "This competition is just an excuse to ignore real problems and grab more power."
+    }
+  },
+  {
+    "id": "cc-010",
+    "label": "Speed Versus Safety",
+    "description": "There is a constant tug-of-war between wanting to be the first to release new technology and wanting to make sure it is perfectly safe. It is like a car manufacturer deciding whether to release a new model quickly or spend more time testing the brakes.",
+    "interpretations": {
+      "accelerationist": "We have to move fast, or we will let less careful people take the lead.",
+      "safetyist": "The pressure to win is a dangerous trap that could lead us to ignore safety rules.",
+      "skeptic": "The safety talk is often just a way for big companies to protect their market position."
+    }
+  }
+]
+]
+]
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "pov_summaries": {
+    "accelerationist": {
+      "key_points": [
+        {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
+          "category": "<Goals/Values | Data/Facts | Methods>",
+          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
+          "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
+        }
+      ]
+    },
+    "safetyist": {
+      "key_points": [
+        {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
+          "category": "<Goals/Values | Data/Facts | Methods>",
+          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
+          "excerpt_context": "<brief pointer to location in document>"
+        }
+      ]
+    },
+    "skeptic": {
+      "key_points": [
+        {
+          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
+          "category": "<Goals/Values | Data/Facts | Methods>",
+          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
+          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
+          "excerpt_context": "<brief pointer to location in document>"
+        }
+      ]
+    }
+  },
+  "factual_claims": [
+    {
+      "claim": "<a specific empirical or factual claim made in the document>",
+      "doc_position": "<supports | disputes | neutral>",
+      "potential_conflict_id": "<existing conflict id if relevant, e.g. conflict-scaling-laws-001, OR null>"
+    }
+  ],
+  "unmapped_concepts": [
+    {
+      "concept": "<a concept in the document that does not map to any existing taxonomy node>",
+      "suggested_pov": "<accelerationist | safetyist | skeptic | cross-cutting>",
+      "suggested_category": "<Goals/Values | Data/Facts | Methods>",
+      "reason": "<why this concept might deserve a new taxonomy node>"
+    }
+  ]
+}

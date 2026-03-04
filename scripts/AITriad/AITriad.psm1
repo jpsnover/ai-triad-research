@@ -80,9 +80,13 @@ if ($script:TaxonomyData.Count -eq 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Backward-compatibility alias
+# Backward-compatibility & convenience aliases
 # ─────────────────────────────────────────────────────────────────────────────
-Set-Alias -Name 'Import-Document' -Value 'Import-AITriadDocument' -Scope Global
+Set-Alias -Name 'Import-Document'  -Value 'Import-AITriadDocument'  -Scope Global
+Set-Alias -Name 'TaxonomyEditor'   -Value 'Start-TaxonomyEditor'   -Scope Global
+Set-Alias -Name 'POViewer'         -Value 'Start-POViewer'          -Scope Global
+Set-Alias -Name 'SummaryViewer'    -Value 'Start-SummaryViewer'     -Scope Global
+Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Export public surface
@@ -98,6 +102,16 @@ Export-ModuleMember -Function @(
     'Save-Source'
     'Save-WaybackUrl'
     'Invoke-PIIAudit'
+    'ConvertTo-GeneralTaxonomy'
+    'Update-Snapshot'
+    'Start-TaxonomyEditor'
+    'Start-POViewer'
+    'Start-SummaryViewer'
+    'Show-AITriadHelp'
 ) -Alias @(
     'Import-Document'
+    'TaxonomyEditor'
+    'POViewer'
+    'SummaryViewer'
+    'Redo-Snapshots'
 )

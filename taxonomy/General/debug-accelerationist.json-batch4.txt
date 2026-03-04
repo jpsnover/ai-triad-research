@@ -1,0 +1,54 @@
+[
+  {
+    "id": "acc-methods-019",
+    "label": "Stopping the Anti-Tech Mindset",
+    "description": "Many people use fear and safety warnings to slow down progress and make us doubt our future. Think of it like a coach trying to bench a star player because they are afraid of winning too fast. This approach treats those warnings as a trick to keep society stuck in place rather than a genuine concern."
+  },
+  {
+    "id": "acc-data-009",
+    "label": "Doing More With Less",
+    "description": "Technology allows us to create massive value while using fewer physical materials and less energy. Just as streaming services replaced physical DVDs, intelligence helps us solve problems without needing more raw stuff. We can create a world of plenty by using our brains to get smarter about how we use resources."
+  },
+  {
+    "id": "acc-data-010",
+    "label": "Making Intelligence Available Everywhere",
+    "description": "Competition forces companies to make powerful tools affordable for everyone instead of just the wealthy. It is like how smartphones went from expensive luxury items to common tools used by billions. The market naturally turns high-end technology into a basic utility for the whole world."
+  },
+  {
+    "id": "acc-data-011",
+    "label": "Rules Are Holding Us Back",
+    "description": "The real reason things are getting expensive is not because of technology, but because of too many rules in areas like housing and medicine. When industries are protected from competition, prices skyrocket. Technology actually makes things cheaper, so we should focus on removing the red tape that blocks progress."
+  },
+  {
+    "id": "acc-methods-020",
+    "label": "AI As A Knowledge Booster",
+    "description": "AI is the most important tool for human progress since the invention of the printing press. It acts like a super-powered assistant that helps us solve the toughest problems in science and health. By giving everyone access to this knowledge, we can start a new age of discovery and creativity."
+  },
+  {
+    "id": "acc-methods-021",
+    "label": "Letting Many Ideas Compete",
+    "description": "The fastest way to improve is to let thousands of different experiments happen at once. Think of it like a forest where many different plants grow; the strongest and most useful ones naturally thrive. Trying to control everything with one set of rules just stops us from finding the best solutions."
+  },
+  {
+    "id": "acc-methods-022",
+    "label": "Global Rules For Open AI",
+    "description": "Countries should work together to make sure AI stays open and free for everyone to build upon. By aligning our laws, we can stop restrictive policies from killing innovation. This ensures that the best technology is available to developers everywhere, not just a few big companies."
+  },
+  {
+    "id": "acc-data-012",
+    "label": "The Power Of Open Source",
+    "description": "When AI code is shared openly, thousands of people can improve it, leading to faster breakthroughs. It is like a global team project where everyone contributes their best work to make the final product better. This collaboration helps technology spread and evolve much faster than if it were kept secret."
+  },
+  {
+    "id": "acc-goals-006",
+    "label": "Smarter Decisions Through AI",
+    "description": "AI can act as a neutral advisor to help leaders make better choices during high-pressure situations. By analyzing data quickly, it helps reduce human error and prevents unnecessary conflict. It is like having a super-intelligent navigator to help guide a ship through a storm."
+  },
+  {
+    "id": "acc-methods-023",
+    "label": "Using AI For Defense",
+    "description": "The best way to stop bad actors from using AI is to build better AI to protect us. Instead of banning technology, we should create stronger security systems to block cyberattacks and other threats. It is like building a better shield to counter a new type of sword."
+  }
+]
+  }
+]

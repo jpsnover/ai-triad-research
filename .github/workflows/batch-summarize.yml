@@ -21,25 +21,19 @@ jobs:
         with:
           fetch-depth: 2    # Need parent commit to diff taxonomy changes
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
-
       - name: Show taxonomy version
         run: |
           echo "Taxonomy version: $(cat TAXONOMY_VERSION)"
           echo "Changed files: $(git diff HEAD~1 HEAD --name-only)"
 
       - name: Run smart batch summarization
+        shell: pwsh
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_MODEL:   ${{ secrets.AI_MODEL || 'claude-sonnet-4-6' }}
-        run: python scripts/batch_summarize.py
+        run: |
+          Import-Module ./scripts/AITriad -Force
+          Invoke-BatchSummary -ForceAll
 
       - name: Commit updated summaries
         uses: stefanzweifel/git-auto-commit-action@v5

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "acc-goals-004",
+    "label": "Building Public Knowledge Libraries",
+    "description": "This goal focuses on making AI research and data available to everyone, like a public library for the digital age. By building shared supercomputers and open-source models, we prevent big companies from hoarding all the power. It is like ensuring the internet remains a free utility rather than a gated community, allowing science and medicine to move much faster."
+  },
+  {
+    "id": "acc-methods-004",
+    "label": "Verifying Results Through Open Data",
+    "description": "This method focuses on sharing the datasets and logic used by AI to ensure research is honest and accurate. Think of it like a math test where you must show your work; even if you do not show the whole calculator, you must show the steps taken to reach the answer. This allows scientists to double-check AI findings without needing to own the massive models themselves."
+  },
+  {
+    "id": "acc-data-005",
+    "label": "Turning Models Into Active Agents",
+    "description": "This data covers how we take a smart AI and teach it to actually do things, like using tools or following complex instructions. It is the difference between a student who has read every book in the library and one who knows how to apply that knowledge to solve a real-world problem. By focusing on how an AI acts rather than just how big it is, we create powerful assistants that can handle professional work."
+  },
+  {
+    "id": "acc-methods-005",
+    "label": "Market Driven Tech Evolution",
+    "description": "This method views the competition between businesses as a natural force that pushes technology to improve rapidly. Just as competition in nature leads to better survival traits, market pressure forces AI to become more efficient and capable. Trying to stop this with rules is like trying to hold back a tide; it only creates unnecessary friction that slows down progress."
+  },
+  {
+    "id": "acc-methods-006",
+    "label": "Exposing Fear of Progress",
+    "description": "This method suggests that people who fight against new technology are often just afraid of losing their own influence. It treats their safety concerns as a mask for bitterness, similar to someone who dislikes a high-achiever because they feel inadequate. By identifying this as a psychological reaction, we can better understand why some people try to hold back the future."
+  },
+  {
+    "id": "acc-methods-007",
+    "label": "Maximizing Energy and Growth",
+    "description": "This method treats the growth of technology as a natural, physical process that helps the universe use energy more effectively. Think of civilization as a growing plant that naturally seeks out more light and resources to thrive. Human safety rules are seen as small obstacles that try to block this natural expansion, which is ultimately inevitable."
+  },
+  {
+    "id": "acc-methods-012",
+    "label": "Markets as Distributed Brains",
+    "description": "This method treats the global market as a massive, decentralized computer that solves problems better than any single government could. Price signals act like information flowing through a brain, telling the world what to build next. Because this system learns and adapts on its own, it is the most effective way to drive human progress."
+  },
+  {
+    "id": "acc-goals-005",
+    "label": "Moving Beyond Human Biology",
+    "description": "This goal looks toward a future where intelligence is no longer tied to the limits of a human body. Just as we moved from walking to flying in airplanes, we should use technology to move our consciousness into more durable, synthetic forms. This allows intelligence to explore space and survive in ways that our biological bodies never could."
+  },
+  {
+    "id": "acc-data-007",
+    "label": "The Inevitable Growth of Intelligence",
+    "description": "This data suggests that the universe naturally pushes matter to become more organized and complex through intelligence. The growth of technology is not just a human choice, but a fundamental law of nature. Trying to stop this expansion is like trying to stop the seasons from changing; it is a force that will continue regardless of our policies."
+  },
+  {
+    "id": "acc-methods-008",
+    "label": "Freeing Digital Tools for All",
+    "description": "This method focuses on taking the power of AI out of the hands of a few gatekeepers and giving it to everyone. By sharing the blueprints and code, we can prevent companies from controlling the future and allow collective human intelligence to explode. It is about making sure the tools of the future are a common resource, not a private product."
+  }
+]
+  }
+]

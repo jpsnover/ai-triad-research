@@ -20,10 +20,22 @@
         'Save-WaybackUrl'
         'Save-Source'
         'Invoke-PIIAudit'
+        'ConvertTo-GeneralTaxonomy'
+        'Update-Snapshot'
+        'Start-TaxonomyEditor'
+        'Start-POViewer'
+        'Start-SummaryViewer'
+        'Show-AITriadHelp'
     )
 
     # Aliases exported from this module
-    AliasesToExport   = @('Import-Document')
+    AliasesToExport   = @(
+        'Import-Document'
+        'TaxonomyEditor'
+        'POViewer'
+        'SummaryViewer'
+        'Redo-Snapshots'
+    )
 
     # Cmdlets exported (none — pure script module)
     CmdletsToExport   = @()
