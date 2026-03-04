@@ -111,7 +111,7 @@ export async function runAnalysis(
     if (!apiKey) throw new Error('No API key configured');
 
     const settings = loadAiSettings();
-    const model = settings.model || 'gemini-2.5-flash';
+    const model = settings.model || 'gemini-3.1-flash-lite-preview';
 
     const promptOverrides = loadPromptOverrides();
     const defaults = getDefaultTemplates();

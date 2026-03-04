@@ -2,7 +2,7 @@ import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 
 const GEMINI_MODEL = 'gemini-embedding-001';
-const DEFAULT_GENERATE_MODEL = 'gemini-2.0-flash';
+const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 5;

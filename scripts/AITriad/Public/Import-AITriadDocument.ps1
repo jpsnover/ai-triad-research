@@ -31,7 +31,7 @@ function Import-AITriadDocument {
     .PARAMETER Model
         AI model to use for metadata enrichment.
         Supports Gemini, Claude, and Groq backends.
-        Default: gemini-2.5-flash-lite
+        Default: gemini-3.1-flash-lite-preview
     .EXAMPLE
         Import-AITriadDocument -Url 'https://example.com/article' -Pov accelerationist, skeptic
     .EXAMPLE
@@ -72,12 +72,13 @@ function Import-AITriadDocument {
         [switch]$NoSummarize,
 
         [ValidateSet(
+            'gemini-3.1-flash-lite-preview',
             'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro',
             'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
             'groq-llama-3.3-70b', 'groq-llama-4-scout'
         )]
         [Alias('GeminiModel')]
-        [string]$Model = 'gemini-2.5-flash-lite'
+        [string]$Model = 'gemini-3.1-flash-lite-preview'
     )
 
     Set-StrictMode -Version Latest

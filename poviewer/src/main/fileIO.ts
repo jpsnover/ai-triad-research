@@ -283,7 +283,7 @@ export function loadAiSettings(): AiSettings {
     const raw = fs.readFileSync(AI_SETTINGS_PATH, 'utf-8');
     return JSON.parse(raw);
   }
-  return { model: 'gemini-2.5-flash', temperature: 0.1 };
+  return { model: 'gemini-3.1-flash-lite-preview', temperature: 0.1 };
 }
 
 export function saveAiSettings(settings: AiSettings): void {

@@ -13,7 +13,7 @@
     interpretations are rewritten.
 
 .PARAMETER Model
-    AI model to use. Defaults to AI_MODEL env var, then "gemini-2.5-flash".
+    AI model to use. Defaults to AI_MODEL env var, then "gemini-3.1-flash-lite-preview".
 
 .PARAMETER Temperature
     Sampling temperature (0.0-1.0). Default: 0.3 (higher than analytical
@@ -47,11 +47,12 @@
 [CmdletBinding()]
 param(
     [ValidateSet(
+        'gemini-3.1-flash-lite-preview',
         'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
         'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
         'groq-llama-3.3-70b', 'groq-llama-4-scout'
     )]
-    [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }),
+    [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }),
 
     [ValidateRange(0.0, 1.0)]
     [double]$Temperature = 0.3,

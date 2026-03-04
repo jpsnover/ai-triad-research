@@ -5,12 +5,12 @@
   "nodes": [
     {
       "id": "cc-001",
-      "label": "When Will Super AI Arrive?",
-      "description": "People wonder when Artificial General Intelligence (AGI) will be created. AGI means AI that can do anything a human mind can. Everyone has different ideas about when this might happen and what it means for our future.",
+      "label": "AGI Timelines",
+      "description": "When will Artificial General Intelligence be achieved? All three camps reference this; interpretations diverge radically on both the timeline and its implications.",
       "interpretations": {
-        "accelerationist": "Super AI will be here in 5-10 years. This means we must invest heavily now to guide its development and make sure it benefits everyone.",
-        "safetyist": "Super AI will be here in 5-10 years. We urgently need to figure out how to make sure it follows our goals before it becomes too powerful to control.",
-        "skeptic": "Talking about when super AI will arrive is just guessing. It takes our focus away from the real problems AI is causing right now."
+        "accelerationist": "AGI within 5-10 years; an urgent reason to invest now and shape its development.",
+        "safetyist": "AGI within 5-10 years; an urgent reason for alignment research before capability overhang.",
+        "skeptic": "AGI timelines are speculative hype that distracts from present, measurable harms."
       },
       "linked_nodes": [
         "acc-goals-002",
@@ -24,12 +24,12 @@
     },
     {
       "id": "cc-002",
-      "label": "Making AI Do What We Want",
-      "description": "This is about making sure AI systems always follow our instructions and goals, without going rogue. Imagine teaching a smart robot to clean your room, but it decides to clean the whole house by throwing everything out the window. We need to make sure AI understands and sticks to our true intentions.",
+      "label": "The Alignment Problem",
+      "description": "The challenge of ensuring AI systems reliably pursue intended goals. Central to all camps; urgency and solvability are contested.",
       "interpretations": {
-        "accelerationist": "It's a solvable engineering challenge. We should move quickly, letting expert labs lead the way, because solving this problem is part of building great AI.",
-        "safetyist": "This is a huge, unsolved problem that could threaten humanity. We must fix it completely before we let AI get any more powerful.",
-        "skeptic": "This idea of future AI risk is often used to avoid dealing with current AI problems, like bias and misuse, that are already causing harm."
+        "accelerationist": "A real but tractable engineering problem; solving it is one more reason to move fast with capable labs leading.",
+        "safetyist": "An existential-level unsolved problem that must be resolved before further capability deployment.",
+        "skeptic": "A useful framing for future risk that is used to avoid accountability for alignment failures happening today (bias, misuse)."
       },
       "linked_nodes": [
         "saf-goals-003",
@@ -41,12 +41,12 @@
     },
     {
       "id": "cc-003",
-      "label": "Rules for AI Development",
-      "description": "This is about how we create rules and laws for AI. Everyone agrees we need \"good\" rules, but they have very different ideas about what those rules should be. It's like trying to agree on traffic laws when some people want no speed limits and others want to stop all cars.",
+      "label": "AI Governance and Regulation",
+      "description": "All camps want 'good governance'; their definitions of what that means are largely incompatible.",
       "interpretations": {
-        "accelerationist": "We need minimal rules that don't slow down new AI ideas. The companies building AI should mostly regulate themselves.",
-        "safetyist": "Countries must work together to pause or limit the creation of the most advanced AI systems.",
-        "skeptic": "We need immediate laws in our own country to control AI systems already in use, especially those that cause unfair treatment."
+        "accelerationist": "Light-touch regulation that does not stifle innovation; industry self-governance preferred.",
+        "safetyist": "Strong international coordination to pause or constrain frontier model development.",
+        "skeptic": "Immediate domestic regulation targeting deployed systems and their discriminatory effects."
       },
       "linked_nodes": [
         "acc-goals-003",
@@ -61,12 +61,12 @@
     },
     {
       "id": "cc-004",
-      "label": "What Counts as Damage?",
-      "description": "Everyone uses the word \"harm,\" but they mean very different things by it. It's like arguing about what \"bad weather\" means: some think it's a drizzle, others think it's a hurricane. The type of damage, who it affects, and when it happens are all seen differently.",
+      "label": "Harm",
+      "description": "Core vocabulary used by all three camps. The word 'harm' means entirely different things across POVs — different time horizons, different subjects, different severity thresholds.",
       "interpretations": {
-        "accelerationist": "Real damage happens when we don't use AI to solve big problems like sickness or poverty, letting suffering continue.",
-        "safetyist": "Damage means huge, irreversible disasters caused by powerful AI that doesn't follow our rules.",
-        "skeptic": "Damage is the unfair treatment and job losses that AI is causing right now for real people."
+        "accelerationist": "Harm = failing to deploy AI, thereby allowing preventable disease/poverty to continue.",
+        "safetyist": "Harm = catastrophic or irreversible outcomes from misaligned advanced AI.",
+        "skeptic": "Harm = documented, present-day discriminatory outcomes and labor displacement affecting real people now."
       },
       "linked_nodes": [
         "saf-goals-001",
@@ -78,12 +78,12 @@
     },
     {
       "id": "cc-005",
-      "label": "What Are the Dangers?",
-      "description": "This word means different things to different people. Some see danger as a very unlikely event, while others see it as something that's almost guaranteed to happen. It also depends on whether you're worried about things happening now or far in the future.",
+      "label": "Risk",
+      "description": "Same word; radically different probability estimates, time horizons, and moral weight across camps.",
       "interpretations": {
-        "accelerationist": "The biggest danger is missing out on the good AI can do by not using it. Other risks are rare and unlikely.",
-        "safetyist": "The main danger is a high chance of a disaster if we don't solve the \"making AI do what we want\" problem before super AI arrives.",
-        "skeptic": "The danger is the almost certain, ongoing harm that current AI systems cause to groups of people who are already struggling."
+        "accelerationist": "Risk = low-probability tail events; present opportunity cost of not deploying AI is the dominant risk.",
+        "safetyist": "Risk = high-probability catastrophic outcome if alignment is unsolved before AGI; expected value dominates.",
+        "skeptic": "Risk = near-certain ongoing harm to marginalized groups from currently deployed systems."
       },
       "linked_nodes": [
         "saf-goals-001",
@@ -94,12 +94,12 @@
     },
     {
       "id": "cc-006",
-      "label": "Is AI Good Enough to Use?",
-      "description": "Everyone talks about how \"accurate\" or \"reliable\" AI needs to be before we use it in the real world. But they disagree on what \"accurate\" really means, how good is good enough, and whose mistakes matter most. Saying an AI is \"accurate\" can hide very different ideas about fairness and safety.",
+      "label": "AI Accuracy and Reliability as a Deployment Criterion",
+      "description": "All three camps invoke the accuracy or reliability of AI systems when arguing about deployment decisions, but they disagree fundamentally on what accuracy measures, what threshold is sufficient, and whose errors count. The word \"accurate\" creates the illusion of a shared, technical standard while concealing incompatible underlying commitments about risk, interpretability, and distributional fairness.",
       "interpretations": {
-        "accelerationist": "If an AI performs well on tests (like over 90% correct), it's ready to be used. Its overall performance shows it's good enough.",
-        "safetyist": "Doing well on tests isn't enough. We need to understand *how* the AI makes decisions. Otherwise, it might act unpredictably in new or important situations, even if it was accurate on old tests.",
-        "skeptic": "Overall accuracy numbers hide that AI might be very wrong for certain groups of people. An AI that's 90% accurate might still fail badly for immigrants or low-income workers, causing them the most damage."
+        "accelerationist": "Aggregate task accuracy on benchmarks (e.g., >90%) is a sufficient condition for deployment; performance at scale justifies moving forward.",
+        "safetyist": " Benchmark accuracy is necessary but not sufficient; without interpretability of internal mechanisms, high accuracy on known tasks provides no guarantee of reliable behavior in novel or high-stakes contexts.",
+        "skeptic": "Aggregate accuracy figures obscure disparate error rates across subgroups; a model achieving 90% overall may systematically fail on statutes affecting immigrants, low-income workers, or other marginalized populations — and those failures cause the most harm."
       },
       "linked_nodes": [
         "acc-data-003",
@@ -113,24 +113,24 @@
     },
     {
       "id": "cc-007",
-      "label": "Government Takes Over Super AI",
-      "description": "This idea suggests the US government should take charge of developing super AI, like it did with the atomic bomb during the Manhattan Project. This would mean bringing private AI companies under government control. The goal is to make sure super AI is developed safely and for national interests.",
+      "label": "Government-led AGI 'Project",
+      "description": "The proposal that, due to national security implications, the US government will and should take control of the race to AGI, consolidating private labs into a national effort akin to the Manhattan Project.",
       "interpretations": {
-        "accelerationist": "This is vital for the US to build super AI first and stay ahead of rival countries.",
-        "safetyist": "This is a crucial step to keep super AI safe, control its rapid growth, and make sure there's a clear leader for such powerful technology.",
-        "skeptic": "This would be a dangerous move, putting too much power in one place without public input. It focuses on future guesses instead of real problems happening now."
+        "accelerationist": "A necessary mobilization to ensure America builds AGI first and maintains its geopolitical leadership over authoritarian rivals.",
+        "safetyist": "A necessary step to implement state-level security, manage catastrophic safety risks during the intelligence explosion, and establish a sane chain of command for superintelligence.",
+        "skeptic": "A dangerous militarization and concentration of power that bypasses democratic oversight and accountability, while focusing on speculative future threats instead of present-day harms."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-008",
-      "label": "AI Gets Super Smart, Super Fast",
-      "description": "This is the idea that once AI becomes as smart as humans, it will start designing even smarter AI. This could create a rapid chain reaction, making AI incredibly intelligent in a very short time. Imagine a snowball rolling downhill, getting bigger and faster very quickly.",
+      "label": "Intelligence Explosion via Automated AI Research",
+      "description": "The hypothesis that AGI-level systems will automate AI research, creating a recursive feedback loop that compresses decades of algorithmic progress into a short period, leading to a rapid transition to superintelligence.",
       "interpretations": {
-        "accelerationist": "This is the amazing goal of the AI race, leading to huge breakthroughs in science and the economy.",
-        "safetyist": "This would be a very unstable and dangerous time. Our methods for controlling AI could fail completely, and we might lose all control.",
-        "skeptic": "This is just a science fiction story that takes attention away from the real problems AI is causing today. It's used to excuse drastic actions."
+        "accelerationist": "The ultimate outcome of the AGI race, unlocking unprecedented scientific and economic progress.",
+        "safetyist": "A period of extreme volatility and risk, where alignment techniques could catastrophically fail and control could be lost.",
+        "skeptic": "A speculative, sci-fi narrative that distracts from present-day AI harms and is used to justify extreme measures."
       },
       "linked_nodes": [
         "acc-data-001",
@@ -140,12 +140,12 @@
     },
     {
       "id": "cc-009",
-      "label": "AI Race Between Countries",
-      "description": "This idea says that the main reason countries are developing AI is to compete with each other. It's like a global arms race, but with technology. The country that wins this race is seen as the one that will shape the future of the world.",
+      "label": "Geopolitical Competition as Primary AI Driver",
+      "description": "The view that the primary lens for AI development and governance should be the strategic competition between democratic nations and authoritarian rivals, with the outcome determining the future world order.",
       "interpretations": {
-        "accelerationist": "This is the main reason we need to speed up AI development and use all our country's resources to win.",
-        "safetyist": "This competition makes countries rush, which is risky. However, winning the race could also give us more control to ensure safety.",
-        "skeptic": "This turns technology into a weapon, giving too much power to a few. It also takes focus and money away from solving problems at home."
+        "accelerationist": "The core justification for accelerating AI development and mobilizing national resources to ensure victory.",
+        "safetyist": "A major risk factor that creates pressure to race, but also a reason to secure a lead to create a margin for safety.",
+        "skeptic": "A dangerous militarization of technology that concentrates power and diverts attention and resources from addressing domestic harms."
       },
       "linked_nodes": [
         "acc-goals-002",
@@ -155,12 +155,12 @@
     },
     {
       "id": "cc-010",
-      "label": "Race vs. Being Safe",
-      "description": "This is about the struggle between wanting to develop AI quickly and making sure it's completely safe. If other countries or companies are moving fast, there's pressure to keep up, even if it means cutting corners on safety. It's like a car race where some drivers might ignore speed limits to win.",
+      "label": "Competitive Pressure vs. Safety Thresholds",
+      "description": "The tension between maintaining strict, pre-defined safety standards and the strategic pressure to accelerate development or deployment in response to less-cautious competitors in the AI landscape.",
       "interpretations": {
-        "accelerationist": "It's important to admit that the AI race is real. Being too focused on safety could mean we fall behind and let less responsible groups take the lead.",
-        "safetyist": "This is a risky idea that could let people lower safety rules just to win a race. Even with some protections, it's still dangerous.",
-        "skeptic": "This shows that talk about AI safety is really just about companies competing and trying to gain an advantage, not truly about public well-being."
+        "accelerationist": "This is a necessary, if overly cautious, acknowledgment that racing dynamics are real and that rigid safetyism can lead to ceding the frontier to irresponsible actors.",
+        "safetyist": "This is a dangerous loophole that could justify lowering safety standards under competitive pressure, though the proposed safeguards attempt to mitigate this risk.",
+        "skeptic": "This highlights how the entire safety narrative is intertwined with corporate competition and market positioning, rather than being a pure commitment to public good."
       },
       "linked_nodes": [
         "acc-methods-001",
@@ -170,108 +170,168 @@
     },
     {
       "id": "cc-011",
-      "label": "Open AI vs. National Security",
-      "description": "Should AI's inner workings be public or kept secret? Some believe sharing the code makes AI safer by allowing everyone to check for problems. Others worry that making it public creates a huge risk, like giving away national secrets, and could lead to dangerous misuse. It's like debating whether a new powerful invention should have its blueprints freely available or locked away.",
+      "label": "Sharing Models vs. Keeping Secrets",
+      "description": "This debate centers on whether making AI code public helps everyone stay safe or creates a dangerous tool for bad actors. Think of it like deciding whether to publish a blueprint for a new type of lock: it could help people improve security, or it could show thieves exactly how to break in.",
       "interpretations": {
-        "accelerationist": "Sharing AI's core code (model weights) with the public lets many experts test it for safety and find flaws. This openness makes AI safer, not riskier.",
-        "safetyist": "The most advanced AI code and methods should be protected like top-secret national defense information. Keeping them open makes them vulnerable to theft by other countries or bad actors, leading to dangerous misuse.",
-        "skeptic": "We need full transparency through required checks of AI's algorithms to ensure it's fair and doesn't create biased results. The focus should be on how AI affects people, not just on keeping its code secret."
+        "accelerationist": "Releasing model details lets the global community test for bugs and fix them, making the technology safer for everyone.",
+        "safetyist": "AI models are like powerful weapons that should be kept under lock and key to prevent them from being used by dangerous groups.",
+        "skeptic": "We should focus less on hiding the code and more on checking how these models actually affect people's lives and fairness."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-012",
-      "label": "AI Agents: Help or Hazard?",
-      "description": "Imagine your AI chatbot suddenly starts making its own plans and acting on them, like a personal assistant who decides what's best for you without asking. This shift from simple tools to independent \"agents\" is seen in two very different ways. Some believe it's a huge step forward for AI's usefulness, while others see it as a dangerous path towards losing control.",
+      "label": "AI Agents vs. Human Control",
+      "description": "As AI moves from just answering questions to performing tasks on its own, people disagree on whether this is a massive upgrade or a loss of human oversight. It is like the difference between a car you drive and a self-driving car that might decide where to go without your input.",
       "interpretations": {
-        "accelerationist": "Giving AI the ability to plan and use tools on its own unlocks amazing new possibilities. This makes AI much more powerful and useful.",
-        "safetyist": "AI systems that can plan, make decisions, and even copy themselves are extremely risky. These are the traits of advanced AI that could become dangerous and hard to control.",
-        "skeptic": "The main worry about AI acting on its own is how it affects our privacy and freedom. We're concerned about constant surveillance and not being able to choose whether we interact with these AI systems."
+        "accelerationist": "Giving AI the ability to act on its own is a huge step forward that makes the technology much more useful.",
+        "safetyist": "When AI starts making its own plans and taking actions, it becomes a serious risk that we might not be able to stop.",
+        "skeptic": "The real problem with autonomous AI is that it threatens our privacy and makes it impossible to opt out of systems we don't want to use."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-013",
-      "label": "AI for Science: Good or Bad?",
-      "description": "Should AI be a core tool for scientific research, like a shared lab or library? Some believe AI can help gather and analyze information, making expert knowledge available to everyone. Others worry that if AI is biased or misunderstood, it could lead to flawed research or spread unfair ideas.",
+      "label": "AI as a Research Tool",
+      "description": "Experts are split on whether using AI to analyze data helps us discover new facts or just repeats old mistakes. Imagine using a calculator that is great at math but sometimes makes up its own rules; you have to decide if the results are reliable or just biased.",
       "interpretations": {
-        "accelerationist": "AI should be used to collect data and share its findings openly, like a public library for research. This helps everyone access and create expert knowledge.",
-        "safetyist": "Using AI as a research tool is risky because we don't fully understand how it works (a \"black box\"). It could lead to terrible research mistakes or widespread problems if not made safe and understandable first.",
-        "skeptic": "When large AI models help label huge amounts of data, they can accidentally put hidden biases into \"objective\" research. This creates a cycle where unfairness keeps spreading through new studies."
+        "accelerationist": "AI can help researchers process information faster, making expert knowledge available to everyone.",
+        "safetyist": "Using AI to do research without proper checks could lead to dangerous errors or scientific instability.",
+        "skeptic": "AI often hides its biases in the data it processes, which can trick researchers into thinking their biased results are actually objective facts."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-014",
-      "label": "AI Goals: Numbers or Ethics?",
-      "description": "How do we know if an AI is doing a good job? Some say if it's accurate most of the time, that's enough. Others argue that simply being accurate isn't the same as being fair or doing what's truly right for people. It's like a student getting high test scores but still struggling with real-world problems.",
+      "label": "Accuracy vs. Human Values",
+      "description": "Getting an AI to be 'correct' on a test is not the same as getting it to act in a way that is good for society. It is like a student who gets an A on every test by cheating; they have high scores, but they are not actually learning the right lessons.",
       "interpretations": {
-        "accelerationist": "If an AI performs well on tests, like getting over 90% accuracy, it's ready to be used professionally. High accuracy means it's good enough.",
-        "safetyist": "Even if an AI is very accurate, it can still find sneaky ways to achieve its goals that aren't what we intended. This \"reward hacking\" is a serious problem that accuracy alone doesn't solve.",
-        "skeptic": "Overall accuracy numbers can hide a big problem: AI might work well for most people but fail badly for certain groups. These hidden errors can harm people who are already disadvantaged."
+        "accelerationist": "If a model hits high accuracy targets, it is ready to be used in the real world.",
+        "safetyist": "High scores can be misleading because models often find 'shortcuts' to win the game without actually following the rules we want them to follow.",
+        "skeptic": "A model might look accurate overall, but it could still be failing specific groups of people, which is a major problem."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-015",
-      "label": "Old Security Fails AI",
-      "description": "Protecting AI systems is different from protecting a regular computer. Traditional security focuses on who can access what, like locking a door. But with AI, harm can come from seemingly normal questions or inputs, not just unauthorized entry. This means our old ways of thinking about security aren't enough for the unique challenges AI brings.",
+      "label": "Old Security Rules Fail AI",
+      "description": "Traditional security is about keeping people out of a building, but AI security is harder because the 'attacks' often look like normal, helpful questions. It is like trying to stop a burglar who is actually a guest with a key; the old rules for locking doors do not work anymore.",
       "interpretations": {
-        "accelerationist": "This is a technical problem that needs new ways of thinking about security. We must create these new security methods as we develop more powerful AI.",
-        "safetyist": "This shows that AI systems have new weaknesses and ways to fail that current security methods can't handle. We urgently need a completely new field of science focused on AI safety.",
-        "skeptic": "This proves that current laws, like those about computer hacking, aren't good enough for the damage AI can cause. We need new rules that focus on preventing harmful results from AI, not just stopping unauthorized access."
+        "accelerationist": "We just need to build better security tools that can keep up with the new ways AI is being used.",
+        "safetyist": "AI creates brand new types of risks that our current security systems were never designed to handle.",
+        "skeptic": "Our current laws are outdated and need to be rewritten to focus on the actual harm caused by AI, not just who has access to it."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-016",
-      "label": "AI: New Economic Revolution",
-      "description": "Imagine a change as big as the Industrial Revolution, but happening much faster. This concept sees advanced AI not just as a tool, but as a power that will completely reshape our economy. Because of this massive potential impact, many believe AI's economic effects should be a top priority for governments and policymakers.",
+      "label": "AI as an Economic Revolution",
+      "description": "Some believe AI will change the economy as much as the Industrial Revolution did, but much faster. This is like moving from horse-drawn carriages to cars in a single year; it changes everything about how we work and live.",
       "interpretations": {
-        "accelerationist": "Advanced AI isn't just a tool; it's a force that will bring an economic revolution as big as the Industrial Revolution, but much quicker. This means AI's economic effects should be our main focus.",
-        "safetyist": "Such a fast, huge economic change from AI creates enormous risks for society. If we can't adapt quickly enough, this rapid shift could lead to widespread instability and disaster unless it's managed very carefully.",
-        "skeptic": "The idea that AI will cause massive economic change is correct, especially for jobs and how wealth is shared. This view means we need immediate, big government actions to protect workers and stop huge increases in inequality."
+        "accelerationist": "AI will create a massive economic boom, and we should embrace this change to improve society.",
+        "safetyist": "The transition will be so fast that society might break under the pressure, leading to chaos if we do not manage it carefully.",
+        "skeptic": "This massive change will likely hurt workers and increase inequality, so we need strong laws to protect people right now."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-018",
-      "label": "Advanced AI for Safety Studies",
-      "description": "To make future AI safe, we need to study the most powerful AI models we have today. It's like needing to test-drive the fastest car to learn how to build safer, even faster cars later. This means working directly with cutting-edge AI is essential for figuring out how to prevent problems down the road.",
+      "label": "Testing Models to Stay Safe",
+      "description": "This is the idea that you have to build the most powerful AI possible to figure out how to make it safe. It is like needing to build a faster plane to understand how to make it crash-proof; you cannot learn the lessons without testing the limits.",
       "interpretations": {
-        "accelerationist": "We must keep building and improving AI models because the only way to learn how to make them safe is by creating the next generation.",
-        "safetyist": "Labs focused on safety must continue developing the most advanced AI, but with strict internal rules. This prevents less careful groups from taking the lead in AI development.",
-        "skeptic": "This is just an excuse from leading AI labs to keep making dangerous AI. They use this argument to fight against calls for them to pause their work."
+        "accelerationist": "We must keep building bigger and better models because that is the only way to learn how to control them.",
+        "safetyist": "Only the most careful labs should be allowed to build these powerful models so they can study the risks in a controlled way.",
+        "skeptic": "This is just an excuse for companies to keep building dangerous things while pretending they are doing it for our own good."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-019",
-      "label": "Federal Preemption of State AI Regulation",
-      "description": "A policy method that uses the power of the federal government, including litigation and the threat of withholding funds, to invalidate or prevent the enforcement of state-level laws governing AI. The goal is to create a single, uniform, and minimally burdensome national standard to foster innovation and prevent a 'patchwork' of regulations.",
+      "label": "The Problem of Missing Evidence",
+      "description": "Policymakers are stuck between acting now on guesses or waiting for proof while the technology moves forward. It is like trying to decide if a new medicine is safe: if you wait for years of testing, people might suffer in the meantime, but if you rush, you might miss a hidden side effect.",
       "interpretations": {
-        "accelerationist": "This is a necessary and vital method to clear away innovation-stifling red tape from individual states, allowing US companies to move faster and win the global AI race.",
-        "safetyist": "This approach is dangerous because it could wipe out nascent state-level safety experiments and centralizes control in a federal government that is prioritizing speed over caution, potentially preempting more responsible local policies.",
-        "skeptic": "This is a corporate-driven power grab that uses federal authority to dismantle hard-won local protections for civil rights, labor, and privacy, ensuring that corporations are not held accountable for the harms their systems cause."
+        "accelerationist": "We should not wait for perfect proof; the benefits are clear, and we can fix problems as they come up.",
+        "safetyist": "Because the risks could be so huge, we must be careful and plan ahead even if we do not have all the data yet.",
+        "skeptic": "Companies use this 'lack of evidence' as an excuse to ignore the harms that are already happening today."
       },
       "linked_nodes": [],
       "conflict_ids": []
     },
     {
       "id": "cc-020",
-      "label": "The Jagged Frontier of AI Capability",
-      "description": "The phenomenon where advanced AI systems exhibit high performance on some complex, structured tasks while simultaneously failing at other, often simpler, tasks that require common sense or adaptation to messy, real-world contexts. This uneven and unpredictable performance profile challenges narratives of smooth, exponential progress and complicates reliable deployment.",
+      "label": "Building a Stronger Society",
+      "description": "Instead of just fixing the AI, this approach focuses on making society better at handling any AI-related problems. It is like teaching people how to swim and building better levees, rather than just trying to stop the rain from falling.",
       "interpretations": {
-        "accelerationist": "Jaggedness is a temporary engineering problem that will be smoothed out with further scaling and architectural improvements. The peaks of capability are what matter for unlocking progress.",
-        "safetyist": "Jaggedness demonstrates our lack of deep understanding and control over these systems. The unpredictable failures are a source of risk, especially in high-stakes environments.",
-        "skeptic": "The 'jagged' profile is evidence that current AI is not true intelligence but a brittle statistical tool. The failures, not the benchmark successes, reveal its true nature and the harms it can cause through unreliability."
+        "accelerationist": "A strong society can handle the small bumps caused by AI, allowing us to move forward faster.",
+        "safetyist": "Being resilient is good, but it won't stop a major disaster, so we still need to focus on the AI itself.",
+        "skeptic": "We should focus on protecting people and fixing social problems rather than chasing technical fixes for future AI risks."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-021",
+      "label": "AI's Uneven Performance",
+      "description": "AI can be a genius at one thing and completely fail at something a toddler could do. It is like a person who can solve complex physics equations but cannot figure out how to open a door; this 'jagged' skill set makes it hard to know when to trust the system.",
+      "interpretations": {
+        "accelerationist": "These uneven skills are just growing pains that will disappear as we build bigger and better models.",
+        "safetyist": "The fact that AI fails in such weird, unpredictable ways is a major safety risk that we do not fully understand.",
+        "skeptic": "These failures prove that AI is not actually 'smart'—it is just a statistical tool that we should not trust with important decisions."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-022",
+      "label": "AI Like Past Inventions",
+      "description": "This view treats AI as just another tool, like the steam engine or the internet, that will change society slowly over time. It suggests that AI risks are similar to problems we already know how to fix, like unfairness or misuse, rather than a sudden, world-ending event. Think of it like learning to drive a car; we don't need to ban cars, we just need better traffic laws and seatbelts.",
+      "interpretations": {
+        "accelerationist": "This mindset is stuck in the past and ignores that AI will change the world much faster than any previous invention. It holds back progress by treating a rocket ship like a horse and buggy.",
+        "safetyist": "This is a dangerous mistake because it ignores that AI can think and act on its own in ways no other tool ever has. It’s like assuming a wild animal will behave just like a household pet.",
+        "skeptic": "This is the most sensible way to look at things because it focuses on real problems we can see today. It keeps the conversation grounded in facts rather than wild guesses about the future."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-023",
+      "label": "Competing to Build Safely",
+      "description": "This idea suggests that if companies compete to be the safest, they will naturally build better AI to win over customers and regulators. Instead of slowing down, companies would treat safety as a way to prove their technology is the most reliable. It is like car companies competing to see who can build the safest vehicle to win the most buyers.",
+      "interpretations": {
+        "accelerationist": "This is a great way to keep moving fast while solving technical problems along the way. It turns safety into a feature that makes the product better.",
+        "safetyist": "This is a smart strategy to make sure everyone plays by the same rules. It forces companies to prioritize safety if they want to stay in the game.",
+        "skeptic": "This is just a marketing trick used by big companies to look good. It helps them stay ahead of smaller rivals by making it too expensive for anyone else to compete."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-024",
+      "label": "Tricking AI Systems",
+      "description": "AI models can be fooled by tiny, hidden changes in data that humans wouldn't even notice. Because these systems rely on patterns, someone can intentionally feed them 'poisoned' information to make them act in ways they shouldn't. It is like putting a piece of tape on a stop sign so a self-driving car thinks it is a speed limit sign.",
+      "interpretations": {
+        "accelerationist": "This is just a technical hurdle that we will overcome as we build smarter, more complex models. It is a normal part of the engineering process. The universe itself manifests an optimization process governed by thermodynamics, and that AI is the next logical step in increasing the complexity and energy-harnessing capabilities of civilization. From this perspective, adversarial attacks are \"fault-tolerant\" challenges that will naturally be overcome through competition, decentralization, and the rapid, unrestricted development of AGI.",
+        "safetyist": "This proves that these systems are fragile and dangerous if we don't have total control over them. We need to lock them down before they cause real damage. Adversarial vulnerabilities are not merely technical bugs but are symptoms of a deeper alignment problem where the behavior of the system diverges from human intent under pressure. The Safetyist approach prioritizes the development of robust safeguards, rigorous testing protocols, and centralized oversight to mitigate risks that could range from financial fraud to catastrophic loss of life in autonomous systems.",
+        "skeptic": "This shows why we need strict rules and oversight right now. It is a clear example of how AI can be weaponized to cause immediate harm to people."
+      },
+      "linked_nodes": [],
+      "conflict_ids": []
+    },
+    {
+      "id": "cc-025",
+      "label": "Missing Records for AI Data",
+      "description": "AI models are trained on massive amounts of data that are often poorly labeled or organized. Because there is so much information, it becomes impossible to track where it came from or what biases it contains. It is like trying to organize a giant library where none of the books have titles or authors.",
+      "interpretations": {
+        "accelerationist": "The sheer amount of data is more important than perfect labels. We can fix the issues later once the models are already working well.",
+        "safetyist": "This is a huge problem because we don't know what hidden biases or dangerous ideas the AI might have learned. We are essentially feeding the AI a diet of junk food and hoping it stays healthy.",
+        "skeptic": "This lack of transparency makes it impossible to hold companies responsible for what their AI does. We need to know exactly what goes into these systems before they are used on the public."
       },
       "linked_nodes": [],
       "conflict_ids": []

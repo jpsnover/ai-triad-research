@@ -37,6 +37,7 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 export type ColorScheme = 'light' | 'dark' | 'system';
 
 export type GeminiModel =
+  | 'gemini-3.1-flash-lite-preview'
   | 'gemini-2.5-flash'
   | 'gemini-2.5-pro'
   | 'gemini-2.0-flash'
@@ -45,6 +46,7 @@ export type GeminiModel =
   | 'gemini-1.5-pro';
 
 export const GEMINI_MODELS: { value: GeminiModel; label: string }[] = [
+  { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview' },
   { value: 'gemini-2.5-flash', label: '2.5 Flash (recommended)' },
   { value: 'gemini-2.5-pro', label: '2.5 Pro' },
   { value: 'gemini-2.0-flash', label: '2.0 Flash' },
@@ -60,7 +62,7 @@ function getStoredModel(): GeminiModel {
     const stored = localStorage.getItem('taxonomy-editor-gemini-model');
     if (stored && GEMINI_MODEL_IDS.has(stored)) return stored as GeminiModel;
   } catch { /* ignore */ }
-  return 'gemini-2.0-flash';
+  return 'gemini-3.1-flash-lite-preview';
 }
 
 export interface AnalysisElement {

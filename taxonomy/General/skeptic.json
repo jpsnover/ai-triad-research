@@ -8,8 +8,8 @@
     {
       "id": "skp-goals-001",
       "category": "Goals/Values",
-      "label": "Protect Human Jobs Now",
-      "description": "This goal focuses on creating laws and safety nets to protect human jobs from being quickly replaced by AI. It includes things like new job training, help for workers changing careers, and rules for how companies use automation. We need to manage the speed of AI adoption to ensure people can still earn a living. Society needs stable employment, and this means actively defending human work against corporate desires for efficiency. The aim is to keep human workers economically important during this shift.",
+      "label": "Protecting Human Jobs Legally",
+      "description": "This goal focuses on creating laws that keep human workers employed even as AI becomes more common. Think of it like a safety net that helps people retrain for new roles or keeps their current jobs secure from being replaced by software. The main idea is that society stays stable only when people have meaningful work, rather than letting companies automate everything just to save money.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -19,8 +19,8 @@
     {
       "id": "skp-goals-002",
       "category": "Goals/Values",
-      "label": "Fix AI's Unfair Biases",
-      "description": "This goal aims to find and fix unfairness in AI systems to stop them from repeating old social problems. It means doing strict checks to see if AI makes more mistakes for certain groups of people. AI should help break down existing biases, not make them worse. This is about stopping AI from causing real harm to people who are already struggling. The focus is on the actual negative effects of AI on marginalized communities today.",
+      "label": "Fixing Biased AI Systems",
+      "description": "This goal is about finding and removing unfair patterns in AI that treat certain groups of people worse than others. It requires companies to test their software strictly to ensure it doesn't repeat historical prejudices. Just like a referee in a game, these rules ensure the technology plays fair and doesn't hurt marginalized communities.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -30,8 +30,8 @@
     {
       "id": "skp-goals-003",
       "category": "Goals/Values",
-      "label": "Keep Your Data Private",
-      "description": "This goal prioritizes creating rules and technology to stop the constant collection of your personal data and the spread of AI surveillance. It means you should agree to how your data is used, limit facial recognition in public, and prevent AI from giving you a social score. Unrestricted AI knowing everything about you changes the power balance between individuals and big organizations. We need a private digital space so everyone can participate freely in society.",
+      "label": "Defending Your Digital Privacy",
+      "description": "This goal aims to stop companies from constantly tracking you or using your personal data to build AI profiles. It pushes for laws that require your permission before your information is used and bans invasive tech like public facial recognition. It is like building a fence around your personal life so that powerful institutions cannot use your own data to control or judge you.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -41,8 +41,8 @@
     {
       "id": "skp-data-001",
       "category": "Data/Facts",
-      "label": "Proof of AI's Unfairness",
-      "description": "This data collects real-world examples where AI systems treat different groups of people unfairly or make more mistakes for them. For instance, in court decisions or when applying for a loan, AI can show bias. This information proves that AI often makes existing social problems worse. It shows that current AI use leads to measurable, non-random harms. This evidence is the basis for claims that AI is causing problems right now.",
+      "label": "Proof of AI Bias",
+      "description": "This data collects real-world examples where AI has made unfair decisions, such as in bank loans or court cases. It shows that when AI is trained on biased human history, it often repeats those same mistakes. This evidence proves that AI is not always neutral and can cause real harm to specific groups of people.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -50,8 +50,8 @@
     {
       "id": "skp-data-002",
       "category": "Data/Facts",
-      "label": "AI Taking Human Jobs",
-      "description": "This data tracks how many human jobs are being replaced by efficient AI systems, especially in office and information tasks. It includes areas where AI is used to cut costs, like analyzing documents or handling customer service. This data highlights the immediate conflict between fast technological progress and the stability of people's careers. It provides facts to understand the real impact of rapid AI growth on today's workforce.",
+      "label": "Tracking Job Losses",
+      "description": "This data measures how many human jobs are being taken over by AI in offices and professional fields. It looks at tasks like writing reports or analyzing data to see how quickly companies are replacing people with software. This helps us understand the real impact of automation on the workforce today.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -59,8 +59,8 @@
     {
       "id": "skp-methods-005",
       "category": "Methods",
-      "label": "Don't Ignore Today's AI Harms",
-      "description": "This method points out that talking about far-off, scary AI dangers can be a way to ignore real problems happening now. It's like worrying about aliens landing when your house is on fire. Focusing on hypothetical super-intelligent AI can protect companies from being held responsible for AI's current negative effects on jobs, privacy, and fairness. This approach argues we should focus on the actual harm AI is causing people today. It aims to put the focus back on the real issues faced by marginalized groups now.",
+      "label": "Ignoring Real Problems for Hype",
+      "description": "This method points out that some companies talk about scary 'future' AI risks to distract us from the problems happening right now. It is like a magician using a flashy trick to make you look one way while they do something else behind your back. By focusing on science-fiction scenarios, they avoid taking responsibility for the unfairness and job losses occurring today.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -71,8 +71,8 @@
     {
       "id": "skp-methods-001",
       "category": "Methods",
-      "label": "Fix Real AI Problems Now",
-      "description": "This method says we should only make rules for AI based on problems we can see and prove. It's like fixing a leaky roof instead of worrying about a meteor strike. This means creating policies for things like AI bias, privacy violations, and job losses that are supported by facts. We shouldn't make rules based on scary predictions about future super-AI. Focusing on imaginary dangers slows down progress and ignores real issues people face today.",
+      "label": "Focusing on Real-World Harms",
+      "description": "This approach argues that we should only make laws based on problems we can actually see and prove today. Instead of worrying about hypothetical future disasters, we should fix the bias, privacy, and job issues that are already hurting people. It keeps the conversation grounded in reality rather than chasing ghosts in the machine.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -83,8 +83,8 @@
     {
       "id": "skp-methods-002",
       "category": "Methods",
-      "label": "Independent AI Safety Checks",
-      "description": "This method requires independent, outside experts to check AI systems before they are used in important social or economic areas. It's like a car needing to pass a safety inspection before it can be sold. These checks test for fairness, reliability, and specific risks. Companies shouldn't just check their own AI systems. Because AI can be complex, we need outside eyes to make sure it's safe and fair for everyone before it's released.",
+      "label": "Mandatory Independent AI Testing",
+      "description": "This method requires that AI systems be tested by outside experts before they are allowed to be used by the public. It is like having a car safety inspector check a vehicle before it hits the road to make sure the brakes work. This ensures that companies cannot just release dangerous or biased software without proving it is safe first.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -94,8 +94,8 @@
     {
       "id": "skp-data-004",
       "category": "Data/Facts",
-      "label": "AI Corrupting Research Data",
-      "description": "This data tracks how AI, especially large language models, can accidentally put its own biases into big research datasets. When AI helps analyze information for studies, its way of thinking can become part of what researchers then treat as solid facts. This makes it harder to tell what's real human knowledge and what's just AI's interpretation. This problem questions how much we can trust research done with AI. It highlights a degradation of data quality when automation blurs the line between human truth and AI guesses.",
+      "label": "The Risk of AI Echoes",
+      "description": "This data tracks how AI-generated content is accidentally being used to train future AI models. It creates a feedback loop where the AI's own mistakes get baked into the system, making the data less reliable over time. It is like making a photocopy of a photocopy until the image becomes blurry and distorted.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -103,8 +103,8 @@
     {
       "id": "skp-goals-004",
       "category": "Goals/Values",
-      "label": "AI for Everyone's Benefit",
-      "description": "This goal wants to change how AI and other advanced technologies are owned and used. Instead of private companies controlling them for profit, society would collectively own and manage them. This way, the benefits of AI, like making things cheaper or doing away with boring jobs, would be shared with everyone. It's about using technology to free people, moving past a system where everything is about making money. This goal seeks to accelerate technological development beyond the constraints of the profit motive.",
+      "label": "Sharing AI's Wealth Fairly",
+      "description": "This goal suggests that the technology used to run our world should be owned by everyone, not just a few wealthy companies. If AI can do most of the work, the benefits should be shared with society through programs like universal income. It is about turning powerful tools into a way to help everyone live better, rather than just increasing corporate profits.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -113,7 +113,7 @@
       "id": "skp-data-005",
       "category": "Data/Facts",
       "label": "AI Models Leak Private Data",
-      "description": "AI models can accidentally reveal private information they learned during training. This happens when someone can figure out sensitive data just by asking the AI questions or looking at its structure. It's not about hackers breaking in, but about the AI itself being a 'leaky' storage for private facts. This shows a real risk when AI uses personal or secret information.",
+      "description": "AI models can accidentally reveal the private information they were trained on when users interact with them. Think of it like a sponge that absorbs water; if you squeeze the sponge, it leaks the water back out. This shows that models are not just tools, but storage containers that can potentially expose sensitive secrets.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -121,8 +121,8 @@
     {
       "id": "skp-data-006",
       "category": "Data/Facts",
-      "label": "Tech Workers Can Change Systems",
-      "description": "The people who build and understand modern technology (like software, data, and creative tools) are now the key group with the power to change society. Think of them as the new factory workers, but instead of making cars, they're making the digital world. They create the 'brain' of our tech, which is all the shared knowledge and tools. This means they can use their skills and access to these systems to push for big changes.",
+      "label": "Tech Workers Hold Real Power",
+      "description": "The people who build and manage our digital world have the power to change how society works. Because they control the code and data that run everything, they can steer technology toward helping everyone instead of just a few wealthy owners. They are the new group that can reshape the economy from the inside.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -130,8 +130,8 @@
     {
       "id": "skp-data-007",
       "category": "Data/Facts",
-      "label": "AI Fakes Don't Fool Us Yet",
-      "description": "There's no real proof that AI-made fake news or videos have caused major societal problems or changed people's behavior on a large scale. It's like worrying about a super-strong new virus, but all the actual evidence shows regular flu is still a bigger problem. Human-made fake news is still much more impactful. This suggests we shouldn't rush to create strict new rules based on fears that haven't come true.",
+      "label": "AI Disinformation Is Overhyped",
+      "description": "There is little proof that AI-generated fake news is actually destroying democracy or changing how people vote. Human-led campaigns are often much more effective at spreading lies than any computer program. We should focus on real problems rather than panicking over scary stories about AI that haven't actually happened yet.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -139,8 +139,8 @@
     {
       "id": "skp-methods-004",
       "category": "Methods",
-      "label": "Everyone Owns a Piece of AI",
-      "description": "This idea suggests giving every citizen a share in the profits from advanced technology, like AI. Imagine if every time a big company made money, a small part of it went directly to you, just for being a citizen. As AI takes over more jobs, people would get income from owning a piece of the technology, not just from working. This aims to keep society stable and fair, making sure everyone benefits as technology grows.",
+      "label": "Give Citizens Ownership Stakes",
+      "description": "As AI does more of our work, we should give every person a direct share of the profits generated by these machines. Instead of just relying on a paycheck, people would earn money from the technology itself. This makes sure that when AI becomes more productive, everyone benefits, not just the companies that own the software.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -148,8 +148,8 @@
     {
       "id": "skp-methods-006",
       "category": "Methods",
-      "label": "New Ways to Value Shared Work",
-      "description": "This method creates new systems to measure wealth, focusing on shared knowledge and teamwork, not just individual labor or money. Instead of only valuing a finished product, it values all the shared ideas and effort that went into creating it, like open-source software where everyone contributes. It uses digital tools to track and reward contributions to common projects, moving beyond traditional money systems. The goal is to shift power away from financial markets and towards a future where wealth comes from collective intelligence and abundance.",
+      "label": "Redefining Value Beyond Money",
+      "description": "We should measure wealth by how much we contribute to our community and shared knowledge, rather than just how much money we make. By using digital tools to track these contributions, we can create a system where people are rewarded for helping others. This helps us move away from a system where only profit matters.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -157,8 +157,8 @@
     {
       "id": "skp-goals-005",
       "category": "Goals/Values",
-      "label": "Share AI's Power, Not Monopolize",
-      "description": "This goal aims to stop a few big companies from controlling all the power and money that comes from AI and data. Think of it like breaking up a monopoly so one company doesn't own all the internet or all the phone lines. It pushes for open-source AI, public computing resources, and new ways to share wealth as AI takes over more work. The idea is to make sure AI benefits everyone, not just a small group of tech giants, preventing a new elite from forming.",
+      "label": "Sharing the Benefits of AI",
+      "description": "We must prevent a small group of tech giants from controlling all the world's computing power. By making AI tools open for everyone to use, we can ensure that the wealth and power from these machines are shared by the public. This stops a tiny elite from becoming too powerful while everyone else gets left behind.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -166,8 +166,8 @@
     {
       "id": "skp-data-008",
       "category": "Data/Facts",
-      "label": "Humans Now Oversee AI Work",
-      "description": "This shows a new type of job emerging where people manage and check what AI systems do, instead of doing the work themselves. It's like a factory shifting from workers building cars to workers supervising robots that build cars. These new roles include telling AI what to do (prompt engineering), checking if AI is fair (auditing), and stepping in when AI needs help. This means that as technology advances, human jobs aren't disappearing, but changing to more supervisory roles.",
+      "label": "Jobs Shift Toward Oversight",
+      "description": "AI isn't just replacing jobs; it is changing them so that humans act more like supervisors. Instead of doing the grunt work, people will spend their time checking, fixing, and guiding AI systems. This means we need to focus on training people to be managers of technology rather than just operators.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -175,8 +175,8 @@
     {
       "id": "skp-methods-007",
       "category": "Methods",
-      "label": "Protect Users, Not Just AI Core",
-      "description": "This method argues that safety and security for AI should be handled where people use it, not just by trying to make the AI itself perfectly safe from the start. Instead of trying to make a knife that can't cut anything, you focus on teaching people how to use it safely and having good first aid ready. It involves using filters, strong laws, and special AI tools to stop harmful outputs before they reach users. This allows AI development to continue freely while managing risks at the user end.",
+      "label": "Fix Problems at the Source",
+      "description": "Instead of trying to restrict how AI is built, we should focus on stopping bad outcomes when people actually use the software. Think of it like building a car: we don't need to limit how fast the engine can go, we just need to make sure the car has good brakes and seatbelts. This keeps technology useful while keeping people safe.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -184,8 +184,8 @@
     {
       "id": "skp-methods-008",
       "category": "Methods",
-      "label": "Society Adapts to AI Problems",
-      "description": "This method suggests that instead of trying to stop all AI problems before they happen, we should build systems that can quickly find, handle, and recover from them. It's like building a city that can withstand earthquakes and quickly rebuild, rather than trying to prevent all earthquakes. It means having strong ways to fix errors, insurance for when things go wrong, and quick government responses. This approach avoids banning new tech based on future fears, believing that being able to adapt is safer than trying to control everything from the start.",
+      "label": "Building Systems That Recover",
+      "description": "Complex systems will eventually have glitches, so we need to be ready to fix them quickly. Rather than trying to prevent every possible mistake before it happens, we should build institutions that can handle and recover from errors. It is better to have a good repair crew than to try and build a machine that can never break.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -194,7 +194,7 @@
       "id": "skp-methods-009",
       "category": "Methods",
       "label": "AI Is Just Another Tool",
-      "description": "This idea treats AI as a normal technology that will spread slowly and be shaped by society, just like past inventions. Think of it like the internet or electricity; they changed a lot, but not overnight, and society adapted. It rejects the idea that AI is a unique, immediate threat that needs extreme global bans. Instead, it suggests we should focus on fixing real problems as they come up, using regular safety checks and rules, rather than worrying about far-off, catastrophic predictions.",
+      "description": "AI is a powerful invention, but it is not a magical or dangerous creature that will destroy the world. Like electricity or the printing press, it will slowly change society over time as we learn how to use it. We should treat it as a normal technology that we can improve and regulate through common sense.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -202,8 +202,8 @@
     {
       "id": "skp-methods-010",
       "category": "Methods",
-      "label": "Quality Data, Not Just Quantity",
-      "description": "Imagine building a house. You wouldn't just use any old junk you find; you'd pick strong, reliable materials. This is how we should build AI: by carefully choosing and documenting the information it learns from. We make sure the data is fair and accurate, not just grabbing everything off the internet, which can be full of mistakes or unfair ideas. Good AI comes from good, transparent training, not just from feeding it tons of random stuff.",
+      "label": "Quality Over Quantity in Data",
+      "description": "Building reliable AI requires carefully picking and documenting the information used to train it, rather than just scraping the entire internet. Think of it like cooking: if you use rotten ingredients, the final meal will be bad, no matter how much you cook it. By focusing on verified data, we can prevent AI from repeating harmful stereotypes and mistakes found in messy, unorganized web content.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -211,8 +211,8 @@
     {
       "id": "skp-data-009",
       "category": "Data/Facts",
-      "label": "AI's Real-World Footprint",
-      "description": "Training big AI models uses a lot of energy, water, and money. It's like a huge factory that needs tons of resources to run. Often, the environmental damage, like carbon pollution, happens in places that don't get the economic benefits. This means powerful companies get rich while others deal with the mess. We need to see the real cost of AI, not just the cool tech, and understand who pays the price.",
+      "label": "The Hidden Costs of AI",
+      "description": "Training massive AI models uses huge amounts of electricity and water, often harming the environment in poorer regions while tech companies keep the profits. It is like a factory that dumps its trash in a neighbor's yard to keep its own production costs low. We need to look at these real-world environmental impacts instead of just focusing on how fast the technology is growing.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -220,8 +220,8 @@
     {
       "id": "skp-methods-011",
       "category": "Methods",
-      "label": "AI: A Clever Copycat",
-      "description": "Think of AI like a super-advanced parrot or a really good autocomplete. It's excellent at putting words together in ways that sound smart and make sense, but it doesn't actually 'understand' what it's saying. It's just predicting the next best word based on all the text it's seen. We shouldn't mistake its fluent speech for real thought or feelings. Because it doesn't truly grasp reality, it can make up facts or repeat unfair ideas from its training data.",
+      "label": "AI Is Just Fancy Guessing",
+      "description": "AI models are essentially giant math machines that predict the next word in a sentence based on patterns, not because they actually understand what they are saying. It is like a parrot that can perfectly mimic human speech without knowing the meaning behind the words. Because these systems do not truly understand the world, they often make things up or repeat biases found in their training data.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -229,26 +229,8 @@
     {
       "id": "skp-data-010",
       "category": "Data/Facts",
-      "label": "Value-Lock from Static Training Data",
-      "description": "The risk that language models, trained on static and massive datasets, reify older, less-inclusive societal norms, language, and understandings. This makes them unable to adapt to evolving social views and language changes (e.g., from social movements), thereby perpetuating outdated biases and hindering progress towards more inclusive representations.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-012",
-      "category": "Methods",
-      "label": "Refusal of Labor as Automation Response",
-      "description": "This method advocates for leveraging increased productivity from algorithmic automation to demand drastic reductions in working hours and substantial salary increases, alongside the institution of a base income. It aims to translate labor figures into recognition of equal participation in collective wealth, thereby challenging capitalist control over labor time and income distribution.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-013",
-      "category": "Methods",
-      "label": "Currency of the Common for Post-Capitalist Value",
-      "description": "This concept proposes developing alternative monetary systems that measure value based on collective social knowledge and cooperation ('the common'), rather than traditional capitalist metrics like labor-time or financial abstraction. It aims to subvert financial capital's hegemonic function as measure-money and hierarchy-money, facilitating the proletarian reappropriation of wealth and building a new hegemonic power.",
+      "label": "Losing Our Own Thinking Skills",
+      "description": "Relying on AI to do our thinking for us can make our own brains lazier over time. When we blindly trust what a computer tells us, we stop questioning information and lose the ability to solve problems on our own. It is like using a calculator for basic math until you forget how to do simple addition without one.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -256,17 +238,26 @@
     {
       "id": "skp-data-011",
       "category": "Data/Facts",
-      "label": "Discrepancy Between AI's Stated Purpose and Observed Utility",
-      "description": "This concept highlights the empirical observation that the actual, widespread use of current AI systems (e.g., for non-work related tasks) does not align with the grand claims made by proponents about AI's potential to solve global, existential problems. It challenges the justification for AI's significant resource consumption by questioning its demonstrated value in addressing critical societal challenges.",
+      "label": "AI-Generated Non-Consensual Images",
+      "description": "AI tools are being used to create fake, explicit photos of people without their permission, which causes real-world trauma and harassment. This is a direct and dangerous misuse of technology that violates personal privacy and safety. It shows that AI can be weaponized to hurt individuals in very personal ways.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
     },
     {
-      "id": "skp-data-012",
-      "category": "Data/Facts",
-      "label": "Decoupled Timescales of AI Progress",
-      "description": "This concept asserts that progress in AI should be disaggregated into three distinct stages: invention of new methods, innovation of applications using those methods, and diffusion of those applications throughout society. It posits that these stages operate on increasingly slow timescales, with societal and institutional friction making diffusion a multi-decade process that acts as the primary rate-limiter on AI's real-world impact, regardless of the speed of invention.",
+      "id": "skp-methods-012",
+      "category": "Methods",
+      "label": "Sorting Real Risks From Guesses",
+      "description": "We should focus on fixing problems we can actually measure rather than worrying about sci-fi scenarios that might never happen. Some risks are predictable and can be solved with better information, while others are just wild guesses about the future. It is like choosing to fix a leaky roof today instead of worrying about a meteor hitting your house tomorrow.",
+      "parent_id": null,
+      "children": [],
+      "cross_cutting_refs": []
+    },
+    {
+      "id": "skp-methods-013",
+      "category": "Methods",
+      "label": "Sharing AI Wealth Globally",
+      "description": "If AI takes over many jobs, we need a plan to share the money it generates with everyone, not just the people who own the tech companies. This would act like a global safety net to help people survive if their work becomes obsolete. It is a way to ensure that technological progress benefits all of humanity rather than just a few wealthy corporations.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -274,62 +265,8 @@
     {
       "id": "skp-methods-014",
       "category": "Methods",
-      "label": "Mandated Crisis Intervention Protocols for AI Companions",
-      "description": "A regulatory requirement for operators of consumer-facing AI systems, such as 'companion chatbots,' to implement specific safety protocols designed to detect user expressions of self-harm or suicide and provide referrals to crisis prevention services. This method addresses immediate, high-stakes harms arising from human-AI interaction.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-015",
-      "category": "Methods",
-      "label": "Mandatory Copyright Provenance Reporting",
-      "description": "A regulatory method that requires developers of generative AI models to submit a detailed summary of all copyrighted works used in their training datasets to a public registry before commercial use or release. This creates a mechanism for transparency and enables copyright holders to enforce their rights.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-data-013",
-      "category": "Data/Facts",
-      "label": "Youth Mental Health Harms from Social Media",
-      "description": "The empirical correlation between the increased use of algorithmically-driven social media platforms by children and adolescents and a rise in mental health disorders, self-harming behaviors, and suicide rates. This is presented as a documented, present-day harm caused by unregulated technology.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-016",
-      "category": "Methods",
-      "label": "Individual Cognitive Resilience Methods",
-      "description": "A set of personal practices aimed at mitigating the negative cognitive effects of technology. This includes consciously seeking out opposing viewpoints, investigating the financial incentives behind information, consulting primary sources, and engaging in offline activities like reading physical books.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-017",
-      "category": "Methods",
-      "label": "Critique of Financially-Motivated AI Narratives",
-      "description": "A method of analysis that treats public statements, white papers, and product demos from AI companies with skepticism, assuming they are primarily marketing tools designed to secure investment and market share, rather than good-faith representations of the technology's capabilities or risks.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-data-014",
-      "category": "Data/Facts",
-      "label": "Professional Accountability Gap",
-      "description": "The inability of an AI system to assume the legal, ethical, and financial responsibilities inherent in professional roles, such as carrying malpractice insurance, holding a license that can be revoked, or facing legal sanctions. This gap makes human oversight and accountability non-negotiable, regardless of the system's task-performance capabilities.",
-      "parent_id": null,
-      "children": [],
-      "cross_cutting_refs": []
-    },
-    {
-      "id": "skp-methods-018",
-      "category": "Methods",
-      "label": "AI-Driven Persuasion Optimization in Public Discourse",
-      "description": "The phenomenon where AI systems, optimized to create viral or persuasive content, increasingly shape the public narrative about AI itself. This can create a feedback loop where alarmist or simplistic narratives are amplified because they are more engaging, potentially distorting the debate away from nuanced, evidence-based discussion.",
+      "label": "Tracking Stolen Creative Work",
+      "description": "Companies should be required to list exactly which books, art, and music they used to train their AI models. This creates transparency so that creators can see if their work was used without permission. It is like requiring a company to list all the ingredients on a food label so you know exactly what you are consuming.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

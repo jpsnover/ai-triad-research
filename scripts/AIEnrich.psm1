@@ -14,6 +14,7 @@
 # Maps friendly names to backend type and actual API model IDs.
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{
+    'gemini-3.1-flash-lite-preview' = @{ Backend = 'gemini';  ApiModelId = 'gemini-3.1-flash-lite-preview' }
     'gemini-2.5-flash'      = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash' }
     'gemini-2.5-flash-lite' = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash-lite' }
     'gemini-2.5-pro'        = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-pro' }
