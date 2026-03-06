@@ -1,4 +1,4 @@
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'bkc' | 'system';
 
 export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic';
 

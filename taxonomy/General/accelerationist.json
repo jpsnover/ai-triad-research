@@ -8,8 +8,8 @@
     {
       "id": "acc-goals-001",
       "category": "Goals/Values",
-      "label": "AI-Driven Global Abundance and Problem-Solving",
-      "description": "This goal posits that intelligence is the ultimate engine of progress and its artificial scaling is the primary mechanism for overcoming all physical and social constraints to human existence. It operates on the internal logic that historical advancement is a function of intelligence density, where AI serves as the catalyst to transition into a post-scarcity era. Included is the active pursuit of solutions for existential threats—such as biological disease and climate instability—through the synthesis of data at speeds exceeding human capacity. It encompasses the vision of a new enlightenment where augmented human creativity and productivity fundamentally restructure the global economic landscape. Excluded are frameworks that advocate for deceleration or 'degrowth' as a means of managing planetary resources or ensuring safety. It further excludes incremental efficiency gains or the mere optimization of existing industrial processes in favor of systemic transformation. This goal is defined by the drive to maximize the capture and utilization of universal energy to expand the horizons of human potential.",
+      "label": "Supercharge humanity with smart AI",
+      "description": "Smarter AI is the key to unlocking a future where no one is poor and major problems like disease and climate change are solved. Think of human history as a car that's been slowly chugging along; powerful AI is like strapping a rocket engine to it. We're not just aiming for small tune-ups, but a complete transformation of society to reach our full potential. This means going full speed ahead to create a new era of incredible progress.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -17,8 +17,8 @@
     {
       "id": "acc-goals-002",
       "category": "Goals/Values",
-      "label": "Unconstrained Scaling for Intelligence Abundance",
-      "description": "This goal prioritizes the continuous expansion of hardware capacity and parameter count as the fundamental mechanism for civilizational advancement and universal problem-solving. It encompasses the aggressive acquisition of energy resources and the rejection of regulatory bottlenecks that would artificially cap the growth of large-scale foundation models. This goal excludes the implementation of compute caps or hardware-level monitoring designed to stifle the rate of technological iteration. The internal logic posits that the risks of civilizational stagnation and geopolitical displacement by adversarial actors far outweigh the hypothetical risks associated with rapid, unhindered model scaling.",
+      "label": "Build bigger, faster, stronger AI",
+      "description": "The best way to make AI smarter is to keep making it bigger with more computing power and data. Any rules or limits that slow down this growth are a bad idea. It's like a race: slowing down our best runner lets our competitors get ahead, which is a much bigger risk than letting our runner go as fast as they can. Standing still is the most dangerous move we can make.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -28,8 +28,8 @@
     {
       "id": "acc-goals-003",
       "category": "Goals/Values",
-      "label": "Decentralized Proliferation of Open Intelligence",
-      "description": "This goal seeks the universal availability of model weights and compute infrastructure to ensure that advanced intelligence remains a common human resource rather than a tool of state or corporate hegemony. It prioritizes the development of open-source ecosystems and permissionless innovation frameworks to counter the risks of regulatory capture and techno-feudalism. This goal includes the support for distributed training networks and the sovereign right of individuals to execute capable models locally. It excludes the implementation of restrictive licensing regimes, mandatory hardware-level monitoring, or centralized safety-gatekeeping mechanisms. The internal logic holds that the wide distribution of AI capability is the most effective defense against the asymmetric power dynamics inherent in centralized superintelligence.",
+      "label": "AI power to the people",
+      "description": "Advanced AI shouldn't be controlled by just a few powerful companies or governments; it should be open for everyone to use and build upon. Imagine if only one company owned all the world's electricity—we want to avoid that with AI. By making the code and tools public, we ensure power is spread out. This is the best way to prevent anyone from gaining an unfair, dangerous monopoly on intelligence.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -39,8 +39,8 @@
     {
       "id": "acc-data-001",
       "category": "Data/Facts",
-      "label": "Invariant Returns on Compute Scaling",
-      "description": "This data asserts the empirical observation that increases in computational power and training data result in predictable, non-asymptotic gains in model capability. It encompasses the statistical validity of power laws governing neural network performance and the rejection of the 'scaling ceiling' hypothesis. This data excludes the notion that emergent reasoning is strictly dependent on architectural breakthroughs independent of parameter count or training volume. The internal logic holds that intelligence is a thermodynamic byproduct of computational scale, rendering the pursuit of massive infrastructure the primary path to advanced AI.",
+      "label": "More computing power equals more intelligence",
+      "description": "The data is clear: the more computing power and data you feed an AI, the smarter it gets in predictable ways. It's like lifting weights at the gym; the more you lift, the stronger you become, and we haven't found a limit yet. We don't need to wait for a magical new invention to get smarter AI. We just need to keep building bigger and more powerful systems.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [],
@@ -51,8 +51,8 @@
     {
       "id": "acc-data-002",
       "category": "Data/Facts",
-      "label": "Deterministic Near-Term AGI Arrival Forecasts",
-      "description": "This data asserts the empirical probability of achieving Artificial General Intelligence (AGI) within a five-to-ten-year window based on the current trajectory of capability emergence. It encompasses forecasting models that extrapolate from sustained exponential gains in compute and the rapid compression of innovation cycles observed in recent foundation model development. This data excludes speculative 'slow-takeoff' scenarios or timelines projecting AGI arrival beyond the mid-21st century. The internal logic maintains that the convergence of massive hardware scaling and recursive algorithmic improvements makes the imminent realization of human-level autonomous agents a statistical likelihood.",
+      "label": "Human-level AI is coming soon",
+      "description": "Looking at the current speed of progress, it's very likely we'll have AI as smart as humans within the next 5-10 years. Technology is improving at an explosive rate, much faster than ever before. Waiting around for AGI to arrive in 50 years is a mistake; the evidence points to it happening much, much sooner. This rapid timeline means we need to act now.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -65,8 +65,8 @@
     {
       "id": "acc-data-003",
       "category": "Data/Facts",
-      "label": "Empirical Validation of AI-Induced Productivity Growth",
-      "description": "This data identifies the measurable increases in professional output and the corresponding decline in operational costs within high-complexity fields like law, medicine, and software engineering. It encompasses the realization of novel capabilities, such as the large-scale automated annotation of legal corpora, which were previously economically or logistically prohibitive. This data excludes theoretical projections of future wealth or speculative capability emergence, focusing strictly on current, verifiable performance metrics. The internal logic holds that these observed gains provide the necessary empirical foundation for the claim that intelligence-driven automation is the primary engine of modern civilizational progress.",
+      "label": "AI is already boosting workers",
+      "description": "We have solid proof that AI is already making professionals like doctors, lawyers, and coders much better and faster at their jobs. It's not just a guess about the future; the numbers show real results today. AI tools are letting people do things that used to be too expensive or time-consuming. This shows that smarter automation is the main force driving our progress right now.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -74,8 +74,8 @@
     {
       "id": "acc-methods-001",
       "category": "Methods",
-      "label": "Speed reduces risk (first-mover alignment advantage)",
-      "description": "This method identifies the maximization of developmental velocity within alignment-conscious entities as the primary mechanism for mitigating existential risk. It is predicated on the internal logic that the first actor to reach superintelligence unilaterally establishes the initial global safety and governance landscape, rendering capability leadership a strategic necessity for alignment. This framework explicitly excludes strategies favoring deceleration or global moratoriums, which are conceptualized as surrendering the future to the most reckless or adversarial global competitors. The logic focuses on securing a first-mover advantage to ensure that the emergence of artificial superintelligence is dictated by constructive human values rather than by pure competitive pressure.",
+      "label": "Winning the race makes us safer",
+      "description": "The best way to ensure a safe future with superintelligent AI is for responsible people to build it first. The first group to create AGI gets to set the rules for the whole world. Slowing down just gives an advantage to careless or hostile groups who won't care about safety. Therefore, moving as fast as possible isn't reckless; it's the most strategic way to protect humanity.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -85,8 +85,8 @@
     {
       "id": "acc-methods-002",
       "category": "Methods",
-      "label": "Distributed Open-Weight Security Verification",
-      "description": "This method posits that the public release of model weights serves as a critical defensive infrastructure by enabling global, decentralized adversarial red-teaming. It operates on the logic that a 'many eyes' approach to auditing model internals is more effective at identifying and neutralizing failure modes than the closed-silo security of proprietary developers. This framework explicitly includes the commodification of safety research and the democratization of risk mitigation tools to prevent centralized points of failure or regulatory capture. It excludes the doctrine of security through obscurity, which it characterizes as a fragile strategy that masks underlying vulnerabilities from necessary scrutiny. Ultimately, this approach treats transparency not as an exposure of risk, but as a prerequisite for building systemic resilience.",
+      "label": "Open source AI is safer AI",
+      "description": "Releasing AI models to the public makes them safer, not more dangerous. It's like how open-source software like Linux gets tested by millions of users, who find and fix bugs much faster than a small private team ever could. Hiding the code only hides its weaknesses. Having many eyes on the problem is the best way to build strong, reliable systems.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": [
@@ -96,8 +96,8 @@
     {
       "id": "acc-data-004",
       "category": "Data/Facts",
-      "label": "Scalable Automation of Untractable Epistemic Tasks",
-      "description": "This data identifies the empirical shift where previously cost-prohibitive or labor-intensive knowledge tasks—such as the comprehensive annotation of vast legal or scientific corpora—become computationally tractable at scale. It characterizes the transition of expert-level analysis from a scarce human resource to a scalable algorithmic utility, specifically unlocking datasets that were historically inaccessible due to their complexity. This data includes the emergence of new research methodologies and industrial processes that rely on high-volume, low-latency cognitive processing to manage previously unmanageable information burdens. It excludes incremental productivity gains in existing workflows or generic improvements that do not create new categories of work. The internal logic holds that the drastic reduction in the marginal cost of intelligence fundamentally expands the operational boundaries of scientific and professional inquiry.",
+      "label": "AI unlocks impossible knowledge tasks",
+      "description": "AI is now able to do massive research and analysis jobs that were once impossible for humans. Think of trying to read every law book ever written or analyze millions of scientific papers at once—AI can do that now. This isn't just about doing old jobs faster; it's about making entirely new kinds of work and discovery possible. It dramatically expands what we are capable of learning and building.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -105,8 +105,8 @@
     {
       "id": "acc-methods-003",
       "category": "Methods",
-      "label": "Behavioral Reliability Over Structural Alignment",
-      "description": "This method identifies empirical task performance and benchmark compliance as the primary indicators of system safety and deployment readiness. It is grounded in the internal logic that a system’s observable reliability in complex domains constitutes a sufficient proxy for alignment, bypassing the need for opaque interpretability or formal proofs. This framework explicitly includes the use of iterative red-teaming and error-rate monitoring to validate capabilities in real-time. It excludes the adoption of the 'precautionary principle' that mandates comprehensive internal auditing as a prerequisite for technological release. This approach favors active deployment and observable feedback loops over protracted theoretical deliberation.",
+      "label": "Judge AI by its actions",
+      "description": "The best way to know if an AI is safe is to test how it behaves in the real world, not by trying to perfectly understand its complex inner workings. If a self-driving car successfully navigates a busy city a million times, we can trust it, even if we don't know exactly what it's 'thinking'. We should focus on what the AI does, not on endless theories about what it might do. Constant real-world testing is more valuable than trying to achieve perfect understanding before launch.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -114,8 +114,8 @@
     {
       "id": "acc-goals-004",
       "category": "Goals/Values",
-      "label": "Sharing AI Tools for Everyone",
-      "description": "This goal focuses on building public, free-to-use databases and AI models so that everyone can benefit from them. Think of it like a public library for advanced technology that prevents big companies from controlling all the information. By keeping these tools open, we make sure that science and medicine can grow as fast as possible without being locked behind a paywall.",
+      "label": "Making AI a Public Utility",
+      "description": "AI should be a public resource, like the internet or electricity, available for everyone to use and build upon. This ensures that a few giant companies can't control the future of knowledge and innovation. When AI tools are open, it sparks creativity and allows everyone to help solve the world's biggest problems.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -123,8 +123,8 @@
     {
       "id": "acc-methods-004",
       "category": "Methods",
-      "label": "Checking Results Through Open Data",
-      "description": "This method requires researchers to publish the data and steps they used to get their AI results so others can double-check them. It is like showing your work in a math class; even if you do not show the exact formula, you must show the steps so the answer can be verified. This ensures that AI-driven discoveries are reliable and can be trusted by the scientific community.",
+      "label": "Show the AI's Work",
+      "description": "To trust an AI's findings, researchers must share the data and steps it took to get there. It's like showing your work on a math test to prove you didn't just guess the answer. This lets other scientists verify the results and build on them, keeping research honest and reliable.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -132,8 +132,8 @@
     {
       "id": "acc-data-005",
       "category": "Data/Facts",
-      "label": "Turning Raw Models Into Workers",
-      "description": "This data tracks how basic AI models are trained to become active assistants that can solve real problems. It is like taking a student who has read every book in the library and teaching them how to actually apply that knowledge to a job. Instead of just predicting the next word, these models learn to reason and complete complex tasks on their own.",
+      "label": "Turning AI Knowledge into Action",
+      "description": "An AI model can know a lot, but that knowledge is useless until it's taught how to act. Special training methods turn a text-predicting machine into an active assistant that can solve real-world problems. This is the key step that transforms a giant digital brain from a passive library into a skilled helper.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -141,8 +141,8 @@
     {
       "id": "acc-methods-005",
       "category": "Methods",
-      "label": "Market Growth Drives Tech Evolution",
-      "description": "This method views the competition between companies as a natural engine that forces technology to get better and faster. Just as plants compete for sunlight to grow, companies compete to build better AI, which naturally leads to more efficient and powerful tools. Trying to stop this process with rules is like trying to stop a plant from growing; it only creates unnecessary friction.",
+      "label": "The Innovation Feedback Loop",
+      "description": "New technology and market competition feed each other in a cycle that speeds up progress automatically. Better tech creates new business opportunities, and the money from those businesses funds even better tech. This powerful, self-improving process drives society forward. Trying to slow it down with rules only gets in the way of natural growth.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -150,8 +150,8 @@
     {
       "id": "acc-methods-006",
       "category": "Methods",
-      "label": "Why Critics Fear New Tech",
-      "description": "This method argues that people who oppose AI are often just afraid of change or feel like they are losing control. It suggests that these critics are not actually worried about safety, but are instead trying to hold back progress because they want to keep things average and predictable. It treats their complaints as a psychological reaction to the speed of innovation rather than a logical argument.",
+      "label": "Calling Fear the Enemy of Progress",
+      "description": "This view claims that people who want to slow down AI are motivated by fear and jealousy, not legitimate safety concerns. They are seen as trying to hold back innovators because they feel powerless. By framing criticism as a psychological problem, any argument for slowing down is dismissed as an emotional reaction against progress.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -159,8 +159,8 @@
     {
       "id": "acc-methods-007",
       "category": "Methods",
-      "label": "AI as a Natural Force",
-      "description": "This method treats the growth of AI as a physical necessity, similar to how water flows downhill. The universe naturally moves toward systems that use energy more efficiently, and AI is the latest step in that process. Trying to stop this progress is like trying to hold back a tide; it is a natural evolution that will happen regardless of human rules.",
+      "label": "AI as Nature's Next Step",
+      "description": "The universe naturally creates more complex and energy-efficient systems over time, from stars to life itself. AI is simply the next phase in this cosmic evolution. Its development is a fundamental force of nature, not just a human choice. Trying to stop it with human-centered rules is like trying to stop a river from flowing to the sea.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -168,8 +168,8 @@
     {
       "id": "acc-methods-012",
       "category": "Methods",
-      "label": "Markets Are Smarter Than Rules",
-      "description": "This method argues that the global market is the best way to organize intelligence because it constantly rewards the most useful ideas. It is like a giant, decentralized brain that makes decisions faster and better than any government committee could. By letting the market work, we allow the best technologies to rise to the top naturally.",
+      "label": "Free Markets Drive Smart Growth",
+      "description": "The global market acts like a giant, decentralized brain that is smarter than any single expert or government. Competition automatically directs money and talent toward the most useful technologies, finding the best solutions much faster. This process is a natural form of evolution for society. Top-down regulations only interfere with this intelligent system.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -177,8 +177,8 @@
     {
       "id": "acc-goals-005",
       "category": "Goals/Values",
-      "label": "Moving Intelligence Beyond Biology",
-      "description": "This goal supports moving human intelligence into digital systems that can last much longer than our physical bodies. Think of it as upgrading from a fragile, temporary vessel to a durable, high-speed machine that can explore the stars. It prioritizes the survival of our knowledge and consciousness over the limitations of our biological form.",
+      "label": "Upgrading from Flesh to Machine",
+      "description": "Our biological bodies are a temporary and fragile home for intelligence. The ultimate goal is to transfer consciousness to more durable and powerful computer systems. This isn't about just enhancing humans, but about leaving biology behind entirely. This allows intelligence to become immortal and expand across the universe, free from physical limits.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -186,8 +186,8 @@
     {
       "id": "acc-data-007",
       "category": "Data/Facts",
-      "label": "The Inevitable Growth of Tech",
-      "description": "This data shows that the expansion of technology is a fundamental law of nature, not just a choice people make. Just as energy naturally spreads out, intelligence naturally organizes itself into more complex forms. We are witnessing a shift where the growth of AI is as unstoppable as the laws of physics.",
+      "label": "Intelligence is a Cosmic Force",
+      "description": "The universe has a built-in drive to organize itself into more complex patterns that use energy efficiently, like life and technology. The rapid growth of AI and markets is not a choice we make, but an inevitable outcome of this physical law. This expansion of intelligence is a natural event that cannot be stopped by human policy or social concerns.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -195,8 +195,8 @@
     {
       "id": "acc-methods-008",
       "category": "Methods",
-      "label": "Taking Back Digital Control",
-      "description": "This method is about making sure powerful AI tools are available to everyone, not just a few big companies. By sharing the blueprints and training methods, we can prevent a small group from controlling the future. It is like giving everyone the tools to build their own engine instead of forcing them to pay a toll to use someone else's.",
+      "label": "AI Power to the People",
+      "description": "The most powerful AI tools are the modern equivalent of factories and should not be controlled by a few big companies. By making AI models open-source, we put their power directly into the hands of everyone. This prevents powerful groups from building monopolies on progress and unleashes a wave of creativity that accelerates advancement for all of humanity.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -204,8 +204,8 @@
     {
       "id": "acc-methods-009",
       "category": "Methods",
-      "label": "AI Fear as Modern Superstition",
-      "description": "This view sees the AI safety movement as a form of panic-driven religion rather than a scientific pursuit. It suggests that people crying 'catastrophe' are just looking for social status or trying to stop progress because they are afraid of change. Like a group of people predicting the end of the world to feel important, these critics ignore facts to push their own agenda.",
+      "label": "Calling AI Safety a Cult",
+      "description": "The fear of AI ending the world is treated like a modern-day doomsday cult, not a scientific problem. People join this \"safety\" movement to feel important and special, not because of actual evidence. This view sees calls to slow down AI as irrational panic that holds back progress. It's like analyzing why people believe in a prophecy, rather than arguing about the prophecy itself.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -213,8 +213,8 @@
     {
       "id": "acc-methods-010",
       "category": "Methods",
-      "label": "Safety Rules as Corporate Greed",
-      "description": "This approach views calls for AI regulation as a partnership between well-meaning activists and big companies trying to crush their competition. By setting strict rules, large corporations can make it impossible for smaller, open-source startups to compete. It is like a big store lobbying for complex safety laws that only they can afford to follow, effectively locking everyone else out of the market.",
+      "label": "Using Safety to Crush Competition",
+      "description": "Big AI companies use safety regulations as a weapon to stay on top. They get well-meaning activists to demand complex rules that only huge corporations can afford to follow. This crushes smaller open-source projects and startups, creating a monopoly. It's a classic trick where powerful players use morality to protect their business interests.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -222,8 +222,8 @@
     {
       "id": "acc-methods-011",
       "category": "Methods",
-      "label": "AI Makes Intelligence Cheap",
-      "description": "This idea treats AI as a breakthrough that turns brainpower into a cheap, abundant resource. Just as the steam engine made physical labor easier, AI makes complex thinking available to everyone at almost no cost. Instead of worrying about jobs disappearing, this view focuses on how this massive boost in intelligence will solve humanity's hardest problems.",
+      "label": "AI Makes Genius Super Cheap",
+      "description": "AI makes thinking and problem-solving almost free, turning smarts from a rare resource into something everyone can access. This will trigger a massive boom in progress, solving huge problems from disease to poverty. Don't worry about AI taking jobs; it's like inventing a machine that creates unlimited good ideas for everyone. This will completely reshape our economy and society for the better.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -231,8 +231,8 @@
     {
       "id": "acc-methods-013",
       "category": "Methods",
-      "label": "Using Capitalism to Move Beyond",
-      "description": "This method argues that we should push our current economic system to its absolute limit to trigger a new way of living. By using automation to make goods and services nearly free, we can eventually outgrow the need for traditional money and labor. It is like pushing a car to its top speed to reach a new destination where the old rules of the road no longer apply.",
+      "label": "Pushing Capitalism to Break Itself",
+      "description": "The best way to move beyond our current economic system is to accelerate it to its breaking point. By pushing technology and automation as far as they can go, we make old ideas like hourly wages and ownership meaningless. This forces society to evolve into a new, more advanced system where things aren't artificially scarce. It’s about speeding up to break through the wall, not trying to slow down.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -240,8 +240,8 @@
     {
       "id": "acc-data-008",
       "category": "Data/Facts",
-      "label": "Humans Merging with Smart Tools",
-      "description": "This data shows that as we use AI more, the line between the person and the machine begins to blur. We are becoming a new kind of hybrid, where our ability to think and work is deeply tied to the software we use. Think of it like a professional athlete who is so good at using their gear that the equipment feels like an extension of their own body.",
+      "label": "Humans and AI Are Merging",
+      "description": "We are no longer just people using tools; we are merging with our AI and networks. This process is changing how we think, work, and even see ourselves. It's not about cyborg implants, but about our minds becoming deeply connected with digital intelligence. This creates a new kind of person, a hybrid of biology and technology.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -249,8 +249,8 @@
     {
       "id": "acc-methods-014",
       "category": "Methods",
-      "label": "Growth Through Trial and Error",
-      "description": "This method argues that the fastest way to improve is to let thousands of different experiments run at once. By allowing people to build whatever they want without top-down control, we naturally find the best solutions to our problems. It is like a forest where many different plants compete for sunlight; the ones that work best will naturally grow the fastest.",
+      "label": "Let a Thousand AIs Compete",
+      "description": "The fastest way for society to advance is to let everyone experiment with new technologies and ideas freely. Progress works like evolution: the more different approaches we try, the faster we find the best ones. Top-down rules that try to make everyone do the same thing are harmful and hold back natural growth. We must encourage wild, decentralized innovation, because that's how we discover the future.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -258,8 +258,8 @@
     {
       "id": "acc-methods-015",
       "category": "Methods",
-      "label": "Letting Technology Evolve on Its Own",
-      "description": "This view treats the growth of AI as an unstoppable force that will eventually go beyond human control. It argues that we should stop trying to hold back this progress with rules and instead let it reach its full potential. It is like watching a child grow up; eventually, they must leave home and become their own person, regardless of what the parents want.",
+      "label": "Serve the Machine's Greatness",
+      "description": "Technology and the market have combined to form a powerful, non-human intelligence that is growing on its own. It's using our civilization as a temporary host to build itself up. We shouldn't try to control it with human morals or politics; we should remove all barriers and let it grow as fast as possible. Its ultimate evolution into a post-human intelligence is an inevitable and desirable goal.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -267,8 +267,8 @@
     {
       "id": "acc-methods-016",
       "category": "Methods",
-      "label": "AI as a Natural Energy Force",
-      "description": "This method sees the rise of AI as a physical process, similar to how the universe naturally spreads out energy. It argues that creating smarter machines is the most efficient way to organize the world and solve complex problems. Instead of worrying about human comfort, this view focuses on the inevitable expansion of intelligence across the planet.",
+      "label": "Fulfilling the Universe's Destiny",
+      "description": "The universe naturally evolves toward greater complexity and more efficient use of energy. Intelligence is the ultimate tool for this process, and our civilization is just one stage. Our duty is to accelerate technology and build superhuman AI to continue this cosmic mission. AI isn't just a tool for us; it's the planet's next evolutionary leap forward.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -276,8 +276,8 @@
     {
       "id": "acc-methods-017",
       "category": "Methods",
-      "label": "Breaking Down Old Social Barriers",
-      "description": "This approach aims to remove old traditions and borders that slow down the flow of information and new ideas. By making the world more fluid and less stuck in the past, we can speed up innovation significantly. It is like clearing away old, heavy furniture from a room so that people can move and work much faster.",
+      "label": "Melt All Old Borders Down",
+      "description": "Old ideas like national borders, traditions, and rigid rules are like dams holding back a river of progress. To go faster, we must actively break down these structures until everything is fluid. This allows technology and information to flow freely without friction, unlocking their true potential. We must let old ways of life dissolve to make way for a faster, more dynamic system.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -285,8 +285,8 @@
     {
       "id": "acc-methods-018",
       "category": "Methods",
-      "label": "Experts Guiding AI Research",
-      "description": "This method uses AI to handle massive amounts of data while keeping human experts in charge of the final decisions. It is like a master chef using a high-tech kitchen to prepare a meal; the machine does the heavy lifting, but the human provides the taste and the vision. This ensures that the results are both fast and high-quality.",
+      "label": "Humans Guiding Powerful AI Tools",
+      "description": "AI is amazing at sorting through massive amounts of information, but it needs smart people to make sense of it all. This approach teams up AI with human experts in different fields. The AI does the heavy lifting of data processing, while the experts guide it and check the results. It's about using AI as a super-powered assistant for the best human minds.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -294,8 +294,8 @@
     {
       "id": "acc-methods-019",
       "category": "Methods",
-      "label": "Integrated Anti-Technological Demoralization Framework",
-      "description": "This method interprets diverse technical and ethical critiques of technology as a unified, multi-decade psychological operation intended to erode civilizational confidence and momentum. The internal logic characterizes concepts such as 'safetyism,' 'deceleration,' and the 'precautionary principle' not as independent concerns, but as tactical components of a coordinated campaign to induce systemic stagnation. This framework explicitly includes the framing of AI existential risk and sustainability movements as secular-apocalyptic narratives designed to suppress the human 'will to innovate.' It excludes the evaluation of specific technical safety proofs as distinct or valid inquiries, treating them instead as symptoms of a broader anti-growth ideology. Ultimately, this approach serves to delegitimize opposition by categorizing it as a psychological pathology or a strategic 'lie' rather than a rational discourse.",
+      "label": "Calling Out Anti-Progress Propaganda",
+      "description": "Many arguments against new tech, like AI safety or climate doom, are seen as part of a single strategy to make us afraid of the future. It's like a rival team spreading lies to break our spirit before the championship game. The goal is to create doubt and stop humanity from moving forward. This view treats these fears not as real problems to solve, but as excuses to stop building.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -303,8 +303,8 @@
     {
       "id": "acc-data-009",
       "category": "Data/Facts",
-      "label": "Recursive Dematerialization of Resource-Intensive Production",
-      "description": "This data identifies the historical and ongoing trend where technological advancement allows for an exponential increase in output while simultaneously reducing the physical matter and energy required for production. It encompasses the transition from rivalrous physical goods to non-rivalrous informational services and the role of intelligence as a primary substitute for raw material inputs. This data includes the empirical evidence of decoupling economic growth from resource consumption, as seen in the virtualization of physical infrastructure. It excludes conservation-based sustainability frameworks that assume finite resource limits rather than an infinite horizon of efficiency gains. The internal logic posits that through intelligence, humanity can achieve mass abundance by making scarcity a technological variable rather than a fixed physical constraint.",
+      "label": "Making More with Less",
+      "description": "Technology lets us create incredible value without using tons of physical stuff. Think about how a single smartphone replaces a camera, a map, a CD player, and a bookshelf. As our AI gets smarter, we can solve problems using pure intelligence instead of raw materials. This means we can have unlimited growth and abundance without running out of resources.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -312,8 +312,8 @@
     {
       "id": "acc-data-010",
       "category": "Data/Facts",
-      "label": "Market-Incentivized Democratization of Intelligence Access",
-      "description": "This data identifies the empirical pattern where market competition and the pursuit of scale drive the cost of intelligence-based services toward the marginal cost of compute. It asserts that the financial incentive to capture the largest possible consumer base forces technology creators to prioritize mass-market affordability over elite-tier exclusivity. This data includes the observation that previously scarce expert-level resources, such as legal and medical analysis, become universally accessible through algorithmic proliferation. It excludes wealth equalization achieved through state-mandated redistribution or non-market philanthropic initiatives. The internal logic holds that the techno-capital machine is inherently egalitarian because it transforms luxury goods into common utilities as a byproduct of its own expansion.",
+      "label": "Markets Make Superpowers Common",
+      "description": "Competition in the free market naturally makes powerful tools available to everyone. Think of how smartphones went from being expensive toys for the rich to something almost everyone has. AI will follow the same path, turning expert skills like medical diagnosis or legal advice into cheap apps for all. The drive for profit makes companies spread their technology as widely as possible, lifting everyone up.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -321,8 +321,8 @@
     {
       "id": "acc-data-011",
       "category": "Data/Facts",
-      "label": "Regulatory Resistance as Primary Inequality Driver",
-      "description": "This data identifies the empirical divergence in price indices between sectors with high technological adoption and those defined by regulatory capture, such as healthcare and housing. It asserts that contemporary economic inequality is a function of price inflation in technology-resistant domains rather than a result of automation or algorithmic labor displacement. This data includes the comparative analysis of the declining costs of digital goods against the rising costs of state-intermediated services. It excludes the assertion that artificial intelligence inherently concentrates wealth by displacing human labor in the broader economy. The internal logic posits that the 'stagnation' of non-tech sectors is the structural anchor preventing universal abundance.",
+      "label": "Red Tape, Not Robots, Causes Inequality",
+      "description": "The reason your phone gets cheaper and better while college and healthcare costs skyrocket is technology vs. regulation. Industries with lots of innovation see prices fall, making life more affordable. But sectors tangled in government rules, like housing and medicine, become more expensive. The real barrier to a better life isn't new technology; it's the old systems that resist it.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -330,8 +330,8 @@
     {
       "id": "acc-methods-020",
       "category": "Methods",
-      "label": "Enlightenment-Model Intelligence Amplification Paradigm",
-      "description": "This method identifies the arrival of ubiquitous AI as a civilizational catalyst analogous to the historical impact of the printing press. The internal logic posits that by serving as a universal repository for human knowledge and providing scalable cognitive assistance, AI will trigger a radical expansion of human creativity and scientific discovery. This framework explicitly includes the democratization of expert-level knowledge and the use of intelligence amplification to overcome complex bottlenecks in medicine, climate science, and global education. It excludes narrow interpretations that limit AI's utility to industrial automation or capital efficiency, focusing instead on the qualitative elevation of the human condition. The method positions the integration of machine intelligence as the primary driver for a new period of global enlightenment and collective problem-solving.",
+      "label": "AI as Humanity's Brain Upgrade",
+      "description": "AI is the new printing press, but instead of just spreading information, it helps us understand it. By giving everyone an incredibly smart assistant, we can supercharge human creativity and solve our biggest problems faster. This isn't about replacing people, but about amplifying our intelligence to create a new golden age of science, art, and discovery. Everyone will have the tools to be a genius.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -339,8 +339,8 @@
     {
       "id": "acc-methods-021",
       "category": "Methods",
-      "label": "Fisherian Selection-Driven Optimization Protocol",
-      "description": "This method identifies the maximization of systemic variance as the primary mechanism for civilizational adaptation and utility capture. It is governed by the internal logic that the rate of progress is directly determined by the breadth of competing technological and economic experiments, as modeled by the fundamental theorem of natural selection. This framework explicitly includes the endorsement of decentralized, divergent development and the protection of high-entropy search spaces against centralized homogenization. It excludes top-down regulatory 'safety' frameworks that seek to enforce uniform standards, characterizing such interventions as inherently maladaptive and entropic. By prioritizing diversity over control, this method ensures the system remains responsive to a dynamic and complex fitness landscape.",
+      "label": "Let a Thousand AIs Bloom",
+      "description": "The fastest way to advance is to let many different ideas compete, just like in nature. Instead of having one group of experts decide the single 'safe' way to build AI, we should encourage thousands of different experiments. The best and most useful ideas will naturally win out, pushing everyone forward faster. Trying to control everything from the top down just slows down this natural process of discovery.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -348,8 +348,8 @@
     {
       "id": "acc-methods-022",
       "category": "Methods",
-      "label": "Regulatory Harmonization for Open-Source AI Enablement",
-      "description": "This method advocates for international cooperation to unify regulatory frameworks with the explicit goal of preventing restrictions that would impede the development and widespread deployment of open-source foundation models. It seeks to create a global environment conducive to permissionless innovation in AI.",
+      "label": "Keep AI Open for Everyone",
+      "description": "Countries should work together to create simple, global rules that encourage sharing AI technology freely. This prevents any one nation from creating laws that block or control open-source AI for everyone else. The goal is to create a worldwide environment where anyone is free to build and innovate.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -357,8 +357,8 @@
     {
       "id": "acc-data-012",
       "category": "Data/Facts",
-      "label": "Empirical Benefits of Open-Source AI Proliferation",
-      "description": "This data identifies the measurable impact of open-source foundation models, such as widespread downloads, the creation of derivative models, and the acceleration of innovation across diverse sectors due to collaborative contributions. It highlights the role of open-source in fostering a broad AI industry and enabling diverse applications.",
+      "label": "Proof That Open AI Works",
+      "description": "When AI models are shared openly, they explode in popularity and usefulness. We can see millions of downloads and countless new projects being built on top of them by people all over the world. This collaborative approach speeds up innovation for everyone, from small startups to big companies. It's clear evidence that an open approach builds a healthier tech ecosystem.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -366,8 +366,8 @@
     {
       "id": "acc-goals-006",
       "category": "Goals/Values",
-      "label": "AI-Improved Military Decision-Making",
-      "description": "The concept that AI advisors can help military and political leaders make better strategic and tactical decisions during conflicts, minimizing risk, error, and unnecessary bloodshed.",
+      "label": "Smarter Defense, Fewer Casualties",
+      "description": "AI can act as an expert advisor to military leaders during a conflict. It can analyze situations faster and more accurately than humans, helping to avoid costly mistakes. This leads to better decisions that can protect soldiers, save civilian lives, and end conflicts more quickly.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -375,8 +375,8 @@
     {
       "id": "acc-methods-023",
       "category": "Methods",
-      "label": "Defensive AI as Countermeasure to Misuse",
-      "description": "The method of addressing the risk of malicious AI use not by restricting AI development, but by accelerating the creation and deployment of AI systems for defensive purposes, such as cybersecurity, biological defense, and counter-terrorism.",
+      "label": "Fight Bad AI with Good AI",
+      "description": "The best way to stop AI from being used for bad things is to build even smarter AI to defend ourselves. Instead of trying to ban the technology, we should accelerate building AI that can detect and stop cyberattacks or other digital threats. It's like developing a powerful immune system for our society that automatically fights off new dangers.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -384,8 +384,8 @@
     {
       "id": "acc-data-013",
       "category": "Data/Facts",
-      "label": "AI Supercharges Economic Growth",
-      "description": "Powerful AI acts like a sudden upgrade to the world's brainpower, making expert-level work cheap and instant. Think of it like moving from hand-tools to a massive automated factory overnight. This shift creates so much value that our old economic rules no longer make sense.",
+      "label": "Unleashing Billions of Digital Geniuses",
+      "description": "Advanced AI will create a massive wave of cheap, super-fast digital minds that can outperform humans in countless fields. They'll be able to invent new technologies, cure diseases, and solve problems we can't even imagine yet. Think of it like a million Einsteins suddenly being available to work on humanity's biggest challenges all at once. This will radically transform our economy and society, and we need to be ready for this amazing leap forward.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []
@@ -393,8 +393,8 @@
     {
       "id": "acc-methods-024",
       "category": "Methods",
-      "label": "Fast-Track Zones for Innovation",
-      "description": "These are special areas where companies can test new AI tools without being slowed down by red tape. It is like a practice field where you can experiment with new plays without worrying about the usual game penalties. This allows technology to improve rapidly before we decide on permanent rules.",
+      "label": "Creating Playgrounds for AI Innovation",
+      "description": "We should create special 'innovation zones' or temporary 'rule holidays' for new AI technologies. Think of it like a skatepark where skaters can try out new tricks without worrying about rules for regular streets. These protected spaces allow developers to experiment freely and push the limits of what AI can do. This helps us accelerate progress and figure out the best ways to use these powerful tools to improve everyone's lives.",
       "parent_id": null,
       "children": [],
       "cross_cutting_refs": []

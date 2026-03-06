@@ -86,6 +86,42 @@
   --detail-header-bg: rgba(255, 255, 255, 0.02);
 }
 
+/* === BKC Theme (Berkman Klein Center Transparency Hub) === */
+[data-theme="bkc"] {
+  --bg-app: #1f1f1f;
+  --bg-pane: #281f29;
+  --bg-card: #311632;
+  --bg-input: #202020;
+  --bg-hover: rgba(163, 73, 164, 0.10);
+  --bg-selected: rgba(163, 73, 164, 0.16);
+
+  --border-color: #4d3a4e;
+  --border-light: #3d2a3e;
+
+  --text-primary: #e8e0e8;
+  --text-secondary: #a89ab0;
+  --text-muted: #7a6a82;
+  --text-bright: #f5f0f5;
+
+  --color-acc: #4d7a8b;
+  --color-saf: #7c101c;
+  --color-skp: #a349a4;
+  --color-cc: #09465b;
+
+  --color-agrees: #4d7a8b;
+  --color-contradicts: #7c101c;
+  --color-unmapped: #7a6a82;
+
+  --bg-acc: rgba(77, 122, 139, 0.18);
+  --bg-saf: rgba(124, 16, 28, 0.20);
+  --bg-skp: rgba(163, 73, 164, 0.18);
+  --bg-cc: rgba(9, 70, 91, 0.20);
+  --bg-multi: rgba(122, 106, 130, 0.18);
+
+  --highlight-hover-outline: rgba(163, 73, 164, 0.4);
+  --detail-header-bg: rgba(163, 73, 164, 0.04);
+}
+
 /* === Reset === */
 *, *::before, *::after {
   box-sizing: border-box;

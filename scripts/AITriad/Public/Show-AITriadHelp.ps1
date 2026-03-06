@@ -64,6 +64,15 @@ function Show-AITriadHelp {
   .banner h1 { margin: 0 0 0.25rem; font-size: 2rem; font-weight: 700; }
   .banner .meta { opacity: 0.8; font-size: 0.9rem; }
 
+  /* Hero image */
+  .hero-img {
+    display: block;
+    max-width: 100%;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
   /* Navigation */
   .toc {
     background: #fff;
@@ -194,6 +203,9 @@ function Show-AITriadHelp {
   <div class="meta">Version {{VERSION}} &middot; Generated {{GENERATED}}</div>
 </div>
 
+<!-- Hero image (copied to temp dir by PowerShell) -->
+<img class="hero-img" src="AITriad-Module.png" alt="AITriad Module Reference Infographic">
+
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- TABLE OF CONTENTS                                                     -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -295,10 +307,49 @@ Get-Tax -Similar "alignment safety" -Top 5
 
   <div class="func">
     <h4>Update-TaxEmbeddings</h4>
-    <div class="synopsis">Regenerates taxonomy/embeddings.json from all POV JSON files for semantic search.</div>
-    <p>No parameters. Requires Python with <code>sentence-transformers</code> installed.</p>
+    <div class="synopsis">Regenerates taxonomy/Origin/embeddings.json from all POV JSON files for semantic search.</div>
+    <p>No parameters. Requires Python with <code>sentence-transformers</code> installed.
+    Uses the local <code>all-MiniLM-L6-v2</code> model (384-dimensional vectors).
+    Each node's <strong>description</strong> field is embedded.</p>
 <pre>
 Update-TaxEmbeddings
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Get-Source</h4>
+    <div class="synopsis">Lists and filters source documents in the repository.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-DocId</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the source document ID</td></tr>
+      <tr><td><code>-Pov</code></td><td>string</td><td>No</td><td>Filter to sources whose pov_tags contain this value</td></tr>
+      <tr><td><code>-Topic</code></td><td>string</td><td>No</td><td>Filter to sources whose topic_tags contain this value</td></tr>
+      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Filter to sources with this summary_status</td></tr>
+      <tr><td><code>-SourceType</code></td><td>string</td><td>No</td><td>Filter to sources with this source_type</td></tr>
+    </table>
+<pre>
+Get-Source
+Get-Source '*china*'
+Get-Source -Pov safetyist
+Get-Source -Status pending
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Get-Summary</h4>
+    <div class="synopsis">Lists and filters POV summaries in the repository.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-DocId</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the summary doc_id</td></tr>
+      <tr><td><code>-Pov</code></td><td>string</td><td>No</td><td>Only include key_points from this POV</td></tr>
+      <tr><td><code>-Stance</code></td><td>string</td><td>No</td><td>Only include key_points with this stance value</td></tr>
+      <tr><td><code>-Detailed</code></td><td>switch</td><td>No</td><td>Include the KeyPoints array in output</td></tr>
+    </table>
+<pre>
+Get-Summary
+Get-Summary '*safety*'
+Get-Summary -Pov skeptic -Detailed
+Get-Summary -Pov accelerationist -Stance opposed -Detailed
 </pre>
   </div>
 
@@ -404,12 +455,17 @@ Invoke-BatchSummary -DryRun
   <div class="func">
     <h4>Find-Conflict</h4>
     <div class="synopsis">Factual conflict detection and deduplication for document summaries.</div>
+    <p>Reads a summary's <code>factual_claims</code>, matches or creates conflict files under
+    <code>conflicts/</code>, and returns an <code>AITriad.ConflictResult</code> object with counts
+    (ClaimsProcessed, Appended, Created, Skipped). Idempotent&mdash;re-running skips duplicates.</p>
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-DocId</code></td><td>string</td><td>Yes</td><td>Document ID to check for conflicts</td></tr>
     </table>
 <pre>
-Find-Conflict -DocId 'altman-2024-agi-path'
+Find-Conflict -DocId 'situational-awareness-decade-ahead-2026'
+# Re-run is safe — duplicates are skipped
+Find-Conflict -DocId 'situational-awareness-decade-ahead-2026'
 </pre>
   </div>
 
@@ -424,6 +480,55 @@ Find-Conflict -DocId 'altman-2024-agi-path'
 Find-Source -Id 'skp-methods-005'
 Find-Source -Id 'skp-methods*'
 Find-Source -Id 'acc-goals-001','saf-data-002'
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Get-TaxonomyHealth</h4>
+    <div class="synopsis">Displays a diagnostic report on taxonomy coverage and usage across all summaries.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-RepoRoot</code></td><td>string</td><td>No</td><td>Path to the repository root</td></tr>
+      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Write full health data as JSON to this path</td></tr>
+      <tr><td><code>-Detailed</code></td><td>switch</td><td>No</td><td>Show per-node and per-document breakdowns</td></tr>
+      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return the health data hashtable for piping</td></tr>
+    </table>
+<pre>
+Get-TaxonomyHealth
+Get-TaxonomyHealth -Detailed -OutputFile health.json
+$h = Get-TaxonomyHealth -PassThru
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Invoke-TaxonomyProposal</h4>
+    <div class="synopsis">Uses AI to generate structured taxonomy improvement proposals based on health data.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
+      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
+      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show prompt without API calls</td></tr>
+      <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Path for proposal JSON. Default: <code>taxonomy/proposals/proposal-{timestamp}.json</code></td></tr>
+      <tr><td><code>-HealthData</code></td><td>hashtable</td><td>No</td><td>Pre-computed health data from <code>Get-TaxonomyHealth -PassThru</code></td></tr>
+    </table>
+<pre>
+Invoke-TaxonomyProposal -DryRun
+$h = Get-TaxonomyHealth -PassThru
+Invoke-TaxonomyProposal -HealthData $h
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Compare-Taxonomy</h4>
+    <div class="synopsis">Visually compare two taxonomy directories side-by-side in an HTML report.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-ReferenceDir</code></td><td>string</td><td>Yes</td><td>Path to the first (reference) taxonomy directory</td></tr>
+      <tr><td><code>-DifferenceDir</code></td><td>string</td><td>Yes</td><td>Path to the second (difference) taxonomy directory</td></tr>
+      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return file path instead of opening browser</td></tr>
+    </table>
+<pre>
+Compare-Taxonomy ./taxonomy/Origin ./taxonomy/Proposed
 </pre>
   </div>
 
@@ -491,10 +596,17 @@ Redo-Snapshots          # backward-compatible alias
 <div class="card cat-app" id="launchers">
   <h2>App Launchers</h2>
 
+  <p>All three Electron apps support <strong>Light</strong>, <strong>Dark</strong>,
+  <strong>BKC</strong> (Berkman Klein Center), and <strong>Auto</strong> (system preference) color schemes.
+  Theme selection is persisted across sessions.</p>
+
   <div class="func">
     <h4>Start-TaxonomyEditor</h4>
     <div class="synopsis">Launches the Taxonomy Editor Electron app.</div>
-    <p>No parameters. Alias: <code>TaxonomyEditor</code></p>
+    <p>Features: node editing, semantic search, "Analyze Distinction" AI comparison,
+    taxonomy proposals. Default AI model: <code>gemini-3.1-flash-lite-preview</code> (configurable in Settings).
+    Embeddings use <code>gemini-embedding-001</code> via Gemini API.</p>
+    <p>Alias: <code>TaxonomyEditor</code></p>
 <pre>
 Start-TaxonomyEditor
 </pre>
@@ -503,7 +615,7 @@ Start-TaxonomyEditor
   <div class="func">
     <h4>Start-POViewer</h4>
     <div class="synopsis">Launches the POV Viewer Electron app.</div>
-    <p>No parameters. Alias: <code>POViewer</code></p>
+    <p>Alias: <code>POViewer</code></p>
 <pre>
 Start-POViewer
 </pre>
@@ -512,7 +624,9 @@ Start-POViewer
   <div class="func">
     <h4>Start-SummaryViewer</h4>
     <div class="synopsis">Launches the Summary Viewer Electron app.</div>
-    <p>No parameters. Alias: <code>SummaryViewer</code></p>
+    <p>Features: source browsing, key-point exploration, document search with highlighting,
+    semantic similarity search. Embeddings use <code>gemini-embedding-001</code> via Gemini API.</p>
+    <p>Alias: <code>SummaryViewer</code></p>
 <pre>
 Start-SummaryViewer
 </pre>
@@ -576,6 +690,18 @@ Show-AITriadHelp -PassThru
     <tr><td><code>claude-sonnet-4-5</code></td><td>claude-sonnet-4-5-20250514</td></tr>
     <tr><td><code>claude-haiku-3.5</code></td><td>claude-3-5-haiku-20241022</td></tr>
   </table>
+  <p><em>Note:</em> Claude 4.6 models (Opus 4.6, Sonnet 4.6) are available via the Anthropic API.
+  Use model IDs <code>claude-opus-4-6</code> and <code>claude-sonnet-4-6</code>.</p>
+
+  <h3>Embedding Models</h3>
+  <table>
+    <tr><th>Context</th><th>Model</th><th>Dimensions</th></tr>
+    <tr><td>PowerShell CLI (<code>Get-Tax -Similar</code>)</td><td><code>all-MiniLM-L6-v2</code> (local)</td><td>384</td></tr>
+    <tr><td>Electron apps (Summary Viewer, Taxonomy Editor)</td><td><code>gemini-embedding-001</code> (API)</td><td>768</td></tr>
+  </table>
+  <p>All embedding systems encode the taxonomy node <strong>description only</strong> for POV nodes.
+  Cross-cutting nodes in the Taxonomy Editor additionally include POV interpretations.
+  Conflict nodes include claim label, description, and human notes.</p>
 
   <h3>Groq</h3>
   <table>
@@ -632,8 +758,19 @@ Show-AITriadHelp -PassThru
     $Html = $Html -replace '{{GENERATED}}', $Generated
 
     # Write to temp directory with a fixed filename
-    $TempPath = Join-Path ([System.IO.Path]::GetTempPath()) 'AITriad-Help.html'
+    $TempDir  = [System.IO.Path]::GetTempPath()
+    $TempPath = Join-Path $TempDir 'AITriad-Help.html'
     Set-Content -Path $TempPath -Value $Html -Encoding utf8
+
+    # Copy hero image alongside HTML so the relative src works
+    $HeroSource = Join-Path $script:RepoRoot 'docs' 'AITriad-Module.png'
+    if (-not (Test-Path $HeroSource)) {
+        # Fallback: check Downloads (original location)
+        $HeroSource = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads' 'AITriadModule.png'
+    }
+    if (Test-Path $HeroSource) {
+        Copy-Item -Path $HeroSource -Destination (Join-Path $TempDir 'AITriad-Module.png') -Force
+    }
 
     if ($PassThru) {
         return $TempPath

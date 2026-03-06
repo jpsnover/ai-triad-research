@@ -164,7 +164,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         }
         const texts = ids.map(id => {
           const node = taxonomy[id];
-          return `${node.label}: ${node.description}`;
+          return node.description;
         });
         const vectors = await window.electronAPI.computeEmbeddings(texts);
         cache = new Map<string, number[]>();

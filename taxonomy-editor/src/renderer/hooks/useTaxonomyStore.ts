@@ -34,7 +34,7 @@ export type PinnedData =
 
 export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
-export type ColorScheme = 'light' | 'dark' | 'system';
+export type ColorScheme = 'light' | 'dark' | 'bkc' | 'system';
 
 export type GeminiModel =
   | 'gemini-3.1-flash-lite-preview'
@@ -46,8 +46,8 @@ export type GeminiModel =
   | 'gemini-1.5-pro';
 
 export const GEMINI_MODELS: { value: GeminiModel; label: string }[] = [
-  { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview' },
-  { value: 'gemini-2.5-flash', label: '2.5 Flash (recommended)' },
+  { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (recommended)' },
+  { value: 'gemini-2.5-flash', label: '2.5 Flash' },
   { value: 'gemini-2.5-pro', label: '2.5 Pro' },
   { value: 'gemini-2.0-flash', label: '2.0 Flash' },
   { value: 'gemini-2.0-flash-lite', label: '2.0 Flash Lite (fastest)' },
@@ -109,7 +109,7 @@ function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
 function getStoredTheme(): ColorScheme {
   try {
     const stored = localStorage.getItem('taxonomy-editor-theme');
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'system') return stored;
   } catch { /* ignore */ }
   return 'light';
 }
@@ -411,9 +411,7 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
       for (const node of file.nodes) {
         if (hasAspectFilter && !aspectScopes.has(node.category)) continue;
         ids.push(node.id);
-        texts.push(
-          `[${pov}] ${node.category}\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}`,
-        );
+        texts.push(node.description);
       }
     }
 

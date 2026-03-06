@@ -87,6 +87,44 @@
   --highlight-match-border: rgba(255, 170, 0, 0.5);
 }
 
+/* === BKC Theme (Berkman Klein Center Transparency Hub) === */
+[data-theme="bkc"] {
+  --bg-app: #1f1f1f;
+  --bg-primary: #281f29;
+  --bg-secondary: #311632;
+  --bg-pane: #281f29;
+  --bg-card: #311632;
+  --bg-input: #202020;
+  --bg-hover: rgba(163, 73, 164, 0.10);
+  --bg-selected: rgba(163, 73, 164, 0.16);
+
+  --border-color: #4d3a4e;
+  --border-light: #3d2a3e;
+
+  --text-primary: #e8e0e8;
+  --text-secondary: #a89ab0;
+  --text-muted: #7a6a82;
+  --text-bright: #f5f0f5;
+
+  --focus-ring: #4d7a8b;
+  --success: #00ff4c;
+  --danger: #fb2c36;
+
+  /* POV camp colors — use BKC gradient anchors */
+  --color-acc: #4d7a8b;
+  --color-saf: #7c101c;
+  --color-skp: #a349a4;
+  --color-cc: #09465b;
+
+  --bg-acc: rgba(77, 122, 139, 0.18);
+  --bg-saf: rgba(124, 16, 28, 0.20);
+  --bg-skp: rgba(163, 73, 164, 0.18);
+  --bg-cc: rgba(9, 70, 91, 0.20);
+
+  --highlight-match-bg: rgba(163, 73, 164, 0.25);
+  --highlight-match-border: rgba(124, 16, 28, 0.6);
+}
+
 /* === Reset === */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -985,6 +1023,139 @@ body {
 .highlight-match p {
   margin: 0;
   display: inline;
+}
+
+/* === Document Search Bar === */
+.doc-search-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.doc-search-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.doc-search-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.doc-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.doc-search-input {
+  width: 160px;
+  padding: 3px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.doc-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.doc-search-count {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: center;
+}
+
+.doc-search-nav {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.doc-search-nav:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.doc-search-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.doc-search-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.doc-search-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+/* === Search Highlights (in document body) === */
+.search-highlight {
+  background: rgba(255, 213, 0, 0.3);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.search-highlight--active {
+  background: rgba(255, 140, 0, 0.5);
+  outline: 2px solid rgba(255, 140, 0, 0.8);
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .search-highlight {
+  background: rgba(255, 213, 0, 0.2);
+}
+
+[data-theme="dark"] .search-highlight--active {
+  background: rgba(255, 140, 0, 0.35);
+  outline-color: rgba(255, 140, 0, 0.7);
 }
 
 /* === Error Boundary === */

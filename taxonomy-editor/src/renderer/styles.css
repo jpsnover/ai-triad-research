@@ -107,6 +107,60 @@
   --chip-bg: #293548;
 }
 
+/* ─── BKC theme (Berkman Klein Center Transparency Hub) ─── */
+
+[data-theme="bkc"] {
+  /* POV colors */
+  --color-acc: #4d7a8b;
+  --color-saf: #7c101c;
+  --color-skp: #a349a4;
+  --color-cc: #09465b;
+  --color-conflicts: #7a6a82;
+
+  /* Category accent colors */
+  --cat-goals: #2e4953;
+  --cat-data: #4d7a8b;
+  --cat-methods: #622c62;
+
+  /* Surfaces */
+  --bg-primary: #1f1f1f;
+  --bg-secondary: #281f29;
+  --bg-panel: #311632;
+  --bg-input: #202020;
+  --bg-hover: #3d2a3e;
+
+  /* Text */
+  --text-primary: #e8e0e8;
+  --text-secondary: #a89ab0;
+  --text-muted: #7a6a82;
+  --border-color: #4d3a4e;
+
+  /* Category detail backgrounds */
+  --bg-detail-goals: #1a2528;
+  --bg-detail-data: #1a2630;
+  --bg-detail-methods: #271a28;
+
+  /* Search highlight */
+  --hl-mark-bg: rgba(163, 73, 164, 0.35);
+  --hl-mark-color: #d4a0d5;
+
+  /* Semantic */
+  --danger: #fb2c36;
+  --success: #00ff4c;
+  --focus-ring: #4d7a8b;
+
+  /* Scrollbar */
+  --scrollbar-track: #1f1f1f;
+  --scrollbar-thumb: #4d3a4e;
+  --scrollbar-thumb-hover: #7a6a82;
+
+  /* Dialog overlay */
+  --dialog-shadow: rgba(0, 0, 0, 0.5);
+
+  /* Chip */
+  --chip-bg: #311632;
+}
+
 * {
   margin: 0;
   padding: 0;

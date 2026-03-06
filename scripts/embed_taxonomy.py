@@ -60,9 +60,9 @@ def cmd_generate(args):
 
     model = _load_model()
 
-    # Build texts: "{label}. {description}" per node
+    # Build texts: description only per node
     texts = [
-        f"{node['label']}. {node.get('description', '')}" for _, node in nodes
+        node.get('description', '') for _, node in nodes
     ]
 
     print(f"Embedding {len(texts)} nodes...", file=sys.stderr)

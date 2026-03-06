@@ -86,7 +86,7 @@ interface AppState {
 function getThemeFromStorage(): Theme {
   try {
     const saved = localStorage.getItem('poviewer-theme');
-    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+    if (saved === 'light' || saved === 'dark' || saved === 'bkc' || saved === 'system') return saved;
   } catch { /* fallback */ }
   return 'light';
 }

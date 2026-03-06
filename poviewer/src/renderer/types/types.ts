@@ -1,5 +1,5 @@
 // === Theme ===
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'bkc' | 'system';
 
 // === POV Camps ===
 export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting';

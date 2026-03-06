@@ -15,6 +15,7 @@ function ThemeSwitcher() {
   const options: { value: Theme; label: string }[] = [
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
+    { value: 'bkc', label: 'BKC' },
     { value: 'system', label: 'Auto' },
   ];
 

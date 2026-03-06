@@ -28,6 +28,9 @@
         'Show-AITriadHelp'
         'Get-TaxonomyHealth'
         'Invoke-TaxonomyProposal'
+        'Compare-Taxonomy'
+        'Get-Source'
+        'Get-Summary'
     )
 
     # Aliases exported from this module

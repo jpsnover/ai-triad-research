@@ -4,6 +4,7 @@ import type { Theme } from '../types/types';
 const OPTIONS: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+  { value: 'bkc', label: 'BKC' },
   { value: 'system', label: 'Auto' },
 ];
 
