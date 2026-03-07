@@ -176,6 +176,23 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
   );
 }
 
+interface DocGroup {
+  docId: string;
+  docTitle: string;
+  fragments: FragmentGroup[];
+}
+
+interface FragmentGroup {
+  excerptContext: string;
+  points: Array<{
+    pov: string;
+    index: number;
+    keyPoint: KeyPoint;
+    stance: string;
+    taxNode: { id: string; category: string; label: string; description: string } | null;
+  }>;
+}
+
 export default function KeyPointsPane() {
   const selectedSourceIds = useStore(s => s.selectedSourceIds);
   const summaries = useStore(s => s.summaries);
@@ -183,11 +200,71 @@ export default function KeyPointsPane() {
   const taxonomy = useStore(s => s.taxonomy);
   const selectedKeyPoint = useStore(s => s.selectedKeyPoint);
   const selectKeyPoint = useStore(s => s.selectKeyPoint);
+  const [viewMode, setViewMode] = useState<'pov' | 'document'>(() => {
+    const saved = localStorage.getItem('summaryviewer-view-mode');
+    return saved === 'document' ? 'document' : 'pov';
+  });
   const [expandedPovs, setExpandedPovs] = useState<Set<string>>(
     new Set(['accelerationist', 'safetyist', 'skeptic'])
   );
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
+  const [expandedFragments, setExpandedFragments] = useState<Set<string>>(new Set());
   const [claimsExpanded, setClaimsExpanded] = useState(true);
   const [unmappedExpanded, setUnmappedExpanded] = useState(true);
+  const [visibleDescs, setVisibleDescs] = useState<Set<string>>(new Set());
+
+  const toggleDesc = (key: string) => {
+    setVisibleDescs(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleCardContextMenu = useCallback((e: React.MouseEvent, taxonomyNodeId: string | null | undefined) => {
+    if (!taxonomyNodeId) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, nodeId: taxonomyNodeId });
+  }, []);
+
+  const handleEditInTaxonomyEditor = useCallback(async () => {
+    if (ctxMenu) {
+      const nodeId = ctxMenu.nodeId;
+      setCtxMenu(null);
+      const result = await window.electronAPI.openInTaxonomyEditor(nodeId);
+      if (!result.ok) {
+        alert(result.error || 'Could not open Taxonomy Editor.');
+      }
+    }
+  }, [ctxMenu]);
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenu(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCtxMenu(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [ctxMenu]);
+
+  const handleViewModeChange = useCallback((mode: 'pov' | 'document') => {
+    setViewMode(mode);
+    localStorage.setItem('summaryviewer-view-mode', mode);
+  }, []);
 
   const { groupedByPov, factualClaims, unmappedConcepts } = useMemo(() => {
     const groups: Record<string, GroupedPoint[]> = {
@@ -246,6 +323,96 @@ export default function KeyPointsPane() {
     return { groupedByPov: groups, factualClaims: claims, unmappedConcepts: unmapped };
   }, [selectedSourceIds, summaries, sources, taxonomy]);
 
+  const docGroups = useMemo((): DocGroup[] => {
+    const groups: DocGroup[] = [];
+
+    for (const sourceId of selectedSourceIds) {
+      const summary: PipelineSummary | undefined = summaries[sourceId];
+      if (!summary?.pov_summaries) continue;
+
+      const source = sources.find(s => s.id === sourceId);
+      const docTitle = source?.title || sourceId;
+
+      // Collect all key points for this doc, grouped by excerpt_context
+      const fragmentMap = new Map<string, FragmentGroup['points']>();
+      const fragmentOrder: string[] = [];
+
+      for (const [pov, povSummary] of Object.entries(summary.pov_summaries)) {
+        if (!POV_CONFIG[pov]) continue;
+        povSummary.key_points.forEach((kp, idx) => {
+          const ctx = kp.excerpt_context || '(no context)';
+          if (!fragmentMap.has(ctx)) {
+            fragmentMap.set(ctx, []);
+            fragmentOrder.push(ctx);
+          }
+          fragmentMap.get(ctx)!.push({
+            pov,
+            index: idx,
+            keyPoint: kp,
+            stance: kp.stance || povSummary.stance || 'neutral',
+            taxNode: kp.taxonomy_node_id ? taxonomy[kp.taxonomy_node_id] || null : null,
+          });
+        });
+      }
+
+      if (fragmentOrder.length > 0) {
+        groups.push({
+          docId: sourceId,
+          docTitle,
+          fragments: fragmentOrder.map(ctx => ({
+            excerptContext: ctx,
+            points: fragmentMap.get(ctx)!,
+          })),
+        });
+      }
+    }
+
+    return groups;
+  }, [selectedSourceIds, summaries, sources, taxonomy]);
+
+  // Auto-expand all docs and fragments when they first appear
+  useEffect(() => {
+    if (viewMode !== 'document') return;
+    const newDocs = new Set(expandedDocs);
+    const newFrags = new Set(expandedFragments);
+    let changed = false;
+    for (const dg of docGroups) {
+      if (!newDocs.has(dg.docId)) {
+        newDocs.add(dg.docId);
+        changed = true;
+      }
+      for (const fg of dg.fragments) {
+        const fragKey = `${dg.docId}::${fg.excerptContext}`;
+        if (!newFrags.has(fragKey)) {
+          newFrags.add(fragKey);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      setExpandedDocs(newDocs);
+      setExpandedFragments(newFrags);
+    }
+  }, [docGroups, viewMode]);
+
+  const toggleDoc = (docId: string) => {
+    setExpandedDocs(prev => {
+      const next = new Set(prev);
+      if (next.has(docId)) next.delete(docId);
+      else next.add(docId);
+      return next;
+    });
+  };
+
+  const toggleFragment = (fragKey: string) => {
+    setExpandedFragments(prev => {
+      const next = new Set(prev);
+      if (next.has(fragKey)) next.delete(fragKey);
+      else next.add(fragKey);
+      return next;
+    });
+  };
+
   const togglePov = (pov: string) => {
     setExpandedPovs(prev => {
       const next = new Set(prev);
@@ -266,7 +433,25 @@ export default function KeyPointsPane() {
     <>
       <div className="pane-header">
         <h2>Key Points</h2>
-        <span className="point-count">{totalPoints} points</span>
+        <div className="pane-header-right">
+          {hasSelection && (
+            <div className="view-mode-toggle">
+              <button
+                className={`view-mode-btn${viewMode === 'pov' ? ' active' : ''}`}
+                onClick={() => handleViewModeChange('pov')}
+              >
+                POV
+              </button>
+              <button
+                className={`view-mode-btn${viewMode === 'document' ? ' active' : ''}`}
+                onClick={() => handleViewModeChange('document')}
+              >
+                Document
+              </button>
+            </div>
+          )}
+          <span className="point-count">{totalPoints} points</span>
+        </div>
       </div>
       <div className="pane-body">
         {!hasSelection && (
@@ -275,8 +460,8 @@ export default function KeyPointsPane() {
           </div>
         )}
 
-        {/* === POV Accordions === */}
-        {Object.entries(POV_CONFIG).map(([pov, config]) => {
+        {/* === POV View === */}
+        {viewMode === 'pov' && Object.entries(POV_CONFIG).map(([pov, config]) => {
           const points = groupedByPov[pov] || [];
           if (!hasSelection || points.length === 0) return null;
 
@@ -312,6 +497,7 @@ export default function KeyPointsPane() {
                         key={`${gp.docId}-${pov}-${gp.index}`}
                         className={`key-point-card${isSelected ? ' selected' : ''}`}
                         onClick={() => selectKeyPoint(gp.docId, pov, gp.index)}
+                        onContextMenu={(e) => handleCardContextMenu(e, gp.keyPoint.taxonomy_node_id)}
                       >
                         {taxNode && (
                           <div className="kp-taxonomy">
@@ -345,6 +531,119 @@ export default function KeyPointsPane() {
                             {gp.keyPoint.category}
                           </span>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* === Document View === */}
+        {viewMode === 'document' && hasSelection && docGroups.map((dg) => {
+          const isDocExpanded = expandedDocs.has(dg.docId);
+          const totalFragPoints = dg.fragments.reduce((s, f) => s + f.points.length, 0);
+
+          return (
+            <div key={dg.docId} className="pov-accordion doc-accordion">
+              <button
+                className="pov-accordion-header doc-accordion-header"
+                onClick={() => toggleDoc(dg.docId)}
+              >
+                <span className="pov-accordion-arrow">{isDocExpanded ? '\u25BC' : '\u25B6'}</span>
+                <span className="pov-accordion-label doc-accordion-label">{dg.docTitle}</span>
+                <span className="pov-accordion-count">{totalFragPoints} pts / {dg.fragments.length} fragments</span>
+              </button>
+
+              {isDocExpanded && (
+                <div className="pov-accordion-body">
+                  {dg.fragments.map((fg) => {
+                    const fragKey = `${dg.docId}::${fg.excerptContext}`;
+                    const isFragExpanded = expandedFragments.has(fragKey);
+
+                    return (
+                      <div key={fragKey} className="fragment-accordion">
+                        <button
+                          className="fragment-accordion-header"
+                          onClick={() => toggleFragment(fragKey)}
+                        >
+                          <span className="pov-accordion-arrow">{isFragExpanded ? '\u25BC' : '\u25B6'}</span>
+                          <span className="fragment-accordion-label">{fg.excerptContext}</span>
+                          <span className="pov-accordion-count">{fg.points.length}</span>
+                        </button>
+
+                        {isFragExpanded && (
+                          <div className="fragment-accordion-body">
+                            {fg.points.map((pt) => {
+                              const config = POV_CONFIG[pt.pov];
+                              const isSelected = selectedKeyPoint?.docId === dg.docId &&
+                                selectedKeyPoint?.pov === pt.pov &&
+                                selectedKeyPoint?.index === pt.index;
+
+                              return (
+                                <div
+                                  key={`${dg.docId}-${pt.pov}-${pt.index}`}
+                                  className={`key-point-card${isSelected ? ' selected' : ''}`}
+                                  onClick={() => selectKeyPoint(dg.docId, pt.pov, pt.index)}
+                                  onContextMenu={(e) => handleCardContextMenu(e, pt.keyPoint.taxonomy_node_id)}
+                                >
+                                  <div className="kp-pov-badge-row">
+                                    <span
+                                      className="kp-pov-badge"
+                                      style={{ background: config?.bgVar, color: config?.colorVar }}
+                                    >
+                                      {config?.label || pt.pov}
+                                    </span>
+                                    <span className={`kp-stance-value kp-stance--${pt.stance}`}>
+                                      {STANCE_LABELS[pt.stance] || pt.stance}
+                                    </span>
+                                  </div>
+
+                                  <div className="key-point-text">{pt.keyPoint.point}</div>
+
+                                  {pt.taxNode && (() => {
+                                    const descKey = `${dg.docId}-${pt.pov}-${pt.index}`;
+                                    const showDesc = visibleDescs.has(descKey);
+                                    return (
+                                      <div className="kp-taxonomy">
+                                        <span className="kp-taxonomy-id">{pt.taxNode.id}</span>
+                                        <span className="kp-taxonomy-label">{pt.taxNode.label}</span>
+                                        {pt.taxNode.description && (
+                                          <button
+                                            className="kp-desc-toggle"
+                                            onClick={(e) => { e.stopPropagation(); toggleDesc(descKey); }}
+                                            title={showDesc ? 'Hide description' : 'Show description'}
+                                          >
+                                            {showDesc ? '\u25B4' : '\u25BE'} desc
+                                          </button>
+                                        )}
+                                        {showDesc && pt.taxNode.description && (
+                                          <div className="kp-taxonomy-desc">{pt.taxNode.description}</div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                  {!pt.taxNode && pt.keyPoint.taxonomy_node_id && (
+                                    <div className="kp-taxonomy">
+                                      <span className="kp-taxonomy-id">{pt.keyPoint.taxonomy_node_id}</span>
+                                      <span className="kp-taxonomy-label kp-taxonomy-unknown">Unknown node</span>
+                                    </div>
+                                  )}
+
+                                  <div className="key-point-meta">
+                                    <span
+                                      className="key-point-category"
+                                      style={{ background: config?.bgVar, color: config?.colorVar }}
+                                    >
+                                      {pt.keyPoint.category}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -409,6 +708,18 @@ export default function KeyPointsPane() {
           </div>
         )}
       </div>
+
+      {ctxMenu && (
+        <div
+          ref={ctxMenuRef}
+          className="kp-context-menu"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+        >
+          <button className="kp-context-menu-item" onClick={handleEditInTaxonomyEditor}>
+            Edit in Taxonomy Editor
+          </button>
+        </div>
+      )}
     </>
   );
 }

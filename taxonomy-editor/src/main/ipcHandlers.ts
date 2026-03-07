@@ -11,7 +11,8 @@ import {
   setActiveTaxonomyDir,
 } from './fileIO';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { computeEmbeddings, computeQueryEmbedding, generateText } from './embeddings';
+import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
+import type { NodeEmbeddingInput } from './embeddings';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('get-taxonomy-dirs', () => {
@@ -58,12 +59,16 @@ export function registerIpcHandlers(): void {
     return hasApiKey();
   });
 
-  ipcMain.handle('compute-embeddings', async (_event, texts: string[]) => {
-    return { vectors: await computeEmbeddings(texts) };
+  ipcMain.handle('compute-embeddings', async (_event, texts: string[], ids?: string[]) => {
+    return { vectors: await computeEmbeddings(texts, ids) };
   });
 
   ipcMain.handle('compute-query-embedding', async (_event, text: string) => {
     return { vector: await computeQueryEmbedding(text) };
+  });
+
+  ipcMain.handle('update-node-embeddings', async (_event, nodes: NodeEmbeddingInput[]) => {
+    await updateNodeEmbeddings(nodes);
   });
 
   ipcMain.handle('generate-text', async (event, prompt: string, model?: string) => {

@@ -459,7 +459,7 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
           set({ semanticResults: [], embeddingLoading: false });
           return;
         }
-        const { vectors } = await window.electronAPI.computeEmbeddings(texts);
+        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
           cache.set(ids[i], vectors[i]);
@@ -495,7 +495,7 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
           set({ similarResults: [], similarLoading: false });
           return;
         }
-        const { vectors } = await window.electronAPI.computeEmbeddings(texts);
+        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
           cache.set(ids[i], vectors[i]);
@@ -607,6 +607,36 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
 
       await Promise.all(promises);
       set({ dirty: new Set() });
+
+      // Fire-and-forget: re-embed changed nodes and update embeddings.json
+      const nodesToEmbed: { id: string; text: string; pov: string }[] = [];
+      for (const key of dirtyKeys) {
+        if (key === 'accelerationist' || key === 'safetyist' || key === 'skeptic') {
+          const file = state[key];
+          if (file) {
+            for (const node of file.nodes) {
+              nodesToEmbed.push({ id: node.id, text: node.description, pov: key });
+            }
+          }
+        } else if (key === 'cross-cutting') {
+          const file = state.crossCutting;
+          if (file) {
+            for (const node of file.nodes) {
+              nodesToEmbed.push({
+                id: node.id,
+                text: `[cross-cutting]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+                pov: 'cross-cutting',
+              });
+            }
+          }
+        }
+        // Conflicts are not included in embeddings.json (separate system)
+      }
+      if (nodesToEmbed.length > 0) {
+        window.electronAPI.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
+          console.warn('[save] Failed to update embeddings:', err);
+        });
+      }
     } catch (err) {
       set({ saveError: `Save failed: ${err}` });
     }

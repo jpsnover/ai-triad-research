@@ -34,8 +34,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hasApiKey: (): Promise<boolean> =>
     ipcRenderer.invoke('has-api-key'),
 
-  computeEmbeddings: (texts: string[]): Promise<{ vectors: number[][] }> =>
-    ipcRenderer.invoke('compute-embeddings', texts),
+  computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
+    ipcRenderer.invoke('compute-embeddings', texts, ids),
+
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string }[]): Promise<void> =>
+    ipcRenderer.invoke('update-node-embeddings', nodes),
 
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
@@ -53,6 +56,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = () => callback();
     ipcRenderer.on('reload-taxonomy', listener);
     return () => { ipcRenderer.removeListener('reload-taxonomy', listener); };
+  },
+
+  onFocusNode: (callback: (nodeId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, nodeId: string) => callback(nodeId);
+    ipcRenderer.on('focus-node', listener);
+    return () => { ipcRenderer.removeListener('focus-node', listener); };
   },
 
   growWindow: (deltaWidth: number): Promise<void> =>

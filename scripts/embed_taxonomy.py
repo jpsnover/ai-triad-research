@@ -160,6 +160,41 @@ def cmd_query(args):
     json.dump(results, sys.stdout, indent=2)
 
 
+def cmd_encode(args):
+    """Encode a single text and output its embedding vector as JSON."""
+    model = _load_model()
+    vec = model.encode(
+        [args.text], normalize_embeddings=True, show_progress_bar=False
+    )
+    json.dump(vec[0].tolist(), sys.stdout)
+
+
+def cmd_batch_encode(args):
+    """Encode multiple texts from stdin JSON and output {id: vector} map.
+
+    Expects stdin JSON: [{"id": "acc-goal-001", "text": "description..."}]
+    Outputs JSON: {"acc-goal-001": [0.1, 0.2, ...], ...}
+    """
+    raw = sys.stdin.read()
+    items = json.loads(raw)
+    if not items:
+        json.dump({}, sys.stdout)
+        return
+
+    model = _load_model()
+    texts = [item["text"] for item in items]
+    ids = [item["id"] for item in items]
+
+    print(f"Batch-encoding {len(texts)} texts...", file=sys.stderr)
+    vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+
+    result = {}
+    for nid, vec in zip(ids, vectors):
+        result[nid] = vec.tolist()
+
+    json.dump(result, sys.stdout)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Semantic embedding tools for the AI Triad taxonomy."
@@ -184,12 +219,23 @@ def main():
         help="Filter to a specific POV (e.g. safetyist)",
     )
 
+    # encode — output raw vector for a single text
+    e = sub.add_parser("encode", help="Encode a single text to an embedding vector (JSON)")
+    e.add_argument("text", help="The text to encode")
+
+    # batch-encode — encode multiple texts from stdin
+    sub.add_parser("batch-encode", help="Encode multiple texts from stdin JSON [{id, text}] -> {id: vector}")
+
     args = parser.parse_args()
 
     if args.command == "generate":
         cmd_generate(args)
     elif args.command == "query":
         cmd_query(args)
+    elif args.command == "encode":
+        cmd_encode(args)
+    elif args.command == "batch-encode":
+        cmd_batch_encode(args)
 
 
 if __name__ == "__main__":

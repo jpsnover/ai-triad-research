@@ -1,8 +1,11 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 
 let mainWindow: BrowserWindow | null = null;
+
+const TAXONOMY_EDITOR_FOCUS_PORT = 17862;
 
 function createWindow(): void {
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -76,19 +79,56 @@ function createWindow(): void {
   });
 }
 
+function registerOpenInTaxonomyEditor(): void {
+  ipcMain.handle('open-in-taxonomy-editor', (_event, nodeId: string): Promise<{ ok: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      const body = JSON.stringify({ nodeId });
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port: TAXONOMY_EDITOR_FOCUS_PORT,
+          path: '/focus-node',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+          timeout: 2000,
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              resolve({ ok: true });
+            } else {
+              resolve({ ok: false, error: `Taxonomy Editor returned status ${res.statusCode}` });
+            }
+          });
+        },
+      );
+
+      req.on('error', () => {
+        resolve({ ok: false, error: 'Taxonomy Editor is not running. Please start it first.' });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ ok: false, error: 'Taxonomy Editor did not respond in time.' });
+      });
+
+      req.write(body);
+      req.end();
+    });
+  });
+}
+
 app.whenReady().then(() => {
   registerIpcHandlers();
+  registerOpenInTaxonomyEditor();
   createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });

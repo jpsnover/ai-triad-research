@@ -22,6 +22,30 @@ export function App() {
     return unsub;
   }, []);
 
+  // Listen for external focus-node requests (e.g. from summary-viewer)
+  useEffect(() => {
+    const unsub = window.electronAPI.onFocusNode((nodeId: string) => {
+      const store = useTaxonomyStore.getState();
+      // Determine which tab to navigate to based on node ID prefix
+      let tab: Parameters<typeof store.navigateToNode>[0];
+      if (nodeId.startsWith('cc-')) {
+        tab = 'cross-cutting';
+      } else if (nodeId.startsWith('acc-')) {
+        tab = 'accelerationist';
+      } else if (nodeId.startsWith('saf-')) {
+        tab = 'safetyist';
+      } else if (nodeId.startsWith('skp-')) {
+        tab = 'skeptic';
+      } else if (nodeId.startsWith('conflict-')) {
+        tab = 'conflicts';
+      } else {
+        return; // Unknown prefix
+      }
+      store.navigateToNode(tab, nodeId);
+    });
+    return unsub;
+  }, []);
+
   // Apply theme on mount and listen for system preference changes
   useEffect(() => {
     const root = document.documentElement;

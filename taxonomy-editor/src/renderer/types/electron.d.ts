@@ -10,11 +10,13 @@ export interface ElectronAPI {
   deleteConflictFile: (claimId: string) => Promise<void>;
   setApiKey: (key: string) => Promise<void>;
   hasApiKey: () => Promise<boolean>;
-  computeEmbeddings: (texts: string[]) => Promise<{ vectors: number[][] }>;
+  computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string }[]) => Promise<void>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string) => Promise<{ text: string }>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;
+  onFocusNode: (callback: (nodeId: string) => void) => () => void;
   growWindow: (deltaWidth: number) => Promise<void>;
   shrinkWindow: (deltaWidth: number) => Promise<void>;
 }

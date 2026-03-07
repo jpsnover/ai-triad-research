@@ -1,8 +1,67 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 
 let mainWindow: BrowserWindow | null = null;
+let focusServer: http.Server | null = null;
+
+const FOCUS_PORT = 17862;
+
+function sendFocusNode(nodeId: string): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('focus-node', nodeId);
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+}
+
+/**
+ * Start a tiny HTTP server on localhost that accepts focus-node requests
+ * from other apps (e.g. summary-viewer). This is more reliable than
+ * single-instance lock across separately-launched Electron dev instances.
+ */
+function startFocusServer(): void {
+  focusServer = http.createServer((req, res) => {
+    if (req.method === 'POST' && req.url === '/focus-node') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const { nodeId } = JSON.parse(body);
+          if (nodeId && typeof nodeId === 'string') {
+            sendFocusNode(nodeId);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+          } else {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'missing nodeId' }));
+          }
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON' }));
+        }
+      });
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+
+  focusServer.listen(FOCUS_PORT, '127.0.0.1', () => {
+    console.log(`[main] Focus server listening on http://127.0.0.1:${FOCUS_PORT}`);
+  });
+
+  focusServer.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      // Another taxonomy-editor instance already owns this port — that's fine.
+      console.log('[main] Focus server port already in use, skipping.');
+      focusServer = null;
+    } else {
+      console.error('[main] Focus server error:', err);
+    }
+  });
+}
 
 function registerWindowHandlers(): void {
   ipcMain.handle('grow-window', (_event, deltaWidth: number) => {
@@ -73,6 +132,18 @@ function createWindow(): void {
       ],
     },
     {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
       label: 'View',
       submenu: [
         {
@@ -101,17 +172,17 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerIpcHandlers();
   registerWindowHandlers();
+  startFocusServer();
   createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+  app.quit();
+});
+
+app.on('will-quit', () => {
+  if (focusServer) {
+    focusServer.close();
+    focusServer = null;
   }
 });

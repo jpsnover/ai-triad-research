@@ -328,10 +328,10 @@ export function SearchBar() {
     checkApiKey();
   };
 
-  const semanticDisabled = isSemantic && !hasApiKey;
+  const semanticDisabled = false;
 
   const placeholder = isSemantic
-    ? (hasApiKey ? 'Describe what you\'re looking for...' : 'API key required')
+    ? 'Describe what you\'re looking for...'
     : 'Search taxonomy...';
 
   const countText = () => {
@@ -405,21 +405,13 @@ export function SearchBar() {
                 Case sensitive
               </label>
             )}
-            {isSemantic && !hasApiKey && (
-              <button
-                className="btn btn-sm"
-                onClick={() => setShowApiKeyDialog(true)}
-              >
-                Configure Key
-              </button>
-            )}
-            {isSemantic && hasApiKey && (
+            {isSemantic && (
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setShowApiKeyDialog(true)}
-                title="Update API key"
+                title="Configure API key (optional — local embeddings used by default)"
               >
-                Key
+                API Key
               </button>
             )}
             <button

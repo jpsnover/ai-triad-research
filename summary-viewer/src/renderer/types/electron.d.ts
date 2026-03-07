@@ -29,6 +29,7 @@ export interface ElectronAPI {
   hasApiKey: () => Promise<boolean>;
   computeEmbeddings: (texts: string[]) => Promise<number[][]>;
   computeQueryEmbedding: (text: string) => Promise<number[]>;
+  openInTaxonomyEditor: (nodeId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {
