@@ -65,7 +65,7 @@ if (Test-Path $AIEnrichPath) {
 $TaxonomyDir = Join-Path $script:RepoRoot 'taxonomy' 'Origin'
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        if ($File.Name -eq 'embeddings.json') { continue }
+        if ($File.Name -in 'embeddings.json', 'edges.json') { continue }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             $PovName = $File.BaseName.ToLower()
