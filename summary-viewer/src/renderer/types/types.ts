@@ -57,11 +57,24 @@ export interface PipelineSummary {
   }>;
 }
 
+export interface GraphAttributes {
+  epistemic_type?: string;
+  rhetorical_strategy?: string;
+  assumes?: string[];
+  falsifiability?: string;
+  audience?: string;
+  emotional_register?: string;
+  policy_actionability?: string;
+  intellectual_lineage?: string[];
+  steelman_vulnerability?: string;
+}
+
 export interface TaxonomyNode {
   id: string;
   category: string;
   label: string;
   description: string;
+  graph_attributes?: GraphAttributes;
 }
 
 export interface SelectedKeyPoint {

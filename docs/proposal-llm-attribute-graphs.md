@@ -104,18 +104,104 @@ Source Document
     |-- Update edge weights based on accumulating evidence
 ```
 
-### 3.2 Storage Options
+### 3.2 Storage
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **JSON files (extend current)** | Zero new dependencies, git-diffable, works with existing PS7 tooling | Slow for graph traversal at scale |
-| **SQLite + JSON columns** | Single-file DB, fast queries, portable | Loses git-diffable property |
-| **Neo4j / Memgraph** | Native graph queries (Cypher), visualization built in | Infrastructure overhead, not git-friendly |
-| **Hybrid: JSON canonical + SQLite index** | Best of both — JSON remains source of truth, SQLite provides fast query | Two representations to keep in sync |
+**Canonical store: JSON files.** The taxonomy JSON files in this repository remain the single source of truth. They are git-diffable, work with existing PowerShell tooling, and require zero infrastructure. All graph attributes and edges are stored as extensions to these files (new keys on existing node objects, plus `edges.json` per POV directory).
 
-**Recommendation:** Start with the **hybrid approach**. Keep the current JSON files as the canonical store (preserving git history and existing tooling) and generate a SQLite index on module load for fast graph queries. This mirrors the existing pattern where `embeddings.json` is a derived artifact from the taxonomy JSONs.
+At the current scale (~131 nodes, ~30 sources, ~40 conflicts), JSON is more than sufficient for all operations including full-graph LLM analysis within a single context window.
 
-### 3.3 Query Interface
+### 3.3 Optional Graph Database Export (Neo4j / Memgraph)
+
+For interactive visualization and native Cypher queries, the graph can be **exported** to a Neo4j or Memgraph instance running outside this repository. The graph database is a read-only derived view — all edits continue to happen in the JSON files, and the database is rebuilt on each export.
+
+#### 3.3.1 Installation and Setup
+
+```powershell
+# Install the graph database tooling (one-time setup)
+Install-GraphDatabase [-Engine Neo4j|Memgraph] [-InstallPath <path>]
+
+# This will:
+#   - Download and install Neo4j Community Edition or Memgraph Platform
+#   - Create a dedicated database instance for AI Triad data
+#   - Install the APOC plugin (Neo4j) or MAGE module (Memgraph) for advanced graph algorithms
+#   - Store all database files outside the repo (default: ~/ai-triad-graphdb/)
+```
+
+#### 3.3.2 Configuration
+
+```powershell
+# Configure the database connection (stored in user profile, not in repo)
+Set-GraphDatabaseConfig [-Uri bolt://localhost:7687] `
+                        [-DatabasePath <path>] `
+                        [-Credentials <PSCredential>]
+
+# Verify the connection
+Test-GraphDatabaseConnection
+```
+
+#### 3.3.3 Export
+
+```powershell
+# Full export: rebuild the graph database from current JSON files
+Export-TaxonomyToGraph [-Full]
+
+# This will:
+#   1. Read all taxonomy JSON files (POV nodes, cross-cutting, conflicts)
+#   2. Read graph_attributes and edges.json for each POV
+#   3. Read source summaries and factual claims
+#   4. Create/update nodes with all attributes as Neo4j properties
+#   5. Create/update typed relationships with edge attributes
+#   6. Rebuild full-text and vector indexes
+
+# Incremental export: only update nodes/edges that changed since last export
+Export-TaxonomyToGraph [-Incremental]
+
+# Export with embedding vectors for graph-native similarity queries
+Export-TaxonomyToGraph [-IncludeEmbeddings]
+```
+
+#### 3.3.4 Visualization and Querying
+
+```powershell
+# Launch the graph database's built-in browser UI
+Open-GraphBrowser
+#   Neo4j: opens Neo4j Browser at http://localhost:7474
+#   Memgraph: opens Memgraph Lab at http://localhost:3000
+
+# Run a Cypher query from PowerShell and return results
+Invoke-CypherQuery -Query "MATCH (a)-[r:TENSION_WITH]->(b) RETURN a.label, r.tension_type, b.label"
+
+# Pre-built exploration queries
+Show-GraphOverview          # Node/edge counts, connected components, density
+Show-TensionMap             # All TENSION_WITH edges across POVs
+Show-AssumptionChains       # Longest ASSUMES chains per POV
+Show-EchoChambers           # Subgraphs with only SUPPORTS edges
+```
+
+#### 3.3.5 Architecture Note
+
+```
+┌─────────────────────────────────────────┐
+│  ai-triad-research repo (git)           │
+│                                         │
+│  taxonomy/*.json  ← canonical store     │
+│  taxonomy/*/edges.json                  │
+│  embeddings.json                        │
+│  sources/*/summary.json                 │
+└──────────────┬──────────────────────────┘
+               │  Export-TaxonomyToGraph
+               ▼
+┌─────────────────────────────────────────┐
+│  ~/ai-triad-graphdb/  (outside repo)    │
+│                                         │
+│  Neo4j or Memgraph instance             │
+│  ← read-only derived view              │
+│  ← rebuilt on each export               │
+│  ← provides Cypher queries + visual UI  │
+└─────────────────────────────────────────┘
+```
+
+### 3.4 Query Interface
 
 A new PowerShell cmdlet `Invoke-GraphQuery` would accept natural-language questions and translate them into graph operations:
 
@@ -341,9 +427,9 @@ Open-ended attributes risk inconsistency. Mitigations:
 ### Graph Size
 
 With ~131 taxonomy nodes, ~30 sources, and ~40 conflicts, the graph is small enough that:
-- JSON storage is viable for years.
+- JSON storage is viable as the canonical store for years.
 - Full-graph LLM analysis (feeding the entire graph as context) is feasible within a single context window.
-- No graph database infrastructure is needed unless the corpus grows 10x+.
+- A graph database export is optional and purely for visualization and Cypher exploration — not required for core functionality.
 
 ---
 
@@ -366,7 +452,74 @@ No existing functionality is removed or broken. The graph layer is a new lens on
 
 ---
 
-## 8. Conclusion
+## 8. Open Questions and Decisions Required Before Execution
+
+The following items need resolution before implementation can begin:
+
+### 8.1 Attribute Schema Bootstrapping
+
+- **Starter attribute vocabulary:** The proposal lists example attributes (epistemic_type, rhetorical_strategy, assumes, falsifiability, audience, emotional_register). Which of these are essential for Phase 1, and which can be deferred? Should the initial vocabulary be minimal (5-6 keys) or comprehensive (15-20)?
+Be Comprehensive
+- **Attribute value types:** Should values be free-text strings, enums from a controlled list, numeric scores, or a mix? Free-text maximizes LLM expressiveness but complicates programmatic queries.
+Free-text
+- **Per-POV vs. universal attributes:** Some attributes (epistemic_type, falsifiability) apply universally. Others (rhetorical_strategy, audience) may vary by POV interpretation of the same cross-cutting concept. How should POV-specific attributes be structured?
+
+### 8.2 Edge Type Inventory
+
+- **Edge type list:** The proposal mentions SUPPORTS, CONTRADICTS, CITES, INTERPRETS, WEAKENS, ASSUMES, RESPONDS_TO, TENSION_WITH, SUPPORTED_BY. Is this the definitive list, or should the LLM be free to propose new edge types? If free, how do we prevent edge type proliferation?
+LLM should feel free to propose new edge types
+- **Edge directionality:** Some relationships are clearly directional (ASSUMES, SUPPORTS). Others are arguably symmetric (TENSION_WITH). Define which edge types are directed vs. bidirectional.
+Bidirectional:  CONTRADICTS, TENSION_WITH
+DIrectional:  SUPPORTS, CITES, INTERPRETS, WEAKENS, ASSUMES, RESPONDS_TO,  SUPPORTED_BY
+- **Edge confidence thresholds:** Should all LLM-proposed edges be stored, or only those above a confidence threshold? What is the review workflow — auto-accept, human-review queue, or hybrid based on confidence?
+LLM should propose the edges with a confidence score but human needs to approve them.
+
+### 8.3 Graph Database Choice
+
+- **Neo4j vs. Memgraph:** Neo4j Community Edition is more widely adopted with better tooling and documentation. Memgraph is lighter-weight and faster for small graphs. Which is preferred?
+Use Neo4j
+- **Docker vs. native install:** Should `Install-GraphDatabase` use Docker containers (simpler, isolated) or native installation (lower overhead, no Docker dependency)?
+Docker
+- **Database location:** Default to `~/ai-triad-graphdb/` or make it fully configurable? Should it support multiple named instances (e.g., one per taxonomy directory)?
+Single instance at `~/ai-triad-graphdb/` 
+
+### 8.4 LLM Integration
+
+- **Which model for attribute extraction?** The project currently uses Gemini Flash for text generation. Is the same model sufficient for structured attribute extraction, or does this need a more capable model (Gemini Pro, Claude)?
+All uses the of the backend AI services should be support the specification of different backends and they should all same the same default.
+
+- **Prompt design for edge discovery:** Edge discovery between all node pairs is O(n²). With 131 nodes that's ~8,500 pairs. Strategy options:
+  - Embed-then-LLM: only run LLM edge discovery on pairs above a semantic similarity threshold
+  - Batch-by-POV: only check cross-POV pairs (accelerationist↔safetyist, etc.)
+  - LLM-nominated: give the LLM a full node list and let it nominate likely edges
+LLM-nominated.
+
+- **Attribute refresh policy:** When a node's description is edited, should all its attributes be regenerated? Only changed attributes? Should connected edges be re-evaluated?
+None.  THe node should be marked as STALE and then there should be a switch on the cmdlet to only process nodes which are STALE.
+
+### 8.5 Data Gaps
+
+- **Source-to-node edges:** The current summaries map key_points to taxonomy_node_ids. Are these sufficient as SUPPORTED_BY edges, or does the LLM need to re-evaluate each mapping to generate edge attributes (support_type, strength)?
+defer decision
+- **Author/institution nodes:** The proposal mentions author nodes. The current source metadata does not consistently capture structured author information. Is author extraction a Phase 1 requirement or a later enhancement?
+defer decision
+- **Temporal data:** Conflict evolution tracking requires timestamps on edges and attributes. The current taxonomy tracks `last_modified` at the file level, not the node level. Should node-level timestamps be added to the JSON schema?
+defer decision
+- **Cross-cutting nodes:** Currently ~15 cross-cutting nodes exist with `interpretations` per POV. Should these be split into separate INTERPRETS edges in the graph, or kept as a single node with structured attributes?
+defer decision
+
+### 8.6 Tooling and UX
+
+- **Taxonomy Editor integration:** Should the Taxonomy Editor gain a graph visualization pane in Phase 1, or is the external Neo4j/Memgraph browser sufficient initially?
+No.  Use external browser
+- **Export trigger:** Should `Export-TaxonomyToGraph` run automatically after every save in the Taxonomy Editor, on a schedule, or only on manual invocation?
+Manual only
+- **Cypher vs. PowerShell:** For graph queries, should the primary interface be Cypher (via `Invoke-CypherQuery`) or PowerShell-native cmdlets that abstract Cypher away? The latter is more consistent with existing tooling but limits query expressiveness.
+Provide both
+
+---
+
+## 9. Conclusion
 
 The AI Triad project has built a solid foundation: structured taxonomy, AI-powered ingestion, conflict detection, and semantic search. But the current architecture treats each component — nodes, documents, claims, conflicts — as largely independent objects connected by ID references.
 

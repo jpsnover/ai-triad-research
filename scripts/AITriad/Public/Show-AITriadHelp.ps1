@@ -250,7 +250,11 @@ function Show-AITriadHelp {
     <tr><td><code>PdfOptimizer</code></td><td>PDF compression and optimization utilities</td></tr>
   </table>
   <h3>Taxonomy Structure</h3>
-  <p>Four points of view, each stored as a JSON file under <code>taxonomy/Origin/</code>:</p>
+  <p>Four points of view, each stored as a JSON file under <code>taxonomy/Origin/</code>.
+  Each node may have a <code>graph_attributes</code> object with AI-generated analytical
+  metadata (epistemic type, rhetorical strategy, assumptions, falsifiability, audience,
+  emotional register, policy actionability, intellectual lineage, and steelman vulnerability).
+  See <code>Invoke-AttributeExtraction</code>.</p>
   <table>
     <tr><th>POV</th><th>Prefix</th><th>Description</th></tr>
     <tr><td>Accelerationist</td><td><code>acc-</code></td><td>Pro-development, rapid AI progress</td></tr>
@@ -522,6 +526,31 @@ Invoke-TaxonomyProposal -HealthData $h
   </div>
 
   <div class="func">
+    <h4>Invoke-AttributeExtraction</h4>
+    <div class="synopsis">Uses AI to generate rich graph attributes for taxonomy nodes (Phase 1 of LLM Attribute Graphs).</div>
+    <p>Reads taxonomy JSON files, sends nodes in batches to an LLM, and writes
+    <code>graph_attributes</code> back to each node. Attributes include epistemic_type,
+    rhetorical_strategy, assumes, falsifiability, audience, emotional_register,
+    policy_actionability, intellectual_lineage, and steelman_vulnerability.
+    Nodes that already have attributes are skipped unless <code>-Force</code> is specified.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV file. Default: all four</td></tr>
+      <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
+      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
+      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling AI</td></tr>
+      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Regenerate attributes even if already present</td></tr>
+    </table>
+<pre>
+Invoke-AttributeExtraction -DryRun
+Invoke-AttributeExtraction -POV accelerationist
+Invoke-AttributeExtraction -Force -Model gemini-2.5-pro
+</pre>
+  </div>
+
+  <div class="func">
     <h4>Compare-Taxonomy</h4>
     <div class="synopsis">Visually compare two taxonomy directories side-by-side in an HTML report.</div>
     <table>
@@ -608,7 +637,8 @@ Redo-Snapshots          # backward-compatible alias
     <div class="synopsis">Launches the Taxonomy Editor Electron app.</div>
     <p>Features: node editing, semantic search, "Analyze Distinction" AI comparison,
     taxonomy proposals. Default AI model: <code>gemini-3.1-flash-lite-preview</code> (configurable in Settings).
-    Embeddings use <code>gemini-embedding-001</code> via Gemini API.</p>
+    Embeddings use pre-computed local vectors from <code>embeddings.json</code>; saving a node
+    automatically re-computes its embedding via <code>all-MiniLM-L6-v2</code>.</p>
     <p>Alias: <code>TaxonomyEditor</code></p>
 <pre>
 Start-TaxonomyEditor
@@ -700,7 +730,8 @@ Show-AITriadHelp -PassThru
   <table>
     <tr><th>Context</th><th>Model</th><th>Dimensions</th></tr>
     <tr><td>PowerShell CLI (<code>Get-Tax -Similar</code>)</td><td><code>all-MiniLM-L6-v2</code> (local)</td><td>384</td></tr>
-    <tr><td>Electron apps (Summary Viewer, Taxonomy Editor)</td><td><code>gemini-embedding-001</code> (API)</td><td>768</td></tr>
+    <tr><td>Taxonomy Editor</td><td><code>all-MiniLM-L6-v2</code> (local, via <code>embeddings.json</code>)</td><td>384</td></tr>
+    <tr><td>Summary Viewer</td><td><code>gemini-embedding-001</code> (API)</td><td>768</td></tr>
   </table>
   <p>All embedding systems encode the taxonomy node <strong>description only</strong> for POV nodes.
   Cross-cutting nodes in the Taxonomy Editor additionally include POV interpretations.

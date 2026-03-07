@@ -4,13 +4,34 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
-import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { PinnedPanel } from './PinnedPanel';
+import { AttributeFilterPanel } from './AttributeFilterPanel';
 
 export function CrossCuttingTab() {
-  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth } = useTaxonomyStore();
+  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
+  const { width: attrPaneWidth, onMouseDown: onAttrPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-attr-filter-panel-width',
+    defaultWidth: 480,
+    minWidth: 320,
+    maxWidth: 900,
+  });
+  const showAttrFilterPanel = attributeFilter !== null;
+
+  // Grow/shrink window when Attribute Filter panel opens/closes
+  const prevShowAttrFilter = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowAttrFilter.current;
+    prevShowAttrFilter.current = showAttrFilterPanel;
+    const delta = attrPaneWidth + 4;
+    if (showAttrFilterPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showAttrFilterPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showAttrFilterPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const orderedIds = useMemo(
     () => (crossCutting ? crossCutting.nodes.map(n => n.id) : []),
@@ -69,7 +90,13 @@ export function CrossCuttingTab() {
           <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
         )}
       </div>
-      {pinnedStack.length > 0 && <PinnedPanel />}
+      {showAttrFilterPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onAttrPaneResize} />
+          <AttributeFilterPanel width={attrPaneWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showAttrFilterPanel && <PinnedPanel />}
     </div>
   );
 }

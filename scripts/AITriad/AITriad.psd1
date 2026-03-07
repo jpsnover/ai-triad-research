@@ -34,6 +34,7 @@
         'Compare-Taxonomy'
         'Get-Source'
         'Get-Summary'
+        'Invoke-AttributeExtraction'
     )
 
     # Aliases exported from this module

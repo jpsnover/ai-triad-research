@@ -12,6 +12,7 @@ import { NewNodeDialog } from './NewNodeDialog';
 import { PinnedPanel } from './PinnedPanel';
 import { SimilarSearchPanel } from './SimilarSearchPanel';
 import { AnalysisPanel } from './AnalysisPanel';
+import { AttributeFilterPanel } from './AttributeFilterPanel';
 
 interface PovTabProps {
   pov: Pov;
@@ -22,6 +23,7 @@ export function PovTab({ pov }: PovTabProps) {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
     runSimilarSearch, similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
+    attributeFilter,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -37,6 +39,12 @@ export function PovTab({ pov }: PovTabProps) {
     defaultWidth: 420,
     minWidth: 300,
     maxWidth: 800,
+  });
+  const { width: attrPaneWidth, onMouseDown: onAttrPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-attr-filter-panel-width',
+    defaultWidth: 480,
+    minWidth: 320,
+    maxWidth: 900,
   });
 
   const orderedIds = useMemo(
@@ -90,6 +98,7 @@ export function PovTab({ pov }: PovTabProps) {
 
   const showSimilarPanel = similarResults !== null || similarLoading || !!similarError;
   const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
+  const showAttrFilterPanel = attributeFilter !== null;
 
   // Grow/shrink window when Pane 3 opens/closes
   const prevShowSimilar = useRef(false);
@@ -117,6 +126,19 @@ export function PovTab({ pov }: PovTabProps) {
       window.electronAPI.shrinkWindow(delta);
     }
   }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grow/shrink window when Attribute Filter panel opens/closes
+  const prevShowAttrFilter = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowAttrFilter.current;
+    prevShowAttrFilter.current = showAttrFilterPanel;
+    const delta = attrPaneWidth + 4;
+    if (showAttrFilterPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showAttrFilterPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showAttrFilterPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-refresh similar search when selection changes while panel is open
   useEffect(() => {
@@ -162,7 +184,13 @@ export function PovTab({ pov }: PovTabProps) {
           <AnalysisPanel width={pane4Width} />
         </>
       )}
-      {pinnedStack.length > 0 && !showSimilarPanel && <PinnedPanel />}
+      {showAttrFilterPanel && !showSimilarPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onAttrPaneResize} />
+          <AttributeFilterPanel width={attrPaneWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showSimilarPanel && !showAttrFilterPanel && <PinnedPanel />}
       {showNewDialog && (
         <NewNodeDialog
           onConfirm={handleCreate}

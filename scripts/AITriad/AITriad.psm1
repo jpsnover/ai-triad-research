@@ -116,6 +116,7 @@ Export-ModuleMember -Function @(
     'Compare-Taxonomy'
     'Get-Source'
     'Get-Summary'
+    'Invoke-AttributeExtraction'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

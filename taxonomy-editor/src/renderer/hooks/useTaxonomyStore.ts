@@ -8,6 +8,7 @@ import type {
   ConflictFile,
   PovNode,
   CrossCuttingNode,
+  GraphAttributes,
   TabId,
   Pov,
   Category,
@@ -227,6 +228,10 @@ interface TaxonomyState {
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
+
+  attributeFilter: { field: string; value: string; results: { id: string; label: string; pov: string }[] } | null;
+  runAttributeFilter: (field: string, value: string) => void;
+  clearAttributeFilter: () => void;
 }
 
 export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
@@ -1094,4 +1099,50 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
     try { localStorage.setItem('taxonomy-editor-zoom', '100'); } catch { /* ignore */ }
     set({ zoomLevel: 100 });
   },
+
+  attributeFilter: null,
+
+  runAttributeFilter: (field, value) => {
+    const state = get();
+    const results: { id: string; label: string; pov: string }[] = [];
+    const normalizedValue = value.toLowerCase();
+
+    const matchAttr = (attrs: GraphAttributes | undefined, nodeId: string, nodeLabel: string, pov: string) => {
+      if (!attrs) return;
+      const raw = (attrs as Record<string, unknown>)[field];
+      if (raw == null) return;
+
+      if (Array.isArray(raw)) {
+        // For array fields (assumes, intellectual_lineage), match if any element contains the value
+        if (raw.some((v: string) => v.toLowerCase().includes(normalizedValue))) {
+          results.push({ id: nodeId, label: nodeLabel, pov });
+        }
+      } else {
+        // For string fields, check if any comma-separated token matches
+        const str = String(raw).toLowerCase();
+        const tokens = str.split(',').map(t => t.trim());
+        if (tokens.some(t => t === normalizedValue)) {
+          results.push({ id: nodeId, label: nodeLabel, pov });
+        }
+      }
+    };
+
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (!file) continue;
+      for (const node of file.nodes) {
+        matchAttr(node.graph_attributes, node.id, node.label, pov);
+      }
+    }
+
+    if (state.crossCutting) {
+      for (const node of state.crossCutting.nodes) {
+        matchAttr(node.graph_attributes, node.id, node.label, 'cross-cutting');
+      }
+    }
+
+    set({ attributeFilter: { field, value, results } });
+  },
+
+  clearAttributeFilter: () => set({ attributeFilter: null }),
 }));

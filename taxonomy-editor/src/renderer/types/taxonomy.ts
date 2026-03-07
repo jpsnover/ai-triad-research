@@ -4,6 +4,18 @@
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
 export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods';
 
+export interface GraphAttributes {
+  epistemic_type?: string;
+  rhetorical_strategy?: string;
+  assumes?: string[];
+  falsifiability?: string;
+  audience?: string;
+  emotional_register?: string;
+  policy_actionability?: string;
+  intellectual_lineage?: string[];
+  steelman_vulnerability?: string;
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -13,6 +25,7 @@ export interface PovNode {
   children: string[];
   cross_cutting_refs: string[];
   conflict_ids?: string[];
+  graph_attributes?: GraphAttributes;
 }
 
 export interface PovTaxonomyFile {
@@ -35,6 +48,7 @@ export interface CrossCuttingNode {
   };
   linked_nodes: string[];
   conflict_ids: string[];
+  graph_attributes?: GraphAttributes;
 }
 
 export interface CrossCuttingFile {

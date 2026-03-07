@@ -9,6 +9,7 @@ import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
+import { GraphAttributesPanel } from './GraphAttributesPanel';
 
 interface NodeDetailProps {
   pov: Pov;
@@ -20,7 +21,7 @@ interface NodeDetailProps {
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -177,6 +178,10 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
           />
         )}
       </div>
+
+      {node.graph_attributes && (
+        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} />
+      )}
 
       {showDelete && !readOnly && (
         <DeleteConfirmDialog

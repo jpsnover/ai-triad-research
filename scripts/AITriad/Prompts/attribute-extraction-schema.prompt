@@ -1,0 +1,32 @@
+OUTPUT SCHEMA:
+
+Return a JSON object mapping node IDs to their graph_attributes:
+
+{
+  "node_id_1": {
+    "epistemic_type": "empirical_claim",
+    "rhetorical_strategy": "appeal_to_evidence",
+    "assumes": [
+      "Specific assumption 1",
+      "Specific assumption 2"
+    ],
+    "falsifiability": "high",
+    "audience": "policymakers, technical_researchers",
+    "emotional_register": "measured",
+    "policy_actionability": "medium",
+    "intellectual_lineage": [
+      "Specific thinker or framework 1",
+      "Specific movement or landmark work 2"
+    ],
+    "steelman_vulnerability": "The strongest counterargument in 1-2 sentences."
+  },
+  "node_id_2": {
+    ...
+  }
+}
+
+CONSTRAINTS:
+  - The top-level keys MUST be the exact node IDs provided in the input.
+  - Every node in the input MUST have a corresponding entry in the output.
+  - All nine attribute fields are REQUIRED for every node.
+  - Return ONLY the JSON object. No markdown, no commentary.

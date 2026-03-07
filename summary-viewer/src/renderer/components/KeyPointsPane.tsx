@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import type { KeyPoint, PipelineSummary } from '../types/types';
+import type { KeyPoint, PipelineSummary, GraphAttributes } from '../types/types';
 
 const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: string }> = {
   accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
@@ -48,6 +48,103 @@ interface AggregatedUnmapped {
   'Accelerationist Interpretation'?: string;
   'Safetyist Interpretation'?: string;
   'Skeptic Interpretation'?: string;
+}
+
+const GA_LABELS: Record<string, string> = {
+  epistemic_type: 'Epistemic Type',
+  rhetorical_strategy: 'Rhetorical Strategy',
+  assumes: 'Assumptions',
+  falsifiability: 'Falsifiability',
+  audience: 'Audience',
+  emotional_register: 'Emotional Register',
+  policy_actionability: 'Policy Actionability',
+  intellectual_lineage: 'Intellectual Lineage',
+  steelman_vulnerability: 'Steelman Vulnerability',
+};
+
+const GA_BADGE_COLORS: Record<string, string> = {
+  normative_prescription: '#7c3aed', empirical_claim: '#2563eb', definitional: '#0891b2',
+  strategic_recommendation: '#059669', predictive: '#d97706', interpretive_lens: '#be185d',
+  high: '#16a34a', medium: '#ca8a04', low: '#dc2626',
+  urgent: '#dc2626', measured: '#2563eb', optimistic: '#16a34a', cautionary: '#d97706',
+  defiant: '#be185d', pragmatic: '#475569', alarmed: '#ef4444', dismissive: '#64748b',
+  aspirational: '#7c3aed',
+};
+
+function fmtVal(v: string) { return v.replace(/_/g, ' '); }
+
+function GaBadge({ value }: { value: string }) {
+  const c = GA_BADGE_COLORS[value] || '#475569';
+  return <span className="ga-sv-badge" style={{ borderColor: c, color: c }}>{fmtVal(value)}</span>;
+}
+
+function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
+  return (
+    <div className="ga-sv-grid">
+      {attrs.epistemic_type && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.epistemic_type}</span>
+          <span className="ga-sv-val"><GaBadge value={attrs.epistemic_type} /></span>
+        </div>
+      )}
+      {attrs.rhetorical_strategy && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.rhetorical_strategy}</span>
+          <span className="ga-sv-val">
+            {attrs.rhetorical_strategy.split(',').map(s => <GaBadge key={s.trim()} value={s.trim()} />)}
+          </span>
+        </div>
+      )}
+      {attrs.falsifiability && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.falsifiability}</span>
+          <span className="ga-sv-val"><GaBadge value={attrs.falsifiability} /></span>
+        </div>
+      )}
+      {attrs.audience && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.audience}</span>
+          <span className="ga-sv-val">
+            {attrs.audience.split(',').map(s => <GaBadge key={s.trim()} value={s.trim()} />)}
+          </span>
+        </div>
+      )}
+      {attrs.emotional_register && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.emotional_register}</span>
+          <span className="ga-sv-val"><GaBadge value={attrs.emotional_register} /></span>
+        </div>
+      )}
+      {attrs.policy_actionability && (
+        <div className="ga-sv-row">
+          <span className="ga-sv-label">{GA_LABELS.policy_actionability}</span>
+          <span className="ga-sv-val"><GaBadge value={attrs.policy_actionability} /></span>
+        </div>
+      )}
+      {attrs.assumes && attrs.assumes.length > 0 && (
+        <div className="ga-sv-row ga-sv-row-full">
+          <span className="ga-sv-label">{GA_LABELS.assumes}</span>
+          <ul className="ga-sv-list">
+            {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
+          </ul>
+        </div>
+      )}
+      {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
+        <div className="ga-sv-row ga-sv-row-full">
+          <span className="ga-sv-label">{GA_LABELS.intellectual_lineage}</span>
+          <ul className="ga-sv-list">
+            {attrs.intellectual_lineage.map((l, i) => <li key={i}>{l}</li>)}
+          </ul>
+        </div>
+      )}
+      {attrs.steelman_vulnerability && (
+        <div className="ga-sv-row ga-sv-row-full">
+          <span className="ga-sv-label">{GA_LABELS.steelman_vulnerability}</span>
+          <div className="ga-sv-steelman">{attrs.steelman_vulnerability}</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) {
@@ -192,7 +289,7 @@ interface FragmentGroup {
     index: number;
     keyPoint: KeyPoint;
     stance: string;
-    taxNode: { id: string; category: string; label: string; description: string } | null;
+    taxNode: { id: string; category: string; label: string; description: string; graph_attributes?: GraphAttributes } | null;
   }>;
 }
 
@@ -215,9 +312,19 @@ export default function KeyPointsPane() {
   const [claimsExpanded, setClaimsExpanded] = useState(true);
   const [unmappedExpanded, setUnmappedExpanded] = useState(true);
   const [visibleDescs, setVisibleDescs] = useState<Set<string>>(new Set());
+  const [visibleAttrs, setVisibleAttrs] = useState<Set<string>>(new Set());
 
   const toggleDesc = (key: string) => {
     setVisibleDescs(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAttrs = (key: string) => {
+    setVisibleAttrs(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -502,13 +609,29 @@ export default function KeyPointsPane() {
                         onClick={() => selectKeyPoint(gp.docId, pov, gp.index)}
                         onContextMenu={(e) => handleCardContextMenu(e, gp.keyPoint.taxonomy_node_id)}
                       >
-                        {taxNode && (
-                          <div className="kp-taxonomy">
-                            <span className="kp-taxonomy-id">{taxNode.id}</span>
-                            <span className="kp-taxonomy-label">{taxNode.label}</span>
-                            <div className="kp-taxonomy-desc">{taxNode.description}</div>
-                          </div>
-                        )}
+                        {taxNode && (() => {
+                          const attrKey = `pov-${gp.docId}-${pov}-${gp.index}`;
+                          const showAttrs = visibleAttrs.has(attrKey);
+                          return (
+                            <div className="kp-taxonomy">
+                              <span className="kp-taxonomy-id">{taxNode.id}</span>
+                              <span className="kp-taxonomy-label">{taxNode.label}</span>
+                              {taxNode.graph_attributes && (
+                                <button
+                                  className="kp-desc-toggle"
+                                  onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
+                                  title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
+                                >
+                                  {showAttrs ? '\u25B4' : '\u25BE'} attrs
+                                </button>
+                              )}
+                              <div className="kp-taxonomy-desc">{taxNode.description}</div>
+                              {showAttrs && taxNode.graph_attributes && (
+                                <GraphAttrBlock attrs={taxNode.graph_attributes} />
+                              )}
+                            </div>
+                          );
+                        })()}
                         {!taxNode && gp.keyPoint.taxonomy_node_id && (
                           <div className="kp-taxonomy">
                             <span className="kp-taxonomy-id">{gp.keyPoint.taxonomy_node_id}</span>
@@ -607,7 +730,9 @@ export default function KeyPointsPane() {
 
                                   {pt.taxNode && (() => {
                                     const descKey = `${dg.docId}-${pt.pov}-${pt.index}`;
+                                    const attrKey = `doc-${dg.docId}-${pt.pov}-${pt.index}`;
                                     const showDesc = visibleDescs.has(descKey);
+                                    const showAttrs = visibleAttrs.has(attrKey);
                                     return (
                                       <div className="kp-taxonomy">
                                         <span className="kp-taxonomy-id">{pt.taxNode.id}</span>
@@ -621,8 +746,20 @@ export default function KeyPointsPane() {
                                             {showDesc ? '\u25B4' : '\u25BE'} desc
                                           </button>
                                         )}
+                                        {pt.taxNode.graph_attributes && (
+                                          <button
+                                            className="kp-desc-toggle"
+                                            onClick={(e) => { e.stopPropagation(); toggleAttrs(attrKey); }}
+                                            title={showAttrs ? 'Hide graph attributes' : 'Show graph attributes'}
+                                          >
+                                            {showAttrs ? '\u25B4' : '\u25BE'} attrs
+                                          </button>
+                                        )}
                                         {showDesc && pt.taxNode.description && (
                                           <div className="kp-taxonomy-desc">{pt.taxNode.description}</div>
+                                        )}
+                                        {showAttrs && pt.taxNode.graph_attributes && (
+                                          <GraphAttrBlock attrs={pt.taxNode.graph_attributes} />
                                         )}
                                       </div>
                                     );

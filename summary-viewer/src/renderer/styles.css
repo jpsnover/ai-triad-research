@@ -1738,3 +1738,77 @@ body {
   color: var(--danger, #ef4444);
   font-size: 0.75rem;
 }
+
+/* ─── Graph Attributes (Summary Viewer) ──────────────── */
+
+.ga-sv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 4px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.ga-sv-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 4px;
+  align-items: baseline;
+  font-size: 0.75rem;
+}
+
+.ga-sv-row-full {
+  grid-template-columns: 1fr;
+}
+
+.ga-sv-label {
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+
+.ga-sv-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.ga-sv-badge {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1.5px solid;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background: transparent;
+}
+
+.ga-sv-list {
+  margin: 2px 0 0;
+  padding-left: 16px;
+  font-size: 0.73rem;
+  color: var(--text-primary, #1e293b);
+  line-height: 1.4;
+}
+
+.ga-sv-list li {
+  margin-bottom: 1px;
+}
+
+.ga-sv-steelman {
+  font-size: 0.73rem;
+  color: var(--text-primary, #1e293b);
+  line-height: 1.4;
+  padding: 4px 8px;
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 3px;
+  border-left: 3px solid var(--danger, #ef4444);
+  font-style: italic;
+}

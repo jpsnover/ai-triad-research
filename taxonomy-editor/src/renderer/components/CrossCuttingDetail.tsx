@@ -9,6 +9,7 @@ import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
+import { GraphAttributesPanel } from './GraphAttributesPanel';
 
 interface CrossCuttingDetailProps {
   node: CrossCuttingNode;
@@ -18,7 +19,7 @@ interface CrossCuttingDetailProps {
 }
 
 export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: CrossCuttingDetailProps) {
-  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds } = useTaxonomyStore();
+  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -198,6 +199,10 @@ export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: Cro
           />
         )}
       </div>
+
+      {node.graph_attributes && (
+        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} />
+      )}
 
       {showDelete && !readOnly && (
         <DeleteConfirmDialog

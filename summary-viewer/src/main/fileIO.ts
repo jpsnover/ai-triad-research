@@ -105,11 +105,24 @@ export function loadSummary(docId: string): PipelineSummary | null {
   return JSON.parse(raw);
 }
 
+export interface GraphAttributes {
+  epistemic_type?: string;
+  rhetorical_strategy?: string;
+  assumes?: string[];
+  falsifiability?: string;
+  audience?: string;
+  emotional_register?: string;
+  policy_actionability?: string;
+  intellectual_lineage?: string[];
+  steelman_vulnerability?: string;
+}
+
 export interface TaxonomyNode {
   id: string;
   category: string;
   label: string;
   description: string;
+  graph_attributes?: GraphAttributes;
 }
 
 export function getTaxonomyDirs(): string[] {
@@ -150,6 +163,7 @@ export function loadTaxonomy(): Record<string, TaxonomyNode> {
             category: node.category || '',
             label: node.label || '',
             description: node.description || '',
+            graph_attributes: node.graph_attributes || undefined,
           };
         }
       }

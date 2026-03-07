@@ -125,3 +125,66 @@ export function useResizableRightPanel(opts: RightPanelOptions) {
 
   return { width, onMouseDown };
 }
+
+/* ─── Vertical (row-resize) split panel ─────────────── */
+
+interface VerticalSplitOptions {
+  storageKey: string;
+  defaultHeight: number;
+  minHeight: number;
+  maxHeight: number;
+}
+
+function getStoredHeight(opts: VerticalSplitOptions): number {
+  try {
+    const stored = localStorage.getItem(opts.storageKey);
+    if (stored) {
+      const n = parseInt(stored, 10);
+      if (n >= opts.minHeight && n <= opts.maxHeight) return n;
+    }
+  } catch { /* ignore */ }
+  return opts.defaultHeight;
+}
+
+export function useResizableVerticalSplit(opts: VerticalSplitOptions) {
+  const [height, setHeight] = useState(() => getStoredHeight(opts));
+  const dragging = useRef(false);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    startY.current = e.clientY;
+    startHeight.current = height;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, [height]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const delta = e.clientY - startY.current;
+      const newHeight = Math.max(opts.minHeight, Math.min(opts.maxHeight, startHeight.current + delta));
+      setHeight(newHeight);
+    };
+
+    const onMouseUp = () => {
+      if (dragging.current) {
+        dragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        try { localStorage.setItem(opts.storageKey, String(height)); } catch { /* ignore */ }
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [height, opts.storageKey, opts.minHeight, opts.maxHeight]);
+
+  return { height, onMouseDown };
+}

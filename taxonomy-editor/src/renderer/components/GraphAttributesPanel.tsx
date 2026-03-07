@@ -1,0 +1,178 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useState } from 'react';
+import type { GraphAttributes } from '../types/taxonomy';
+
+interface GraphAttributesPanelProps {
+  attrs: GraphAttributes;
+  onBadgeClick?: (field: string, value: string) => void;
+}
+
+const LABEL_MAP: Record<string, string> = {
+  epistemic_type: 'Epistemic Type',
+  rhetorical_strategy: 'Rhetorical Strategy',
+  assumes: 'Assumptions',
+  falsifiability: 'Falsifiability',
+  audience: 'Audience',
+  emotional_register: 'Emotional Register',
+  policy_actionability: 'Policy Actionability',
+  intellectual_lineage: 'Intellectual Lineage',
+  steelman_vulnerability: 'Steelman Vulnerability',
+};
+
+const BADGE_COLORS: Record<string, string> = {
+  // epistemic_type
+  normative_prescription: '#7c3aed',
+  empirical_claim: '#2563eb',
+  definitional: '#0891b2',
+  strategic_recommendation: '#059669',
+  predictive: '#d97706',
+  interpretive_lens: '#be185d',
+  // falsifiability / policy_actionability
+  high: '#16a34a',
+  medium: '#ca8a04',
+  low: '#dc2626',
+  // emotional_register
+  urgent: '#dc2626',
+  measured: '#2563eb',
+  optimistic: '#16a34a',
+  cautionary: '#d97706',
+  defiant: '#be185d',
+  pragmatic: '#475569',
+  alarmed: '#ef4444',
+  dismissive: '#64748b',
+  aspirational: '#7c3aed',
+};
+
+function formatValue(val: string): string {
+  return val.replace(/_/g, ' ');
+}
+
+function Badge({ field, value, onClick }: { field: string; value: string; onClick?: (field: string, value: string) => void }) {
+  const color = BADGE_COLORS[value] || '#475569';
+  return (
+    <span
+      className={`ga-badge ${onClick ? 'ga-badge-clickable' : ''}`}
+      style={{ borderColor: color, color }}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(field, value); } : undefined}
+      title={onClick ? `Find all nodes with ${formatValue(field)} = ${formatValue(value)}` : undefined}
+    >
+      {formatValue(value)}
+    </span>
+  );
+}
+
+export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPanelProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="ga-panel">
+      <button
+        className="ga-toggle"
+        onClick={() => setOpen(!open)}
+        type="button"
+      >
+        <span className={`ga-chevron ${open ? 'ga-chevron-open' : ''}`}>&#9654;</span>
+        Graph Attributes
+      </button>
+      {open && (
+        <div className="ga-grid">
+          {/* Epistemic Type */}
+          {attrs.epistemic_type && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
+              <div className="ga-value"><Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} /></div>
+            </div>
+          )}
+
+          {/* Rhetorical Strategy */}
+          {attrs.rhetorical_strategy && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.rhetorical_strategy}</div>
+              <div className="ga-value">
+                {attrs.rhetorical_strategy.split(',').map((s) => (
+                  <Badge key={s.trim()} field="rhetorical_strategy" value={s.trim()} onClick={onBadgeClick} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Falsifiability */}
+          {attrs.falsifiability && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.falsifiability}</div>
+              <div className="ga-value"><Badge field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} /></div>
+            </div>
+          )}
+
+          {/* Audience */}
+          {attrs.audience && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.audience}</div>
+              <div className="ga-value">
+                {attrs.audience.split(',').map((s) => (
+                  <Badge key={s.trim()} field="audience" value={s.trim()} onClick={onBadgeClick} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Emotional Register */}
+          {attrs.emotional_register && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.emotional_register}</div>
+              <div className="ga-value"><Badge field="emotional_register" value={attrs.emotional_register} onClick={onBadgeClick} /></div>
+            </div>
+          )}
+
+          {/* Policy Actionability */}
+          {attrs.policy_actionability && (
+            <div className="ga-row">
+              <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
+              <div className="ga-value"><Badge field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} /></div>
+            </div>
+          )}
+
+          {/* Assumptions */}
+          {attrs.assumes && attrs.assumes.length > 0 && (
+            <div className="ga-row ga-row-full">
+              <div className="ga-label">{LABEL_MAP.assumes}</div>
+              <ul className="ga-list">
+                {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Intellectual Lineage */}
+          {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
+            <div className="ga-row ga-row-full">
+              <div className="ga-label">{LABEL_MAP.intellectual_lineage}</div>
+              <ul className="ga-list">
+                {attrs.intellectual_lineage.map((l, i) => (
+                  <li key={i}>
+                    <span
+                      className={onBadgeClick ? 'ga-lineage-clickable' : ''}
+                      onClick={onBadgeClick ? (e) => { e.stopPropagation(); onBadgeClick('intellectual_lineage', l); } : undefined}
+                      title={onBadgeClick ? `Find all nodes referencing "${l}"` : undefined}
+                    >
+                      {l}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Steelman Vulnerability */}
+          {attrs.steelman_vulnerability && (
+            <div className="ga-row ga-row-full">
+              <div className="ga-label">{LABEL_MAP.steelman_vulnerability}</div>
+              <div className="ga-steelman">{attrs.steelman_vulnerability}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
