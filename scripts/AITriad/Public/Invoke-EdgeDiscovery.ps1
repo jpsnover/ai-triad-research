@@ -295,7 +295,7 @@ $SchemaPrompt
                 -Model $Model `
                 -ApiKey $ResolvedKey `
                 -Temperature $Temperature `
-                -MaxTokens 8192 `
+                -MaxTokens 16384 `
                 -JsonMode `
                 -TimeoutSec 120
         } catch {
