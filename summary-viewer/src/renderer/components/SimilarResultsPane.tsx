@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import ApiKeyDialog from './ApiKeyDialog';

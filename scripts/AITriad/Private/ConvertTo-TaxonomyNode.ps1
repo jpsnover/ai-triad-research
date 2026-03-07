@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 # Converts a raw JSON node into a typed [TaxonomyNode] object.
 # The TaxonomyNode class is defined in AITriad.psm1.
 

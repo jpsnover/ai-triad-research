@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 // === Prompt Templates for Two-Stage Analysis Pipeline ===
 
 export const DEFAULT_STAGE1_PROMPT = `You are an expert policy analyst. Analyze the following document and segment it into distinct claims, assertions, or propositions that express a position on AI governance, safety, or development.

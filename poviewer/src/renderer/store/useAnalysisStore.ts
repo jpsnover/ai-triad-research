@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { create } from 'zustand';
 import type { AnalysisStatus, AnalysisResult, RawPoint, AnalysisProgressEvent } from '../types/analysis';
 import type { Point, Mapping, Source } from '../types/types';

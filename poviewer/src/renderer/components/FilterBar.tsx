@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useAppStore } from '../store/useAppStore';
 import type { PovCamp } from '../types/types';
 import { POV_LABELS } from '../types/types';

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 # Generates a unique doc-id by appending year + optional numeric suffix.
 
 function Resolve-DocId {

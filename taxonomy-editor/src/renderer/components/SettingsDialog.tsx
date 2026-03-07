@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ColorScheme, GeminiModel } from '../hooks/useTaxonomyStore';
 import { GEMINI_MODELS } from '../hooks/useTaxonomyStore';

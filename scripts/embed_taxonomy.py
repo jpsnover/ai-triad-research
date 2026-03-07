@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 embed_taxonomy.py — Generate and query semantic embeddings for the AI Triad taxonomy.
 

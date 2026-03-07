@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import type { TaxonomyNode, PovCamp } from '../types/types';

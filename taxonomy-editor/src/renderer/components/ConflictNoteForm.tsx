@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import type { ConflictNote } from '../types/taxonomy';
 import { todayISO } from '../utils/idGenerator';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';

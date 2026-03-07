@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { loadApiKey } from './apiKeyStore';
 
 const GEMINI_MODEL = 'gemini-embedding-001';

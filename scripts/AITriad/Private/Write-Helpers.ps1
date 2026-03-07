@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 # Shared console-output helpers used by multiple public functions.
 # Dot-sourced by AITriad.psm1 — do NOT export.
 

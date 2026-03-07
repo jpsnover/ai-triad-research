@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../types/taxonomy';

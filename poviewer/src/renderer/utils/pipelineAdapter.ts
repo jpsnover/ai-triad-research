@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import type { Source, Point, Mapping, PovCamp, Alignment, SourceType } from '../types/types';
 
 // === Pipeline Summary Types (mirroring the JSON schema from Invoke-POVSummary.ps1) ===

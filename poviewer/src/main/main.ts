@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { registerIpcHandlers, cleanupIpcHandlers } from './ipcHandlers';
