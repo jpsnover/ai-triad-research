@@ -28,6 +28,7 @@
         'Start-TaxonomyEditor'
         'Start-POViewer'
         'Start-SummaryViewer'
+        'Start-EdgeViewer'
         'Show-AITriadHelp'
         'Get-TaxonomyHealth'
         'Invoke-TaxonomyProposal'
@@ -47,6 +48,7 @@
         'TaxonomyEditor'
         'POViewer'
         'SummaryViewer'
+        'EdgeViewer'
         'Redo-Snapshots'
     )
 

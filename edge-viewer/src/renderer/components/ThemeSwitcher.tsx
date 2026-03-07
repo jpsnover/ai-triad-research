@@ -1,0 +1,32 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useStore } from '../store/useStore';
+import type { Theme } from '../types/types';
+
+const OPTIONS: { value: Theme; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'bkc', label: 'BKC' },
+  { value: 'system', label: 'Auto' },
+];
+
+export default function ThemeSwitcher() {
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
+
+  return (
+    <div className="theme-switcher">
+      {OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          className={`theme-btn${theme === opt.value ? ' active' : ''}`}
+          onClick={() => setTheme(opt.value)}
+          title={`${opt.label} theme`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}

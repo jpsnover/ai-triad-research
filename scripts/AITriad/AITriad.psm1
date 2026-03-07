@@ -89,6 +89,7 @@ Set-Alias -Name 'Import-Document'  -Value 'Import-AITriadDocument'  -Scope Globa
 Set-Alias -Name 'TaxonomyEditor'   -Value 'Start-TaxonomyEditor'   -Scope Global
 Set-Alias -Name 'POViewer'         -Value 'Start-POViewer'          -Scope Global
 Set-Alias -Name 'SummaryViewer'    -Value 'Start-SummaryViewer'     -Scope Global
+Set-Alias -Name 'EdgeViewer'       -Value 'Start-EdgeViewer'        -Scope Global
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ Export-ModuleMember -Function @(
     'Start-TaxonomyEditor'
     'Start-POViewer'
     'Start-SummaryViewer'
+    'Start-EdgeViewer'
     'Show-AITriadHelp'
     'Get-TaxonomyHealth'
     'Invoke-TaxonomyProposal'
@@ -126,5 +128,6 @@ Export-ModuleMember -Function @(
     'TaxonomyEditor'
     'POViewer'
     'SummaryViewer'
+    'EdgeViewer'
     'Redo-Snapshots'
 )

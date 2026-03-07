@@ -750,6 +750,20 @@ Start-POViewer
 Start-SummaryViewer
 </pre>
   </div>
+
+  <div class="func">
+    <h4>Start-EdgeViewer</h4>
+    <div class="synopsis">Launches the Edge Viewer &amp; Approver Electron app.</div>
+    <p>Features: browse, filter, and approve/reject AI-discovered edges between taxonomy nodes.
+    Filter by source/target POV, edge type, status, confidence threshold, and cross-POV only.
+    Supports bulk approve/reject of filtered edges. Resizable panels and text boxes.
+    Reads and writes <code>taxonomy/Origin/edges.json</code>.</p>
+    <p>Alias: <code>EdgeViewer</code></p>
+<pre>
+Start-EdgeViewer
+EdgeViewer
+</pre>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -783,6 +797,7 @@ Show-AITriadHelp -PassThru
     <tr><td><code>TaxonomyEditor</code></td><td><code>Start-TaxonomyEditor</code></td></tr>
     <tr><td><code>POViewer</code></td><td><code>Start-POViewer</code></td></tr>
     <tr><td><code>SummaryViewer</code></td><td><code>Start-SummaryViewer</code></td></tr>
+    <tr><td><code>EdgeViewer</code></td><td><code>Start-EdgeViewer</code></td></tr>
     <tr><td><code>Redo-Snapshots</code></td><td><code>Update-Snapshot</code></td></tr>
   </table>
 </div>
