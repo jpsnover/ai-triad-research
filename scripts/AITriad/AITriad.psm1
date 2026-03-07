@@ -117,6 +117,10 @@ Export-ModuleMember -Function @(
     'Get-Source'
     'Get-Summary'
     'Invoke-AttributeExtraction'
+    'Invoke-EdgeDiscovery'
+    'Get-GraphNode'
+    'Find-GraphPath'
+    'Approve-Edge'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

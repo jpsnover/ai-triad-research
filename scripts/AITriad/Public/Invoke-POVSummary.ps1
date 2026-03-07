@@ -316,8 +316,8 @@ $snapshotText
                     }
                 }
             }
-            $pointCount = if ($campData.key_points) { $campData.key_points.Count } else { 0 }
-            $nullNodes  = if ($campData.key_points) { ($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
+            $pointCount = if ($campData.key_points) { @($campData.key_points).Count } else { 0 }
+            $nullNodes  = if ($campData.key_points) { @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
             Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
         } else {
             Write-Warn "  $camp : no data returned — may not be relevant to this document"

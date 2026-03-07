@@ -254,7 +254,9 @@ function Show-AITriadHelp {
   Each node may have a <code>graph_attributes</code> object with AI-generated analytical
   metadata (epistemic type, rhetorical strategy, assumptions, falsifiability, audience,
   emotional register, policy actionability, intellectual lineage, and steelman vulnerability).
-  See <code>Invoke-AttributeExtraction</code>.</p>
+  See <code>Invoke-AttributeExtraction</code>. Nodes are connected by typed, directed edges
+  (SUPPORTS, CONTRADICTS, ASSUMES, TENSION_WITH, etc.) stored in <code>edges.json</code>.
+  See <code>Invoke-EdgeDiscovery</code>.</p>
   <table>
     <tr><th>POV</th><th>Prefix</th><th>Description</th></tr>
     <tr><td>Accelerationist</td><td><code>acc-</code></td><td>Pro-development, rapid AI progress</td></tr>
@@ -547,6 +549,90 @@ Invoke-TaxonomyProposal -HealthData $h
 Invoke-AttributeExtraction -DryRun
 Invoke-AttributeExtraction -POV accelerationist
 Invoke-AttributeExtraction -Force -Model gemini-2.5-pro
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Invoke-EdgeDiscovery</h4>
+    <div class="synopsis">Uses AI to discover typed edges between taxonomy nodes (Phase 2 of LLM Attribute Graphs).</div>
+    <p>For each taxonomy node, sends the node plus the full candidate list to an LLM,
+    which proposes typed, directed edges (SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS,
+    RESPONDS_TO, TENSION_WITH, CITES, INTERPRETS, SUPPORTED_BY) with confidence
+    scores and rationale. Proposed edges require human approval via <code>Approve-Edge</code>.
+    Stores results in <code>taxonomy/Origin/edges.json</code>.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only nodes from this POV. Default: all four</td></tr>
+      <tr><td><code>-NodeId</code></td><td>string</td><td>No</td><td>Process only this specific node ID</td></tr>
+      <tr><td><code>-StaleOnly</code></td><td>switch</td><td>No</td><td>Only process nodes marked STALE</td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
+      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
+      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first node prompt without calling AI</td></tr>
+      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-discover edges even for already-processed nodes</td></tr>
+    </table>
+<pre>
+Invoke-EdgeDiscovery -DryRun
+Invoke-EdgeDiscovery -POV accelerationist
+Invoke-EdgeDiscovery -StaleOnly
+Invoke-EdgeDiscovery -NodeId "acc-goals-001" -Force
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Get-GraphNode</h4>
+    <div class="synopsis">Retrieves a taxonomy node with its edges and graph attributes.</div>
+    <p>Loads a node by ID and returns it enriched with all inbound and outbound
+    edges from <code>edges.json</code>. Supports BFS traversal to a specified depth.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Id</code></td><td>string</td><td>Yes</td><td>Node ID (e.g., <code>acc-goals-001</code>)</td></tr>
+      <tr><td><code>-Depth</code></td><td>int</td><td>No</td><td>BFS traversal hops (0&ndash;5). Default: 1</td></tr>
+      <tr><td><code>-EdgeType</code></td><td>string</td><td>No</td><td>Filter to this edge type only</td></tr>
+      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Filter by edge status: proposed, approved, rejected</td></tr>
+    </table>
+<pre>
+Get-GraphNode -Id "saf-goals-001"
+Get-GraphNode -Id "acc-goals-001" -Depth 2 -EdgeType TENSION_WITH
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Find-GraphPath</h4>
+    <div class="synopsis">Finds shortest paths between two nodes in the taxonomy graph.</div>
+    <p>Uses BFS to find all shortest paths from one node to another,
+    traversing edges according to directionality rules.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-From</code></td><td>string</td><td>Yes</td><td>Source node ID</td></tr>
+      <tr><td><code>-To</code></td><td>string</td><td>Yes</td><td>Target node ID</td></tr>
+      <tr><td><code>-MaxHops</code></td><td>int</td><td>No</td><td>Max path length (1&ndash;10). Default: 4</td></tr>
+      <tr><td><code>-EdgeType</code></td><td>string</td><td>No</td><td>Only traverse this edge type</td></tr>
+      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Only traverse edges with this status</td></tr>
+    </table>
+<pre>
+Find-GraphPath -From "acc-goals-001" -To "saf-goals-001"
+Find-GraphPath -From "acc-goals-001" -To "skp-methods-003" -MaxHops 4
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Approve-Edge</h4>
+    <div class="synopsis">Approves or rejects proposed edges in the taxonomy graph.</div>
+    <p>Changes edge status in <code>edges.json</code> from 'proposed' to 'approved'
+    or 'rejected'. Supports individual edge operations or interactive review
+    of all proposed edges.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Index</code></td><td>int</td><td>No*</td><td>Zero-based edge index to approve/reject</td></tr>
+      <tr><td><code>-Approve</code></td><td>switch</td><td>No*</td><td>Set status to 'approved'</td></tr>
+      <tr><td><code>-Reject</code></td><td>switch</td><td>No*</td><td>Set status to 'rejected'</td></tr>
+      <tr><td><code>-Interactive</code></td><td>switch</td><td>No*</td><td>Review all proposed edges interactively</td></tr>
+    </table>
+<pre>
+Approve-Edge -Index 0 -Approve
+Approve-Edge -Index 5 -Reject
+Approve-Edge -Interactive
 </pre>
   </div>
 

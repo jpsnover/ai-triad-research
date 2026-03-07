@@ -1,0 +1,50 @@
+OUTPUT SCHEMA:
+
+Return a JSON object with the following structure:
+
+{
+  "source_node_id": "the-id-of-the-source-node",
+  "edges": [
+    {
+      "type": "TENSION_WITH",
+      "target": "saf-goals-001",
+      "bidirectional": true,
+      "confidence": 0.85,
+      "rationale": "Both nodes address AI development speed but from opposing priorities — one maximizes progress, the other maximizes caution.",
+      "strength": "strong"
+    },
+    {
+      "type": "ASSUMES",
+      "target": "cc-001",
+      "bidirectional": false,
+      "confidence": 0.90,
+      "rationale": "The source node's urgency depends entirely on AGI arriving within a near-term planning horizon, which is exactly what cc-001 debates.",
+      "strength": "strong"
+    },
+    {
+      "type": "SUPPORTS",
+      "target": "acc-data-003",
+      "bidirectional": false,
+      "confidence": 0.65,
+      "rationale": "The economic argument in the source provides indirect support for the data claims about market growth.",
+      "strength": "moderate",
+      "notes": "Indirect support — the causal link requires additional assumptions."
+    }
+  ],
+  "new_edge_types": [
+    {
+      "type": "EXAMPLE_NEW_TYPE",
+      "definition": "Clear definition of what this edge type means.",
+      "bidirectional": false
+    }
+  ]
+}
+
+CONSTRAINTS:
+  - "source_node_id" MUST exactly match the source node ID provided in the input.
+  - Each edge "target" MUST be a valid node ID from the candidate list.
+  - "type" must be from the vocabulary above or declared in "new_edge_types".
+  - "bidirectional" must be true for CONTRADICTS and TENSION_WITH, false for all others.
+  - "confidence" must be a number between 0.5 and 1.0. Do not propose edges below 0.5.
+  - "new_edge_types" is optional — include only if you are proposing a novel type.
+  - Return ONLY the JSON object. No markdown, no commentary.

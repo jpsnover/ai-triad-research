@@ -35,6 +35,10 @@
         'Get-Source'
         'Get-Summary'
         'Invoke-AttributeExtraction'
+        'Invoke-EdgeDiscovery'
+        'Get-GraphNode'
+        'Find-GraphPath'
+        'Approve-Edge'
     )
 
     # Aliases exported from this module
