@@ -42,4 +42,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openInTaxonomyEditor: (nodeId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('open-in-taxonomy-editor', nodeId),
+
+  onMenuConfigureApiKey: (callback: () => void): (() => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-configure-api-key', handler);
+    return () => { ipcRenderer.removeListener('menu-configure-api-key', handler); };
+  },
 });

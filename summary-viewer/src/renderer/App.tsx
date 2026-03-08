@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useResizablePanes } from './hooks/useResizablePanes';
 import { useStore } from './store/useStore';
 import ResizeHandle from './components/ResizeHandle';
@@ -10,6 +10,7 @@ import KeyPointsPane from './components/KeyPointsPane';
 import DocumentPane from './components/DocumentPane';
 import SimilarResultsPane from './components/SimilarResultsPane';
 import ErrorBoundary from './components/ErrorBoundary';
+import ApiKeyDialog from './components/ApiKeyDialog';
 
 function useThemeEffect() {
   const theme = useStore(s => s.theme);
@@ -38,12 +39,20 @@ export default function App() {
   const togglePane1 = useStore(s => s.togglePane1);
   const similarQuery = useStore(s => s.similarQuery);
   const showSimilar = similarQuery !== null;
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
 
   useEffect(() => {
     if (!loaded) {
       loadSources();
     }
   }, [loaded, loadSources]);
+
+  // Listen for Settings > Configure API Key menu click
+  useEffect(() => {
+    return window.electronAPI.onMenuConfigureApiKey(() => {
+      setShowApiKeyDialog(true);
+    });
+  }, []);
 
   // When pane 1 is hidden, redistribute its width proportionally to panes 2 and 3
   const effectiveWidths = useMemo(() => {
@@ -86,6 +95,13 @@ export default function App() {
       >
         {pane1Visible ? '\u25C0' : '\u25B6'}
       </button>
+
+      {showApiKeyDialog && (
+        <ApiKeyDialog
+          onClose={() => setShowApiKeyDialog(false)}
+          onSaved={() => setShowApiKeyDialog(false)}
+        />
+      )}
     </div>
   );
 }

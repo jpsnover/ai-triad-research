@@ -48,6 +48,19 @@ function createWindow(): void {
       ],
     },
     {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Configure API Key\u2026',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu-configure-api-key');
+            }
+          },
+        },
+      ],
+    },
+    {
       label: 'View',
       submenu: [
         {
