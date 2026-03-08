@@ -280,16 +280,21 @@ $SchemaPrompt
         Write-Host ''
         Write-Host '  Referenced Nodes:' -ForegroundColor Cyan
         foreach ($Ref in @($Response.referenced_nodes)) {
-            $PovColor = switch ($Ref.pov) {
+            # Guard against missing properties (LLM response format varies)
+            $RefPov   = if ($Ref.PSObject.Properties['pov'])   { $Ref.pov }   else { '' }
+            $RefId    = if ($Ref.PSObject.Properties['id'])    { $Ref.id }    else { '?' }
+            $RefLabel = if ($Ref.PSObject.Properties['label']) { $Ref.label } else { '' }
+
+            $PovColor = switch ($RefPov) {
                 'accelerationist' { 'Blue' }
                 'safetyist'       { 'Green' }
                 'skeptic'         { 'Yellow' }
                 'cross-cutting'   { 'Magenta' }
                 default           { 'Gray' }
             }
-            Write-Host "    [$($Ref.pov)]" -NoNewline -ForegroundColor $PovColor
-            Write-Host " $($Ref.id)" -NoNewline -ForegroundColor White
-            Write-Host " — $($Ref.label)" -ForegroundColor DarkGray
+            Write-Host "    [$RefPov]" -NoNewline -ForegroundColor $PovColor
+            Write-Host " $RefId" -NoNewline -ForegroundColor White
+            Write-Host " — $RefLabel" -ForegroundColor DarkGray
             if ($Ref.PSObject.Properties['relevance'] -and $Ref.relevance) {
                 Write-Host "      $($Ref.relevance)" -ForegroundColor Gray
             }
@@ -303,7 +308,8 @@ $SchemaPrompt
             Write-Host ''
             Write-Host '  Paths Traced:' -ForegroundColor Cyan
             foreach ($Path in $Paths) {
-                Write-Host "    $($Path.description)" -ForegroundColor White
+                $PathDesc = if ($Path.PSObject.Properties['description']) { $Path.description } else { '' }
+                Write-Host "    $PathDesc" -ForegroundColor White
                 if ($Path.PSObject.Properties['nodes'] -and $Path.nodes) {
                     $NodeIds = @($Path.nodes)
                     $EdgeTypes = if ($Path.PSObject.Properties['edge_types']) { @($Path.edge_types) } else { @() }
