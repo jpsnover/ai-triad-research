@@ -175,6 +175,11 @@ body {
   flex-shrink: 0;
 }
 
+/* Leave room for the fixed pane1-toggle button in the first pane */
+.pane:first-child > .pane-header {
+  padding-left: 40px;
+}
+
 .pane-header h2 {
   font-size: var(--font-size-lg);
   font-weight: 600;
