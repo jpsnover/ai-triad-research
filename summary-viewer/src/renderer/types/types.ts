@@ -12,6 +12,8 @@ export interface SourceInfo {
   url: string | null;
   authors: string[];
   dateIngested: string;
+  importTime: string;
+  sourceTime: string;
   povTags: string[];
   topicTags: string[];
   oneLiner: string;

@@ -17,6 +17,8 @@ export interface DiscoveredSource {
   url: string | null;
   authors: string[];
   dateIngested: string;
+  importTime: string;
+  sourceTime: string;
   povTags: string[];
   topicTags: string[];
   oneLiner: string;
@@ -85,6 +87,8 @@ export function discoverSources(): DiscoveredSource[] {
         url: meta.url || null,
         authors: meta.authors || [],
         dateIngested: meta.date_ingested || '',
+        importTime: meta.import_time || meta.date_ingested || '',
+        sourceTime: meta.source_time || meta.date_published || '',
         povTags: meta.pov_tags || [],
         topicTags: meta.topic_tags || [],
         oneLiner: meta.one_liner || '',

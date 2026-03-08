@@ -22,6 +22,8 @@ function New-Metadata {
         authors            = $Author
         date_published     = $null
         date_ingested      = (Get-Date -Format 'yyyy-MM-dd')
+        import_time        = (Get-Date -Format 'o')
+        source_time        = $null
         source_type        = $SourceType
         pov_tags           = $PovTag
         topic_tags         = $TopicTag

@@ -300,6 +300,61 @@ body {
   border-color: var(--color-acc);
 }
 
+/* === Source Sort Bar === */
+.source-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px var(--pane-padding);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.source-sort-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.source-sort-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-main);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.source-sort-btn {
+  background: none;
+  border: none;
+  padding: 3px 8px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+}
+
+.source-sort-btn:hover {
+  color: var(--text-secondary);
+}
+
+.source-sort-btn.active {
+  background: var(--bg-pane);
+  color: var(--text-bright);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.source-date {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.source-dates {
+  min-height: 0;
+}
+
 /* === Select All Row === */
 .select-all-row {
   display: flex;
@@ -855,6 +910,7 @@ body {
 .unmapped-actions {
   position: relative;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .unmapped-menu-btn {

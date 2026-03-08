@@ -311,8 +311,11 @@ function Import-AITriadDocument {
             -TopicTag    $TopicTags
 
         if ($null -ne $AiMeta) {
-            if ($AiMeta.date_published) { $Metadata['date_published'] = $AiMeta.date_published }
-            if ($AiMeta.one_liner)      { $Metadata['one_liner']      = $AiMeta.one_liner }
+            if ($AiMeta.date_published) {
+                $Metadata['date_published'] = $AiMeta.date_published
+                $Metadata['source_time']    = $AiMeta.date_published
+            }
+            if ($AiMeta.one_liner) { $Metadata['one_liner'] = $AiMeta.one_liner }
         }
 
         $MetaPath = Join-Path $DocDir 'metadata.json'

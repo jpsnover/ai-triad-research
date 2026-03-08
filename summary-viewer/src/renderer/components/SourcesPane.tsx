@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import type { Theme } from '../types/types';
+import type { Theme, SourceInfo } from '../types/types';
+
+type SortField = 'name' | 'importTime' | 'sourceTime';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
@@ -72,11 +74,41 @@ function TaxonomyDirSwitcher() {
   );
 }
 
+function formatDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function sortSources(sources: SourceInfo[], field: SortField): SourceInfo[] {
+  return [...sources].sort((a, b) => {
+    switch (field) {
+      case 'name':
+        return a.title.localeCompare(b.title);
+      case 'importTime':
+        return (b.importTime || '').localeCompare(a.importTime || '');
+      case 'sourceTime':
+        return (b.sourceTime || '').localeCompare(a.sourceTime || '');
+    }
+  });
+}
+
 export default function SourcesPane() {
   const sources = useStore(s => s.sources);
   const selectedSourceIds = useStore(s => s.selectedSourceIds);
   const toggleSource = useStore(s => s.toggleSource);
   const toggleAll = useStore(s => s.toggleAll);
+  const [sortField, setSortField] = useState<SortField>(() => {
+    return (localStorage.getItem('summaryviewer-sort') as SortField) || 'name';
+  });
+
+  const handleSortChange = useCallback((field: SortField) => {
+    setSortField(field);
+    localStorage.setItem('summaryviewer-sort', field);
+  }, []);
+
+  const sorted = useMemo(() => sortSources(sources, sortField), [sources, sortField]);
 
   const allSelected = sources.length > 0 && sources.every(s => selectedSourceIds.has(s.id));
   const someSelected = sources.some(s => selectedSourceIds.has(s.id));
@@ -88,6 +120,29 @@ export default function SourcesPane() {
         <ThemeSwitcher />
       </div>
       <TaxonomyDirSwitcher />
+      <div className="source-sort-bar">
+        <label className="source-sort-label">Sort:</label>
+        <div className="source-sort-toggle">
+          <button
+            className={`source-sort-btn${sortField === 'name' ? ' active' : ''}`}
+            onClick={() => handleSortChange('name')}
+          >
+            Name
+          </button>
+          <button
+            className={`source-sort-btn${sortField === 'importTime' ? ' active' : ''}`}
+            onClick={() => handleSortChange('importTime')}
+          >
+            Imported
+          </button>
+          <button
+            className={`source-sort-btn${sortField === 'sourceTime' ? ' active' : ''}`}
+            onClick={() => handleSortChange('sourceTime')}
+          >
+            Published
+          </button>
+        </div>
+      </div>
       <div className="pane-body">
         <label className="select-all-row">
           <input
@@ -102,7 +157,7 @@ export default function SourcesPane() {
         </label>
 
         <ul className="source-list">
-          {sources.map(source => (
+          {sorted.map(source => (
             <li
               key={source.id}
               className={`source-item${selectedSourceIds.has(source.id) ? ' selected' : ''}`}
@@ -115,6 +170,14 @@ export default function SourcesPane() {
                 />
                 <div className="source-info">
                   <div className="source-title">{source.title}</div>
+                  <div className="source-dates">
+                    {sortField === 'importTime' && source.importTime && (
+                      <span className="source-date">imported {formatDate(source.importTime)}</span>
+                    )}
+                    {sortField === 'sourceTime' && source.sourceTime && (
+                      <span className="source-date">published {formatDate(source.sourceTime)}</span>
+                    )}
+                  </div>
                   {source.povTags.length > 0 && (
                     <div className="source-tags">
                       {source.povTags.map(tag => (
