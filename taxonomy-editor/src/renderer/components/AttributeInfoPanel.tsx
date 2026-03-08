@@ -1,0 +1,117 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { RHETORICAL_STRATEGIES } from '../data/rhetoricalStrategyInfo';
+import { EPISTEMIC_TYPES } from '../data/epistemicTypeInfo';
+import { EMOTIONAL_REGISTERS } from '../data/emotionalRegisterInfo';
+import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import type { AttributeInfo } from '../data/epistemicTypeInfo';
+
+interface AttributeInfoPanelProps {
+  width?: number;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  rhetorical_strategy: 'Rhetorical Strategy',
+  epistemic_type: 'Epistemic Type',
+  emotional_register: 'Emotional Register',
+  intellectual_lineage: 'Intellectual Lineage',
+};
+
+const DATA_SOURCES: Record<string, Record<string, AttributeInfo>> = {
+  rhetorical_strategy: RHETORICAL_STRATEGIES,
+  epistemic_type: EPISTEMIC_TYPES,
+  emotional_register: EMOTIONAL_REGISTERS,
+  intellectual_lineage: INTELLECTUAL_LINEAGES,
+};
+
+function formatValue(val: string): string {
+  return val.replace(/_/g, ' ');
+}
+
+export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
+  const { attributeInfo, clearAttributeInfo, runAttributeFilter } = useTaxonomyStore();
+
+  if (!attributeInfo) return null;
+
+  const { field, value } = attributeInfo;
+  const dataSource = DATA_SOURCES[field];
+  const info = dataSource?.[value] ?? null;
+  const fieldLabel = FIELD_LABELS[field] || formatValue(field);
+
+  const handleFindNodes = () => {
+    runAttributeFilter(field, value);
+  };
+
+  return (
+    <div className="strategy-info-panel" style={width ? { width, minWidth: 320 } : undefined}>
+      <div className="strategy-info-header">
+        <div>
+          <div className="strategy-info-field-label">{fieldLabel}</div>
+          <h3 className="strategy-info-title">
+            {info ? info.label : formatValue(value)}
+          </h3>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={clearAttributeInfo}>
+          Close
+        </button>
+      </div>
+
+      {info ? (
+        <div className="strategy-info-body">
+          <div className="strategy-info-section">
+            <div className="strategy-info-label">Description</div>
+            <p className="strategy-info-text">{info.summary}</p>
+          </div>
+
+          <div className="strategy-info-section">
+            <div className="strategy-info-label">Example</div>
+            <p className="strategy-info-text strategy-info-example">{info.example}</p>
+          </div>
+
+          <div className="strategy-info-section">
+            <div className="strategy-info-label">Frequency</div>
+            <p className="strategy-info-text">{info.frequency}</p>
+          </div>
+
+          {info.links && info.links.length > 0 && (
+            <div className="strategy-info-section">
+              <div className="strategy-info-label">Learn More</div>
+              <ul className="strategy-info-links">
+                {info.links.map((link, i) => (
+                  <li key={i}>
+                    <button
+                      className="strategy-info-link"
+                      onClick={() => window.electronAPI.openExternal(link.url)}
+                      title={link.url}
+                    >
+                      {link.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="strategy-info-actions">
+            <button className="btn btn-sm" onClick={handleFindNodes}>
+              Find nodes with this {fieldLabel.toLowerCase()}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="strategy-info-body">
+          <p className="strategy-info-text">
+            No description available for <strong>{formatValue(value)}</strong>.
+          </p>
+          <div className="strategy-info-actions">
+            <button className="btn btn-sm" onClick={handleFindNodes}>
+              Find nodes with this value
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

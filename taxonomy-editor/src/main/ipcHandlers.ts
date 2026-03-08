@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ipcMain } from 'electron';
+import { ipcMain, shell } from 'electron';
 import {
   readTaxonomyFile,
   writeTaxonomyFile,
@@ -80,5 +80,12 @@ export function registerIpcHandlers(): void {
         event.sender.send('generate-text-progress', progress);
       }),
     };
+  });
+
+  ipcMain.handle('open-external', (_event, url: string) => {
+    // Only allow http/https URLs
+    if (/^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
   });
 }

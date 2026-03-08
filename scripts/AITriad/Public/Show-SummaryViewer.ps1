@@ -1,19 +1,19 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Start-POViewer {
+function Show-SummaryViewer {
     <#
     .SYNOPSIS
-        Launch the PO Viewer Electron app.
+        Launch the Summary Viewer Electron app.
     .DESCRIPTION
-        Runs 'npm run dev' inside the poviewer directory.
+        Runs 'npm run dev' inside the summary-viewer directory.
     .EXAMPLE
-        Start-POViewer
-        POViewer
+        Show-SummaryViewer
+        SummaryViewer
     #>
     [CmdletBinding()]
     param()
-    $AppDir = Join-Path $script:RepoRoot 'poviewer'
+    $AppDir = Join-Path $script:RepoRoot 'summary-viewer'
     Push-Location $AppDir
     try { npm run dev }
     finally { Pop-Location }

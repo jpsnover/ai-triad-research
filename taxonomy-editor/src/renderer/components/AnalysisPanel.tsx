@@ -4,6 +4,7 @@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 
 interface AnalysisPanelProps {
   width?: number;
@@ -113,7 +114,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
       )}
 
       {analysisError && (
-        <div className="search-error">{analysisError}</div>
+        <ApiKeyErrorMessage error={analysisError} />
       )}
 
       {analysisResult && (

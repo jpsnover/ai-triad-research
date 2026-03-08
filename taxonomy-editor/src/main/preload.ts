@@ -72,4 +72,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   shrinkWindow: (deltaWidth: number): Promise<void> =>
     ipcRenderer.invoke('shrink-window', deltaWidth),
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
 });

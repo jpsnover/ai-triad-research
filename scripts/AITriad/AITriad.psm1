@@ -25,6 +25,7 @@ class TaxonomyNode {
     [PSObject]$Interpretations
     [string[]]$LinkedNodes
     [double]$Score
+    [PSObject]$GraphAttributes
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,10 +87,10 @@ if ($script:TaxonomyData.Count -eq 0) {
 # Backward-compatibility & convenience aliases
 # ─────────────────────────────────────────────────────────────────────────────
 Set-Alias -Name 'Import-Document'  -Value 'Import-AITriadDocument'  -Scope Global
-Set-Alias -Name 'TaxonomyEditor'   -Value 'Start-TaxonomyEditor'   -Scope Global
-Set-Alias -Name 'POViewer'         -Value 'Start-POViewer'          -Scope Global
-Set-Alias -Name 'SummaryViewer'    -Value 'Start-SummaryViewer'     -Scope Global
-Set-Alias -Name 'EdgeViewer'       -Value 'Start-EdgeViewer'        -Scope Global
+Set-Alias -Name 'TaxonomyEditor'   -Value 'Show-TaxonomyEditor'    -Scope Global
+Set-Alias -Name 'POViewer'         -Value 'Show-POViewer'           -Scope Global
+Set-Alias -Name 'SummaryViewer'    -Value 'Show-SummaryViewer'      -Scope Global
+Set-Alias -Name 'EdgeViewer'       -Value 'Show-EdgeViewer'         -Scope Global
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,10 +109,10 @@ Export-ModuleMember -Function @(
     'Invoke-PIIAudit'
     'ConvertTo-GeneralTaxonomy'
     'Update-Snapshot'
-    'Start-TaxonomyEditor'
-    'Start-POViewer'
-    'Start-SummaryViewer'
-    'Start-EdgeViewer'
+    'Show-TaxonomyEditor'
+    'Show-POViewer'
+    'Show-SummaryViewer'
+    'Show-EdgeViewer'
     'Show-AITriadHelp'
     'Get-TaxonomyHealth'
     'Invoke-TaxonomyProposal'
@@ -123,6 +124,8 @@ Export-ModuleMember -Function @(
     'Get-GraphNode'
     'Find-GraphPath'
     'Approve-Edge'
+    'Get-Edge'
+    'Set-Edge'
     'Invoke-GraphQuery'
     'Get-ConflictEvolution'
     'Export-TaxonomyToGraph'

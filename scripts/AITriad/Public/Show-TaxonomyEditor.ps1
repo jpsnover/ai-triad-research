@@ -1,19 +1,19 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Start-SummaryViewer {
+function Show-TaxonomyEditor {
     <#
     .SYNOPSIS
-        Launch the Summary Viewer Electron app.
+        Launch the Taxonomy Editor Electron app.
     .DESCRIPTION
-        Runs 'npm run dev' inside the summary-viewer directory.
+        Runs 'npm run dev' inside the taxonomy-editor directory.
     .EXAMPLE
-        Start-SummaryViewer
-        SummaryViewer
+        Show-TaxonomyEditor
+        TaxonomyEditor
     #>
     [CmdletBinding()]
     param()
-    $AppDir = Join-Path $script:RepoRoot 'summary-viewer'
+    $AppDir = Join-Path $script:RepoRoot 'taxonomy-editor'
     Push-Location $AppDir
     try { npm run dev }
     finally { Pop-Location }

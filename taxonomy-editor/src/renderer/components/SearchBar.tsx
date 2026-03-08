@@ -6,6 +6,7 @@ import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 import { ApiKeyDialog } from './ApiKeyDialog';
+import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 
 interface SearchResult {
   id: string;
@@ -456,7 +457,7 @@ export function SearchBar() {
           </div>
 
           {embeddingError && (
-            <div className="search-error">{embeddingError}</div>
+            <ApiKeyErrorMessage error={embeddingError} />
           )}
 
           {showResults && results.length > 0 && (

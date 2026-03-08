@@ -32,5 +32,10 @@ function ConvertTo-TaxonomyNode {
         $Obj.LinkedNodes     = @($Node.linked_nodes)
     }
 
+    # Graph attributes (from Invoke-AttributeExtraction)
+    if ($null -ne $Node.PSObject.Properties['graph_attributes']) {
+        $Obj.GraphAttributes = $Node.graph_attributes
+    }
+
     $Obj
 }

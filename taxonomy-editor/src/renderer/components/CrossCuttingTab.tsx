@@ -8,9 +8,10 @@ import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizable
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { PinnedPanel } from './PinnedPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
+import { AttributeInfoPanel } from './AttributeInfoPanel';
 
 export function CrossCuttingTab() {
-  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter } = useTaxonomyStore();
+  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter, attributeInfo } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: attrPaneWidth, onMouseDown: onAttrPaneResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-attr-filter-panel-width',
@@ -18,7 +19,19 @@ export function CrossCuttingTab() {
     minWidth: 320,
     maxWidth: 900,
   });
+  const { width: infoPaneWidth, onMouseDown: onInfoPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-attr-info-panel-width',
+    defaultWidth: 400,
+    minWidth: 300,
+    maxWidth: 700,
+  });
   const showAttrFilterPanel = attributeFilter !== null;
+  const showInfoPanel = attributeInfo !== null;
+
+  // Determine where info panel renders
+  const hasPane3 = showAttrFilterPanel;
+  const infoIsPane4 = showInfoPanel && hasPane3;
+  const infoIsPane3 = showInfoPanel && !hasPane3;
 
   // Grow/shrink window when Attribute Filter panel opens/closes
   const prevShowAttrFilter = useRef(false);
@@ -32,6 +45,19 @@ export function CrossCuttingTab() {
       window.electronAPI.shrinkWindow(delta);
     }
   }, [showAttrFilterPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grow/shrink window when Info panel opens/closes
+  const prevShowInfo = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowInfo.current;
+    prevShowInfo.current = showInfoPanel;
+    const delta = infoPaneWidth + 4;
+    if (showInfoPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showInfoPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showInfoPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const orderedIds = useMemo(
     () => (crossCutting ? crossCutting.nodes.map(n => n.id) : []),
@@ -96,7 +122,20 @@ export function CrossCuttingTab() {
           <AttributeFilterPanel width={attrPaneWidth} />
         </>
       )}
-      {pinnedStack.length > 0 && !showAttrFilterPanel && <PinnedPanel />}
+      {/* Info Panel: renders as Pane 3 or Pane 4 depending on context */}
+      {infoIsPane3 && (
+        <>
+          <div className="resize-handle" onMouseDown={onInfoPaneResize} />
+          <AttributeInfoPanel width={infoPaneWidth} />
+        </>
+      )}
+      {infoIsPane4 && (
+        <>
+          <div className="resize-handle" onMouseDown={onInfoPaneResize} />
+          <AttributeInfoPanel width={infoPaneWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showAttrFilterPanel && !showInfoPanel && <PinnedPanel />}
     </div>
   );
 }

@@ -232,6 +232,10 @@ interface TaxonomyState {
   attributeFilter: { field: string; value: string; results: { id: string; label: string; pov: string }[] } | null;
   runAttributeFilter: (field: string, value: string) => void;
   clearAttributeFilter: () => void;
+
+  attributeInfo: { field: string; value: string } | null;
+  showAttributeInfo: (field: string, value: string) => void;
+  clearAttributeInfo: () => void;
 }
 
 export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
@@ -1145,4 +1149,8 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
   },
 
   clearAttributeFilter: () => set({ attributeFilter: null }),
+
+  attributeInfo: null,
+  showAttributeInfo: (field, value) => set({ attributeInfo: { field, value } }),
+  clearAttributeInfo: () => set({ attributeInfo: null }),
 }));

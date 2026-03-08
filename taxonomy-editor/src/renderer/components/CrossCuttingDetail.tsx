@@ -19,7 +19,7 @@ interface CrossCuttingDetailProps {
 }
 
 export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: CrossCuttingDetailProps) {
-  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter } = useTaxonomyStore();
+  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -201,7 +201,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: Cro
       </div>
 
       {node.graph_attributes && (
-        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} />
+        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
       )}
 
       {showDelete && !readOnly && (

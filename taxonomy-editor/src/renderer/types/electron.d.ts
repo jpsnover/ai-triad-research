@@ -22,6 +22,7 @@ export interface ElectronAPI {
   onFocusNode: (callback: (nodeId: string) => void) => () => void;
   growWindow: (deltaWidth: number) => Promise<void>;
   shrinkWindow: (deltaWidth: number) => Promise<void>;
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {

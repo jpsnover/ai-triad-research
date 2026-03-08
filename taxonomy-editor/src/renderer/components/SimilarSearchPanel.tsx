@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
 type SortDir = 'asc' | 'desc';
@@ -242,7 +243,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
       )}
 
       {similarError && (
-        <div className="search-error">{similarError}</div>
+        <ApiKeyErrorMessage error={similarError} />
       )}
 
       {similarResults !== null && !similarLoading && (

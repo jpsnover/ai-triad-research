@@ -184,6 +184,18 @@ function Show-AITriadHelp {
     color: #0f3460;
   }
 
+  /* Back to contents link */
+  .back-to-top {
+    display: block;
+    text-align: right;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e1e4e8;
+    font-size: 0.85rem;
+  }
+  .back-to-top a { color: #0f3460; text-decoration: none; }
+  .back-to-top a:hover { text-decoration: underline; }
+
   /* Footer */
   .footer {
     text-align: center;
@@ -212,7 +224,7 @@ function Show-AITriadHelp {
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- TABLE OF CONTENTS                                                     -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="toc">
+<div class="toc" id="contents">
   <h2>Contents</h2>
   <ul>
     <li><a href="#overview">Module Overview</a></li>
@@ -223,6 +235,7 @@ function Show-AITriadHelp {
     <li><a href="#analysis">Analysis</a></li>
     <li><a href="#utilities">Utilities</a></li>
     <li><a href="#launchers">App Launchers</a></li>
+    <li><a href="#attribute-graph">LLM Attribute Graph</a></li>
     <li><a href="#graphdb">Graph Database (Neo4j)</a></li>
     <li><a href="#help">Help</a></li>
     <li><a href="#aliases">Aliases</a></li>
@@ -265,6 +278,7 @@ function Show-AITriadHelp {
     <tr><td>Skeptic</td><td><code>skp-</code></td><td>Questioning AI hype and capabilities</td></tr>
     <tr><td>Cross-cutting</td><td><code>cc-</code></td><td>Issues spanning multiple POVs</td></tr>
   </table>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -288,6 +302,7 @@ Invoke-BatchSummary -DryRun
 # Open the help page you are reading now
 Show-AITriadHelp
 </pre>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -378,6 +393,7 @@ ConvertTo-GeneralTaxonomy -DryRun
 ConvertTo-GeneralTaxonomy -Model claude-sonnet-4-5 -Temperature 0.4
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -408,6 +424,7 @@ Import-AITriadDocument -Inbox
 Import-AITriadDocument -File './paper.pdf' -Pov safetyist -Model claude-sonnet-4-5 -Temperature 0.3
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -454,6 +471,7 @@ Invoke-BatchSummary -ForceAll -MaxConcurrent 3
 Invoke-BatchSummary -DryRun
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -638,6 +656,70 @@ Approve-Edge -Interactive
   </div>
 
   <div class="func">
+    <h4>Get-Edge</h4>
+    <div class="synopsis">Lists and filters edges in the taxonomy graph with rich wildcard support.</div>
+    <p>Reads <code>edges.json</code> and returns edges matching the specified criteria.
+    All string filters support wildcards. Multiple filters are AND-combined.
+    With no parameters, returns all edges sorted by confidence descending.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Source</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the source node ID</td></tr>
+      <tr><td><code>-Target</code></td><td>string</td><td>No</td><td>Wildcard pattern matched against the target node ID</td></tr>
+      <tr><td><code>-NodeId</code></td><td>string</td><td>No</td><td>Wildcard matched against either source or target node ID</td></tr>
+      <tr><td><code>-Type</code></td><td>string</td><td>No</td><td>Wildcard matched against edge type (e.g., <code>SUPPORTS</code>, <code>TENS*</code>)</td></tr>
+      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Edge approval status: proposed, approved, rejected</td></tr>
+      <tr><td><code>-MinConfidence</code></td><td>double</td><td>No</td><td>Minimum confidence threshold (0.0&ndash;1.0). Default: 0.0</td></tr>
+      <tr><td><code>-MaxConfidence</code></td><td>double</td><td>No</td><td>Maximum confidence threshold (0.0&ndash;1.0). Default: 1.0</td></tr>
+      <tr><td><code>-Bidirectional</code></td><td>bool</td><td>No</td><td>Filter to bidirectional (<code>$true</code>) or directional (<code>$false</code>) edges</td></tr>
+      <tr><td><code>-CrossPov</code></td><td>bool</td><td>No</td><td>Filter to cross-POV (<code>$true</code>) or same-POV (<code>$false</code>) edges</td></tr>
+      <tr><td><code>-Strength</code></td><td>string</td><td>No</td><td>Wildcard matched against strength (strong, moderate, weak)</td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>Wildcard matched against the discovering AI model</td></tr>
+      <tr><td><code>-Rationale</code></td><td>string</td><td>No</td><td>Wildcard matched against the rationale text</td></tr>
+      <tr><td><code>-SourcePov</code></td><td>string</td><td>No</td><td>Filter to edges whose source node belongs to this POV</td></tr>
+      <tr><td><code>-TargetPov</code></td><td>string</td><td>No</td><td>Filter to edges whose target node belongs to this POV</td></tr>
+      <tr><td><code>-DiscoveredAfter</code></td><td>string</td><td>No</td><td>Edges discovered on or after this date (yyyy-MM-dd)</td></tr>
+      <tr><td><code>-DiscoveredBefore</code></td><td>string</td><td>No</td><td>Edges discovered on or before this date (yyyy-MM-dd)</td></tr>
+      <tr><td><code>-Index</code></td><td>int</td><td>No</td><td>Return a specific edge by zero-based index</td></tr>
+      <tr><td><code>-First</code></td><td>int</td><td>No</td><td>Return only the first N matching edges</td></tr>
+    </table>
+<pre>
+Get-Edge -Source 'acc-goals-*'
+Get-Edge -NodeId 'saf-goals-001'
+Get-Edge -Type CONTRADICTS -Status approved
+Get-Edge -CrossPov $true -MinConfidence 0.9
+Get-Edge -Rationale '*existential*' -Type 'TENS*'
+Get-Edge -SourcePov safetyist -TargetPov accelerationist
+Get-Edge -Index 42
+Get-Edge -Type SUPPORTS -First 10
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Set-Edge</h4>
+    <div class="synopsis">Modifies properties of one or more edges in the taxonomy graph.</div>
+    <p>Updates edge properties in <code>edges.json</code>. Accepts edges by index or
+    from the pipeline (output of <code>Get-Edge</code>). Supports changing status,
+    confidence, strength, notes, and type. Uses <code>ShouldProcess</code> for safety.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Index</code></td><td>int</td><td>No*</td><td>Zero-based edge index (or pipe from <code>Get-Edge</code>)</td></tr>
+      <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>New status: proposed, approved, rejected</td></tr>
+      <tr><td><code>-Confidence</code></td><td>double</td><td>No</td><td>New confidence value (0.0&ndash;1.0)</td></tr>
+      <tr><td><code>-Strength</code></td><td>string</td><td>No</td><td>New strength: strong, moderate, weak (empty to clear)</td></tr>
+      <tr><td><code>-Notes</code></td><td>string</td><td>No</td><td>New notes text (empty string to clear)</td></tr>
+      <tr><td><code>-Type</code></td><td>string</td><td>No</td><td>New edge type</td></tr>
+      <tr><td><code>-PassThru</code></td><td>switch</td><td>No</td><td>Return updated edge objects</td></tr>
+    </table>
+<pre>
+Set-Edge -Index 42 -Status approved
+Set-Edge -Index 10 -Notes 'Reviewed — strong relationship'
+Get-Edge -Type CONTRADICTS -Status proposed | Set-Edge -Status approved
+Get-Edge -NodeId 'acc-goals-001' -MinConfidence 0.9 | Set-Edge -Status approved
+Get-Edge -Source 'saf-*' -MinConfidence 0.85 | Set-Edge -Status approved -PassThru
+</pre>
+  </div>
+
+  <div class="func">
     <h4>Invoke-GraphQuery</h4>
     <div class="synopsis">Answers natural-language questions by reasoning over the taxonomy graph (Phase 3 of LLM Attribute Graphs).</div>
     <p>Takes a natural-language question, loads the full taxonomy graph (nodes, attributes, edges),
@@ -717,6 +799,7 @@ Invoke-PIIAudit
 Invoke-PIIAudit -Verbose
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -764,6 +847,7 @@ Update-Snapshot -DryRun
 Redo-Snapshots          # backward-compatible alias
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -772,45 +856,47 @@ Redo-Snapshots          # backward-compatible alias
 <div class="card cat-app" id="launchers">
   <h2>App Launchers</h2>
 
-  <p>All three Electron apps support <strong>Light</strong>, <strong>Dark</strong>,
+  <p>All four Electron apps support <strong>Light</strong>, <strong>Dark</strong>,
   <strong>BKC</strong> (Berkman Klein Center), and <strong>Auto</strong> (system preference) color schemes.
   Theme selection is persisted across sessions.</p>
 
   <div class="func">
-    <h4>Start-TaxonomyEditor</h4>
+    <h4>Show-TaxonomyEditor</h4>
     <div class="synopsis">Launches the Taxonomy Editor Electron app.</div>
     <p>Features: node editing, semantic search, "Analyze Distinction" AI comparison,
-    taxonomy proposals. Default AI model: <code>gemini-3.1-flash-lite-preview</code> (configurable in Settings).
+    taxonomy proposals, graph attribute display. Right-click any Rhetorical Strategy
+    badge to view its definition, examples, and frequency in a side panel.
+    Default AI model: <code>gemini-3.1-flash-lite-preview</code> (configurable in Settings).
     Embeddings use pre-computed local vectors from <code>embeddings.json</code>; saving a node
     automatically re-computes its embedding via <code>all-MiniLM-L6-v2</code>.</p>
     <p>Alias: <code>TaxonomyEditor</code></p>
 <pre>
-Start-TaxonomyEditor
+Show-TaxonomyEditor
 </pre>
   </div>
 
   <div class="func">
-    <h4>Start-POViewer</h4>
+    <h4>Show-POViewer</h4>
     <div class="synopsis">Launches the POV Viewer Electron app.</div>
     <p>Alias: <code>POViewer</code></p>
 <pre>
-Start-POViewer
+Show-POViewer
 </pre>
   </div>
 
   <div class="func">
-    <h4>Start-SummaryViewer</h4>
+    <h4>Show-SummaryViewer</h4>
     <div class="synopsis">Launches the Summary Viewer Electron app.</div>
     <p>Features: source browsing, key-point exploration, document search with highlighting,
     semantic similarity search. Embeddings use <code>gemini-embedding-001</code> via Gemini API.</p>
     <p>Alias: <code>SummaryViewer</code></p>
 <pre>
-Start-SummaryViewer
+Show-SummaryViewer
 </pre>
   </div>
 
   <div class="func">
-    <h4>Start-EdgeViewer</h4>
+    <h4>Show-EdgeViewer</h4>
     <div class="synopsis">Launches the Edge Viewer &amp; Approver Electron app.</div>
     <p>Features: browse, filter, and approve/reject AI-discovered edges between taxonomy nodes.
     Filter by source/target POV, edge type, status, confidence threshold, and cross-POV only.
@@ -818,10 +904,121 @@ Start-SummaryViewer
     Reads and writes <code>taxonomy/Origin/edges.json</code>.</p>
     <p>Alias: <code>EdgeViewer</code></p>
 <pre>
-Start-EdgeViewer
+Show-EdgeViewer
 EdgeViewer
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- LLM ATTRIBUTE GRAPH                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="card cat-analysis" id="attribute-graph">
+  <h2>LLM Attribute Graph</h2>
+
+  <p>The <strong>LLM Attribute Graph</strong> (LAG) enriches the taxonomy with AI-generated
+  analytical metadata and typed relationships between nodes. It is built in three phases:</p>
+
+  <h3>Phase 1 &mdash; Attribute Extraction</h3>
+  <p>Each taxonomy node is sent to an LLM in batches. The LLM returns a
+  <code>graph_attributes</code> object with nine analytical dimensions:</p>
+  <table>
+    <tr><th>Attribute</th><th>Description</th></tr>
+    <tr><td><code>epistemic_type</code></td><td>Empirical claim, normative argument, prediction, definition, etc.</td></tr>
+    <tr><td><code>rhetorical_strategy</code></td><td>Appeal to authority, analogy, reductio ad absurdum, etc.</td></tr>
+    <tr><td><code>assumes</code></td><td>Unstated premises the node depends on</td></tr>
+    <tr><td><code>falsifiability</code></td><td>How the claim could be tested or refuted</td></tr>
+    <tr><td><code>audience</code></td><td>Intended audience (policymakers, researchers, general public)</td></tr>
+    <tr><td><code>emotional_register</code></td><td>Urgent, measured, dismissive, optimistic, etc.</td></tr>
+    <tr><td><code>policy_actionability</code></td><td>How directly the position maps to policy</td></tr>
+    <tr><td><code>intellectual_lineage</code></td><td>Thinkers, movements, or traditions the position draws from</td></tr>
+    <tr><td><code>steelman_vulnerability</code></td><td>The strongest objection even a sympathizer might raise</td></tr>
+  </table>
+  <p>See <code>docs/rhetorical-strategies.md</code> for detailed descriptions, examples,
+  and POV frequency breakdowns for each of the 14 rhetorical strategies. In the
+  Taxonomy Editor, right-click any Rhetorical Strategy badge to view this information
+  in a side panel.</p>
+<pre>
+# Extract attributes for all nodes (skips already-attributed nodes)
+Invoke-AttributeExtraction
+
+# Extract for a single POV
+Invoke-AttributeExtraction -POV safetyist
+
+# Preview without calling the AI
+Invoke-AttributeExtraction -DryRun
+</pre>
+
+  <h3>Phase 2 &mdash; Edge Discovery</h3>
+  <p>For each node, the LLM proposes typed, directed edges to other nodes. Edge types include:
+  <code>SUPPORTS</code>, <code>CONTRADICTS</code>, <code>ASSUMES</code>, <code>WEAKENS</code>,
+  <code>RESPONDS_TO</code>, <code>TENSION_WITH</code>, <code>CITES</code>, <code>INTERPRETS</code>,
+  <code>SUPPORTED_BY</code>, and LLM-proposed types like <code>REITERATES</code>,
+  <code>HIGHLIGHTS_VULNERABILITY_TO</code>, <code>PREVENTS_NEED_FOR</code>. Each edge carries a
+  confidence score (0&ndash;1) and a rationale. Proposed edges require human approval via
+  <code>Approve-Edge</code> or the Edge Viewer app.</p>
+<pre>
+# Discover edges for all nodes
+Invoke-EdgeDiscovery
+
+# Review and approve edges interactively
+Approve-Edge -Interactive
+
+# Or use the visual Edge Viewer app
+Show-EdgeViewer
+</pre>
+
+  <h3>Phase 3 &mdash; Graph Queries &amp; Export</h3>
+  <p>Once the graph is populated, you can query it with natural language, analyze conflict
+  evolution across the graph, view structural statistics, and export to Neo4j for
+  interactive visualization.</p>
+<pre>
+# Ask questions that reason over the graph
+Invoke-GraphQuery "What assumptions does the safetyist position share with the accelerationist position?"
+
+# Analyze how conflicts evolve with graph context
+Get-ConflictEvolution -Analyze
+
+# View graph statistics
+Show-GraphOverview
+
+# Export to Neo4j (see Graph Database section below)
+Export-TaxonomyToGraph -Full
+</pre>
+
+  <h3>Getting Started with the Graph</h3>
+  <ol>
+    <li>Import the module: <code>Import-Module ./scripts/AITriad -Force</code></li>
+    <li>Ensure attributes exist: <code>Invoke-AttributeExtraction -DryRun</code> (run without <code>-DryRun</code> to extract)</li>
+    <li>Discover edges: <code>Invoke-EdgeDiscovery</code></li>
+    <li>Review edges: <code>Show-EdgeViewer</code> or <code>Approve-Edge -Interactive</code></li>
+    <li>Query the graph: <code>Invoke-GraphQuery "your question here"</code></li>
+    <li>View stats: <code>Show-GraphOverview</code></li>
+  </ol>
+
+  <h3>Edge Viewer App</h3>
+  <p>The Edge Viewer (<code>Show-EdgeViewer</code> / <code>EdgeViewer</code>) is an Electron + React + Vite
+  desktop app for visually browsing, filtering, and approving AI-discovered edges.</p>
+  <p><strong>Prerequisites:</strong> Node.js 18+ and npm. Run <code>npm install</code> in the
+  <code>edge-viewer/</code> directory on first use.</p>
+  <p><strong>Features:</strong></p>
+  <ul>
+    <li>Filter by source/target POV, edge type, status, confidence threshold</li>
+    <li>Cross-POV filter to show only edges that span viewpoints</li>
+    <li>Bulk approve/reject filtered edge sets</li>
+    <li>Resizable panels and detail views</li>
+    <li>Light/Dark/BKC/Auto theme support</li>
+  </ul>
+<pre>
+# Install dependencies (first time only)
+cd edge-viewer &amp;&amp; npm install &amp;&amp; cd ..
+
+# Launch the app
+Show-EdgeViewer
+</pre>
+
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -885,6 +1082,7 @@ Invoke-CypherQuery "MATCH (a)-[r:TENSION_WITH]->(b) RETURN a.label, b.label, r.c
 Invoke-CypherQuery "MATCH (n {pov: `$pov}) RETURN n.id" -Parameters @{ pov = 'safetyist' }
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -905,6 +1103,7 @@ Show-AITriadHelp
 Show-AITriadHelp -PassThru
 </pre>
   </div>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -915,12 +1114,13 @@ Show-AITriadHelp -PassThru
   <table>
     <tr><th>Alias</th><th>Target Function</th></tr>
     <tr><td><code>Import-Document</code></td><td><code>Import-AITriadDocument</code></td></tr>
-    <tr><td><code>TaxonomyEditor</code></td><td><code>Start-TaxonomyEditor</code></td></tr>
-    <tr><td><code>POViewer</code></td><td><code>Start-POViewer</code></td></tr>
-    <tr><td><code>SummaryViewer</code></td><td><code>Start-SummaryViewer</code></td></tr>
-    <tr><td><code>EdgeViewer</code></td><td><code>Start-EdgeViewer</code></td></tr>
+    <tr><td><code>TaxonomyEditor</code></td><td><code>Show-TaxonomyEditor</code></td></tr>
+    <tr><td><code>POViewer</code></td><td><code>Show-POViewer</code></td></tr>
+    <tr><td><code>SummaryViewer</code></td><td><code>Show-SummaryViewer</code></td></tr>
+    <tr><td><code>EdgeViewer</code></td><td><code>Show-EdgeViewer</code></td></tr>
     <tr><td><code>Redo-Snapshots</code></td><td><code>Update-Snapshot</code></td></tr>
   </table>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -965,6 +1165,7 @@ Show-AITriadHelp -PassThru
     <tr><td><code>groq-llama-3.3-70b</code></td><td>llama-3.3-70b-versatile</td></tr>
     <tr><td><code>groq-llama-4-scout</code></td><td>meta-llama/llama-4-scout-17b-16e-instruct</td></tr>
   </table>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -983,6 +1184,7 @@ Show-AITriadHelp -PassThru
 # Runner:  ubuntu-latest
 # Timeout: 120 minutes
 </pre>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -998,6 +1200,7 @@ Show-AITriadHelp -PassThru
     <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Anthropic Claude API key</td></tr>
     <tr><td><code>GROQ_API_KEY</code></td><td>Groq API key</td></tr>
   </table>
+  <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 
 <div class="footer">

@@ -13,6 +13,7 @@ import { PinnedPanel } from './PinnedPanel';
 import { SimilarSearchPanel } from './SimilarSearchPanel';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
+import { AttributeInfoPanel } from './AttributeInfoPanel';
 
 interface PovTabProps {
   pov: Pov;
@@ -23,7 +24,7 @@ export function PovTab({ pov }: PovTabProps) {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
     runSimilarSearch, similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
-    attributeFilter,
+    attributeFilter, attributeInfo,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -45,6 +46,12 @@ export function PovTab({ pov }: PovTabProps) {
     defaultWidth: 480,
     minWidth: 320,
     maxWidth: 900,
+  });
+  const { width: infoPaneWidth, onMouseDown: onInfoPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-attr-info-panel-width',
+    defaultWidth: 400,
+    minWidth: 300,
+    maxWidth: 700,
   });
 
   const orderedIds = useMemo(
@@ -99,6 +106,14 @@ export function PovTab({ pov }: PovTabProps) {
   const showSimilarPanel = similarResults !== null || similarLoading || !!similarError;
   const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
   const showAttrFilterPanel = attributeFilter !== null;
+  const showInfoPanel = attributeInfo !== null;
+
+  // Determine where info panel renders:
+  // - If a Pane 3 is already showing (similar or attr filter), info renders as Pane 4
+  // - Otherwise info renders as Pane 3
+  const hasPane3 = showSimilarPanel || showAttrFilterPanel;
+  const infoIsPane4 = showInfoPanel && hasPane3;
+  const infoIsPane3 = showInfoPanel && !hasPane3;
 
   // Grow/shrink window when Pane 3 opens/closes
   const prevShowSimilar = useRef(false);
@@ -114,7 +129,7 @@ export function PovTab({ pov }: PovTabProps) {
     }
   }, [showSimilarPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow/shrink window when Pane 4 opens/closes
+  // Grow/shrink window when Pane 4 (analysis) opens/closes
   const prevShowAnalysis = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowAnalysis.current;
@@ -139,6 +154,19 @@ export function PovTab({ pov }: PovTabProps) {
       window.electronAPI.shrinkWindow(delta);
     }
   }, [showAttrFilterPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grow/shrink window when Info panel opens/closes
+  const prevShowInfo = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowInfo.current;
+    prevShowInfo.current = showInfoPanel;
+    const delta = infoPaneWidth + 4;
+    if (showInfoPanel && !wasShowing) {
+      window.electronAPI.growWindow(delta);
+    } else if (!showInfoPanel && wasShowing) {
+      window.electronAPI.shrinkWindow(delta);
+    }
+  }, [showInfoPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-refresh similar search when selection changes while panel is open
   useEffect(() => {
@@ -172,25 +200,41 @@ export function PovTab({ pov }: PovTabProps) {
           <div className="detail-panel-empty">Select a node to edit</div>
         )}
       </div>
+      {/* Pane 3: Similar Search */}
       {showSimilarPanel && (
         <>
           <div className="resize-handle" onMouseDown={onPane3Resize} />
           <SimilarSearchPanel width={pane3Width} onAnalyze={handleAnalyze} />
         </>
       )}
+      {/* Pane 4: Analysis (only when similar is showing) */}
       {showAnalysisPanel && (
         <>
           <div className="resize-handle" onMouseDown={onPane4Resize} />
           <AnalysisPanel width={pane4Width} />
         </>
       )}
+      {/* Pane 3: Attribute Filter (when similar not showing) */}
       {showAttrFilterPanel && !showSimilarPanel && (
         <>
           <div className="resize-handle" onMouseDown={onAttrPaneResize} />
           <AttributeFilterPanel width={attrPaneWidth} />
         </>
       )}
-      {pinnedStack.length > 0 && !showSimilarPanel && !showAttrFilterPanel && <PinnedPanel />}
+      {/* Info Panel: renders as Pane 3 or Pane 4 depending on context */}
+      {infoIsPane3 && (
+        <>
+          <div className="resize-handle" onMouseDown={onInfoPaneResize} />
+          <AttributeInfoPanel width={infoPaneWidth} />
+        </>
+      )}
+      {infoIsPane4 && (
+        <>
+          <div className="resize-handle" onMouseDown={onInfoPaneResize} />
+          <AttributeInfoPanel width={infoPaneWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showSimilarPanel && !showAttrFilterPanel && !showInfoPanel && <PinnedPanel />}
       {showNewDialog && (
         <NewNodeDialog
           onConfirm={handleCreate}

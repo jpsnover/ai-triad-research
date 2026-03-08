@@ -21,7 +21,7 @@ interface NodeDetailProps {
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -180,7 +180,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
       </div>
 
       {node.graph_attributes && (
-        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} />
+        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
       )}
 
       {showDelete && !readOnly && (

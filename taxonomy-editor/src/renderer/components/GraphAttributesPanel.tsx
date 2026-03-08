@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { GraphAttributes } from '../types/taxonomy';
 
 interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
   onBadgeClick?: (field: string, value: string) => void;
+  onShowAttributeInfo?: (field: string, value: string) => void;
 }
 
 const LABEL_MAP: Record<string, string> = {
@@ -45,17 +46,31 @@ const BADGE_COLORS: Record<string, string> = {
   aspirational: '#7c3aed',
 };
 
+/** Fields that support "About..." right-click info */
+const INFO_FIELDS = new Set([
+  'rhetorical_strategy',
+  'epistemic_type',
+  'emotional_register',
+  'intellectual_lineage',
+]);
+
 function formatValue(val: string): string {
   return val.replace(/_/g, ' ');
 }
 
-function Badge({ field, value, onClick }: { field: string; value: string; onClick?: (field: string, value: string) => void }) {
+function Badge({ field, value, onClick, onContextMenu }: {
+  field: string;
+  value: string;
+  onClick?: (field: string, value: string) => void;
+  onContextMenu?: (e: React.MouseEvent, field: string, value: string) => void;
+}) {
   const color = BADGE_COLORS[value] || '#475569';
   return (
     <span
       className={`ga-badge ${onClick ? 'ga-badge-clickable' : ''}`}
       style={{ borderColor: color, color }}
       onClick={onClick ? (e) => { e.stopPropagation(); onClick(field, value); } : undefined}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, field, value); } : undefined}
       title={onClick ? `Find all nodes with ${formatValue(field)} = ${formatValue(value)}` : undefined}
     >
       {formatValue(value)}
@@ -63,8 +78,30 @@ function Badge({ field, value, onClick }: { field: string; value: string; onClic
   );
 }
 
-export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPanelProps) {
+export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo }: GraphAttributesPanelProps) {
   const [open, setOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string; value: string } | null>(null);
+
+  // Close context menu on Escape or outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setContextMenu(null); };
+    const handleClick = () => setContextMenu(null);
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('click', handleClick);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('click', handleClick);
+    };
+  }, [contextMenu]);
+
+  const handleBadgeContextMenu = (e: React.MouseEvent, field: string, value: string) => {
+    if (INFO_FIELDS.has(field)) {
+      setContextMenu({ x: e.clientX, y: e.clientY, field, value });
+    }
+  };
+
+  const contextMenuHandler = onShowAttributeInfo ? handleBadgeContextMenu : undefined;
 
   return (
     <div className="ga-panel">
@@ -82,7 +119,9 @@ export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPan
           {attrs.epistemic_type && (
             <div className="ga-row">
               <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
-              <div className="ga-value"><Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} /></div>
+              <div className="ga-value">
+                <Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
+              </div>
             </div>
           )}
 
@@ -92,7 +131,13 @@ export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPan
               <div className="ga-label">{LABEL_MAP.rhetorical_strategy}</div>
               <div className="ga-value">
                 {attrs.rhetorical_strategy.split(',').map((s) => (
-                  <Badge key={s.trim()} field="rhetorical_strategy" value={s.trim()} onClick={onBadgeClick} />
+                  <Badge
+                    key={s.trim()}
+                    field="rhetorical_strategy"
+                    value={s.trim()}
+                    onClick={onBadgeClick}
+                    onContextMenu={contextMenuHandler}
+                  />
                 ))}
               </div>
             </div>
@@ -122,7 +167,9 @@ export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPan
           {attrs.emotional_register && (
             <div className="ga-row">
               <div className="ga-label">{LABEL_MAP.emotional_register}</div>
-              <div className="ga-value"><Badge field="emotional_register" value={attrs.emotional_register} onClick={onBadgeClick} /></div>
+              <div className="ga-value">
+                <Badge field="emotional_register" value={attrs.emotional_register} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
+              </div>
             </div>
           )}
 
@@ -154,6 +201,7 @@ export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPan
                     <span
                       className={onBadgeClick ? 'ga-lineage-clickable' : ''}
                       onClick={onBadgeClick ? (e) => { e.stopPropagation(); onBadgeClick('intellectual_lineage', l); } : undefined}
+                      onContextMenu={contextMenuHandler ? (e) => { e.preventDefault(); e.stopPropagation(); contextMenuHandler(e, 'intellectual_lineage', l); } : undefined}
                       title={onBadgeClick ? `Find all nodes referencing "${l}"` : undefined}
                     >
                       {l}
@@ -170,6 +218,33 @@ export function GraphAttributesPanel({ attrs, onBadgeClick }: GraphAttributesPan
               <div className="ga-label">{LABEL_MAP.steelman_vulnerability}</div>
               <div className="ga-steelman">{attrs.steelman_vulnerability}</div>
             </div>
+          )}
+        </div>
+      )}
+      {contextMenu && (
+        <div
+          className="context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onShowAttributeInfo?.(contextMenu.field, contextMenu.value);
+              setContextMenu(null);
+            }}
+          >
+            About {formatValue(contextMenu.value)}
+          </button>
+          {onBadgeClick && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onBadgeClick(contextMenu.field, contextMenu.value);
+                setContextMenu(null);
+              }}
+            >
+              Find nodes with this {formatValue(contextMenu.field)}
+            </button>
           )}
         </div>
       )}
