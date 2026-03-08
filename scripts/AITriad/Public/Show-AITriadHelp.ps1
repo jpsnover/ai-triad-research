@@ -223,6 +223,7 @@ function Show-AITriadHelp {
     <li><a href="#analysis">Analysis</a></li>
     <li><a href="#utilities">Utilities</a></li>
     <li><a href="#launchers">App Launchers</a></li>
+    <li><a href="#graphdb">Graph Database (Neo4j)</a></li>
     <li><a href="#help">Help</a></li>
     <li><a href="#aliases">Aliases</a></li>
     <li><a href="#models">Supported AI Models</a></li>
@@ -637,6 +638,63 @@ Approve-Edge -Interactive
   </div>
 
   <div class="func">
+    <h4>Invoke-GraphQuery</h4>
+    <div class="synopsis">Answers natural-language questions by reasoning over the taxonomy graph (Phase 3 of LLM Attribute Graphs).</div>
+    <p>Takes a natural-language question, loads the full taxonomy graph (nodes, attributes, edges),
+    and sends it to an LLM that reasons over the graph structure to produce a grounded answer
+    with referenced nodes, traced paths, and confidence scoring.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Question</code></td><td>string</td><td>Yes</td><td>Natural-language question to answer</td></tr>
+      <tr><td><code>-IncludeConflicts</code></td><td>switch</td><td>No</td><td>Include conflict data in graph context</td></tr>
+      <tr><td><code>-StatusFilter</code></td><td>string</td><td>No</td><td>Edge status filter: approved (default), proposed, rejected, all</td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
+      <tr><td><code>-Raw</code></td><td>switch</td><td>No</td><td>Return raw JSON response instead of formatted output</td></tr>
+    </table>
+<pre>
+Invoke-GraphQuery "What assumptions does the safetyist position share with the accelerationist position?"
+Invoke-GraphQuery "Which claims have no empirical support?" -StatusFilter all
+Invoke-GraphQuery "How does the skeptic position respond to existential risk arguments?" -IncludeConflicts
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Get-ConflictEvolution</h4>
+    <div class="synopsis">Analyzes how conflicts evolve across sources using graph-aware reasoning.</div>
+    <p>For each conflict, loads linked taxonomy nodes and their graph edges, then
+    optionally uses an LLM to analyze convergence trends, key assumptions,
+    resolution paths, and evidence balance.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Id</code></td><td>string</td><td>No</td><td>Conflict ID (e.g., <code>conflict-agi-timelines-001</code>). Default: all</td></tr>
+      <tr><td><code>-Analyze</code></td><td>switch</td><td>No</td><td>Use LLM for deep analysis (without this, returns structured graph context)</td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+    </table>
+<pre>
+Get-ConflictEvolution
+Get-ConflictEvolution -Id "conflict-agi-timelines-001" -Analyze
+Get-ConflictEvolution -Analyze | Where-Object { $_.analysis.convergence_trend -eq 'diverging' }
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Show-GraphOverview</h4>
+    <div class="synopsis">Displays a structural overview of the taxonomy graph.</div>
+    <p>Computes graph statistics: node/edge counts by POV, edge type distribution,
+    confidence distribution, hub nodes, and orphan detection. Works directly from
+    JSON files (no Neo4j required).</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-StatusFilter</code></td><td>string</td><td>No</td><td>Edge status filter: approved (default), proposed, rejected, all</td></tr>
+    </table>
+<pre>
+Show-GraphOverview
+Show-GraphOverview -StatusFilter all
+</pre>
+  </div>
+
+  <div class="func">
     <h4>Compare-Taxonomy</h4>
     <div class="synopsis">Visually compare two taxonomy directories side-by-side in an HTML report.</div>
     <table>
@@ -762,6 +820,69 @@ Start-SummaryViewer
 <pre>
 Start-EdgeViewer
 EdgeViewer
+</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- GRAPH DATABASE                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="card cat-util" id="graphdb">
+  <h2>Graph Database (Neo4j)</h2>
+
+  <p>The taxonomy graph can be exported to a Neo4j instance for interactive
+  visualization and Cypher queries. The Neo4j database is a <strong>read-only
+  derived view</strong> &mdash; all edits happen in the JSON files. Requires Docker.</p>
+
+  <div class="func">
+    <h4>Install-GraphDatabase</h4>
+    <div class="synopsis">Sets up a Neo4j Community Edition instance via Docker.</div>
+    <p>Pulls and runs the Neo4j Docker container with persistent storage at
+    <code>~/ai-triad-graphdb/</code>. Exposes Bolt (7687) and HTTP Browser (7474).</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Remove and recreate existing container</td></tr>
+      <tr><td><code>-Password</code></td><td>string</td><td>No</td><td>Neo4j password. Default: <code>aitriad2026</code></td></tr>
+      <tr><td><code>-DataPath</code></td><td>string</td><td>No</td><td>Persistent storage path. Default: <code>~/ai-triad-graphdb</code></td></tr>
+    </table>
+<pre>
+Install-GraphDatabase
+Install-GraphDatabase -Force -Password 'mypassword'
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Export-TaxonomyToGraph</h4>
+    <div class="synopsis">Exports the taxonomy graph to Neo4j for visualization and Cypher queries.</div>
+    <p>Reads all taxonomy JSON files, edges.json, summaries, and conflicts,
+    then creates/updates nodes and relationships in Neo4j.</p>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Full</code></td><td>switch</td><td>No</td><td>Clear and rebuild the entire graph</td></tr>
+      <tr><td><code>-IncludeEmbeddings</code></td><td>switch</td><td>No</td><td>Include 384-dim embedding vectors as node properties</td></tr>
+      <tr><td><code>-Uri</code></td><td>string</td><td>No</td><td>Neo4j Bolt URI. Default: <code>bolt://localhost:7687</code></td></tr>
+      <tr><td><code>-Credential</code></td><td>PSCredential</td><td>No</td><td>Neo4j credentials</td></tr>
+    </table>
+<pre>
+Export-TaxonomyToGraph -Full
+Export-TaxonomyToGraph -Full -IncludeEmbeddings
+</pre>
+  </div>
+
+  <div class="func">
+    <h4>Invoke-CypherQuery</h4>
+    <div class="synopsis">Runs a Cypher query against Neo4j and returns structured results.</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>-Query</code></td><td>string</td><td>Yes</td><td>Cypher query string</td></tr>
+      <tr><td><code>-Parameters</code></td><td>hashtable</td><td>No</td><td>Query parameters (referenced as <code>$paramName</code> in Cypher)</td></tr>
+      <tr><td><code>-Uri</code></td><td>string</td><td>No</td><td>Neo4j Bolt URI. Default: <code>bolt://localhost:7687</code></td></tr>
+      <tr><td><code>-Raw</code></td><td>switch</td><td>No</td><td>Return raw API response</td></tr>
+    </table>
+<pre>
+Invoke-CypherQuery "MATCH (n:TaxonomyNode) RETURN n.id, n.label LIMIT 10"
+Invoke-CypherQuery "MATCH (a)-[r:TENSION_WITH]->(b) RETURN a.label, b.label, r.confidence"
+Invoke-CypherQuery "MATCH (n {pov: `$pov}) RETURN n.id" -Parameters @{ pov = 'safetyist' }
 </pre>
   </div>
 </div>

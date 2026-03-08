@@ -1,0 +1,36 @@
+Respond with a JSON object matching this schema:
+
+{
+  "answer": "A clear, well-structured answer to the user's question, grounded in the graph data. Use specific node IDs and edge types to support your reasoning.",
+  "referenced_nodes": [
+    {
+      "id": "node-id",
+      "pov": "accelerationist|safetyist|skeptic|cross-cutting",
+      "label": "Node label",
+      "relevance": "Why this node is relevant to the answer"
+    }
+  ],
+  "referenced_edges": [
+    {
+      "source": "source-node-id",
+      "target": "target-node-id",
+      "type": "EDGE_TYPE",
+      "relevance": "Why this edge matters for the answer"
+    }
+  ],
+  "paths_traced": [
+    {
+      "description": "What this path shows",
+      "nodes": ["node-id-1", "node-id-2", "node-id-3"],
+      "edge_types": ["EDGE_TYPE_1", "EDGE_TYPE_2"]
+    }
+  ],
+  "confidence": 0.85,
+  "limitations": "What the graph cannot tell us about this question, or where data is missing."
+}
+
+IMPORTANT:
+- Only reference nodes and edges that actually exist in the provided graph data.
+- Do not invent node IDs or edge connections.
+- If the graph lacks sufficient data to answer the question, say so clearly and set confidence low.
+- The "answer" field should be comprehensive but concise (2-4 paragraphs).

@@ -40,6 +40,12 @@
         'Get-GraphNode'
         'Find-GraphPath'
         'Approve-Edge'
+        'Invoke-GraphQuery'
+        'Get-ConflictEvolution'
+        'Export-TaxonomyToGraph'
+        'Install-GraphDatabase'
+        'Invoke-CypherQuery'
+        'Show-GraphOverview'
     )
 
     # Aliases exported from this module
