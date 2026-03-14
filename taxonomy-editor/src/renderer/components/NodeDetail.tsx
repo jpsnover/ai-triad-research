@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -10,6 +10,7 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
+import { generateResearchPrompt } from '../utils/researchPrompt';
 
 interface NodeDetailProps {
   pov: Pov;
@@ -23,7 +24,15 @@ interface NodeDetailProps {
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
+  const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleResearchPrompt = useCallback(async () => {
+    const prompt = generateResearchPrompt(node.label, node.description);
+    await navigator.clipboard.writeText(prompt);
+    setClipboardState('copied');
+    setTimeout(() => setClipboardState('idle'), 3000);
+  }, [node.label, node.description]);
 
   const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods'];
   const moveTargets = ALL_CATEGORIES.filter(c => c !== node.category);
@@ -75,6 +84,13 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
       <div className="detail-header">
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
+          <button
+            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
+            onClick={handleResearchPrompt}
+            title="Generate a research prompt for this position and copy to clipboard"
+          >
+            {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
+          </button>
           {onSimilarSearch && (
             <button className="btn btn-ghost btn-sm" onClick={onSimilarSearch} title="Find similar taxonomy elements">
               Similar Search

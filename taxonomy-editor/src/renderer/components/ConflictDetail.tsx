@@ -157,7 +157,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       <div className="form-group">
         <label>
           Instances
-          <FieldHelp text="Specific occurrences in source documents where this conflict was identified. Each instance references a document and position." />
+          <FieldHelp text="Specific occurrences in source documents where this conflict was identified. Each instance records a document's stance and assertion." />
           {!readOnly && (
             <button
               className="btn btn-sm"

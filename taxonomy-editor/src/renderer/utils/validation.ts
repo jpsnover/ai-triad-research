@@ -47,7 +47,8 @@ export const crossCuttingFileSchema = z.object({
 
 const conflictInstanceSchema = z.object({
   doc_id: z.string().min(1, 'Document ID is required'),
-  position: z.string().min(1, 'Position is required'),
+  stance: z.enum(['supports', 'disputes', 'neutral', 'qualifies'], { message: 'Stance is required' }),
+  assertion: z.string().min(1, 'Assertion is required'),
   date_flagged: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid date is required'),
 });
 

@@ -58,9 +58,12 @@ export interface CrossCuttingFile {
   nodes: CrossCuttingNode[];
 }
 
+export type ConflictStance = 'supports' | 'disputes' | 'neutral' | 'qualifies';
+
 export interface ConflictInstance {
   doc_id: string;
-  position: string;
+  stance: ConflictStance;
+  assertion: string;
   date_flagged: string;
 }
 

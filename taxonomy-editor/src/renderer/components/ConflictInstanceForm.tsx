@@ -38,18 +38,35 @@ export function ConflictInstanceForm({ instance, index, onUpdate, onRemove, read
         />
         {err('doc_id') && <div className="error-text">{err('doc_id')}</div>}
       </div>
-      <div className={`form-group ${err('position') ? 'has-error' : ''}`}>
+      <div className={`form-group ${err('stance') ? 'has-error' : ''}`}>
         <label>
-          Position
-          <FieldHelp text="The location within the document (e.g., section, paragraph, page) where the conflicting claim appears." />
+          Stance
+          <FieldHelp text="How this document relates to the conflict claim: supports, disputes, neutral, or qualifies (partially agrees with caveats)." />
+        </label>
+        <select
+          value={instance.stance}
+          onChange={(e) => onUpdate(index, { stance: e.target.value as ConflictInstance['stance'] })}
+          disabled={readOnly}
+        >
+          <option value="supports">Supports</option>
+          <option value="disputes">Disputes</option>
+          <option value="neutral">Neutral</option>
+          <option value="qualifies">Qualifies</option>
+        </select>
+        {err('stance') && <div className="error-text">{err('stance')}</div>}
+      </div>
+      <div className={`form-group ${err('assertion') ? 'has-error' : ''}`}>
+        <label>
+          Assertion
+          <FieldHelp text="What this document specifically claims about the conflict topic." />
         </label>
         <HighlightedTextarea
-          value={instance.position}
-          onChange={(v) => onUpdate(index, { position: v })}
+          value={instance.assertion}
+          onChange={(v) => onUpdate(index, { assertion: v })}
           rows={2}
           readOnly={readOnly}
         />
-        {err('position') && <div className="error-text">{err('position')}</div>}
+        {err('assertion') && <div className="error-text">{err('assertion')}</div>}
       </div>
       <div className={`form-group ${err('date_flagged') ? 'has-error' : ''}`}>
         <label>
@@ -69,5 +86,5 @@ export function ConflictInstanceForm({ instance, index, onUpdate, onRemove, read
 }
 
 export function newEmptyInstance(): ConflictInstance {
-  return { doc_id: '', position: '', date_flagged: todayISO() };
+  return { doc_id: '', stance: 'neutral', assertion: '', date_flagged: todayISO() };
 }

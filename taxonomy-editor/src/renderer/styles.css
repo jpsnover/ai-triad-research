@@ -449,6 +449,13 @@ body {
   background: #dc2626;
 }
 
+.btn-copied {
+  background: var(--success, #16a34a);
+  border-color: var(--success, #16a34a);
+  color: #fff;
+  transition: background 0.2s, border-color 0.2s;
+}
+
 .btn-sm {
   padding: 4px 10px;
   font-size: 0.75rem;

@@ -61,7 +61,8 @@ function searchConflict(conflict: ConflictFile, regex: RegExp): SearchResult[] {
   ];
   for (const inst of conflict.instances) {
     fields.push(['instance:doc_id', inst.doc_id]);
-    fields.push(['instance:position', inst.position]);
+    fields.push(['instance:stance', inst.stance]);
+    fields.push(['instance:assertion', inst.assertion]);
   }
   for (const note of conflict.human_notes) {
     fields.push(['note:author', note.author]);
