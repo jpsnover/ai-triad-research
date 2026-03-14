@@ -54,6 +54,7 @@ export interface PipelineSummary {
     suggested_pov: string;
     suggested_category: string;
     reason: string;
+    resolved_node_id?: string;
     'Accelerationist Interpretation'?: string;
     'Safetyist Interpretation'?: string;
     'Skeptic Interpretation'?: string;
@@ -209,6 +210,9 @@ export interface AddTaxonomyNodeRequest {
     safetyist: string;
     skeptic: string;
   };
+  /** If provided, marks the unmapped concept as resolved in the summary JSON */
+  docId?: string;
+  conceptIndex?: number;
 }
 
 export interface AddTaxonomyNodeResult {
@@ -304,6 +308,22 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     raw.last_modified = new Date().toISOString().split('T')[0];
 
     fs.writeFileSync(filePath, JSON.stringify(raw, null, 2) + '\n', 'utf-8');
+
+    // Mark the unmapped concept as resolved in the summary JSON
+    if (req.docId != null && req.conceptIndex != null) {
+      try {
+        const summaryPath = path.join(SUMMARIES_DIR, `${req.docId}.json`);
+        if (fs.existsSync(summaryPath)) {
+          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+          if (Array.isArray(summary.unmapped_concepts) && summary.unmapped_concepts[req.conceptIndex]) {
+            summary.unmapped_concepts[req.conceptIndex].resolved_node_id = newId;
+            fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2) + '\n', 'utf-8');
+          }
+        }
+      } catch {
+        // Non-fatal — taxonomy node was created successfully even if summary update fails
+      }
+    }
 
     return { success: true, nodeId: newId };
   } catch (err) {

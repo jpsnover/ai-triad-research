@@ -53,6 +53,7 @@ export interface PipelineSummary {
     suggested_pov: string;
     suggested_category: string;
     reason: string;
+    resolved_node_id?: string;
     'Accelerationist Interpretation'?: string;
     'Safetyist Interpretation'?: string;
     'Skeptic Interpretation'?: string;

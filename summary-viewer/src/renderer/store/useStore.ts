@@ -22,6 +22,9 @@ interface SummaryViewerState {
   theme: Theme;
   pane1Visible: boolean;
 
+  // Document search (triggered by clicking claims/unmapped concepts)
+  documentSearchText: string | null;
+
   // Similarity search
   similarQuery: string | null;
   similarQueryDescription: string | null;
@@ -36,10 +39,11 @@ interface SummaryViewerState {
   toggleSource: (id: string) => void;
   toggleAll: () => void;
   selectKeyPoint: (docId: string, pov: string, index: number) => void;
+  selectDocumentSearch: (docId: string, searchText: string) => void;
   clearKeyPoint: () => void;
   setTheme: (t: Theme) => void;
   togglePane1: () => void;
-  addToTaxonomy: (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }) => Promise<{ success: boolean; nodeId: string; error?: string }>;
+  addToTaxonomy: (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }, docId?: string, conceptIndex?: number) => Promise<{ success: boolean; nodeId: string; error?: string }>;
   runSimilarSearch: (concept: string, description: string) => Promise<void>;
   clearSimilarSearch: () => void;
   setSimilarThreshold: (t: number) => void;
@@ -53,6 +57,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   loaded: false,
   selectedSourceIds: new Set<string>(),
   selectedKeyPoint: null,
+  documentSearchText: null,
   theme: (localStorage.getItem('summaryviewer-theme') as Theme) || 'system',
   pane1Visible: true,
   similarQuery: null,
@@ -128,8 +133,28 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     }
   },
 
+  selectDocumentSearch: async (docId: string, searchText: string) => {
+    set({
+      selectedKeyPoint: { docId, pov: '_search', index: 0 },
+      documentSearchText: searchText,
+    });
+
+    // Load snapshot if not already cached
+    const { snapshots } = get();
+    if (!snapshots[docId]) {
+      try {
+        const text = await window.electronAPI.loadSnapshot(docId);
+        set(state => ({
+          snapshots: { ...state.snapshots, [docId]: text },
+        }));
+      } catch (err) {
+        console.error('[SummaryViewer] Failed to load snapshot:', err);
+      }
+    }
+  },
+
   clearKeyPoint: () => {
-    set({ selectedKeyPoint: null });
+    set({ selectedKeyPoint: null, documentSearchText: null });
   },
 
   setTheme: (t: Theme) => {
@@ -141,12 +166,24 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     set(state => ({ pane1Visible: !state.pane1Visible }));
   },
 
-  addToTaxonomy: async (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }) => {
-    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations });
+  addToTaxonomy: async (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }, docId?: string, conceptIndex?: number) => {
+    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations, docId, conceptIndex });
     if (result.success) {
-      // Reload taxonomy to pick up the new node
+      // Reload taxonomy and summaries to reflect the resolved concept
       const taxonomy = await window.electronAPI.loadTaxonomy() as Record<string, TaxonomyNode>;
-      set({ taxonomy });
+      if (docId) {
+        const summary = await window.electronAPI.loadSummary(docId) as PipelineSummary | null;
+        if (summary) {
+          set(state => ({
+            taxonomy,
+            summaries: { ...state.summaries, [docId]: summary },
+          }));
+        } else {
+          set({ taxonomy });
+        }
+      } else {
+        set({ taxonomy });
+      }
     }
     return result;
   },

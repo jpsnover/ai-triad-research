@@ -11,6 +11,8 @@ export interface AddTaxonomyNodeRequest {
     safetyist: string;
     skeptic: string;
   };
+  docId?: string;
+  conceptIndex?: number;
 }
 
 export interface AddTaxonomyNodeResult {

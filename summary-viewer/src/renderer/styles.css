@@ -814,6 +814,10 @@ body {
   transition: background 0.1s;
 }
 
+.claim-card.clickable {
+  cursor: pointer;
+}
+
 .claim-card:hover {
   background: var(--bg-hover);
 }
@@ -889,6 +893,10 @@ body {
   border: 1px solid transparent;
   transition: background 0.1s;
   position: relative;
+}
+
+.unmapped-card.clickable {
+  cursor: pointer;
 }
 
 .unmapped-card:hover {
@@ -1051,6 +1059,18 @@ body {
   color: var(--text-muted);
   line-height: 1.4;
   font-style: italic;
+}
+
+.unmapped-resolved {
+  opacity: 0.55;
+  border-left: 3px solid var(--success, #16a34a);
+}
+
+.unmapped-resolved-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--success, #16a34a);
+  margin-bottom: 2px;
 }
 
 .unmapped-interpretations {
@@ -1283,7 +1303,7 @@ body {
 }
 
 .doc-search-input {
-  width: 160px;
+  width: 140px;
   padding: 3px 6px;
   border: none;
   background: transparent;
@@ -1295,6 +1315,45 @@ body {
 
 .doc-search-input::placeholder {
   color: var(--text-muted);
+}
+
+.doc-search-mode {
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  outline: none;
+}
+
+.doc-search-case {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  width: 24px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.doc-search-case:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.doc-search-case.active {
+  background: var(--color-accent, #2563eb);
+  color: #fff;
+  border-color: var(--color-accent, #2563eb);
 }
 
 .doc-search-count {
@@ -1374,6 +1433,97 @@ body {
 [data-theme="dark"] .search-highlight--active {
   background: rgba(255, 140, 0, 0.35);
   outline-color: rgba(255, 140, 0, 0.7);
+}
+
+/* === Similar Search Highlights === */
+.similar-highlight {
+  background: rgba(99, 102, 241, 0.12);
+  border-left: 3px solid rgba(99, 102, 241, 0.5);
+  padding-left: 6px;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.similar-highlight--active {
+  background: rgba(99, 102, 241, 0.25);
+  border-left-color: rgba(99, 102, 241, 0.9);
+}
+
+[data-theme="dark"] .similar-highlight {
+  background: rgba(129, 140, 248, 0.1);
+  border-left-color: rgba(129, 140, 248, 0.4);
+}
+
+[data-theme="dark"] .similar-highlight--active {
+  background: rgba(129, 140, 248, 0.22);
+  border-left-color: rgba(129, 140, 248, 0.8);
+}
+
+.similar-results-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+.similar-result-chip {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.similar-result-chip:hover {
+  background: var(--bg-hover);
+}
+
+.similar-result-chip.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--text-bright);
+}
+
+/* === Selectable Document Text === */
+.document-body {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* === Document Context Menu === */
+.doc-context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 4px 0;
+  min-width: 120px;
+}
+
+.doc-context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-context-menu-item:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.15));
 }
 
 /* === Error Boundary === */

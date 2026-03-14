@@ -5,20 +5,31 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useStore } from '../store/useStore';
+import { buildSearchRegex, type SearchMode } from '../utils/searchRegex';
+import { cosineSimilarity } from '../utils/similarity';
 
 export default function DocumentPane() {
   const selectedKeyPoint = useStore(s => s.selectedKeyPoint);
   const summaries = useStore(s => s.summaries);
   const snapshots = useStore(s => s.snapshots);
   const sources = useStore(s => s.sources);
+  const documentSearchText = useStore(s => s.documentSearchText);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // ── Search state ──────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('raw');
+  const [caseSensitive, setCaseSensitive] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatch, setCurrentMatch] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Similar search state ──────────────────────────────────────────
+  const [similarLoading, setSimilarLoading] = useState(false);
+  const [similarSections, setSimilarSections] = useState<Array<{
+    index: number; text: string; score: number; el: HTMLElement;
+  }>>([]);
 
   const keyPointData = useMemo(() => {
     if (!selectedKeyPoint) return null;
@@ -52,19 +63,17 @@ export default function DocumentPane() {
         let normPos = 0;
         while (normPos < normalizedIdx && origPos < snapshotText.length) {
           if (/\s/.test(snapshotText[origPos])) {
-            // Skip extra whitespace in original
             origPos++;
             if (origPos < snapshotText.length && /\s/.test(snapshotText[origPos])) {
               while (origPos < snapshotText.length && /\s/.test(snapshotText[origPos])) {
                 origPos++;
               }
-              origPos--; // back up one — the outer loop will increment
+              origPos--;
             }
           }
           origPos++;
           normPos++;
         }
-        // Find the end
         let endNormPos = normalizedIdx + normalizedVerbatim.length;
         let endOrigPos = origPos;
         while (normPos < endNormPos && endOrigPos < snapshotText.length) {
@@ -120,34 +129,76 @@ export default function DocumentPane() {
     return () => clearTimeout(timer);
   }, [renderedContent, selectedKeyPoint]);
 
-  // ── Search: clear when document changes ───────────────────────────
+  // ── Search: clear when document changes, or auto-populate from claim/concept click
+  const prevDocRef = useRef(selectedKeyPoint?.docId);
   useEffect(() => {
-    setSearchQuery('');
-    setMatchCount(0);
-    setCurrentMatch(0);
-  }, [selectedKeyPoint]);
+    const docChanged = selectedKeyPoint?.docId !== prevDocRef.current;
+    prevDocRef.current = selectedKeyPoint?.docId;
 
-  // ── Search: DOM-based highlighting ────────────────────────────────
-  const highlightMatches = useCallback(() => {
-    const container = contentRef.current;
-    if (!container) return;
-
-    // Remove old search highlights
-    container.querySelectorAll('.search-highlight').forEach(el => {
-      const parent = el.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(el.textContent || ''), el);
-        parent.normalize();
-      }
-    });
-
-    if (!searchQuery || searchQuery.length < 2) {
+    if (documentSearchText) {
+      setSearchQuery(documentSearchText);
+      setSearchOpen(true);
+      setCurrentMatch(0);
+      // Auto-search from claims should use raw mode
+      setSearchMode('raw');
+    } else if (docChanged) {
+      setSearchQuery('');
       setMatchCount(0);
       setCurrentMatch(0);
-      return;
+      setSimilarSections([]);
+    }
+  }, [selectedKeyPoint, documentSearchText]);
+
+  // ── Search helpers ───────────────────────────────────────────────
+  /** Count how many times `query` appears (case-insensitive) in the container text nodes */
+  const countTextMatches = useCallback((container: HTMLElement, query: string): number => {
+    const q = query.toLowerCase();
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    let count = 0;
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      const lower = (node.textContent || '').toLowerCase();
+      let start = 0;
+      while (true) {
+        const idx = lower.indexOf(q, start);
+        if (idx === -1) break;
+        count++;
+        start = idx + q.length;
+      }
+    }
+    return count;
+  }, []);
+
+  /**
+   * For auto-search (claims/concepts), find the best phrase that actually
+   * appears in the document. Tries the full text first, then progressively
+   * shorter word windows, then individual distinctive words.
+   */
+  const resolveSearchQuery = useCallback((fullText: string, container: HTMLElement): string => {
+    const q = fullText.trim();
+    if (countTextMatches(container, q) > 0) return q;
+
+    const words = q.split(/\s+/);
+    for (let windowSize = Math.min(4, words.length - 1); windowSize >= 2; windowSize--) {
+      for (let i = 0; i <= words.length - windowSize; i++) {
+        const phrase = words.slice(i, i + windowSize).join(' ');
+        if (countTextMatches(container, phrase) > 0) return phrase;
+      }
     }
 
-    const query = searchQuery.toLowerCase();
+    const stopWords = new Set(['which', 'their', 'there', 'would', 'could', 'should', 'about', 'these', 'those', 'being', 'between', 'through', 'during', 'before', 'after', 'other', 'because', 'while', 'where', 'since']);
+    const distinctive = words
+      .filter(w => w.length >= 6 && !stopWords.has(w.toLowerCase().replace(/[^a-z]/g, '')))
+      .sort((a, b) => b.length - a.length);
+    for (const word of distinctive) {
+      if (countTextMatches(container, word) > 0) return word;
+    }
+
+    return q;
+  }, [countTextMatches]);
+
+  // ── Regex-based highlight (for raw / wildcard / regex modes) ─────
+  const highlightWithRegex = useCallback((container: HTMLElement, regex: RegExp): number => {
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
     const textNodes: Text[] = [];
     let node: Text | null;
@@ -158,30 +209,29 @@ export default function DocumentPane() {
     let total = 0;
     for (const textNode of textNodes) {
       const text = textNode.textContent || '';
-      const lower = text.toLowerCase();
-      const indices: number[] = [];
-      let start = 0;
-      while (true) {
-        const idx = lower.indexOf(query, start);
-        if (idx === -1) break;
-        indices.push(idx);
-        start = idx + query.length;
+      regex.lastIndex = 0;
+      const indices: Array<{ start: number; end: number }> = [];
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(text)) !== null) {
+        if (m[0].length === 0) { regex.lastIndex++; continue; }
+        indices.push({ start: m.index, end: m.index + m[0].length });
+        if (indices.length > 500) break;
       }
       if (indices.length === 0) continue;
 
       const frag = document.createDocumentFragment();
       let lastEnd = 0;
-      for (const idx of indices) {
-        if (idx > lastEnd) {
-          frag.appendChild(document.createTextNode(text.slice(lastEnd, idx)));
+      for (const { start, end } of indices) {
+        if (start > lastEnd) {
+          frag.appendChild(document.createTextNode(text.slice(lastEnd, start)));
         }
         const mark = document.createElement('mark');
         mark.className = 'search-highlight';
         mark.dataset.matchIndex = String(total);
-        mark.textContent = text.slice(idx, idx + query.length);
+        mark.textContent = text.slice(start, end);
         frag.appendChild(mark);
         total++;
-        lastEnd = idx + query.length;
+        lastEnd = end;
       }
       if (lastEnd < text.length) {
         frag.appendChild(document.createTextNode(text.slice(lastEnd)));
@@ -189,13 +239,139 @@ export default function DocumentPane() {
       textNode.parentNode?.replaceChild(frag, textNode);
     }
 
+    return total;
+  }, []);
+
+  // ── Clear all highlights ─────────────────────────────────────────
+  const clearHighlights = useCallback((container: HTMLElement) => {
+    container.querySelectorAll('.search-highlight, .similar-highlight').forEach(el => {
+      const parent = el.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+        parent.normalize();
+      }
+    });
+  }, []);
+
+  // ── Similar search: embedding-based ──────────────────────────────
+  const runSimilarSearch = useCallback(async (query: string, container: HTMLElement) => {
+    if (!query || query.length < 3) {
+      setMatchCount(0);
+      setSimilarSections([]);
+      return;
+    }
+
+    setSimilarLoading(true);
+    clearHighlights(container);
+
+    try {
+      // Collect paragraph-level text nodes from the rendered document
+      const paragraphs: Array<{ text: string; el: HTMLElement }> = [];
+      const blockEls = container.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, td, th, blockquote');
+      blockEls.forEach(el => {
+        const text = (el.textContent || '').trim();
+        if (text.length >= 20) {
+          paragraphs.push({ text, el: el as HTMLElement });
+        }
+      });
+
+      if (paragraphs.length === 0) {
+        setMatchCount(0);
+        setSimilarSections([]);
+        setSimilarLoading(false);
+        return;
+      }
+
+      // Compute embeddings: query + all paragraphs
+      const allTexts = [query, ...paragraphs.map(p => p.text)];
+      const vectors = await window.electronAPI.computeEmbeddings(allTexts);
+      const queryVec = vectors[0];
+
+      // Score each paragraph
+      const scored = paragraphs.map((p, i) => ({
+        index: i,
+        text: p.text,
+        score: cosineSimilarity(queryVec, vectors[i + 1]),
+        el: p.el,
+      }));
+
+      // Keep top matches above threshold
+      const threshold = 0.5;
+      const matches = scored
+        .filter(s => s.score >= threshold)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 20);
+
+      setSimilarSections(matches);
+      setMatchCount(matches.length);
+      setCurrentMatch(0);
+
+      // Highlight matched paragraphs
+      for (let i = 0; i < matches.length; i++) {
+        const el = matches[i].el;
+        el.classList.add('similar-highlight');
+        el.dataset.matchIndex = String(i);
+        el.dataset.similarScore = matches[i].score.toFixed(2);
+      }
+
+      // Scroll to best match
+      if (matches.length > 0) {
+        matches[0].el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } catch (err) {
+      console.error('[DocumentPane] Similar search failed:', err);
+      setMatchCount(0);
+      setSimilarSections([]);
+    } finally {
+      setSimilarLoading(false);
+    }
+  }, [clearHighlights]);
+
+  // ── Search: DOM-based highlighting ────────────────────────────────
+  const highlightMatches = useCallback(() => {
+    const container = contentRef.current;
+    if (!container) return;
+
+    clearHighlights(container);
+    setSimilarSections([]);
+
+    if (!searchQuery || searchQuery.length < 2) {
+      setMatchCount(0);
+      setCurrentMatch(0);
+      return;
+    }
+
+    if (searchMode === 'similar') {
+      runSimilarSearch(searchQuery, container);
+      return;
+    }
+
+    // For auto-search from claims/concepts, find the best matching phrase
+    let effectiveQuery = searchQuery;
+    if (documentSearchText && searchQuery === documentSearchText && searchMode === 'raw') {
+      effectiveQuery = resolveSearchQuery(searchQuery, container);
+      if (effectiveQuery !== searchQuery) {
+        setSearchQuery(effectiveQuery);
+        return; // will re-run with updated query
+      }
+    }
+
+    const regex = buildSearchRegex(effectiveQuery, searchMode, caseSensitive);
+    if (!regex) {
+      setMatchCount(0);
+      setCurrentMatch(0);
+      return;
+    }
+
+    const total = highlightWithRegex(container, regex);
+
     setMatchCount(total);
     if (total > 0) {
       setCurrentMatch(prev => (prev >= total ? 0 : prev));
     } else {
       setCurrentMatch(0);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchMode, caseSensitive, documentSearchText, resolveSearchQuery, clearHighlights, highlightWithRegex, runSimilarSearch]);
 
   useEffect(() => {
     // Small delay so ReactMarkdown finishes rendering
@@ -208,18 +384,31 @@ export default function DocumentPane() {
     const container = contentRef.current;
     if (!container || matchCount === 0) return;
 
-    container.querySelectorAll('.search-highlight').forEach(el => {
-      el.classList.remove('search-highlight--active');
-    });
-
-    const active = container.querySelector(
-      `.search-highlight[data-match-index="${currentMatch}"]`
-    );
-    if (active) {
-      active.classList.add('search-highlight--active');
-      active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (searchMode === 'similar') {
+      // For similar mode, scroll to the current similar section
+      container.querySelectorAll('.similar-highlight').forEach(el => {
+        el.classList.remove('similar-highlight--active');
+      });
+      const active = container.querySelector(
+        `.similar-highlight[data-match-index="${currentMatch}"]`
+      );
+      if (active) {
+        active.classList.add('similar-highlight--active');
+        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      container.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight--active');
+      });
+      const active = container.querySelector(
+        `.search-highlight[data-match-index="${currentMatch}"]`
+      );
+      if (active) {
+        active.classList.add('search-highlight--active');
+        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
-  }, [currentMatch, matchCount]);
+  }, [currentMatch, matchCount, searchMode]);
 
   // ── Search: navigation helpers ────────────────────────────────────
   const goNextMatch = useCallback(() => {
@@ -237,18 +426,50 @@ export default function DocumentPane() {
     setSearchQuery('');
     setMatchCount(0);
     setCurrentMatch(0);
-    // Clean up highlights
+    setSimilarSections([]);
     const container = contentRef.current;
     if (container) {
-      container.querySelectorAll('.search-highlight').forEach(el => {
-        const parent = el.parentNode;
-        if (parent) {
-          parent.replaceChild(document.createTextNode(el.textContent || ''), el);
-          parent.normalize();
-        }
-      });
+      clearHighlights(container);
     }
+  }, [clearHighlights]);
+
+  // ── Context menu ───────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const selection = window.getSelection();
+    const text = selection?.toString() || '';
+    if (!text) return; // only show menu when text is selected
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, text });
   }, []);
+
+  const handleCopyFromMenu = useCallback(() => {
+    if (ctxMenu?.text) {
+      navigator.clipboard.writeText(ctxMenu.text);
+    }
+    setCtxMenu(null);
+  }, [ctxMenu]);
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenu(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCtxMenu(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [ctxMenu]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────
   useEffect(() => {
@@ -274,12 +495,23 @@ export default function DocumentPane() {
         </div>
         <div className="pane-body">
           <div className="empty-state">
-            Click a key point to view its source document
+            Click a key point, claim, or concept to view its source document
           </div>
         </div>
       </>
     );
   }
+
+  const matchStatusText = () => {
+    if (searchMode === 'similar') {
+      if (similarLoading) return 'Searching...';
+      if (matchCount > 0) return `${currentMatch + 1} / ${matchCount}`;
+      if (searchQuery.length >= 3) return 'No matches';
+      return '';
+    }
+    if (searchQuery.length < 2) return '';
+    return matchCount > 0 ? `${currentMatch + 1} / ${matchCount}` : 'No matches';
+  };
 
   return (
     <>
@@ -292,7 +524,7 @@ export default function DocumentPane() {
                 ref={searchInputRef}
                 type="text"
                 className="doc-search-input"
-                placeholder="Find in document..."
+                placeholder={searchMode === 'similar' ? 'Semantic search...' : 'Find in document...'}
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentMatch(0); }}
                 onKeyDown={e => {
@@ -304,11 +536,29 @@ export default function DocumentPane() {
                   }
                 }}
               />
-              {searchQuery.length >= 2 && (
-                <span className="doc-search-count">
-                  {matchCount > 0 ? `${currentMatch + 1} / ${matchCount}` : 'No matches'}
-                </span>
+              <select
+                className="doc-search-mode"
+                value={searchMode}
+                onChange={e => { setSearchMode(e.target.value as SearchMode); setCurrentMatch(0); }}
+                title="Search mode"
+              >
+                <option value="raw">Raw</option>
+                <option value="wildcard">Wildcard</option>
+                <option value="regex">Regex</option>
+                <option value="similar">Similar</option>
+              </select>
+              {searchMode !== 'similar' && (
+                <button
+                  className={`doc-search-case${caseSensitive ? ' active' : ''}`}
+                  onClick={() => setCaseSensitive(v => !v)}
+                  title="Case sensitive"
+                >
+                  Aa
+                </button>
               )}
+              <span className="doc-search-count">
+                {matchStatusText()}
+              </span>
               <button className="doc-search-nav" onClick={goPrevMatch} disabled={matchCount === 0} title="Previous (Shift+Enter)">&#x25B2;</button>
               <button className="doc-search-nav" onClick={goNextMatch} disabled={matchCount === 0} title="Next (Enter)">&#x25BC;</button>
               <button className="doc-search-close" onClick={closeSearch} title="Close (Esc)">&times;</button>
@@ -337,7 +587,11 @@ export default function DocumentPane() {
         </div>
       )}
 
-      <div className="pane-body document-body" ref={contentRef}>
+      <div
+        className="pane-body document-body"
+        ref={contentRef}
+        onContextMenu={handleContextMenu}
+      >
         {!snapshotText && (
           <div className="empty-state">No snapshot available for this source</div>
         )}
@@ -353,7 +607,34 @@ export default function DocumentPane() {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent.after}</ReactMarkdown>
           </div>
         )}
+
+        {ctxMenu && (
+          <div
+            ref={ctxMenuRef}
+            className="doc-context-menu"
+            style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          >
+            <button className="doc-context-menu-item" onClick={handleCopyFromMenu}>
+              Copy
+            </button>
+          </div>
+        )}
       </div>
+
+      {searchMode === 'similar' && similarSections.length > 0 && (
+        <div className="similar-results-bar">
+          {similarSections.map((s, i) => (
+            <button
+              key={i}
+              className={`similar-result-chip${i === currentMatch ? ' active' : ''}`}
+              onClick={() => setCurrentMatch(i)}
+              title={s.text.slice(0, 80)}
+            >
+              {(s.score * 100).toFixed(0)}%
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 }

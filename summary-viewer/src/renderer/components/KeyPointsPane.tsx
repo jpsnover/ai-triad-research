@@ -39,12 +39,14 @@ interface AggregatedClaim {
 interface AggregatedUnmapped {
   docId: string;
   docTitle: string;
+  sourceIndex: number;
   concept: string;
   suggested_label?: string;
   suggested_description?: string;
   suggested_pov: string;
   suggested_category: string;
   reason: string;
+  resolved_node_id?: string;
   'Accelerationist Interpretation'?: string;
   'Safetyist Interpretation'?: string;
   'Skeptic Interpretation'?: string;
@@ -147,7 +149,7 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
   );
 }
 
-function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) {
+function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: number; onSelect: () => void }) {
   const addToTaxonomy = useStore(s => s.addToTaxonomy);
   const runSimilarSearch = useStore(s => s.runSimilarSearch);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -183,7 +185,7 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
           skeptic: uc['Skeptic Interpretation'] || '',
         }
       : undefined;
-    const res = await addToTaxonomy(uc.suggested_pov, uc.suggested_category, label, description, interpretations);
+    const res = await addToTaxonomy(uc.suggested_pov, uc.suggested_category, label, description, interpretations, uc.docId, uc.sourceIndex);
     setResult(res);
     setAdding(false);
     if (res.success) {
@@ -192,8 +194,13 @@ function UnmappedCard({ uc, index }: { uc: AggregatedUnmapped; index: number }) 
   }, [uc, addToTaxonomy]);
 
   return (
-    <div key={`unmapped-${uc.docId}-${index}`} className="unmapped-card">
+    <div key={`unmapped-${uc.docId}-${index}`} className={`unmapped-card clickable${uc.resolved_node_id ? ' unmapped-resolved' : ''}`} onClick={onSelect}>
       <div className="unmapped-card-header">
+        {uc.resolved_node_id && (
+          <div className="unmapped-resolved-badge" title={`Added as ${uc.resolved_node_id}`}>
+            Mapped to {uc.resolved_node_id}
+          </div>
+        )}
         {uc.suggested_label && (
           <div className="unmapped-label">{uc.suggested_label}</div>
         )}
@@ -300,6 +307,7 @@ export default function KeyPointsPane() {
   const taxonomy = useStore(s => s.taxonomy);
   const selectedKeyPoint = useStore(s => s.selectedKeyPoint);
   const selectKeyPoint = useStore(s => s.selectKeyPoint);
+  const selectDocumentSearch = useStore(s => s.selectDocumentSearch);
   const [viewMode, setViewMode] = useState<'pov' | 'document'>(() => {
     const saved = localStorage.getItem('summaryviewer-view-mode');
     return saved === 'document' ? 'document' : 'pov';
@@ -419,9 +427,9 @@ export default function KeyPointsPane() {
 
       // Unmapped concepts
       if (summary.unmapped_concepts) {
-        for (const uc of summary.unmapped_concepts) {
-          unmapped.push({ docId: sourceId, docTitle, ...uc });
-        }
+        summary.unmapped_concepts.forEach((uc, idx) => {
+          unmapped.push({ docId: sourceId, docTitle, sourceIndex: idx, ...uc });
+        });
       }
     }
 
@@ -808,7 +816,11 @@ export default function KeyPointsPane() {
             {claimsExpanded && (
               <div className="pov-accordion-body">
                 {factualClaims.map((fc, i) => (
-                  <div key={`claim-${fc.docId}-${i}`} className="claim-card">
+                  <div
+                    key={`claim-${fc.docId}-${i}`}
+                    className="claim-card clickable"
+                    onClick={() => selectDocumentSearch(fc.docId, fc.claim)}
+                  >
                     <div className="claim-text">{fc.claim}</div>
                     <div className="claim-meta">
                       <span className="claim-source">{fc.docTitle}</span>
@@ -835,13 +847,25 @@ export default function KeyPointsPane() {
             >
               <span className="pov-accordion-arrow">{unmappedExpanded ? '\u25BC' : '\u25B6'}</span>
               <span className="pov-accordion-label section-label--unmapped">Unmapped Concepts</span>
-              <span className="pov-accordion-count">{unmappedConcepts.length}</span>
+              <span className="pov-accordion-count">
+                {(() => {
+                  const resolved = unmappedConcepts.filter(uc => uc.resolved_node_id).length;
+                  return resolved > 0
+                    ? `${unmappedConcepts.length - resolved} open / ${unmappedConcepts.length}`
+                    : unmappedConcepts.length;
+                })()}
+              </span>
             </button>
 
             {unmappedExpanded && (
               <div className="pov-accordion-body">
                 {unmappedConcepts.map((uc, i) => (
-                  <UnmappedCard key={`unmapped-${uc.docId}-${i}`} uc={uc} index={i} />
+                  <UnmappedCard
+                    key={`unmapped-${uc.docId}-${i}`}
+                    uc={uc}
+                    index={i}
+                    onSelect={() => selectDocumentSearch(uc.docId, uc.concept)}
+                  />
                 ))}
               </div>
             )}
