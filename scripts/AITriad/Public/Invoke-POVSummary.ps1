@@ -376,12 +376,18 @@ $snapshotText
         foreach ($claim in $summaryObject.factual_claims) {
 
             $claimText   = $claim.claim
+            $claimLabel  = $claim.claim_label
             $docPosition = $claim.doc_position
             $hintId      = $claim.potential_conflict_id
+            $linkedNodes = if ($null -ne $claim.linked_taxonomy_nodes) { @($claim.linked_taxonomy_nodes) } else { @() }
+
+            # Normalize stance value
+            $stance = if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $docPosition } else { 'neutral' }
 
             $newInstance = [ordered]@{
                 doc_id       = $DocId
-                position     = "$docPosition — $claimText"
+                stance       = $stance
+                assertion    = $claimText
                 date_flagged = $today
             }
 
@@ -395,6 +401,11 @@ $snapshotText
                         Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
                     } else {
                         $conflictData["instances"] += $newInstance
+                        if ($linkedNodes.Count -gt 0) {
+                            $existing = @($conflictData["linked_taxonomy_nodes"])
+                            $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
+                            $conflictData["linked_taxonomy_nodes"] = $merged
+                        }
                         Set-Content -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
                         Write-OK "  Appended to existing conflict: $hintId"
                     }
@@ -402,10 +413,10 @@ $snapshotText
                     Write-Warn "  Suggested conflict '$hintId' not found — creating new file"
                     $newConflict = [ordered]@{
                         claim_id               = $hintId
-                        claim_label            = ($claimText | Select-Object -First 1)
+                        claim_label            = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
                         description            = $claimText
                         status                 = "open"
-                        linked_taxonomy_nodes  = @()
+                        linked_taxonomy_nodes  = $linkedNodes
                         instances              = @($newInstance)
                         human_notes            = @()
                     }
@@ -426,6 +437,11 @@ $snapshotText
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if (-not $alreadyLogged) {
                         $conflictData["instances"] += $newInstance
+                        if ($linkedNodes.Count -gt 0) {
+                            $existing = @($conflictData["linked_taxonomy_nodes"])
+                            $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
+                            $conflictData["linked_taxonomy_nodes"] = $merged
+                        }
                         Set-Content -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
                         Write-OK "  Appended to fuzzy-matched conflict: $($existingMatch.BaseName)"
                     }
@@ -433,10 +449,10 @@ $snapshotText
                     $newConflictPath = Join-Path $paths.ConflictsDir "$newId.json"
                     $newConflict = [ordered]@{
                         claim_id               = $newId
-                        claim_label            = $claimText.Substring(0, [Math]::Min(80, $claimText.Length))
+                        claim_label            = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
                         description            = $claimText
                         status                 = "open"
-                        linked_taxonomy_nodes  = @()
+                        linked_taxonomy_nodes  = $linkedNodes
                         instances              = @($newInstance)
                         human_notes            = @()
                     }

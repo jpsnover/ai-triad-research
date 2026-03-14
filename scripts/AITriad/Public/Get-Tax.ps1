@@ -51,13 +51,19 @@ function Get-Tax {
     .EXAMPLE
         Get-Tax -Similar "governance" -Top 5
         # Top 5 semantically similar nodes.
+    .EXAMPLE
+        'acc-goals-001','saf-goals-001' | Get-Tax
+        # Pipeline by value — accepts bare ID strings.
+    .EXAMPLE
+        Get-Tax -Id 'acc-goals-*' | Get-Tax
+        # Pipeline by property name — objects with an Id property.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Text')]
     param(
         [Parameter(Position = 0)]
         [string]$POV = '*',
 
-        [Parameter(ParameterSetName = 'Text')]
+        [Parameter(ParameterSetName = 'Text', ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [string[]]$Id,
 
         [Parameter(ParameterSetName = 'Text')]
@@ -74,7 +80,28 @@ function Get-Tax {
         [int]$Top = 20
     )
 
-    Set-StrictMode -Version Latest
+    begin {
+        Set-StrictMode -Version Latest
+        $CollectedIds = [System.Collections.Generic.List[string]]::new()
+    }
+
+    process {
+        # Accumulate pipeline-bound -Id values
+        if ($Id) {
+            foreach ($i in $Id) {
+                if (-not [string]::IsNullOrWhiteSpace($i)) {
+                    $CollectedIds.Add($i)
+                }
+            }
+        }
+    }
+
+    end {
+
+    # Merge collected pipeline IDs with any directly specified
+    if ($CollectedIds.Count -gt 0) {
+        $Id = @($CollectedIds | Select-Object -Unique)
+    }
 
     # -- Similar (semantic search) code path ----------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Similar') {
@@ -168,4 +195,6 @@ function Get-Tax {
             ConvertTo-TaxonomyNode -PovKey $Key -Node $Node
         }
     }
+
+    } # end
 }

@@ -381,8 +381,8 @@ function Import-AITriadDocument {
                 throw "Inbox directory not found: $InboxDir"
             }
 
-            $InboxFiles = Get-ChildItem -Path $InboxDir -File |
-                Where-Object { $_.Name -ne '.gitkeep' }
+            $InboxFiles = @(Get-ChildItem -Path $InboxDir -File |
+                Where-Object { $_.Name -ne '.gitkeep' })
 
             if ($InboxFiles.Count -eq 0) {
                 Write-Warn "Inbox is empty: $InboxDir"

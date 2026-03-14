@@ -170,25 +170,36 @@ function Get-ConflictEvolution {
             }
         }
 
-        # Count instances by position type
+        # Count instances by stance
         $Instances = @($Conflict.instances | Where-Object { $_.doc_id -ne '_seed' })
-        $SupportsCount = @($Instances | Where-Object { $_.position -match '^supports' }).Count
-        $DisputesCount = @($Instances | Where-Object { $_.position -match '^disputes' }).Count
-        $OtherCount    = $Instances.Count - $SupportsCount - $DisputesCount
+        # Support both new schema (stance field) and legacy (position string)
+        $SupportsCount = @($Instances | Where-Object {
+            ($_.PSObject.Properties['stance'] -and $_.stance -eq 'supports') -or
+            (-not $_.PSObject.Properties['stance'] -and $_.position -match '^supports')
+        }).Count
+        $DisputesCount = @($Instances | Where-Object {
+            ($_.PSObject.Properties['stance'] -and $_.stance -eq 'disputes') -or
+            (-not $_.PSObject.Properties['stance'] -and $_.position -match '^disputes')
+        }).Count
+        $QualifiesCount = @($Instances | Where-Object {
+            $_.PSObject.Properties['stance'] -and $_.stance -eq 'qualifies'
+        }).Count
+        $NeutralCount  = $Instances.Count - $SupportsCount - $DisputesCount - $QualifiesCount
 
         $ConflictContext = [PSCustomObject][ordered]@{
-            conflict_id     = $Conflict.claim_id
-            claim_label     = $Conflict.claim_label
-            description     = $Conflict.description
-            status          = $Conflict.status
-            linked_nodes    = @($LinkedNodes)
-            edges           = @($RelevantEdges)
-            internal_edges  = @($RelevantEdges | Where-Object { $_.both_linked }).Count
-            instance_count  = $Instances.Count
-            supports_count  = $SupportsCount
-            disputes_count  = $DisputesCount
-            other_count     = $OtherCount
-            instances       = $Instances
+            conflict_id      = $Conflict.claim_id
+            claim_label      = $Conflict.claim_label
+            description      = $Conflict.description
+            status           = $Conflict.status
+            linked_nodes     = @($LinkedNodes)
+            edges            = @($RelevantEdges)
+            internal_edges   = @($RelevantEdges | Where-Object { $_.both_linked }).Count
+            instance_count   = $Instances.Count
+            supports_count   = $SupportsCount
+            disputes_count   = $DisputesCount
+            qualifies_count  = $QualifiesCount
+            neutral_count    = $NeutralCount
+            instances        = $Instances
         }
 
         if (-not $Analyze) {

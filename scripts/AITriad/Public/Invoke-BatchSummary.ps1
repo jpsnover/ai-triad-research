@@ -11,7 +11,7 @@ function Invoke-BatchSummary {
     .PARAMETER ForceAll
         Reprocess every document regardless of POV.
     .PARAMETER DocId
-        Reprocess a single document by its ID.
+        One or more document IDs to reprocess. Accepts pipeline input by value.
     .PARAMETER Model
         AI model to use. Defaults to AI_MODEL env var, then "gemini-3.1-flash-lite-preview".
         Supports Gemini, Claude, and Groq backends.
@@ -30,12 +30,18 @@ function Invoke-BatchSummary {
     .EXAMPLE
         Invoke-BatchSummary -DocId 'some-document-id'
     .EXAMPLE
+        Invoke-BatchSummary -DocId 'doc-one','doc-two','doc-three'
+    .EXAMPLE
+        'doc-one','doc-two' | Invoke-BatchSummary
+    .EXAMPLE
         Invoke-BatchSummary -DryRun
     #>
     [CmdletBinding()]
     param(
         [switch]$ForceAll,
-        [string]$DocId,
+
+        [Parameter(ValueFromPipeline)]
+        [string[]]$DocId,
 
         [ValidateSet(
             'gemini-3.1-flash-lite-preview',
@@ -56,8 +62,28 @@ function Invoke-BatchSummary {
         [switch]$SkipConflictDetection
     )
 
+    begin {
+        $DocIdList = [System.Collections.Generic.List[string]]::new()
+    }
+
+    process {
+        if ($DocId) {
+            foreach ($Id in $DocId) {
+                if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                    $DocIdList.Add($Id)
+                }
+            }
+        }
+    }
+
+    end {
+
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # Consolidate collected IDs
+    $DocIdFilter = @(if ($DocIdList.Count -gt 0) { $DocIdList | Select-Object -Unique })
+    $HasDocFilter = $DocIdFilter.Count -gt 0
 
     # -- Paths ----------------------------------------------------------------
     $RepoRoot      = $script:RepoRoot
@@ -114,7 +140,7 @@ function Invoke-BatchSummary {
     Write-OK "MaxConcurrent     : $MaxConcurrent"
     if ($DryRun)                { Write-Warn "DRY RUN — no API calls, no file writes" }
     if ($ForceAll)              { Write-Warn "FORCE ALL — every document will be reprocessed" }
-    if ($DocId)                 { Write-Info "Single doc mode: $DocId" }
+    if ($HasDocFilter)          { Write-Info "Doc filter ($($DocIdFilter.Count)): $($DocIdFilter -join ', ')" }
     if ($SkipConflictDetection) { Write-Info "Conflict detection: skipped" }
 
     # -- STEP 1 — Load the full taxonomy -------------------------------------
@@ -138,10 +164,10 @@ function Invoke-BatchSummary {
 
     $ChangedTaxonomyFiles = @()
 
-    if ($ForceAll -or $DocId) {
+    if ($ForceAll -or $HasDocFilter) {
         $ChangedTaxonomyFiles = @($PovFileMap.Keys)
-        if ($ForceAll) { Write-Info "Force mode — treating all taxonomy files as changed" }
-        if ($DocId)    { Write-Info "Single-doc mode — treating all taxonomy files as changed" }
+        if ($ForceAll)      { Write-Info "Force mode — treating all taxonomy files as changed" }
+        if ($HasDocFilter)  { Write-Info "Doc filter mode — treating all taxonomy files as changed" }
     } else {
         $GitAvailable = $null -ne (Get-Command git -ErrorAction SilentlyContinue)
 
@@ -215,7 +241,7 @@ function Invoke-BatchSummary {
         $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json
         $ThisDocId = $Meta.id
 
-        if ($DocId -and $ThisDocId -ne $DocId) { continue }
+        if ($HasDocFilter -and $ThisDocId -notin $DocIdFilter) { continue }
 
         $SnapshotFile = Join-Path $MetaFile.DirectoryName 'snapshot.md'
         if (-not (Test-Path $SnapshotFile)) {
@@ -225,7 +251,7 @@ function Invoke-BatchSummary {
 
         $DocPovTags = if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { @($Meta.pov_tags) } else { @() }
         $Intersects = $ForceAll -or
-                      $DocId    -or
+                      $HasDocFilter -or
                       @($DocPovTags | Where-Object { $_ -in $AffectedCamps }).Count -gt 0
 
         $Entry = @{
@@ -243,10 +269,11 @@ function Invoke-BatchSummary {
         }
     }
 
-    if ($DocId -and $DocsToProcess.Count -eq 0) {
-        Write-Fail "Document not found: $DocId"
-        Write-Info "Check that sources/$DocId/ exists and has a metadata.json"
-        throw "Document not found: $DocId"
+    if ($HasDocFilter -and $DocsToProcess.Count -eq 0) {
+        $Missing = $DocIdFilter -join ', '
+        Write-Fail "No matching documents found: $Missing"
+        Write-Info "Check that sources/<doc-id>/ exists and has a metadata.json"
+        throw "No matching documents found: $Missing"
     }
 
     Write-OK "Documents to reprocess : $($DocsToProcess.Count)"
@@ -322,9 +349,11 @@ function Invoke-BatchSummary {
     } else {
         Write-Info "Running $MaxConcurrent parallel workers"
 
-        $FnBody = (Get-Command Invoke-DocumentSummary).ScriptBlock.ToString()
+        $FnBody        = (Get-Command Invoke-DocumentSummary).ScriptBlock.ToString()
+        $AIEnrichPath  = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
 
         $DocsToProcess | ForEach-Object -Parallel {
+            Import-Module $using:AIEnrichPath -Force
             $fn = [scriptblock]::Create("function Invoke-DocumentSummary {$using:FnBody}")
             . $fn
 
@@ -388,4 +417,6 @@ function Invoke-BatchSummary {
     if ($Failed.Count -gt 0) {
         throw "$($Failed.Count) document(s) failed during batch summarization."
     }
+
+    } # end
 }

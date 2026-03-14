@@ -3,53 +3,90 @@
     "accelerationist": {
       "key_points": [
         {
-          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
-          "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Accelerationist lens>",
-          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
-          "excerpt_context": "<brief pointer to where in the document this appears, e.g. Section 2, paragraph 3>"
-        }
+          "category": "Goals/Values",
+          "point": "<1-6 sentences: (1) state the document's position, (2) explain HOW/WHY, (3) note nuance — Accelerationist lens>",
+          "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
+          "excerpt_context": "<e.g. Section 2, paragraph 3>"
+        },
+        { "...": "repeat for EVERY relevant Goals/Values point" },
+        {
+          "stance": "...",
+          "taxonomy_node_id": "...",
+          "category": "Data/Facts",
+          "point": "...",
+          "verbatim": "...",
+          "excerpt_context": "..."
+        },
+        { "...": "repeat for EVERY relevant Data/Facts point" },
+        {
+          "stance": "...",
+          "taxonomy_node_id": "...",
+          "category": "Methods",
+          "point": "...",
+          "verbatim": "...",
+          "excerpt_context": "..."
+        },
+        { "...": "repeat for EVERY relevant Methods point — aim for 5-20 total key_points per camp" }
       ]
     },
     "safetyist": {
       "key_points": [
         {
-          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Safetyist lens>",
-          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
-          "excerpt_context": "<brief pointer to location in document>"
-        }
+          "point": "<1-6 sentences — Safetyist lens>",
+          "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
+          "excerpt_context": "..."
+        },
+        { "...": "repeat — 5-20 key_points covering all three categories" }
       ]
     },
     "skeptic": {
       "key_points": [
         {
-          "stance": "<one of: strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
+          "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods>",
-          "point": "<1-2 sentences describing what this document says, from the Skeptic lens>",
-          "verbatim": "<1-5 sentences quoted verbatim from the document that best capture this point>",
-          "excerpt_context": "<brief pointer to location in document>"
-        }
+          "point": "<1-6 sentences — Skeptic lens>",
+          "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
+          "excerpt_context": "..."
+        },
+        { "...": "repeat — 5-20 key_points covering all three categories" }
       ]
     }
   },
   "factual_claims": [
     {
       "claim": "<a specific empirical or factual claim made in the document>",
-      "doc_position": "<supports | disputes | neutral>",
-      "potential_conflict_id": "<existing conflict id if relevant, e.g. conflict-scaling-laws-001, OR null>"
-    }
+      "claim_label": "<5-10 word short title, e.g. 'AGI Timeline Estimates'>",
+      "doc_position": "<supports | disputes | neutral | qualifies>",
+      "potential_conflict_id": "<existing conflict id if relevant, OR null>",
+      "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"]
+    },
+    { "...": "repeat for EVERY factual claim — aim for 5-15 claims" }
   ],
   "unmapped_concepts": [
     {
-      "concept": "<a concept in the document that does not map to any existing taxonomy node>",
-      "suggested_pov": "<accelerationist | safetyist | skeptic | cross-cutting>",
-      "suggested_category": "<Goals/Values | Data/Facts | Methods>",
-      "reason": "<why this concept might deserve a new taxonomy node>"
-    }
+      "concept": "<2-5 sentences: describe a concept not covered by any existing taxonomy node — what it is, why it matters, and how it relates to the document's argument>",
+      "suggested_pov": "accelerationist",
+      "suggested_category": "Goals/Values",
+      "reason": "<why this concept deserves a new taxonomy node>"
+    },
+    {
+      "concept": "<2-5 sentences: another unmapped concept...>",
+      "suggested_pov": "safetyist",
+      "suggested_category": "Methods",
+      "reason": "<why this concept deserves a new taxonomy node>"
+    },
+    {
+      "concept": "<2-5 sentences: another unmapped concept...>",
+      "suggested_pov": "cross-cutting",
+      "suggested_category": "Data/Facts",
+      "reason": "<why this concept deserves a new taxonomy node>"
+    },
+    { "...": "repeat for ALL unmapped concepts — aim for 3-10" }
   ]
 }

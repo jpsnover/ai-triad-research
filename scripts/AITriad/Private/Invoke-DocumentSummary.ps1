@@ -65,9 +65,9 @@ $SnapshotText
         -Model      $Model `
         -ApiKey     $ApiKey `
         -Temperature $Temperature `
-        -MaxTokens  32768 `
+        -MaxTokens  65536 `
         -JsonMode `
-        -TimeoutSec 120 `
+        -TimeoutSec 300 `
         -MaxRetries 3 `
         -RetryDelays @(5, 15, 45)
 

@@ -11,6 +11,22 @@ For EACH POV camp you must identify:
   2. Data/Facts    — empirical claims the document asserts or disputes
   3. Methods       — The logic models, interpretive lenses, or policy approaches used to process data in light of their goals and values (The How they think)
 
+QUANTITY GUIDANCE:
+  - Be EXHAUSTIVE. Extract every distinct point the document makes, not just the top few.
+  - key_points: produce 5-20 per POV camp, covering ALL three categories (Goals/Values,
+    Data/Facts, Methods). A typical well-argued document yields 8-15 points per camp.
+    Short or narrowly focused documents may yield fewer, but never fewer than 3 per camp
+    if the document addresses that POV's concerns at all.
+  - factual_claims: extract EVERY specific empirical or factual assertion in the document.
+    Include statistics, study results, historical claims, predictions with dates, and
+    quantitative comparisons. A typical document yields 5-15 factual claims.
+  - unmapped_concepts: include ALL concepts that do not map to existing taxonomy nodes.
+    Do not skip a concept just because it is minor — taxonomy growth depends on this.
+    A typical document yields 3-10 unmapped concepts. If you find fewer than 3, look
+    harder — most documents introduce ideas, framings, or evidence not yet in the taxonomy.
+    Each concept description must be 2-5 sentences: explain what the concept is, why it
+    matters, and how it connects to the document's argument.
+
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
     Use the exact node IDs (e.g. "acc-goals-001", "saf-data-002", "skp-methods-001").
@@ -20,7 +36,9 @@ RULES:
     existing conflict entry, include the conflict_id in factual_claims.
   - Each key_point must include a stance field. stance must be ONE of:
     strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
-    Different key_points within the same POV camp may have different stances
+    Different key_points within the same POV camp may have different stances.
+  - A single document passage may be relevant to multiple POV camps — include it in each
+    where applicable, with the appropriate lens and stance.
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied
     EXACTLY from the document (word-for-word) that best capture the point being made.
     Use the minimum number of sentences needed to convey the core idea. Do NOT
