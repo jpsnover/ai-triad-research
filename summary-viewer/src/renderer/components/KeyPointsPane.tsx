@@ -9,6 +9,7 @@ const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: strin
   accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
   safetyist: { label: 'Safetyist', colorVar: 'var(--color-saf)', bgVar: 'var(--bg-saf)' },
   skeptic: { label: 'Skeptic', colorVar: 'var(--color-skp)', bgVar: 'var(--bg-skp)' },
+  'cross-cutting': { label: 'Cross-Cutting', colorVar: 'var(--text-secondary)', bgVar: 'var(--bg-secondary)' },
 };
 
 const STANCE_LABELS: Record<string, string> = {
@@ -839,38 +840,64 @@ export default function KeyPointsPane() {
         )}
 
         {/* === Unmapped Concepts === */}
-        {hasSelection && unmappedConcepts.length > 0 && (
-          <div className="pov-accordion section-unmapped">
-            <button
-              className="pov-accordion-header section-header--unmapped"
-              onClick={() => setUnmappedExpanded(v => !v)}
-            >
-              <span className="pov-accordion-arrow">{unmappedExpanded ? '\u25BC' : '\u25B6'}</span>
-              <span className="pov-accordion-label section-label--unmapped">Unmapped Concepts</span>
-              <span className="pov-accordion-count">
-                {(() => {
-                  const resolved = unmappedConcepts.filter(uc => uc.resolved_node_id).length;
-                  return resolved > 0
-                    ? `${unmappedConcepts.length - resolved} open / ${unmappedConcepts.length}`
-                    : unmappedConcepts.length;
-                })()}
-              </span>
-            </button>
+        {hasSelection && unmappedConcepts.length > 0 && (() => {
+          // Group by POV, sort each group by label
+          const POV_ORDER = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+          const byPov = new Map<string, AggregatedUnmapped[]>();
+          for (const pov of POV_ORDER) byPov.set(pov, []);
+          for (const uc of unmappedConcepts) {
+            const key = uc.suggested_pov || 'cross-cutting';
+            if (!byPov.has(key)) byPov.set(key, []);
+            byPov.get(key)!.push(uc);
+          }
+          for (const group of byPov.values()) {
+            group.sort((a, b) => (a.suggested_label || a.concept).localeCompare(b.suggested_label || b.concept));
+          }
+          const resolved = unmappedConcepts.filter(uc => uc.resolved_node_id).length;
+          const countLabel = resolved > 0
+            ? `${unmappedConcepts.length - resolved} open / ${unmappedConcepts.length}`
+            : String(unmappedConcepts.length);
 
-            {unmappedExpanded && (
-              <div className="pov-accordion-body">
-                {unmappedConcepts.map((uc, i) => (
-                  <UnmappedCard
-                    key={`unmapped-${uc.docId}-${i}`}
-                    uc={uc}
-                    index={i}
-                    onSelect={() => selectDocumentSearch(uc.docId, uc.concept)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          return (
+            <div className="pov-accordion section-unmapped">
+              <button
+                className="pov-accordion-header section-header--unmapped"
+                onClick={() => setUnmappedExpanded(v => !v)}
+              >
+                <span className="pov-accordion-arrow">{unmappedExpanded ? '\u25BC' : '\u25B6'}</span>
+                <span className="pov-accordion-label section-label--unmapped">Unmapped Concepts</span>
+                <span className="pov-accordion-count">{countLabel}</span>
+              </button>
+
+              {unmappedExpanded && (
+                <div className="pov-accordion-body">
+                  {POV_ORDER.map(pov => {
+                    const group = byPov.get(pov) || [];
+                    if (group.length === 0) return null;
+                    const cfg = POV_CONFIG[pov];
+                    const povLabel = cfg?.label || pov;
+                    const povColor = cfg?.colorVar || 'var(--text-secondary)';
+                    return (
+                      <div key={pov} className="unmapped-pov-group">
+                        <div className="unmapped-pov-header" style={{ color: povColor }}>
+                          {povLabel} <span className="unmapped-pov-count">({group.length})</span>
+                        </div>
+                        {group.map((uc, i) => (
+                          <UnmappedCard
+                            key={`unmapped-${uc.docId}-${uc.sourceIndex}`}
+                            uc={uc}
+                            index={i}
+                            onSelect={() => selectDocumentSearch(uc.docId, uc.concept)}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {ctxMenu && (

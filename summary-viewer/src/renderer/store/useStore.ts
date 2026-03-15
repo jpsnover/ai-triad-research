@@ -37,7 +37,7 @@ interface SummaryViewerState {
   // Actions
   loadSources: () => Promise<void>;
   toggleSource: (id: string) => void;
-  toggleAll: () => void;
+  toggleAll: (filterIds?: string[]) => void;
   selectKeyPoint: (docId: string, pov: string, index: number) => void;
   selectDocumentSearch: (docId: string, searchText: string) => void;
   clearKeyPoint: () => void;
@@ -105,14 +105,20 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     });
   },
 
-  toggleAll: () => {
+  toggleAll: (filterIds?: string[]) => {
     set(state => {
-      const allSelected = state.sources.length > 0 &&
-        state.sources.every(s => state.selectedSourceIds.has(s.id));
+      const ids = filterIds || state.sources.map(s => s.id);
+      const allSelected = ids.length > 0 && ids.every(id => state.selectedSourceIds.has(id));
       if (allSelected) {
-        return { selectedSourceIds: new Set<string>() };
+        // Deselect only the filtered set
+        const next = new Set(state.selectedSourceIds);
+        for (const id of ids) next.delete(id);
+        return { selectedSourceIds: next };
       }
-      return { selectedSourceIds: new Set(state.sources.map(s => s.id)) };
+      // Select the filtered set (additive)
+      const next = new Set(state.selectedSourceIds);
+      for (const id of ids) next.add(id);
+      return { selectedSourceIds: next };
     });
   },
 
@@ -167,7 +173,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   },
 
   addToTaxonomy: async (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }, docId?: string, conceptIndex?: number) => {
-    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations, docId, conceptIndex });
+    const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations, docId, conceptIndex }) as { success: boolean; nodeId: string; error?: string };
     if (result.success) {
       // Reload taxonomy and summaries to reflect the resolved concept
       const taxonomy = await window.electronAPI.loadTaxonomy() as Record<string, TaxonomyNode>;
@@ -183,6 +189,20 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         }
       } else {
         set({ taxonomy });
+      }
+
+      // Compute embedding for the new node and add to cache (fire-and-forget)
+      try {
+        const vectors = await window.electronAPI.computeEmbeddings([description]);
+        if (vectors.length > 0) {
+          set(state => {
+            const cache = new Map(state.embeddingCache);
+            cache.set(result.nodeId, vectors[0]);
+            return { embeddingCache: cache };
+          });
+        }
+      } catch {
+        // Non-fatal — embedding will be computed on next similar search
       }
     }
     return result;

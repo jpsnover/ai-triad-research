@@ -94,6 +94,22 @@ function sortSources(sources: SourceInfo[], field: SortField): SourceInfo[] {
   });
 }
 
+function filterSources(sources: SourceInfo[], query: string): SourceInfo[] {
+  if (!query.trim()) return sources;
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return sources.filter(s => {
+    const haystack = [
+      s.title,
+      s.oneLiner,
+      s.id,
+      ...s.povTags,
+      ...s.topicTags,
+      ...s.authors,
+    ].join(' ').toLowerCase();
+    return terms.every(t => haystack.includes(t));
+  });
+}
+
 export default function SourcesPane() {
   const sources = useStore(s => s.sources);
   const selectedSourceIds = useStore(s => s.selectedSourceIds);
@@ -102,16 +118,18 @@ export default function SourcesPane() {
   const [sortField, setSortField] = useState<SortField>(() => {
     return (localStorage.getItem('summaryviewer-sort') as SortField) || 'name';
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSortChange = useCallback((field: SortField) => {
     setSortField(field);
     localStorage.setItem('summaryviewer-sort', field);
   }, []);
 
-  const sorted = useMemo(() => sortSources(sources, sortField), [sources, sortField]);
+  const filtered = useMemo(() => filterSources(sources, searchQuery), [sources, searchQuery]);
+  const sorted = useMemo(() => sortSources(filtered, sortField), [filtered, sortField]);
 
-  const allSelected = sources.length > 0 && sources.every(s => selectedSourceIds.has(s.id));
-  const someSelected = sources.some(s => selectedSourceIds.has(s.id));
+  const allSelected = filtered.length > 0 && filtered.every(s => selectedSourceIds.has(s.id));
+  const someSelected = filtered.some(s => selectedSourceIds.has(s.id));
 
   return (
     <>
@@ -143,16 +161,34 @@ export default function SourcesPane() {
           </button>
         </div>
       </div>
+      <div className="source-search-bar">
+        <input
+          type="text"
+          className="source-search-input"
+          placeholder="Search sources..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            className="source-search-clear"
+            onClick={() => setSearchQuery('')}
+            title="Clear search"
+          >
+            {'\u2715'}
+          </button>
+        )}
+      </div>
       <div className="pane-body">
         <label className="select-all-row">
           <input
             type="checkbox"
             checked={allSelected}
             ref={el => { if (el) el.indeterminate = someSelected && !allSelected; }}
-            onChange={toggleAll}
+            onChange={() => toggleAll(filtered.map(s => s.id))}
           />
           <span className="select-all-label">
-            Select All ({sources.length})
+            {searchQuery ? `Select ${filtered.length} of ${sources.length}` : `Select All (${sources.length})`}
           </span>
         </label>
 

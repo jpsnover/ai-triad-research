@@ -360,6 +360,52 @@ body {
   min-height: 0;
 }
 
+/* === Source Search Bar === */
+.source-search-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px var(--pane-padding);
+  gap: 4px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.source-search-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 5px 28px 5px 8px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.source-search-input:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+.source-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.source-search-clear {
+  position: absolute;
+  right: calc(var(--pane-padding) + 6px);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+.source-search-clear:hover {
+  color: var(--text-secondary);
+}
+
 /* === Select All Row === */
 .select-all-row {
   display: flex;
@@ -885,6 +931,22 @@ body {
 
 .section-label--unmapped {
   color: var(--color-cc);
+}
+
+.unmapped-pov-group {
+  margin-bottom: 12px;
+}
+.unmapped-pov-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 4px 10px;
+  margin-bottom: 2px;
+}
+.unmapped-pov-count {
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .unmapped-card {
