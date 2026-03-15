@@ -79,6 +79,11 @@ function registerWindowHandlers(): void {
     const newW = Math.max(900, w - deltaWidth);
     mainWindow.setSize(newW, h, true);
   });
+
+  ipcMain.handle('is-maximized', () => {
+    if (!mainWindow) return false;
+    return mainWindow.isMaximized() || mainWindow.isFullScreen();
+  });
 }
 
 function createWindow(): void {

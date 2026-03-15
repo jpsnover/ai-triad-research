@@ -136,57 +136,58 @@ export function PovTab({ pov }: PovTabProps) {
   const infoIsPane4 = showInfoPanel && hasPane3;
   const infoIsPane3 = showInfoPanel && !hasPane3;
 
-  // Grow/shrink window when Pane 3 opens/closes
+  // Grow/shrink window when panes open/close (skip when maximized/fullscreen)
   const prevShowSimilar = useRef(false);
+  const prevShowAnalysis = useRef(false);
+  const prevShowAttrFilter = useRef(false);
+  const prevShowInfo = useRef(false);
+
   useEffect(() => {
     const wasShowing = prevShowSimilar.current;
     prevShowSimilar.current = showSimilarPanel;
-    // 4px for the resize handle
+    if (showSimilarPanel === wasShowing) return;
     const delta = pane3Width + 4;
-    if (showSimilarPanel && !wasShowing) {
-      window.electronAPI.growWindow(delta);
-    } else if (!showSimilarPanel && wasShowing) {
-      window.electronAPI.shrinkWindow(delta);
-    }
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showSimilarPanel) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
   }, [showSimilarPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow/shrink window when Pane 4 (analysis) opens/closes
-  const prevShowAnalysis = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowAnalysis.current;
     prevShowAnalysis.current = showAnalysisPanel;
+    if (showAnalysisPanel === wasShowing) return;
     const delta = pane4Width + 4;
-    if (showAnalysisPanel && !wasShowing) {
-      window.electronAPI.growWindow(delta);
-    } else if (!showAnalysisPanel && wasShowing) {
-      window.electronAPI.shrinkWindow(delta);
-    }
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showAnalysisPanel) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
   }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow/shrink window when Attribute Filter panel opens/closes
-  const prevShowAttrFilter = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowAttrFilter.current;
     prevShowAttrFilter.current = showAttrFilterPanel;
+    if (showAttrFilterPanel === wasShowing) return;
     const delta = attrPaneWidth + 4;
-    if (showAttrFilterPanel && !wasShowing) {
-      window.electronAPI.growWindow(delta);
-    } else if (!showAttrFilterPanel && wasShowing) {
-      window.electronAPI.shrinkWindow(delta);
-    }
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showAttrFilterPanel) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
   }, [showAttrFilterPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow/shrink window when Info panel opens/closes
-  const prevShowInfo = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowInfo.current;
     prevShowInfo.current = showInfoPanel;
+    if (showInfoPanel === wasShowing) return;
     const delta = infoPaneWidth + 4;
-    if (showInfoPanel && !wasShowing) {
-      window.electronAPI.growWindow(delta);
-    } else if (!showInfoPanel && wasShowing) {
-      window.electronAPI.shrinkWindow(delta);
-    }
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showInfoPanel) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
   }, [showInfoPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-refresh similar search when selection changes while panel is open

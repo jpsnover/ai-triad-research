@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   shrinkWindow: (deltaWidth: number): Promise<void> =>
     ipcRenderer.invoke('shrink-window', deltaWidth),
 
+  isMaximized: (): Promise<boolean> =>
+    ipcRenderer.invoke('is-maximized'),
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 });

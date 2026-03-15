@@ -1591,7 +1591,7 @@ body {
   background: var(--bg-primary);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .similar-search-header {
@@ -1825,7 +1825,7 @@ body {
   background: var(--bg-primary);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .analysis-panel-header {
