@@ -30,3 +30,50 @@ The Trade-Off: Define the primary risk a practitioner must accept today if they 
 
 Output Format: For each source: Title & Link, Publication Date, Citation/Impact Context, and a Summary of the Core Argument.`;
 }
+
+/**
+ * Generates a research prompt for investigating a factual conflict between sources.
+ */
+export function generateConflictResearchPrompt(
+  claimLabel: string,
+  description: string,
+  instances: Array<{ doc_id: string; assertion: string; stance: string }>,
+): string {
+  const stances = instances
+    .map((i) => `  - [${i.stance.toUpperCase()}] ${i.doc_id}: "${i.assertion}"`)
+    .join('\n');
+
+  return `Role: Strategic Auditor and Conflict Resolution Researcher.
+Objective: Investigate the following factual conflict identified in AI policy/safety research:
+
+Claim: ${claimLabel}
+Description: ${description}
+
+Documented stances:
+${stances}
+
+Constraint - Impact & Recency:
+Recency: Prioritize sources published within the last 18\u201324 months to capture the post-Generative AI shift.
+Impact: Prioritize "Widely Cited" sources. Use citation counts (h-index of authors) or institutional weight as a proxy for authority.
+
+Part 1: Evidence Audit
+For each stance above, find 2-3 authoritative sources that support or refute the specific assertion.
+Assess the empirical quality: is this claim based on peer-reviewed data, modeling, expert opinion, or anecdote?
+
+Part 2: Root Cause Analysis
+Identify WHY the sources disagree. Common causes:
+  - Different definitions or scope (e.g., "AI" means different things)
+  - Different time horizons or geographic contexts
+  - Conflicting empirical data or methodological approaches
+  - Values-driven framing differences vs. genuine factual disagreement
+
+Part 3: Resolution Assessment
+Can this conflict be resolved with current evidence? Rate as:
+  - RESOLVABLE: One side has clearly stronger empirical support
+  - CONDITIONAL: Both sides are correct under different assumptions/contexts
+  - OPEN: Genuinely unresolved — insufficient evidence or fundamentally different values
+
+Provide a 2-3 sentence synthesis of the current scholarly consensus (if any).
+
+Output Format: For each source: Title & Link, Publication Date, Citation/Impact Context, and a Summary of the Core Argument.`;
+}

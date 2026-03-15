@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CrossCuttingNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -10,6 +10,7 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
+import { generateResearchPrompt } from '../utils/researchPrompt';
 
 interface CrossCuttingDetailProps {
   node: CrossCuttingNode;
@@ -21,7 +22,15 @@ interface CrossCuttingDetailProps {
 export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: CrossCuttingDetailProps) {
   const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
+  const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleResearchPrompt = useCallback(async () => {
+    const prompt = generateResearchPrompt(node.label, node.description);
+    await navigator.clipboard.writeText(prompt);
+    setClipboardState('copied');
+    setTimeout(() => setClipboardState('idle'), 3000);
+  }, [node.label, node.description]);
 
   const allPovIds = getAllNodeIds().filter(id => !id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
@@ -76,6 +85,13 @@ export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: Cro
       <div className="detail-header">
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
+          <button
+            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
+            onClick={handleResearchPrompt}
+            title="Generate a research prompt for this concept and copy to clipboard"
+          >
+            {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
+          </button>
           {onPin && (
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
               Pin

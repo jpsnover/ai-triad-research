@@ -187,6 +187,12 @@ interface TaxonomyState {
   ) => Promise<void>;
   clearAnalysis: () => void;
 
+  clusterView: { clusters: { label: string; nodeIds: string[] }[] } | null;
+  clusterLoading: boolean;
+  clusterError: string | null;
+  runClusterView: (pov: Pov) => Promise<void>;
+  clearClusterView: () => void;
+
   setActiveTab: (tab: TabId) => void;
   setSelectedNodeId: (id: string | null) => void;
   navigateToNode: (tab: TabId, id: string) => void;
@@ -289,6 +295,108 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   analysisCached: false,
   analysisElementA: null,
   analysisElementB: null,
+
+  clusterView: null,
+  clusterLoading: false,
+  clusterError: null,
+  clearClusterView: () => set({ clusterView: null, clusterError: null }),
+
+  runClusterView: async (pov) => {
+    const state = get();
+    const file = state[pov];
+    if (!file) return;
+
+    set({ clusterLoading: true, clusterError: null });
+
+    try {
+      // Ensure embeddings are computed
+      let cache = state.embeddingCache;
+      if (state.embeddingDirty || cache.size === 0) {
+        const { ids, texts } = state.buildEmbeddingTexts(new Set(), new Set());
+        if (texts.length === 0) {
+          set({ clusterLoading: false, clusterError: 'No embeddings available' });
+          return;
+        }
+        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
+        cache = new Map();
+        for (let i = 0; i < ids.length; i++) {
+          cache.set(ids[i], vectors[i]);
+        }
+        set({ embeddingCache: cache, embeddingDirty: false });
+      }
+
+      const { clusterByEmbedding, buildClusterLabelPrompt } = await import('../utils/clustering');
+
+      const nodeIds = file.nodes.map(n => n.id);
+      const rawClusters = clusterByEmbedding(nodeIds, cache, 6, 0.55);
+
+      if (rawClusters.length === 0) {
+        set({ clusterLoading: false, clusterError: 'Could not form clusters' });
+        return;
+      }
+
+      // Build label lookup — only label multi-node clusters (singletons go to "Other")
+      const labelMap = new Map(file.nodes.map(n => [n.id, n.label]));
+      const multiRawClusters = rawClusters.filter(ids => ids.length > 1);
+      const clustersForPrompt = multiRawClusters.map(ids => ({
+        nodeIds: ids,
+        labels: ids.map(id => labelMap.get(id) || id),
+      }));
+
+      let labels: string[];
+      if (clustersForPrompt.length > 0) {
+        const prompt = buildClusterLabelPrompt(clustersForPrompt);
+        const { text } = await window.electronAPI.generateText(prompt);
+        try {
+          const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+          labels = JSON.parse(cleaned);
+        } catch {
+          labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
+        }
+      } else {
+        labels = [];
+      }
+
+      // Map labels back to full rawClusters array (singletons get no label — handled below)
+      const fullLabels: string[] = [];
+      let multiIdx = 0;
+      for (const ids of rawClusters) {
+        if (ids.length > 1) {
+          fullLabels.push(labels[multiIdx] || `Cluster ${multiIdx + 1}`);
+          multiIdx++;
+        } else {
+          fullLabels.push('');
+        }
+      }
+
+      // Separate multi-node clusters from singletons
+      const multiClusters: { label: string; nodeIds: string[] }[] = [];
+      const singletonIds: string[] = [];
+
+      for (let i = 0; i < rawClusters.length; i++) {
+        if (rawClusters[i].length === 1) {
+          singletonIds.push(...rawClusters[i]);
+        } else {
+          multiClusters.push({
+            label: fullLabels[i] || `Cluster ${i + 1}`,
+            nodeIds: rawClusters[i],
+          });
+        }
+      }
+
+      // Sort clusters by size descending
+      multiClusters.sort((a, b) => b.nodeIds.length - a.nodeIds.length);
+
+      // Append "Other" bucket for singletons
+      if (singletonIds.length > 0) {
+        multiClusters.push({ label: 'Other', nodeIds: singletonIds });
+      }
+
+      set({ clusterView: { clusters: multiClusters }, clusterLoading: false });
+    } catch (err) {
+      set({ clusterLoading: false, clusterError: String(err) });
+    }
+  },
 
   runAnalyzeDistinction: async (elementA, elementB, forceRefresh) => {
     const model = get().geminiModel;

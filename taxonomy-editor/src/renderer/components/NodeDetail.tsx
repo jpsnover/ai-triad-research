@@ -34,7 +34,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
     setTimeout(() => setClipboardState('idle'), 3000);
   }, [node.label, node.description]);
 
-  const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods'];
+  const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
   const moveTargets = ALL_CATEGORIES.filter(c => c !== node.category);
 
   const allCcIds = getAllNodeIds().filter(id => id.startsWith('cc-'));

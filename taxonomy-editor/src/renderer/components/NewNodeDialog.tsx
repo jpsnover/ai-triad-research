@@ -9,7 +9,7 @@ interface NewNodeDialogProps {
   onCancel: () => void;
 }
 
-const CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods'];
+const CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
 
 export function NewNodeDialog({ onConfirm, onCancel }: NewNodeDialogProps) {
   const [category, setCategory] = useState<Category>('Goals/Values');

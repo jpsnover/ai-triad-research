@@ -1,18 +1,52 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { PovNode, Category } from '../types/taxonomy';
+
+export type SortMode = 'id' | 'label' | 'similarity';
+
+export interface ClusterGroup {
+  label: string;
+  nodeIds: string[];
+}
 
 interface NodeTreeProps {
   nodes: PovNode[];
   selectedNodeId: string | null;
   onSelect: (id: string) => void;
+  sortMode?: SortMode;
+  similarScores?: Map<string, number> | null;
+  clusters?: ClusterGroup[] | null;
+  clusterLoading?: boolean;
 }
 
-const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Methods', 'Data/Facts'];
+const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Methods/Arguments', 'Data/Facts'];
 
-export function getOrderedNodeIds(nodes: PovNode[]): string[] {
+function sortNodes(nodes: PovNode[], mode: SortMode, scores: Map<string, number> | null): PovNode[] {
+  if (mode === 'id') {
+    return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+  }
+  if (mode === 'label') {
+    return [...nodes].sort((a, b) => a.label.localeCompare(b.label));
+  }
+  if (mode === 'similarity' && scores && scores.size > 0) {
+    return [...nodes].sort((a, b) => (scores.get(b.id) ?? -1) - (scores.get(a.id) ?? -1));
+  }
+  return nodes;
+}
+
+export function getOrderedNodeIds(
+  nodes: PovNode[],
+  sortMode: SortMode = 'id',
+  similarScores?: Map<string, number> | null,
+  clusters?: ClusterGroup[] | null,
+): string[] {
+  // Cluster mode: return IDs in cluster order
+  if (sortMode === 'similarity' && clusters && clusters.length > 0) {
+    return clusters.flatMap(c => c.nodeIds);
+  }
+
   const grouped = new Map<Category, PovNode[]>();
   for (const cat of CATEGORY_ORDER) {
     grouped.set(cat, []);
@@ -23,14 +57,89 @@ export function getOrderedNodeIds(nodes: PovNode[]): string[] {
   }
   const ids: string[] = [];
   for (const cat of CATEGORY_ORDER) {
-    for (const node of grouped.get(cat) || []) {
+    const catNodes = sortNodes(grouped.get(cat) || [], sortMode, similarScores ?? null);
+    for (const node of catNodes) {
       ids.push(node.id);
     }
   }
   return ids;
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect }: NodeTreeProps) {
+const COLLAPSE_STORAGE_KEY = 'taxonomy-editor-collapsed-categories';
+
+function loadCollapsed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch { /* ignore */ }
+  return new Set();
+}
+
+function saveCollapsed(collapsed: Set<string>) {
+  localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
+}
+
+export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading }: NodeTreeProps) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
+
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      saveCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  // Cluster view
+  if (sortMode === 'similarity' && clusters && clusters.length > 0) {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    return (
+      <div>
+        {clusters.map((cluster, ci) => {
+          const key = `cluster-${ci}`;
+          // Default collapsed for cluster view
+          const isCollapsed = !collapsed.has(`${key}-expanded`);
+          const clusterNodes = cluster.nodeIds.map(id => nodeMap.get(id)).filter(Boolean) as PovNode[];
+          return (
+            <div key={key} className="category-group cluster-group">
+              <div
+                className="category-label cluster-label"
+                onClick={() => toggleGroup(`${key}-expanded`)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
+                {cluster.label} <span className="category-count">({clusterNodes.length})</span>
+              </div>
+              {!isCollapsed && clusterNodes.map((node) => (
+                <NodeItem
+                  key={node.id}
+                  node={node}
+                  isSelected={selectedNodeId === node.id}
+                  onSelect={onSelect}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Loading state for clusters
+  if (sortMode === 'similarity' && clusterLoading) {
+    return (
+      <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        Clustering nodes...
+      </div>
+    );
+  }
+
+  // Standard category view
   const grouped = new Map<Category, PovNode[]>();
   for (const cat of CATEGORY_ORDER) {
     grouped.set(cat, []);
@@ -45,18 +154,26 @@ export function NodeTree({ nodes, selectedNodeId, onSelect }: NodeTreeProps) {
   return (
     <div>
       {CATEGORY_ORDER.map((cat) => {
-        const catNodes = grouped.get(cat) || [];
+        const catNodes = sortNodes(grouped.get(cat) || [], sortMode, similarScores ?? null);
+        const isCollapsed = collapsed.has(cat);
         return (
           <div key={cat} className="category-group">
-            <div className="category-label" data-cat={cat}>
+            <div
+              className="category-label"
+              data-cat={cat}
+              onClick={() => toggleGroup(cat)}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
               {cat} <span className="category-count">({catNodes.length})</span>
             </div>
-            {catNodes.map((node) => (
+            {!isCollapsed && catNodes.map((node) => (
               <NodeItem
                 key={node.id}
                 node={node}
                 isSelected={selectedNodeId === node.id}
                 onSelect={onSelect}
+                score={similarScores?.get(node.id)}
               />
             ))}
           </div>
@@ -66,7 +183,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect }: NodeTreeProps) {
   );
 }
 
-function NodeItem({ node, isSelected, onSelect }: { node: PovNode; isSelected: boolean; onSelect: (id: string) => void }) {
+function NodeItem({ node, isSelected, onSelect, score }: { node: PovNode; isSelected: boolean; onSelect: (id: string) => void; score?: number }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,7 +200,10 @@ function NodeItem({ node, isSelected, onSelect }: { node: PovNode; isSelected: b
       onClick={() => onSelect(node.id)}
     >
       <div>{node.label || '(untitled)'}</div>
-      <div className="node-item-id">{node.id}</div>
+      <div className="node-item-id">
+        {node.id}
+        {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
+      </div>
     </div>
   );
 }

@@ -98,7 +98,7 @@ const POV_SCOPES: { id: TabId; label: string }[] = [
 const ASPECT_SCOPES: { id: Category; label: string }[] = [
   { id: 'Goals/Values', label: 'Goals' },
   { id: 'Data/Facts', label: 'Data' },
-  { id: 'Methods', label: 'Methods' },
+  { id: 'Methods/Arguments', label: 'Methods/Args' },
 ];
 
 export function FindBar() {

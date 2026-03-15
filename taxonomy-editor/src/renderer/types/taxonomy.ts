@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
-export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods';
+export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods/Arguments';
 
 export interface GraphAttributes {
   epistemic_type?: string;

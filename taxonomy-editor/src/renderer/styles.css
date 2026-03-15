@@ -292,6 +292,25 @@ body {
   color: var(--text-secondary);
 }
 
+.list-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-select {
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sort-select:focus {
+  outline: 2px solid var(--focus-ring);
+}
+
 .list-panel-items {
   flex: 1;
   overflow-y: auto;
@@ -306,7 +325,7 @@ body {
 
 .detail-panel[data-cat="Goals/Values"] { background: var(--bg-detail-goals); }
 .detail-panel[data-cat="Data/Facts"]   { background: var(--bg-detail-data); }
-.detail-panel[data-cat="Methods"]      { background: var(--bg-detail-methods); }
+.detail-panel[data-cat="Methods/Arguments"]      { background: var(--bg-detail-methods); }
 
 .detail-panel-empty {
   display: flex;
@@ -332,13 +351,32 @@ body {
   margin-bottom: 4px;
 }
 
-.category-label[data-cat="Goals/Values"] { color: var(--cat-goals); }
-.category-label[data-cat="Data/Facts"]   { color: var(--cat-data); }
-.category-label[data-cat="Methods"]      { color: var(--cat-methods); }
+.category-label[data-cat="Goals/Values"]       { color: var(--cat-goals); }
+.category-label[data-cat="Data/Facts"]         { color: var(--cat-data); }
+.category-label[data-cat="Methods/Arguments"]  { color: var(--cat-methods); }
+
+.category-toggle {
+  display: inline-block;
+  font-size: 0.55rem;
+  margin-right: 4px;
+  transition: transform 0.15s;
+}
+.category-toggle.collapsed {
+  transform: rotate(-90deg);
+}
 
 .category-count {
   font-weight: 400;
   opacity: 0.7;
+}
+
+/* ─── Cluster groups (similarity view) ────────────────── */
+
+.cluster-label {
+  color: var(--text-secondary) !important;
+  font-style: italic;
+  border-left: 3px solid var(--focus-ring);
+  padding-left: 9px;
 }
 
 /* ─── Node list items ──────────────────────────────────── */
@@ -357,7 +395,7 @@ body {
 
 .node-item[data-cat="Goals/Values"] { border-left-color: var(--cat-goals); }
 .node-item[data-cat="Data/Facts"]   { border-left-color: var(--cat-data); }
-.node-item[data-cat="Methods"]      { border-left-color: var(--cat-methods); }
+.node-item[data-cat="Methods/Arguments"]      { border-left-color: var(--cat-methods); }
 
 .node-item:hover {
   background: var(--bg-hover);
@@ -372,6 +410,19 @@ body {
   color: var(--text-muted);
   font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
   margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.node-item-score {
+  font-size: 0.65rem;
+  font-family: inherit;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--focus-ring);
+  color: #fff;
+  white-space: nowrap;
 }
 
 /* ─── Detail category banner ───────────────────────────── */
@@ -401,7 +452,7 @@ body {
   border: 1px solid rgba(91, 138, 191, 0.25);
 }
 
-.detail-category-banner[data-cat="Methods"] {
+.detail-category-banner[data-cat="Methods/Arguments"] {
   background: rgba(176, 124, 198, 0.12);
   color: var(--cat-methods);
   border: 1px solid rgba(176, 124, 198, 0.25);
@@ -1159,7 +1210,7 @@ body {
 
 .find-scope-chip.active[data-cat="Goals/Values"] { border-color: var(--cat-goals); color: var(--cat-goals); }
 .find-scope-chip.active[data-cat="Data/Facts"]   { border-color: var(--cat-data);  color: var(--cat-data); }
-.find-scope-chip.active[data-cat="Methods"]      { border-color: var(--cat-methods); color: var(--cat-methods); }
+.find-scope-chip.active[data-cat="Methods/Arguments"]      { border-color: var(--cat-methods); color: var(--cat-methods); }
 
 .find-results-panel {
   margin-top: 8px;

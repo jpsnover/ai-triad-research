@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ConflictFile } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -11,6 +11,7 @@ import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
+import { generateConflictResearchPrompt } from '../utils/researchPrompt';
 
 interface ConflictDetailProps {
   conflict: ConflictFile;
@@ -33,7 +34,24 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     validationErrors,
   } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
+  const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleResearchPrompt = useCallback(async () => {
+    const instances = (conflict.instances || []).map((i) => ({
+      doc_id: i.doc_id,
+      assertion: i.assertion,
+      stance: i.stance,
+    }));
+    const prompt = generateConflictResearchPrompt(
+      conflict.claim_label,
+      conflict.description,
+      instances,
+    );
+    await navigator.clipboard.writeText(prompt);
+    setClipboardState('copied');
+    setTimeout(() => setClipboardState('idle'), 3000);
+  }, [conflict.claim_label, conflict.description, conflict.instances]);
 
   const allNodeIds = getAllNodeIds();
 
@@ -57,14 +75,16 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     updateConflict(conflict.claim_id, updates);
   };
 
+  const linkedNodes = conflict.linked_taxonomy_nodes || [];
+
   const addLinked = (id: string) => {
-    if (id && !conflict.linked_taxonomy_nodes.includes(id)) {
-      update({ linked_taxonomy_nodes: [...conflict.linked_taxonomy_nodes, id] });
+    if (id && !linkedNodes.includes(id)) {
+      update({ linked_taxonomy_nodes: [...linkedNodes, id] });
     }
   };
 
   const removeLinked = (id: string) => {
-    update({ linked_taxonomy_nodes: conflict.linked_taxonomy_nodes.filter(n => n !== id) });
+    update({ linked_taxonomy_nodes: linkedNodes.filter(n => n !== id) });
   };
 
   const noopUpdate = () => {};
@@ -75,6 +95,13 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       <div className="detail-header">
         <h2>{conflict.claim_id}</h2>
         <div className="detail-header-actions">
+          <button
+            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
+            onClick={handleResearchPrompt}
+            title="Generate a research prompt for this conflict and copy to clipboard"
+          >
+            {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
+          </button>
           {onPin && (
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
               Pin
@@ -141,13 +168,13 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           <FieldHelp text="POV and cross-cutting nodes that are involved in or affected by this conflict." />
         </label>
         <div className="chip-list">
-          {conflict.linked_taxonomy_nodes.map((id) => (
+          {linkedNodes.map((id) => (
             <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
           ))}
         </div>
         {!readOnly && (
           <TypeaheadSelect
-            options={allNodeIds.filter(id => !conflict.linked_taxonomy_nodes.includes(id))}
+            options={allNodeIds.filter(id => !linkedNodes.includes(id))}
             onSelect={addLinked}
             placeholder="Search nodes..."
           />

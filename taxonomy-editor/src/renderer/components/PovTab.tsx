@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { NodeTree, getOrderedNodeIds } from './NodeTree';
+import type { SortMode } from './NodeTree';
 import { NodeDetail } from './NodeDetail';
 import { NewNodeDialog } from './NewNodeDialog';
 import { PinnedPanel } from './PinnedPanel';
@@ -25,9 +26,11 @@ export function PovTab({ pov }: PovTabProps) {
     runSimilarSearch, similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
     attributeFilter, attributeInfo,
+    clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('id');
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-similar-panel-width',
@@ -54,10 +57,28 @@ export function PovTab({ pov }: PovTabProps) {
     maxWidth: 700,
   });
 
+  const similarScoresMap = useMemo(() => {
+    if (!similarResults || similarResults.length === 0) return null;
+    const m = new Map<string, number>();
+    for (const r of similarResults) m.set(r.id, r.score);
+    return m;
+  }, [similarResults]);
+
+  const clusterGroups = clusterView?.clusters ?? null;
+
   const orderedIds = useMemo(
-    () => (file ? getOrderedNodeIds(file.nodes) : []),
-    [file],
+    () => (file ? getOrderedNodeIds(file.nodes, sortMode, similarScoresMap, clusterGroups) : []),
+    [file, sortMode, similarScoresMap, clusterGroups],
   );
+
+  // Trigger clustering when sort mode switches to similarity
+  useEffect(() => {
+    if (sortMode === 'similarity') {
+      runClusterView(pov);
+    } else {
+      clearClusterView();
+    }
+  }, [sortMode, pov]); // eslint-disable-line react-hooks/exhaustive-deps
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId);
 
   // Auto-select first node when tab loads and nothing is selected
@@ -180,15 +201,31 @@ export function PovTab({ pov }: PovTabProps) {
       <div className="list-panel" style={{ width }}>
         <div className="list-panel-header">
           <h2>{pov}</h2>
-          <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-            + New
-          </button>
+          <div className="list-panel-header-actions">
+            <select
+              className="sort-select"
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              title="Sort nodes"
+            >
+              <option value="id">Sort: ID</option>
+              <option value="label">Sort: Label</option>
+              <option value="similarity">Sort: Similarity</option>
+            </select>
+            <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+              + New
+            </button>
+          </div>
         </div>
         <div className="list-panel-items">
           <NodeTree
             nodes={file.nodes}
             selectedNodeId={selectedNodeId}
             onSelect={setSelectedNodeId}
+            sortMode={sortMode}
+            similarScores={similarScoresMap}
+            clusters={clusterGroups}
+            clusterLoading={clusterLoading}
           />
         </div>
       </div>
