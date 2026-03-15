@@ -60,7 +60,7 @@
   },
   "factual_claims": [
     {
-      "claim": "<a specific empirical or factual claim made in the document>",
+      "claim": "<a specific empirical or factual claim made in the document . 2-5 sentences in plain language (grade-10 level)>",
       "claim_label": "<5-10 word short title, e.g. 'AGI Timeline Estimates'>",
       "doc_position": "<supports | disputes | neutral | qualifies>",
       "potential_conflict_id": "<existing conflict id if relevant, OR null>",
@@ -70,7 +70,7 @@
   ],
   "unmapped_concepts": [
     {
-      "suggested_label": "<concise 3-8 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
+      "suggested_label": "<concise 3-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
       "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
@@ -78,23 +78,20 @@
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "suggested_label": "<concise label>",
-      "suggested_description": "<2-5 sentences>",
-      "concept": "<2-5 sentences>",
+      "suggested_label": "<concise 3-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
+      "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
+      "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "safetyist",
       "suggested_category": "Methods/Arguments",
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "suggested_label": "<concise label>",
-      "suggested_description": "<2-5 sentences>",
-      "concept": "<2-5 sentences>",
-      "suggested_pov": "cross-cutting",
+√      "suggested_pov": "cross-cutting",
       "suggested_category": "Data/Facts",
       "reason": "<why this concept deserves a new taxonomy node>",
-      "Accelerationist Interpretation": "<1-3 sentences: how accelerationists would interpret or use this concept>",
-      "Safetyist Interpretation": "<1-3 sentences: how safetyists would interpret or use this concept>",
-      "Skeptic Interpretation": "<1-3 sentences: how skeptics would interpret or use this concept>"
+      "Accelerationist Interpretation": "<2-5 sentences in plain language (grade-10 level): how accelerationists would interpret or use this concept>",
+      "Safetyist Interpretation": "<2-5 sentences in plain language (grade-10 level): how safetyists would interpret or use this concept>",
+      "Skeptic Interpretation": "<2-5 sentences in plain language (grade-10 level): how skeptics would interpret or use this concept>"
     },
     { "...": "repeat for ALL unmapped concepts — aim for 3-10. Include interpretations ONLY for cross-cutting concepts." }
   ]

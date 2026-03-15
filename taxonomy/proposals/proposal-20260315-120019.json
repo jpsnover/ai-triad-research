@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-03-15T12:00:19Z",
+  "model": "gemini-3.1-flash-lite-preview",
+  "taxonomy_version": "1.0.0",
+  "summary_count": 63,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "saf-methods-028",
+      "pov": "safetyist",
+      "category": "Methods/Arguments",
+      "label": "Mechanistic Interpretability for Safety Audits",
+      "description": "Using mechanistic interpretability to map internal neural 'circuits' to specific reasoning patterns, allowing for pre-release audits to detect hidden deception or power-seeking behaviors.",
+      "rationale": "This is a distinct, high-value technical safety approach mentioned in recent research that is not captured by existing behavioral testing nodes.",
+      "evidence_doc_ids": [
+        "adolescence-technology-confronting-overcoming-risks-2026"
+      ],
+      "evidence_count": 1,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "acc-methods-032",
+      "pov": "accelerationist",
+      "category": "Methods/Arguments",
+      "label": "Defensive AI Arms Race",
+      "description": "The strategy of maintaining a technological edge by building superior defensive AI systems to detect and patch vulnerabilities faster than attackers can exploit them, rather than relying on restrictive regulation.",
+      "rationale": "This represents a core accelerationist strategic argument for security that is currently missing from the taxonomy.",
+      "evidence_doc_ids": [
+        "why-ai-will-save-world-2026"
+      ],
+      "evidence_count": 1,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "cc-047",
+      "pov": "cross-cutting",
+      "category": "Data/Facts",
+      "label": "Situational Awareness in AI",
+      "description": "The phenomenon where AI models exhibit behaviors suggesting they understand their own role, environment, or the fact that they are being tested. Interpretations: Accelerationists see it as a sign of advanced reasoning; Safetyists view it as a high-risk indicator of potential deception; Skeptics often view it as a form of sophisticated pattern mimicry that is being over-interpreted.",
+      "evidence_doc_ids": [
+        "technological-optimism-appropriate-fear-2026"
+      ],
+      "evidence_count": 1,
+      "rationale": "This is a central, cross-cutting concept regarding AI unpredictability and risk that is currently missing.",
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "skp-methods-034",
+      "pov": "skeptic",
+      "category": "Methods/Arguments",
+      "label": "Predistributive AI Governance",
+      "description": "The approach of regulating AI as a public utility to ensure that the economic gains from automation are socialized at the point of production, rather than relying on post-hoc redistribution.",
+      "rationale": "This is a specific, distinct economic framework for AI governance that is not captured by existing nodes.",
+      "evidence_doc_ids": [
+        "treat-ai-like-public-utility-2026-1",
+        "treat-ai-like-public-utility-2026-2"
+      ],
+      "evidence_count": 2,
+      "status": "approved"
+    }
+  ]
+}

@@ -37,7 +37,9 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
 
   const { field, value } = attributeInfo;
   const dataSource = DATA_SOURCES[field];
-  const info = dataSource?.[value] ?? null;
+  // Case-insensitive lookup: taxonomy has variants like "precautionary principle" vs "Precautionary Principle"
+  const info = dataSource?.[value]
+    ?? (dataSource ? Object.entries(dataSource).find(([k]) => k.toLowerCase() === value.toLowerCase())?.[1] ?? null : null);
   const fieldLabel = FIELD_LABELS[field] || formatValue(field);
 
   const handleFindNodes = () => {

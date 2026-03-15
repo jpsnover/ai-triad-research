@@ -851,7 +851,7 @@ export default function KeyPointsPane() {
             byPov.get(key)!.push(uc);
           }
           for (const group of byPov.values()) {
-            group.sort((a, b) => (a.suggested_label || a.concept).localeCompare(b.suggested_label || b.concept));
+            group.sort((a, b) => (a.suggested_label || a.concept || '').localeCompare(b.suggested_label || b.concept || ''));
           }
           const resolved = unmappedConcepts.filter(uc => uc.resolved_node_id).length;
           const countLabel = resolved > 0

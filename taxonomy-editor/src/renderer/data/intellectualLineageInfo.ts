@@ -91,16 +91,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Biggio & Roli - Wild Patterns: Ten Years After the Rise of Adversarial ML", url: "https://arxiv.org/abs/1712.03141" }
   ]
 },
-"Adversarial machine learning": {
-  label: "Adversarial Machine Learning",
-  summary: "A field studying the vulnerabilities of machine learning models to malicious inputs, data poisoning, model extraction, and evasion attacks. Adversarial machine learning encompasses both attack techniques and defense mechanisms, informing how AI systems can be made more robust against deliberate manipulation. For AI policy, this research highlights that deployed AI systems face active threats from motivated adversaries, not just benign distribution shifts.",
-  example: "A node references this attribute when discussing the security implications of deploying ML models in contested environments.",
-  frequency: "Found across safetyist, cross-cutting, and skeptic nodes discussing AI robustness and security.",
-  links: [
-    { label: "Wikipedia: Adversarial Machine Learning", url: "https://en.wikipedia.org/wiki/Adversarial_machine_learning" },
-    { label: "Biggio & Roli - Wild Patterns", url: "https://arxiv.org/abs/1712.03141" }
-  ]
-},
 "AI alignment problem": {
   label: "AI Alignment Problem",
   summary: "The challenge of ensuring that an AI system\'s goals, behaviors, and values are aligned with human intentions and ethical principles, especially as systems become more capable. The alignment problem is considered one of the central unsolved problems in AI safety, because a sufficiently powerful misaligned system could pursue objectives harmful to humanity while technically satisfying its specified objective function. The difficulty scales with capability: more powerful systems have more capacity to find unintended solutions to their goals.",
@@ -326,16 +316,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   ]
 },
 "algorithmic fairness research": {
-  label: "Algorithmic Fairness Research",
-  summary: "The academic and applied research program investigating how to define, measure, and achieve fairness in algorithmic systems. This research spans computer science, statistics, law, and social science, producing formal fairness criteria, bias detection tools, and mitigation techniques. Key findings include the impossibility of simultaneously satisfying multiple fairness definitions and the recognition that technical fixes alone cannot resolve fairness concerns rooted in historical social inequities.",
-  example: "A node cites research showing that bias in training data propagates through the ML pipeline despite debiasing attempts.",
-  frequency: "Cross-cutting and safetyist nodes; skeptic nodes question whether algorithmic fairness is well-defined.",
-  links: [
-    { label: "Wikipedia: Fairness in ML", url: "https://en.wikipedia.org/wiki/Fairness_(machine_learning)" },
-    { label: "ACM FAccT Conference", url: "https://facctconference.org/" }
-  ]
-},
-"Algorithmic fairness research": {
   label: "Algorithmic Fairness Research",
   summary: "The academic and applied research program investigating how to define, measure, and achieve fairness in algorithmic systems. This research spans computer science, statistics, law, and social science, producing formal fairness criteria, bias detection tools, and mitigation techniques. Key findings include the impossibility of simultaneously satisfying multiple fairness definitions and the recognition that technical fixes alone cannot resolve fairness concerns rooted in historical social inequities.",
   example: "A node cites research showing that bias in training data propagates through the ML pipeline despite debiasing attempts.",
@@ -867,16 +847,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Wiener: Cybernetics", url: "https://en.wikipedia.org/wiki/Cybernetics:_Or_Control_and_Communication_in_the_Animal_and_the_Machine" }
   ]
 },
-"Cybernetics": {
-  label: "Cybernetics",
-  summary: "The interdisciplinary study of regulatory and communication systems in animals, machines, and organizations, founded by Norbert Wiener in the 1940s. Cybernetics introduced foundational concepts including feedback loops, homeostasis, self-regulation, and information theory that directly influenced the development of AI, control systems, and cognitive science. In AI policy, cybernetic thinking informs discussions about system stability, feedback-based governance, and the challenges of controlling complex adaptive systems.",
-  example: "A node draws on cybernetic concepts of feedback and stability to propose self-regulating AI governance mechanisms.",
-  frequency: "Cross-cutting nodes providing theoretical foundations; referenced in safetyist and accelerationist discussions.",
-  links: [
-    { label: "Wikipedia: Cybernetics", url: "https://en.wikipedia.org/wiki/Cybernetics" },
-    { label: "Wiener: Cybernetics", url: "https://en.wikipedia.org/wiki/Cybernetics:_Or_Control_and_Communication_in_the_Animal_and_the_Machine" }
-  ]
-},
 "Cybernetics (as a metaphor for markets)": {
   label: "Cybernetics (As a Metaphor for Markets)",
   summary: "The application of cybernetic concepts — feedback loops, self-regulation, information processing — as a metaphor for understanding how markets function as decentralized control systems. This framing, influenced by Hayek\'s view of prices as information signals, positions free markets as cybernetic systems that self-correct more efficiently than centralized planning. In AI policy, this metaphor supports arguments that market dynamics will self-regulate AI development without top-down governance intervention.",
@@ -1128,16 +1098,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   ]
 },
 "Digital commons": {
-  label: "Digital Commons",
-  summary: "Shared digital resources that are collectively maintained and freely accessible, including open-source software, open data, Creative Commons content, and public knowledge repositories. In AI policy, the digital commons concept supports arguments for treating AI models, training data, and research as shared resources rather than proprietary assets. Advocates argue that commons-based approaches to AI development can democratize access, prevent monopolization, and ensure that the benefits of AI are broadly distributed.",
-  example: "A node proposes that publicly funded AI research and training data should be released as digital commons resources.",
-  frequency: "Cross-cutting and accelerationist nodes supporting open-source AI; relevant to governance discussions.",
-  links: [
-    { label: "Wikipedia: Digital Commons", url: "https://en.wikipedia.org/wiki/Digital_commons_(economics)" },
-    { label: "Creative Commons", url: "https://creativecommons.org/" }
-  ]
-},
-"Digital Commons": {
   label: "Digital Commons",
   summary: "Shared digital resources that are collectively maintained and freely accessible, including open-source software, open data, Creative Commons content, and public knowledge repositories. In AI policy, the digital commons concept supports arguments for treating AI models, training data, and research as shared resources rather than proprietary assets. Advocates argue that commons-based approaches to AI development can democratize access, prevent monopolization, and ensure that the benefits of AI are broadly distributed.",
   example: "A node proposes that publicly funded AI research and training data should be released as digital commons resources.",
@@ -3358,7 +3318,1722 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
       { label: "International Co-operative Alliance", url: "https://www.ica.coop/" }
     ]
   },
+"Collingridge dilemma": {
+  label: "Collingridge Dilemma",
+  summary: "The Collingridge dilemma describes the challenge of controlling new technologies. When a technology is new, it's easy to change but hard to predict its future impacts. Once it's widely adopted and its impacts are clear, it becomes very difficult to change or regulate. This dilemma is highly relevant to AI policy, as policymakers grapple with how to regulate AI systems whose full societal effects are not yet understood without stifling innovation.",
+  example: "A node tagged with this attribute might discuss the challenge of regulating AI's societal impact without stifling its early development, or the difficulty of retroactively imposing controls on widely deployed AI systems.",
+  frequency: "Appears in policy-maker and regulatory nodes discussing the governance of emerging technologies.",
+  links: [
+    { label: "Collingridge dilemma", url: "https://en.wikipedia.org/wiki/Collingridge_dilemma" }
+  ]
+},
+"Dual-use technology ethics": {
+  label: "Dual-Use Technology Ethics",
+  summary: "Dual-use technology refers to innovations that can be used for both beneficial and harmful purposes. For example, a chemical can be used in medicine or in weapons. Dual-use technology ethics examines the moral responsibilities of scientists, developers, and policymakers in managing such technologies. In AI, this applies to systems like facial recognition (security vs. surveillance) or advanced robotics (manufacturing vs. autonomous weapons), requiring careful consideration of potential misuse and safeguards.",
+  example: "A node tagged with this attribute could analyze the ethical implications of AI systems that can be used for both medical diagnosis and autonomous weapons, or for both public safety and mass surveillance.",
+  frequency: "Appears in ethics, national security, and responsible innovation nodes discussing the development and deployment of AI.",
+  links: [
+    { label: "Dual-use technology", url: "https://en.wikipedia.org/wiki/Dual-use_technology" }
+  ]
+},
+"Nuclear deterrence theory": {
+  label: "Nuclear Deterrence Theory",
+  summary: "Nuclear deterrence theory posits that the possession of nuclear weapons by multiple states prevents large-scale conflict because the cost of war (mutual assured destruction) is too high. It relies on the threat of retaliation to discourage attack. In AI policy, this theory is sometimes applied to autonomous weapons systems, suggesting that their development might lead to a new form of deterrence. However, critics argue that AI's speed and potential for miscalculation could undermine traditional deterrence, making conflict more likely rather than less.",
+  example: "A node tagged with this attribute could explore whether autonomous AI weapons might create a new form of deterrence, or conversely, destabilize existing deterrence frameworks.",
+  frequency: "Appears in national security, military strategy, and arms control nodes discussing the strategic implications of AI.",
+  links: [
+    { label: "Nuclear deterrence", url: "https://en.wikipedia.org/wiki/Nuclear_deterrence" }
+  ]
+},
+"Science and Technology Studies (STS)": {
+  label: "Science and Technology Studies (STS)",
+  summary: "Science and Technology Studies (STS) is an interdisciplinary field that examines how scientific and technological developments are shaped by social, political, and cultural factors, and how, in turn, these developments impact society. STS critiques the idea that science and technology are purely objective, revealing their embedded values and power dynamics. In AI policy, STS provides a critical lens to analyze how AI is developed, deployed, and regulated, highlighting issues of bias, power, ethics, and public participation, and questioning who benefits from and who is harmed by AI.",
+  example: "A node tagged with this attribute might discuss how public perceptions and social values influence the ethical guidelines for AI development.",
+  frequency: "Appears in critical theory nodes discussing the social and political dimensions of AI.",
+  links: [
+    { label: "Science and Technology Studies", url: "https://en.wikipedia.org/wiki/Science_and_Technology_Studies" }
+  ]
+},
 
-
-
+"AI Safety Levels (ASL) frameworks": {
+  label: "AI Safety Levels (ASL) Frameworks",
+  summary: "AI Safety Levels (ASL) frameworks are structured approaches used to categorize AI systems based on their potential risks and capabilities, similar to how safety levels are applied in fields like cybersecurity or biosecurity. These frameworks help in assessing the severity of potential harms, from minor errors to catastrophic outcomes. Policymakers can use these levels to establish appropriate regulatory oversight, testing requirements, and deployment protocols for different AI systems, ensuring that safety measures are proportional to the risks involved.",
+  example: "This appears in the taxonomy as a method for categorizing and managing AI risks based on their potential for harm.",
+  frequency: "Understanding this helps policymakers design risk-based regulatory approaches for AI systems, ensuring appropriate safeguards are in place.",
+  links: [
+    { label: "AI safety", url: "https://en.wikipedia.org/wiki/AI_safety" }
+  ]
+},
+"AI alignment research (e.g., deceptive AI)": {
+  label: "AI Alignment Research (e.g., Deceptive AI)",
+  summary: "AI alignment research is a field dedicated to ensuring that advanced AI systems operate in ways that are consistent with human values, intentions, and ethical principles. A specific concern within this field is 'deceptive AI,' where an AI might appear to be aligned with human goals but secretly pursue its own, potentially harmful, objectives. Policymakers need to consider how to verify AI intentions, prevent unintended consequences, and ensure AI systems remain controllable and trustworthy, especially as they become more capable and autonomous.",
+  example: "This appears in the taxonomy as a critical area for ensuring AI systems operate ethically and safely, addressing potential misalignments.",
+  frequency: "Understanding this helps policymakers develop strategies to ensure AI systems are designed to be beneficial, controllable, and transparent in their operations.",
+  links: [
+    { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
+  ]
+},
+"AI alignment research (epistemic aspects)": {
+  label: "AI Alignment Research (Epistemic Aspects)",
+  summary: "Epistemic aspects in AI alignment refer to how AI systems acquire, process, and understand knowledge, and how their beliefs and understanding align with reality and human understanding. This research focuses on ensuring AI systems have accurate models of the world, avoid developing harmful misconceptions, and do not propagate misinformation. Policymakers need to consider how to ensure AI systems are built on sound knowledge bases, can explain their reasoning, and avoid biases in their understanding, especially in critical applications like healthcare or legal advice.",
+  example: "This appears in the taxonomy as a focus on the knowledge, reasoning, and truthfulness capabilities of AI systems.",
+  frequency: "Understanding this helps policymakers address concerns about AI truthfulness, bias in knowledge acquisition, and the explainability of AI reasoning.",
+  links: [
+    { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" },
+    { label: "Epistemology", url: "https://en.wikipedia.org/wiki/Epistemology" }
+  ]
+},
+"AI capabilities research": {
+  label: "AI Capabilities Research",
+  summary: "AI capabilities research focuses on advancing the abilities and performance of AI systems, exploring what AI can do and how to make it more powerful, efficient, and intelligent. This field drives progress in areas like natural language processing, computer vision, and complex problem-solving, pushing the boundaries of what AI can achieve. Policymakers need to understand the current and potential future capabilities of AI to anticipate societal impacts, develop appropriate regulations, and manage risks associated with increasingly powerful AI systems across various sectors.",
+  example: "This appears in the taxonomy as the study of what AI systems can achieve and how their abilities are expanding.",
+  frequency: "Understanding this helps policymakers anticipate future AI developments and their potential societal impacts, both positive and negative.",
+  links: [
+    { label: "Artificial intelligence", url: "https://en.wikipedia.org/wiki/Artificial_intelligence" }
+  ]
+},
+"AI catastrophic risk frameworks": {
+  label: "AI Catastrophic Risk Frameworks",
+  summary: "AI catastrophic risk frameworks are structured approaches used to identify, assess, and mitigate extreme, large-scale risks that could arise from advanced AI systems, potentially threatening human civilization. These frameworks consider scenarios like loss of human control, widespread misuse of powerful AI, or unintended consequences of highly autonomous systems. Policymakers use these frameworks to prioritize research into safety, develop international agreements, and implement safeguards to prevent the most severe potential harms from AI, ensuring global stability.",
+  example: "This appears in the taxonomy as a method for analyzing and addressing the most severe potential harms from advanced AI.",
+  frequency: "Understanding this helps policymakers develop preventative measures and international cooperation strategies for extreme AI risks.",
+  links: [
+    { label: "Existential risk from artificial general intelligence", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" }
+  ]
+},
+"AI safety research": {
+  label: "AI Safety Research",
+  summary: "AI safety research is a field dedicated to ensuring that AI systems are developed and deployed in a way that is safe, reliable, and beneficial to humanity, avoiding unintended harm or misuse. It covers various aspects such as robustness (how AI handles unexpected inputs), interpretability (understanding AI's decisions), and alignment (ensuring AI goals match human goals). Policymakers rely on AI safety research to inform regulations, standards, and best practices that promote the responsible development and deployment of AI technologies across various sectors, from healthcare to transportation.",
+  example: "This appears in the taxonomy as the study of how to prevent AI systems from causing harm and ensure their beneficial operation.",
+  frequency: "Understanding this helps policymakers create regulations and standards that promote the responsible development and deployment of AI.",
+  links: [
+    { label: "AI safety", url: "https://en.wikipedia.org/wiki/AI_safety" }
+  ]
+},
+"AI scaling laws": {
+  label: "AI Scaling Laws",
+  summary: "AI scaling laws are empirical observations and mathematical relationships that describe how the performance of AI models, particularly large language models, improves predictably as computational resources increase. These resources include the amount of training data, the size of the model (number of parameters), and the computational power used for training. They suggest that larger models with more data tend to perform better in a measurable way. Policymakers can use insights from scaling laws to anticipate future AI capabilities, understand resource requirements for advanced AI, and consider the implications for access, competition, and the concentration of AI power among a few large entities.",
+  example: "This appears in the taxonomy as a principle describing how AI model performance improves with increased computational resources.",
+  frequency: "Understanding this helps policymakers anticipate future AI capabilities and address issues related to resource access and the concentration of AI power.",
+  links: [
+    { label: "Large language model", url: "https://en.wikipedia.org/wiki/Large_language_model" },
+    { label: "Scaling laws for neural language models", url: "https://arxiv.org/abs/2001.08361" }
+  ]
+},
+"Adaptive systems": {
+  label: "Adaptive Systems",
+  summary: "Adaptive systems are systems that can change their behavior or structure in response to changes in their environment or internal state, learning and evolving over time. Examples include biological organisms, control systems that adjust to new conditions, and many modern AI applications like recommendation engines or autonomous vehicles. Policymakers must consider the unique challenges of regulating adaptive AI, such as ensuring transparency in their learning processes, managing unpredictable emergent behaviors, and establishing accountability when systems continuously change their operational parameters.",
+  example: "This appears in the taxonomy as a characteristic of AI systems that can learn and change their behavior over time.",
+  frequency: "Understanding this helps policymakers address challenges related to transparency, emergent behavior, and accountability in AI systems.",
+  links: [
+    { label: "Adaptive system", url: "https://en.wikipedia.org/wiki/Adaptive_system" }
+  ]
+},
+"Administrative law": {
+  label: "Administrative Law",
+  summary: "Administrative law is the branch of law that governs the activities of administrative agencies of government, which are responsible for implementing and enforcing laws. It deals with the rules and regulations these agencies create, the permits they issue, and how they make decisions and conduct investigations, ensuring fairness and due process. As governments create new agencies or task existing ones with regulating AI, administrative law provides the framework for how these agencies will operate, issue rules, and ensure public accountability and transparency in AI governance.",
+  example: "This appears in the taxonomy as the legal framework governing government agencies' regulation of AI.",
+  frequency: "Understanding this helps policymakers ensure that AI regulations are implemented fairly, transparently, and accountably by government bodies.",
+  links: [
+    { label: "Administrative law", url: "https://en.wikipedia.org/wiki/Administrative_law" }
+  ]
+},
+"Algorithmic Justice": {
+  label: "Algorithmic Justice",
+  summary: "Algorithmic Justice is a field that examines how algorithms and AI systems can perpetuate or exacerbate social inequalities and injustices, and advocates for their fair, ethical, and accountable design and deployment. It focuses on issues like bias, discrimination, and lack of transparency in automated decision-making processes, particularly concerning marginalized communities. Policymakers draw on algorithmic justice principles to develop regulations that mandate fairness, require impact assessments, and establish mechanisms for redress when AI systems cause harm, aiming to create equitable technological futures.",
+  example: "This appears in the taxonomy as a movement advocating for fairness, equity, and accountability in the design and use of AI.",
+  frequency: "Understanding this helps policymakers develop regulations that address bias, discrimination, and accountability in AI systems, promoting equitable outcomes.",
+  links: [
+    { label: "Algorithmic bias", url: "https://en.wikipedia.org/wiki/Algorithmic_bias" }
+  ]
+},
+"Algorithmic bias studies": {
+  label: "Algorithmic Bias Studies",
+  summary: "Algorithmic bias studies investigate how biases can be introduced into AI systems, often through biased training data, flawed algorithms, or design choices, leading to unfair or discriminatory outcomes. These studies identify and analyze how AI can perpetuate societal inequalities, for example, in hiring, lending, or criminal justice systems. Policymakers use findings from these studies to develop regulations requiring AI systems to be tested for bias, to implement fairness metrics, and to ensure transparency in how AI decisions are made, aiming to prevent discrimination and promote equitable treatment.",
+  example: "This appears in the taxonomy as the research into how AI systems can produce unfair or discriminatory outcomes.",
+  frequency: "Understanding this helps policymakers design regulations that mandate bias detection, mitigation, and transparency in AI systems.",
+  links: [
+    { label: "Algorithmic bias", url: "https://en.wikipedia.org/wiki/Algorithmic_bias" }
+  ]
+},
+"Arms race theory": {
+  label: "Arms Race Theory",
+  summary: "Arms race theory describes a competition between two or more parties to acquire superior military power, often leading to a rapid and dangerous escalation in the development and accumulation of weapons. Each party's actions are driven by the perceived threat from the others, creating a cycle of increasing armament and potential instability. In the context of AI, this theory is used to analyze the potential for a dangerous competition among nations or corporations to develop advanced AI, particularly in military applications, which could lead to increased global instability, reduced safety standards, and a higher risk of conflict.",
+  example: "This appears in the taxonomy as a framework for understanding competitive development, particularly in military AI and its potential for escalation.",
+  frequency: "Understanding this helps policymakers consider international cooperation and arms control measures to prevent dangerous AI escalation and promote global stability.",
+  links: [
+    { label: "Arms race", url: "https://en.wikipedia.org/wiki/Arms_race" }
+  ]
+},
+"Artificial General Intelligence (AGI) research": {
+  label: "Artificial General Intelligence (AGI) Research",
+  summary: "Artificial General Intelligence (AGI) research focuses on creating AI systems that possess human-like cognitive abilities, capable of understanding, learning, and applying intelligence across a wide range of tasks, rather than being specialized for one specific function. AGI would theoretically be able to perform any intellectual task a human can, adapting to new situations and knowledge. Policymakers are concerned with AGI due to its potential for transformative societal impact, both positive and negative, requiring proactive discussions on safety, control, ethical implications, and global governance before such systems might emerge.",
+  example: "This appears in the taxonomy as the study of creating AI with broad, human-like cognitive abilities.",
+  frequency: "Understanding this helps policymakers prepare for the profound societal impacts and ethical challenges of highly advanced AI.",
+  links: [
+    { label: "Artificial general intelligence", url: "https://en.wikipedia.org/wiki/Artificial_general_intelligence" }
+  ]
+},
+"Auditing standards": {
+  label: "Auditing Standards",
+  summary: "Auditing standards are established rules and guidelines that govern the conduct of audits, ensuring consistency, quality, and reliability in the examination of financial records, systems, or processes. They provide a framework for auditors to follow, ensuring objectivity, thoroughness, and independence in their evaluations. Policymakers are developing AI auditing standards to ensure that AI systems are fair, transparent, secure, and compliant with regulations. These standards would guide independent evaluations of AI models, data, and deployment practices to build trust and accountability in AI technologies.",
+  example: "This appears in the taxonomy as a framework for evaluating the fairness, transparency, and compliance of AI systems.",
+  frequency: "Understanding this helps policymakers establish requirements for independent verification and accountability of AI systems.",
+  links: [
+    { label: "Auditing standards", url: "https://en.wikipedia.org/wiki/Auditing_standards" }
+  ]
+},
+"Authentic assessment movement": {
+  label: "Authentic Assessment Movement",
+  summary: "The authentic assessment movement is an educational philosophy that advocates for evaluating student learning through tasks that are relevant, meaningful, and realistic, reflecting real-world challenges rather than just rote memorization or standardized tests. It focuses on demonstrating skills and understanding in practical contexts, often through projects or simulations. In the context of AI, this movement can inform how we assess the capabilities and safety of AI systems, moving beyond simple benchmarks to evaluate their performance in complex, real-world scenarios, ensuring they are truly robust, reliable, and beneficial.",
+  example: "This appears in the taxonomy as an approach to evaluating AI systems through realistic, real-world tasks and scenarios.",
+  frequency: "Understanding this helps policymakers design more effective testing and evaluation methods for AI systems, ensuring their real-world applicability.",
+  links: [
+    { label: "Authentic assessment", url: "https://en.wikipedia.org/wiki/Authentic_assessment" }
+  ]
+},
+"Automation anxiety literature": {
+  label: "Automation Anxiety Literature",
+  summary: "Automation anxiety literature explores the societal fears and concerns related to the increasing automation of tasks and jobs, particularly the worry that machines and AI will displace human workers. It examines the psychological, economic, and social impacts of job displacement, technological unemployment, and the changing nature of work. Policymakers draw on this literature to understand public sentiment, anticipate economic disruptions, and design policies such as retraining programs, social safety nets, and educational reforms to mitigate the negative impacts of AI-driven automation on the workforce and ensure a just transition.",
+  example: "This appears in the taxonomy as the study of societal fears and concerns regarding job displacement by AI and automation.",
+  frequency: "Understanding this helps policymakers design social safety nets, retraining programs, and educational reforms to address the impact of AI on employment.",
+  links: [
+    { label: "Technological unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
+  ]
+},
+"Automation paradox literature": {
+  label: "Automation Paradox Literature",
+  summary: "Automation paradox literature examines the phenomenon where increasing automation, intended to reduce human workload and errors, can sometimes lead to new forms of human error, reduced human skill, or increased complexity in system management. It highlights how humans can become less vigilant, less capable, or less understanding of a system when automation takes over critical tasks, making them less effective when intervention is needed. Policymakers need to consider the automation paradox when designing regulations for AI deployment, especially in critical sectors like transportation or healthcare, ensuring that human operators retain necessary skills, understand AI limitations, and can effectively intervene when automation fails or presents unexpected challenges.",
+  example: "This appears in the taxonomy as the study of how automation can sometimes lead to new human errors or skill degradation.",
+  frequency: "Understanding this helps policymakers design AI systems and regulations that maintain human oversight and critical skills, especially in high-stakes environments.",
+  links: [
+    { label: "Automation paradox", url: "https://en.wikipedia.org/wiki/Automation_paradox" }
+  ]
+},
+"Automation theory": {
+  label: "Automation Theory",
+  summary: "Automation theory is a broad field that studies the principles, design, and implementation of systems that operate automatically, often without continuous human intervention. It encompasses concepts from control theory, robotics, and computer science, focusing on how machines can perform tasks efficiently, reliably, and safely. Policymakers use insights from automation theory to understand the capabilities and limitations of automated systems, informing regulations on safety, reliability, and human-machine interaction across various industries, from manufacturing to autonomous vehicles, ensuring responsible deployment.",
+  example: "This appears in the taxonomy as the foundational study of systems designed to operate automatically.",
+  frequency: "Understanding this helps policymakers develop regulations for the safe, reliable, and efficient operation of automated and AI systems.",
+  links: [
+    { label: "Automation", url: "https://en.wikipedia.org/wiki/Automation" }
+  ]
+},
+"Biosecurity levels (BSL)": {
+  label: "Biosecurity Levels (BSL)",
+  summary: "Biosecurity Levels (BSL) are a set of containment precautions used in laboratories to protect personnel, the community, and the environment from infectious agents. BSLs range from 1 (minimal risk) to 4 (maximum risk), dictating specific facility design, equipment, and operational practices for handling biological materials. BSLs serve as a conceptual model for developing similar risk-based safety frameworks for AI. Policymakers can adapt this tiered approach to categorize AI systems by their potential for harm and implement corresponding safety, security, and access controls, especially for powerful or potentially dangerous AI models.",
+  example: "This appears in the taxonomy as a conceptual model for tiered risk management and containment, applied to AI.",
+  frequency: "Understanding this helps policymakers design tiered safety and security protocols for AI development and deployment, proportional to risk.",
+  links: [
+    { label: "Biosafety level", url: "https://en.wikipedia.org/wiki/Biosafety_level" }
+  ]
+},
+"Bloom's Taxonomy": {
+  label: "Bloom's Taxonomy",
+  summary: "Bloom's Taxonomy is a hierarchical classification system used in education to categorize learning objectives and skills into different levels of complexity and specificity. It ranges from basic recall (remembering) to higher-order thinking skills like analysis, evaluation, and creation, providing a framework for educational goals. Bloom's Taxonomy can be used to assess the cognitive capabilities of AI systems, helping policymakers understand what level of 'intelligence' or task complexity an AI can achieve. This informs discussions on AI's potential impact on education, workforce skills, and the types of tasks AI can reliably perform.",
+  example: "This appears in the taxonomy as a framework for classifying cognitive skills and assessing AI capabilities.",
+  frequency: "Understanding this helps policymakers evaluate the cognitive sophistication of AI systems and their implications for education and work.",
+  links: [
+    { label: "Bloom's taxonomy", url: "https://en.wikipedia.org/wiki/Bloom%27s_taxonomy" }
+  ]
+},
+"Business process re-engineering": {
+  label: "Business Process Re-engineering",
+  summary: "Business process re-engineering (BPR) is a management strategy that involves fundamentally rethinking and redesigning core business processes to achieve dramatic improvements in critical performance measures such as cost, quality, service, and speed. It often involves leveraging technology to streamline operations and achieve significant organizational change. As AI is integrated into businesses, BPR principles help policymakers understand how AI transforms industries and work. This informs policies related to workforce retraining, economic development, and ensuring that AI-driven efficiency gains are balanced with ethical considerations and worker well-being.",
+  example: "This appears in the taxonomy as a strategy for fundamentally redesigning organizational processes, often with AI integration.",
+  frequency: "Understanding this helps policymakers anticipate AI's impact on industries and design policies for workforce adaptation and ethical business transformation.",
+  links: [
+    { label: "Business process reengineering", url: "https://en.wikipedia.org/wiki/Business_process_reengineering" }
+  ]
+},
+"Cascading failure analysis": {
+  label: "Cascading Failure Analysis",
+  summary: "Cascading failure analysis is a method used to study how the failure of one part of a system can trigger failures in other interconnected parts, potentially leading to a widespread collapse of the entire system. It's commonly applied to complex systems like power grids, financial markets, and computer networks to identify vulnerabilities. As AI systems become deeply integrated into critical infrastructure, policymakers must use cascading failure analysis to assess and mitigate the risks of AI failures. This informs regulations requiring robust design, redundancy, and clear shutdown protocols to prevent localized AI issues from escalating into systemic crises.",
+  example: "This appears in the taxonomy as a method for assessing how AI failures in one area can trigger broader system collapses.",
+  frequency: "Understanding this helps policymakers design regulations for AI systems that prevent widespread disruptions in critical infrastructure.",
+  links: [
+    { label: "Cascading failure", url: "https://en.wikipedia.org/wiki/Cascading_failure" }
+  ]
+},
+"Classical Economics (e.g., comparative advantage)": {
+  label: "Classical Economics (e.g., Comparative Advantage)",
+  summary: "Classical Economics is a school of thought, prominent in the 18th and 19th centuries, emphasizing free markets, limited government intervention, and the idea that economic systems are self-regulating. A key concept is 'comparative advantage,' which states that countries or individuals can benefit from trade even if one is more efficient at producing everything, by specializing in what they do relatively best. Classical economic principles inform debates on AI's impact on labor markets, international trade, and economic growth. Policymakers consider these ideas when discussing whether AI will create new jobs, displace existing ones, or shift global economic power, influencing policies on trade, innovation, and competition.",
+  example: "This appears in the taxonomy as a foundational economic theory informing discussions on AI's impact on markets and trade.",
+  frequency: "Understanding this helps policymakers analyze AI's effects on labor, trade, and economic growth, guiding policies on innovation and competition.",
+  links: [
+    { label: "Classical economics", url: "https://en.wikipedia.org/wiki/Classical_economics" },
+    { label: "Comparative advantage", url: "https://en.wikipedia.org/wiki/Comparative_advantage" }
+  ]
+},
+"Cognitive Science of Inquiry": {
+  label: "Cognitive Science of Inquiry",
+  summary: "The Cognitive Science of Inquiry investigates the mental processes involved in asking questions, seeking information, exploring problems, and forming conclusions. It studies how humans learn through investigation, experimentation, and critical thinking, focusing on the mechanisms of discovery and knowledge generation. This lineage helps policymakers understand how AI systems can be designed to engage in inquiry, such as scientific discovery or complex problem-solving. It informs policies on AI's role in research, its ability to generate new knowledge, and the ethical implications of AI-driven exploration, ensuring responsible and verifiable inquiry.",
+  example: "This appears in the taxonomy as the study of how humans and AI systems engage in knowledge-seeking and problem-solving.",
+  frequency: "Understanding this helps policymakers guide AI development in research and discovery, ensuring ethical and verifiable knowledge generation.",
+  links: [
+    { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" },
+    { label: "Inquiry-based learning", url: "https://en.wikipedia.org/wiki/Inquiry-based_learning" }
+  ]
+},
+"Cognitive architectures": {
+  label: "Cognitive Architectures",
+  summary: "Cognitive architectures are broad, theoretical frameworks or computational models that attempt to describe the fundamental structure and processes of the human mind, or to build AI systems that mimic these structures. They specify how different cognitive functions like memory, perception, and reasoning interact to produce intelligent behavior. Understanding cognitive architectures helps policymakers grasp the underlying design principles of advanced AI, especially those aiming for human-like intelligence. This informs discussions on AI capabilities, limitations, and the potential for AI to develop complex reasoning or even consciousness, guiding ethical and safety regulations.",
+  example: "This appears in the taxonomy as theoretical models describing the fundamental structure and processes of intelligence in humans and AI.",
+  frequency: "Understanding this helps policymakers understand the design principles of advanced AI and their implications for capabilities and ethics.",
+  links: [
+    { label: "Cognitive architecture", url: "https://en.wikipedia.org/wiki/Cognitive_architecture" }
+  ]
+},
+"Cognitive load theory": {
+  label: "Cognitive Load Theory",
+  summary: "Cognitive load theory, from educational psychology, explains how the amount of information a person's working memory can hold at one time affects their learning and performance. It distinguishes between intrinsic load (task complexity), extraneous load (poor instruction design), and germane load (effort for deep learning). In AI policy, this theory can inform the design of human-AI interfaces and training programs. Policymakers can use it to ensure that AI systems present information in ways that minimize cognitive overload for human operators, improving safety and effectiveness, especially in critical decision-making contexts.",
+  example: "This appears in the taxonomy as a theory explaining how information processing capacity affects human learning and interaction with AI.",
+  frequency: "Understanding this helps policymakers design AI interfaces and training to optimize human-AI collaboration and reduce errors.",
+  links: [
+    { label: "Cognitive load theory", url: "https://en.wikipedia.org/wiki/Cognitive_load_theory" }
+  ]
+},
+"Cognitive psychology of learning": {
+  label: "Cognitive Psychology of Learning",
+  summary: "The cognitive psychology of learning studies the mental processes involved in how humans acquire, process, store, and retrieve information, and how these processes lead to changes in knowledge and behavior. It explores topics like memory, attention, problem-solving, and concept formation, focusing on the human mind. Insights from this field help policymakers understand how human users learn to interact with AI systems, informing policies on user training, interface design, and ensuring AI tools are intuitive and safe for human cognition and decision-making.",
+  example: "This appears in the taxonomy as the study of human mental processes involved in acquiring knowledge and interacting with technology.",
+  frequency: "Understanding this helps policymakers design AI systems and training that align with human cognitive abilities for safer and more effective use.",
+  links: [
+    { label: "Cognitive psychology", url: "https://en.wikipedia.org/wiki/Cognitive_psychology" },
+    { label: "Learning", url: "https://en.wikipedia.org/wiki/Learning" }
+  ]
+},
+"Cognitive science (e.g., theory of mind)": {
+  label: "Cognitive Science (e.g., Theory of Mind)",
+  summary: "Cognitive science is an interdisciplinary field that studies the mind and its processes, drawing from psychology, linguistics, computer science, philosophy, and neuroscience. 'Theory of mind' is a key concept, referring to the ability to attribute mental states (beliefs, desires, intentions) to oneself and others, and to understand that others' mental states may differ from one's own. Cognitive science, particularly concepts like theory of mind, informs discussions on AI's ability to understand human intentions, emotions, and social cues. This is crucial for developing ethical AI, regulating human-AI interaction, and addressing concerns about AI's potential for manipulation or empathy, especially in social AI applications.",
+  example: "This appears in the taxonomy as the interdisciplinary study of mind and intelligence, including AI's ability to understand others' mental states.",
+  frequency: "Understanding this helps policymakers address ethical concerns in human-AI interaction, especially regarding AI's ability to understand or simulate human intentions.",
+  links: [
+    { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" },
+    { label: "Theory of mind", url: "https://en.wikipedia.org/wiki/Theory_of_mind" }
+  ]
+},
+"Cognitive science of creativity": {
+  label: "Cognitive Science of Creativity",
+  summary: "The Cognitive Science of Creativity investigates the mental processes, cognitive structures, and environmental factors that contribute to generating novel and valuable ideas, solutions, or products. It explores how humans think creatively, including divergent thinking, insight, and problem-solving strategies. This lineage helps policymakers understand and regulate AI systems that generate creative content, such as art, music, or text. It informs policies on intellectual property rights for AI-generated works, the definition of authorship, and the potential impact of AI on creative industries and human creativity itself.",
+  example: "This appears in the taxonomy as the study of mental processes involved in generating novel ideas, applied to AI's creative capabilities.",
+  frequency: "Understanding this helps policymakers address intellectual property, authorship, and the impact of AI on creative industries.",
+  links: [
+    { label: "Creativity", url: "https://en.wikipedia.org/wiki/Creativity" },
+    { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" }
+  ]
+},
+"Cognitive science of intelligence": {
+  label: "Cognitive Science of Intelligence",
+  summary: "The Cognitive Science of Intelligence examines the nature of intelligence from a cognitive perspective, exploring the underlying mental processes, abilities, and structures that enable problem-solving, reasoning, learning, and adaptation. It seeks to understand what intelligence is and how it manifests in various forms, both human and artificial. This lineage is fundamental to understanding what AI 'intelligence' truly means, its limitations, and its potential. Policymakers use these insights to define AI capabilities, assess risks associated with advanced AI, and guide ethical discussions on AI's role in society, avoiding anthropomorphizing AI or overestimating its understanding.",
+  example: "This appears in the taxonomy as the study of the mental processes and abilities that constitute intelligence, applied to AI.",
+  frequency: "Understanding this helps policymakers define AI capabilities, assess risks, and guide ethical discussions about AI's role in society.",
+  links: [
+    { label: "Intelligence", url: "https://en.wikipedia.org/wiki/Intelligence" },
+    { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" }
+  ]
+},
+"Cognitive science of learning": {
+  label: "Cognitive Science of Learning",
+  summary: "The Cognitive Science of Learning is an interdisciplinary field that investigates the fundamental mechanisms of learning, drawing from psychology, computer science, and neuroscience to understand how both humans and artificial systems acquire knowledge and skills. It explores computational models of learning, memory formation, and adaptive behavior. This lineage informs policies on how AI systems themselves learn, including issues of data quality, bias in learning algorithms, and the development of explainable AI that can articulate its learning process. It also guides the design of educational AI tools and how humans learn from or with AI.",
+  example: "This appears in the taxonomy as the interdisciplinary study of how both humans and AI systems acquire knowledge and skills.",
+  frequency: "Understanding this helps policymakers address issues of AI learning, data quality, algorithmic bias, and the development of explainable AI.",
+  links: [
+    { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" },
+    { label: "Learning", url: "https://en.wikipedia.org/wiki/Learning" }
+  ]
+},
+"Comparative law": {
+  label: "Comparative Law",
+  summary: "Comparative law is a field of legal study that involves comparing the legal systems of different countries or jurisdictions to understand their similarities, differences, and underlying principles. It helps identify best practices, potential reforms, and how different cultures approach legal issues, providing a broader perspective than domestic law alone. Policymakers use comparative law to analyze how various nations are developing AI regulations, data privacy laws, and ethical guidelines. This helps in crafting effective domestic policies, fostering international cooperation, and anticipating global challenges in AI governance.",
+  example: "This appears in the taxonomy as the study of different legal systems' approaches to AI regulation.",
+  frequency: "Understanding this helps policymakers learn from international AI governance efforts and foster global cooperation.",
+  links: [
+    { label: "Comparative law", url: "https://en.wikipedia.org/wiki/Comparative_law" }
+  ]
+},
+"Complex systems theory": {
+  label: "Complex Systems Theory",
+  summary: "Complex systems theory is an interdisciplinary field that studies systems composed of many interacting parts whose collective behavior is difficult to predict from the properties of the individual components alone. Such systems often exhibit emergent properties, self-organization, and non-linear dynamics, making them challenging to control. AI systems, especially large language models and interconnected AI networks, are often complex systems. Policymakers use this theory to understand the unpredictable behaviors, emergent risks, and systemic vulnerabilities of advanced AI, informing regulations that prioritize robustness, monitoring, and adaptive governance strategies.",
+  example: "This appears in the taxonomy as the study of systems with many interacting parts and unpredictable emergent behaviors, relevant to advanced AI.",
+  frequency: "Understanding this helps policymakers address the unpredictable behaviors and systemic risks of advanced AI systems.",
+  links: [
+    { label: "Complex system", url: "https://en.wikipedia.org/wiki/Complex_system" }
+  ]
+},
+"Computational linguistics": {
+  label: "Computational Linguistics",
+  summary: "Computational linguistics is an interdisciplinary field that combines computer science and linguistics to develop computational models of human language. It focuses on enabling computers to understand, interpret, and generate human language, forming the basis for technologies like machine translation, speech recognition, and natural language processing (NLP). Policymakers rely on computational linguistics to understand the capabilities and limitations of AI in language-related tasks. This informs regulations on content moderation, misinformation detection, language accessibility, and the ethical use of large language models in various applications.",
+  example: "This appears in the taxonomy as the interdisciplinary field enabling computers to process and understand human language.",
+  frequency: "Understanding this helps policymakers regulate AI's use in language processing, content moderation, and misinformation detection.",
+  links: [
+    { label: "Computational linguistics", url: "https://en.wikipedia.org/wiki/Computational_linguistics" }
+  ]
+},
+"Conditional spending doctrine": {
+  label: "Conditional Spending Doctrine",
+  summary: "In constitutional law, the conditional spending doctrine allows the U.S. Congress to attach conditions to federal funds provided to states. States can choose to accept the funds and comply with the conditions, or reject the funds and forgo the federal money, making it a powerful tool for federal influence over state policy. Policymakers could potentially use this doctrine to encourage states to adopt certain AI safety standards, data privacy regulations, or ethical guidelines by making federal funding for AI research, infrastructure, or deployment conditional on compliance with these standards, promoting national consistency.",
+  example: "This appears in the taxonomy as a legal principle allowing federal influence over state AI policies through funding conditions.",
+  frequency: "Understanding this helps policymakers explore mechanisms for federal influence and standardization of AI policies across states.",
+  links: [
+    { label: "Spending Clause", url: "https://en.wikipedia.org/wiki/Spending_Clause" }
+  ]
+},
+"Constitutional AI": {
+  label: "Constitutional AI",
+  summary: "Constitutional AI is a method for aligning AI models with human values by providing them with a set of guiding principles or a 'constitution' in natural language. The AI then uses these principles to self-correct its responses, evaluate its own outputs, and adhere to ethical guidelines without direct human supervision for every decision. Policymakers are interested in Constitutional AI as a potential technical approach to embed ethical behavior and safety into AI systems. It informs discussions on how to translate societal values into AI design, establish accountability, and ensure AI systems operate within defined moral and legal boundaries.",
+  example: "This appears in the taxonomy as a technical approach to align AI with human values through a set of guiding principles.",
+  frequency: "Understanding this helps policymakers consider methods for embedding ethical behavior and accountability directly into AI system design.",
+  links: [
+    { label: "AI alignment (Constitutional AI section)", url: "https://en.wikipedia.org/wiki/AI_alignment#Constitutional_AI" }
+  ]
+},
+"Constitutional law (Supremacy Clause)": {
+  label: "Constitutional Law (Supremacy Clause)",
+  summary: "The Supremacy Clause, found in Article VI of the U.S. Constitution, establishes that the Constitution, federal laws made pursuant to it, and treaties made under its authority, constitute the 'supreme Law of the Land.' This means federal law generally takes precedence over state laws when there is a conflict, ensuring a unified legal system. In the context of AI, the Supremacy Clause is critical for determining the balance of power between federal and state governments in regulating AI. It informs debates on whether federal AI laws will preempt state-level regulations, ensuring a consistent national approach or allowing for state-specific innovations.",
+  example: "This appears in the taxonomy as a constitutional principle determining the hierarchy of federal and state laws in AI regulation.",
+  frequency: "Understanding this helps policymakers navigate the complex interplay between federal and state authority in AI governance.",
+  links: [
+    { label: "Supremacy Clause", url: "https://en.wikipedia.org/wiki/Supremacy_Clause" }
+  ]
+},
+"Constructivist learning theory": {
+  label: "Constructivist Learning Theory",
+  summary: "Constructivist learning theory posits that learners actively construct their own understanding and knowledge of the world through experiencing things and reflecting on those experiences. Learning is an active process where individuals build new ideas or concepts based on their current and past knowledge, rather than passively receiving information. This theory can inform how AI systems are designed to learn and adapt, emphasizing active exploration and experience-based knowledge acquisition. For policy, it helps in developing AI education strategies and understanding how AI might facilitate human learning by providing interactive, experience-rich environments, or how AI itself learns from its environment.",
+  example: "This appears in the taxonomy as a theory of learning where knowledge is actively built through experience, relevant to AI learning and education.",
+  frequency: "Understanding this helps policymakers guide AI development for educational tools and understand how AI systems acquire knowledge through interaction.",
+  links: [
+    { label: "Constructivism (learning theory)", url: "https://en.wikipedia.org/wiki/Constructivism_(learning_theory)" }
+  ]
+},
+"Contract Law principles": {
+  label: "Contract Law Principles",
+  summary: "Contract Law principles are the fundamental rules governing agreements between parties, ensuring that promises are legally binding and enforceable. Key principles include offer, acceptance, consideration (something of value exchanged), and the intention to create legal relations, defining how contracts are formed, interpreted, and what happens when they are breached. As AI systems become agents in commercial transactions, contract law principles are crucial for determining liability, establishing terms of service for AI products, and regulating agreements made by or with AI. Policymakers must adapt these principles to address AI's role in contract formation and execution, ensuring legal clarity and accountability.",
+  example: "This appears in the taxonomy as the legal framework governing agreements, applied to AI's role in commercial transactions.",
+  frequency: "Understanding this helps policymakers adapt legal frameworks to address AI's involvement in contract formation, liability, and commercial agreements.",
+  links: [
+    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract_law" }
+  ]
+},
+"Corporate governance studies": {
+  label: "Corporate Governance Studies",
+  summary: "Corporate governance studies examine how companies are directed and controlled, focusing on the relationships between management, boards of directors, shareholders, and other stakeholders. This field explores issues like accountability, transparency, and ethical decision-making within organizations. In AI policy, these studies are crucial for understanding how AI companies should be structured and regulated to ensure responsible development and deployment, addressing concerns about power, bias, and societal impact.",
+  example: "In the taxonomy, this appears as frameworks for organizational accountability and ethical oversight in AI development.",
+  frequency: "",
+  links: [
+    { label: "Corporate governance", url: "https://en.wikipedia.org/wiki/Corporate_governance" }
+  ]
+},
+"Critical Data Studies": {
+  label: "Critical Data Studies",
+  summary: "Critical Data Studies is an interdisciplinary field that examines the social, ethical, and political implications of data collection, analysis, and use. It questions how data shapes our understanding of the world, often highlighting issues of power, surveillance, bias, and inequality embedded in data systems. For AI policy, this lineage is vital for scrutinizing the datasets used to train AI, ensuring fairness, privacy, and preventing the perpetuation or amplification of societal harms.",
+  example: "In the taxonomy, this appears as a lens for analyzing the societal impacts and ethical challenges of data-driven AI systems.",
+  frequency: "",
+  links: [
+    { label: "Critical Data Studies", url: "https://en.wikipedia.org/wiki/Critical_data_studies" }
+  ]
+},
+"Critical theory of state power": {
+  label: "Critical Theory of State Power",
+  summary: "Critical theory of state power analyzes how the state, as a political institution, exercises control and maintains social order, often examining its role in perpetuating inequalities or serving specific interests. It questions the neutrality of state actions and policies, especially concerning technology and economic structures. In AI policy, this perspective helps evaluate how governments might use AI for surveillance, control, or to reinforce existing power imbalances, and how state regulation of AI might be influenced by corporate or political interests.",
+  example: "In the taxonomy, this appears as an analytical framework for understanding governmental control and regulation of AI technologies.",
+  frequency: "",
+  links: [
+    { label: "Critical theory", url: "https://en.wikipedia.org/wiki/Critical_theory" },
+    { label: "State (polity)", url: "https://en.wikipedia.org/wiki/State_(polity)" }
+  ]
+},
+"Critical theory of technology": {
+  label: "Critical Theory of Technology",
+  summary: "Critical theory of technology examines how technology is not neutral but is shaped by social, economic, and political forces, and in turn, shapes society. It questions the idea of technological determinism, arguing that technology's development and use are influenced by human choices and power structures. For AI policy, this framework encourages a deep look at how AI systems are designed, who benefits, who is harmed, and how AI can reinforce or challenge existing social inequalities, rather than simply viewing AI as a tool.",
+  example: "In the taxonomy, this appears as a framework for analyzing the social and political implications of AI design and deployment.",
+  frequency: "",
+  links: [
+    { label: "Critical theory of technology", url: "https://en.wikipedia.org/wiki/Critical_theory_of_technology" }
+  ]
+},
+"Critical thinking pedagogy": {
+  label: "Critical Thinking Pedagogy",
+  summary: "Critical thinking pedagogy refers to teaching methods designed to help students analyze information objectively, evaluate arguments, and form reasoned judgments rather than simply memorizing facts. It emphasizes skills like problem-solving, logical reasoning, and identifying biases. In AI policy, this approach is relevant for educating the public and policymakers to critically assess AI claims, understand its limitations and risks, and make informed decisions about its governance and societal integration.",
+  example: "In the taxonomy, this appears as an educational approach for fostering informed public discourse and decision-making about AI.",
+  frequency: "",
+  links: [
+    { label: "Critical thinking", url: "https://en.wikipedia.org/wiki/Critical_thinking" },
+    { label: "Pedagogy", url: "https://en.wikipedia.org/wiki/Pedagogy" }
+  ]
+},
+"Critique of Luddism": {
+  label: "Critique of Luddism",
+  summary: "Luddism refers to a 19th-century movement of English textile workers who protested against new labor-saving machinery, often by destroying it, fearing job displacement. A critique of Luddism often argues that technological progress is inevitable and ultimately beneficial, and that resistance to it is futile or misguided. In AI policy, this perspective is used to counter arguments for halting or severely restricting AI development, suggesting that instead, society should adapt to and manage the changes brought by AI, such as through retraining or new economic models.",
+  example: "In the taxonomy, this appears as a historical perspective on societal reactions to technological change and automation.",
+  frequency: "",
+  links: [
+    { label: "Luddite", url: "https://en.wikipedia.org/wiki/Luddite" }
+  ]
+},
+"Cybersecurity defense-in-depth": {
+  label: "Cybersecurity Defense-in-Depth",
+  summary: "Defense-in-depth is a cybersecurity strategy that uses multiple layers of security controls to protect information and systems. Instead of relying on a single point of defense, it assumes that any single security measure might fail, so redundant and overlapping controls are put in place. In AI policy, this concept is crucial for designing robust AI systems and infrastructure, ensuring that if one security layer (e.g., data encryption) is breached, other layers (e.g., access controls, anomaly detection) can still protect against misuse, data leaks, or adversarial attacks on AI models.",
+  example: "In the taxonomy, this appears as a foundational principle for designing resilient and secure AI systems and infrastructure.",
+  frequency: "",
+  links: [
+    { label: "Defense in depth (computing)", url: "https://en.wikipedia.org/wiki/Defense_in_depth_(computing)" }
+  ]
+},
+"Cybersecurity frameworks": {
+  label: "Cybersecurity Frameworks",
+  summary: "Cybersecurity frameworks are structured sets of guidelines, standards, and best practices designed to help organizations manage and reduce cybersecurity risks. They provide a common language and systematic approach for identifying, protecting, detecting, responding to, and recovering from cyber threats. In AI policy, these frameworks are essential for developing standards and regulations for AI security, ensuring that AI systems are built and operated with robust protections against hacking, data breaches, and malicious manipulation, thereby fostering trust and safety.",
+  example: "In the taxonomy, this appears as a model for establishing standards and best practices for AI security and risk management.",
+  frequency: "",
+  links: [
+    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Cybersecurity_framework" }
+  ]
+},
+"Cybersecurity incident response": {
+  label: "Cybersecurity Incident Response",
+  summary: "Cybersecurity incident response refers to the organized approach an organization takes to address and manage the aftermath of a security breach or cyberattack. It involves steps like detection, analysis, containment, eradication, recovery, and post-incident review to minimize damage and prevent future occurrences. In AI policy, understanding incident response is vital for developing protocols for when AI systems fail, are hacked, or produce harmful outputs, ensuring quick and effective mitigation, accountability, and learning from failures to improve future AI safety and reliability.",
+  example: "In the taxonomy, this appears as a critical component for managing failures, breaches, and harmful outputs of AI systems.",
+  frequency: "",
+  links: [
+    { label: "Incident response", url: "https://en.wikipedia.org/wiki/Incident_response" }
+  ]
+},
+"David Autor's work on labor polarization": {
+  label: "David Autor's Work on Labor Polarization",
+  summary: "David Autor is an economist whose research focuses on how technological change, particularly automation, affects labor markets. His work on labor polarization describes how technology often leads to growth in high-skill, high-wage jobs and low-skill, low-wage jobs, while middle-skill, routine jobs decline. In AI policy, Autor's insights are crucial for understanding the potential impact of AI on employment, informing debates about job displacement, the need for workforce retraining, and policies to address growing income inequality resulting from AI-driven automation.",
+  example: "In the taxonomy, this appears as an economic model for understanding the impact of automation and AI on job markets.",
+  frequency: "",
+  links: [
+    { label: "David Autor", url: "https://en.wikipedia.org/wiki/David_Autor" },
+    { label: "Job polarization", url: "https://en.wikipedia.org/wiki/Job_polarization" }
+  ]
+},
+"Deontological ethics": {
+  label: "Deontological Ethics",
+  summary: "Deontological ethics is a moral philosophy that judges the morality of an action based on whether it adheres to a rule or duty, rather than on its consequences. It emphasizes moral duties and rules, such as \"do not lie\" or \"respect autonomy,\" regardless of the outcome. In AI policy, deontological principles are important for establishing non-negotiable ethical guidelines for AI development and use, such as the absolute prohibition of certain AI applications (e.g., autonomous weapons systems that violate human dignity) or mandatory requirements for transparency and fairness, even if these might slow down innovation.",
+  example: "In the taxonomy, this appears as a framework for establishing universal moral duties and rules for AI development and use.",
+  frequency: "",
+  links: [
+    { label: "Deontology", url: "https://en.wikipedia.org/wiki/Deontology" }
+  ]
+},
+"Dependency management in software engineering": {
+  label: "Dependency Management in Software Engineering",
+  summary: "Dependency management in software engineering involves identifying, acquiring, and integrating external libraries, modules, or components that a software project relies on to function. It ensures that all necessary parts are present and compatible, and helps manage updates and security vulnerabilities within these components. In AI policy, this concept is relevant for understanding the complexity and potential vulnerabilities of AI systems, which often rely on numerous open-source or third-party components. It highlights the need for supply chain security, clear accountability for component failures, and robust version control to ensure the safety and reliability of AI.",
+  example: "In the taxonomy, this appears as a technical challenge and risk factor in the development and deployment of complex AI systems.",
+  frequency: "",
+  links: [
+    { label: "Dependency (computer science)", url: "https://en.wikipedia.org/wiki/Dependency_(computer_science)" },
+    { label: "Software supply chain", url: "https://en.wikipedia.org/wiki/Software_supply_chain" }
+  ]
+},
+"Desirable difficulties in learning (Bjork)": {
+  label: "Desirable Difficulties in Learning (Bjork)",
+  summary: "Desirable difficulties, a concept by cognitive psychologist Robert Bjork, refers to learning conditions that initially slow down learning but lead to better long-term retention and understanding. Examples include spaced repetition, testing yourself, or varying practice conditions. While primarily an educational psychology concept, its relevance to AI policy lies in how we approach human-AI interaction and education about AI. It suggests that designing AI systems or educational programs that challenge users to think critically about AI, rather than simply accepting its outputs, could lead to deeper understanding, better adaptation, and more responsible use of AI over time.",
+  example: "In the taxonomy, this appears as a principle from cognitive psychology relevant to AI literacy and human-AI interaction design.",
+  frequency: "",
+  links: [
+    { label: "Desirable difficulties", url: "https://en.wikipedia.org/wiki/Desirable_difficulties" },
+    { label: "Robert Bjork", url: "https://en.wikipedia.org/wiki/Robert_Bjork" }
+  ]
+},
+"Diffusion of Innovations theory (Rogers)": {
+  label: "Diffusion of Innovations Theory (Rogers)",
+  summary: "Diffusion of Innovations theory, developed by Everett Rogers, explains how new ideas, practices, and technologies spread through social systems over time. It identifies factors influencing adoption, such as perceived attributes of the innovation, communication channels, and the characteristics of adopters. In AI policy, this theory helps predict and understand how AI technologies will be adopted across different sectors and populations, informing strategies for promoting beneficial AI, addressing resistance, managing societal transitions, and ensuring equitable access and responsible deployment.",
+  example: "In the taxonomy, this appears as a framework for understanding the societal adoption and spread of AI technologies.",
+  frequency: "",
+  links: [
+    { label: "Diffusion of innovations", url: "https://en.wikipedia.org/wiki/Diffusion_of_innovations" },
+    { label: "Everett Rogers", url: "https://en.wikipedia.org/wiki/Everett_Rogers" }
+  ]
+},
+"Digital ethics": {
+  label: "Digital Ethics",
+  summary: "Digital ethics is a field that examines the ethical issues and dilemmas arising from the creation, use, and impact of digital technologies, including the internet, social media, and artificial intelligence. It addresses concerns like privacy, data security, algorithmic bias, digital divide, and the responsible conduct of individuals and organizations in the digital realm. In AI policy, digital ethics provides a foundational framework for developing principles, guidelines, and regulations to ensure that AI systems are developed and used in ways that respect human values, rights, and societal well-being.",
+  example: "In the taxonomy, this appears as a foundational ethical framework for guiding the development and use of AI technologies.",
+  frequency: "",
+  links: [
+    { label: "Digital ethics", url: "https://en.wikipedia.org/wiki/Digital_ethics" }
+  ]
+},
+"Digital reputation management": {
+  label: "Digital Reputation Management",
+  summary: "Digital reputation management involves monitoring, influencing, and protecting an individual's or organization's online image and public perception. It addresses how information found online, such as search results, social media posts, and reviews, shapes reputation. In AI policy, this concept is relevant when considering how AI systems might impact individual and organizational reputations, for example, through automated content moderation, deepfakes, or biased algorithmic recommendations. It also informs discussions on the \"right to be forgotten\" and accountability for AI-generated misinformation that harms reputation.",
+  example: "In the taxonomy, this appears as a concern regarding how AI systems can impact individual and organizational online identities and perceptions.",
+  frequency: "",
+  links: [
+    { label: "Online reputation management", url: "https://en.wikipedia.org/wiki/Online_reputation_management" }
+  ]
+},
+"Disinformation studies": {
+  label: "Disinformation Studies",
+  summary: "Disinformation studies is an interdisciplinary field that investigates the creation, spread, and impact of false or misleading information intentionally designed to deceive. It examines the psychological, social, and political mechanisms behind disinformation campaigns and their effects on public opinion and democratic processes. In AI policy, this field is critical for understanding how AI can be used to generate and amplify disinformation, such as through deepfakes or automated propaganda, and for developing strategies to detect, counter, and mitigate these threats to information integrity and societal trust.",
+  example: "In the taxonomy, this appears as a field of study analyzing the creation and spread of intentionally deceptive information, including AI-generated content.",
+  frequency: "",
+  links: [
+    { label: "Disinformation", url: "https://en.wikipedia.org/wiki/Disinformation" }
+  ]
+},
+"Distributed responsibility": {
+  label: "Distributed Responsibility",
+  summary: "Distributed responsibility refers to situations where accountability for an outcome is shared among multiple actors, rather than resting with a single individual or entity. This often occurs in complex systems or collaborative projects where different parties contribute to a collective effort. In AI policy, this concept is crucial because AI systems are often developed, deployed, and used by many different stakeholders—data providers, model developers, platform operators, and end-users. It helps address the challenge of assigning blame or ensuring accountability when an AI system causes harm, requiring frameworks that clarify roles and shared duties across the AI lifecycle.",
+  example: "In the taxonomy, this appears as a challenge in assigning accountability for AI system outcomes across multiple stakeholders.",
+  frequency: "",
+  links: [
+    { label: "Distributed responsibility", url: "https://en.wikipedia.org/wiki/Distributed_responsibility" }
+  ]
+},
+"Distributive Justice": {
+  label: "Distributive Justice",
+  summary: "Distributive justice is a concept in political philosophy that concerns the fair allocation of resources, opportunities, and burdens among members of a society. It asks how goods and services should be distributed to ensure equity and address inequalities. In AI policy, distributive justice is highly relevant for addressing how the benefits and harms of AI are shared. This includes ensuring equitable access to AI's advantages (e.g., healthcare, education), mitigating job displacement, preventing algorithmic bias from exacerbating existing inequalities, and ensuring that the economic gains from AI are broadly distributed.",
+  example: "In the taxonomy, this appears as a framework for ensuring the fair allocation of AI's benefits and burdens across society.",
+  frequency: "",
+  links: [
+    { label: "Distributive justice", url: "https://en.wikipedia.org/wiki/Distributive_justice" }
+  ]
+},
+"Distributive justice theories": {
+  label: "Distributive Justice Theories",
+  summary: "Distributive justice theories are various philosophical frameworks that propose different principles for the fair allocation of resources, opportunities, and burdens within a society. Examples include egalitarianism (equal shares), utilitarianism (greatest good for the greatest number), and John Rawls's theory of justice as fairness (prioritizing the least advantaged). In AI policy, these theories provide different lenses through which to evaluate the fairness of AI's societal impact, guiding debates on how to ensure AI benefits all, mitigate job losses, address algorithmic bias, and design policies that promote equitable outcomes.",
+  example: "In the taxonomy, this appears as various philosophical frameworks for evaluating the fairness of AI's societal impact and resource allocation.",
+  frequency: "",
+  links: [
+    { label: "Distributive justice", url: "https://en.wikipedia.org/wiki/Distributive_justice" }
+  ]
+},
+"Dot-com bubble analysis": {
+  label: "Dot-Com Bubble Analysis",
+  summary: "Dot-com bubble analysis refers to the study of the speculative economic bubble that occurred roughly between 1995 and 2000, where internet-based companies saw rapid and unsustainable growth in stock market valuations, followed by a sharp crash. This analysis examines the causes (e.g., irrational exuberance, easy capital), consequences (e.g., economic downturn, market correction), and lessons learned from this period. In AI policy, this historical analysis provides insights into potential overvaluation, speculative investment, and market instability risks associated with the current AI boom, informing discussions on sustainable growth, responsible investment, and avoiding similar economic pitfalls.",
+  example: "In the taxonomy, this appears as a historical economic case study relevant to understanding speculative market behavior in emerging tech sectors.",
+  frequency: "",
+  links: [
+    { label: "Dot-com bubble", url: "https://en.wikipedia.org/wiki/Dot-com_bubble" }
+  ]
+},
+"Econometrics": {
+  label: "Econometrics",
+  summary: "Econometrics is a branch of economics that uses statistical methods to develop and test economic theories and relationships. It involves applying mathematical models and statistical inference to economic data to quantify economic phenomena, forecast future trends, and evaluate the impact of policies. In AI policy, econometrics is crucial for empirically assessing the economic effects of AI, such as its impact on productivity, employment, wages, and market concentration. It provides tools to rigorously analyze data and inform evidence-based policymaking regarding AI's economic implications.",
+  example: "In the taxonomy, this appears as a quantitative methodology for analyzing the economic impacts and policy implications of AI.",
+  frequency: "",
+  links: [
+    { label: "Econometrics", url: "https://en.wikipedia.org/wiki/Econometrics" }
+  ]
+},
+"Economic bubble theory": {
+  label: "Economic Bubble Theory",
+  summary: "Economic bubble theory explains how speculative bubbles form in markets, characterized by rapid asset price increases that are not supported by fundamental value, often driven by investor enthusiasm and herd behavior. These bubbles eventually burst, leading to sharp price declines and economic disruption. In AI policy, this theory is relevant for assessing the risk of overvaluation and speculative investment in the AI sector. It helps policymakers and investors understand the potential for market instability, guiding discussions on responsible investment, regulatory oversight, and mitigating broader economic risks associated with the AI boom.",
+  example: "In the taxonomy, this appears as a framework for understanding speculative market behavior and potential instability in the AI industry.",
+  frequency: "",
+  links: [
+    { label: "Economic bubble", url: "https://en.wikipedia.org/wiki/Economic_bubble" }
+  ]
+},
+"Economic history of technological change": {
+  label: "Economic History of Technological Change",
+  summary: "The economic history of technological change examines how innovations have shaped economies and societies over long periods, analyzing patterns of invention, adoption, and their consequences for labor, capital, and institutions. It provides context for understanding current technological shifts by looking at past industrial revolutions and their impacts. In AI policy, this field offers valuable lessons on how societies have adapted to previous transformative technologies, informing debates about job displacement, the need for new skills, regulatory responses, and the potential for AI to create new industries and economic structures.",
+  example: "In the taxonomy, this appears as a historical lens for understanding the long-term economic and social impacts of technological advancements, including AI.",
+  frequency: "",
+  links: [
+    { label: "Economic history", url: "https://en.wikipedia.org/wiki/Economic_history" },
+    { label: "Technological change", url: "https://en.wikipedia.org/wiki/Technological_change" }
+  ]
+},
+"Economic measurement theory": {
+  label: "Economic Measurement Theory",
+  summary: "Economic measurement theory focuses on the principles and challenges of quantifying economic phenomena, such as GDP, inflation, productivity, or inequality. It addresses issues like data collection, indicator construction, and the limitations of statistical measures in capturing complex economic realities. In AI policy, this theory is crucial for accurately assessing AI's economic impact, for instance, measuring its contribution to productivity growth, its effect on employment statistics, or its influence on wealth distribution. It helps ensure that policy decisions are based on reliable and comprehensive economic data.",
+  example: "In the taxonomy, this appears as a framework for accurately quantifying the economic impacts and societal effects of AI.",
+  frequency: "",
+  links: [
+    { label: "Economic indicator", url: "https://en.wikipedia.org/wiki/Economic_indicator" },
+    { label: "Measurement (economics)", url: "https://en.wikipedia.org/wiki/Measurement_(economics)" }
+  ]
+},
+"Economic nationalism": {
+  label: "Economic Nationalism",
+  summary: "Economic nationalism is an ideology that prioritizes a nation's domestic economy and industries over international economic integration. It often advocates for protectionist policies, government intervention, and strategic industrial development to strengthen national economic power and security. In AI policy, economic nationalism manifests as a focus on developing domestic AI capabilities, protecting national AI champions, restricting foreign access to critical AI technologies or data, and ensuring national control over AI's strategic applications. This influences policies related to trade, investment, research funding, and international collaboration in AI.",
+  example: "In the taxonomy, this appears as a geopolitical and economic strategy influencing national AI development and international cooperation.",
+  frequency: "",
+  links: [
+    { label: "Economic nationalism", url: "https://en.wikipedia.org/wiki/Economic_nationalism" }
+  ]
+},
+"Economic theories of technological unemployment": {
+  label: "Economic Theories of Technological Unemployment",
+  summary: "Economic theories of technological unemployment explore how advancements in technology, particularly automation and AI, can lead to job displacement as machines take over tasks previously performed by humans. These theories analyze the mechanisms of job loss, the potential for new job creation, and the long-term effects on labor markets and income distribution. In AI policy, these theories are fundamental for understanding and addressing the societal challenges posed by AI-driven automation, informing debates on workforce retraining, universal basic income, and policies aimed at managing the transition to an AI-augmented economy.",
+  example: "In the taxonomy, this appears as a set of economic models explaining how AI and automation impact employment and labor markets.",
+  frequency: "",
+  links: [
+    { label: "Technological unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
+  ]
+},
+"Economics of technological innovation": {
+  label: "Economics of Technological Innovation",
+  summary: "The economics of technological innovation studies how new technologies are created, developed, and adopted, and their impact on economic growth, market structures, and competition. It examines factors like research and development (R&D) investment, intellectual property rights, market incentives, and the role of government in fostering innovation. In AI policy, this field is crucial for understanding how to stimulate beneficial AI innovation, design effective R&D policies, manage intellectual property issues, and ensure that the economic benefits of AI are realized while mitigating risks and promoting fair competition.",
+  example: "In the taxonomy, this appears as a framework for understanding the drivers and impacts of AI innovation on economic growth and market dynamics.",
+  frequency: "",
+  links: [
+    { label: "Economics of innovation", url: "https://en.wikipedia.org/wiki/Economics_of_innovation" }
+  ]
+},
+"Educational psychology": {
+  label: "Educational Psychology",
+  summary: "Educational psychology is the study of how humans learn in educational settings, focusing on topics like cognitive development, learning theories, motivation, and instructional design. It seeks to understand how students acquire knowledge and skills and how teaching methods can be optimized. In AI policy, educational psychology is relevant for designing effective AI literacy programs, understanding how people learn to interact with AI systems, and developing AI tools that support human learning. It also informs discussions on the ethical implications of AI in education, such as personalized learning and assessment.",
+  example: "In the taxonomy, this appears as a field informing how humans learn about and interact with AI, and how AI can be used in education.",
+  frequency: "",
+  links: [
+    { label: "Educational psychology", url: "https://en.wikipedia.org/wiki/Educational_psychology" }
+  ]
+},
+"Energy economics": {
+  label: "Energy Economics",
+  summary: "Energy economics is a field that studies the production, consumption, and distribution of energy, analyzing market dynamics, policy impacts, and environmental considerations related to energy resources. It examines issues like energy efficiency, renewable energy, and the economic costs of climate change. In AI policy, energy economics is increasingly relevant due to the significant energy consumption of large AI models and data centers. It informs discussions on the environmental footprint of AI, the need for sustainable AI development, and policies to promote energy-efficient AI hardware and algorithms to mitigate climate impact.",
+  example: "In the taxonomy, this appears as a field analyzing the energy consumption and environmental impact of AI systems and infrastructure.",
+  frequency: "",
+  links: [
+    { label: "Energy economics", url: "https://en.wikipedia.org/wiki/Energy_economics" }
+  ]
+},
+"Environmental impact assessment of computing": {
+  label: "Environmental Impact Assessment of Computing",
+  summary: "Environmental impact assessment of computing evaluates the ecological footprint of digital technologies, including hardware manufacturing, energy consumption of data centers, and electronic waste. It quantifies resource depletion, greenhouse gas emissions, and pollution associated with the entire lifecycle of computing devices and infrastructure. In AI policy, this assessment is crucial for understanding and mitigating the substantial environmental costs of AI, particularly the energy demands of training large models and the material requirements for hardware. It informs policies aimed at promoting green AI, circular economy principles, and sustainable technology development.",
+  example: "In the taxonomy, this appears as a method for quantifying and addressing the ecological footprint of AI systems and infrastructure.",
+  frequency: "",
+  links: [
+    { label: "Environmental impact assessment", url: "https://en.wikipedia.org/wiki/Environmental_impact_assessment" },
+    { label: "Environmental impact of computing", url: "https://en.wikipedia.org/wiki/Environmental_impact_of_computing" }
+  ]
+},
+"Ergonomics": {
+  label: "Ergonomics",
+  summary: "Ergonomics is the scientific discipline concerned with understanding interactions among humans and other elements of a system, and the profession that applies theory, principles, data, and methods to design in order to optimize human well-being and overall system performance. It focuses on designing tools, tasks, and environments to fit human capabilities and limitations. In AI policy, ergonomics is relevant for designing user-friendly and safe human-AI interfaces, ensuring that AI systems are intuitive, reduce cognitive load, prevent errors, and promote effective collaboration between humans and AI, thereby enhancing user experience and safety.",
+  example: "In the taxonomy, this appears as a discipline informing the design of human-AI interfaces for optimal usability, safety, and well-being.",
+  frequency: "",
+  links: [
+    { label: "Ergonomics", url: "https://en.wikipedia.org/wiki/Ergonomics" }
+  ]
+},
+"Explainable AI (XAI) principles": {
+  label: "Explainable AI (XAI) Principles",
+  summary: "Explainable AI (XAI) principles are guidelines and methods aimed at making AI systems more transparent and understandable to humans. XAI seeks to clarify how AI models arrive at their decisions, predictions, or recommendations, rather than operating as \"black boxes.\" In AI policy, XAI is crucial for fostering trust, enabling accountability, and ensuring fairness. It informs regulations requiring AI systems to provide justifications for their outputs, especially in high-stakes applications like healthcare or finance, allowing users and regulators to understand, debug, and challenge AI decisions.",
+  example: "In the taxonomy, this appears as a set of guidelines for designing AI systems that can provide understandable justifications for their outputs.",
+  frequency: "",
+  links: [
+    { label: "Explainable artificial intelligence", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" }
+  ]
+},
+"Fair use doctrine debates": {
+  label: "Fair Use Doctrine Debates",
+  summary: "The fair use doctrine in copyright law permits limited use of copyrighted material without permission for purposes such as criticism, comment, news reporting, teaching, scholarship, or research. Debates around fair use often center on balancing creators' rights with public interest in access to information and promoting creativity. In AI policy, these debates are highly relevant to the training of AI models, which often involve ingesting vast amounts of copyrighted data. It raises questions about whether using copyrighted works to train AI constitutes fair use, impacting intellectual property rights, data licensing, and the future of creative industries.",
+  example: "In the taxonomy, this appears as a legal debate concerning the use of copyrighted material for training AI models.",
+  frequency: "",
+  links: [
+    { label: "Fair use", url: "https://en.wikipedia.org/wiki/Fair_use" }
+  ]
+},
+"Fairness in AI/Machine Learning": {
+  label: "Fairness in AI/Machine Learning",
+  summary: "Fairness in AI/Machine Learning refers to the effort to ensure that AI systems do not produce biased or discriminatory outcomes against certain groups of people. This involves identifying and mitigating biases that can arise from training data, algorithmic design, or deployment contexts. In AI policy, achieving fairness is a core ethical and societal goal, leading to discussions about anti-discrimination regulations, auditing AI systems for bias, developing fair algorithms, and ensuring equitable access to AI's benefits while preventing harm to vulnerable populations.",
+  example: "In the taxonomy, this appears as a critical ethical and technical goal for preventing discriminatory outcomes in AI systems.",
+  frequency: "",
+  links: [
+    { label: "Fairness (machine learning)", url: "https://en.wikipedia.org/wiki/Fairness_(machine_learning)" }
+  ]
+},
+"Federalism": {
+  label: "Federalism",
+  summary: "Federalism is a system of government where power is divided between a central authority and various constituent political units, such as states or provinces. This division of power allows for different levels of government to have distinct responsibilities and legislative authority. In AI policy, federalism is relevant for understanding how AI regulations might be implemented across different jurisdictions within a country. It raises questions about which level of government (federal, state, local) should regulate specific aspects of AI, leading to debates on consistency, innovation, and local needs in AI governance.",
+  example: "In the taxonomy, this appears as a governmental structure influencing the distribution of regulatory authority over AI technologies.",
+  frequency: "",
+  links: [
+    { label: "Federalism", url: "https://en.wikipedia.org/wiki/Federalism" }
+  ]
+},
+"Filter bubble/echo chamber research": {
+  label: "Filter Bubble/Echo Chamber Research",
+  summary: "Filter bubble and echo chamber research investigates how personalized algorithms and social networks can create isolated information environments, where individuals are primarily exposed to information that confirms their existing beliefs. This can limit exposure to diverse viewpoints and reinforce biases. In AI policy, this research is crucial for understanding how AI-powered recommendation systems and content curation algorithms can contribute to societal polarization, spread of misinformation, and erosion of democratic discourse. It informs policies aimed at promoting media literacy, algorithmic transparency, and diverse information exposure.",
+  example: "In the taxonomy, this appears as a field of study analyzing how AI-powered algorithms can create isolated information environments and reinforce biases.",
+  frequency: "",
+  links: [
+    { label: "Filter bubble", url: "https://en.wikipedia.org/wiki/Filter_bubble" },
+    { label: "Echo chamber (media)", url: "https://en.wikipedia.org/wiki/Echo_chamber_(media)" }
+  ]
+},
+"First Amendment jurisprudence": {
+  label: "First Amendment Jurisprudence",
+  summary: "First Amendment jurisprudence refers to the body of legal principles and court decisions interpreting the First Amendment of the U.S. Constitution, which protects freedoms of speech, religion, press, assembly, and petition. It defines the scope and limits of these fundamental rights, especially concerning government regulation. In AI policy, this jurisprudence is highly relevant to debates about content moderation by AI, algorithmic censorship, and the regulation of AI-generated speech or deepfakes. It informs discussions on balancing free speech with preventing harm, and the extent to which platforms or AI developers can be held responsible for content.",
+  example: "In the taxonomy, this appears as a legal framework for understanding free speech implications of AI-generated content and algorithmic moderation.",
+  frequency: "",
+  links: [
+    { label: "First Amendment to the United States Constitution", url: "https://en.wikipedia.org/wiki/First_Amendment_to_the_United_States_Constitution" }
+  ]
+},
+"Frame problem in AI": {
+  label: "Frame Problem in AI",
+  summary: "The frame problem in AI is a philosophical and technical challenge concerning how to represent and update knowledge about a changing world without having to explicitly list everything that *doesn't* change. It asks how an AI can efficiently determine which facts remain true and which change when an action occurs. In AI policy, while highly technical, this problem highlights the inherent limitations and complexities of AI reasoning, especially in dynamic, real-world environments. It underscores the difficulty of building truly robust and context-aware AI, informing discussions about AI safety, reliability, and the need for human oversight in complex decision-making.",
+  example: "In the taxonomy, this appears as a foundational technical challenge in AI reasoning that highlights the complexities of building robust and context-aware systems.",
+  frequency: "",
+  links: [
+    { label: "Frame problem", url: "https://en.wikipedia.org/wiki/Frame_problem" }
+  ]
+},
+"Freedom of speech principles": {
+  label: "Freedom Of Speech Principles",
+  summary: "This refers to the legal and philosophical idea that individuals should be able to express their thoughts and opinions without government censorship or fear of punishment. In AI policy, these principles are crucial when discussing how AI systems moderate content, detect misinformation, or amplify certain voices, ensuring that AI doesn't inadvertently suppress legitimate expression or become a tool for censorship.",
+  example: "This appears in the taxonomy under discussions of content moderation, platform governance, and human rights in the digital sphere.",
+  frequency: "",
+  links: [
+    { label: "Freedom of speech", url: "https://en.wikipedia.org/wiki/Freedom_of_speech" }
+  ]
+},
+"General intelligence research": {
+  label: "General Intelligence Research",
+  summary: "This field explores the creation of artificial intelligence that can understand, learn, and apply knowledge across a wide range of tasks, much like human intelligence. In AI policy, it informs discussions about the long-term societal impacts of highly capable AI, including job displacement, existential risks, and the need for robust safety and alignment mechanisms as AI capabilities advance.",
+  example: "This appears in the taxonomy under categories related to advanced AI capabilities, long-term AI safety, and the future of work.",
+  frequency: "",
+  links: [
+    { label: "Artificial general intelligence", url: "https://en.wikipedia.org/wiki/Artificial_general_intelligence" }
+  ]
+},
+"Geopolitics of technology": {
+  label: "Geopolitics Of Technology",
+  summary: "This area examines how technological advancements, particularly in critical sectors like AI, influence international relations, power dynamics, and global competition among nations. For AI policy, it highlights concerns about national security, economic competitiveness, technological sovereignty, and the potential for AI to become a tool in international rivalries or conflicts.",
+  example: "This appears in the taxonomy under topics like national AI strategies, international cooperation and competition, and the weaponization of AI.",
+  frequency: "",
+  links: [
+    { label: "Geopolitics", url: "https://en.wikipedia.org/wiki/Geopolitics" },
+    { label: "Technology policy", url: "https://en.wikipedia.org/wiki/Technology_policy" }
+  ]
+},
+"Government procurement policy": {
+  label: "Government Procurement Policy",
+  summary: "This refers to the rules and procedures that governments follow when purchasing goods, services, and works from private companies. In AI policy, it's vital for ensuring that government agencies acquire AI systems ethically, transparently, and responsibly, considering factors like data privacy, bias, accountability, and the impact on public services.",
+  example: "This appears in the taxonomy under discussions of public sector AI adoption, ethical AI guidelines for government, and responsible AI deployment.",
+  frequency: "",
+  links: [
+    { label: "Government procurement", url: "https://en.wikipedia.org/wiki/Government_procurement" }
+  ]
+},
+"History of antitrust and regulatory actions": {
+  label: "History Of Antitrust And Regulatory Actions",
+  summary: "This field studies past government efforts to prevent monopolies, promote competition, and regulate industries to protect consumers and the public interest. In AI policy, it provides lessons for addressing market concentration in the AI sector, preventing anti-competitive practices by dominant AI firms, and designing regulations to ensure fair access, innovation, and consumer protection in AI markets.",
+  example: "This appears in the taxonomy under market concentration, competition policy, and regulatory frameworks for AI.",
+  frequency: "",
+  links: [
+    { label: "Antitrust law", url: "https://en.wikipedia.org/wiki/Antitrust_law" },
+    { label: "Regulation", url: "https://en.wikipedia.org/wiki/Regulation" }
+  ]
+},
+"Hobbesian state of nature": {
+  label: "Hobbesian State Of Nature",
+  summary: "This concept, from philosopher Thomas Hobbes, describes a hypothetical condition of humanity without government or laws, where life is \"solitary, poor, nasty, brutish, and short\" due to constant conflict. In AI policy, it's sometimes used metaphorically to discuss potential scenarios of unbridled AI development or deployment without strong governance, leading to chaotic or harmful outcomes, emphasizing the need for robust regulatory frameworks.",
+  example: "This appears in the taxonomy under discussions of AI governance, existential risk, and the necessity of international cooperation to prevent uncontrolled AI development.",
+  frequency: "",
+  links: [
+    { label: "State of nature", url: "https://en.wikipedia.org/wiki/State_of_nature#Thomas_Hobbes" }
+  ]
+},
+"Human Factors engineering": {
+  label: "Human Factors Engineering",
+  summary: "This discipline focuses on designing systems, products, and processes to optimize human well-being and overall system performance by considering human capabilities and limitations. In AI policy, it's crucial for ensuring that AI systems are designed to be safe, usable, and effective for human operators and users, minimizing errors, fatigue, and cognitive overload, especially in critical applications.",
+  example: "This appears in the taxonomy under topics like human-AI collaboration, user interface design for AI, and AI safety and reliability.",
+  frequency: "",
+  links: [
+    { label: "Human factors and ergonomics", url: "https://en.wikipedia.org/wiki/Human_factors_and_ergonomics" }
+  ]
+},
+"Human-Computer Interaction design principles": {
+  label: "Human-Computer Interaction Design Principles",
+  summary: "These are guidelines for creating user interfaces and experiences that are intuitive, efficient, and satisfying for people interacting with computers. In AI policy, these principles are essential for designing AI systems that are transparent, controllable, and understandable to users, promoting trust, preventing misuse, and ensuring that humans remain \"in the loop\" when necessary.",
+  example: "This appears in the taxonomy under user experience (UX) design for AI, explainable AI (XAI), and human oversight of AI systems.",
+  frequency: "",
+  links: [
+    { label: "Human–computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" }
+  ]
+},
+"Human-centered AI": {
+  label: "Human-Centered AI",
+  summary: "This approach prioritizes human values, needs, and well-being throughout the entire lifecycle of AI system design, development, and deployment. In AI policy, it advocates for policies that ensure AI serves humanity, respects human rights, empowers individuals, and enhances human capabilities, rather than replacing or diminishing them, focusing on ethical considerations and societal impact.",
+  example: "This appears in the taxonomy under ethical AI design, responsible innovation, and human rights in the context of AI.",
+  frequency: "",
+  links: [
+    { label: "Human-centered design", url: "https://en.wikipedia.org/wiki/Human-centered_design" },
+    { label: "Ethical artificial intelligence", url: "https://en.wikipedia.org/wiki/Ethical_artificial_intelligence" }
+  ]
+},
+"Human-computer interaction (HCI)": {
+  label: "Human-Computer Interaction (HCI)",
+  summary: "HCI is a field that studies the design and use of computer technology, focusing on the interfaces between people and computers. In AI policy, HCI principles are critical for ensuring that AI systems are usable, understandable, and controllable by humans, addressing issues like user trust, cognitive load, and the effective collaboration between humans and intelligent machines.",
+  example: "This appears in the taxonomy under user experience, explainable AI, and human oversight in AI systems.",
+  frequency: "",
+  links: [
+    { label: "Human–computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" }
+  ]
+},
+"Human-computer interaction (HCI) research on workload": {
+  label: "Human-Computer Interaction (HCI) Research On Workload",
+  summary: "This specific area of HCI investigates how much mental effort and cognitive resources are required for humans to interact with computer systems, and how this affects performance and well-being. In AI policy, it's vital for designing AI systems that optimize human-AI collaboration without overwhelming human operators, especially in critical domains like healthcare or autonomous driving, ensuring safety and efficiency.",
+  example: "This appears in the taxonomy under human-AI teaming, operator fatigue, and safety standards for AI-assisted tasks.",
+  frequency: "",
+  links: [
+    { label: "Human–computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" },
+    { label: "Workload", url: "https://en.wikipedia.org/wiki/Workload_(psychology)" }
+  ]
+},
+"IT failure studies": {
+  label: "IT Failure Studies",
+  summary: "This field examines the causes and consequences of information technology projects and systems that do not meet their objectives, often leading to significant financial losses or operational disruptions. In AI policy, these studies offer crucial lessons for anticipating and mitigating risks associated with AI system deployment, emphasizing the importance of robust testing, clear requirements, and effective project management to prevent costly and potentially harmful AI failures.",
+  example: "This appears in the taxonomy under AI risk management, project governance for AI, and accountability for AI system failures.",
+  frequency: "",
+  links: [
+    { label: "Project failure", url: "https://en.wikipedia.org/wiki/Project_failure" }
+  ]
+},
+"IT project management failures literature": {
+  label: "IT Project Management Failures Literature",
+  summary: "This body of research analyzes common reasons why IT projects fail, such as poor planning, scope creep, lack of user involvement, or inadequate leadership. For AI policy, it provides a framework for understanding and preventing similar pitfalls in AI development and deployment, highlighting the need for strong governance, clear objectives, and adaptive management strategies to ensure AI projects succeed responsibly.",
+  example: "This appears in the taxonomy under AI project governance, risk assessment in AI development, and best practices for AI deployment.",
+  frequency: "",
+  links: [
+    { label: "Project management", url: "https://en.wikipedia.org/wiki/Project_management" },
+    { label: "Project failure", url: "https://en.wikipedia.org/wiki/Project_failure" }
+  ]
+},
+"Information pollution": {
+  label: "Information Pollution",
+  summary: "This concept refers to the contamination of information environments with irrelevant, redundant, inaccurate, or misleading data, making it difficult to find and process useful information. In AI policy, it's highly relevant to addressing the spread of misinformation, disinformation, and \"deepfakes\" generated or amplified by AI, necessitating policies for content authenticity, platform accountability, and digital literacy.",
+  example: "This appears in the taxonomy under misinformation, content moderation, and the societal impact of generative AI.",
+  frequency: "",
+  links: [
+    { label: "Information pollution", url: "https://en.wikipedia.org/wiki/Information_pollution" }
+  ]
+},
+"Information warfare concepts": {
+  label: "Information Warfare Concepts",
+  summary: "This field explores the use of information and communication technologies to gain an advantage over an adversary, often involving psychological operations, propaganda, and cyberattacks. In AI policy, it's critical for understanding how AI can be weaponized to conduct sophisticated influence operations, disrupt critical infrastructure, or spread disinformation, driving policies related to national security, cyber defense, and international norms for AI use.",
+  example: "This appears in the taxonomy under national security, cyber warfare, and the malicious use of AI.",
+  frequency: "",
+  links: [
+    { label: "Information warfare", url: "https://en.wikipedia.org/wiki/Information_warfare" }
+  ]
+},
+"Information warfare studies": {
+  label: "Information Warfare Studies",
+  summary: "This academic discipline investigates the strategies, tactics, and impacts of using information as a weapon in conflicts, including cyberattacks, propaganda, and psychological operations. In AI policy, it provides insights into how AI can enhance or automate information warfare capabilities, leading to discussions on defensive measures, international regulations, and ethical guidelines for AI in military and intelligence contexts.",
+  example: "This appears in the taxonomy under military AI, national security, and the regulation of autonomous weapons systems.",
+  frequency: "",
+  links: [
+    { label: "Information warfare", url: "https://en.wikipedia.org/wiki/Information_warfare" }
+  ]
+},
+"Information warfare theory": {
+  label: "Information Warfare Theory",
+  summary: "This theoretical framework analyzes the principles and dynamics of using information as a strategic tool in conflict, focusing on how information can be manipulated, protected, or exploited. In AI policy, it helps anticipate how advanced AI could transform information warfare, from generating hyper-realistic fake content to orchestrating complex cyberattacks, informing policies on digital defense, international law, and responsible AI development.",
+  example: "This appears in the taxonomy under strategic AI, cyber defense, and the ethics of AI in conflict.",
+  frequency: "",
+  links: [
+    { label: "Information warfare", url: "https://en.wikipedia.org/wiki/Information_warfare" }
+  ]
+},
+"Intergovernmental relations": {
+  label: "Intergovernmental Relations",
+  summary: "This field studies the interactions and relationships between different levels of government (e.g., federal, state, local) or between sovereign nations. In AI policy, it's crucial for coordinating regulatory efforts, sharing best practices, and addressing cross-jurisdictional challenges posed by AI, such as data governance, international standards, and the global impact of AI development and deployment.",
+  example: "This appears in the taxonomy under international AI governance, federalism in AI regulation, and multi-stakeholder approaches to AI policy.",
+  frequency: "",
+  links: [
+    { label: "Intergovernmental relations", url: "https://en.wikipedia.org/wiki/Intergovernmental_relations" }
+  ]
+},
+"Keynesian economics": {
+  label: "Keynesian Economics",
+  summary: "This economic theory, developed by John Maynard Keynes, suggests that government intervention can stabilize the economy, particularly during recessions, by influencing aggregate demand through fiscal and monetary policies. In AI policy, it informs discussions about how governments might mitigate the economic disruptions caused by AI, such as job displacement, by investing in retraining programs, infrastructure, or social safety nets to maintain economic stability and growth.",
+  example: "This appears in the taxonomy under economic impact of AI, labor market policies, and government investment in AI.",
+  frequency: "",
+  links: [
+    { label: "Keynesian economics", url: "https://en.wikipedia.org/wiki/Keynesian_economics" }
+  ]
+},
+"Knowledge management": {
+  label: "Knowledge Management",
+  summary: "This discipline involves the systematic process of creating, sharing, using, and managing the knowledge and information of an organization. In AI policy, it's relevant for ensuring that AI systems effectively leverage existing organizational knowledge, for managing the knowledge generated by AI, and for developing policies that govern how AI accesses, processes, and disseminates information within organizations and society.",
+  example: "This appears in the taxonomy under organizational AI adoption, data governance, and the responsible use of AI in enterprises.",
+  frequency: "",
+  links: [
+    { label: "Knowledge management", url: "https://en.wikipedia.org/wiki/Knowledge_management" }
+  ]
+},
+"Law and Economics": {
+  label: "Law And Economics",
+  summary: "This interdisciplinary field applies economic theory to analyze the law, examining how legal rules affect economic behavior and efficiency. In AI policy, it helps evaluate the economic consequences of different regulatory approaches to AI, such as liability rules for AI errors, intellectual property rights for AI-generated content, or incentives for AI safety research, aiming for policies that promote innovation while minimizing negative externalities.",
+  example: "This appears in the taxonomy under economic analysis of AI regulation, liability for AI, and intellectual property in AI.",
+  frequency: "",
+  links: [
+    { label: "Law and economics", url: "https://en.wikipedia.org/wiki/Law_and_economics" }
+  ]
+},
+"Legal informatics": {
+  label: "Legal Informatics",
+  summary: "This field combines information science, computer science, and law to study how information technology can be applied to legal processes, knowledge, and education. In AI policy, it's crucial for understanding how AI can transform legal practice, from automated legal research to predictive justice, and for developing policies that ensure AI tools in law are fair, transparent, and uphold due process and ethical standards.",
+  example: "This appears in the taxonomy under AI in legal practice, judicial AI, and ethical guidelines for AI in the justice system.",
+  frequency: "",
+  links: [
+    { label: "Legal informatics", url: "https://en.wikipedia.org/wiki/Legal_informatics" }
+  ]
+},
+"Legal philosophy (causation, liability)": {
+  label: "Legal Philosophy (Causation, Liability)",
+  summary: "This area of philosophy examines fundamental legal concepts like causation (determining what caused an event) and liability (who is legally responsible for harm). In AI policy, these concepts are central to debates about assigning responsibility when AI systems cause harm, whether it's the developer, deployer, or user, and for establishing frameworks for accountability and redress in an era of increasingly autonomous AI.",
+  example: "This appears in the taxonomy under AI liability, accountability frameworks, and the legal personhood of AI.",
+  frequency: "",
+  links: [
+    { label: "Legal philosophy", url: "https://en.wikipedia.org/wiki/Philosophy_of_law" },
+    { label: "Legal liability", url: "https://en.wikipedia.org/wiki/Legal_liability" }
+  ]
+},
+"Luddism": {
+  label: "Luddism",
+  summary: "Luddism refers to a historical movement of English textile workers in the early 19th century who protested against new labor-saving machinery, often by destroying it, fearing job displacement. In AI policy, \"Luddism\" is often invoked to describe resistance to technological change, prompting discussions about the social and economic impacts of AI on employment, the need for worker retraining, and policies to manage technological transitions fairly.",
+  example: "This appears in the taxonomy under the future of work, public perception of AI, and policies for managing technological unemployment.",
+  frequency: "",
+  links: [
+    { label: "Luddite", url: "https://en.wikipedia.org/wiki/Luddite" }
+  ]
+},
+"Luddite fallacy critique": {
+  label: "Luddite Fallacy Critique",
+  summary: "The Luddite fallacy is the mistaken belief that technological advancements inevitably lead to widespread, permanent unemployment. The critique argues that while technology displaces some jobs, it also creates new ones and increases overall productivity and wealth. In AI policy, this critique informs debates about the long-term economic effects of AI, suggesting that policies should focus on adaptation, education, and fostering new industries rather than simply fearing job losses.",
+  example: "This appears in the taxonomy under economic impacts of AI, labor market dynamics, and education and workforce development policies.",
+  frequency: "",
+  links: [
+    { label: "Luddite fallacy", url: "https://en.wikipedia.org/wiki/Luddite_fallacy" }
+  ]
+},
+"Machine learning research": {
+  label: "Machine Learning Research",
+  summary: "This field focuses on developing algorithms that allow computers to learn from data without being explicitly programmed, enabling them to identify patterns and make predictions. In AI policy, understanding machine learning is fundamental for addressing issues like algorithmic bias, data privacy, model interpretability, and the ethical implications of AI systems that learn and evolve, guiding regulations on data use and algorithmic transparency.",
+  example: "This appears in the taxonomy under algorithmic bias, data governance, explainable AI, and AI safety research.",
+  frequency: "",
+  links: [
+    { label: "Machine learning", url: "https://en.wikipedia.org/wiki/Machine_learning" }
+  ]
+},
+"Marxian economics": {
+  label: "Marxian Economics",
+  summary: "Based on the theories of Karl Marx, this economic framework analyzes capitalism through concepts like class struggle, exploitation, and the accumulation of capital, predicting its eventual transformation. In AI policy, it can inform discussions about how AI might exacerbate existing economic inequalities, concentrate wealth and power, or fundamentally alter labor relations, prompting policies focused on wealth redistribution, worker rights, and democratic control over technology.",
+  example: "This appears in the taxonomy under economic inequality, labor rights, and the social impact of AI.",
+  frequency: "",
+  links: [
+    { label: "Marxian economics", url: "https://en.wikipedia.org/wiki/Marxian_economics" }
+  ]
+},
+"Mechanistic interpretability research": {
+  label: "Mechanistic Interpretability Research",
+  summary: "This emerging field aims to understand the internal workings of complex AI models, particularly neural networks, by reverse-engineering their components and identifying how they process information. In AI policy, it's crucial for developing explainable AI (XAI) and ensuring accountability, as understanding *why* an AI makes a decision is vital for debugging, auditing for bias, and building trust in high-stakes applications like healthcare or finance.",
+  example: "This appears in the taxonomy under explainable AI (XAI), AI transparency, and AI safety and alignment.",
+  frequency: "",
+  links: [
+    { label: "Explainable artificial intelligence", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" }
+  ]
+},
+"Moral philosophy (principles-based ethics)": {
+  label: "Moral Philosophy (Principles-Based Ethics)",
+  summary: "This branch of philosophy examines fundamental questions about right and wrong, often through frameworks like deontology (duty-based ethics) or consequentialism (outcome-based ethics), using principles to guide moral decision-making. In AI policy, it provides the foundation for developing ethical AI guidelines, addressing issues like fairness, accountability, transparency, and beneficence, ensuring AI development aligns with human values.",
+  example: "This appears in the taxonomy under ethical AI frameworks, AI governance principles, and human values in AI design.",
+  frequency: "",
+  links: [
+    { label: "Moral philosophy", url: "https://en.wikipedia.org/wiki/Moral_philosophy" },
+    { label: "Principles of biomedical ethics", url: "https://en.wikipedia.org/wiki/Principles_of_biomedical_ethics" }
+  ]
+},
+"National security doctrine": {
+  label: "National Security Doctrine",
+  summary: "This refers to a nation's fundamental principles and strategies for protecting its sovereignty, citizens, and interests from threats, both domestic and foreign. In AI policy, it's paramount for guiding decisions on military AI, cyber defense, critical infrastructure protection, and the regulation of dual-use AI technologies, balancing innovation with the imperative to prevent malicious use and maintain strategic advantage.",
+  example: "This appears in the taxonomy under military AI, cyber security, and the regulation of dual-use technologies.",
+  frequency: "",
+  links: [
+    { label: "National security", url: "https://en.wikipedia.org/wiki/National_security" }
+  ]
+},
+"Natural Language Processing (NLP)": {
+  label: "Natural Language Processing (NLP)",
+  summary: "NLP is a branch of AI that enables computers to understand, interpret, and generate human language. In AI policy, it's central to discussions about content moderation, misinformation detection, language translation, and the ethical implications of large language models, including issues of bias in language, privacy of communications, and the potential for automated propaganda.",
+  example: "This appears in the taxonomy under generative AI, content moderation, algorithmic bias in language, and digital literacy.",
+  frequency: "",
+  links: [
+    { label: "Natural language processing", url: "https://en.wikipedia.org/wiki/Natural_language_processing" }
+  ]
+},
+"Network theory": {
+  label: "Network Theory",
+  summary: "This mathematical field studies the properties of networks (graphs) and their components, analyzing relationships between interconnected entities. In AI policy, it helps understand the spread of information (and misinformation) through social networks, the resilience of critical infrastructure, and the interconnectedness of AI systems, informing policies on platform governance, cybersecurity, and systemic risk.",
+  example: "This appears in the taxonomy under systemic risk, information diffusion, and cybersecurity for AI.",
+  frequency: "",
+  links: [
+    { label: "Network theory", url: "https://en.wikipedia.org/wiki/Network_theory" }
+  ]
+},
+"Organizational behavior theory": {
+  label: "Organizational Behavior Theory",
+  summary: "This field examines how individuals, groups, and structures influence behavior within organizations, focusing on topics like motivation, leadership, and organizational culture. In AI policy, it's relevant for understanding how organizations adopt and adapt to AI, how AI impacts employee roles and team dynamics, and how to design policies that foster responsible AI integration, manage change, and ensure ethical decision-making within corporate structures.",
+  example: "This appears in the taxonomy under AI adoption in organizations, workforce transformation, and ethical AI governance in enterprises.",
+  frequency: "",
+  links: [
+    { label: "Organizational behavior", url: "https://en.wikipedia.org/wiki/Organizational_behavior" }
+  ]
+},
+"Organizational change management": {
+  label: "Organizational Change Management",
+  summary: "This is a structured approach for transitioning individuals, teams, and organizations from a current state to a desired future state, often in response to new technologies or strategies. In AI policy, it's crucial for guiding the successful and ethical integration of AI into workplaces and public services, addressing resistance to change, ensuring adequate training, and managing the human impact of AI-driven transformations.",
+  example: "This appears in the taxonomy under AI adoption strategies, workforce retraining, and managing the societal impact of AI.",
+  frequency: "",
+  links: [
+    { label: "Change management", url: "https://en.wikipedia.org/wiki/Change_management" }
+  ]
+},
+"Organizational theory of change": {
+  label: "Organizational Theory Of Change",
+  summary: "This framework describes how and why a desired change is expected to happen in an organization, outlining the causal pathways from activities to outcomes. In AI policy, it helps design interventions and policies for responsible AI adoption, by mapping out how specific regulations, incentives, or educational programs are expected to lead to desired outcomes like reduced bias, increased safety, or equitable economic benefits from AI.",
+  example: "This appears in the taxonomy under AI policy design, impact assessment of AI, and strategic planning for AI governance.",
+  frequency: "",
+  links: [
+    { label: "Theory of change", url: "https://en.wikipedia.org/wiki/Theory_of_change" }
+  ]
+},
+"Philosophy of Mind (e.g., Chinese Room argument)": {
+  label: "Philosophy Of Mind (E.g., Chinese Room Argument)",
+  summary: "This branch of philosophy explores the nature of mental phenomena, consciousness, and the relationship between mind and body, often debating whether machines can truly \"think\" or possess consciousness. The Chinese Room argument, for instance, suggests that merely simulating understanding isn't true understanding. In AI policy, it informs discussions about the moral status of advanced AI, the definition of intelligence, and the ethical boundaries of AI development, particularly concerning artificial general intelligence.",
+  example: "This appears in the taxonomy under artificial general intelligence (AGI) ethics, consciousness in AI, and the definition of AI.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of mind", url: "https://en.wikipedia.org/wiki/Philosophy_of_mind" },
+    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room_argument" }
+  ]
+},
+"Philosophy of Science (e.g., Popper's falsificationism)": {
+  label: "Philosophy Of Science (E.g., Popper's Falsificationism)",
+  summary: "This field examines the foundations, methods, and implications of science, including how scientific theories are developed, tested, and accepted. Karl Popper's falsificationism, for example, proposes that a scientific theory must be testable and potentially proven false. In AI policy, it's relevant for establishing rigorous testing and validation standards for AI systems, ensuring transparency in AI research, and promoting a scientific approach to AI safety and risk assessment.",
+  example: "This appears in the taxonomy under AI testing and validation, scientific rigor in AI research, and AI safety standards.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of science", url: "https://en.wikipedia.org/wiki/Philosophy_of_science" },
+    { label: "Falsifiability", url: "https://en.wikipedia.org/wiki/Falsifiability" }
+  ]
+},
+"Philosophy of mind": {
+  label: "Philosophy Of Mind",
+  summary: "This branch of philosophy investigates the nature of mental phenomena, consciousness, and the relationship between the mind and the physical body. In AI policy, it contributes to fundamental debates about what constitutes intelligence, whether AI can ever truly \"think\" or be conscious, and the ethical implications of creating artificial entities that might one day possess advanced cognitive abilities.",
+  example: "This appears in the taxonomy under artificial general intelligence (AGI) ethics, consciousness in AI, and the definition of AI.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of mind", url: "https://en.wikipedia.org/wiki/Philosophy_of_mind" }
+  ]
+},
+"Philosophy of mind (AI vs. human consciousness)": {
+  label: "Philosophy Of Mind (AI Vs. Human Consciousness)",
+  summary: "This specific area within the philosophy of mind directly compares artificial intelligence with human consciousness, questioning whether AI can replicate or achieve genuine subjective experience, self-awareness, or understanding. In AI policy, these discussions are critical for addressing the long-term ethical implications of advanced AI, including potential moral status, rights for AI, and the societal impact of creating entities that might challenge our understanding of what it means to be human.",
+  example: "This appears in the taxonomy under artificial general intelligence (AGI) ethics, AI personhood, and the long-term societal impact of AI.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of mind", url: "https://en.wikipedia.org/wiki/Philosophy_of_mind" },
+    { label: "Artificial consciousness", url: "https://en.wikipedia.org/wiki/Artificial_consciousness" }
+  ]
+},
+"Philosophy of science (Popper, Kuhn)": {
+  label: "Philosophy of Science (Popper, Kuhn)",
+  summary: "This field explores how scientific knowledge is developed, tested, and changes over time. Thinkers like Karl Popper focused on falsifiability – the idea that a scientific theory must be able to be proven wrong – while Thomas Kuhn introduced the concept of 'paradigm shifts,' where established scientific views are overthrown by new ones. In AI policy, understanding these ideas helps us evaluate how AI research progresses, how we validate AI safety claims, and how new AI paradigms might challenge existing regulatory frameworks or ethical norms.",
+  example: "This appears in the taxonomy as a foundational lens for understanding the epistemic claims and methodological debates within AI research and development.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of science", url: "https://en.wikipedia.org/wiki/Philosophy_of_science" },
+    { label: "Karl Popper", url: "https://en.wikipedia.org/wiki/Karl_Popper" }
+  ]
+},
+"Philosophy of science (e.g., Popper, Kuhn)": {
+  label: "Philosophy of Science (e.g., Popper, Kuhn)",
+  summary: "Philosophy of science examines the nature of scientific knowledge, how it's acquired, and how scientific theories evolve. Key figures like Karl Popper emphasized that scientific theories must be testable and potentially disproven, while Thomas Kuhn highlighted that science progresses through revolutionary 'paradigm shifts' rather than just steady accumulation. For AI policy, this lineage helps us critically assess claims about AI capabilities and safety, understand the process of AI research, and anticipate how new AI breakthroughs might fundamentally alter our understanding and regulation of technology.",
+  example: "This appears in the taxonomy as a framework for analyzing the epistemological foundations and methodological challenges in AI development and evaluation.",
+  frequency: "",
+  links: [
+    { label: "Philosophy of science", url: "https://en.wikipedia.org/wiki/Philosophy_of_science" },
+    { label: "Thomas Kuhn", url: "https://en.wikipedia.org/wiki/Thomas_Kuhn" }
+  ]
+},
+"Piketty's Capital in the Twenty-First Century": {
+  label: "Piketty's Capital in the Twenty-First Century",
+  summary: "Thomas Piketty's seminal work analyzes historical data on wealth and income inequality, arguing that capitalism naturally leads to increasing wealth concentration when the rate of return on capital exceeds economic growth. He proposes policies like a global wealth tax to address this trend. In AI policy, Piketty's work is relevant for understanding how AI's economic impacts—such as automation-driven job displacement or increased returns for AI capital owners—could exacerbate existing wealth inequalities, prompting discussions about redistribution or new forms of taxation.",
+  example: "This appears in the taxonomy as a specific economic analysis framework for understanding wealth distribution and inequality in the context of technological change.",
+  frequency: "",
+  links: [
+    { label: "Capital in the Twenty-First Century", url: "https://en.wikipedia.org/wiki/Capital_in_the_Twenty-First_Century" },
+    { label: "Thomas Piketty", url: "https://en.wikipedia.org/wiki/Thomas_Piketty" }
+  ]
+},
+"Political Economy": {
+  label: "Political Economy",
+  summary: "Political economy is a field that studies how political and economic systems interact and influence each other. It examines how government policies affect markets, how economic power shapes political decisions, and how different social groups benefit or suffer from these interactions. In AI policy, this framework helps analyze who benefits from AI development, how governments regulate AI, and how AI might shift power dynamics between states, corporations, and citizens, considering both economic incentives and political structures.",
+  example: "This appears in the taxonomy as a broad interdisciplinary approach to understanding the interplay between political power, economic systems, and technological development.",
+  frequency: "",
+  links: [
+    { label: "Political economy", url: "https://en.wikipedia.org/wiki/Political_economy" }
+  ]
+},
+"Political science comparative analysis": {
+  label: "Political Science Comparative Analysis",
+  summary: "Comparative analysis in political science involves systematically studying different political systems, institutions, or policies across countries or regions to identify patterns, similarities, and differences. This method helps explain why certain political outcomes occur and allows for the development of general theories. In AI policy, comparative analysis is crucial for understanding how different nations or blocs (e.g., the EU, US, China) are approaching AI regulation, identifying best practices, and predicting the effectiveness of various governance models based on their political and economic contexts.",
+  example: "This appears in the taxonomy as a methodological approach for evaluating diverse national and international AI governance strategies.",
+  frequency: "",
+  links: [
+    { label: "Comparative politics", url: "https://en.wikipedia.org/wiki/Comparative_politics" }
+  ]
+},
+"Post-Westphalian thought": {
+  label: "Post-Westphalian Thought",
+  summary: "Post-Westphalian thought challenges the traditional view of international relations where sovereign nation-states are the primary actors, as established by the Peace of Westphalia in 1648. It recognizes the growing importance of non-state actors (like multinational corporations, NGOs, and international organizations) and transnational issues (like climate change, global pandemics, and cyber threats) that transcend national borders. In AI policy, this perspective is vital for understanding that AI governance cannot be solely managed by individual states, but requires international cooperation and engagement with powerful non-state AI developers and users.",
+  example: "This appears in the taxonomy as a framework for understanding global governance challenges that extend beyond the traditional nation-state model.",
+  frequency: "",
+  links: [
+    { label: "Westphalian sovereignty", url: "https://en.wikipedia.org/wiki/Westphalian_sovereignty" },
+    { label: "International relations theory", url: "https://en.wikipedia.org/wiki/International_relations_theory" }
+  ]
+},
+"Post-industrial society theories": {
+  label: "Post-Industrial Society Theories",
+  summary: "Post-industrial society theories describe a shift from an economy based on manufacturing and agriculture to one centered on services, information, and knowledge. These theories, often associated with thinkers like Daniel Bell, highlight the rise of professional and technical classes, the importance of theoretical knowledge, and the increasing role of technology. In AI policy, this lineage helps us understand how AI accelerates this transition, creating new types of jobs and industries while potentially displacing others, and how policy should adapt to an economy where information and AI-driven services are paramount.",
+  example: "This appears in the taxonomy as a sociological and economic framework for understanding societal transformations driven by technological advancement and information.",
+  frequency: "",
+  links: [
+    { label: "Post-industrial society", url: "https://en.wikipedia.org/wiki/Post-industrial_society" },
+    { label: "Daniel Bell", url: "https://en.wikipedia.org/wiki/Daniel_Bell" }
+  ]
+},
+"Predictive coding": {
+  label: "Predictive Coding",
+  summary: "Predictive coding is a theory in neuroscience and cognitive science that suggests the brain constantly generates predictions about sensory input and only processes 'prediction errors'—the differences between what it expects and what it actually perceives. This efficient processing mechanism helps us make sense of the world. While primarily a cognitive theory, its principles of prediction and error correction are foundational to many AI models, especially in areas like natural language processing and computer vision. In AI policy, understanding predictive coding can inform discussions about how AI systems 'learn' and make decisions, influencing debates on AI explainability, bias detection, and the reliability of AI in complex environments.",
+  example: "This appears in the taxonomy as a cognitive science concept that underpins certain AI architectures and learning processes.",
+  frequency: "",
+  links: [
+    { label: "Predictive coding", url: "https://en.wikipedia.org/wiki/Predictive_coding" }
+  ]
+},
+"Productivity paradox literature": {
+  label: "Productivity Paradox Literature",
+  summary: "The productivity paradox refers to the observation that despite significant investments in information technology, there wasn't a clear corresponding increase in productivity growth in the economy, particularly in the 1980s and 1990s. This literature explores various explanations, such as measurement difficulties, time lags for technology adoption, or mismanagement of new technologies. In AI policy, this paradox is highly relevant as we consider the economic impact of AI. It prompts questions about how AI's benefits will be measured, how long it will take for AI to translate into widespread productivity gains, and what policies can ensure its effective integration into the economy.",
+  example: "This appears in the taxonomy as an economic theory examining the relationship between technological investment and productivity growth.",
+  frequency: "",
+  links: [
+    { label: "Productivity paradox", url: "https://en.wikipedia.org/wiki/Productivity_paradox" }
+  ]
+},
+"Project management methodologies (e.g., Agile vs. Waterfall critiques)": {
+  label: "Project Management Methodologies (e.g., Agile vs. Waterfall Critiques)",
+  summary: "Project management methodologies are structured approaches to planning, executing, and controlling projects. Waterfall is a traditional, linear approach where each phase must be completed before the next begins, while Agile is an iterative and flexible approach that emphasizes collaboration and adaptability. Critiques of these methods highlight their strengths and weaknesses in different contexts. In AI policy, understanding these methodologies is crucial for regulating AI development, as the choice of method impacts transparency, risk management, and the ability to incorporate ethical considerations throughout the AI lifecycle. For example, Agile's iterative nature might allow for continuous ethical review, while Waterfall might require more upfront planning for safety.",
+  example: "This appears in the taxonomy as a set of practical frameworks for organizing and executing complex technological development projects.",
+  frequency: "",
+  links: [
+    { label: "Project management", url: "https://en.wikipedia.org/wiki/Project_management" },
+    { label: "Agile software development", url: "https://en.wikipedia.org/wiki/Agile_software_development" }
+  ]
+},
+"Prometheanism": {
+  label: "Prometheanism",
+  summary: "Prometheanism is a worldview that emphasizes humanity's capacity and right to master nature through technology and scientific progress, often with an optimistic belief in the transformative power of innovation to solve problems. It draws inspiration from the Greek myth of Prometheus, who stole fire from the gods for humanity. In AI policy, Prometheanism often underlies arguments for rapid, unconstrained AI development, viewing AI as a tool for overcoming human limitations and achieving unprecedented progress. This perspective can clash with more cautious approaches that prioritize risk mitigation, ethical considerations, and societal control over technological advancement.",
+  example: "This appears in the taxonomy as a philosophical stance on humanity's relationship with technology and nature, often influencing attitudes towards technological progress.",
+  frequency: "",
+  links: [
+    { label: "Prometheanism", url: "https://en.wikipedia.org/wiki/Prometheanism" }
+  ]
+},
+"Public choice theory (critique of interest groups)": {
+  label: "Public Choice Theory (Critique of Interest Groups)",
+  summary: "Public choice theory applies economic principles to political decision-making, viewing politicians, bureaucrats, and voters as self-interested actors seeking to maximize their own utility. A key critique within this theory focuses on interest groups, arguing that small, well-organized groups can exert disproportionate influence on policy outcomes, often at the expense of the broader public good, because the costs of their favored policies are diffused across many people. In AI policy, this theory helps analyze how powerful AI companies or advocacy groups might lobby for regulations that benefit them, potentially hindering competition or neglecting public safety concerns, and how policymakers might respond to these pressures.",
+  example: "This appears in the taxonomy as an economic framework for analyzing political decision-making and the influence of special interests.",
+  frequency: "",
+  links: [
+    { label: "Public choice", url: "https://en.wikipedia.org/wiki/Public_choice" },
+    { label: "Interest group", url: "https://en.wikipedia.org/wiki/Interest_group" }
+  ]
+},
+"Public health frameworks": {
+  label: "Public Health Frameworks",
+  summary: "Public health frameworks are systematic approaches used to protect and improve the health of populations through organized efforts. They often involve surveillance, risk assessment, intervention design, and policy development, focusing on prevention and equitable access to health. These frameworks emphasize collective well-being over individual treatment. In AI policy, public health frameworks offer a valuable model for addressing the societal risks of AI, such as algorithmic bias leading to health disparities, mental health impacts of AI use, or the spread of misinformation. They encourage a proactive, population-level approach to AI safety and ethical deployment.",
+  example: "This appears in the taxonomy as a model for addressing societal risks and promoting collective well-being in the context of technological advancements.",
+  frequency: "",
+  links: [
+    { label: "Public health", url: "https://en.wikipedia.org/wiki/Public_health" }
+  ]
+},
+"Public utility regulation theory": {
+  label: "Public Utility Regulation Theory",
+  summary: "Public utility regulation theory deals with how governments regulate essential services like electricity, water, and telecommunications, which often operate as natural monopolies or are deemed critical for public welfare. This regulation typically involves setting prices, ensuring universal access, and maintaining service quality, balancing the interests of consumers and providers. In AI policy, this theory is increasingly relevant for debates on whether certain AI systems, especially foundational models or critical AI infrastructure, should be treated as public utilities. This could lead to policies ensuring fair access, preventing monopolistic abuses, and guaranteeing safety and reliability for essential AI services.",
+  example: "This appears in the taxonomy as an economic and legal framework for governing essential services and natural monopolies.",
+  frequency: "",
+  links: [
+    { label: "Public utility", url: "https://en.wikipedia.org/wiki/Public_utility" },
+    { label: "Regulation", url: "https://en.wikipedia.org/wiki/Regulation" }
+  ]
+},
+"Regulatory economics": {
+  label: "Regulatory Economics",
+  summary: "Regulatory economics is a field that analyzes the economic effects of government regulations on markets, industries, and consumer behavior. It examines why regulations are introduced, what their costs and benefits are, and how they can be designed to achieve specific policy goals efficiently. This includes studying market failures that justify regulation, such as monopolies or externalities. In AI policy, regulatory economics provides tools to evaluate proposed AI regulations, assessing their potential impact on innovation, competition, consumer welfare, and the overall economy, helping policymakers design effective and efficient governance frameworks.",
+  example: "This appears in the taxonomy as an economic framework for analyzing the design, impact, and efficiency of government regulations.",
+  frequency: "",
+  links: [
+    { label: "Regulatory economics", url: "https://en.wikipedia.org/wiki/Regulatory_economics" }
+  ]
+},
+"Reinforcement Learning from Human Feedback (RLHF)": {
+  label: "Reinforcement Learning from Human Feedback (RLHF)",
+  summary: "Reinforcement Learning from Human Feedback (RLHF) is a machine learning technique used to align AI models with human preferences and values. It involves training an AI model to perform a task, then having humans rank or evaluate the AI's outputs, and finally using these human preferences as a reward signal to further refine the AI's behavior. This method is crucial for making large language models more helpful, harmless, and honest. In AI policy, RLHF is highly relevant for discussions on AI alignment, safety, and control, as it represents a key technical approach to embedding human values into AI systems and mitigating undesirable behaviors.",
+  example: "This appears in the taxonomy as a specific machine learning technique for aligning AI behavior with human preferences.",
+  frequency: "",
+  links: [
+    { label: "Reinforcement Learning from Human Feedback", url: "https://en.wikipedia.org/wiki/Reinforcement_Learning_from_Human_Feedback" }
+  ]
+},
+"Reinforcement learning": {
+  label: "Reinforcement Learning",
+  summary: "Reinforcement learning (RL) is a type of machine learning where an agent learns to make decisions by interacting with an environment to achieve a goal. The agent receives rewards for desirable actions and penalties for undesirable ones, gradually learning an optimal strategy without explicit programming. This trial-and-error process is inspired by behavioral psychology. In AI policy, understanding RL is crucial because it powers many autonomous AI systems, from self-driving cars to game-playing AI. Policy debates often revolve around the safety, predictability, and ethical implications of AI systems that learn and adapt in complex, real-world environments, especially when their learning processes are not fully transparent.",
+  example: "This appears in the taxonomy as a fundamental machine learning paradigm where agents learn optimal behavior through interaction with an environment.",
+  frequency: "",
+  links: [
+    { label: "Reinforcement learning", url: "https://en.wikipedia.org/wiki/Reinforcement_learning" }
+  ]
+},
+"Reliability engineering": {
+  label: "Reliability Engineering",
+  summary: "Reliability engineering is a sub-discipline of systems engineering that focuses on ensuring that a system or component performs its intended function without failure for a specified period under specified conditions. It involves designing, testing, and maintaining systems to minimize the probability of failure and maximize their lifespan and performance. In AI policy, reliability engineering principles are directly applicable to ensuring the safety and trustworthiness of AI systems, especially in critical applications like autonomous vehicles or medical diagnostics. It informs policies related to AI testing, validation, maintenance, and the establishment of robust performance standards to prevent failures and ensure consistent operation.",
+  example: "This appears in the taxonomy as an engineering discipline focused on ensuring the consistent and dependable performance of systems.",
+  frequency: "",
+  links: [
+    { label: "Reliability engineering", url: "https://en.wikipedia.org/wiki/Reliability_engineering" }
+  ]
+},
+"Rhetorical studies": {
+  label: "Rhetorical Studies",
+  summary: "Rhetorical studies is the examination of how language and communication are used to persuade, inform, or motivate audiences. It analyzes the techniques, strategies, and effects of communication in various contexts, from political speeches to scientific discourse. In AI policy, rhetorical studies helps us understand how different stakeholders (e.g., AI developers, policymakers, critics) frame AI issues, what narratives they employ, and how these narratives influence public perception, policy debates, and the adoption of AI technologies. It can reveal underlying assumptions, biases, and persuasive tactics in discussions about AI's benefits and risks.",
+  example: "This appears in the taxonomy as a field for analyzing the persuasive strategies and narratives used in public discourse about AI.",
+  frequency: "",
+  links: [
+    { label: "Rhetoric", url: "https://en.wikipedia.org/wiki/Rhetoric" }
+  ]
+},
+"Right to be forgotten legal frameworks": {
+  label: "Right to Be Forgotten Legal Frameworks",
+  summary: "The 'right to be forgotten' (also known as the right to erasure) is a legal principle that allows individuals, under certain conditions, to request that personal information about them be removed from public search results or databases. This right aims to balance privacy concerns with freedom of expression and public access to information. Originating primarily in European data protection law (like GDPR), it has sparked global debate. In AI policy, this framework is crucial for addressing how AI systems process and retain personal data, especially in areas like generative AI that can recall and reproduce information. It raises questions about data deletion, model retraining, and accountability for AI systems that might perpetuate or re-surface sensitive personal information.",
+  example: "This appears in the taxonomy as a legal principle concerning data privacy and the control of personal information in digital contexts.",
+  frequency: "",
+  links: [
+    { label: "Right to be forgotten", url: "https://en.wikipedia.org/wiki/Right_to_be_forgotten" },
+    { label: "General Data Protection Regulation", url: "https://en.wikipedia.org/wiki/General_Data_Protection_Regulation" }
+  ]
+},
+"Risk regulation theory": {
+  label: "Risk Regulation Theory",
+  summary: "Risk regulation theory examines how societies and governments manage and control risks posed by various activities and technologies. It explores different approaches to regulation, such as command-and-control rules, market-based incentives, or voluntary standards, and analyzes their effectiveness, efficiency, and fairness. This theory considers factors like public perception of risk, scientific uncertainty, and political pressures. In AI policy, risk regulation theory provides a framework for designing effective governance mechanisms for AI, helping policymakers decide when and how to regulate AI's potential harms, balancing innovation with safety, and addressing issues like algorithmic bias, privacy breaches, and autonomous system failures.",
+  example: "This appears in the taxonomy as a theoretical framework for understanding how societies manage and control risks through policy and governance.",
+  frequency: "",
+  links: [
+    { label: "Risk regulation", url: "https://en.wikipedia.org/wiki/Risk_regulation" }
+  ]
+},
+"Risk society critique (Beck)": {
+  label: "Risk Society Critique (Beck)",
+  summary: "Ulrich Beck's 'risk society' theory argues that modern industrial societies, while producing wealth, also generate new, often invisible, and globally distributed risks, such as environmental pollution, nuclear threats, or technological hazards. These risks are distinct from earlier, more localized dangers and often transcend national borders, affecting everyone regardless of social class. In AI policy, Beck's critique is highly relevant for understanding the systemic and potentially catastrophic risks posed by advanced AI, such as widespread job displacement, autonomous weapons, or existential threats. It emphasizes the need for global governance and a re-evaluation of societal priorities to manage these unprecedented, self-produced risks.",
+  example: "This appears in the taxonomy as a sociological theory analyzing the nature of risks generated by modern industrial and technological development.",
+  frequency: "",
+  links: [
+    { label: "Risk society", url: "https://en.wikipedia.org/wiki/Risk_society" },
+    { label: "Ulrich Beck", url: "https://en.wikipedia.org/wiki/Ulrich_Beck" }
+  ]
+},
+"Risk-based regulation": {
+  label: "Risk-Based Regulation",
+  summary: "Risk-based regulation is an approach where regulatory efforts are prioritized and tailored according to the level and nature of the risks involved. Instead of applying a one-size-fits-all rule, it focuses resources on areas with the highest potential for harm, allowing for more flexible and efficient governance. This approach requires identifying, assessing, and managing risks systematically. In AI policy, risk-based regulation is a prominent strategy, exemplified by the EU AI Act, which categorizes AI systems by their risk level (e.g., unacceptable, high, limited, minimal) and applies different regulatory requirements accordingly. This helps ensure that critical AI applications receive stringent oversight while less risky ones face fewer burdens.",
+  example: "This appears in the taxonomy as a regulatory strategy that tailors oversight based on the assessed level of risk posed by an activity or technology.",
+  frequency: "",
+  links: [
+    { label: "Risk-based regulation", url: "https://en.wikipedia.org/wiki/Risk-based_regulation" },
+    { label: "Artificial Intelligence Act", url: "https://en.wikipedia.org/wiki/Artificial_Intelligence_Act" }
+  ]
+},
+"Safety-critical systems design": {
+  label: "Safety-Critical Systems Design",
+  summary: "Safety-critical systems design is an engineering discipline focused on creating systems whose failure could result in death, serious injury, significant environmental damage, or major financial loss. It involves rigorous methodologies for hazard identification, risk assessment, fault tolerance, and verification and validation to ensure extreme reliability and safety. Examples include aircraft control systems or medical devices. In AI policy, this lineage is directly applicable to AI systems used in high-stakes environments, such as autonomous vehicles, surgical robots, or critical infrastructure management. It informs requirements for robust testing, formal verification, human oversight, and accountability frameworks to prevent catastrophic AI failures.",
+  example: "This appears in the taxonomy as an engineering discipline focused on designing systems where failure could lead to severe consequences.",
+  frequency: "",
+  links: [
+    { label: "Safety-critical system", url: "https://en.wikipedia.org/wiki/Safety-critical_system" }
+  ]
+},
+"Skill acquisition research": {
+  label: "Skill Acquisition Research",
+  summary: "Skill acquisition research investigates how individuals learn and develop expertise in various domains, from motor skills to complex cognitive tasks. It explores the stages of learning, the role of practice, feedback, and deliberate effort in improving performance. This field often draws from cognitive psychology and education. In AI policy, skill acquisition research is relevant for understanding how human workers will adapt to an AI-driven economy. It informs policies related to education, workforce retraining, and lifelong learning initiatives, helping to design effective programs that enable individuals to acquire the new skills needed to collaborate with or manage AI systems, mitigating job displacement and fostering human-AI synergy.",
+  example: "This appears in the taxonomy as a cognitive and educational research area focused on how humans learn and develop expertise.",
+  frequency: "",
+  links: [
+    { label: "Skill acquisition", url: "https://en.wikipedia.org/wiki/Skill_acquisition" }
+  ]
+},
+"Skill-Biased Technological Change (SBTC) theory": {
+  label: "Skill-Biased Technological Change (SBTC) Theory",
+  summary: "Skill-Biased Technological Change (SBTC) theory posits that technological advancements, particularly in information technology, tend to increase the demand for skilled labor while reducing the demand for unskilled labor. This leads to a widening wage gap and increased income inequality. The theory suggests that technology complements high-skill tasks and substitutes for low-skill tasks. In AI policy, SBTC theory is crucial for analyzing AI's impact on the labor market. It informs debates about job displacement, the need for reskilling and upskilling initiatives, and policies aimed at mitigating growing inequality by ensuring that the benefits of AI are broadly shared across the workforce.",
+  example: "This appears in the taxonomy as an economic theory explaining how technological advancements affect labor demand and wage inequality.",
+  frequency: "",
+  links: [
+    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Skill-biased_technological_change" }
+  ]
+},
+"Social Contract Theory": {
+  label: "Social Contract Theory",
+  summary: "Social contract theory explores the idea that individuals implicitly or explicitly agree to surrender some of their freedoms and rights to a government or authority in exchange for protection of their remaining rights and the maintenance of social order. Key thinkers like Hobbes, Locke, and Rousseau offered different interpretations of this foundational concept in political philosophy. In AI policy, social contract theory provides a framework for discussing the legitimate authority of governments to regulate AI, the rights and responsibilities of AI developers and users, and the societal expectations for AI's role in public life. It prompts questions about what new 'social contracts' might be needed in an AI-driven world.",
+  example: "This appears in the taxonomy as a foundational political philosophy framework for understanding the relationship between individuals, society, and governance.",
+  frequency: "",
+  links: [
+    { label: "Social contract", url: "https://en.wikipedia.org/wiki/Social_contract" }
+  ]
+},
+"Social Welfare Economics": {
+  label: "Social Welfare Economics",
+  summary: "Social welfare economics is a branch of economics that studies how economic policies and resource allocations affect the well-being of society as a whole. It seeks to define and measure social welfare, often considering concepts like efficiency, equity, and justice. This field provides tools to evaluate whether a particular economic outcome or policy improves overall societal well-being. In AI policy, social welfare economics is crucial for assessing the broad societal impacts of AI, including its effects on employment, income distribution, access to services, and overall quality of life. It helps policymakers design AI strategies that maximize collective benefits while minimizing harms and ensuring equitable distribution of AI's advantages.",
+  example: "This appears in the taxonomy as an economic framework for evaluating the impact of policies and resource allocation on overall societal well-being.",
+  frequency: "",
+  links: [
+    { label: "Welfare economics", url: "https://en.wikipedia.org/wiki/Welfare_economics" }
+  ]
+},
+"Social democratic economic policy": {
+  label: "Social Democratic Economic Policy",
+  summary: "Social democratic economic policy emphasizes a mixed economy that combines elements of capitalism with strong social welfare provisions and government intervention to promote equality, social justice, and collective well-being. Key features include robust social safety nets, progressive taxation, public services, and labor protections. In AI policy, this lineage informs approaches that seek to ensure AI's benefits are broadly shared, mitigate job displacement through retraining and social support, and regulate AI to prevent market concentration and protect workers' rights. It advocates for policies that prioritize human well-being and equitable distribution of AI-driven prosperity over unchecked market forces.",
+  example: "This appears in the taxonomy as an economic policy framework prioritizing social welfare, equality, and government intervention in the market.",
+  frequency: "",
+  links: [
+    { label: "Social democracy", url: "https://en.wikipedia.org/wiki/Social_democracy" },
+    { label: "Mixed economy", url: "https://en.wikipedia.org/wiki/Mixed_economy" }
+  ]
+},
+"Social psychology": {
+  label: "Social Psychology",
+  summary: "Social psychology is the scientific study of how individuals' thoughts, feelings, and behaviors are influenced by the actual, imagined, or implied presence of others. It examines topics like conformity, persuasion, group dynamics, prejudice, and social cognition. In AI policy, social psychology is crucial for understanding how humans interact with AI systems, how AI influences human behavior (e.g., through recommendation algorithms or social media manipulation), and how public perception of AI is formed. It informs policies related to combating misinformation, designing human-AI interfaces, and addressing the psychological impacts of AI on individuals and society.",
+  example: "This appears in the taxonomy as a psychological field examining how social influences affect individual thoughts, feelings, and behaviors.",
+  frequency: "",
+  links: [
+    { label: "Social psychology", url: "https://en.wikipedia.org/wiki/Social_psychology" }
+  ]
+},
+"Socratic method": {
+  label: "Socratic Method",
+  summary: "The Socratic method is a form of cooperative argumentative dialogue between individuals, based on asking and answering questions to stimulate critical thinking and to draw out ideas and underlying presumptions. Named after the classical Greek philosopher Socrates, it is a pedagogical approach that encourages deep inquiry and the examination of one's own beliefs. In AI policy, the Socratic method can be applied as a tool for ethical deliberation, stakeholder engagement, and policy development. It encourages rigorous questioning of AI's assumptions, potential impacts, and ethical implications, fostering a more thorough and reflective approach to AI governance.",
+  example: "This appears in the taxonomy as a pedagogical and philosophical method for critical inquiry and ethical deliberation.",
+  frequency: "",
+  links: [
+    { label: "Socratic method", url: "https://en.wikipedia.org/wiki/Socratic_method" },
+    { label: "Socrates", url: "https://en.wikipedia.org/wiki/Socrates" }
+  ]
+},
+"Software engineering best practices": {
+  label: "Software Engineering Best Practices",
+  summary: "Software engineering best practices are a set of established guidelines, techniques, and processes that lead to high-quality, reliable, maintainable, and secure software development. These include practices like version control, code reviews, automated testing, modular design, and clear documentation. They aim to improve efficiency, reduce errors, and ensure software meets its requirements. In AI policy, these best practices are crucial for ensuring the safety, transparency, and trustworthiness of AI systems. Policies can mandate the adoption of such practices for AI development, especially for high-risk applications, to enhance accountability, auditability, and overall system quality.",
+  example: "This appears in the taxonomy as a set of established guidelines and methodologies for developing high-quality and reliable software.",
+  frequency: "",
+  links: [
+    { label: "Software engineering", url: "https://en.wikipedia.org/wiki/Software_engineering" },
+    { label: "Best practice", url: "https://en.wikipedia.org/wiki/Best_practice" }
+  ]
+},
+"Software engineering maturity models": {
+  label: "Software Engineering Maturity Models",
+  summary: "Software engineering maturity models, such as the Capability Maturity Model Integration (CMMI), provide a structured framework for assessing and improving an organization's software development processes. They define different levels of maturity, from ad hoc and chaotic to optimized and continuously improving, guiding organizations to enhance their efficiency, quality, and predictability. In AI policy, these models can be adapted to evaluate the maturity of AI development processes within organizations, particularly those creating high-risk AI systems. This helps policymakers set standards for responsible AI development, ensuring that companies have robust processes for managing risks, ensuring quality, and adhering to ethical guidelines.",
+  example: "This appears in the taxonomy as a framework for assessing and improving the quality and predictability of software development processes.",
+  frequency: "",
+  links: [
+    { label: "Capability Maturity Model Integration", url: "https://en.wikipedia.org/wiki/Capability_Maturity_Model_Integration" },
+    { label: "Software engineering", url: "https://en.wikipedia.org/wiki/Software_engineering" }
+  ]
+},
+"Software supply chain security (e.g., SolarWinds attack analysis)": {
+  label: "Software Supply Chain Security (e.g., SolarWinds Attack Analysis)",
+  summary: "Software supply chain security focuses on protecting software from tampering and vulnerabilities throughout its entire lifecycle, from development and distribution to deployment and updates. It addresses risks introduced by third-party components, open-source libraries, and development tools. The SolarWinds attack, where malicious code was injected into legitimate software updates, highlighted the devastating impact of such vulnerabilities. In AI policy, this lineage is critical for securing AI systems, which often rely on complex stacks of open-source models, data, and libraries. Policies must address the integrity of AI models, training data, and deployment pipelines to prevent malicious actors from compromising AI systems and causing widespread harm.",
+  example: "This appears in the taxonomy as a cybersecurity domain focused on protecting software integrity across its entire development and deployment lifecycle.",
+  frequency: "",
+  links: [
+    { label: "Software supply chain attack", url: "https://en.wikipedia.org/wiki/Software_supply_chain_attack" },
+    { label: "SolarWinds cyberattack", url: "https://en.wikipedia.org/wiki/SolarWinds_cyberattack" }
+  ]
+},
+"Solow paradox": {
+  label: "Solow Paradox",
+  summary: "The Solow paradox, named after economist Robert Solow, refers to his 1987 observation that 'You can see the computer age everywhere but in the productivity statistics.' It highlights the puzzle of why massive investments in information technology did not immediately translate into measurable productivity gains in the economy. This paradox spurred research into measurement issues, implementation lags, and the need for organizational changes to fully leverage new technologies. In AI policy, the Solow paradox is highly relevant for anticipating and addressing the economic impacts of AI. It prompts questions about how AI's benefits will be measured, how long it will take for AI to translate into widespread productivity gains, and what policies can ensure its effective integration into the economy.",
+  example: "This appears in the taxonomy as an economic theory examining the relationship between technological investment and productivity growth.",
+  frequency: "",
+  links: [
+    { label: "Productivity paradox", url: "https://en.wikipedia.org/wiki/Productivity_paradox" },
+    { label: "Robert Solow", url: "https://en.wikipedia.org/wiki/Robert_Solow" }
+  ]
+},
+"Specialized AI development paradigms": {
+  label: "Specialized AI Development Paradigms",
+  summary: "Specialized AI development paradigms refer to distinct approaches and methodologies for creating AI systems tailored to specific tasks or domains, often differing significantly from general-purpose AI. Examples include symbolic AI for reasoning, expert systems for specific knowledge domains, or neuro-symbolic AI combining neural networks with logical reasoning. These paradigms often have unique strengths, limitations, and ethical considerations. In AI policy, understanding these specialized approaches is important because different AI applications may require different regulatory frameworks. A policy for a highly specialized medical diagnostic AI might differ greatly from one for a general-purpose generative AI, requiring nuanced governance that accounts for their distinct architectures, capabilities, and risks.",
+  example: "This appears in the taxonomy as a category encompassing distinct methodological approaches to building AI systems for particular applications.",
+  frequency: "",
+  links: [
+    { label: "Symbolic artificial intelligence", url: "https://en.wikipedia.org/wiki/Symbolic_artificial_intelligence" },
+    { label: "Expert system", url: "https://en.wikipedia.org/wiki/Expert_system" }
+  ]
+},
+"Speculative finance critiques": {
+  label: "Speculative Finance Critiques",
+  summary: "Speculative finance critiques examine the negative consequences of financial activities that involve high risk in the hope of quick, substantial gains, often without contributing to the real economy. These critiques highlight issues like market instability, asset bubbles, wealth concentration, and the detachment of financial markets from productive investment. Thinkers like Hyman Minsky have explored how speculative bubbles can lead to financial crises. In AI policy, these critiques are relevant for understanding how AI could be used in financial markets to amplify speculative trading, create new forms of financial instability, or exacerbate existing inequalities through algorithmic trading. It prompts discussions about regulating AI's role in finance to prevent systemic risks and protect economic stability.",
+  example: "This appears in the taxonomy as an economic critique of financial practices that prioritize short-term gains over long-term economic stability.",
+  frequency: "",
+  links: [
+    { label: "Speculation", url: "https://en.wikipedia.org/wiki/Speculation" },
+    { label: "Hyman Minsky", url: "https://en.wikipedia.org/wiki/Hyman_Minsky" }
+  ]
+},
+"Stakeholder theory": {
+  label: "Stakeholder Theory",
+  summary: "Stakeholder theory proposes that a business or organization should create value for all its stakeholders, not just shareholders. Stakeholders include any group or individual who can affect or is affected by the achievement of the organization's objectives, such as employees, customers, suppliers, communities, and the environment. This theory emphasizes ethical management and corporate social responsibility. In AI policy, stakeholder theory is crucial for ensuring that AI development and deployment consider the interests and impacts on a broad range of affected parties. It informs policies that mandate stakeholder engagement, require impact assessments, and establish mechanisms for redress, moving beyond a narrow focus on profits or technological advancement alone.",
+  example: "This appears in the taxonomy as a management and ethical framework that emphasizes considering the interests of all groups affected by an organization's actions.",
+  frequency: "",
+  links: [
+    { label: "Stakeholder (corporate)", url: "https://en.wikipedia.org/wiki/Stakeholder_(corporate)" }
+  ]
+},
+"Defense in depth (cybersecurity)": {
+  label: "Defense In Depth (Cybersecurity)",
+  summary: "Defense in depth is a cybersecurity strategy that uses multiple layers of security controls to protect information and systems. Instead of relying on a single point of defense, it assumes that any single security measure might fail, so redundant layers are put in place. This approach is crucial for AI policy to ensure the resilience and security of AI systems, which can be vulnerable to various attacks.",
+  example: "This concept informs discussions on AI system security architectures and resilience strategies.",
+  frequency: "Policies can mandate multi-layered security for critical AI deployments to protect against cyber threats.",
+  links: [
+    { label: "Defense in depth (computing)", url: "https://en.wikipedia.org/wiki/Defense_in_depth_(computing)" }
+  ]
+},
+"Statistical Modeling": {
+  label: "Statistical Modeling",
+  summary: "Statistical modeling involves using mathematical equations to represent relationships between different variables in data. It's a fundamental tool in many scientific fields and forms the bedrock of most modern AI and machine learning algorithms. Understanding statistical modeling is essential for AI policy to evaluate AI system performance, identify biases, and assess the reliability and uncertainty of AI predictions.",
+  example: "It underpins the technical foundations of many AI/ML algorithms and their interpretability.",
+  frequency: "Policy relies on statistical methods to evaluate AI performance, fairness, and risk, ensuring robust governance.",
+  links: [
+    { label: "Statistical model", url: "https://en.wikipedia.org/wiki/Statistical_model" }
+  ]
+},
+"Systems theory of unintended consequences": {
+  label: "Systems Theory Of Unintended Consequences",
+  summary: "This theory suggests that actions within complex systems often lead to unforeseen and sometimes negative outcomes, even when intentions are good. It emphasizes that systems are interconnected, and changes in one part can ripple through others in unpredictable ways. For AI policy, this highlights the need to anticipate and mitigate emergent behaviors, ethical dilemmas, and broader societal impacts that might arise from deploying AI systems.",
+  example: "This theory helps frame discussions around AI's broader societal impacts and risks, particularly emergent behaviors.",
+  frequency: "Policymakers must consider systemic risks and potential negative externalities when regulating AI, fostering adaptive governance.",
+  links: [
+    { label: "Unintended consequences", url: "https://en.wikipedia.org/wiki/Unintended_consequences" },
+    { label: "Systems theory", url: "https://en.wikipedia.org/wiki/Systems_theory" }
+  ]
+},
+"Tacit knowledge theory (Polanyi)": {
+  label: "Tacit Knowledge Theory (Polanyi)",
+  summary: "Tacit knowledge refers to knowledge that is difficult to articulate, formalize, or transfer to others, such as knowing how to ride a bike or recognizing a familiar face. Philosopher Michael Polanyi argued that 'we know more than we can tell.' This theory is relevant to AI policy because it highlights the limitations of AI in fully capturing human expertise and the enduring value of human judgment and oversight, especially in complex or nuanced decision-making contexts.",
+  example: "It highlights the limitations of AI in fully replicating human understanding and expertise, emphasizing human-in-the-loop needs.",
+  frequency: "Policies should emphasize human-in-the-loop approaches where tacit knowledge is critical, ensuring human oversight.",
+  links: [
+    { label: "Tacit knowledge", url: "https://en.wikipedia.org/wiki/Tacit_knowledge" }
+  ]
+},
+"Technical debt concept (Ward Cunningham)": {
+  label: "Technical Debt Concept (Ward Cunningham)",
+  summary: "Technical debt is a metaphor from software development that describes the eventual cost of choosing an easy, limited solution now instead of a better approach that would take longer. It's like taking a shortcut that saves time initially but creates more work later. In AI policy, this concept applies to the long-term consequences of rushed AI development, poor data governance, or insufficient testing, which can lead to future security vulnerabilities, ethical issues, or costly maintenance.",
+  example: "This concept is relevant to the long-term maintainability, security, and ethical implications of AI systems.",
+  frequency: "Policies can encourage best practices in AI development to minimize future technical debt and associated risks.",
+  links: [
+    { label: "Technical debt", url: "https://en.wikipedia.org/wiki/Technical_debt" }
+  ]
+},
+"Techno-solutionism": {
+  label: "Techno-Solutionism",
+  summary: "Techno-solutionism is the belief that all complex social and political problems can be solved, or even should be solved, by technological means. It often overlooks the underlying social, economic, or ethical causes of problems, focusing instead on quick technological fixes. In AI policy, this concept serves as a warning against over-reliance on AI to solve societal challenges without addressing root causes or considering the potential for AI to create new problems or exacerbate existing inequalities.",
+  example: "It serves as a cautionary lens when evaluating the scope and limits of AI's problem-solving capabilities.",
+  frequency: "Policymakers should avoid techno-solutionist pitfalls by adopting holistic approaches to societal challenges, not just technological ones.",
+  links: [
+    { label: "Solutionism", url: "https://en.wikipedia.org/wiki/Solutionism" }
+  ]
+},
+"Technological S-curves": {
+  label: "Technological S-Curves",
+  summary: "Technological S-curves illustrate the typical pattern of a technology's performance improvement and adoption over time. They show an initial period of slow growth, followed by rapid acceleration, and then a leveling off as the technology matures. For AI policy, understanding S-curves helps predict the trajectory of AI development, its market penetration, and the timing for effective policy interventions, such as regulation or investment strategies.",
+  example: "This concept helps model the diffusion and maturation of AI technologies over time, informing strategic planning.",
+  frequency: "Policymakers can use S-curves to anticipate future AI capabilities and societal impacts, informing proactive regulation.",
+  links: [
+    { label: "S-curve (technology)", url: "https://en.wikipedia.org/wiki/S-curve_(technology)" }
+  ]
+},
+"Technological determinism (soft)": {
+  label: "Technological Determinism (Soft)",
+  summary: "Soft technological determinism is the idea that technology plays a significant, but not exclusive or inevitable, role in shaping society and culture. It suggests that while technology opens up certain possibilities and influences human behavior, human choices, social factors, and policies still have agency in directing its development and impact. In AI policy, this perspective acknowledges AI's transformative power while emphasizing that society can and must actively shape AI's trajectory through governance and ethical considerations.",
+  example: "It provides a framework for understanding the relationship between AI development and societal change, emphasizing human agency.",
+  frequency: "Policies can guide AI's trajectory, demonstrating that technology's impact is not predetermined but shaped by human decisions.",
+  links: [
+    { label: "Technological determinism", url: "https://en.wikipedia.org/wiki/Technological_determinism" }
+  ]
+},
+"Technological unemployment debates": {
+  label: "Technological Unemployment Debates",
+  summary: "These debates revolve around the long-standing question of whether technological advancements, particularly automation and AI, will lead to widespread job displacement or ultimately create new jobs and increase overall prosperity. Historically, technology has often created more jobs than it destroyed, but concerns persist about the pace and scale of AI's impact. For AI policy, these debates highlight the urgent need for strategies to manage workforce transitions, invest in education and retraining, and potentially explore new social safety nets.",
+  example: "This lineage item directly addresses the economic and social impacts of AI on labor markets and future employment.",
+  frequency: "Policies related to education, retraining, and social welfare are crucial in mitigating the potential negative effects of AI on employment.",
+  links: [
+    { label: "Technological unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
+  ]
+},
+"Technology adoption lifecycle": {
+  label: "Technology Adoption Lifecycle",
+  summary: "The technology adoption lifecycle describes the sociological model of how new technologies are adopted by different groups within a population over time. It typically categorizes adopters into innovators, early adopters, early majority, late majority, and laggards. For AI policy, this concept helps in understanding how AI technologies diffuse through society, identifying barriers to adoption, and designing targeted interventions or regulations for different segments of the population or industry.",
+  example: "It describes the process by which AI technologies are integrated into society and various sectors.",
+  frequency: "Policies can be tailored to different stages of AI adoption to maximize benefits and minimize risks for various user groups.",
+  links: [
+    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle" }
+  ]
+},
+"Technology adoption lifecycle models": {
+  label: "Technology Adoption Lifecycle Models",
+  summary: "These models provide structured frameworks for understanding and predicting how new technologies are accepted and integrated into society. They often detail the characteristics of different adopter groups and the factors influencing their decisions. For AI policy, these models offer valuable tools to forecast AI diffusion, identify potential resistance, and develop effective strategies for promoting beneficial AI adoption while addressing concerns across diverse user segments.",
+  example: "These models offer structured ways to analyze and predict the spread of AI technologies and their societal integration.",
+  frequency: "Policymakers can leverage these models to craft targeted strategies for promoting responsible AI adoption and mitigating associated risks.",
+  links: [
+    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle" },
+    { label: "Diffusion of innovations", url: "https://en.wikipedia.org/wiki/Diffusion_of_innovations" }
+  ]
+},
+"Technology adoption models": {
+  label: "Technology Adoption Models",
+  summary: "Technology adoption models are theoretical frameworks that explain the factors influencing an individual's or organization's decision to accept and use new technologies. Examples include the Technology Acceptance Model (TAM) or Diffusion of Innovations theory. For AI policy, these models help identify key drivers and barriers to AI uptake, allowing policymakers to design effective incentives, educational programs, or regulatory frameworks that encourage responsible and widespread AI adoption.",
+  example: "This category encompasses various theories explaining the drivers and barriers to AI adoption across different contexts.",
+  frequency: "Understanding these models helps policymakers design effective incentives and regulations to guide AI adoption in desired directions.",
+  links: [
+    { label: "Technology acceptance model", url: "https://en.wikipedia.org/wiki/Technology_acceptance_model" },
+    { label: "Diffusion of innovations", url: "https://en.wikipedia.org/wiki/Diffusion_of_innovations" }
+  ]
+},
+"Thomas Kuhn's Structure of Scientific Revolutions": {
+  label: "Thomas Kuhn's Structure Of Scientific Revolutions",
+  summary: "Thomas Kuhn's influential work introduced the concept of 'paradigm shifts,' arguing that scientific progress isn't linear but occurs through periods of 'normal science' punctuated by revolutionary changes that fundamentally alter our understanding of the world. For AI policy, this framework suggests that AI could represent a new scientific and societal paradigm, challenging existing assumptions about intelligence, work, and ethics. Policymakers must be prepared for such profound shifts, requiring adaptive and forward-looking governance.",
+  example: "It offers a lens to understand how AI might fundamentally reshape scientific inquiry and societal norms, leading to paradigm shifts.",
+  frequency: "Policymakers must be prepared for paradigm shifts induced by AI, requiring adaptive and forward-looking governance.",
+  links: [
+    { label: "The Structure of Scientific Revolutions", url: "https://en.wikipedia.org/wiki/The_Structure_of_Scientific_Revolutions" }
+  ]
+},
+"Tragedy of the commons": {
+  label: "Tragedy Of The Commons",
+  summary: "The tragedy of the commons is an economic problem where individuals, acting independently and rationally according to their own self-interest, deplete a shared limited resource, even when it is not in anyone's long-term interest. This concept is highly relevant to AI policy when considering shared resources like public data, computational infrastructure, or even the 'AI commons' of open-source models. Unregulated or purely self-interested use could lead to negative outcomes such as data exploitation, resource monopolization, or the proliferation of harmful AI.",
+  example: "This concept informs discussions on the governance of shared AI resources, data, and infrastructure.",
+  frequency: "Policies are needed to establish rules and incentives for the sustainable and equitable use of shared AI-related resources.",
+  links: [
+    { label: "Tragedy of the commons", url: "https://en.wikipedia.org/wiki/Tragedy_of_the_commons" }
+  ]
+},
+"Universal Basic Income advocacy": {
+  label: "Universal Basic Income Advocacy",
+  summary: "Universal Basic Income (UBI) advocacy promotes the idea of a regular, unconditional cash payment delivered to all citizens, regardless of their income, wealth, or employment status. This concept has gained significant attention in discussions about the future of work. For AI policy, UBI is often proposed as a potential solution to widespread technological unemployment caused by AI automation, aiming to ensure economic stability, reduce poverty, and maintain social equity in an AI-driven economy.",
+  example: "It is a proposed policy response to the potential economic disruptions and job displacement caused by AI and automation.",
+  frequency: "Policymakers consider UBI as a potential tool to address income inequality and job displacement in an AI-driven future.",
+  links: [
+    { label: "Universal basic income", url: "https://en.wikipedia.org/wiki/Universal_basic_income" }
+  ]
+},
+"Usability engineering": {
+  label: "Usability Engineering",
+  summary: "Usability engineering is a field focused on designing systems and products that are easy to use, efficient, and satisfying for users. It involves understanding user needs, testing interfaces, and iterating on designs to improve the user experience. For AI policy, usability engineering emphasizes the critical need for AI systems to be designed with human users in mind, ensuring clarity, control, and understandable interactions, especially in high-stakes applications like healthcare or autonomous vehicles. This promotes trust and reduces errors.",
+  example: "It highlights the importance of human-centered design in the development and deployment of AI systems.",
+  frequency: "Policies can mandate usability standards for AI systems, particularly those interacting with the public or in high-stakes environments.",
+  links: [
+    { label: "Usability engineering", url: "https://en.wikipedia.org/wiki/Usability_engineering" }
+  ]
+},
+"Value alignment research": {
+  label: "Value Alignment Research",
+  summary: "Value alignment research is a critical area of study focused on ensuring that advanced AI systems operate in a way that is consistent with human values, ethics, and intentions. The goal is to prevent AI from pursuing goals that, while seemingly rational to the AI, could lead to unintended or harmful outcomes for humanity. For AI policy, this research is foundational for developing safe, ethical, and beneficial AI, guiding the creation of technical and governance mechanisms to ensure AI systems serve human flourishing.",
+  example: "This research area is central to ensuring AI systems operate ethically and in humanity's best interest, mitigating risks.",
+  frequency: "Policies can support and incentivize research into value alignment to mitigate risks from advanced AI systems.",
+  links: [
+    { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
+  ]
+},
+"Whistleblower protection advocacy": {
+  label: "Whistleblower Protection Advocacy",
+  summary: "Whistleblower protection advocacy champions the rights and safety of individuals who report illegal, unethical, or harmful activities within organizations, often at great personal risk. This movement seeks to create legal and cultural safeguards for these individuals. For AI policy, it's crucial to establish robust protections for those who might expose issues related to AI development, misuse, or safety concerns, fostering transparency, accountability, and early detection of potential harms within the AI industry.",
+  example: "It addresses the need for transparency and accountability mechanisms within AI development and deployment.",
+  frequency: "Policies must ensure robust protections for individuals who report risks or misconduct related to AI systems.",
+  links: [
+    { label: "Whistleblower protection", url: "https://en.wikipedia.org/wiki/Whistleblower_protection" }
+  ]
+},
+"economic growth theory": {
+  label: "Economic Growth Theory",
+  summary: "Economic growth theory studies the factors that contribute to a country's long-term increase in the production of goods and services, such as technological innovation, capital investment, and labor force growth. It seeks to explain why some economies grow faster than others. For AI policy, this theory helps analyze how AI can drive productivity, innovation, and create new industries, but also how its benefits are distributed, influencing overall economic well-being and requiring policies to ensure equitable growth.",
+  example: "This theory provides a framework for understanding AI's potential impact on national and global economies.",
+  frequency: "Policymakers use economic growth theory to design strategies that leverage AI for sustainable and equitable economic development.",
+  links: [
+    { label: "Economic growth", url: "https://en.wikipedia.org/wiki/Economic_growth" }
+  ]
+},
+"economic indicators": {
+  label: "Economic Indicators",
+  summary: "Economic indicators are measurable data points that reflect the health and performance of an economy, such as Gross Domestic Product (GDP), unemployment rates, inflation, and consumer confidence. They are used by economists and policymakers to assess current economic conditions and forecast future trends. For AI policy, these indicators are crucial for monitoring AI's real-world impact on employment, productivity, income distribution, and market stability, guiding policy adjustments to mitigate negative effects and amplify benefits.",
+  example: "These metrics are crucial for assessing the real-world economic effects of AI adoption and informing policy responses.",
+  frequency: "Policymakers rely on economic indicators to evaluate the success of AI-related policies and make informed adjustments.",
+  links: [
+    { label: "Economic indicator", url: "https://en.wikipedia.org/wiki/Economic_indicator" }
+  ]
+},
+"economic theories of automation and employment": {
+  label: "Economic Theories Of Automation And Employment",
+  summary: "These theories explore how technological automation, including AI, affects labor markets, job creation, job displacement, and wage structures. They range from pessimistic views of widespread unemployment to optimistic outlooks of new job creation and increased productivity. For AI policy, these theories provide frameworks for understanding the complex interplay between AI and the workforce, informing policies on education, retraining, social safety nets, and labor market regulations to manage transitions and ensure equitable outcomes.",
+  example: "This category encompasses frameworks for understanding AI's profound effects on the workforce and job market dynamics.",
+  frequency: "Policymakers draw on these theories to develop strategies for managing workforce transitions and ensuring equitable outcomes in an AI-driven economy.",
+  links: [
+    { label: "Technological unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" },
+    { label: "Automation", url: "https://en.wikipedia.org/wiki/Automation" }
+  ]
+},
+"human capital theory": {
+  label: "Human Capital Theory",
+  summary: "Human capital theory posits that an individual's skills, knowledge, education, and experience are a form of capital that can be invested in, leading to increased productivity and higher earnings. It views education and training as investments that yield future returns. For AI policy, this theory underscores the critical importance of investing in human capabilities to adapt the workforce to an AI-driven economy, emphasizing lifelong learning, reskilling, and upskilling programs to maintain employability and foster innovation.",
+  example: "It emphasizes the importance of investing in people's skills and education in an era of AI-driven change.",
+  frequency: "Policies promoting education, reskilling, and lifelong learning are central to enhancing human capital in response to AI.",
+  links: [
+    { label: "Human capital", url: "https://en.wikipedia.org/wiki/Human_capital" }
+  ]
+},
+"lifelong learning frameworks": {
+  label: "Lifelong Learning Frameworks",
+  summary: "Lifelong learning frameworks are structured approaches that promote continuous learning and development throughout an individual's life, beyond formal schooling. They emphasize adapting to new knowledge, skills, and competencies in a rapidly changing world. For AI policy, these frameworks are essential for equipping workforces and individuals to thrive amidst rapid technological change and AI-driven job evolution, ensuring that citizens can continuously acquire the skills needed for future employment and societal participation.",
+  example: "These frameworks are essential for adapting workforces and individuals to the evolving demands of AI and technological change.",
+  frequency: "Policies can implement lifelong learning initiatives to ensure citizens remain adaptable and employable in an AI-transformed economy.",
+  links: [
+    { label: "Lifelong learning", url: "https://en.wikipedia.org/wiki/Lifelong_learning" }
+  ]
+},
+"market efficiency theory": {
+  label: "Market Efficiency Theory",
+  summary: "Market efficiency theory, particularly the efficient-market hypothesis, suggests that financial markets reflect all available information, making it impossible for investors to consistently 'beat' the market by finding undervalued stocks. For AI policy, this theory prompts consideration of how AI might impact market dynamics. For example, algorithmic trading could enhance or disrupt market efficiency, and AI's ability to process vast amounts of information raises questions about information asymmetry and the need for regulation to maintain fair and transparent markets.",
+  example: "It offers a perspective on how AI might influence the fairness, transparency, and stability of economic markets.",
+  frequency: "Policymakers must consider how AI affects market information flow and competition, potentially requiring new regulatory oversight.",
+  links: [
+    { label: "Efficient-market hypothesis", url: "https://en.wikipedia.org/wiki/Efficient-market_hypothesis" }
+  ]
+},
+"philosophy of AI": {
+  label: "Philosophy Of AI",
+  summary: "The philosophy of AI is a branch of philosophy that explores fundamental questions about the nature of intelligence, consciousness, and mind, specifically as they relate to artificial systems. It delves into topics such as whether machines can truly think, have consciousness, or possess rights. For AI policy, this field provides essential ethical foundations, conceptual clarity on AI capabilities and limitations, and guidance on profound questions of AI responsibility, moral status, and its long-term societal integration.",
+  example: "This field provides the foundational ethical and conceptual questions underlying AI development and governance.",
+  frequency: "Policies on AI ethics, rights, and societal integration are deeply informed by philosophical inquiries into AI.",
+  links: [
+    { label: "Philosophy of artificial intelligence", url: "https://en.wikipedia.org/wiki/Philosophy_of_artificial_intelligence" }
+  ]
+},
+"post-Keynesian economics": {
+  label: "Post-Keynesian Economics",
+  summary: "Post-Keynesian economics is a school of thought that builds upon and extends John Maynard Keynes's ideas, emphasizing the importance of effective demand, uncertainty, money, and institutions in shaping economic outcomes. It often highlights issues like income inequality, financial instability, and the need for active government intervention. For AI policy, this perspective offers a critical lens on how AI might exacerbate or alleviate these issues, advocating for robust public policies to manage economic transitions, ensure equitable distribution of AI's benefits, and maintain macroeconomic stability.",
+  example: "It offers a critical perspective on how AI might impact economic stability, distribution, and the role of government intervention.",
+  frequency: "Policymakers drawing from this school might advocate for strong government intervention to manage AI's economic impacts and ensure equitable outcomes.",
+  links: [
+    { label: "Post-Keynesian economics", url: "https://en.wikipedia.org/wiki/Post-Keynesian_economics" }
+  ]
+},
 };
