@@ -23,12 +23,12 @@
         {
           "stance": "...",
           "taxonomy_node_id": "...",
-          "category": "Methods",
+          "category": "Methods/Arguments",
           "point": "...",
           "verbatim": "...",
           "excerpt_context": "..."
         },
-        { "...": "repeat for EVERY relevant Methods point — aim for 5-20 total key_points per camp" }
+        { "...": "repeat for EVERY relevant Methods/Arguments point — aim for 5-20 total key_points per camp" }
       ]
     },
     "safetyist": {
@@ -36,7 +36,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
-          "category": "<Goals/Values | Data/Facts | Methods>",
+          "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
           "point": "<1-6 sentences — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
@@ -49,7 +49,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
-          "category": "<Goals/Values | Data/Facts | Methods>",
+          "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
           "point": "<1-6 sentences — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
@@ -70,23 +70,32 @@
   ],
   "unmapped_concepts": [
     {
-      "concept": "<2-5 sentences: describe a concept not covered by any existing taxonomy node — what it is, why it matters, and how it relates to the document's argument>",
+      "suggested_label": "<concise 3-8 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
+      "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
+      "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
       "suggested_category": "Goals/Values",
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "concept": "<2-5 sentences: another unmapped concept...>",
+      "suggested_label": "<concise label>",
+      "suggested_description": "<2-5 sentences>",
+      "concept": "<2-5 sentences>",
       "suggested_pov": "safetyist",
-      "suggested_category": "Methods",
+      "suggested_category": "Methods/Arguments",
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "concept": "<2-5 sentences: another unmapped concept...>",
+      "suggested_label": "<concise label>",
+      "suggested_description": "<2-5 sentences>",
+      "concept": "<2-5 sentences>",
       "suggested_pov": "cross-cutting",
       "suggested_category": "Data/Facts",
-      "reason": "<why this concept deserves a new taxonomy node>"
+      "reason": "<why this concept deserves a new taxonomy node>",
+      "Accelerationist Interpretation": "<1-3 sentences: how accelerationists would interpret or use this concept>",
+      "Safetyist Interpretation": "<1-3 sentences: how safetyists would interpret or use this concept>",
+      "Skeptic Interpretation": "<1-3 sentences: how skeptics would interpret or use this concept>"
     },
-    { "...": "repeat for ALL unmapped concepts — aim for 3-10" }
+    { "...": "repeat for ALL unmapped concepts — aim for 3-10. Include interpretations ONLY for cross-cutting concepts." }
   ]
 }

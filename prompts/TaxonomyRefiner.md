@@ -35,7 +35,7 @@ Goals/Values: Desired end-states (The Why).
 
 Data/Facts: Accepted empirical evidence (The What).
 
-Methods (Cognitive Frameworks): The logic models, interpretive lenses, and/or policy approaches used to process data in light of their goals and values (The How they think).
+Methods/Arguments (Cognitive Frameworks): What someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments.
 
 Constraint Checklist:
 

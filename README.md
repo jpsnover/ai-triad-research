@@ -160,7 +160,7 @@ Write a feature specification to:
 Act as a world class product manager and UX designer and Developer
 POV Viewer Point of View viewer
 Write a Design specification for a POViewer
-This tool will show sources, analyze the "points" in the source, map those "Points" to differnt Points of View as expressed in a set of Taxonomies that can be loaded and stored.The taxonomies define a POV's 1) Goals/Values 2) Methods 3) Data/Facts
+This tool will show sources, analyze the "points" in the source, map those "Points" to differnt Points of View as expressed in a set of Taxonomies that can be loaded and stored.The taxonomies define a POV's 1) Goals/Values 2) Methods/Arguments 3) Data/Facts
 
 This tool needs to be able to organize work into a set of Notebooks similar to NotebookLM.
 It will have a 3 pane design:  Pane 1:  Sources  Pane 2: Source Viewer  Pane 3: Different POVs 

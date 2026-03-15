@@ -124,6 +124,7 @@ Export-ModuleMember -Function @(
     'Get-GraphNode'
     'Find-GraphPath'
     'Approve-Edge'
+    'Approve-TaxonomyProposal'
     'Get-Edge'
     'Set-Edge'
     'Invoke-GraphQuery'

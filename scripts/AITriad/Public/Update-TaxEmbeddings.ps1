@@ -23,7 +23,8 @@ function Update-TaxEmbeddings {
     }
 
     Write-Host "Generating taxonomy embeddings..." -ForegroundColor Cyan
-    & python $EmbedScript generate
+    $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+    & $PythonCmd $EmbedScript generate
     if ($LASTEXITCODE -ne 0) {
         Write-Error "embed_taxonomy.py generate failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
         return

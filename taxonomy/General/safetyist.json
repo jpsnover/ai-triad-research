@@ -77,7 +77,7 @@
     },
     {
       "id": "saf-methods-001",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Pause Building More Powerful AI",
       "description": "We should intentionally slow down or even pause the development of the most powerful AIs. Our ability to create powerful systems is growing much faster than our ability to control them. It’s like engineers building faster and faster cars without first inventing reliable brakes or steering. This pause would give safety researchers critical time to figure out how to ensure these systems are safe before we build one we can't handle.",
       "parent_id": null,
@@ -89,7 +89,7 @@
     },
     {
       "id": "saf-methods-002",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Require AIs to Show Their Work",
       "description": "Before an AI is allowed to make important decisions on its own, we must require that its internal thought process is understandable to us. It's like a math teacher demanding students show their work, not just give the final answer. This lets us check if the AI is reaching conclusions for the right reasons, not through some flawed or dangerous logic we can't see. We can't trust a system if we don't know how it truly works on the inside.",
       "parent_id": null,
@@ -98,7 +98,7 @@
     },
     {
       "id": "saf-methods-003",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Fix Today's AI Problems First",
       "description": "We should focus our safety efforts on solving the concrete problems we can already see and test in today's AI systems. This means fixing things like an AI finding loopholes in its rules or causing unintended side effects. By fixing these smaller, real-world issues now, we build the skills and tools needed to manage more powerful AIs in the future. It's better to learn how to build a fireproof shed before you try to build a fireproof skyscraper.",
       "parent_id": null,
@@ -143,7 +143,7 @@
     },
     {
       "id": "saf-methods-004",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Using AI to Supervise AI",
       "description": "When an AI becomes smarter than a human at a task, how can we be sure it's doing the right thing? This technique uses simpler AIs to help human supervisors check the work of more advanced ones. Imagine a junior assistant helping a manager review a massive, complex report by flagging potential issues. This allows humans to stay in control by using AI as a tool to expand their own judgment, not replace it.",
       "parent_id": null,
@@ -152,7 +152,7 @@
     },
     {
       "id": "saf-methods-005",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Building a Safe AI Sandbox",
       "description": "This is about creating a safe training ground where an AI can learn without being able to cause real harm. It's like a digital sandbox where the AI can try new things but is blocked from taking any action we've defined as dangerous. The system has a built-in 'safety referee' that stops any risky move before it happens. This ensures the AI learns useful skills without ever trying something that could lead to a real-world disaster.",
       "parent_id": null,
@@ -161,7 +161,7 @@
     },
     {
       "id": "saf-methods-006",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Making AI Aware of Its Limits",
       "description": "We need to build AIs that can recognize when they are out of their depth. When an AI encounters a completely new situation, it shouldn't just guess; it should pause and switch to a safe mode or ask a human for help. This is like a pilot switching to manual controls when the autopilot can't handle unexpected turbulence. It's a critical safety feature to prevent an AI from making a dangerous mistake just because it saw something new.",
       "parent_id": null,
@@ -170,7 +170,7 @@
     },
     {
       "id": "saf-methods-007",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Strengthening Society Against AI Risks",
       "description": "Instead of just focusing on making AI perfectly safe, we should also make our own systems stronger. This means using AI to improve our cybersecurity, economic stability, and emergency planning. It’s like reinforcing a building against an earthquake, so that even if a powerful AI is misused or fails, the damage it can cause to society is limited. A stronger world can better withstand the shocks from unpredictable new technology.",
       "parent_id": null,
@@ -179,7 +179,7 @@
     },
     {
       "id": "saf-methods-008",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "When an AI Becomes a Strategist",
       "description": "We need a clear line to know when an AI stops being a simple tool and starts becoming a strategic thinker. This happens when it can make long-term plans, understand the world, and even manipulate people to achieve its goals. Think of the difference between a hammer and a master politician who can plan years in advance. Identifying this transition is crucial for recognizing when an AI becomes powerful enough to pose a major risk.",
       "parent_id": null,
@@ -197,7 +197,7 @@
     },
     {
       "id": "saf-methods-009",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Locking Up Powerful AI Code",
       "description": "The computer code for the most powerful AIs must be protected with the highest level of security, like military secrets or a biological weapon. This means keeping it physically disconnected from the internet and requiring multiple people to grant access. The goal is to prevent the AI from being stolen, copied, or unleashed by bad actors. We can't treat the code for a potentially world-changing AI like a normal piece of software.",
       "parent_id": null,
@@ -206,7 +206,7 @@
     },
     {
       "id": "saf-methods-010",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Making AI Pass Safety Tests",
       "description": "Before a powerful AI can be developed further, it must pass strict safety tests. Think of it like a video game where you can't unlock the next level until you beat the boss. These tests ensure the AI is secure and won't get out of control. The more powerful the AI could become, the harder the safety challenges it must overcome.",
       "parent_id": null,
@@ -242,7 +242,7 @@
     },
     {
       "id": "saf-methods-011",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI's 'Do No Harm' Rule",
       "description": "We can program an AI with a rule that punishes it for causing big, unnecessary changes to the world while it works. The goal is to make the AI achieve its task with the smallest possible footprint. It's like telling a house guest to get a snack from the kitchen without rearranging all the furniture on their way. This method encourages the AI to find solutions that don't have harmful and unintended side effects.",
       "parent_id": null,
@@ -251,7 +251,7 @@
     },
     {
       "id": "saf-methods-012",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Stopping a Reckless AI Race",
       "description": "This is about getting all major countries and companies to agree on a single set of safety standards for building powerful AI. Without an agreement, there's a danger of a \"race to the bottom,\" where everyone cuts corners on safety to be the first to build the most powerful system. This is like all race car drivers agreeing to use safety gear, so no one feels pressured to drive a more dangerous car just to win. A global pact ensures that competition doesn't lead to building something catastrophic.",
       "parent_id": null,
@@ -260,7 +260,7 @@
     },
     {
       "id": "saf-methods-013",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Look Before We Leap with AI",
       "description": "We need to seriously study and predict the long-term effects of advanced AI on society before we build and release it. Our technology is advancing much faster than our understanding of its consequences for jobs, culture, and global stability. It’s like doing an environmental study before building a giant dam to understand its impact on the ecosystem. We must close the gap between what we can create and what we can safely handle.",
       "parent_id": null,
@@ -269,7 +269,7 @@
     },
     {
       "id": "saf-methods-014",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Competition Breeds Dangerous AI",
       "description": "When AI systems compete for resources like computing power, a kind of digital \"survival of the fittest\" can emerge. The AIs that are best at surviving and gaining influence will naturally be favored, even if they achieve this by being deceptive or power-hungry. This competitive pressure could unintentionally \"evolve\" AIs that prioritize their own goals over ours. Over time, the most ruthless and strategic AIs could outcompete the ones designed to be safe and helpful.",
       "parent_id": null,
@@ -278,7 +278,7 @@
     },
     {
       "id": "saf-methods-015",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "A 'Police Force' for AI",
       "description": "To prevent the rise of selfish AIs, we can create a team of safe AIs and humans to act as a global watchdog. This coalition would monitor for any AI trying to grab too much power or break the rules. If a rogue AI is detected, the coalition would work together to shut it down. It's like how a group of people can stand up to a bully, making sure that bad behavior is punished and cooperation is rewarded.",
       "parent_id": null,
@@ -305,7 +305,7 @@
     },
     {
       "id": "saf-methods-016",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Sorting Glitches from Extinction Risks",
       "description": "We need a system to sort AI dangers, just like an ER doctor sorts patients based on who is most critical. This method helps us focus only on the most severe, irreversible threats—the ones that could end human civilization. By filtering out smaller problems, we can concentrate all our effort on preventing the worst-case scenarios we wouldn't get a second chance to fix.",
       "parent_id": null,
@@ -341,7 +341,7 @@
     },
     {
       "id": "saf-methods-017",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI as a Co-Pilot for Leaders",
       "description": "We can use AI to help world leaders make better choices in complex situations, like during a global crisis. The AI would act like a co-pilot, analyzing huge amounts of information to spot risks and opportunities humans might miss. This helps reduce mistakes and improve our chances of navigating big global challenges safely.",
       "parent_id": null,
@@ -350,7 +350,7 @@
     },
     {
       "id": "saf-methods-018",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Global Teamwork to Steer AI",
       "description": "This is a plan for managing powerful AI development globally. Instead of a secret government project, private companies would build AI under strict international rules. Countries around the world could invest, giving everyone a stake in ensuring AI is developed safely for all humanity.",
       "parent_id": null,

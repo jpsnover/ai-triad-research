@@ -10,7 +10,7 @@ The AI Triad taxonomy organizes the global AI debate into three Points of View (
 Each POV node belongs to one of three categories:
 - **Goals/Values** — what the camp wants to achieve
 - **Data/Facts** — empirical claims and evidence the camp relies on
-- **Methods** — strategies and approaches the camp advocates
+- **Methods/Arguments** — what the camp is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments
 
 Cross-cutting nodes have no category but include `interpretations` (one per POV) and `linked_nodes`.
 
@@ -64,7 +64,7 @@ Return a single JSON object matching this schema exactly:
       "target_node_id": "existing ID or null for NEW",
       "suggested_id": "proposed new ID",
       "pov": "accelerationist|safetyist|skeptic|cross-cutting",
-      "category": "Goals/Values|Data/Facts|Methods",
+      "category": "Goals/Values|Data/Facts|Methods/Arguments",
       "label": "Proposed label text",
       "description": "Proposed description text",
       "rationale": "Why this change is needed, citing evidence from the health data",

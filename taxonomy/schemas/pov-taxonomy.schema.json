@@ -68,13 +68,13 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^(acc|saf|skp)-(goals|data|methods)-\\d{3}$",
-          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Goals/Values), data (Data/Facts), methods (Methods).",
+          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Goals/Values), data (Data/Facts), methods (Methods/Arguments).",
           "examples": ["acc-goals-001", "saf-data-002", "skp-methods-001"]
         },
         "category": {
           "type": "string",
-          "enum": ["Goals/Values", "Data/Facts", "Methods"],
-          "description": "The epistemic category this node belongs to. Goals/Values: normative positions about what should happen. Data/Facts: empirical claims about what is or will be. Methods: interpretive positions about how to act."
+          "enum": ["Goals/Values", "Data/Facts", "Methods/Arguments"],
+          "description": "The epistemic category this node belongs to. Goals/Values: normative positions about what should happen. Data/Facts: empirical claims about what is or will be. Methods/Arguments: what someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments."
         },
         "label": {
           "type": "string",

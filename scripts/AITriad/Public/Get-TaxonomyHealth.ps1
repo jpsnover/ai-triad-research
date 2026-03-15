@@ -72,7 +72,7 @@ function Get-TaxonomyHealth {
     Write-Host "`n  COVERAGE BALANCE (nodes per POV x category)" -ForegroundColor White
     Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
 
-    $Categories = @('Goals/Values', 'Data/Facts', 'Methods')
+    $Categories = @('Goals/Values', 'Data/Facts', 'Methods/Arguments')
     $PovKeys    = @('accelerationist', 'safetyist', 'skeptic')
 
     # Header row

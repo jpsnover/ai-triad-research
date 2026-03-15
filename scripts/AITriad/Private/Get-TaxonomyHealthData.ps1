@@ -223,7 +223,7 @@ function Get-TaxonomyHealthData {
     }
 
     # Coverage balance — node counts per POV per category
-    $Categories = @('Goals/Values', 'Data/Facts', 'Methods')
+    $Categories = @('Goals/Values', 'Data/Facts', 'Methods/Arguments')
     $CoverageBalance = @{}
 
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {

@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-03-14T15:40:30Z",
+  "model": "gemini-3.1-flash-lite-preview",
+  "taxonomy_version": "1.0.0",
+  "summary_count": 58,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "saf-goals-007",
+      "pov": "safetyist",
+      "category": "Goals/Values",
+      "label": "Psychological Stewardship",
+      "description": "The multidimensional safeguarding of individual resilience, trust, and empathy in the face of AI-mediated interactions. This frames AI governance as a mental health and social cohesion issue rather than just a technical or economic one.",
+      "rationale": "Identified as a strong unmapped concept (frequency 2) in the health data. It addresses the human-centric impact of AI beyond technical safety or job displacement, filling a gap in the safetyist goals category.",
+      "evidence_doc_ids": [
+        "dont-call-it-intelligence-2026",
+        "state-ai-enterprise-untapped-edge-2026"
+      ],
+      "evidence_count": 2,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "skp-methods-030",
+      "pov": "skeptic",
+      "category": "Methods/Arguments",
+      "label": "The 'Answer-Machine' Structural Limitation",
+      "description": "The inherent design bias of current LLMs toward providing answers rather than facilitating inquiry. This suggests that current AI architectures may be fundamentally ill-suited for the early stages of research where question formulation is more important than answer retrieval.",
+      "rationale": "Identified as a strong unmapped concept (frequency 2). It captures a specific structural critique of AI design that is distinct from existing skepticism about AI 'intelligence' or 'bias'.",
+      "evidence_doc_ids": [
+        "can-ai-prompt-us-ask-new-questions-2026",
+        "dont-call-it-intelligence-2026"
+      ],
+      "evidence_count": 2,
+      "status": "approved"
+    }
+  ]
+}

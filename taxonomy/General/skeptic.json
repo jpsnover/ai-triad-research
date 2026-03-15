@@ -58,7 +58,7 @@
     },
     {
       "id": "skp-methods-005",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Don't Fall for Sci-Fi Hype",
       "description": "Some people talk a lot about hypothetical dangers, like a future evil super-AI taking over the world. This is often a distraction tactic. It shifts attention away from the real problems AI is causing right now, like job losses and biased decisions. It's like a magician making you look at one hand while the other one does the trick, letting companies off the hook for current harms.",
       "parent_id": null,
@@ -70,7 +70,7 @@
     },
     {
       "id": "skp-methods-001",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Solve Real AI Problems Now",
       "description": "We should focus on making rules that fix the AI problems we can actually see and measure. This means tackling issues like biased loan applications or AI systems that violate our privacy. We shouldn't waste time and resources making policies for made-up, futuristic dangers. It’s about being a practical mechanic who fixes the rattling engine in front of them, not one who worries about the car spontaneously flying away.",
       "parent_id": null,
@@ -82,7 +82,7 @@
     },
     {
       "id": "skp-methods-002",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Require Independent AI Safety Checks",
       "description": "Before a new drug is sold, it has to be tested by independent experts to prove it's safe. The same rule should apply to powerful AI systems, especially those making decisions about our health, money, or freedom. Companies shouldn't be allowed to just say \"trust us, it works.\" Having a separate, unbiased group test these systems for fairness and safety is the only way to protect the public.",
       "parent_id": null,
@@ -138,7 +138,7 @@
     },
     {
       "id": "skp-methods-004",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Everyone Gets a Share of AI",
       "description": "As AI and robots start doing more jobs, fewer people will earn money from traditional work. One solution is to give every citizen a small ownership stake in the technology itself, like owning stock in a company. This way, as these systems create wealth, everyone gets a payout, or a 'dividend.' It's about shifting our economy from being based on what you do to being based on what you own.",
       "parent_id": null,
@@ -147,7 +147,7 @@
     },
     {
       "id": "skp-methods-006",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Value What Really Matters",
       "description": "Our society measures value mostly in dollars, based on work or products. This idea suggests using technology to create new systems that reward other things, like contributing to open-source software or sharing knowledge. Imagine a digital currency that you earn by helping your community or creating public art. It's about using tech to build an economy that values social cooperation, not just financial profit.",
       "parent_id": null,
@@ -174,7 +174,7 @@
     },
     {
       "id": "skp-methods-007",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Build Safety Fences Around AI",
       "description": "Instead of trying to create a perfectly safe AI, it's more practical to build safety measures around how it's used. Think of a car: we add seatbelts, create traffic laws, and build guardrails on roads. Similarly, we can build filters, legal rules, and defensive software to prevent AI from being used for specific harmful things, without limiting the core technology itself.",
       "parent_id": null,
@@ -183,7 +183,7 @@
     },
     {
       "id": "skp-methods-008",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Plan For AI Messes",
       "description": "Complex technology will always have bugs and unexpected failures. Instead of trying to prevent every possible AI risk, we should focus on getting good at recovering when things go wrong. This is like having firefighters and paramedics ready for emergencies, rather than trying to ban everything that could possibly start a fire. It means creating systems to quickly detect errors, fix them, and help those who are affected.",
       "parent_id": null,
@@ -192,7 +192,7 @@
     },
     {
       "id": "skp-methods-009",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI Is Not An Alien Invasion",
       "description": "We should think of AI like other major inventions, such as the printing press or electricity. It's a powerful tool that will change society, but it will do so gradually and be shaped by our existing laws and institutions. The idea that AI is a totally unique, uncontrollable force is overblown. We should focus on fixing its real-world problems step-by-step, just like we've done with every other technology.",
       "parent_id": null,
@@ -201,7 +201,7 @@
     },
     {
       "id": "skp-methods-010",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Demand High-Quality AI Ingredients",
       "description": "Think of training an AI like making a healthy meal; you wouldn't just grab random junk off the street to cook with. This approach insists that AI creators must use well-documented, verified information instead of just scraping the entire messy internet. This prevents the AI from learning and repeating the biases and nonsense found online, making it more reliable and fair.",
       "parent_id": null,
@@ -219,7 +219,7 @@
     },
     {
       "id": "skp-methods-011",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI Is A Pattern-Matching Parrot",
       "description": "AI models are not thinking beings; they are incredibly advanced prediction machines. Imagine a student who memorized every book in the library but doesn't understand what the words actually mean. The AI is just very good at guessing the next word in a sentence based on patterns, which is why we shouldn't treat it like a person and why it sometimes makes up nonsensical 'facts'.",
       "parent_id": null,
@@ -246,7 +246,7 @@
     },
     {
       "id": "skp-methods-012",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Separating Real Problems From Sci-Fi",
       "description": "This approach sorts AI risks into two buckets: solvable puzzles and unpredictable messes. A puzzle is a risk we can figure out with more data, like tracking an asteroid, while a mess is just chaotic, like a stock market crash. We should focus on fixing the known, messy problems AI causes today, not get distracted by far-fetched sci-fi scenarios.",
       "parent_id": null,
@@ -255,7 +255,7 @@
     },
     {
       "id": "skp-methods-013",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Sharing AI Profits With Everyone",
       "description": "As AI becomes more powerful, it could make companies incredibly wealthy while replacing many human jobs. This idea proposes that a portion of the massive profits from AI should be collected and shared with everyone in the world. It would work like a regular payment to help support people whose jobs might be disrupted by new technology.",
       "parent_id": null,
@@ -264,7 +264,7 @@
     },
     {
       "id": "skp-methods-014",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Make AI Cite Its Sources",
       "description": "AI models learn by studying huge amounts of data, including art, music, and writing created by people. This rule would require AI companies to publish a list of all the copyrighted works they used for training. It's like a bibliography for an AI, ensuring artists and writers know if their work was used and can protect their rights.",
       "parent_id": null,

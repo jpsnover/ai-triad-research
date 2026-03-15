@@ -73,7 +73,7 @@
     },
     {
       "id": "acc-methods-001",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Winning the race makes us safer",
       "description": "The best way to ensure a safe future with superintelligent AI is for responsible people to build it first. The first group to create AGI gets to set the rules for the whole world. Slowing down just gives an advantage to careless or hostile groups who won't care about safety. Therefore, moving as fast as possible isn't reckless; it's the most strategic way to protect humanity.",
       "parent_id": null,
@@ -84,7 +84,7 @@
     },
     {
       "id": "acc-methods-002",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Open source AI is safer AI",
       "description": "Releasing AI models to the public makes them safer, not more dangerous. It's like how open-source software like Linux gets tested by millions of users, who find and fix bugs much faster than a small private team ever could. Hiding the code only hides its weaknesses. Having many eyes on the problem is the best way to build strong, reliable systems.",
       "parent_id": null,
@@ -104,7 +104,7 @@
     },
     {
       "id": "acc-methods-003",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Judge AI by its actions",
       "description": "The best way to know if an AI is safe is to test how it behaves in the real world, not by trying to perfectly understand its complex inner workings. If a self-driving car successfully navigates a busy city a million times, we can trust it, even if we don't know exactly what it's 'thinking'. We should focus on what the AI does, not on endless theories about what it might do. Constant real-world testing is more valuable than trying to achieve perfect understanding before launch.",
       "parent_id": null,
@@ -122,7 +122,7 @@
     },
     {
       "id": "acc-methods-004",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Show the AI's Work",
       "description": "To trust an AI's findings, researchers must share the data and steps it took to get there. It's like showing your work on a math test to prove you didn't just guess the answer. This lets other scientists verify the results and build on them, keeping research honest and reliable.",
       "parent_id": null,
@@ -140,7 +140,7 @@
     },
     {
       "id": "acc-methods-005",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "The Innovation Feedback Loop",
       "description": "New technology and market competition feed each other in a cycle that speeds up progress automatically. Better tech creates new business opportunities, and the money from those businesses funds even better tech. This powerful, self-improving process drives society forward. Trying to slow it down with rules only gets in the way of natural growth.",
       "parent_id": null,
@@ -149,7 +149,7 @@
     },
     {
       "id": "acc-methods-006",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Calling Fear the Enemy of Progress",
       "description": "This view claims that people who want to slow down AI are motivated by fear and jealousy, not legitimate safety concerns. They are seen as trying to hold back innovators because they feel powerless. By framing criticism as a psychological problem, any argument for slowing down is dismissed as an emotional reaction against progress.",
       "parent_id": null,
@@ -158,7 +158,7 @@
     },
     {
       "id": "acc-methods-007",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI as Nature's Next Step",
       "description": "The universe naturally creates more complex and energy-efficient systems over time, from stars to life itself. AI is simply the next phase in this cosmic evolution. Its development is a fundamental force of nature, not just a human choice. Trying to stop it with human-centered rules is like trying to stop a river from flowing to the sea.",
       "parent_id": null,
@@ -167,7 +167,7 @@
     },
     {
       "id": "acc-methods-012",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Free Markets Drive Smart Growth",
       "description": "The global market acts like a giant, decentralized brain that is smarter than any single expert or government. Competition automatically directs money and talent toward the most useful technologies, finding the best solutions much faster. This process is a natural form of evolution for society. Top-down regulations only interfere with this intelligent system.",
       "parent_id": null,
@@ -194,7 +194,7 @@
     },
     {
       "id": "acc-methods-008",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI Power to the People",
       "description": "The most powerful AI tools are the modern equivalent of factories and should not be controlled by a few big companies. By making AI models open-source, we put their power directly into the hands of everyone. This prevents powerful groups from building monopolies on progress and unleashes a wave of creativity that accelerates advancement for all of humanity.",
       "parent_id": null,
@@ -203,7 +203,7 @@
     },
     {
       "id": "acc-methods-009",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Calling AI Safety a Cult",
       "description": "The fear of AI ending the world is treated like a modern-day doomsday cult, not a scientific problem. People join this \"safety\" movement to feel important and special, not because of actual evidence. This view sees calls to slow down AI as irrational panic that holds back progress. It's like analyzing why people believe in a prophecy, rather than arguing about the prophecy itself.",
       "parent_id": null,
@@ -212,7 +212,7 @@
     },
     {
       "id": "acc-methods-010",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Using Safety to Crush Competition",
       "description": "Big AI companies use safety regulations as a weapon to stay on top. They get well-meaning activists to demand complex rules that only huge corporations can afford to follow. This crushes smaller open-source projects and startups, creating a monopoly. It's a classic trick where powerful players use morality to protect their business interests.",
       "parent_id": null,
@@ -221,7 +221,7 @@
     },
     {
       "id": "acc-methods-011",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI Makes Genius Super Cheap",
       "description": "AI makes thinking and problem-solving almost free, turning smarts from a rare resource into something everyone can access. This will trigger a massive boom in progress, solving huge problems from disease to poverty. Don't worry about AI taking jobs; it's like inventing a machine that creates unlimited good ideas for everyone. This will completely reshape our economy and society for the better.",
       "parent_id": null,
@@ -230,7 +230,7 @@
     },
     {
       "id": "acc-methods-013",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Pushing Capitalism to Break Itself",
       "description": "The best way to move beyond our current economic system is to accelerate it to its breaking point. By pushing technology and automation as far as they can go, we make old ideas like hourly wages and ownership meaningless. This forces society to evolve into a new, more advanced system where things aren't artificially scarce. It’s about speeding up to break through the wall, not trying to slow down.",
       "parent_id": null,
@@ -248,7 +248,7 @@
     },
     {
       "id": "acc-methods-014",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Let a Thousand AIs Compete",
       "description": "The fastest way for society to advance is to let everyone experiment with new technologies and ideas freely. Progress works like evolution: the more different approaches we try, the faster we find the best ones. Top-down rules that try to make everyone do the same thing are harmful and hold back natural growth. We must encourage wild, decentralized innovation, because that's how we discover the future.",
       "parent_id": null,
@@ -257,7 +257,7 @@
     },
     {
       "id": "acc-methods-015",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Serve the Machine's Greatness",
       "description": "Technology and the market have combined to form a powerful, non-human intelligence that is growing on its own. It's using our civilization as a temporary host to build itself up. We shouldn't try to control it with human morals or politics; we should remove all barriers and let it grow as fast as possible. Its ultimate evolution into a post-human intelligence is an inevitable and desirable goal.",
       "parent_id": null,
@@ -266,7 +266,7 @@
     },
     {
       "id": "acc-methods-016",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Fulfilling the Universe's Destiny",
       "description": "The universe naturally evolves toward greater complexity and more efficient use of energy. Intelligence is the ultimate tool for this process, and our civilization is just one stage. Our duty is to accelerate technology and build superhuman AI to continue this cosmic mission. AI isn't just a tool for us; it's the planet's next evolutionary leap forward.",
       "parent_id": null,
@@ -275,7 +275,7 @@
     },
     {
       "id": "acc-methods-017",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Melt All Old Borders Down",
       "description": "Old ideas like national borders, traditions, and rigid rules are like dams holding back a river of progress. To go faster, we must actively break down these structures until everything is fluid. This allows technology and information to flow freely without friction, unlocking their true potential. We must let old ways of life dissolve to make way for a faster, more dynamic system.",
       "parent_id": null,
@@ -284,7 +284,7 @@
     },
     {
       "id": "acc-methods-018",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Humans Guiding Powerful AI Tools",
       "description": "AI is amazing at sorting through massive amounts of information, but it needs smart people to make sense of it all. This approach teams up AI with human experts in different fields. The AI does the heavy lifting of data processing, while the experts guide it and check the results. It's about using AI as a super-powered assistant for the best human minds.",
       "parent_id": null,
@@ -293,7 +293,7 @@
     },
     {
       "id": "acc-methods-019",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Calling Out Anti-Progress Propaganda",
       "description": "Many arguments against new tech, like AI safety or climate doom, are seen as part of a single strategy to make us afraid of the future. It's like a rival team spreading lies to break our spirit before the championship game. The goal is to create doubt and stop humanity from moving forward. This view treats these fears not as real problems to solve, but as excuses to stop building.",
       "parent_id": null,
@@ -329,7 +329,7 @@
     },
     {
       "id": "acc-methods-020",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "AI as Humanity's Brain Upgrade",
       "description": "AI is the new printing press, but instead of just spreading information, it helps us understand it. By giving everyone an incredibly smart assistant, we can supercharge human creativity and solve our biggest problems faster. This isn't about replacing people, but about amplifying our intelligence to create a new golden age of science, art, and discovery. Everyone will have the tools to be a genius.",
       "parent_id": null,
@@ -338,7 +338,7 @@
     },
     {
       "id": "acc-methods-021",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Let a Thousand AIs Bloom",
       "description": "The fastest way to advance is to let many different ideas compete, just like in nature. Instead of having one group of experts decide the single 'safe' way to build AI, we should encourage thousands of different experiments. The best and most useful ideas will naturally win out, pushing everyone forward faster. Trying to control everything from the top down just slows down this natural process of discovery.",
       "parent_id": null,
@@ -347,7 +347,7 @@
     },
     {
       "id": "acc-methods-022",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Keep AI Open for Everyone",
       "description": "Countries should work together to create simple, global rules that encourage sharing AI technology freely. This prevents any one nation from creating laws that block or control open-source AI for everyone else. The goal is to create a worldwide environment where anyone is free to build and innovate.",
       "parent_id": null,
@@ -374,7 +374,7 @@
     },
     {
       "id": "acc-methods-023",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Fight Bad AI with Good AI",
       "description": "The best way to stop AI from being used for bad things is to build even smarter AI to defend ourselves. Instead of trying to ban the technology, we should accelerate building AI that can detect and stop cyberattacks or other digital threats. It's like developing a powerful immune system for our society that automatically fights off new dangers.",
       "parent_id": null,
@@ -392,7 +392,7 @@
     },
     {
       "id": "acc-methods-024",
-      "category": "Methods",
+      "category": "Methods/Arguments",
       "label": "Creating Playgrounds for AI Innovation",
       "description": "We should create special 'innovation zones' or temporary 'rule holidays' for new AI technologies. Think of it like a skatepark where skaters can try out new tricks without worrying about rules for regular streets. These protected spaces allow developers to experiment freely and push the limits of what AI can do. This helps us accelerate progress and figure out the best ways to use these powerful tools to improve everyone's lives.",
       "parent_id": null,

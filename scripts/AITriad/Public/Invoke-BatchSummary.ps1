@@ -248,6 +248,11 @@ function Invoke-BatchSummary {
             Write-Warn "  SKIP $ThisDocId — snapshot.md missing"
             continue
         }
+        $SnapSize = (Get-Item $SnapshotFile).Length
+        if ($SnapSize -eq 0) {
+            Write-Warn "  SKIP $ThisDocId — snapshot.md is empty (broken ingestion?)"
+            continue
+        }
 
         $DocPovTags = if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { @($Meta.pov_tags) } else { @() }
         $Intersects = $ForceAll -or

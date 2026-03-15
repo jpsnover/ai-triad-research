@@ -31,8 +31,15 @@ function Get-Tax {
         A text query for semantic similarity search. Mutually exclusive
         with -Id, -Label, and -Description.
     .PARAMETER Top
-        Maximum number of results to return (only with -Similar).
+        Maximum number of results to return (only with -Similar or -Overlaps).
         Default: 20.
+    .PARAMETER Overlaps
+        Find node pairs with high embedding similarity (potential merge/consolidation
+        candidates). Returns pairs sorted by similarity score descending.
+    .PARAMETER Threshold
+        Minimum cosine similarity to report (only with -Overlaps). Default: 0.80.
+    .PARAMETER CrossPOV
+        Only report pairs where nodes are from different POVs (only with -Overlaps).
     .EXAMPLE
         Get-Tax
         # Returns all nodes from every loaded POV.
@@ -51,6 +58,15 @@ function Get-Tax {
     .EXAMPLE
         Get-Tax -Similar "governance" -Top 5
         # Top 5 semantically similar nodes.
+    .EXAMPLE
+        Get-Tax -Overlaps
+        # All node pairs with cosine similarity > 0.80.
+    .EXAMPLE
+        Get-Tax -Overlaps -Threshold 0.90 -Top 10
+        # Top 10 most similar pairs above 0.90.
+    .EXAMPLE
+        Get-Tax -Overlaps -CrossPOV
+        # Cross-POV overlaps only (most interesting for consolidation).
     .EXAMPLE
         'acc-goals-001','saf-goals-001' | Get-Tax
         # Pipeline by value — accepts bare ID strings.
@@ -76,8 +92,19 @@ function Get-Tax {
         [string]$Similar,
 
         [Parameter(ParameterSetName = 'Similar')]
+        [Parameter(ParameterSetName = 'Overlaps')]
         [ValidateRange(1, 1000)]
-        [int]$Top = 20
+        [int]$Top = 20,
+
+        [Parameter(Mandatory, ParameterSetName = 'Overlaps')]
+        [switch]$Overlaps,
+
+        [Parameter(ParameterSetName = 'Overlaps')]
+        [ValidateRange(0.0, 1.0)]
+        [double]$Threshold = 0.80,
+
+        [Parameter(ParameterSetName = 'Overlaps')]
+        [switch]$CrossPOV
     )
 
     begin {
@@ -103,6 +130,74 @@ function Get-Tax {
         $Id = @($CollectedIds | Select-Object -Unique)
     }
 
+    # -- Overlaps (pairwise similarity) code path ------------------------------
+    if ($PSCmdlet.ParameterSetName -eq 'Overlaps') {
+        $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+        if (-not (Test-Path $EmbedScript)) {
+            Write-Error "embed_taxonomy.py not found at $EmbedScript"
+            return
+        }
+
+        $EmbeddingsFile = Join-Path $script:RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+        if (-not (Test-Path $EmbeddingsFile)) {
+            Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
+            return
+        }
+
+        $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+        $PyArgs = @('find-overlaps', '--threshold', $Threshold)
+        if ($POV -ne '*') {
+            $PyArgs += @('--pov', $POV)
+        }
+        if ($CrossPOV) {
+            $PyArgs += '--cross-pov'
+        }
+        if ($Top -and $Top -gt 0) {
+            $PyArgs += @('--top', $Top)
+        }
+
+        $PyResult = & $PythonCmd $EmbedScript @PyArgs 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "embed_taxonomy.py find-overlaps failed (exit code $LASTEXITCODE)."
+            return
+        }
+
+        $Results = $PyResult | ConvertFrom-Json
+
+        if (-not $Results -or $Results.Count -eq 0) {
+            Write-Host "No overlapping node pairs found above threshold $Threshold." -ForegroundColor Yellow
+            return
+        }
+
+        # Build lookup for full node data
+        $NodeLookup = @{}
+        foreach ($Key in $script:TaxonomyData.Keys) {
+            $Entry = $script:TaxonomyData[$Key]
+            foreach ($Node in $Entry.nodes) {
+                $NodeLookup[$Node.id] = @{ POV = $Key; Node = $Node }
+            }
+        }
+
+        foreach ($Pair in $Results) {
+            $InfoA = $NodeLookup[$Pair.node_a]
+            $InfoB = $NodeLookup[$Pair.node_b]
+            $LabelA = if ($InfoA) { $InfoA.Node.label } else { $Pair.node_a }
+            $LabelB = if ($InfoB) { $InfoB.Node.label } else { $Pair.node_b }
+
+            [PSCustomObject]@{
+                PSTypeName = 'TaxonomyNode.Overlap'
+                Similarity = [math]::Round($Pair.similarity, 4)
+                NodeA      = $Pair.node_a
+                PovA       = $Pair.pov_a
+                LabelA     = $LabelA
+                NodeB      = $Pair.node_b
+                PovB       = $Pair.pov_b
+                LabelB     = $LabelB
+            }
+        }
+        return
+    }
+
     # -- Similar (semantic search) code path ----------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Similar') {
         $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
@@ -123,7 +218,8 @@ function Get-Tax {
             $PyArgs += @('--pov', $POV)
         }
 
-        $PyResult = & python $EmbedScript @PyArgs 2>$null
+        $PythonCmd2 = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+        $PyResult = & $PythonCmd2 $EmbedScript @PyArgs 2>$null
         if ($LASTEXITCODE -ne 0) {
             Write-Error "embed_taxonomy.py query failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
             return

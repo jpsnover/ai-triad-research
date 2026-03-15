@@ -199,6 +199,66 @@ def cmd_batch_encode(args):
     json.dump(result, sys.stdout)
 
 
+def cmd_find_overlaps(args):
+    """Find node pairs with high embedding similarity (potential merge candidates)."""
+    if not EMBEDDINGS_FILE.exists():
+        print(
+            "Error: embeddings.json not found. Run 'generate' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    data = json.loads(EMBEDDINGS_FILE.read_text(encoding="utf-8"))
+
+    # Build arrays
+    node_ids = []
+    povs = []
+    vecs = []
+    pov_filter = args.pov.lower() if args.pov else None
+
+    for nid, entry in data["nodes"].items():
+        node_ids.append(nid)
+        povs.append(entry["pov"])
+        vecs.append(entry["vector"])
+
+    if len(node_ids) < 2:
+        json.dump([], sys.stdout)
+        return
+
+    vectors = np.array(vecs, dtype=np.float32)
+
+    # Pairwise cosine similarity (vectors are pre-normalized)
+    sim_matrix = vectors @ vectors.T
+
+    # Extract upper triangle (no self-pairs, no duplicates)
+    n = len(node_ids)
+    pairs = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            score = float(sim_matrix[i, j])
+            if score < args.threshold:
+                continue
+            if pov_filter and povs[i] != pov_filter and povs[j] != pov_filter:
+                continue
+            if args.cross_pov and povs[i] == povs[j]:
+                continue
+            pairs.append({
+                "node_a": node_ids[i],
+                "node_b": node_ids[j],
+                "pov_a": povs[i],
+                "pov_b": povs[j],
+                "similarity": round(score, 6),
+            })
+
+    pairs.sort(key=lambda p: p["similarity"], reverse=True)
+
+    if args.top and args.top > 0:
+        pairs = pairs[:args.top]
+
+    print(f"Found {len(pairs)} pairs above threshold {args.threshold}", file=sys.stderr)
+    json.dump(pairs, sys.stdout, indent=2)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Semantic embedding tools for the AI Triad taxonomy."
@@ -223,6 +283,31 @@ def main():
         help="Filter to a specific POV (e.g. safetyist)",
     )
 
+    # find-overlaps
+    o = sub.add_parser("find-overlaps", help="Find node pairs with high embedding similarity")
+    o.add_argument(
+        "--threshold",
+        type=float,
+        default=0.80,
+        help="Minimum cosine similarity to report (default 0.80)",
+    )
+    o.add_argument(
+        "--pov",
+        default=None,
+        help="Filter to pairs where at least one node is from this POV",
+    )
+    o.add_argument(
+        "--cross-pov",
+        action="store_true",
+        help="Only report pairs where nodes are from different POVs",
+    )
+    o.add_argument(
+        "--top",
+        type=int,
+        default=0,
+        help="Limit output to top N pairs (0 = all)",
+    )
+
     # encode — output raw vector for a single text
     e = sub.add_parser("encode", help="Encode a single text to an embedding vector (JSON)")
     e.add_argument("text", help="The text to encode")
@@ -236,6 +321,8 @@ def main():
         cmd_generate(args)
     elif args.command == "query":
         cmd_query(args)
+    elif args.command == "find-overlaps":
+        cmd_find_overlaps(args)
     elif args.command == "encode":
         cmd_encode(args)
     elif args.command == "batch-encode":
