@@ -2,7 +2,8 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Per-document AI summarization worker.
-# Extracted from Invoke-BatchSummary.ps1 — called once per document.
+# Small documents (<= 20K tokens) use a single LLM call.
+# Large documents are split into chunks, processed in parallel, and merged.
 
 function Invoke-DocumentSummary {
     [CmdletBinding()]
@@ -19,8 +20,11 @@ function Invoke-DocumentSummary {
         [Parameter(Mandatory)][string]$Now
     )
 
+    Set-StrictMode -Version Latest
+
     $ThisDocId = $Doc.DocId
     $Meta      = $Doc.Meta
+    $ChunkThresholdTokens = 20000   # Documents above this get chunked
 
     Write-Host "`n  `u{250C}`u{2500} $ThisDocId" -ForegroundColor White
     Write-Host "  `u{2502}  pov: $($Doc.PovTags -join ', ')  |  model: $Model" -ForegroundColor Gray
@@ -34,11 +38,18 @@ function Invoke-DocumentSummary {
     $EstimatedTokens = [int]($SnapshotText.Length / 4)
     Write-Host "  `u{2502}  snapshot: $($SnapshotText.Length) chars (~$EstimatedTokens tokens est.)" -ForegroundColor Gray
 
-    if ($EstimatedTokens -gt 100000) {
-        Write-Host "  `u{2502}  `u{26A0} Very long document (~$EstimatedTokens tokens). May hit context limits." -ForegroundColor Yellow
+    # -- Decide: single-call or chunked pipeline ------------------------------
+    if ($EstimatedTokens -gt $ChunkThresholdTokens) {
+        Write-Host "  `u{2502}  `u{2728} Large document — using chunked pipeline" -ForegroundColor Cyan
+        return Invoke-ChunkedSummary @PSBoundParameters
     }
 
+    # ========================================================================
+    # SINGLE-CALL PATH (small documents)
+    # ========================================================================
+
     # -- Build prompt ---------------------------------------------------------
+    $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
     $FullPrompt = @"
 $SystemPrompt
 
@@ -48,10 +59,7 @@ $TaxonomyJson
 === OUTPUT SCHEMA (your response must match this structure) ===
 $OutputSchema
 
-=== DOCUMENT: $ThisDocId ===
-Title: $(if ($Meta.title) { $Meta.title } else { $ThisDocId })
-POV tags (pre-classified): $($Doc.PovTags -join ', ')
-Topic tags: $(if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.topic_tags) { $Meta.topic_tags -join ', ' } else { '(none)' })
+$DocHeader
 
 --- DOCUMENT CONTENT ---
 $SnapshotText
@@ -79,32 +87,205 @@ $SnapshotText
     $Elapsed = (Get-Date) - $StartTime
     Write-Host "  `u{2502}  `u{2713} Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
 
-    # -- Parse and validate JSON ----------------------------------------------
-    $RawText    = $AIResult.Text
-    $CleanText  = $RawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-    $CleanText  = $CleanText.Trim()
+    $SummaryObject = Parse-AIResponse -RawText $AIResult.Text -ThisDocId $ThisDocId -SummariesDir $SummariesDir
+    if ($null -eq $SummaryObject) {
+        return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+    }
+
+    return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
+        -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
+        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed
+}
+
+# ============================================================================
+# CHUNKED PIPELINE (large documents)
+# ============================================================================
+
+function Invoke-ChunkedSummary {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][hashtable]$Doc,
+        [Parameter(Mandatory)][string]$ApiKey,
+        [Parameter(Mandatory)][string]$Model,
+        [Parameter(Mandatory)][double]$Temperature,
+        [Parameter(Mandatory)][string]$TaxonomyVersion,
+        [Parameter(Mandatory)][string]$TaxonomyJson,
+        [Parameter(Mandatory)][string]$SystemPrompt,
+        [Parameter(Mandatory)][string]$OutputSchema,
+        [Parameter(Mandatory)][string]$SummariesDir,
+        [Parameter(Mandatory)][string]$Now
+    )
+
+    $ThisDocId = $Doc.DocId
+    $Meta      = $Doc.Meta
+    $SnapshotText = Get-Content $Doc.SnapshotFile -Raw
+
+    # -- Split into chunks ----------------------------------------------------
+    $Chunks = Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 15000 -MinChunkTokens 2000
+    $ChunkCount = $Chunks.Count
+    Write-Host "  `u{2502}  split into $ChunkCount chunks" -ForegroundColor Cyan
+
+    # -- Load chunk-specific system prompt ------------------------------------
+    $ChunkSystemPrompt = Get-Prompt -Name 'pov-summary-chunk-system'
+    $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
+
+    # -- Process each chunk sequentially (API rate limits) --------------------
+    $StartTime = Get-Date
+    $ChunkResults = [System.Collections.Generic.List[object]]::new()
+    $FailedChunks = 0
+
+    for ($i = 0; $i -lt $ChunkCount; $i++) {
+        $ChunkNum = $i + 1
+        $ChunkText = $Chunks[$i]
+        $ChunkTokens = [int]($ChunkText.Length / 4)
+
+        Write-Host "  `u{2502}  chunk $ChunkNum/$ChunkCount (~$ChunkTokens tokens)..." -ForegroundColor Gray -NoNewline
+
+        $ChunkPrompt = @"
+$ChunkSystemPrompt
+
+=== TAXONOMY (version $TaxonomyVersion) ===
+$TaxonomyJson
+
+=== OUTPUT SCHEMA (your response must match this structure) ===
+$OutputSchema
+
+$DocHeader
+
+--- DOCUMENT SECTION $ChunkNum OF $ChunkCount ---
+$ChunkText
+"@
+
+        try {
+            $AIResult = Invoke-AIApi `
+                -Prompt     $ChunkPrompt `
+                -Model      $Model `
+                -ApiKey     $ApiKey `
+                -Temperature $Temperature `
+                -MaxTokens  65536 `
+                -JsonMode `
+                -TimeoutSec 300 `
+                -MaxRetries 3 `
+                -RetryDelays @(5, 15, 45)
+
+            if ($null -eq $AIResult) {
+                Write-Host " `u{2717} null response" -ForegroundColor Red
+                $FailedChunks++
+                continue
+            }
+
+            $ChunkObj = Parse-AIResponse -RawText $AIResult.Text -ThisDocId "$ThisDocId-chunk$ChunkNum" -SummariesDir $SummariesDir
+            if ($null -eq $ChunkObj) {
+                Write-Host " `u{2717} bad JSON" -ForegroundColor Red
+                $FailedChunks++
+                continue
+            }
+
+            $ChunkResults.Add($ChunkObj)
+            $ChunkPts = 0
+            foreach ($c in @('accelerationist','safetyist','skeptic')) {
+                if ($ChunkObj.pov_summaries.$c -and $ChunkObj.pov_summaries.$c.key_points) {
+                    $ChunkPts += @($ChunkObj.pov_summaries.$c.key_points).Count
+                }
+            }
+            Write-Host " `u{2713} $ChunkPts points" -ForegroundColor Green
+
+        } catch {
+            Write-Host " `u{2717} $_" -ForegroundColor Red
+            $FailedChunks++
+        }
+    }
+
+    $Elapsed = (Get-Date) - $StartTime
+
+    if ($ChunkResults.Count -eq 0) {
+        Write-Host "  `u{2514}`u{2500} `u{2717} All $ChunkCount chunks failed" -ForegroundColor Red
+        return @{ Success = $false; DocId = $ThisDocId; Error = "All $ChunkCount chunks failed" }
+    }
+
+    if ($FailedChunks -gt 0) {
+        Write-Host "  `u{2502}  `u{26A0} $FailedChunks/$ChunkCount chunks failed (proceeding with $($ChunkResults.Count) successful)" -ForegroundColor Yellow
+    }
+
+    # -- Merge chunk results --------------------------------------------------
+    Write-Host "  `u{2502}  merging $($ChunkResults.Count) chunk results..." -ForegroundColor Cyan
+    $MergedObject = Merge-ChunkSummaries -ChunkResults @($ChunkResults)
+
+    # Convert ordered hashtable to PSCustomObject for consistent downstream handling
+    $SummaryObject = [PSCustomObject]$MergedObject
+
+    Write-Host "  `u{2502}  `u{2713} Merged ($([int]$Elapsed.TotalSeconds)s total, $ChunkCount chunks)" -ForegroundColor Green
+
+    return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
+        -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
+        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed -ChunkCount $ChunkCount
+}
+
+# ============================================================================
+# SHARED HELPERS
+# ============================================================================
+
+function Build-DocHeader {
+    param(
+        [hashtable]$Doc,
+        [object]$Meta,
+        [string]$ThisDocId
+    )
+
+    $Title    = if ($Meta.title) { $Meta.title } else { $ThisDocId }
+    $PovTags  = $Doc.PovTags -join ', '
+    $TopicTags = if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.topic_tags) { $Meta.topic_tags -join ', ' } else { '(none)' }
+
+    return @"
+=== DOCUMENT: $ThisDocId ===
+Title: $Title
+POV tags (pre-classified): $PovTags
+Topic tags: $TopicTags
+"@
+}
+
+function Parse-AIResponse {
+    param(
+        [string]$RawText,
+        [string]$ThisDocId,
+        [string]$SummariesDir
+    )
+
+    $CleanText = $RawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
+    $CleanText = $CleanText.Trim()
 
     try {
-        $SummaryObject = $CleanText | ConvertFrom-Json -Depth 20
+        return ($CleanText | ConvertFrom-Json -Depth 20)
     } catch {
-        # Attempt repair of truncated JSON
         Write-Host "  `u{2502}  `u{26A0} JSON parse failed `u{2014} attempting repair" -ForegroundColor Yellow
         $Repaired = Repair-TruncatedJson -Text $RawText
         if ($Repaired) {
             try {
-                $SummaryObject = $Repaired | ConvertFrom-Json -Depth 20
-                Write-Host "  `u{2502}  `u{2713} JSON repaired successfully (truncated response recovered)" -ForegroundColor Green
+                return ($Repaired | ConvertFrom-Json -Depth 20)
             } catch {
-                $SummaryObject = $null
+                # fall through
             }
         }
-        if ($null -eq $SummaryObject) {
-            $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
-            Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-            Write-Host "  `u{2514}`u{2500} `u{2717} Invalid JSON from AI. Raw saved: $DebugPath" -ForegroundColor Red
-            return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
-        }
+        $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
+        Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
+        Write-Host "  `u{2502}  `u{2717} Invalid JSON. Raw saved: $DebugPath" -ForegroundColor Red
+        return $null
     }
+}
+
+function Finalize-Summary {
+    param(
+        [object]$SummaryObject,
+        [string]$ThisDocId,
+        [string]$TaxonomyVersion,
+        [string]$Model,
+        [double]$Temperature,
+        [string]$Now,
+        [string]$SummariesDir,
+        [hashtable]$Doc,
+        [TimeSpan]$Elapsed,
+        [int]$ChunkCount = 0
+    )
 
     # Validate stance values and gather counts
     $ValidStances = @('strongly_aligned','aligned','neutral','opposed','strongly_opposed','not_applicable')
@@ -128,7 +309,8 @@ $SnapshotText
     $FactualCount   = if ($SummaryObject.factual_claims)    { @($SummaryObject.factual_claims).Count }    else { 0 }
     $UnmappedCount  = if ($SummaryObject.unmapped_concepts) { @($SummaryObject.unmapped_concepts).Count } else { 0 }
 
-    Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount" -ForegroundColor Gray
+    $ChunkLabel = if ($ChunkCount -gt 0) { " ($ChunkCount chunks)" } else { '' }
+    Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
 
     # -- Write summaries/<doc-id>.json ----------------------------------------
     $FinalSummary = [ordered]@{
@@ -140,6 +322,11 @@ $SnapshotText
         pov_summaries     = $SummaryObject.pov_summaries
         factual_claims    = $SummaryObject.factual_claims
         unmapped_concepts = $SummaryObject.unmapped_concepts
+    }
+
+    if ($ChunkCount -gt 0) {
+        $FinalSummary['chunked'] = $true
+        $FinalSummary['chunk_count'] = $ChunkCount
     }
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"
@@ -163,5 +350,6 @@ $SnapshotText
         FactualCount  = $FactualCount
         UnmappedCount = $UnmappedCount
         ElapsedSecs   = [int]$Elapsed.TotalSeconds
+        ChunkCount    = $ChunkCount
     }
 }

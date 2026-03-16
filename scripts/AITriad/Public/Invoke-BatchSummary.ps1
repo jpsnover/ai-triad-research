@@ -400,8 +400,13 @@ function Invoke-BatchSummary {
         $TotalUnmapped = ($Succeeded | Measure-Object -Property UnmappedCount -Sum).Sum
         $TotalFacts    = ($Succeeded | Measure-Object -Property FactualCount  -Sum).Sum
         $TotalSecs     = ($Succeeded | Measure-Object -Property ElapsedSecs   -Sum).Sum
+        $ChunkedDocs   = @($Succeeded | Where-Object { $_.ChunkCount -gt 0 })
         Write-Host "  Total points  : $TotalPts ($TotalUnmapped new concepts)" -ForegroundColor White
         Write-Host "  Factual claims: $TotalFacts" -ForegroundColor White
+        if ($ChunkedDocs.Count -gt 0) {
+            $TotalChunks = ($ChunkedDocs | Measure-Object -Property ChunkCount -Sum).Sum
+            Write-Host "  Chunked docs  : $($ChunkedDocs.Count) ($TotalChunks total chunks)" -ForegroundColor Cyan
+        }
         Write-Host "  Total API time: ${TotalSecs}s (~$([int]($TotalSecs / [Math]::Max(1,$Succeeded.Count)))s/doc avg)" -ForegroundColor Gray
     }
 
