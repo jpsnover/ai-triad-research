@@ -626,3 +626,18 @@ saveDebate(): Promise<void>;
 | Automatic fact-checking of every statement | User-triggered only per Assumption A7 |
 | POVer personality tuning | Fixed personas per Assumption A1 |
 | Integration with PowerShell pipeline (AIEnrich, Invoke-POVSummary) | Debate engine uses the Electron generateText IPC directly |
+
+---
+
+## 11. Phased Implementation Plan
+
+| Phase | Scope | Key Deliverables | Status |
+|-------|-------|-----------------|--------|
+| **1. Foundation** | Tab, types, IPC, store, shell UI | Debate tab visible, sessions CRUD, empty two-pane layout | Done |
+| **2. New Debate + Clarification** | Setup dialog, LLM clarification questions, topic synthesis | User can create a debate and refine a topic | Done |
+| **3. Opening Statements** | Sequential POVer statements with taxonomy grounding | POVers deliver grounded opening positions | Done |
+| **4. Main Debate Loop** | Ask questions, cross-respond, @-mentions | Core debate interaction | Done |
+| **5. Synthesis & Probing** | Synthesis summaries, AI-generated questions | Analytical debate tools | Done |
+| **6. Taxonomy Integration** | Taxonomy pills, cross-nav to POV tabs | Clickable node indicators on statements | Done |
+| **7. Context Menu & Fact Check** | Copy, Search Google, fact-check flow | Text selection actions | |
+| **8. Polish** | Auto-save, context window mgmt, session resume | Production readiness | |

@@ -2768,13 +2768,72 @@ body {
   font-family: monospace;
   background: var(--chip-bg);
   color: var(--text-secondary);
-  cursor: pointer;
   transition: background 0.15s;
 }
 
-.debate-taxonomy-pill:hover {
+.debate-taxonomy-pill-clickable {
+  cursor: pointer;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.debate-taxonomy-pill-clickable:hover {
   background: var(--focus-ring);
   color: #fff;
+  border-color: var(--focus-ring);
+}
+
+/* ─── Debate Probing Questions ────────────────────────── */
+
+.debate-probing-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.debate-probing-question-btn {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.debate-probing-question-btn:hover:not(:disabled) {
+  background: var(--focus-ring);
+  color: #fff;
+  border-color: var(--focus-ring);
+}
+
+.debate-probing-question-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Debate Synthesis Card ───────────────────────────── */
+
+.debate-type-synthesis {
+  border-left: 3px solid var(--color-cc, #7c3aed);
+  background: var(--bg-secondary);
+}
+
+.debate-type-synthesis .debate-statement-content {
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* ─── Debate Action Buttons (Synthesize/Probe) ────────── */
+
+.debate-synthesis-btn,
+.debate-probe-btn {
+  font-size: 0.75rem;
+  padding: 4px 10px;
 }
 
 /* ─── Debate Action Bar ───────────────────────────────── */

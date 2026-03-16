@@ -3,8 +3,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, TranscriptEntry } from '../types/debate';
+import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
+import type { TabId } from '../types/taxonomy';
 
 const PHASE_TITLES: Record<string, string> = {
   setup: 'Setting up...',
@@ -25,6 +27,55 @@ function speakerColor(speaker: PoverId | 'system'): string | undefined {
   if (speaker === 'system' || speaker === 'user') return undefined;
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info?.color;
+}
+
+// ── Phase 6: Taxonomy cross-navigation helpers ──────────
+
+/** Map node_id prefix to the taxonomy tab and CSS color */
+function nodeIdToTab(nodeId: string): { tab: TabId; colorVar: string } {
+  if (nodeId.startsWith('acc-')) return { tab: 'accelerationist', colorVar: 'var(--color-acc)' };
+  if (nodeId.startsWith('saf-')) return { tab: 'safetyist', colorVar: 'var(--color-saf)' };
+  if (nodeId.startsWith('skp-')) return { tab: 'skeptic', colorVar: 'var(--color-skp)' };
+  if (nodeId.startsWith('cc-')) return { tab: 'cross-cutting', colorVar: 'var(--color-cc)' };
+  return { tab: 'cross-cutting', colorVar: 'var(--text-muted)' };
+}
+
+/** Resolve a node_id to its label from the taxonomy store */
+function getNodeLabel(nodeId: string): string {
+  const state = useTaxonomyStore.getState();
+  const { tab } = nodeIdToTab(nodeId);
+
+  if (tab === 'cross-cutting') {
+    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    if (node) return node.label;
+  } else {
+    const povFile = state[tab as 'accelerationist' | 'safetyist' | 'skeptic'];
+    const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    if (node) return node.label;
+  }
+  return nodeId;
+}
+
+/** Clickable taxonomy pill that navigates to the node in its POV tab */
+function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
+  const { tab, colorVar } = nodeIdToTab(taxRef.node_id);
+  const label = getNodeLabel(taxRef.node_id);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    useTaxonomyStore.getState().navigateToNode(tab, taxRef.node_id);
+  };
+
+  return (
+    <span
+      className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
+      style={{ borderColor: colorVar, color: colorVar }}
+      title={`${label}\n${taxRef.relevance}`}
+      onClick={handleClick}
+    >
+      {taxRef.node_id}
+    </span>
+  );
 }
 
 /** Shows LLM activity, model, and retry info during generation */
@@ -62,13 +113,44 @@ function StatementCard({ entry }: { entry: TranscriptEntry }) {
       <div className="debate-statement-content">{entry.content}</div>
       {entry.taxonomy_refs.length > 0 && (
         <div className="debate-taxonomy-refs">
-          {entry.taxonomy_refs.map((ref) => (
-            <span key={ref.node_id} className="debate-taxonomy-pill" title={ref.relevance}>
-              {ref.node_id}
-            </span>
+          {entry.taxonomy_refs.map((taxRef) => (
+            <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Probing questions card — clicking a question inserts it as the user's next question */
+function ProbingCard({ entry }: { entry: TranscriptEntry }) {
+  const { askQuestion, debateGenerating } = useDebateStore();
+  const questions = (entry.metadata?.probing_questions as { text: string; targets: string[] }[]) || [];
+
+  const handleAsk = async (text: string) => {
+    if (debateGenerating) return;
+    await askQuestion(text);
+  };
+
+  return (
+    <div className="debate-statement debate-type-probing debate-speaker-system">
+      <div className="debate-statement-header">
+        <span className="debate-statement-speaker">Facilitator</span>
+        <span className="debate-statement-type">probing questions</span>
+      </div>
+      <div className="debate-probing-questions">
+        {questions.map((q, i) => (
+          <button
+            key={i}
+            className="debate-probing-question-btn"
+            onClick={() => handleAsk(q.text)}
+            disabled={!!debateGenerating}
+            title={q.targets?.length > 0 ? `Targets: ${q.targets.map((t) => POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t).join(', ')}` : 'Ask this question'}
+          >
+            {q.text}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -245,7 +327,7 @@ function OpeningActions() {
 
 /** Main debate phase action bar */
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions } = useDebateStore();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -307,6 +389,22 @@ function DebateActions() {
           title="Have the debaters respond to each other"
         >
           Cross-Respond
+        </button>
+        <button
+          className="btn debate-synthesis-btn"
+          onClick={() => requestSynthesis()}
+          disabled={disabled}
+          title="Generate a synthesis of agreements, disagreements, and open questions"
+        >
+          Synthesize
+        </button>
+        <button
+          className="btn debate-probe-btn"
+          onClick={() => requestProbingQuestions()}
+          disabled={disabled}
+          title="Get AI-suggested probing questions to deepen the debate"
+        >
+          Probe
         </button>
       </div>
       {isGenerating && (
@@ -446,7 +544,9 @@ export function DebateWorkspace() {
           </div>
         )}
         {activeDebate.transcript.map((entry) => (
-          <StatementCard key={entry.id} entry={entry} />
+          entry.type === 'probing'
+            ? <ProbingCard key={entry.id} entry={entry} />
+            : <StatementCard key={entry.id} entry={entry} />
         ))}
         {debateGenerating && (
           <div className="debate-statement debate-generating">

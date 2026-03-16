@@ -283,6 +283,64 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }`;
 }
 
+// ── Phase 5 prompt builders ──────────────────────────────
+
+function buildDebateSynthesisPrompt(
+  topic: string,
+  transcript: string,
+): string {
+  return `You are a debate analyst. Analyze this structured debate and produce a synthesis.
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== FULL TRANSCRIPT ===
+${transcript}
+
+Identify:
+1. Areas where the debaters agree (and which debaters)
+2. Areas where they genuinely disagree (with each debater's specific stance)
+3. Questions that remain unresolved
+4. Which taxonomy nodes were referenced and how they were used
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
+  "areas_of_disagreement": [{"point": "...", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "unresolved_questions": ["..."],
+  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]
+}`;
+}
+
+function buildProbingQuestionsPrompt(
+  topic: string,
+  transcript: string,
+  unreferencedNodes: string[],
+): string {
+  const unreferencedBlock = unreferencedNodes.length > 0
+    ? `\n\n=== TAXONOMY NODES NOT YET REFERENCED ===\n${unreferencedNodes.join('\n')}`
+    : '';
+
+  return `You are a debate facilitator. Given this debate, suggest 3-5 probing questions that would advance the discussion. Prioritize questions that would:
+- Surface genuine disagreement or expose unstated assumptions
+- Push debaters beyond their comfort zones
+- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== TRANSCRIPT ===
+${transcript}
+${unreferencedBlock}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "questions": [
+    {"text": "the probing question", "targets": ["prometheus", "sentinel"]}
+  ]
+}`;
+}
+
 /** Parse @-mentions from user input. Returns { target, cleanedInput } */
 function parseAtMention(input: string): { target: PoverId | null; cleanedInput: string } {
   const mentionMap: Record<string, PoverId> = {
@@ -380,6 +438,10 @@ interface DebateStore {
   // Phase 4: Main Debate Loop
   askQuestion: (input: string) => Promise<void>;
   crossRespond: () => Promise<void>;
+
+  // Phase 5: Synthesis & Probing
+  requestSynthesis: () => Promise<void>;
+  requestProbingQuestions: () => Promise<void>;
 }
 
 export const useDebateStore = create<DebateStore>((set, get) => ({
@@ -924,5 +986,133 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     set({ debateGenerating: null });
     await saveDebate();
+  },
+
+  // ── Phase 5: Synthesis & Probing ──────────────────────────
+
+  requestSynthesis: async () => {
+    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate) return;
+
+    set({ debateError: null, debateGenerating: 'prometheus' });
+
+    const model = getConfiguredModel();
+    const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
+    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript);
+
+    try {
+      const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set);
+
+      let synthesis;
+      try {
+        synthesis = JSON.parse(stripCodeFences(text));
+      } catch {
+        synthesis = { areas_of_agreement: [], areas_of_disagreement: [], unresolved_questions: [text.trim()], taxonomy_coverage: [] };
+      }
+
+      // Build readable content
+      const lines: string[] = [];
+      if (synthesis.areas_of_agreement?.length > 0) {
+        lines.push('**Areas of Agreement:**');
+        for (const a of synthesis.areas_of_agreement) {
+          const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ') : '';
+          lines.push(`- ${a.point}${who ? ` (${who})` : ''}`);
+        }
+      }
+      if (synthesis.areas_of_disagreement?.length > 0) {
+        lines.push('', '**Areas of Disagreement:**');
+        for (const d of synthesis.areas_of_disagreement) {
+          lines.push(`- ${d.point}`);
+          if (Array.isArray(d.positions)) {
+            for (const pos of d.positions) {
+              const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label || pos.pover;
+              lines.push(`  - ${label}: ${pos.stance}`);
+            }
+          }
+        }
+      }
+      if (synthesis.unresolved_questions?.length > 0) {
+        lines.push('', '**Unresolved Questions:**');
+        for (const q of synthesis.unresolved_questions) {
+          lines.push(`- ${q}`);
+        }
+      }
+
+      const taxonomyCoverage: TaxonomyRef[] = (synthesis.taxonomy_coverage || [])
+        .filter((t: Record<string, unknown>) => t.node_id)
+        .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
+
+      addTranscriptEntry({
+        type: 'synthesis',
+        speaker: 'system',
+        content: lines.join('\n'),
+        taxonomy_refs: taxonomyCoverage,
+        metadata: { synthesis },
+      });
+    } catch (err) {
+      set({ debateError: `Synthesis failed: ${String(err)}` });
+    } finally {
+      set({ debateGenerating: null });
+      await saveDebate();
+    }
+  },
+
+  requestProbingQuestions: async () => {
+    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate) return;
+
+    set({ debateError: null, debateGenerating: 'prometheus' });
+
+    const model = getConfiguredModel();
+    const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
+
+    // Find taxonomy nodes not yet referenced
+    const referencedNodes = new Set<string>();
+    for (const entry of activeDebate.transcript) {
+      for (const ref of entry.taxonomy_refs) {
+        referencedNodes.add(ref.node_id);
+      }
+    }
+
+    // Gather all taxonomy node IDs from all POVs
+    const allNodeIds: string[] = [];
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const ctx = getTaxonomyContext(pov);
+      for (const n of ctx.povNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
+    }
+    const ccCtx = getTaxonomyContext('accelerationist'); // cross-cutting is the same from any POV
+    for (const n of ccCtx.crossCuttingNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
+
+    const unreferenced = allNodeIds.filter((desc) => {
+      const match = desc.match(/^\[([^\]]+)\]/);
+      return match && !referencedNodes.has(match[1]);
+    }).slice(0, 20); // Limit to keep prompt reasonable
+
+    const prompt = buildProbingQuestionsPrompt(activeDebate.topic.final, fullTranscript, unreferenced);
+
+    try {
+      const { text } = await generateTextWithProgress(prompt, model, `Generating probing questions (${model})`, set);
+
+      let questions: { text: string; targets: string[] }[] = [];
+      try {
+        const parsed = JSON.parse(stripCodeFences(text));
+        questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+      } catch {
+        questions = [{ text: text.trim(), targets: [] }];
+      }
+
+      addTranscriptEntry({
+        type: 'probing',
+        speaker: 'system',
+        content: questions.map((q, i) => `${i + 1}. ${q.text}`).join('\n'),
+        taxonomy_refs: [],
+        metadata: { probing_questions: questions },
+      });
+    } catch (err) {
+      set({ debateError: `Probing questions failed: ${String(err)}` });
+    } finally {
+      set({ debateGenerating: null });
+      await saveDebate();
+    }
   },
 }));
