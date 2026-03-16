@@ -2725,6 +2725,32 @@ body {
   40% { opacity: 1; transform: scale(1); }
 }
 
+/* ─── Debate Progress Indicator ────────────────────────── */
+
+.debate-progress-indicator {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.debate-progress-activity {
+  font-style: italic;
+}
+
+.debate-progress-retry {
+  color: var(--color-warning, #d97706);
+  font-weight: 500;
+}
+
+.debate-progress-limit {
+  color: var(--color-warning, #d97706);
+  font-size: 0.7rem;
+}
+
 /* ─── Debate Taxonomy Pills ───────────────────────────── */
 
 .debate-taxonomy-refs {
@@ -2796,6 +2822,11 @@ body {
   white-space: nowrap;
 }
 
+.debate-cross-btn {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
 /* ─── New Debate Dialog ───────────────────────────────── */
 
 .new-debate-dialog {
@@ -2857,4 +2888,153 @@ body {
   font-size: 0.75rem;
   color: var(--danger);
   margin-top: 8px;
+}
+
+/* ─── Debate Clarification Phase ──────────────────────── */
+
+.debate-action-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.debate-clarification-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.debate-answer-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+  line-height: 1.5;
+}
+
+.debate-answer-textarea:focus {
+  border-color: var(--focus-ring);
+}
+
+.debate-answer-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-clarification-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.debate-begin-btn {
+  font-weight: 700;
+}
+
+/* ─── Refined Topic Editor ────────────────────────────── */
+
+.debate-refined-topic {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.debate-refined-topic-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.debate-refined-topic-text {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px dashed transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.debate-refined-topic-text:hover {
+  border-color: var(--border-color);
+  background: var(--bg-hover);
+}
+
+.debate-refined-topic-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Statement type styling */
+.debate-type-system {
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  opacity: 0.8;
+}
+
+.debate-type-system .debate-statement-speaker {
+  color: var(--text-muted) !important;
+}
+
+.debate-type-clarification .debate-statement-content {
+  white-space: pre-wrap;
+}
+
+.debate-type-answer {
+  border-left: 3px solid var(--focus-ring);
+}
+
+.debate-type-opening {
+  border-left: 3px solid var(--text-muted);
+}
+
+.debate-type-opening .debate-statement-content {
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.debate-speaker-prometheus .debate-type-opening,
+.debate-type-opening.debate-speaker-prometheus {
+  border-left-color: var(--color-acc);
+}
+
+.debate-type-opening.debate-speaker-sentinel {
+  border-left-color: var(--color-saf);
+}
+
+.debate-type-opening.debate-speaker-cassandra {
+  border-left-color: var(--color-skp);
+}
+
+.debate-type-opening.debate-speaker-user {
+  border-left-color: var(--focus-ring);
+}
+
+.debate-type-question {
+  border-left: 3px solid var(--focus-ring);
+  background: var(--bg-hover);
+}
+
+.debate-type-statement.debate-speaker-prometheus {
+  border-left: 3px solid var(--color-acc);
+}
+
+.debate-type-statement.debate-speaker-sentinel {
+  border-left: 3px solid var(--color-saf);
+}
+
+.debate-type-statement.debate-speaker-cassandra {
+  border-left: 3px solid var(--color-skp);
 }

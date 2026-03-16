@@ -35,7 +35,9 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     if (userIsPover && !povers.includes('user')) povers.push('user');
     const id = await createDebate(topic.trim(), povers, userIsPover);
     await loadDebate(id);
-    useDebateStore.getState().updatePhase('clarification');
+    const store = useDebateStore.getState();
+    store.updatePhase('clarification');
+    await store.saveDebate();
     onClose();
   };
 
