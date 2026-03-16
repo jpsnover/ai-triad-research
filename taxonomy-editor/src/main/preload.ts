@@ -78,4 +78,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
+
+  // Debate sessions
+  listDebateSessions: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-debate-sessions'),
+
+  loadDebateSession: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('load-debate-session', id),
+
+  saveDebateSession: (session: unknown): Promise<void> =>
+    ipcRenderer.invoke('save-debate-session', session),
+
+  deleteDebateSession: (id: string): Promise<void> =>
+    ipcRenderer.invoke('delete-debate-session', id),
 });

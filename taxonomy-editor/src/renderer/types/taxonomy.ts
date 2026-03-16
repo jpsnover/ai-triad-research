@@ -83,4 +83,4 @@ export interface ConflictFile {
   human_notes: ConflictNote[];
 }
 
-export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts';
+export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts' | 'debate';

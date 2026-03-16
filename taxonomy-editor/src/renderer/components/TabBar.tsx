@@ -13,6 +13,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'skeptic', label: 'Skeptic' },
   { id: 'cross-cutting', label: 'Cross-Cutting' },
   { id: 'conflicts', label: 'Conflicts' },
+  { id: 'debate', label: 'Debate' },
 ];
 
 export function TabBar() {

@@ -13,6 +13,12 @@ import {
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
 } from './fileIO';
+import {
+  listDebateSessions,
+  loadDebateSession,
+  saveDebateSession,
+  deleteDebateSession,
+} from './debateIO';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
 import type { NodeEmbeddingInput } from './embeddings';
@@ -87,5 +93,22 @@ export function registerIpcHandlers(): void {
     if (/^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+  });
+
+  // ── Debate session handlers ────────────────────────────
+  ipcMain.handle('list-debate-sessions', () => {
+    return listDebateSessions();
+  });
+
+  ipcMain.handle('load-debate-session', (_event, id: string) => {
+    return loadDebateSession(id);
+  });
+
+  ipcMain.handle('save-debate-session', (_event, session: unknown) => {
+    saveDebateSession(session);
+  });
+
+  ipcMain.handle('delete-debate-session', (_event, id: string) => {
+    deleteDebateSession(id);
   });
 }

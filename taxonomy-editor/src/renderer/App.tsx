@@ -9,6 +9,7 @@ import { SaveBar } from './components/SaveBar';
 import { PovTab } from './components/PovTab';
 import { CrossCuttingTab } from './components/CrossCuttingTab';
 import { ConflictsTab } from './components/ConflictsTab';
+import { DebateTab } from './components/DebateTab';
 
 export function App() {
   const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
@@ -106,6 +107,7 @@ export function App() {
         {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
         {activeTab === 'cross-cutting' && <CrossCuttingTab />}
         {activeTab === 'conflicts' && <ConflictsTab />}
+        {activeTab === 'debate' && <DebateTab />}
       </div>
       <SaveBar />
     </div>

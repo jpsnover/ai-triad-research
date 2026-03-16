@@ -24,6 +24,10 @@ export interface ElectronAPI {
   shrinkWindow: (deltaWidth: number) => Promise<void>;
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
+  listDebateSessions: () => Promise<unknown[]>;
+  loadDebateSession: (id: string) => Promise<unknown>;
+  saveDebateSession: (session: unknown) => Promise<void>;
+  deleteDebateSession: (id: string) => Promise<void>;
 }
 
 declare global {
