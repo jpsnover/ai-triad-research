@@ -56,14 +56,15 @@ function getNodeLabel(nodeId: string): string {
   return nodeId;
 }
 
-/** Clickable taxonomy pill that navigates to the node in its POV tab */
+/** Clickable taxonomy pill that opens the node in pane 3 */
 function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
-  const { tab, colorVar } = nodeIdToTab(taxRef.node_id);
+  const { colorVar } = nodeIdToTab(taxRef.node_id);
   const label = getNodeLabel(taxRef.node_id);
+  const inspectNode = useDebateStore((s) => s.inspectNode);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    useTaxonomyStore.getState().navigateToNode(tab, taxRef.node_id);
+    inspectNode(taxRef.node_id);
   };
 
   return (

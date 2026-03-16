@@ -3,10 +3,14 @@
 
 import { useEffect, useState } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
-import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from './DebateWorkspace';
+import { NodeDetail } from './NodeDetail';
+import { CrossCuttingDetail } from './CrossCuttingDetail';
 import type { DebateSessionSummary } from '../types/debate';
+import type { Pov } from '../types/taxonomy';
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -21,12 +25,39 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+/** Resolve a node_id to its POV + node data from the taxonomy store */
+function resolveNode(nodeId: string) {
+  const state = useTaxonomyStore.getState();
+
+  if (nodeId.startsWith('cc-')) {
+    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    return node ? { kind: 'crossCutting' as const, node } : null;
+  }
+
+  const povMap: Record<string, Pov> = { 'acc-': 'accelerationist', 'saf-': 'safetyist', 'skp-': 'skeptic' };
+  for (const [prefix, pov] of Object.entries(povMap)) {
+    if (nodeId.startsWith(prefix)) {
+      const povFile = state[pov];
+      const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
+      return node ? { kind: 'pov' as const, pov, node } : null;
+    }
+  }
+  return null;
+}
+
 export function DebateTab() {
   const {
     sessions, sessionsLoading, loadSessions,
     activeDebateId, loadDebate, deleteDebate,
+    inspectedNodeId, inspectNode,
   } = useDebateStore();
   const { width, onMouseDown } = useResizablePanel();
+  const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
+    storageKey: 'debate-inspect-panel-width',
+    defaultWidth: 360,
+    minWidth: 260,
+    maxWidth: 600,
+  });
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -101,7 +132,7 @@ export function DebateTab() {
 
       <div className="resize-handle" onMouseDown={onMouseDown} />
 
-      {/* Right pane: Debate workspace */}
+      {/* Center pane: Debate workspace */}
       <div className="detail-panel debate-workspace-container">
         {activeDebateId ? (
           <DebateWorkspace />
@@ -115,6 +146,36 @@ export function DebateTab() {
           </div>
         )}
       </div>
+
+      {/* Pane 3: Node inspector (shown when a taxonomy pill is clicked) */}
+      {inspectedNodeId && (() => {
+        const resolved = resolveNode(inspectedNodeId);
+        if (!resolved) return null;
+        return (
+          <>
+            <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+            <div className="detail-panel debate-inspect-panel" style={{ width: pane3Width, minWidth: pane3Width }}>
+              <div className="debate-inspect-header">
+                <span className="debate-inspect-title">{resolved.node.label}</span>
+                <button
+                  className="debate-inspect-close"
+                  onClick={() => inspectNode(null)}
+                  title="Close inspector"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="debate-inspect-body">
+                {resolved.kind === 'crossCutting' ? (
+                  <CrossCuttingDetail node={resolved.node} readOnly />
+                ) : (
+                  <NodeDetail pov={resolved.pov} node={resolved.node} readOnly />
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {showNewDialog && (
         <NewDebateDialog onClose={() => setShowNewDialog(false)} />

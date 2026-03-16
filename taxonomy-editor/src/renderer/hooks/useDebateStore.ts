@@ -412,8 +412,10 @@ interface DebateStore {
   debateError: string | null;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
+  inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
 
   // Actions
+  inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -454,6 +456,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateError: null,
   debateProgress: null,
   debateActivity: null,
+  inspectedNodeId: null,
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -571,6 +574,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   setGenerating: (pover) => set({ debateGenerating: pover }),
+  inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),
   setError: (error) => set({ debateError: error }),
 
   // ── Phase 2: Clarification ──────────────────────────────
