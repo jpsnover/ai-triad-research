@@ -28,11 +28,11 @@ function Split-DocumentChunks {
     # ── Phase 1: Split on Markdown headings (##, ###, ####) ──────────────────
     # Keep the heading with the section that follows it
     $HeadingPattern = '(?m)^(?=#{2,4}\s)'
-    $Sections = [regex]::Split($Text, $HeadingPattern) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $Sections = @([regex]::Split($Text, $HeadingPattern) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
     if ($Sections.Count -le 1) {
         # No headings found — split on double-newlines (paragraph breaks)
-        $Sections = $Text -split '(?:\r?\n){2,}' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $Sections = @($Text -split '(?:\r?\n){2,}' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
 
     # ── Phase 2: Pack sections into chunks up to MaxChunkTokens ──────────────
@@ -53,7 +53,7 @@ function Split-DocumentChunks {
             }
 
             # Sub-split this large section on paragraph breaks
-            $Paragraphs = $Section -split '(?:\r?\n){2,}' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            $Paragraphs = @($Section -split '(?:\r?\n){2,}' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             $SubChunk = [System.Text.StringBuilder]::new()
             $SubTokens = 0
 
