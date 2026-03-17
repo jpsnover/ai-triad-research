@@ -341,6 +341,70 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }`;
 }
 
+// ── Phase 7 prompt builders ──────────────────────────────
+
+function buildFactCheckPrompt(
+  selectedText: string,
+  statementContext: string,
+  taxonomyNodes: string,
+  conflictData: string,
+): string {
+  return `You are a fact-checker analyzing a claim made during a structured AI policy debate.
+
+=== CLAIM TO CHECK ===
+"${selectedText}"
+
+=== FULL STATEMENT CONTEXT ===
+${statementContext}
+
+=== RELEVANT TAXONOMY POSITIONS ===
+${taxonomyNodes}
+
+=== KNOWN CONFLICTS IN THE RESEARCH DATABASE ===
+${conflictData || '(No relevant conflicts found)'}
+
+Evaluate whether this claim is factually accurate. Consider:
+1. Is it consistent with the taxonomy data and known research?
+2. Is it internally consistent with other statements in the debate?
+3. Are there known conflicts or counter-evidence?
+
+Rate the claim as one of:
+- "supported" — consistent with available evidence and taxonomy data
+- "disputed" — there is significant counter-evidence or active conflict
+- "unverifiable" — cannot be confirmed or denied with available data
+- "false" — directly contradicted by available evidence
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "verdict": "supported" | "disputed" | "unverifiable" | "false",
+  "explanation": "brief explanation of your assessment",
+  "sources": [
+    {"node_id": "e.g. acc-goals-002"},
+    {"conflict_id": "e.g. conflict-xyz"}
+  ]
+}`;
+}
+
+// ── Phase 8 prompt builders ──────────────────────────────
+
+function buildContextCompressionPrompt(
+  entries: string,
+): string {
+  return `Summarize the following debate segment concisely. Preserve:
+- Key arguments and who made them (Prometheus, Sentinel, Cassandra, Moderator)
+- Points of agreement and disagreement
+- Any factual claims or evidence cited
+- Taxonomy node references (keep the node IDs)
+
+Be concise but complete — this summary replaces the original text in the debate context.
+
+=== DEBATE SEGMENT ===
+${entries}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{"summary": "your summary text"}`;
+}
+
 /** Parse @-mentions from user input. Returns { target, cleanedInput } */
 function parseAtMention(input: string): { target: PoverId | null; cleanedInput: string } {
   const mentionMap: Record<string, PoverId> = {
@@ -360,18 +424,33 @@ function parseAtMention(input: string): { target: PoverId | null; cleanedInput: 
   return { target: null, cleanedInput: input };
 }
 
-/** Format recent transcript entries for inclusion in prompts */
-function formatRecentTranscript(transcript: TranscriptEntry[], maxEntries: number = 8): string {
+/** Format recent transcript entries for inclusion in prompts.
+ *  When context summaries exist, prepends the latest summary for compressed history. */
+function formatRecentTranscript(
+  transcript: TranscriptEntry[],
+  maxEntries: number = 8,
+  contextSummaries?: { up_to_entry_id: string; summary: string }[],
+): string {
   const recent = transcript.filter((e) => e.type !== 'system').slice(-maxEntries);
   if (recent.length === 0) return '(No prior exchanges)';
 
-  return recent.map((e) => {
+  const parts: string[] = [];
+
+  // Prepend the latest context summary if available
+  if (contextSummaries && contextSummaries.length > 0) {
+    const latest = contextSummaries[contextSummaries.length - 1];
+    parts.push(`[Earlier debate summary]: ${latest.summary}`);
+  }
+
+  for (const e of recent) {
     const label = e.speaker === 'user' ? 'Moderator'
       : e.speaker === 'system' ? 'System'
       : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
     const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
-    return `${label}${typeTag}: ${e.content}`;
-  }).join('\n\n');
+    parts.push(`${label}${typeTag}: ${e.content}`);
+  }
+
+  return parts.join('\n\n');
 }
 
 /** Parse a POVer response JSON from the LLM */
@@ -444,6 +523,12 @@ interface DebateStore {
   // Phase 5: Synthesis & Probing
   requestSynthesis: () => Promise<void>;
   requestProbingQuestions: () => Promise<void>;
+
+  // Phase 7: Fact Check
+  factCheckSelection: (selectedText: string, entryId: string) => Promise<void>;
+
+  // Phase 8: Context Window Management
+  compressOldTranscript: () => Promise<void>;
 }
 
 export const useDebateStore = create<DebateStore>((set, get) => ({
@@ -833,7 +918,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return;
     }
 
-    const recentTranscript = formatRecentTranscript(get().activeDebate!.transcript);
+    const recentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
     // Generate responses sequentially so each sees prior responses
     for (const poverId of respondingPovers) {
@@ -844,7 +929,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const taxonomyBlock = formatTaxonomyContext(ctx);
 
       // Use the most current transcript (includes responses from prior POVers in this round)
-      const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript);
+      const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
       const prompt = buildDebateResponsePrompt(
         poverId,
@@ -895,7 +980,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return;
     }
 
-    const recentTranscript = formatRecentTranscript(activeDebate.transcript);
+    const recentTranscript = formatRecentTranscript(activeDebate.transcript, 8, activeDebate.context_summaries);
     const poverLabels = aiPovers.map((p) => POVER_INFO[p].label);
 
     // Step 1: Ask the LLM which POVer should respond to whom
@@ -956,7 +1041,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const info = POVER_INFO[responderPover];
     const ctx = getTaxonomyContext(info.pov);
     const taxonomyBlock = formatTaxonomyContext(ctx);
-    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript);
+    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
     const prompt = buildCrossRespondPrompt(
       responderPover,
@@ -1119,4 +1204,195 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       await saveDebate();
     }
   },
+
+  // ── Phase 7: Fact Check ──────────────────────────────────
+
+  factCheckSelection: async (selectedText: string, entryId: string) => {
+    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate) return;
+
+    if (selectedText.length < 10) {
+      set({ debateError: 'Select a complete claim to fact-check (at least 10 characters)' });
+      return;
+    }
+
+    set({ debateError: null, debateGenerating: 'prometheus' });
+
+    const model = getConfiguredModel();
+
+    // Find the statement that contains this text
+    const sourceEntry = activeDebate.transcript.find((e) => e.id === entryId);
+    const statementContext = sourceEntry?.content || selectedText;
+
+    // Gather taxonomy nodes from the statement's refs + general context
+    const allNodes: string[] = [];
+    if (sourceEntry?.taxonomy_refs) {
+      for (const ref of sourceEntry.taxonomy_refs) {
+        const label = getNodeLabelForFactCheck(ref.node_id);
+        allNodes.push(`[${ref.node_id}] ${label} — ${ref.relevance}`);
+      }
+    }
+
+    // Also include some general taxonomy context
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const ctx = getTaxonomyContext(pov);
+      for (const n of ctx.povNodes.slice(0, 5)) {
+        if (!allNodes.some((l) => l.includes(n.id))) {
+          allNodes.push(`[${n.id}] ${n.label}: ${n.description}`);
+        }
+      }
+    }
+
+    // Gather conflict data from the store
+    const conflicts = useTaxonomyStore.getState().conflicts || [];
+    const conflictLines: string[] = [];
+    for (const c of conflicts.slice(0, 10)) {
+      const conflict = c as { claim_id?: string; claim_label?: string; status?: string };
+      if (conflict.claim_label) {
+        conflictLines.push(`[${conflict.claim_id || 'unknown'}] ${conflict.claim_label} (${conflict.status || 'open'})`);
+      }
+    }
+
+    const prompt = buildFactCheckPrompt(
+      selectedText,
+      statementContext,
+      allNodes.join('\n'),
+      conflictLines.join('\n'),
+    );
+
+    try {
+      const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
+
+      let result;
+      try {
+        result = JSON.parse(stripCodeFences(text));
+      } catch {
+        result = { verdict: 'unverifiable', explanation: text.trim(), sources: [] };
+      }
+
+      const verdictLabels: Record<string, string> = {
+        supported: 'Supported',
+        disputed: 'Disputed',
+        unverifiable: 'Unverifiable',
+        false: 'False',
+      };
+
+      const sources = Array.isArray(result.sources) ? result.sources : [];
+      const sourceRefs = sources
+        .filter((s: Record<string, unknown>) => s.node_id || s.conflict_id)
+        .map((s: Record<string, unknown>) => ({
+          node_id: (s.node_id as string) || (s.conflict_id as string) || '',
+          relevance: s.conflict_id ? `Conflict: ${s.conflict_id}` : '',
+        }));
+
+      addTranscriptEntry({
+        type: 'fact-check',
+        speaker: 'system',
+        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText.length > 120 ? selectedText.slice(0, 117) + '...' : selectedText}"\n\n${result.explanation}`,
+        taxonomy_refs: sourceRefs,
+        metadata: {
+          fact_check: {
+            verdict: result.verdict,
+            explanation: result.explanation,
+            sources: result.sources,
+            checked_text: selectedText,
+          },
+        },
+      });
+    } catch (err) {
+      set({ debateError: `Fact check failed: ${String(err)}` });
+    } finally {
+      set({ debateGenerating: null });
+      await saveDebate();
+    }
+  },
+
+  // ── Phase 8: Context Window Management ───────────────────
+
+  compressOldTranscript: async () => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate) return;
+
+    const transcript = activeDebate.transcript;
+    // Only compress if there are enough entries (keep last 8, compress the rest)
+    const KEEP_RECENT = 8;
+    const MIN_TO_COMPRESS = 12;
+
+    if (transcript.length < MIN_TO_COMPRESS) return;
+
+    // Find entries that haven't been summarized yet
+    const lastSummaryIdx = activeDebate.context_summaries.length > 0
+      ? transcript.findIndex((e) => e.id === activeDebate.context_summaries[activeDebate.context_summaries.length - 1].up_to_entry_id)
+      : -1;
+
+    const startIdx = lastSummaryIdx + 1;
+    const endIdx = transcript.length - KEEP_RECENT;
+
+    if (endIdx <= startIdx) return; // Nothing to compress
+
+    const toCompress = transcript.slice(startIdx, endIdx);
+    if (toCompress.length < 4) return; // Not enough to bother
+
+    set({ debateError: null, debateGenerating: 'prometheus' });
+
+    const model = getConfiguredModel();
+    const entriesText = toCompress.map((e) => {
+      const label = e.speaker === 'user' ? 'Moderator'
+        : e.speaker === 'system' ? 'System'
+        : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
+      return `${label} [${e.type}]: ${e.content}`;
+    }).join('\n\n');
+
+    const prompt = buildContextCompressionPrompt(entriesText);
+
+    try {
+      const { text } = await generateTextWithProgress(prompt, model, `Compressing debate history (${model})`, set);
+
+      let summary: string;
+      try {
+        const parsed = JSON.parse(stripCodeFences(text));
+        summary = parsed.summary || text.trim();
+      } catch {
+        summary = text.trim();
+      }
+
+      const lastCompressedEntry = toCompress[toCompress.length - 1];
+      const updatedSummaries = [
+        ...activeDebate.context_summaries,
+        { up_to_entry_id: lastCompressedEntry.id, summary },
+      ];
+
+      set({
+        activeDebate: {
+          ...get().activeDebate!,
+          context_summaries: updatedSummaries,
+          updated_at: nowISO(),
+        },
+      });
+
+      await saveDebate();
+    } catch (err) {
+      set({ debateError: `Context compression failed: ${String(err)}` });
+    } finally {
+      set({ debateGenerating: null });
+    }
+  },
 }));
+
+/** Helper to get node label for fact check (standalone, no React hooks) */
+function getNodeLabelForFactCheck(nodeId: string): string {
+  const state = useTaxonomyStore.getState();
+  if (nodeId.startsWith('cc-')) {
+    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    return node?.label || nodeId;
+  }
+  const povMap: Record<string, string> = { 'acc-': 'accelerationist', 'saf-': 'safetyist', 'skp-': 'skeptic' };
+  for (const [prefix, pov] of Object.entries(povMap)) {
+    if (nodeId.startsWith(prefix)) {
+      const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
+      const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
+      return node?.label || nodeId;
+    }
+  }
+  return nodeId;
+}

@@ -16,10 +16,11 @@ interface CrossCuttingDetailProps {
   node: CrossCuttingNode;
   readOnly?: boolean;
   onPin?: () => void;
+  onRelated?: () => void;
   chipDepth?: number;
 }
 
-export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: CrossCuttingDetailProps) {
+export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth = 0 }: CrossCuttingDetailProps) {
   const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
@@ -92,6 +93,11 @@ export function CrossCuttingDetail({ node, readOnly, onPin, chipDepth = 0 }: Cro
           >
             {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
           </button>
+          {onRelated && (
+            <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
+              Related
+            </button>
+          )}
           {onPin && (
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
               Pin

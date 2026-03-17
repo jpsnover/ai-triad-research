@@ -84,3 +84,55 @@ export interface ConflictFile {
 }
 
 export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts' | 'debate';
+
+// ── Edge types (from taxonomy/Origin/edges.json) ─────────
+
+export type EdgeStatus = 'proposed' | 'approved' | 'rejected';
+
+export type EdgeType =
+  | 'SUPPORTS'
+  | 'CONTRADICTS'
+  | 'ASSUMES'
+  | 'WEAKENS'
+  | 'RESPONDS_TO'
+  | 'TENSION_WITH'
+  | 'CITES'
+  | 'INTERPRETS'
+  | 'SUPPORTED_BY'
+  | 'REITERATES'
+  | 'HIGHLIGHTS_VULNERABILITY_TO'
+  | 'IS_A_POSITION_WITHIN'
+  | 'VALIDATES_ARGUMENT_WITHIN'
+  | 'COMPLEMENTS'
+  | 'DESCRIBES_SAME_CONCEPT_AS'
+  | 'INFLUENCES';
+
+export interface Edge {
+  source: string;
+  target: string;
+  type: EdgeType;
+  bidirectional: boolean;
+  confidence: number;
+  rationale: string;
+  status: EdgeStatus;
+  discovered_at: string;
+  model: string;
+  strength?: 'strong' | 'moderate' | 'weak';
+  notes?: string;
+}
+
+export interface EdgeTypeDefinition {
+  type: EdgeType;
+  bidirectional: boolean;
+  definition: string;
+  llm_proposed?: boolean;
+}
+
+export interface EdgesFile {
+  _schema_version: string;
+  _doc: string;
+  last_modified: string;
+  edge_types: EdgeTypeDefinition[];
+  edges: Edge[];
+  discovery_log?: unknown[];
+}

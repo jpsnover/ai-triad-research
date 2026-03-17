@@ -9,6 +9,7 @@ import {
   writeConflictFile,
   createConflictFile,
   deleteConflictFile,
+  readEdgesFile,
   getTaxonomyDirs,
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
@@ -93,6 +94,10 @@ export function registerIpcHandlers(): void {
     if (/^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+  });
+
+  ipcMain.handle('load-edges', () => {
+    return readEdgesFile();
   });
 
   // ── Debate session handlers ────────────────────────────

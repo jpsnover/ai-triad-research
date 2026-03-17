@@ -639,5 +639,5 @@ saveDebate(): Promise<void>;
 | **4. Main Debate Loop** | Ask questions, cross-respond, @-mentions | Core debate interaction | Done |
 | **5. Synthesis & Probing** | Synthesis summaries, AI-generated questions | Analytical debate tools | Done |
 | **6. Taxonomy Integration** | Taxonomy pills, cross-nav to POV tabs | Clickable node indicators on statements | Done |
-| **7. Context Menu & Fact Check** | Copy, Search Google, fact-check flow | Text selection actions | |
-| **8. Polish** | Auto-save, context window mgmt, session resume | Production readiness | |
+| **7. Context Menu & Fact Check** | Copy, Search Google, fact-check flow | Text selection actions | Done |
+| **8. Polish** | Auto-save, context window mgmt, session resume | Production readiness | Done |

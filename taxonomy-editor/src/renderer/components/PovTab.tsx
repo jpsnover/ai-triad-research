@@ -15,6 +15,8 @@ import { SimilarSearchPanel } from './SimilarSearchPanel';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
+import { RelatedEdgesPanel } from './RelatedEdgesPanel';
+import { EdgeDetailPanel } from './EdgeDetailPanel';
 
 interface PovTabProps {
   pov: Pov;
@@ -27,6 +29,7 @@ export function PovTab({ pov }: PovTabProps) {
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
     attributeFilter, attributeInfo,
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
+    relatedNodeId, showRelatedEdges, selectedEdge,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -54,6 +57,18 @@ export function PovTab({ pov }: PovTabProps) {
     storageKey: 'taxonomy-editor-attr-info-panel-width',
     defaultWidth: 400,
     minWidth: 300,
+    maxWidth: 700,
+  });
+  const { width: relatedPaneWidth, onMouseDown: onRelatedPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-related-panel-width',
+    defaultWidth: 420,
+    minWidth: 300,
+    maxWidth: 800,
+  });
+  const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-edge-detail-width',
+    defaultWidth: 380,
+    minWidth: 280,
     maxWidth: 700,
   });
 
@@ -115,6 +130,12 @@ export function PovTab({ pov }: PovTabProps) {
     }
   };
 
+  const handleRelated = () => {
+    if (selectedNode) {
+      showRelatedEdges(selectedNode.id);
+    }
+  };
+
   const handleAnalyze = (elementB: { label: string; description: string; category: string }) => {
     if (selectedNode) {
       runAnalyzeDistinction(
@@ -128,6 +149,8 @@ export function PovTab({ pov }: PovTabProps) {
   const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
   const showAttrFilterPanel = attributeFilter !== null;
   const showInfoPanel = attributeInfo !== null;
+  const showRelatedPanel = relatedNodeId !== null;
+  const showEdgeDetail = selectedEdge !== null && showRelatedPanel;
 
   // Determine where info panel renders:
   // - If a Pane 3 is already showing (similar or attr filter), info renders as Pane 4
@@ -141,6 +164,8 @@ export function PovTab({ pov }: PovTabProps) {
   const prevShowAnalysis = useRef(false);
   const prevShowAttrFilter = useRef(false);
   const prevShowInfo = useRef(false);
+  const prevShowRelated = useRef(false);
+  const prevShowEdgeDetail = useRef(false);
 
   useEffect(() => {
     const wasShowing = prevShowSimilar.current;
@@ -190,6 +215,37 @@ export function PovTab({ pov }: PovTabProps) {
     });
   }, [showInfoPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const wasShowing = prevShowRelated.current;
+    prevShowRelated.current = showRelatedPanel;
+    if (showRelatedPanel === wasShowing) return;
+    const delta = relatedPaneWidth + 4;
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showRelatedPanel) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
+  }, [showRelatedPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const wasShowing = prevShowEdgeDetail.current;
+    prevShowEdgeDetail.current = showEdgeDetail;
+    if (showEdgeDetail === wasShowing) return;
+    const delta = edgeDetailWidth + 4;
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showEdgeDetail) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
+  }, [showEdgeDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh related edges when selection changes while panel is open
+  useEffect(() => {
+    if (showRelatedPanel && selectedNode) {
+      showRelatedEdges(selectedNode.id);
+    }
+  }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-refresh similar search when selection changes while panel is open
   useEffect(() => {
     if (showSimilarPanel && selectedNode && !similarLoading) {
@@ -233,7 +289,7 @@ export function PovTab({ pov }: PovTabProps) {
       <div className="resize-handle" onMouseDown={onMouseDown} />
       <div className="detail-panel" data-cat={selectedNode?.category}>
         {selectedNode ? (
-          <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} />
+          <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} />
         ) : (
           <div className="detail-panel-empty">Select a node to edit</div>
         )}
@@ -272,7 +328,21 @@ export function PovTab({ pov }: PovTabProps) {
           <AttributeInfoPanel width={infoPaneWidth} />
         </>
       )}
-      {pinnedStack.length > 0 && !showSimilarPanel && !showAttrFilterPanel && !showInfoPanel && <PinnedPanel />}
+      {/* Related Edges Panel (Pane 3) */}
+      {showRelatedPanel && !showSimilarPanel && !showAttrFilterPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onRelatedPaneResize} />
+          <RelatedEdgesPanel width={relatedPaneWidth} />
+        </>
+      )}
+      {/* Edge Detail Panel (Pane 4, when an edge is selected in Related) */}
+      {showEdgeDetail && !showSimilarPanel && !showAttrFilterPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onEdgeDetailResize} />
+          <EdgeDetailPanel width={edgeDetailWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showSimilarPanel && !showAttrFilterPanel && !showInfoPanel && !showRelatedPanel && <PinnedPanel />}
       {showNewDialog && (
         <NewNodeDialog
           onConfirm={handleCreate}

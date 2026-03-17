@@ -3143,3 +3143,603 @@ body {
 .debate-type-statement.debate-speaker-cassandra {
   border-left: 3px solid var(--color-skp);
 }
+
+/* ─── Debate Context Menu (Phase 7) ─────────────────────── */
+
+.debate-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  padding: 4px 0;
+}
+
+.debate-context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 350px;
+}
+
+.debate-context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.debate-context-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate-context-menu-fact-check {
+  border-top: 1px solid var(--border-color);
+  margin-top: 2px;
+  padding-top: 8px;
+  font-weight: 600;
+}
+
+/* ─── Fact Check Card (Phase 7) ──────────────────────────── */
+
+.debate-type-fact-check {
+  border-left: 3px solid var(--text-muted);
+  background: var(--bg-secondary);
+}
+
+.debate-type-fact-check.debate-fact-check-supported {
+  border-left-color: #22c55e;
+}
+
+.debate-type-fact-check.debate-fact-check-disputed {
+  border-left-color: #f59e0b;
+}
+
+.debate-type-fact-check.debate-fact-check-unverifiable {
+  border-left-color: var(--text-muted);
+}
+
+.debate-type-fact-check.debate-fact-check-false {
+  border-left-color: #ef4444;
+}
+
+.debate-fact-check-verdict {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+}
+
+.debate-fact-check-verdict.debate-fact-check-supported {
+  color: #22c55e;
+}
+
+.debate-fact-check-verdict.debate-fact-check-disputed {
+  color: #f59e0b;
+}
+
+.debate-fact-check-verdict.debate-fact-check-unverifiable {
+  color: var(--text-muted);
+}
+
+.debate-fact-check-verdict.debate-fact-check-false {
+  color: #ef4444;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Related Edges Panel
+   ═══════════════════════════════════════════════════════════ */
+
+.related-edges-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+}
+
+.related-edges-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.related-edges-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.related-edges-title h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.related-edges-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.related-edges-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.related-edges-close:hover {
+  color: var(--text-primary);
+}
+
+.related-edges-toolbar {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.related-edges-filter {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.related-edges-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.related-edges-loading,
+.related-edges-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ─── Edge Group ───────────────────────────────────────── */
+
+.related-edge-group {
+  margin-bottom: 4px;
+}
+
+.related-edge-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.related-edge-group-header:hover {
+  background: var(--bg-hover);
+}
+
+.related-edge-group-toggle {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.related-edge-type-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.related-edge-type-count {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  padding: 0 6px;
+  border-radius: 8px;
+}
+
+/* ─── Edge Card ────────────────────────────────────────── */
+
+.related-edge-card {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.related-edge-card:hover {
+  background: var(--bg-hover);
+}
+
+.related-edge-card.related-edge-selected {
+  background: var(--bg-hover);
+  border-left: 3px solid var(--focus-ring);
+  padding-left: 11px;
+}
+
+.related-edge-card:last-child {
+  border-bottom: none;
+}
+
+.related-edge-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.related-edge-direction {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.related-edge-node {
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.related-edge-node:hover {
+  text-decoration: underline;
+}
+
+.related-confidence {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.related-confidence-bar {
+  display: inline-block;
+  height: 3px;
+  background: var(--focus-ring);
+  border-radius: 2px;
+}
+
+.related-confidence-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.related-edge-status {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.related-edge-status.status-approved {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.related-edge-status.status-proposed {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.related-edge-status.status-rejected {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.related-edge-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 2px 0 0 22px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Edge Detail Panel (Pane 4)
+   ═══════════════════════════════════════════════════════════ */
+
+.edge-detail-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+}
+
+.edge-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.edge-detail-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.edge-detail-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.edge-detail-close:hover {
+  color: var(--text-primary);
+}
+
+.edge-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ─── Edge Type Banner ─────────────────────────────────── */
+
+.edge-detail-type-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.edge-detail-type-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.edge-detail-bidir {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.edge-detail-type-def {
+  padding: 8px 14px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+/* ─── Source → Target ──────────────────────────────────── */
+
+.edge-detail-endpoints {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.edge-detail-endpoint {
+  flex: 1;
+  min-width: 0;
+}
+
+.edge-detail-endpoint-role {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.edge-detail-endpoint-id {
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edge-detail-endpoint-id:hover {
+  text-decoration: underline;
+}
+
+.edge-detail-endpoint-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.edge-detail-endpoint-pov {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.edge-detail-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+/* ─── Detail Sections ──────────────────────────────────── */
+
+.edge-detail-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.edge-detail-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* ─── Confidence ───────────────────────────────────────── */
+
+.edge-detail-confidence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edge-detail-confidence-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.edge-detail-confidence-fill {
+  height: 100%;
+  background: var(--focus-ring);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.edge-detail-confidence-pct {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 36px;
+}
+
+/* ─── Status & Strength badges ─────────────────────────── */
+
+.edge-detail-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.edge-detail-status-badge.status-approved {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.edge-detail-status-badge.status-proposed {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.edge-detail-status-badge.status-rejected {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.edge-detail-strength-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--text-primary);
+}
+
+/* ─── Rationale & Notes ────────────────────────────────── */
+
+.edge-detail-rationale {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border-left: 3px solid var(--focus-ring);
+}
+
+.edge-detail-notes {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* ─── Metadata Grid ────────────────────────────────────── */
+
+.edge-detail-meta-grid {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edge-detail-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.edge-detail-meta-key {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  min-width: 70px;
+}
+
+.edge-detail-meta-value {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}

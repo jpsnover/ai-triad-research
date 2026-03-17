@@ -79,6 +79,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 
+  // Edges
+  loadEdges: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-edges'),
+
   // Debate sessions
   listDebateSessions: (): Promise<unknown[]> =>
     ipcRenderer.invoke('list-debate-sessions'),

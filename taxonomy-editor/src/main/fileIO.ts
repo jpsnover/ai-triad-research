@@ -92,3 +92,10 @@ export function deleteConflictFile(claimId: string): void {
   }
   fs.unlinkSync(filePath);
 }
+
+export function readEdgesFile(): unknown | null {
+  const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
+  if (!fs.existsSync(edgesPath)) return null;
+  const raw = fs.readFileSync(edgesPath, 'utf-8');
+  return JSON.parse(raw);
+}

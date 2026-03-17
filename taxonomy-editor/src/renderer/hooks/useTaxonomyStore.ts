@@ -9,6 +9,8 @@ import type {
   PovNode,
   CrossCuttingNode,
   GraphAttributes,
+  Edge,
+  EdgesFile,
   TabId,
   Pov,
   Category,
@@ -242,6 +244,14 @@ interface TaxonomyState {
   attributeInfo: { field: string; value: string } | null;
   showAttributeInfo: (field: string, value: string) => void;
   clearAttributeInfo: () => void;
+
+  edgesFile: EdgesFile | null;
+  edgesLoading: boolean;
+  relatedNodeId: string | null;
+  selectedEdge: Edge | null;
+  loadEdges: () => Promise<void>;
+  showRelatedEdges: (nodeId: string | null) => void;
+  selectEdge: (edge: Edge | null) => void;
 }
 
 export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
@@ -1261,4 +1271,30 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
   attributeInfo: null,
   showAttributeInfo: (field, value) => set({ attributeInfo: { field, value } }),
   clearAttributeInfo: () => set({ attributeInfo: null }),
+
+  edgesFile: null,
+  edgesLoading: false,
+  relatedNodeId: null,
+  selectedEdge: null,
+
+  loadEdges: async () => {
+    if (get().edgesFile) return; // already loaded
+    set({ edgesLoading: true });
+    try {
+      const raw = await window.electronAPI.loadEdges();
+      set({ edgesFile: raw as EdgesFile | null, edgesLoading: false });
+    } catch {
+      set({ edgesLoading: false });
+    }
+  },
+
+  showRelatedEdges: (nodeId) => {
+    set({ relatedNodeId: nodeId, selectedEdge: nodeId ? get().selectedEdge : null });
+    // Lazy-load edges on first use
+    if (nodeId && !get().edgesFile) {
+      get().loadEdges();
+    }
+  },
+
+  selectEdge: (edge) => set({ selectedEdge: edge }),
 }));

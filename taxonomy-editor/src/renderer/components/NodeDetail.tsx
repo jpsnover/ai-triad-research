@@ -18,10 +18,11 @@ interface NodeDetailProps {
   readOnly?: boolean;
   onPin?: () => void;
   onSimilarSearch?: () => void;
+  onRelated?: () => void;
   chipDepth?: number;
 }
 
-export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDepth = 0 }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
@@ -91,6 +92,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, chipDe
           >
             {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
           </button>
+          {onRelated && (
+            <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
+              Related
+            </button>
+          )}
           {onSimilarSearch && (
             <button className="btn btn-ghost btn-sm" onClick={onSimilarSearch} title="Find similar taxonomy elements">
               Similar Search

@@ -1,12 +1,21 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
+
+// ── Phase 7: Context menu state ──────────────────────────
+interface ContextMenuState {
+  x: number;
+  y: number;
+  selectedText: string;
+  entryId: string;
+  isPoverStatement: boolean;
+}
 
 const PHASE_TITLES: Record<string, string> = {
   setup: 'Setting up...',
@@ -103,8 +112,13 @@ function ProgressIndicator() {
 
 function StatementCard({ entry }: { entry: TranscriptEntry }) {
   const color = speakerColor(entry.speaker);
+  const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
   return (
-    <div className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}>
+    <div
+      className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}
+      data-entry-id={entry.id}
+      data-is-pover={isPover ? 'true' : 'false'}
+    >
       <div className="debate-statement-header">
         <span className="debate-statement-speaker" style={color ? { color } : undefined}>
           {speakerLabel(entry.speaker)}
@@ -152,6 +166,111 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Custom context menu for debate text selection */
+function DebateContextMenu({
+  menu,
+  onClose,
+}: {
+  menu: ContextMenuState;
+  onClose: () => void;
+}) {
+  const { factCheckSelection, debateGenerating } = useDebateStore();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(menu.selectedText);
+    onClose();
+  };
+
+  const handleSearchGoogle = () => {
+    const query = encodeURIComponent(menu.selectedText.slice(0, 200));
+    window.electronAPI.openExternal(`https://www.google.com/search?q=${query}`);
+    onClose();
+  };
+
+  const handleFactCheck = async () => {
+    onClose();
+    await factCheckSelection(menu.selectedText, menu.entryId);
+  };
+
+  const truncatedText = menu.selectedText.length > 40
+    ? menu.selectedText.slice(0, 37) + '...'
+    : menu.selectedText;
+
+  return (
+    <div
+      ref={menuRef}
+      className="debate-context-menu"
+      style={{ left: menu.x, top: menu.y }}
+    >
+      <button className="debate-context-menu-item" onClick={handleCopy}>
+        Copy
+      </button>
+      <button className="debate-context-menu-item" onClick={handleSearchGoogle}>
+        Search Google for &lsquo;{truncatedText}&rsquo;
+      </button>
+      {menu.isPoverStatement && (
+        <button
+          className="debate-context-menu-item debate-context-menu-fact-check"
+          onClick={handleFactCheck}
+          disabled={!!debateGenerating}
+        >
+          Fact check
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Fact-check result card */
+function FactCheckCard({ entry }: { entry: TranscriptEntry }) {
+  const factCheck = entry.metadata?.fact_check as {
+    verdict: string;
+    explanation: string;
+    checked_text: string;
+  } | undefined;
+
+  const verdictClass = factCheck?.verdict
+    ? `debate-fact-check-${factCheck.verdict}`
+    : '';
+
+  return (
+    <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
+      <div className="debate-statement-header">
+        <span className="debate-statement-speaker">Fact Check</span>
+        <span className={`debate-fact-check-verdict ${verdictClass}`}>
+          {factCheck?.verdict || 'unknown'}
+        </span>
+      </div>
+      <div className="debate-statement-content">{entry.content}</div>
+      {entry.taxonomy_refs.length > 0 && (
+        <div className="debate-taxonomy-refs">
+          {entry.taxonomy_refs.map((taxRef) => (
+            <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -469,16 +588,76 @@ function RefinedTopicEditor() {
 export function DebateWorkspace() {
   const {
     activeDebate, debateLoading, debateError, debateGenerating,
-    runClarification, runOpeningStatements,
+    runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
   } = useDebateStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredClarification = useRef(false);
   const hasTriggeredOpening = useRef(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeDebate?.transcript.length]);
+
+  // Phase 8: Auto-save debounced (2s after last change)
+  useEffect(() => {
+    if (!activeDebate) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveDebate();
+    }, 2000);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [activeDebate?.transcript.length, activeDebate?.updated_at, saveDebate]);
+
+  // Phase 8: Auto-compress context when transcript grows large
+  useEffect(() => {
+    if (!activeDebate || debateGenerating) return;
+    if (activeDebate.transcript.length >= 16) {
+      const lastSummaryIdx = activeDebate.context_summaries.length > 0
+        ? activeDebate.transcript.findIndex(
+            (e) => e.id === activeDebate.context_summaries[activeDebate.context_summaries.length - 1].up_to_entry_id,
+          )
+        : -1;
+      const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
+      if (uncompressed >= 8) {
+        compressOldTranscript();
+      }
+    }
+  }, [activeDebate?.transcript.length, debateGenerating]);
+
+  // Phase 7: Context menu handler
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() || '';
+    if (!selectedText) return; // No selection → use default browser menu
+
+    e.preventDefault();
+
+    // Walk up from the selection's anchor to find the statement card
+    let node = selection?.anchorNode as HTMLElement | null;
+    let entryId = '';
+    let isPoverStatement = false;
+    while (node && node !== e.currentTarget) {
+      if (node.dataset?.entryId) {
+        entryId = node.dataset.entryId;
+        isPoverStatement = node.dataset.isPover === 'true';
+        break;
+      }
+      node = node.parentElement;
+    }
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      selectedText,
+      entryId,
+      isPoverStatement,
+    });
+  }, []);
 
   // Auto-trigger clarification when entering clarification phase with no transcript
   useEffect(() => {
@@ -538,7 +717,7 @@ export function DebateWorkspace() {
       )}
 
       {/* Transcript */}
-      <div className="debate-transcript">
+      <div className="debate-transcript" onContextMenu={handleContextMenu}>
         {activeDebate.transcript.length === 0 && !debateGenerating && (
           <div className="debate-transcript-empty">
             The debate is ready to begin. Clarification questions will appear here.
@@ -547,6 +726,8 @@ export function DebateWorkspace() {
         {activeDebate.transcript.map((entry) => (
           entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} />
+            : entry.type === 'fact-check'
+            ? <FactCheckCard key={entry.id} entry={entry} />
             : <StatementCard key={entry.id} entry={entry} />
         ))}
         {debateGenerating && (
@@ -571,6 +752,14 @@ export function DebateWorkspace() {
       {isOpeningPhase && <OpeningActions />}
 
       {isDebatePhase && <DebateActions />}
+
+      {/* Phase 7: Context menu */}
+      {contextMenu && (
+        <DebateContextMenu
+          menu={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

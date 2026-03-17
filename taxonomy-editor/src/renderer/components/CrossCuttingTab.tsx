@@ -9,9 +9,11 @@ import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { PinnedPanel } from './PinnedPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
+import { RelatedEdgesPanel } from './RelatedEdgesPanel';
+import { EdgeDetailPanel } from './EdgeDetailPanel';
 
 export function CrossCuttingTab() {
-  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter, attributeInfo } = useTaxonomyStore();
+  const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter, attributeInfo, relatedNodeId, showRelatedEdges, selectedEdge } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: attrPaneWidth, onMouseDown: onAttrPaneResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-attr-filter-panel-width',
@@ -25,8 +27,22 @@ export function CrossCuttingTab() {
     minWidth: 300,
     maxWidth: 700,
   });
+  const { width: relatedPaneWidth, onMouseDown: onRelatedPaneResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-related-panel-width',
+    defaultWidth: 420,
+    minWidth: 300,
+    maxWidth: 800,
+  });
+  const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
+    storageKey: 'taxonomy-editor-edge-detail-width',
+    defaultWidth: 380,
+    minWidth: 280,
+    maxWidth: 700,
+  });
   const showAttrFilterPanel = attributeFilter !== null;
   const showInfoPanel = attributeInfo !== null;
+  const showRelatedPanel = relatedNodeId !== null;
+  const showEdgeDetail = selectedEdge !== null && showRelatedPanel;
 
   // Determine where info panel renders
   const hasPane3 = showAttrFilterPanel;
@@ -59,6 +75,40 @@ export function CrossCuttingTab() {
     }
   }, [showInfoPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Grow/shrink window when Related panel opens/closes
+  const prevShowRelated = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowRelated.current;
+    prevShowRelated.current = showRelatedPanel;
+    const delta = relatedPaneWidth + 4;
+    if (showRelatedPanel && !wasShowing) {
+      window.electronAPI.isMaximized().then((max) => { if (!max) window.electronAPI.growWindow(delta); });
+    } else if (!showRelatedPanel && wasShowing) {
+      window.electronAPI.isMaximized().then((max) => { if (!max) window.electronAPI.shrinkWindow(delta); });
+    }
+  }, [showRelatedPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grow/shrink window when Edge Detail panel opens/closes
+  const prevShowEdgeDetail = useRef(false);
+  useEffect(() => {
+    const wasShowing = prevShowEdgeDetail.current;
+    prevShowEdgeDetail.current = showEdgeDetail;
+    if (showEdgeDetail === wasShowing) return;
+    const delta = edgeDetailWidth + 4;
+    window.electronAPI.isMaximized().then((max) => {
+      if (max) return;
+      if (showEdgeDetail) window.electronAPI.growWindow(delta);
+      else window.electronAPI.shrinkWindow(delta);
+    });
+  }, [showEdgeDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh related edges when selection changes while panel is open
+  useEffect(() => {
+    if (showRelatedPanel && selectedNode) {
+      showRelatedEdges(selectedNode.id);
+    }
+  }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const orderedIds = useMemo(
     () => (crossCutting ? crossCutting.nodes.map(n => n.id) : []),
     [crossCutting],
@@ -87,6 +137,12 @@ export function CrossCuttingTab() {
     }
   };
 
+  const handleRelated = () => {
+    if (selectedNode) {
+      showRelatedEdges(selectedNode.id);
+    }
+  };
+
   return (
     <div className="two-column">
       <div className="list-panel" style={{ width }}>
@@ -111,7 +167,7 @@ export function CrossCuttingTab() {
       <div className="resize-handle" onMouseDown={onMouseDown} />
       <div className="detail-panel">
         {selectedNode ? (
-          <CrossCuttingDetail node={selectedNode} onPin={handlePin} />
+          <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} />
         ) : (
           <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
         )}
@@ -135,7 +191,21 @@ export function CrossCuttingTab() {
           <AttributeInfoPanel width={infoPaneWidth} />
         </>
       )}
-      {pinnedStack.length > 0 && !showAttrFilterPanel && !showInfoPanel && <PinnedPanel />}
+      {/* Related Edges Panel (Pane 3) */}
+      {showRelatedPanel && !showAttrFilterPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onRelatedPaneResize} />
+          <RelatedEdgesPanel width={relatedPaneWidth} />
+        </>
+      )}
+      {/* Edge Detail Panel (Pane 4) */}
+      {showEdgeDetail && !showAttrFilterPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onEdgeDetailResize} />
+          <EdgeDetailPanel width={edgeDetailWidth} />
+        </>
+      )}
+      {pinnedStack.length > 0 && !showAttrFilterPanel && !showInfoPanel && !showRelatedPanel && <PinnedPanel />}
     </div>
   );
 }
