@@ -330,15 +330,26 @@ function Finalize-Summary {
     }
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"
-    Set-Content -Path $SummaryPath -Value ($FinalSummary | ConvertTo-Json -Depth 20) -Encoding UTF8
+    try {
+        Set-Content -Path $SummaryPath -Value ($FinalSummary | ConvertTo-Json -Depth 20) -Encoding UTF8
+    }
+    catch {
+        Write-Host "  `u{2514}`u{2500} `u{2717} Failed to write summary: $($_.Exception.Message)" -ForegroundColor Red
+        return @{ Success = $false; DocId = $ThisDocId; Error = "Failed to write summary file: $($_.Exception.Message)" }
+    }
 
     # -- Update metadata.json -------------------------------------------------
-    $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-    $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
-    $MetaUpdated['summary_version'] = $TaxonomyVersion
-    $MetaUpdated['summary_status']  = 'current'
-    $MetaUpdated['summary_updated'] = $Now
-    Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+    try {
+        $MetaRaw     = Get-Content $Doc.MetaFile -Raw
+        $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
+        $MetaUpdated['summary_version'] = $TaxonomyVersion
+        $MetaUpdated['summary_status']  = 'current'
+        $MetaUpdated['summary_updated'] = $Now
+        Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+    }
+    catch {
+        Write-Host "  `u{2502}  `u{26A0} Summary written but metadata update failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 
     Write-Host "  `u{2514}`u{2500} `u{2713} Done: summaries/$ThisDocId.json" -ForegroundColor Green
 

@@ -69,8 +69,9 @@ function Find-Conflict {
         }
     }
 
+    $writeErrors = 0
     foreach ($claim in $claims) {
-
+      try {
         $claimText   = $claim["claim"]
         $claimLabel  = $claim["claim_label"]
         $docPosition = $claim["doc_position"]
@@ -170,6 +171,15 @@ function Find-Conflict {
                 $created++
             }
         }
+      }
+      catch {
+        $writeErrors++
+        Write-Warn "  Failed to write conflict file for claim — $($_.Exception.Message)"
+      }
+    }
+
+    if ($writeErrors -gt 0) {
+        Write-Warn "$writeErrors conflict file write(s) failed. Check disk space and permissions."
     }
 
     # -- Return result object ------------------------------------------------

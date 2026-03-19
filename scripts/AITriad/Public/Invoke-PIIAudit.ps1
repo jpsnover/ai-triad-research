@@ -57,6 +57,11 @@ function Invoke-PIIAudit {
             $Content = Get-Content -Path $File.FullName -Raw -Encoding utf8 -ErrorAction Stop
         }
         catch {
+            $Findings.Add([PSCustomObject]@{
+                File  = $RelativePath
+                Type  = 'UNREADABLE'
+                Match = "Could not read file: $($_.Exception.Message)"
+            })
             continue
         }
 

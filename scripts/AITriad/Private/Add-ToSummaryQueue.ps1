@@ -9,12 +9,23 @@ function Add-ToSummaryQueue {
     $QueueFile = Join-Path $script:RepoRoot '.summarise-queue.json'
     $Queue = @()
     if (Test-Path $QueueFile) {
-        try { $Queue = Get-Content $QueueFile -Raw | ConvertFrom-Json } catch {}
-        if ($null -eq $Queue) { $Queue = @() }
+        try {
+            $Raw = Get-Content $QueueFile -Raw | ConvertFrom-Json
+            $Queue = @($Raw)
+        }
+        catch {
+            Write-Warn "Failed to read summary queue ($QueueFile) — $($_.Exception.Message). Starting fresh."
+            $Queue = @()
+        }
     }
     if ($DocId -notin $Queue) {
         $Queue += $DocId
-        $Queue | ConvertTo-Json | Set-Content $QueueFile -Encoding UTF8
-        Write-Info "Added to summary queue: $QueueFile"
+        try {
+            @($Queue) | ConvertTo-Json | Set-Content $QueueFile -Encoding UTF8
+            Write-Info "Added to summary queue: $QueueFile"
+        }
+        catch {
+            Write-Warn "Failed to write summary queue — $($_.Exception.Message)"
+        }
     }
 }

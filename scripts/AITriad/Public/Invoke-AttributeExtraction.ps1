@@ -296,8 +296,15 @@ $SchemaPrompt
                 # Update last_modified
                 $FileData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
                 $Json = $FileData | ConvertTo-Json -Depth 20
-                Set-Content -Path $FilePath -Value $Json -Encoding UTF8
-                Write-OK "Saved $PovKey ($FilePath)"
+                try {
+                    Set-Content -Path $FilePath -Value $Json -Encoding UTF8
+                    Write-OK "Saved $PovKey ($FilePath)"
+                }
+                catch {
+                    Write-Fail "Failed to write $PovKey taxonomy file — $($_.Exception.Message)"
+                    Write-Info "Attributes were extracted but NOT saved to disk."
+                    throw
+                }
             }
         }
     }

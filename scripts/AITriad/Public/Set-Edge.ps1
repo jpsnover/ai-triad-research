@@ -180,8 +180,15 @@ function Set-Edge {
         if ($Modified) {
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
             $Json = $EdgesData | ConvertTo-Json -Depth 20
-            Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
-            Write-OK "Updated $ModifiedCount edge(s) in $EdgesPath"
+            try {
+                Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
+                Write-OK "Updated $ModifiedCount edge(s) in $EdgesPath"
+            }
+            catch {
+                Write-Fail "Failed to write edges.json — $($_.Exception.Message)"
+                Write-Info "Changes were made in memory but NOT saved to disk. Try again or check file permissions."
+                throw
+            }
         }
 
         if ($PassThru -and $Indices.Count -gt 0) {

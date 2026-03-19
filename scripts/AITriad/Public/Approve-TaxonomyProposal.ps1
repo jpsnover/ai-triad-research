@@ -229,9 +229,15 @@ function Approve-TaxonomyProposal {
 
     # Save updated proposal file with statuses
     if ($PSCmdlet.ShouldProcess($Path, 'Write updated proposal file')) {
-        $Json = $ProposalData | ConvertTo-Json -Depth 20
-        Set-Content -Path $Path -Value $Json -Encoding UTF8
-        Write-OK "Saved $Path"
+        try {
+            $Json = $ProposalData | ConvertTo-Json -Depth 20
+            Set-Content -Path $Path -Value $Json -Encoding UTF8
+            Write-OK "Saved $Path"
+        }
+        catch {
+            Write-Fail "Failed to write proposal file — $($_.Exception.Message)"
+            Write-Info "Proposal statuses were NOT saved. Check file permissions and try again."
+        }
     }
 
     # Post-apply reminders

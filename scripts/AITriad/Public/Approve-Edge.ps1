@@ -18,6 +18,11 @@ function Approve-Edge {
         Set the edge status to 'rejected'.
     .PARAMETER Interactive
         Interactively review all proposed edges one by one.
+    .PARAMETER BulkApprove
+        Approve all proposed edges that meet the MinConfidence threshold.
+    .PARAMETER MinConfidence
+        Minimum confidence score for bulk approval (0.0-1.0). Default: 0.8.
+        Only used with -BulkApprove.
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
@@ -26,6 +31,10 @@ function Approve-Edge {
         Approve-Edge -Index 5 -Reject
     .EXAMPLE
         Approve-Edge -Interactive
+    .EXAMPLE
+        Approve-Edge -BulkApprove -MinConfidence 0.8
+    .EXAMPLE
+        Approve-Edge -BulkApprove -MinConfidence 0.9
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -36,6 +45,11 @@ function Approve-Edge {
         [switch]$Reject,
 
         [switch]$Interactive,
+
+        [switch]$BulkApprove,
+
+        [ValidateRange(0.0, 1.0)]
+        [double]$MinConfidence = 0.8,
 
         [string]$RepoRoot = $script:RepoRoot
     )
@@ -114,6 +128,26 @@ function Approve-Edge {
 
         Write-Host ''
         Write-Host "Review complete: $ApprovedCount approved, $RejectedCount rejected, $SkippedCount skipped" -ForegroundColor Cyan
+    } elseif ($BulkApprove) {
+        $Candidates = @()
+        for ($i = 0; $i -lt $EdgesData.edges.Count; $i++) {
+            $E = $EdgesData.edges[$i]
+            if ($E.status -eq 'proposed' -and $E.confidence -ge $MinConfidence) {
+                $Candidates += [PSCustomObject]@{ Index = $i; Edge = $E }
+            }
+        }
+
+        if ($Candidates.Count -eq 0) {
+            Write-OK "No proposed edges with confidence >= $MinConfidence"
+            return
+        }
+
+        if ($PSCmdlet.ShouldProcess("$($Candidates.Count) edges with confidence >= $MinConfidence", 'Bulk approve')) {
+            foreach ($Item in $Candidates) {
+                $EdgesData.edges[$Item.Index].status = 'approved'
+            }
+            Write-OK "Bulk approved $($Candidates.Count) edges (confidence >= $MinConfidence)"
+        }
     } elseif ($Index -ge 0) {
         if ($Index -ge $EdgesData.edges.Count) {
             Write-Fail "Edge index $Index out of range (0-$($EdgesData.edges.Count - 1))"
@@ -137,7 +171,7 @@ function Approve-Edge {
             Write-OK "Edge $Index ($($E.source) --[$($E.type)]--> $($E.target)): $NewStatus"
         }
     } else {
-        Write-Fail 'Specify -Index with -Approve/-Reject, or use -Interactive.'
+        Write-Fail 'Specify -Index with -Approve/-Reject, -Interactive, or -BulkApprove.'
         return
     }
 
@@ -145,7 +179,14 @@ function Approve-Edge {
     if ($PSCmdlet.ShouldProcess($EdgesPath, 'Write updated edges file')) {
         $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
         $Json = $EdgesData | ConvertTo-Json -Depth 20
-        Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
-        Write-OK "Saved $EdgesPath"
+        try {
+            Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
+            Write-OK "Saved $EdgesPath"
+        }
+        catch {
+            Write-Fail "Failed to write edges.json — $($_.Exception.Message)"
+            Write-Info "Approval changes were NOT saved. Check file permissions and try again."
+            throw
+        }
     }
 }

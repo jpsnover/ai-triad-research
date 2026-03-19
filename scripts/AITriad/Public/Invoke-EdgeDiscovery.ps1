@@ -443,8 +443,15 @@ $SchemaPrompt
         if ($PSCmdlet.ShouldProcess($EdgesPath, 'Write edges file')) {
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
             $Json = $EdgesData | ConvertTo-Json -Depth 20
-            Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
-            Write-OK "Saved edges to $EdgesPath"
+            try {
+                Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
+                Write-OK "Saved edges to $EdgesPath"
+            }
+            catch {
+                Write-Fail "Failed to write edges.json — $($_.Exception.Message)"
+                Write-Info "$TotalEdges edges were discovered but NOT saved. Check file permissions and try again."
+                throw
+            }
         }
     }
 

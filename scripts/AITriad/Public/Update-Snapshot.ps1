@@ -152,7 +152,7 @@ function Update-Snapshot {
 
             $FinalContent = if ($Header) { $Header + "`n" + $NewMarkdown } else { $NewMarkdown }
 
-            Set-Content -Path $SnapshotPath -Value $FinalContent -Encoding UTF8
+            Set-Content -Path $SnapshotPath -Value $FinalContent -Encoding UTF8 -ErrorAction Stop
             Write-Host "   snapshot.md updated ($([int]$FinalContent.Length) chars)" -ForegroundColor Green
 
         } catch {

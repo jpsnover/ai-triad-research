@@ -12,6 +12,7 @@ function Merge-ChunkSummaries {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Merge key_points per camp ────────────────────────────────────────────
     $Camps = @('accelerationist', 'safetyist', 'skeptic')
@@ -72,7 +73,8 @@ function Merge-ChunkSummaries {
         if (-not $Chunk.unmapped_concepts) { continue }
 
         foreach ($Concept in $Chunk.unmapped_concepts) {
-            $LabelKey = if ($Concept.suggested_label) {
+            $HasLabel = $Concept.PSObject.Properties['suggested_label'] -and $Concept.suggested_label
+            $LabelKey = if ($HasLabel) {
                 $Concept.suggested_label.ToLowerInvariant().Trim()
             } else {
                 "unknown-$($AllUnmapped.Count)"

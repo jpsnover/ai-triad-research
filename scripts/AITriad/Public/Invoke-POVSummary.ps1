@@ -348,22 +348,34 @@ $snapshotText
     }
 
     $summaryJson = $finalSummary | ConvertTo-Json -Depth 20
-    Set-Content -Path $paths.SummaryFile -Value $summaryJson -Encoding UTF8
-
-    Write-OK "Summary written to: summaries/$DocId.json"
+    try {
+        Set-Content -Path $paths.SummaryFile -Value $summaryJson -Encoding UTF8
+        Write-OK "Summary written to: summaries/$DocId.json"
+    }
+    catch {
+        Write-Fail "Failed to write summary file — $($_.Exception.Message)"
+        Write-Info "AI response was valid but could not be saved. Check disk space and permissions."
+        throw
+    }
 
     # -- STEP 8 — Update metadata.json ----------------------------------------
     Write-Step "Updating metadata"
 
-    $metaRaw     = Get-Content $paths.MetadataFile -Raw
-    $metaUpdated = $metaRaw | ConvertFrom-Json -AsHashtable
+    try {
+        $metaRaw     = Get-Content $paths.MetadataFile -Raw
+        $metaUpdated = $metaRaw | ConvertFrom-Json -AsHashtable
 
-    $metaUpdated["summary_version"] = $taxonomyVersion
-    $metaUpdated["summary_status"]  = "current"
-    $metaUpdated["summary_updated"] = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+        $metaUpdated["summary_version"] = $taxonomyVersion
+        $metaUpdated["summary_status"]  = "current"
+        $metaUpdated["summary_updated"] = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
-    Set-Content -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
-    Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
+        Set-Content -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+        Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
+    }
+    catch {
+        Write-Warn "Summary written but metadata update failed — $($_.Exception.Message)"
+        Write-Info "Run Invoke-POVSummary -Force -DocId '$DocId' to retry."
+    }
 
     # -- STEP 9 — Conflict detection ------------------------------------------
     Write-Step "Running conflict detection"

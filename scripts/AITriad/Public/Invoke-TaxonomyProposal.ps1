@@ -318,8 +318,15 @@ $CoverageBalanceJson
     }
 
     $ProposalJson = $FinalProposal | ConvertTo-Json -Depth 20
-    Set-Content -Path $OutputFile -Value $ProposalJson -Encoding UTF8
-    Write-OK "Proposal written to: $OutputFile"
+    try {
+        Set-Content -Path $OutputFile -Value $ProposalJson -Encoding UTF8
+        Write-OK "Proposal written to: $OutputFile"
+    }
+    catch {
+        Write-Fail "Failed to write proposal file — $($_.Exception.Message)"
+        Write-Info "Proposal data was generated but NOT saved. Check path and permissions."
+        throw
+    }
 
     # ── 10. Print human-readable summary ───────────────────────────────────────
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan

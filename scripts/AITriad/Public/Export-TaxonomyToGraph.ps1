@@ -181,6 +181,7 @@ function Export-TaxonomyToGraph {
     Write-Step 'Exporting edges'
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $EdgeCount = 0
+    $EdgeFailCount = 0
 
     if (Test-Path $EdgesPath) {
         $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
@@ -218,16 +219,22 @@ SET $SetParts
                 $null = Invoke-Cypher -Query $Query -Parameters $EdgeProps
                 $EdgeCount++
             } catch {
+                $EdgeFailCount++
                 Write-Warn "Edge $($Edge.source) → $($Edge.target): $_"
             }
         }
     }
-    Write-OK "Exported $EdgeCount edges"
+    if ($EdgeFailCount -gt 0) {
+        Write-Warn "Exported $EdgeCount edges ($EdgeFailCount failed)"
+    } else {
+        Write-OK "Exported $EdgeCount edges"
+    }
 
     # ── Step 6: Export conflicts ──
     Write-Step 'Exporting conflicts'
     $ConflictDir = Join-Path $RepoRoot 'conflicts'
     $ConflictCount = 0
+    $ConflictFailCount = 0
 
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
@@ -263,11 +270,16 @@ MERGE (c)-[:LINKED_TO]->(n)
 
                 $ConflictCount++
             } catch {
+                $ConflictFailCount++
                 Write-Warn "Conflict $($File.Name): $_"
             }
         }
     }
-    Write-OK "Exported $ConflictCount conflicts"
+    if ($ConflictFailCount -gt 0) {
+        Write-Warn "Exported $ConflictCount conflicts ($ConflictFailCount failed)"
+    } else {
+        Write-OK "Exported $ConflictCount conflicts"
+    }
 
     # ── Step 7: Export embeddings (optional) ──
     if ($IncludeEmbeddings) {
