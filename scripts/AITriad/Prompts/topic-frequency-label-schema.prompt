@@ -1,0 +1,25 @@
+OUTPUT SCHEMA:
+
+Return a JSON object with cluster labels keyed by "<pov>_<index>":
+
+{
+  "accelerationist_0": {
+    "topic_label": "Labor Market Transformation",
+    "topic_summary": "Covers job displacement statistics, automation benefits, and workforce evolution across multiple sectors."
+  },
+  "accelerationist_1": {
+    "topic_label": "Open Source Innovation",
+    "topic_summary": "Discusses the role of open-source AI in democratizing access and accelerating research progress."
+  },
+  "safetyist_0": {
+    "topic_label": "Alignment and Control",
+    "topic_summary": "Addresses technical challenges of ensuring AI systems remain aligned with human values and under human control."
+  }
+}
+
+CONSTRAINTS:
+  - Every cluster from the input MUST have a corresponding entry in the output.
+  - Keys MUST be in the format "<pov>_<index>" matching the input clusters.
+  - "topic_label" MUST be 3-6 words.
+  - "topic_summary" MUST be 1-2 sentences.
+  - Return ONLY the JSON object. No markdown, no commentary.

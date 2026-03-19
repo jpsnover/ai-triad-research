@@ -133,6 +133,7 @@ Export-ModuleMember -Function @(
     'Install-GraphDatabase'
     'Invoke-CypherQuery'
     'Show-GraphOverview'
+    'Get-TopicFrequency'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -49,6 +49,7 @@
         'Install-GraphDatabase'
         'Invoke-CypherQuery'
         'Show-GraphOverview'
+        'Get-TopicFrequency'
     )
 
     # Aliases exported from this module
