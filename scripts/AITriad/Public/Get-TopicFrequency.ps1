@@ -64,6 +64,19 @@ function Get-TopicFrequency {
         $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
     }
 
+    # ── Validate environment ─────────────────────────────────────────────────
+    if (-not (Test-Path $RepoRoot)) {
+        Write-Fail "Repository root not found: $RepoRoot"
+        throw "Repository root not found: $RepoRoot"
+    }
+
+    $SummariesDir = Join-Path $RepoRoot 'summaries'
+    if (-not (Test-Path $SummariesDir)) {
+        Write-Fail "Summaries directory not found: $SummariesDir"
+        Write-Info "Run Invoke-POVSummary to generate summaries first."
+        throw "Summaries directory not found: $SummariesDir"
+    }
+
     # ── Build node index ─────────────────────────────────────────────────────
     Write-Step "Building node index"
     $NodeIndex = @{}
@@ -85,11 +98,6 @@ function Get-TopicFrequency {
 
     # ── Step 1: Scan summaries and build citation counts ─────────────────────
     Write-Step "Scanning summaries for citations"
-    $SummariesDir = Join-Path $RepoRoot 'summaries'
-    if (-not (Test-Path $SummariesDir)) {
-        Write-Fail "Summaries directory not found: $SummariesDir"
-        return
-    }
 
     $SummaryFiles = @(Get-ChildItem -Path $SummariesDir -Filter '*.json' -File)
     $SummaryCount = $SummaryFiles.Count
@@ -260,6 +268,7 @@ function Get-TopicFrequency {
 
     # ── Step 4: Label clusters ───────────────────────────────────────────────
     $AILabeled = $false
+    $Labels    = $null
 
     if (-not $NoAI) {
         Write-Step "Labeling clusters with AI"
@@ -341,7 +350,7 @@ function Get-TopicFrequency {
             $Key     = "$($Camp)_$i"
 
             # Determine label and summary
-            if ($AILabeled -and $Labels.PSObject.Properties[$Key]) {
+            if ($AILabeled -and $null -ne $Labels -and $Labels.PSObject.Properties[$Key]) {
                 $TopicLabel   = $Labels.$Key.topic_label
                 $TopicSummary = $Labels.$Key.topic_summary
             }
@@ -412,9 +421,15 @@ function Get-TopicFrequency {
 
     # ── JSON export ──────────────────────────────────────────────────────────
     if ($OutputFile) {
-        $Json = $Result | ConvertTo-Json -Depth 20
-        Set-Content -Path $OutputFile -Value $Json -Encoding UTF8
-        Write-OK "Exported to $OutputFile"
+        try {
+            $Json = $Result | ConvertTo-Json -Depth 20
+            Set-Content -Path $OutputFile -Value $Json -Encoding UTF8
+            Write-OK "Exported to $OutputFile"
+        }
+        catch {
+            Write-Warn "Failed to write $OutputFile — $($_.Exception.Message)"
+            Write-Info "Results are still returned to the pipeline."
+        }
     }
 
     return $Result

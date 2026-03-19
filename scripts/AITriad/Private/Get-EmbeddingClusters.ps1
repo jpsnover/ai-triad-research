@@ -19,6 +19,7 @@ function Get-EmbeddingClusters {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # Filter to nodes that have embeddings
     $Ids = @($NodeIds | Where-Object { $Embeddings.ContainsKey($_) })
@@ -27,6 +28,10 @@ function Get-EmbeddingClusters {
     # Cosine similarity between two vectors
     $CosineSim = {
         param([double[]]$A, [double[]]$B)
+        if ($A.Length -ne $B.Length) {
+            Write-Warning "Vector length mismatch ($($A.Length) vs $($B.Length)) — returning 0.0"
+            return 0.0
+        }
         $Dot   = 0.0
         $NormA = 0.0
         $NormB = 0.0
