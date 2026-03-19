@@ -1,0 +1,356 @@
+[
+  {
+    "lineage_item": "Defense in depth (cybersecurity)",
+    "display_name": "Defense In Depth (Cybersecurity)",
+    "summary": "Defense in depth is a cybersecurity strategy that uses multiple layers of security controls to protect information and systems. Instead of relying on a single point of defense, it assumes that any single security measure might fail, so redundant layers are put in place. This approach is crucial for AI policy to ensure the resilience and security of AI systems, which can be vulnerable to various attacks.",
+    "taxonomy_appearance": "This concept informs discussions on AI system security architectures and resilience strategies.",
+    "policy_implication": "Policies can mandate multi-layered security for critical AI deployments to protect against cyber threats.",
+    "references": [
+      {
+        "name": "Defense in depth (computing)",
+        "url": "https://en.wikipedia.org/wiki/Defense_in_depth_(computing)"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Statistical Modeling",
+    "display_name": "Statistical Modeling",
+    "summary": "Statistical modeling involves using mathematical equations to represent relationships between different variables in data. It's a fundamental tool in many scientific fields and forms the bedrock of most modern AI and machine learning algorithms. Understanding statistical modeling is essential for AI policy to evaluate AI system performance, identify biases, and assess the reliability and uncertainty of AI predictions.",
+    "taxonomy_appearance": "It underpins the technical foundations of many AI/ML algorithms and their interpretability.",
+    "policy_implication": "Policy relies on statistical methods to evaluate AI performance, fairness, and risk, ensuring robust governance.",
+    "references": [
+      {
+        "name": "Statistical model",
+        "url": "https://en.wikipedia.org/wiki/Statistical_model"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Systems theory of unintended consequences",
+    "display_name": "Systems Theory Of Unintended Consequences",
+    "summary": "This theory suggests that actions within complex systems often lead to unforeseen and sometimes negative outcomes, even when intentions are good. It emphasizes that systems are interconnected, and changes in one part can ripple through others in unpredictable ways. For AI policy, this highlights the need to anticipate and mitigate emergent behaviors, ethical dilemmas, and broader societal impacts that might arise from deploying AI systems.",
+    "taxonomy_appearance": "This theory helps frame discussions around AI's broader societal impacts and risks, particularly emergent behaviors.",
+    "policy_implication": "Policymakers must consider systemic risks and potential negative externalities when regulating AI, fostering adaptive governance.",
+    "references": [
+      {
+        "name": "Unintended consequences",
+        "url": "https://en.wikipedia.org/wiki/Unintended_consequences"
+      },
+      {
+        "name": "Systems theory",
+        "url": "https://en.wikipedia.org/wiki/Systems_theory"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Tacit knowledge theory (Polanyi)",
+    "display_name": "Tacit Knowledge Theory (Polanyi)",
+    "summary": "Tacit knowledge refers to knowledge that is difficult to articulate, formalize, or transfer to others, such as knowing how to ride a bike or recognizing a familiar face. Philosopher Michael Polanyi argued that 'we know more than we can tell.' This theory is relevant to AI policy because it highlights the limitations of AI in fully capturing human expertise and the enduring value of human judgment and oversight, especially in complex or nuanced decision-making contexts.",
+    "taxonomy_appearance": "It highlights the limitations of AI in fully replicating human understanding and expertise, emphasizing human-in-the-loop needs.",
+    "policy_implication": "Policies should emphasize human-in-the-loop approaches where tacit knowledge is critical, ensuring human oversight.",
+    "references": [
+      {
+        "name": "Tacit knowledge",
+        "url": "https://en.wikipedia.org/wiki/Tacit_knowledge"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technical debt concept (Ward Cunningham)",
+    "display_name": "Technical Debt Concept (Ward Cunningham)",
+    "summary": "Technical debt is a metaphor from software development that describes the eventual cost of choosing an easy, limited solution now instead of a better approach that would take longer. It's like taking a shortcut that saves time initially but creates more work later. In AI policy, this concept applies to the long-term consequences of rushed AI development, poor data governance, or insufficient testing, which can lead to future security vulnerabilities, ethical issues, or costly maintenance.",
+    "taxonomy_appearance": "This concept is relevant to the long-term maintainability, security, and ethical implications of AI systems.",
+    "policy_implication": "Policies can encourage best practices in AI development to minimize future technical debt and associated risks.",
+    "references": [
+      {
+        "name": "Technical debt",
+        "url": "https://en.wikipedia.org/wiki/Technical_debt"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Techno-solutionism",
+    "display_name": "Techno-Solutionism",
+    "summary": "Techno-solutionism is the belief that all complex social and political problems can be solved, or even should be solved, by technological means. It often overlooks the underlying social, economic, or ethical causes of problems, focusing instead on quick technological fixes. In AI policy, this concept serves as a warning against over-reliance on AI to solve societal challenges without addressing root causes or considering the potential for AI to create new problems or exacerbate existing inequalities.",
+    "taxonomy_appearance": "It serves as a cautionary lens when evaluating the scope and limits of AI's problem-solving capabilities.",
+    "policy_implication": "Policymakers should avoid techno-solutionist pitfalls by adopting holistic approaches to societal challenges, not just technological ones.",
+    "references": [
+      {
+        "name": "Solutionism",
+        "url": "https://en.wikipedia.org/wiki/Solutionism"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technological S-curves",
+    "display_name": "Technological S-Curves",
+    "summary": "Technological S-curves illustrate the typical pattern of a technology's performance improvement and adoption over time. They show an initial period of slow growth, followed by rapid acceleration, and then a leveling off as the technology matures. For AI policy, understanding S-curves helps predict the trajectory of AI development, its market penetration, and the timing for effective policy interventions, such as regulation or investment strategies.",
+    "taxonomy_appearance": "This concept helps model the diffusion and maturation of AI technologies over time, informing strategic planning.",
+    "policy_implication": "Policymakers can use S-curves to anticipate future AI capabilities and societal impacts, informing proactive regulation.",
+    "references": [
+      {
+        "name": "S-curve (technology)",
+        "url": "https://en.wikipedia.org/wiki/S-curve_(technology)"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technological determinism (soft)",
+    "display_name": "Technological Determinism (Soft)",
+    "summary": "Soft technological determinism is the idea that technology plays a significant, but not exclusive or inevitable, role in shaping society and culture. It suggests that while technology opens up certain possibilities and influences human behavior, human choices, social factors, and policies still have agency in directing its development and impact. In AI policy, this perspective acknowledges AI's transformative power while emphasizing that society can and must actively shape AI's trajectory through governance and ethical considerations.",
+    "taxonomy_appearance": "It provides a framework for understanding the relationship between AI development and societal change, emphasizing human agency.",
+    "policy_implication": "Policies can guide AI's trajectory, demonstrating that technology's impact is not predetermined but shaped by human decisions.",
+    "references": [
+      {
+        "name": "Technological determinism",
+        "url": "https://en.wikipedia.org/wiki/Technological_determinism"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technological unemployment debates",
+    "display_name": "Technological Unemployment Debates",
+    "summary": "These debates revolve around the long-standing question of whether technological advancements, particularly automation and AI, will lead to widespread job displacement or ultimately create new jobs and increase overall prosperity. Historically, technology has often created more jobs than it destroyed, but concerns persist about the pace and scale of AI's impact. For AI policy, these debates highlight the urgent need for strategies to manage workforce transitions, invest in education and retraining, and potentially explore new social safety nets.",
+    "taxonomy_appearance": "This lineage item directly addresses the economic and social impacts of AI on labor markets and future employment.",
+    "policy_implication": "Policies related to education, retraining, and social welfare are crucial in mitigating the potential negative effects of AI on employment.",
+    "references": [
+      {
+        "name": "Technological unemployment",
+        "url": "https://en.wikipedia.org/wiki/Technological_unemployment"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technology adoption lifecycle",
+    "display_name": "Technology Adoption Lifecycle",
+    "summary": "The technology adoption lifecycle describes the sociological model of how new technologies are adopted by different groups within a population over time. It typically categorizes adopters into innovators, early adopters, early majority, late majority, and laggards. For AI policy, this concept helps in understanding how AI technologies diffuse through society, identifying barriers to adoption, and designing targeted interventions or regulations for different segments of the population or industry.",
+    "taxonomy_appearance": "It describes the process by which AI technologies are integrated into society and various sectors.",
+    "policy_implication": "Policies can be tailored to different stages of AI adoption to maximize benefits and minimize risks for various user groups.",
+    "references": [
+      {
+        "name": "Technology adoption lifecycle",
+        "url": "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technology adoption lifecycle models",
+    "display_name": "Technology Adoption Lifecycle Models",
+    "summary": "These models provide structured frameworks for understanding and predicting how new technologies are accepted and integrated into society. They often detail the characteristics of different adopter groups and the factors influencing their decisions. For AI policy, these models offer valuable tools to forecast AI diffusion, identify potential resistance, and develop effective strategies for promoting beneficial AI adoption while addressing concerns across diverse user segments.",
+    "taxonomy_appearance": "These models offer structured ways to analyze and predict the spread of AI technologies and their societal integration.",
+    "policy_implication": "Policymakers can leverage these models to craft targeted strategies for promoting responsible AI adoption and mitigating associated risks.",
+    "references": [
+      {
+        "name": "Technology adoption lifecycle",
+        "url": "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle"
+      },
+      {
+        "name": "Diffusion of innovations",
+        "url": "https://en.wikipedia.org/wiki/Diffusion_of_innovations"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Technology adoption models",
+    "display_name": "Technology Adoption Models",
+    "summary": "Technology adoption models are theoretical frameworks that explain the factors influencing an individual's or organization's decision to accept and use new technologies. Examples include the Technology Acceptance Model (TAM) or Diffusion of Innovations theory. For AI policy, these models help identify key drivers and barriers to AI uptake, allowing policymakers to design effective incentives, educational programs, or regulatory frameworks that encourage responsible and widespread AI adoption.",
+    "taxonomy_appearance": "This category encompasses various theories explaining the drivers and barriers to AI adoption across different contexts.",
+    "policy_implication": "Understanding these models helps policymakers design effective incentives and regulations to guide AI adoption in desired directions.",
+    "references": [
+      {
+        "name": "Technology acceptance model",
+        "url": "https://en.wikipedia.org/wiki/Technology_acceptance_model"
+      },
+      {
+        "name": "Diffusion of innovations",
+        "url": "https://en.wikipedia.org/wiki/Diffusion_of_innovations"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Thomas Kuhn's Structure of Scientific Revolutions",
+    "display_name": "Thomas Kuhn's Structure Of Scientific Revolutions",
+    "summary": "Thomas Kuhn's influential work introduced the concept of 'paradigm shifts,' arguing that scientific progress isn't linear but occurs through periods of 'normal science' punctuated by revolutionary changes that fundamentally alter our understanding of the world. For AI policy, this framework suggests that AI could represent a new scientific and societal paradigm, challenging existing assumptions about intelligence, work, and ethics. Policymakers must be prepared for such profound shifts, requiring adaptive and forward-looking governance.",
+    "taxonomy_appearance": "It offers a lens to understand how AI might fundamentally reshape scientific inquiry and societal norms, leading to paradigm shifts.",
+    "policy_implication": "Policymakers must be prepared for paradigm shifts induced by AI, requiring adaptive and forward-looking governance.",
+    "references": [
+      {
+        "name": "The Structure of Scientific Revolutions",
+        "url": "https://en.wikipedia.org/wiki/The_Structure_of_Scientific_Revolutions"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Tragedy of the commons",
+    "display_name": "Tragedy Of The Commons",
+    "summary": "The tragedy of the commons is an economic problem where individuals, acting independently and rationally according to their own self-interest, deplete a shared limited resource, even when it is not in anyone's long-term interest. This concept is highly relevant to AI policy when considering shared resources like public data, computational infrastructure, or even the 'AI commons' of open-source models. Unregulated or purely self-interested use could lead to negative outcomes such as data exploitation, resource monopolization, or the proliferation of harmful AI.",
+    "taxonomy_appearance": "This concept informs discussions on the governance of shared AI resources, data, and infrastructure.",
+    "policy_implication": "Policies are needed to establish rules and incentives for the sustainable and equitable use of shared AI-related resources.",
+    "references": [
+      {
+        "name": "Tragedy of the commons",
+        "url": "https://en.wikipedia.org/wiki/Tragedy_of_the_commons"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Universal Basic Income advocacy",
+    "display_name": "Universal Basic Income Advocacy",
+    "summary": "Universal Basic Income (UBI) advocacy promotes the idea of a regular, unconditional cash payment delivered to all citizens, regardless of their income, wealth, or employment status. This concept has gained significant attention in discussions about the future of work. For AI policy, UBI is often proposed as a potential solution to widespread technological unemployment caused by AI automation, aiming to ensure economic stability, reduce poverty, and maintain social equity in an AI-driven economy.",
+    "taxonomy_appearance": "It is a proposed policy response to the potential economic disruptions and job displacement caused by AI and automation.",
+    "policy_implication": "Policymakers consider UBI as a potential tool to address income inequality and job displacement in an AI-driven future.",
+    "references": [
+      {
+        "name": "Universal basic income",
+        "url": "https://en.wikipedia.org/wiki/Universal_basic_income"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Usability engineering",
+    "display_name": "Usability Engineering",
+    "summary": "Usability engineering is a field focused on designing systems and products that are easy to use, efficient, and satisfying for users. It involves understanding user needs, testing interfaces, and iterating on designs to improve the user experience. For AI policy, usability engineering emphasizes the critical need for AI systems to be designed with human users in mind, ensuring clarity, control, and understandable interactions, especially in high-stakes applications like healthcare or autonomous vehicles. This promotes trust and reduces errors.",
+    "taxonomy_appearance": "It highlights the importance of human-centered design in the development and deployment of AI systems.",
+    "policy_implication": "Policies can mandate usability standards for AI systems, particularly those interacting with the public or in high-stakes environments.",
+    "references": [
+      {
+        "name": "Usability engineering",
+        "url": "https://en.wikipedia.org/wiki/Usability_engineering"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Value alignment research",
+    "display_name": "Value Alignment Research",
+    "summary": "Value alignment research is a critical area of study focused on ensuring that advanced AI systems operate in a way that is consistent with human values, ethics, and intentions. The goal is to prevent AI from pursuing goals that, while seemingly rational to the AI, could lead to unintended or harmful outcomes for humanity. For AI policy, this research is foundational for developing safe, ethical, and beneficial AI, guiding the creation of technical and governance mechanisms to ensure AI systems serve human flourishing.",
+    "taxonomy_appearance": "This research area is central to ensuring AI systems operate ethically and in humanity's best interest, mitigating risks.",
+    "policy_implication": "Policies can support and incentivize research into value alignment to mitigate risks from advanced AI systems.",
+    "references": [
+      {
+        "name": "AI alignment",
+        "url": "https://en.wikipedia.org/wiki/AI_alignment"
+      }
+    ]
+  },
+  {
+    "lineage_item": "Whistleblower protection advocacy",
+    "display_name": "Whistleblower Protection Advocacy",
+    "summary": "Whistleblower protection advocacy champions the rights and safety of individuals who report illegal, unethical, or harmful activities within organizations, often at great personal risk. This movement seeks to create legal and cultural safeguards for these individuals. For AI policy, it's crucial to establish robust protections for those who might expose issues related to AI development, misuse, or safety concerns, fostering transparency, accountability, and early detection of potential harms within the AI industry.",
+    "taxonomy_appearance": "It addresses the need for transparency and accountability mechanisms within AI development and deployment.",
+    "policy_implication": "Policies must ensure robust protections for individuals who report risks or misconduct related to AI systems.",
+    "references": [
+      {
+        "name": "Whistleblower protection",
+        "url": "https://en.wikipedia.org/wiki/Whistleblower_protection"
+      }
+    ]
+  },
+  {
+    "lineage_item": "economic growth theory",
+    "display_name": "Economic Growth Theory",
+    "summary": "Economic growth theory studies the factors that contribute to a country's long-term increase in the production of goods and services, such as technological innovation, capital investment, and labor force growth. It seeks to explain why some economies grow faster than others. For AI policy, this theory helps analyze how AI can drive productivity, innovation, and create new industries, but also how its benefits are distributed, influencing overall economic well-being and requiring policies to ensure equitable growth.",
+    "taxonomy_appearance": "This theory provides a framework for understanding AI's potential impact on national and global economies.",
+    "policy_implication": "Policymakers use economic growth theory to design strategies that leverage AI for sustainable and equitable economic development.",
+    "references": [
+      {
+        "name": "Economic growth",
+        "url": "https://en.wikipedia.org/wiki/Economic_growth"
+      }
+    ]
+  },
+  {
+    "lineage_item": "economic indicators",
+    "display_name": "Economic Indicators",
+    "summary": "Economic indicators are measurable data points that reflect the health and performance of an economy, such as Gross Domestic Product (GDP), unemployment rates, inflation, and consumer confidence. They are used by economists and policymakers to assess current economic conditions and forecast future trends. For AI policy, these indicators are crucial for monitoring AI's real-world impact on employment, productivity, income distribution, and market stability, guiding policy adjustments to mitigate negative effects and amplify benefits.",
+    "taxonomy_appearance": "These metrics are crucial for assessing the real-world economic effects of AI adoption and informing policy responses.",
+    "policy_implication": "Policymakers rely on economic indicators to evaluate the success of AI-related policies and make informed adjustments.",
+    "references": [
+      {
+        "name": "Economic indicator",
+        "url": "https://en.wikipedia.org/wiki/Economic_indicator"
+      }
+    ]
+  },
+  {
+    "lineage_item": "economic theories of automation and employment",
+    "display_name": "Economic Theories Of Automation And Employment",
+    "summary": "These theories explore how technological automation, including AI, affects labor markets, job creation, job displacement, and wage structures. They range from pessimistic views of widespread unemployment to optimistic outlooks of new job creation and increased productivity. For AI policy, these theories provide frameworks for understanding the complex interplay between AI and the workforce, informing policies on education, retraining, social safety nets, and labor market regulations to manage transitions and ensure equitable outcomes.",
+    "taxonomy_appearance": "This category encompasses frameworks for understanding AI's profound effects on the workforce and job market dynamics.",
+    "policy_implication": "Policymakers draw on these theories to develop strategies for managing workforce transitions and ensuring equitable outcomes in an AI-driven economy.",
+    "references": [
+      {
+        "name": "Technological unemployment",
+        "url": "https://en.wikipedia.org/wiki/Technological_unemployment"
+      },
+      {
+        "name": "Automation",
+        "url": "https://en.wikipedia.org/wiki/Automation"
+      }
+    ]
+  },
+  {
+    "lineage_item": "human capital theory",
+    "display_name": "Human Capital Theory",
+    "summary": "Human capital theory posits that an individual's skills, knowledge, education, and experience are a form of capital that can be invested in, leading to increased productivity and higher earnings. It views education and training as investments that yield future returns. For AI policy, this theory underscores the critical importance of investing in human capabilities to adapt the workforce to an AI-driven economy, emphasizing lifelong learning, reskilling, and upskilling programs to maintain employability and foster innovation.",
+    "taxonomy_appearance": "It emphasizes the importance of investing in people's skills and education in an era of AI-driven change.",
+    "policy_implication": "Policies promoting education, reskilling, and lifelong learning are central to enhancing human capital in response to AI.",
+    "references": [
+      {
+        "name": "Human capital",
+        "url": "https://en.wikipedia.org/wiki/Human_capital"
+      }
+    ]
+  },
+  {
+    "lineage_item": "lifelong learning frameworks",
+    "display_name": "Lifelong Learning Frameworks",
+    "summary": "Lifelong learning frameworks are structured approaches that promote continuous learning and development throughout an individual's life, beyond formal schooling. They emphasize adapting to new knowledge, skills, and competencies in a rapidly changing world. For AI policy, these frameworks are essential for equipping workforces and individuals to thrive amidst rapid technological change and AI-driven job evolution, ensuring that citizens can continuously acquire the skills needed for future employment and societal participation.",
+    "taxonomy_appearance": "These frameworks are essential for adapting workforces and individuals to the evolving demands of AI and technological change.",
+    "policy_implication": "Policies can implement lifelong learning initiatives to ensure citizens remain adaptable and employable in an AI-transformed economy.",
+    "references": [
+      {
+        "name": "Lifelong learning",
+        "url": "https://en.wikipedia.org/wiki/Lifelong_learning"
+      }
+    ]
+  },
+  {
+    "lineage_item": "market efficiency theory",
+    "display_name": "Market Efficiency Theory",
+    "summary": "Market efficiency theory, particularly the efficient-market hypothesis, suggests that financial markets reflect all available information, making it impossible for investors to consistently 'beat' the market by finding undervalued stocks. For AI policy, this theory prompts consideration of how AI might impact market dynamics. For example, algorithmic trading could enhance or disrupt market efficiency, and AI's ability to process vast amounts of information raises questions about information asymmetry and the need for regulation to maintain fair and transparent markets.",
+    "taxonomy_appearance": "It offers a perspective on how AI might influence the fairness, transparency, and stability of economic markets.",
+    "policy_implication": "Policymakers must consider how AI affects market information flow and competition, potentially requiring new regulatory oversight.",
+    "references": [
+      {
+        "name": "Efficient-market hypothesis",
+        "url": "https://en.wikipedia.org/wiki/Efficient-market_hypothesis"
+      }
+    ]
+  },
+  {
+    "lineage_item": "philosophy of AI",
+    "display_name": "Philosophy Of AI",
+    "summary": "The philosophy of AI is a branch of philosophy that explores fundamental questions about the nature of intelligence, consciousness, and mind, specifically as they relate to artificial systems. It delves into topics such as whether machines can truly think, have consciousness, or possess rights. For AI policy, this field provides essential ethical foundations, conceptual clarity on AI capabilities and limitations, and guidance on profound questions of AI responsibility, moral status, and its long-term societal integration.",
+    "taxonomy_appearance": "This field provides the foundational ethical and conceptual questions underlying AI development and governance.",
+    "policy_implication": "Policies on AI ethics, rights, and societal integration are deeply informed by philosophical inquiries into AI.",
+    "references": [
+      {
+        "name": "Philosophy of artificial intelligence",
+        "url": "https://en.wikipedia.org/wiki/Philosophy_of_artificial_intelligence"
+      }
+    ]
+  },
+  {
+    "lineage_item": "post-Keynesian economics",
+    "display_name": "Post-Keynesian Economics",
+    "summary": "Post-Keynesian economics is a school of thought that builds upon and extends John Maynard Keynes's ideas, emphasizing the importance of effective demand, uncertainty, money, and institutions in shaping economic outcomes. It often highlights issues like income inequality, financial instability, and the need for active government intervention. For AI policy, this perspective offers a critical lens on how AI might exacerbate or alleviate these issues, advocating for robust public policies to manage economic transitions, ensure equitable distribution of AI's benefits, and maintain macroeconomic stability.",
+    "taxonomy_appearance": "It offers a critical perspective on how AI might impact economic stability, distribution, and the role of government intervention.",
+    "policy_implication": "Policymakers drawing from this school might advocate for strong government intervention to manage AI's economic impacts and ensure equitable outcomes.",
+    "references": [
+      {
+        "name": "Post-Keynesian economics",
+        "url": "https://en.wikipedia.org/wiki/Post-Keynesian_economics"
+      }
+    ]
+  }
+]
