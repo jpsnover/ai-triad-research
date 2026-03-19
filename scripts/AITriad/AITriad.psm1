@@ -52,12 +52,22 @@ $ScriptsDir = Join-Path $script:ModuleRoot '..'
 
 $DocConvertersPath = Join-Path $ScriptsDir 'DocConverters.psm1'
 if (Test-Path $DocConvertersPath) {
-    Import-Module $DocConvertersPath -Force
+    try {
+        Import-Module $DocConvertersPath -Force
+    }
+    catch {
+        Write-Warning "Failed to import DocConverters.psm1: $_ — PDF/HTML conversion will be unavailable."
+    }
 }
 
 $AIEnrichPath = Join-Path $ScriptsDir 'AIEnrich.psm1'
 if (Test-Path $AIEnrichPath) {
-    Import-Module $AIEnrichPath -Force
+    try {
+        Import-Module $AIEnrichPath -Force
+    }
+    catch {
+        Write-Warning "Failed to import AIEnrich.psm1: $_ — AI API calls will be unavailable."
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,13 +84,13 @@ if (Test-Path $TaxonomyDir) {
             Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
         }
         catch {
-            Write-Warning "Taxonomy: failed to load $($File.Name): $_"
+            Write-Warning "Taxonomy: failed to load $($File.Name): $_ — this POV will be unavailable until the file is fixed."
         }
     }
 }
 
 if ($script:TaxonomyData.Count -eq 0) {
-    Write-Warning "Taxonomy: no JSON files found in $TaxonomyDir"
+    Write-Warning "Taxonomy: no valid JSON files loaded from $TaxonomyDir — most commands will not work."
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

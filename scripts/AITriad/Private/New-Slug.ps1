@@ -40,6 +40,8 @@ function New-Slug {
         if ($lastHyphen -gt 10) { $Slug = $Slug.Substring(0, $lastHyphen) }
     }
 
-    if ([string]::IsNullOrWhiteSpace($Slug)) { $Slug = 'document' }
+    if ([string]::IsNullOrWhiteSpace($Slug)) {
+        $Slug = 'document-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+    }
     return $Slug
 }

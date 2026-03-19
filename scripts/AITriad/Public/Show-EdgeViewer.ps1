@@ -31,8 +31,6 @@ function Show-EdgeViewer {
     }
     if ($Status) {
         $env:EDGE_VIEWER_STATUS = $Status
-    } else {
-        $env:EDGE_VIEWER_STATUS = $null
     }
     Push-Location $AppDir
     try {

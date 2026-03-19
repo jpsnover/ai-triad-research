@@ -10,6 +10,9 @@ function Resolve-DocId {
     )
 
     $SourcesDir = Join-Path $script:RepoRoot 'sources'
+    if (-not (Test-Path $SourcesDir)) {
+        Write-Warning "Sources directory not found: $SourcesDir — uniqueness check skipped"
+    }
     $Candidate  = "$BaseSlug-$Year"
     $Counter    = 1
     while (Test-Path (Join-Path $SourcesDir $Candidate)) {
