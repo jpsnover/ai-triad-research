@@ -52,11 +52,17 @@ function createWindow(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 
   const isDev = !app.isPackaged;
+  const queryParts: string[] = [];
+  if (process.env.EDGE_VIEWER_STATUS) {
+    queryParts.push(`status=${encodeURIComponent(process.env.EDGE_VIEWER_STATUS)}`);
+  }
+  const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5176');
+    mainWindow.loadURL(`http://localhost:5176${qs}`);
   } else {
     const filePath = path.join(__dirname, '../renderer/index.html');
-    mainWindow.loadFile(filePath);
+    mainWindow.loadFile(filePath, { query: qs ? Object.fromEntries(new URLSearchParams(qs)) : undefined });
   }
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {

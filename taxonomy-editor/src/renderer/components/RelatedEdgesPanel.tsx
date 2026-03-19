@@ -127,6 +127,7 @@ function EdgeGroup({
 
 export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const { edgesFile, edgesLoading, relatedNodeId, showRelatedEdges, selectedEdge, selectEdge } = useTaxonomyStore();
+  const [collapsed, setCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EdgeStatus | ''>('');
 
   const nodeId = relatedNodeId;
@@ -178,6 +179,14 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
 
   if (!nodeId) return null;
 
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Related Edges">
+        <span className="pane-collapsed-label">Related Edges</span>
+      </div>
+    );
+  }
+
   return (
     <div className="related-edges-panel" style={{ width, minWidth: width }}>
       <div className="related-edges-header">
@@ -185,13 +194,16 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
           <h3>Related Edges</h3>
           <span className="related-edges-count">{totalEdges}</span>
         </div>
-        <button
-          className="related-edges-close"
-          onClick={() => showRelatedEdges(null)}
-          title="Close"
-        >
-          &times;
-        </button>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button
+            className="related-edges-close"
+            onClick={() => showRelatedEdges(null)}
+            title="Close"
+          >
+            &times;
+          </button>
+        </div>
       </div>
 
       <div className="related-edges-toolbar">

@@ -33,6 +33,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
     navigateToNode,
   } = useTaxonomyStore();
 
+  const [collapsed, setCollapsed] = useState(false);
   const [showIds, setShowIds] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('match');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -168,6 +169,14 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
 
   if (similarResults === null && !similarLoading && !similarError) return null;
 
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Similar Search">
+        <span className="pane-collapsed-label">Similar Search</span>
+      </div>
+    );
+  }
+
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -230,6 +239,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
             />
             IDs
           </label>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearSimilarSearch}>
             Close
           </button>

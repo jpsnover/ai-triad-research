@@ -12,6 +12,18 @@ import type {
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
+import {
+  clarificationPrompt,
+  synthesisPrompt,
+  openingStatementPrompt,
+  debateResponsePrompt,
+  crossRespondSelectionPrompt,
+  crossRespondPrompt,
+  debateSynthesisPrompt,
+  probingQuestionsPrompt,
+  factCheckPrompt,
+  contextCompressionPrompt,
+} from '../prompts/debate';
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -96,24 +108,11 @@ function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): str
   return lines.join('\n');
 }
 
-// ── Prompt builders ──────────────────────────────────────
+// ── Prompt builders (delegate to prompts/debate.ts) ──────
 
 function buildClarificationPrompt(poverId: Exclude<PoverId, 'user'>, topic: string): string {
   const info = POVER_INFO[poverId];
-  return `You are ${info.label}, an AI debater representing the ${info.pov} perspective on AI policy.
-Your personality: ${info.personality}.
-
-A user wants to debate the following topic:
-
-"${topic}"
-
-Ask 1-3 clarifying questions that would help you make the strongest possible argument from your perspective. Your questions should:
-- Help narrow the scope so you can give a focused argument
-- Surface assumptions the user might not realize they're making
-- Be concise (one sentence each)
-
-Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
-{"questions": ["question 1", "question 2"]}`;
+  return clarificationPrompt(info.label, info.pov, info.personality, topic);
 }
 
 function buildSynthesisPrompt(
@@ -126,19 +125,7 @@ function buildSynthesisPrompt(
     for (const q of c.questions) qaPairs += `  - ${q}\n`;
     qaPairs += `User answered: ${c.answers}\n`;
   }
-
-  return `A debate moderator proposed this topic:
-
-"${originalTopic}"
-
-Several debaters asked clarifying questions and the moderator answered:
-${qaPairs}
-
-Synthesize the original topic and the answers into a clear, specific debate topic statement.
-One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{"refined_topic": "the refined topic statement"}`;
+  return synthesisPrompt(originalTopic, qaPairs);
 }
 
 function buildOpeningStatementPrompt(
@@ -148,7 +135,6 @@ function buildOpeningStatementPrompt(
   priorStatements: { speaker: string; statement: string }[],
 ): string {
   const info = POVER_INFO[poverId];
-
   let priorBlock = '';
   if (priorStatements.length > 0) {
     priorBlock = '\n\n=== PRIOR OPENING STATEMENTS ===\n';
@@ -156,33 +142,8 @@ function buildOpeningStatementPrompt(
       priorBlock += `\n${ps.speaker}:\n${ps.statement}\n`;
     }
   }
-
-  return `You are ${info.label}, an AI debater representing the ${info.pov} perspective on AI policy.
-Your personality: ${info.personality}.
-
-Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
-
-${taxonomyContext}
-${priorBlock}
-
-The debate topic is:
-
-"${topic}"
-
-Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive. 2-4 paragraphs.
-
-${priorStatements.length > 0 ? 'You have read the prior opening statements. You may reference or contrast with them, but focus on your own position.' : 'You are delivering the first opening statement.'}
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "statement": "your opening statement text",
-  "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
-  ]
-}`;
+  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0);
 }
-
-// ── Phase 4 prompt builders ──────────────────────────────
 
 function buildDebateResponsePrompt(
   poverId: Exclude<PoverId, 'user'>,
@@ -193,57 +154,14 @@ function buildDebateResponsePrompt(
   addressing: string,
 ): string {
   const info = POVER_INFO[poverId];
-
-  return `You are ${info.label}, an AI debater representing the ${info.pov} perspective on AI policy.
-Your personality: ${info.personality}.
-
-Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
-
-${taxonomyContext}
-
-=== DEBATE TOPIC ===
-"${topic}"
-
-=== RECENT DEBATE HISTORY ===
-${recentTranscript}
-
-=== ${addressing === 'all' ? 'QUESTION TO THE PANEL' : `QUESTION DIRECTED AT YOU`} ===
-${question}
-
-Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant. 1-3 paragraphs.
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "statement": "your response text",
-  "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
-  ]
-}`;
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing);
 }
 
 function buildCrossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
 ): string {
-  return `You are a debate moderator analyzing the current state of a structured debate.
-
-=== RECENT DEBATE EXCHANGE ===
-${recentTranscript}
-
-=== ACTIVE DEBATERS ===
-${activePovers.join(', ')}
-
-Identify the most productive next exchange. Which debater should respond, to whom, and about what specific point? Choose the response that would most disambiguate the current disagreement or surface a new dimension.
-
-If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "responder": "debater name who should speak next",
-  "addressing": "debater name they should address, or 'general'",
-  "focus_point": "the specific point or question they should address",
-  "agreement_detected": false
-}`;
+  return crossRespondSelectionPrompt(recentTranscript, activePovers);
 }
 
 function buildCrossRespondPrompt(
@@ -255,61 +173,14 @@ function buildCrossRespondPrompt(
   addressing: string,
 ): string {
   const info = POVER_INFO[poverId];
-
-  return `You are ${info.label}, an AI debater representing the ${info.pov} perspective on AI policy.
-Your personality: ${info.personality}.
-
-Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words.
-
-${taxonomyContext}
-
-=== DEBATE TOPIC ===
-"${topic}"
-
-=== RECENT DEBATE HISTORY ===
-${recentTranscript}
-
-=== YOUR ASSIGNMENT ===
-Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
-
-Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics. If you agree on some points, say so and push further. 1-3 paragraphs.
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "statement": "your response text",
-  "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
-  ]
-}`;
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing);
 }
-
-// ── Phase 5 prompt builders ──────────────────────────────
 
 function buildDebateSynthesisPrompt(
   topic: string,
   transcript: string,
 ): string {
-  return `You are a debate analyst. Analyze this structured debate and produce a synthesis.
-
-=== DEBATE TOPIC ===
-"${topic}"
-
-=== FULL TRANSCRIPT ===
-${transcript}
-
-Identify:
-1. Areas where the debaters agree (and which debaters)
-2. Areas where they genuinely disagree (with each debater's specific stance)
-3. Questions that remain unresolved
-4. Which taxonomy nodes were referenced and how they were used
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
-  "areas_of_disagreement": [{"point": "...", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
-  "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]
-}`;
+  return debateSynthesisPrompt(topic, transcript);
 }
 
 function buildProbingQuestionsPrompt(
@@ -317,31 +188,8 @@ function buildProbingQuestionsPrompt(
   transcript: string,
   unreferencedNodes: string[],
 ): string {
-  const unreferencedBlock = unreferencedNodes.length > 0
-    ? `\n\n=== TAXONOMY NODES NOT YET REFERENCED ===\n${unreferencedNodes.join('\n')}`
-    : '';
-
-  return `You are a debate facilitator. Given this debate, suggest 3-5 probing questions that would advance the discussion. Prioritize questions that would:
-- Surface genuine disagreement or expose unstated assumptions
-- Push debaters beyond their comfort zones
-- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
-
-=== DEBATE TOPIC ===
-"${topic}"
-
-=== TRANSCRIPT ===
-${transcript}
-${unreferencedBlock}
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "questions": [
-    {"text": "the probing question", "targets": ["prometheus", "sentinel"]}
-  ]
-}`;
+  return probingQuestionsPrompt(topic, transcript, unreferencedNodes);
 }
-
-// ── Phase 7 prompt builders ──────────────────────────────
 
 function buildFactCheckPrompt(
   selectedText: string,
@@ -349,60 +197,13 @@ function buildFactCheckPrompt(
   taxonomyNodes: string,
   conflictData: string,
 ): string {
-  return `You are a fact-checker analyzing a claim made during a structured AI policy debate.
-
-=== CLAIM TO CHECK ===
-"${selectedText}"
-
-=== FULL STATEMENT CONTEXT ===
-${statementContext}
-
-=== RELEVANT TAXONOMY POSITIONS ===
-${taxonomyNodes}
-
-=== KNOWN CONFLICTS IN THE RESEARCH DATABASE ===
-${conflictData || '(No relevant conflicts found)'}
-
-Evaluate whether this claim is factually accurate. Consider:
-1. Is it consistent with the taxonomy data and known research?
-2. Is it internally consistent with other statements in the debate?
-3. Are there known conflicts or counter-evidence?
-
-Rate the claim as one of:
-- "supported" — consistent with available evidence and taxonomy data
-- "disputed" — there is significant counter-evidence or active conflict
-- "unverifiable" — cannot be confirmed or denied with available data
-- "false" — directly contradicted by available evidence
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{
-  "verdict": "supported" | "disputed" | "unverifiable" | "false",
-  "explanation": "brief explanation of your assessment",
-  "sources": [
-    {"node_id": "e.g. acc-goals-002"},
-    {"conflict_id": "e.g. conflict-xyz"}
-  ]
-}`;
+  return factCheckPrompt(selectedText, statementContext, taxonomyNodes, conflictData);
 }
-
-// ── Phase 8 prompt builders ──────────────────────────────
 
 function buildContextCompressionPrompt(
   entries: string,
 ): string {
-  return `Summarize the following debate segment concisely. Preserve:
-- Key arguments and who made them (Prometheus, Sentinel, Cassandra, Moderator)
-- Points of agreement and disagreement
-- Any factual claims or evidence cited
-- Taxonomy node references (keep the node IDs)
-
-Be concise but complete — this summary replaces the original text in the debate context.
-
-=== DEBATE SEGMENT ===
-${entries}
-
-Respond ONLY with a JSON object (no markdown, no code fences):
-{"summary": "your summary text"}`;
+  return contextCompressionPrompt(entries);
 }
 
 /** Parse @-mentions from user input. Returns { target, cleanedInput } */

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
@@ -14,6 +14,8 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 
 export function CrossCuttingTab() {
   const { crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode, pinnedStack, pinAtDepth, attributeFilter, attributeInfo, relatedNodeId, showRelatedEdges, selectedEdge } = useTaxonomyStore();
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
   const { width: attrPaneWidth, onMouseDown: onAttrPaneResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-attr-filter-panel-width',
@@ -145,33 +147,51 @@ export function CrossCuttingTab() {
 
   return (
     <div className="two-column">
-      <div className="list-panel" style={{ width }}>
-        <div className="list-panel-header">
-          <h2>Cross-Cutting</h2>
-          <button className="btn btn-sm" onClick={createCrossCuttingNode}>
-            + New
-          </button>
+      {listCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+          <span className="pane-collapsed-label">Cross-Cutting</span>
         </div>
-        <div className="list-panel-items">
-          {crossCutting.nodes.map((node) => (
-            <ListItem
-              key={node.id}
-              id={node.id}
-              label={node.label}
-              isSelected={selectedNodeId === node.id}
-              onSelect={setSelectedNodeId}
-            />
-          ))}
+      ) : (
+        <div className="list-panel" style={{ width }}>
+          <div className="list-panel-header">
+            <h2>Cross-Cutting</h2>
+            <div className="list-panel-header-actions">
+              <button className="btn btn-sm" onClick={createCrossCuttingNode}>
+                + New
+              </button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+            </div>
+          </div>
+          <div className="list-panel-items">
+            {crossCutting.nodes.map((node) => (
+              <ListItem
+                key={node.id}
+                id={node.id}
+                label={node.label}
+                isSelected={selectedNodeId === node.id}
+                onSelect={setSelectedNodeId}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <div className="resize-handle" onMouseDown={onMouseDown} />
-      <div className="detail-panel">
-        {selectedNode ? (
-          <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} />
-        ) : (
-          <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
-        )}
-      </div>
+      {detailCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+          <span className="pane-collapsed-label">Detail</span>
+        </div>
+      ) : (
+        <div className="detail-panel">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+          </div>
+          {selectedNode ? (
+            <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} />
+          ) : (
+            <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
+          )}
+        </div>
+      )}
       {showAttrFilterPanel && (
         <>
           <div className="resize-handle" onMouseDown={onAttrPaneResize} />

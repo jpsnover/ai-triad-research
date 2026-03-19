@@ -3743,3 +3743,67 @@ body {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
+
+/* ─── Collapsible panes ───────────────────────────────── */
+
+.pane-collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+.pane-collapse-btn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.pane-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.15s;
+  position: relative;
+}
+.pane-collapsed:hover {
+  background: var(--bg-hover);
+}
+
+.pane-collapsed-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Collapsed list panel (Pane 1) — border on right instead of left */
+.pane-collapsed.pane-collapsed-list {
+  border-left: none;
+  border-right: 1px solid var(--border-color);
+}
+
+/* Collapsed detail panel (Pane 2) — no side borders, uses bg-primary */
+.pane-collapsed.pane-collapsed-detail {
+  background: var(--bg-primary);
+  border-left: none;
+  border-right: none;
+}

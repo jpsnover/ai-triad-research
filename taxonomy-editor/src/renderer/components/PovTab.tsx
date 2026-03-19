@@ -34,6 +34,8 @@ export function PovTab({ pov }: PovTabProps) {
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('id');
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-similar-panel-width',
@@ -255,45 +257,61 @@ export function PovTab({ pov }: PovTabProps) {
 
   return (
     <div className="two-column">
-      <div className="list-panel" style={{ width }}>
-        <div className="list-panel-header">
-          <h2>{pov}</h2>
-          <div className="list-panel-header-actions">
-            <select
-              className="sort-select"
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-              title="Sort nodes"
-            >
-              <option value="id">Sort: ID</option>
-              <option value="label">Sort: Label</option>
-              <option value="similarity">Sort: Similarity</option>
-            </select>
-            <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-              + New
-            </button>
+      {listCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+          <span className="pane-collapsed-label">{pov}</span>
+        </div>
+      ) : (
+        <div className="list-panel" style={{ width }}>
+          <div className="list-panel-header">
+            <h2>{pov}</h2>
+            <div className="list-panel-header-actions">
+              <select
+                className="sort-select"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                title="Sort nodes"
+              >
+                <option value="id">Sort: ID</option>
+                <option value="label">Sort: Label</option>
+                <option value="similarity">Sort: Similarity</option>
+              </select>
+              <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+                + New
+              </button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+            </div>
+          </div>
+          <div className="list-panel-items">
+            <NodeTree
+              nodes={file.nodes}
+              selectedNodeId={selectedNodeId}
+              onSelect={setSelectedNodeId}
+              sortMode={sortMode}
+              similarScores={similarScoresMap}
+              clusters={clusterGroups}
+              clusterLoading={clusterLoading}
+            />
           </div>
         </div>
-        <div className="list-panel-items">
-          <NodeTree
-            nodes={file.nodes}
-            selectedNodeId={selectedNodeId}
-            onSelect={setSelectedNodeId}
-            sortMode={sortMode}
-            similarScores={similarScoresMap}
-            clusters={clusterGroups}
-            clusterLoading={clusterLoading}
-          />
-        </div>
-      </div>
+      )}
       <div className="resize-handle" onMouseDown={onMouseDown} />
-      <div className="detail-panel" data-cat={selectedNode?.category}>
-        {selectedNode ? (
-          <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} />
-        ) : (
-          <div className="detail-panel-empty">Select a node to edit</div>
-        )}
-      </div>
+      {detailCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+          <span className="pane-collapsed-label">Detail</span>
+        </div>
+      ) : (
+        <div className="detail-panel" data-cat={selectedNode?.category}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+          </div>
+          {selectedNode ? (
+            <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} />
+          ) : (
+            <div className="detail-panel-empty">Select a node to edit</div>
+          )}
+        </div>
+      )}
       {/* Pane 3: Similar Search */}
       {showSimilarPanel && (
         <>

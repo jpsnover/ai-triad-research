@@ -9,6 +9,8 @@ import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from './DebateWorkspace';
 import { NodeDetail } from './NodeDetail';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { AttributeInfoPanel } from './AttributeInfoPanel';
+import { AttributeFilterPanel } from './AttributeFilterPanel';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 
@@ -51,6 +53,7 @@ export function DebateTab() {
     activeDebateId, loadDebate, deleteDebate,
     inspectedNodeId, inspectNode,
   } = useDebateStore();
+  const { attributeInfo, attributeFilter } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
     storageKey: 'debate-inspect-panel-width',
@@ -58,8 +61,22 @@ export function DebateTab() {
     minWidth: 260,
     maxWidth: 600,
   });
+  const { width: pane4Width, onMouseDown: onPane4MouseDown } = useResizableRightPanel({
+    storageKey: 'debate-pane4-width',
+    defaultWidth: 400,
+    minWidth: 300,
+    maxWidth: 700,
+  });
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [inspectCollapsed, setInspectCollapsed] = useState(false);
+  const [pane4Collapsed, setPane4Collapsed] = useState(false);
+
+  const showInfoPanel = attributeInfo !== null;
+  const showAttrFilterPanel = attributeFilter !== null;
+  const showPane4 = inspectedNodeId && (showInfoPanel || showAttrFilterPanel);
 
   useEffect(() => {
     loadSessions();
@@ -79,91 +96,122 @@ export function DebateTab() {
   return (
     <div className="two-column">
       {/* Left pane: Session list */}
-      <div className="list-panel debate-session-list" style={{ width }}>
-        <div className="list-panel-header">
-          <h2>Debates</h2>
-          <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-            + New
-          </button>
+      {listCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+          <span className="pane-collapsed-label">Debates</span>
         </div>
-        <div className="list-panel-items">
-          {sessionsLoading && sessions.length === 0 && (
-            <div className="debate-session-empty">Loading...</div>
-          )}
-          {!sessionsLoading && sessions.length === 0 && (
-            <div className="debate-session-empty">
-              No debates yet.
-              <br />
-              Click <strong>+ New</strong> to start one.
+      ) : (
+        <div className="list-panel debate-session-list" style={{ width }}>
+          <div className="list-panel-header">
+            <h2>Debates</h2>
+            <div className="list-panel-header-actions">
+              <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+                + New
+              </button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
-          )}
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}`}
-              onClick={() => handleSelect(s)}
-            >
-              <div className="debate-session-item-title">{s.title}</div>
-              <div className="debate-session-item-meta">
-                <span className={`debate-phase-badge phase-${s.phase}`}>
-                  {PHASE_LABELS[s.phase] || s.phase}
-                </span>
-                <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
+          </div>
+          <div className="list-panel-items">
+            {sessionsLoading && sessions.length === 0 && (
+              <div className="debate-session-empty">Loading...</div>
+            )}
+            {!sessionsLoading && sessions.length === 0 && (
+              <div className="debate-session-empty">
+                No debates yet.
+                <br />
+                Click <strong>+ New</strong> to start one.
               </div>
-              {confirmDeleteId === s.id ? (
-                <div className="debate-session-item-confirm">
-                  <span>Delete?</span>
-                  <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}>Yes</button>
-                  <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
+            )}
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}`}
+                onClick={() => handleSelect(s)}
+              >
+                <div className="debate-session-item-title">{s.title}</div>
+                <div className="debate-session-item-meta">
+                  <span className={`debate-phase-badge phase-${s.phase}`}>
+                    {PHASE_LABELS[s.phase] || s.phase}
+                  </span>
+                  <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
                 </div>
-              ) : (
-                <button
-                  className="debate-session-item-delete"
-                  title="Delete debate"
-                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
+                {confirmDeleteId === s.id ? (
+                  <div className="debate-session-item-confirm">
+                    <span>Delete?</span>
+                    <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}>Yes</button>
+                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
+                  </div>
+                ) : (
+                  <button
+                    className="debate-session-item-delete"
+                    title="Delete debate"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="resize-handle" onMouseDown={onMouseDown} />
 
       {/* Center pane: Debate workspace */}
-      <div className="detail-panel debate-workspace-container">
-        {activeDebateId ? (
-          <DebateWorkspace />
-        ) : (
-          <div className="debate-empty-state">
-            <h2>POV Debater</h2>
-            <p>Select a debate from the list or create a new one.</p>
-            <button className="btn" onClick={() => setShowNewDialog(true)}>
-              + New Debate
-            </button>
+      {detailCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
+          <span className="pane-collapsed-label">Workspace</span>
+        </div>
+      ) : (
+        <div className="detail-panel debate-workspace-container">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
           </div>
-        )}
-      </div>
+          {activeDebateId ? (
+            <DebateWorkspace />
+          ) : (
+            <div className="debate-empty-state">
+              <h2>POV Debater</h2>
+              <p>Select a debate from the list or create a new one.</p>
+              <button className="btn" onClick={() => setShowNewDialog(true)}>
+                + New Debate
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pane 3: Node inspector (shown when a taxonomy pill is clicked) */}
       {inspectedNodeId && (() => {
         const resolved = resolveNode(inspectedNodeId);
         if (!resolved) return null;
+        if (inspectCollapsed) {
+          return (
+            <>
+              <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+              <div className="pane-collapsed" onClick={() => setInspectCollapsed(false)} title="Expand inspector">
+                <span className="pane-collapsed-label">Inspector</span>
+              </div>
+            </>
+          );
+        }
         return (
           <>
             <div className="resize-handle" onMouseDown={onPane3MouseDown} />
             <div className="detail-panel debate-inspect-panel" style={{ width: pane3Width, minWidth: pane3Width }}>
               <div className="debate-inspect-header">
                 <span className="debate-inspect-title">{resolved.node.label}</span>
-                <button
-                  className="debate-inspect-close"
-                  onClick={() => inspectNode(null)}
-                  title="Close inspector"
-                >
-                  ×
-                </button>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <button className="pane-collapse-btn" onClick={() => setInspectCollapsed(true)} title="Collapse">&lsaquo;</button>
+                  <button
+                    className="debate-inspect-close"
+                    onClick={() => inspectNode(null)}
+                    title="Close inspector"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <div className="debate-inspect-body">
                 {resolved.kind === 'crossCutting' ? (
@@ -173,6 +221,30 @@ export function DebateTab() {
                 )}
               </div>
             </div>
+          </>
+        );
+      })()}
+
+      {/* Pane 4: Attribute Info / Filter (shown when triggered from Pane 3) */}
+      {showPane4 && (() => {
+        if (pane4Collapsed) {
+          return (
+            <>
+              <div className="resize-handle" onMouseDown={onPane4MouseDown} />
+              <div className="pane-collapsed" onClick={() => setPane4Collapsed(false)} title="Expand">
+                <span className="pane-collapsed-label">{showAttrFilterPanel ? 'Filter' : 'Info'}</span>
+              </div>
+            </>
+          );
+        }
+        return (
+          <>
+            <div className="resize-handle" onMouseDown={onPane4MouseDown} />
+            {showAttrFilterPanel ? (
+              <AttributeFilterPanel width={pane4Width} />
+            ) : showInfoPanel ? (
+              <AttributeInfoPanel width={pane4Width} />
+            ) : null}
           </>
         );
       })()}

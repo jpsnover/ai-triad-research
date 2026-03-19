@@ -14,6 +14,7 @@ import {
 } from './fileIO';
 import type { AddTaxonomyNodeRequest } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding } from './embeddings';
+import { generateContent } from './generateContent';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 
 export function registerIpcHandlers(): void {
@@ -63,5 +64,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('compute-query-embedding', (_event, text: string) => {
     return computeQueryEmbedding(text);
+  });
+
+  ipcMain.handle('generate-content', (_event, systemPrompt: string, userPrompt: string) => {
+    return generateContent(systemPrompt, userPrompt);
   });
 }

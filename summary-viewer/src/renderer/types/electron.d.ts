@@ -34,6 +34,7 @@ export interface ElectronAPI {
   hasApiKey: () => Promise<boolean>;
   computeEmbeddings: (texts: string[]) => Promise<number[][]>;
   computeQueryEmbedding: (text: string) => Promise<number[]>;
+  generateContent: (systemPrompt: string, userPrompt: string) => Promise<string>;
   openInTaxonomyEditor: (nodeId: string) => Promise<{ ok: boolean; error?: string }>;
   onMenuConfigureApiKey: (callback: () => void) => () => void;
 }

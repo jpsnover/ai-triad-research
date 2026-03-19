@@ -2,9 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
-import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme } from '../types/types';
+import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
 import type { SemanticResult } from '../utils/similarity';
+import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
 
 interface SummaryViewerState {
   // Data
@@ -34,6 +35,12 @@ interface SummaryViewerState {
   similarThreshold: number;
   embeddingCache: Map<string, number[]>;
 
+  // Potential edges
+  potentialEdgesQuery: string | null;
+  potentialEdges: PotentialEdge[] | null;
+  potentialEdgesLoading: boolean;
+  potentialEdgesError: string | null;
+
   // Actions
   loadSources: () => Promise<void>;
   toggleSource: (id: string) => void;
@@ -47,6 +54,8 @@ interface SummaryViewerState {
   runSimilarSearch: (concept: string, description: string) => Promise<void>;
   clearSimilarSearch: () => void;
   setSimilarThreshold: (t: number) => void;
+  runPotentialEdges: (concept: { label: string; description: string; pov: string; category: string }) => Promise<void>;
+  clearPotentialEdges: () => void;
 }
 
 export const useStore = create<SummaryViewerState>((set, get) => ({
@@ -67,6 +76,10 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   similarError: null,
   similarThreshold: 60,
   embeddingCache: new Map(),
+  potentialEdgesQuery: null,
+  potentialEdges: null,
+  potentialEdgesLoading: false,
+  potentialEdgesError: null,
 
   loadSources: async () => {
     try {
@@ -209,7 +222,11 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   },
 
   runSimilarSearch: async (concept: string, description: string) => {
-    set({ similarLoading: true, similarError: null, similarQuery: concept, similarQueryDescription: description, similarResults: null });
+    set({
+      similarLoading: true, similarError: null, similarQuery: concept, similarQueryDescription: description, similarResults: null,
+      // Clear potential edges if showing
+      potentialEdgesQuery: null, potentialEdges: null, potentialEdgesError: null,
+    });
 
     try {
       let cache = get().embeddingCache;
@@ -251,5 +268,53 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
   setSimilarThreshold: (t: number) => {
     set({ similarThreshold: t });
+  },
+
+  runPotentialEdges: async (concept) => {
+    set({
+      potentialEdgesLoading: true,
+      potentialEdgesError: null,
+      potentialEdgesQuery: concept.label,
+      potentialEdges: null,
+      // Clear similar search if showing
+      similarQuery: null, similarResults: null, similarError: null,
+    });
+
+    try {
+      const taxonomy = get().taxonomy;
+      const candidateNodes = Object.entries(taxonomy).map(([id, node]) => {
+        const pov = id.startsWith('acc-') ? 'accelerationist'
+          : id.startsWith('saf-') ? 'safetyist'
+          : id.startsWith('skp-') ? 'skeptic'
+          : 'cross-cutting';
+        return { id, label: node.label, description: node.description, pov, category: node.category };
+      });
+
+      const systemPrompt = buildPotentialEdgesSystemPrompt();
+      const userPrompt = buildPotentialEdgesUserPrompt(concept, candidateNodes);
+
+      const rawText = await window.electronAPI.generateContent(systemPrompt, userPrompt);
+      // Strip markdown fences and trailing commas that Gemini sometimes emits
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/, '')
+        .replace(/,\s*([}\]])/g, '$1');
+      const parsed = JSON.parse(cleaned) as { edges: PotentialEdge[] };
+
+      // Validate: filter to only edges referencing real nodes
+      const validIds = new Set(Object.keys(taxonomy));
+      const validEdges = (parsed.edges || []).filter(e => validIds.has(e.target) && e.confidence >= 0.5);
+      // Sort by confidence descending
+      validEdges.sort((a, b) => b.confidence - a.confidence);
+
+      set({ potentialEdges: validEdges, potentialEdgesLoading: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ potentialEdgesError: message, potentialEdgesLoading: false });
+    }
+  },
+
+  clearPotentialEdges: () => {
+    set({ potentialEdgesQuery: null, potentialEdges: null, potentialEdgesLoading: false, potentialEdgesError: null });
   },
 }));

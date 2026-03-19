@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 interface EdgeDetailPanelProps {
@@ -30,9 +31,18 @@ function povLabel(id: string): string {
 }
 
 export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const { selectedEdge, selectEdge, getLabelForId, edgesFile, setActiveTab, setSelectedNodeId, showRelatedEdges } = useTaxonomyStore();
 
   if (!selectedEdge) return null;
+
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Edge Detail">
+        <span className="pane-collapsed-label">Edge Detail</span>
+      </div>
+    );
+  }
 
   const edge = selectedEdge;
   const sourceLabel = getLabelForId(edge.source);
@@ -56,13 +66,16 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
     <div className="edge-detail-panel" style={{ width, minWidth: width }}>
       <div className="edge-detail-header">
         <h3>Edge Detail</h3>
-        <button
-          className="edge-detail-close"
-          onClick={() => selectEdge(null)}
-          title="Close"
-        >
-          &times;
-        </button>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button
+            className="edge-detail-close"
+            onClick={() => selectEdge(null)}
+            title="Close"
+          >
+            &times;
+          </button>
+        </div>
       </div>
 
       <div className="edge-detail-body">

@@ -48,11 +48,22 @@ interface AppState {
   bulkUpdateVisible: (status: EdgeStatus) => Promise<void>;
 }
 
+function getInitialStatus(): EdgeStatus | '' {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const val = params.get('status');
+    if (val === 'proposed' || val === 'approved' || val === 'rejected') return val;
+  } catch {
+    /* fallback */
+  }
+  return '';
+}
+
 const DEFAULT_FILTERS: FilterState = {
   sourcePov: '',
   targetPov: '',
   edgeType: '',
-  status: '',
+  status: getInitialStatus(),
   minConfidence: 0,
   searchText: '',
   crossPovOnly: false,

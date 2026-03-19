@@ -85,3 +85,13 @@ export interface SelectedKeyPoint {
   pov: string;
   index: number;
 }
+
+export interface PotentialEdge {
+  type: string;
+  target: string;
+  inbound: boolean;
+  bidirectional: boolean;
+  confidence: number;
+  rationale: string;
+  strength?: string;
+}

@@ -12,6 +12,8 @@ export function ConflictsTab() {
   const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth } = useTaxonomyStore();
   const [showNew, setShowNew] = useState(false);
   const [newLabel, setNewLabel] = useState('');
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
 
   const orderedIds = useMemo(
@@ -48,34 +50,52 @@ export function ConflictsTab() {
 
   return (
     <div className="two-column">
-      <div className="list-panel" style={{ width }}>
-        <div className="list-panel-header">
-          <h2>Conflicts</h2>
-          <button className="btn btn-sm" onClick={() => setShowNew(true)}>
-            + New
-          </button>
+      {listCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
+          <span className="pane-collapsed-label">Conflicts</span>
         </div>
-        <div className="list-panel-items">
-          {conflicts.map((conflict) => (
-            <ConflictListItem
-              key={conflict.claim_id}
-              claimId={conflict.claim_id}
-              label={conflict.claim_label}
-              status={conflict.status}
-              isSelected={selectedNodeId === conflict.claim_id}
-              onSelect={setSelectedNodeId}
-            />
-          ))}
+      ) : (
+        <div className="list-panel" style={{ width }}>
+          <div className="list-panel-header">
+            <h2>Conflicts</h2>
+            <div className="list-panel-header-actions">
+              <button className="btn btn-sm" onClick={() => setShowNew(true)}>
+                + New
+              </button>
+              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+            </div>
+          </div>
+          <div className="list-panel-items">
+            {conflicts.map((conflict) => (
+              <ConflictListItem
+                key={conflict.claim_id}
+                claimId={conflict.claim_id}
+                label={conflict.claim_label}
+                status={conflict.status}
+                isSelected={selectedNodeId === conflict.claim_id}
+                onSelect={setSelectedNodeId}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <div className="resize-handle" onMouseDown={onMouseDown} />
-      <div className="detail-panel">
-        {selectedConflict ? (
-          <ConflictDetail conflict={selectedConflict} onPin={handlePin} />
-        ) : (
-          <div className="detail-panel-empty">Select a conflict to edit</div>
-        )}
-      </div>
+      {detailCollapsed ? (
+        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
+          <span className="pane-collapsed-label">Detail</span>
+        </div>
+      ) : (
+        <div className="detail-panel">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+          </div>
+          {selectedConflict ? (
+            <ConflictDetail conflict={selectedConflict} onPin={handlePin} />
+          ) : (
+            <div className="detail-panel-empty">Select a conflict to edit</div>
+          )}
+        </div>
+      )}
       {pinnedStack.length > 0 && <PinnedPanel />}
 
       {showNew && (

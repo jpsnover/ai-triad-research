@@ -52,6 +52,7 @@ interface AttributeFilterPanelProps {
 
 export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   const { attributeFilter, clearAttributeFilter, runAttributeFilter, navigateToNode } = useTaxonomyStore();
+  const [collapsed, setCollapsed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +70,14 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   }, [attributeFilter?.field, attributeFilter?.value]);
 
   if (!attributeFilter) return null;
+
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Attribute Filter">
+        <span className="pane-collapsed-label">Attribute Filter</span>
+      </div>
+    );
+  }
 
   const { field, value, results } = attributeFilter;
   const fieldLabel = LABEL_MAP[field] || formatValue(field);
@@ -134,9 +143,12 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
           )}
           <span className="attr-filter-count">{results.length}</span>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={clearAttributeFilter}>
-          Close
-        </button>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="btn btn-ghost btn-sm" onClick={clearAttributeFilter}>
+            Close
+          </button>
+        </div>
       </div>
 
       <div className="attr-filter-split">

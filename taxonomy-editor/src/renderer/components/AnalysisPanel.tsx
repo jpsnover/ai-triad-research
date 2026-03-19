@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -18,6 +19,7 @@ const STEPS = [
 ];
 
 export function AnalysisPanel({ width }: AnalysisPanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const {
     analysisResult,
     analysisLoading,
@@ -33,6 +35,14 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
   } = useTaxonomyStore();
 
   if (!analysisResult && !analysisLoading && !analysisError) return null;
+
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Analysis">
+        <span className="pane-collapsed-label">Analysis</span>
+      </div>
+    );
+  }
 
   const handleRefresh = () => {
     if (analysisElementA && analysisElementB) {
@@ -57,6 +67,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
               Refresh
             </button>
           )}
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
           <button className="btn btn-ghost btn-sm" onClick={clearAnalysis}>
             Close
           </button>

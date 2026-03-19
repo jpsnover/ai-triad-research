@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { RHETORICAL_STRATEGIES } from '../data/rhetoricalStrategyInfo';
 import { EPISTEMIC_TYPES } from '../data/epistemicTypeInfo';
@@ -31,9 +32,18 @@ function formatValue(val: string): string {
 }
 
 export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const { attributeInfo, clearAttributeInfo, runAttributeFilter } = useTaxonomyStore();
 
   if (!attributeInfo) return null;
+
+  if (collapsed) {
+    return (
+      <div className="pane-collapsed" onClick={() => setCollapsed(false)} title="Expand Attribute Info">
+        <span className="pane-collapsed-label">Attribute Info</span>
+      </div>
+    );
+  }
 
   const { field, value } = attributeInfo;
   const dataSource = DATA_SOURCES[field];
@@ -55,9 +65,12 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
             {info ? info.label : formatValue(value)}
           </h3>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={clearAttributeInfo}>
-          Close
-        </button>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button className="pane-collapse-btn" onClick={() => setCollapsed(true)} title="Collapse">&lsaquo;</button>
+          <button className="btn btn-ghost btn-sm" onClick={clearAttributeInfo}>
+            Close
+          </button>
+        </div>
       </div>
 
       {info ? (

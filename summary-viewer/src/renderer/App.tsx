@@ -9,6 +9,7 @@ import SourcesPane from './components/SourcesPane';
 import KeyPointsPane from './components/KeyPointsPane';
 import DocumentPane from './components/DocumentPane';
 import SimilarResultsPane from './components/SimilarResultsPane';
+import PotentialEdgesPane from './components/PotentialEdgesPane';
 import ErrorBoundary from './components/ErrorBoundary';
 import ApiKeyDialog from './components/ApiKeyDialog';
 
@@ -38,7 +39,9 @@ export default function App() {
   const pane1Visible = useStore(s => s.pane1Visible);
   const togglePane1 = useStore(s => s.togglePane1);
   const similarQuery = useStore(s => s.similarQuery);
+  const potentialEdgesQuery = useStore(s => s.potentialEdgesQuery);
   const showSimilar = similarQuery !== null;
+  const showPotentialEdges = potentialEdgesQuery !== null;
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
 
   useEffect(() => {
@@ -83,8 +86,8 @@ export default function App() {
       </div>
       <ResizeHandle index={1} onMouseDown={onMouseDown} isActive={draggingRef.current === 1} />
       <div className="pane" style={{ width: `${effectiveWidths[2]}%` }}>
-        <ErrorBoundary fallbackLabel={showSimilar ? 'Similar Search' : 'Document'}>
-          {showSimilar ? <SimilarResultsPane /> : <DocumentPane />}
+        <ErrorBoundary fallbackLabel={showPotentialEdges ? 'Potential Edges' : showSimilar ? 'Similar Search' : 'Document'}>
+          {showPotentialEdges ? <PotentialEdgesPane /> : showSimilar ? <SimilarResultsPane /> : <DocumentPane />}
         </ErrorBoundary>
       </div>
 

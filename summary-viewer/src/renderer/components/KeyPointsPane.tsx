@@ -153,6 +153,7 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
 function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: number; onSelect: () => void }) {
   const addToTaxonomy = useStore(s => s.addToTaxonomy);
   const runSimilarSearch = useStore(s => s.runSimilarSearch);
+  const runPotentialEdges = useStore(s => s.runPotentialEdges);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [result, setResult] = useState<{ success: boolean; nodeId?: string; error?: string } | null>(null);
@@ -233,6 +234,20 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
                 }}
               >
                 View Similar
+              </button>
+              <button
+                className="unmapped-popup-item"
+                onClick={() => {
+                  runPotentialEdges({
+                    label: uc.suggested_label || uc.concept.slice(0, 80),
+                    description: uc.suggested_description || uc.concept,
+                    pov: uc.suggested_pov,
+                    category: uc.suggested_category,
+                  });
+                  setMenuOpen(false);
+                }}
+              >
+                Show Potential Edges
               </button>
               {result?.success && (
                 <div className="unmapped-popup-success">

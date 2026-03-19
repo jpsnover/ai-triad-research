@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeQueryEmbedding: (text: string): Promise<number[]> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
+  generateContent: (systemPrompt: string, userPrompt: string): Promise<string> =>
+    ipcRenderer.invoke('generate-content', systemPrompt, userPrompt),
+
   openInTaxonomyEditor: (nodeId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('open-in-taxonomy-editor', nodeId),
 

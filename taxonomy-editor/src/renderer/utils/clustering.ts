@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { cosineSimilarity } from './similarity';
+import { clusterLabelPrompt } from '../prompts/analysis';
 
 export interface Cluster {
   label: string;
@@ -83,13 +84,5 @@ export function clusterByEmbedding(
 export function buildClusterLabelPrompt(
   clusters: { nodeIds: string[]; labels: string[] }[],
 ): string {
-  const lines = clusters.map((c, i) =>
-    `Cluster ${i + 1}:\n${c.labels.map(l => `  - ${l}`).join('\n')}`
-  ).join('\n\n');
-
-  return `You are labeling thematic clusters of AI policy taxonomy nodes.
-For each cluster below, generate a short (3-7 word) thematic label that captures what unites these items.
-Return ONLY a JSON array of strings, one label per cluster, in order. No markdown fencing.
-
-${lines}`;
+  return clusterLabelPrompt(clusters);
 }

@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import ApiKeyDialog from './ApiKeyDialog';
+import type { GraphAttributes } from '../types/types';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
 type SortDir = 'asc' | 'desc';
@@ -14,6 +15,7 @@ interface ResolvedRow {
   label: string;
   description: string;
   category: string;
+  graph_attributes?: GraphAttributes;
 }
 
 export default function SimilarResultsPane() {
@@ -31,6 +33,10 @@ export default function SimilarResultsPane() {
   const [showIds, setShowIds] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('match');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Reset selection when a new search starts
+  useEffect(() => { setSelectedId(null); }, [similarQuery]);
 
   // Column widths (resizable)
   const [colWidths, setColWidths] = useState({ match: 60, id: 150, label: 160 });
@@ -66,6 +72,42 @@ export default function SimilarResultsPane() {
     window.addEventListener('mouseup', onUp);
   }, [colWidths]);
 
+  // Resizable vertical split between list and detail
+  const splitDrag = useRef<{ startY: number; startH: number } | null>(null);
+  const [listHeight, setListHeight] = useState(() => {
+    const saved = localStorage.getItem('similar-split-height');
+    return saved ? Number(saved) : 200;
+  });
+
+  const listHeightRef = useRef(listHeight);
+  listHeightRef.current = listHeight;
+
+  const onSplitResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    splitDrag.current = { startY: e.clientY, startH: listHeightRef.current };
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!splitDrag.current) return;
+      const delta = ev.clientY - splitDrag.current.startY;
+      const newH = Math.max(80, Math.min(600, splitDrag.current.startH + delta));
+      setListHeight(newH);
+    };
+
+    const onUp = () => {
+      localStorage.setItem('similar-split-height', String(listHeightRef.current));
+      splitDrag.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, []);
+
   const resolvedRows = useMemo((): ResolvedRow[] => {
     if (!similarResults) return [];
     return similarResults.map(r => {
@@ -76,6 +118,7 @@ export default function SimilarResultsPane() {
         label: node?.label || r.id,
         description: node?.description || '',
         category: node?.category || '',
+        graph_attributes: node?.graph_attributes,
       };
     });
   }, [similarResults, taxonomy]);
@@ -194,73 +237,184 @@ export default function SimilarResultsPane() {
                 onChange={(e) => setSimilarThreshold(Number(e.target.value))}
               />
               <span className="similar-threshold-value">{similarThreshold}%</span>
+              <span className="similar-count-badge">{filteredAndSorted.length}</span>
             </div>
 
-            <div className="similar-table-wrap">
-              <table className="similar-table">
-                <thead>
-                  <tr>
-                    <th
-                      style={{ width: colWidths.match }}
-                      className="similar-th-sortable"
-                      onClick={() => handleSort('match')}
-                    >
-                      Match{sortIndicator('match')}
-                      {resizeHandle('match')}
-                    </th>
-                    {showIds && (
-                      <th
-                        style={{ width: colWidths.id }}
-                        className="similar-th-sortable"
-                        onClick={() => handleSort('id')}
-                      >
-                        ID{sortIndicator('id')}
-                        {resizeHandle('id')}
-                      </th>
-                    )}
-                    <th
-                      style={{ width: colWidths.label }}
-                      className="similar-th-sortable"
-                      onClick={() => handleSort('label')}
-                    >
-                      Label{sortIndicator('label')}
-                      {resizeHandle('label')}
-                    </th>
-                    <th
-                      className="similar-th-sortable"
-                      onClick={() => handleSort('description')}
-                    >
-                      Description{sortIndicator('description')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSorted.length === 0 ? (
+            <div className="similar-split-container">
+              {/* Top: results list */}
+              <div className="similar-table-wrap" style={{ height: selectedId ? listHeight : undefined, flex: selectedId ? 'none' : 1 }}>
+                <table className="similar-table">
+                  <thead>
                     <tr>
-                      <td colSpan={colCount} className="similar-table-empty">
-                        No results above {similarThreshold}% threshold
-                      </td>
+                      <th
+                        style={{ width: colWidths.match }}
+                        className="similar-th-sortable"
+                        onClick={() => handleSort('match')}
+                      >
+                        Match{sortIndicator('match')}
+                        {resizeHandle('match')}
+                      </th>
+                      {showIds && (
+                        <th
+                          style={{ width: colWidths.id }}
+                          className="similar-th-sortable"
+                          onClick={() => handleSort('id')}
+                        >
+                          ID{sortIndicator('id')}
+                          {resizeHandle('id')}
+                        </th>
+                      )}
+                      <th
+                        style={{ width: colWidths.label }}
+                        className="similar-th-sortable"
+                        onClick={() => handleSort('label')}
+                      >
+                        Label{sortIndicator('label')}
+                        {resizeHandle('label')}
+                      </th>
+                      <th
+                        className="similar-th-sortable"
+                        onClick={() => handleSort('description')}
+                      >
+                        Description{sortIndicator('description')}
+                      </th>
                     </tr>
-                  ) : (
-                    filteredAndSorted.map((r) => (
-                      <tr key={r.id} className="similar-table-row">
-                        <td className="similar-table-match">
-                          {Math.round(r.score * 100)}%
+                  </thead>
+                  <tbody>
+                    {filteredAndSorted.length === 0 ? (
+                      <tr>
+                        <td colSpan={colCount} className="similar-table-empty">
+                          No results above {similarThreshold}% threshold
                         </td>
-                        {showIds && (
-                          <td className="similar-table-id">{r.id}</td>
-                        )}
-                        <td className="similar-table-label">{r.label}</td>
-                        <td className="similar-table-desc">{r.description}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredAndSorted.map((r) => (
+                        <tr
+                          key={r.id}
+                          className={`similar-table-row${selectedId === r.id ? ' selected' : ''}`}
+                          onClick={() => setSelectedId(prev => prev === r.id ? null : r.id)}
+                        >
+                          <td className="similar-table-match">
+                            {Math.round(r.score * 100)}%
+                          </td>
+                          {showIds && (
+                            <td className="similar-table-id">{r.id}</td>
+                          )}
+                          <td className="similar-table-label">{r.label}</td>
+                          <td className="similar-table-desc">{r.description}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Resize handle between list and detail */}
+              {selectedId && (
+                <>
+                  <div className="similar-split-handle" onMouseDown={onSplitResizeStart} />
+                  <SimilarDetailPanel row={filteredAndSorted.find(r => r.id === selectedId) ?? null} />
+                </>
+              )}
             </div>
           </>
         )}
       </div>
     </>
+  );
+}
+
+/** Detail panel showing the full info for a selected similar node */
+function SimilarDetailPanel({ row }: { row: ResolvedRow | null }) {
+  if (!row) return <div className="similar-detail-empty">Node not found</div>;
+
+  const povFromId = (id: string): string => {
+    if (id.startsWith('acc-')) return 'Accelerationist';
+    if (id.startsWith('saf-')) return 'Safetyist';
+    if (id.startsWith('skp-')) return 'Skeptic';
+    if (id.startsWith('cc-')) return 'Cross-cutting';
+    return '';
+  };
+
+  const formatAttrValue = (val: string | string[] | undefined): string => {
+    if (!val) return '';
+    if (Array.isArray(val)) return val.map(v => v.replace(/_/g, ' ')).join(', ');
+    return String(val).replace(/_/g, ' ');
+  };
+
+  const attrs = row.graph_attributes;
+
+  return (
+    <div className="similar-detail-panel">
+      <div className="similar-detail-header">
+        <span className="similar-detail-id">{row.id}</span>
+        <span className="similar-detail-match">{Math.round(row.score * 100)}% match</span>
+      </div>
+      <div className="similar-detail-pov-cat">
+        <span className={`pov-badge pov-${povFromId(row.id).toLowerCase()}`}>{povFromId(row.id)}</span>
+        {row.category && <span className="similar-detail-category">{row.category}</span>}
+      </div>
+      <h3 className="similar-detail-label">{row.label}</h3>
+      <p className="similar-detail-desc">{row.description}</p>
+
+      {attrs && (
+        <div className="similar-detail-attrs">
+          {attrs.epistemic_type && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Epistemic Type</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.epistemic_type)}</span>
+            </div>
+          )}
+          {attrs.rhetorical_strategy && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Rhetorical Strategy</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.rhetorical_strategy)}</span>
+            </div>
+          )}
+          {attrs.emotional_register && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Emotional Register</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.emotional_register)}</span>
+            </div>
+          )}
+          {attrs.falsifiability && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Falsifiability</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.falsifiability)}</span>
+            </div>
+          )}
+          {attrs.audience && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Audience</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.audience)}</span>
+            </div>
+          )}
+          {attrs.policy_actionability && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Policy Actionability</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.policy_actionability)}</span>
+            </div>
+          )}
+          {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Intellectual Lineage</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.intellectual_lineage)}</span>
+            </div>
+          )}
+          {attrs.assumes && attrs.assumes.length > 0 && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Assumes</span>
+              <span className="similar-detail-attr-value">{formatAttrValue(attrs.assumes)}</span>
+            </div>
+          )}
+          {attrs.steelman_vulnerability && (
+            <div className="similar-detail-attr">
+              <span className="similar-detail-attr-label">Steelman Vulnerability</span>
+              <span className="similar-detail-attr-value">{attrs.steelman_vulnerability}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
