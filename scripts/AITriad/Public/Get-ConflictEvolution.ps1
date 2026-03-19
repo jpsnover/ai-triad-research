@@ -57,6 +57,7 @@ function Get-ConflictEvolution {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Load taxonomy nodes ──
     $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'

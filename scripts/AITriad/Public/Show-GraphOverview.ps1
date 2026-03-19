@@ -38,7 +38,13 @@ function Show-GraphOverview {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        try {
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        }
+        catch {
+            Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
+            continue
+        }
         $PovCounts[$PovKey] = $FileData.nodes.Count
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = $Node
@@ -50,7 +56,13 @@ function Show-GraphOverview {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $Edges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        try {
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        }
+        catch {
+            Write-Warn "Failed to load edges.json — $($_.Exception.Message)"
+            $EdgesData = [PSCustomObject]@{ edges = @() }
+        }
         if ($StatusFilter -eq 'all') {
             $Edges = @($EdgesData.edges)
         } else {

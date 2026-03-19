@@ -55,7 +55,13 @@ function Find-GraphPath {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        try {
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        }
+        catch {
+            Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
+            continue
+        }
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = $Node
             $NodePovMap[$Node.id] = $PovKey

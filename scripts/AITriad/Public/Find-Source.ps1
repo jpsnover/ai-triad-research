@@ -74,7 +74,9 @@ function Find-Source {
                 $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
                 $Title = $Meta.title
             }
-            catch { }
+            catch {
+                Write-Verbose "Could not load title from $MetaPath — $($_.Exception.Message)"
+            }
         }
 
         # Scan all POV summaries for matching taxonomy_node_id values

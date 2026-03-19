@@ -14,7 +14,16 @@ function Show-SummaryViewer {
     [CmdletBinding()]
     param()
     $AppDir = Join-Path $script:RepoRoot 'summary-viewer'
+    if (-not (Test-Path $AppDir)) {
+        Write-Fail "App directory not found: $AppDir"
+        return
+    }
     Push-Location $AppDir
-    try { npm run dev }
+    try {
+        npm run dev
+        if ($LASTEXITCODE -ne 0) {
+            Write-Fail "npm run dev exited with code $LASTEXITCODE. Check that dependencies are installed (npm install)."
+        }
+    }
     finally { Pop-Location }
 }

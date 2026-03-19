@@ -52,7 +52,13 @@ function Get-GraphNode {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        try {
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        }
+        catch {
+            Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
+            continue
+        }
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = $Node
             $NodePovMap[$Node.id] = $PovKey
@@ -68,8 +74,13 @@ function Get-GraphNode {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $Edges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
-        $Edges = @($EdgesData.edges)
+        try {
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $Edges = @($EdgesData.edges)
+        }
+        catch {
+            Write-Warn "Failed to load edges.json — $($_.Exception.Message)"
+        }
     }
 
     # BFS traversal

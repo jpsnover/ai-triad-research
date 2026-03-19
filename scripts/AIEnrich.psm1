@@ -217,7 +217,15 @@ function Invoke-AIApi {
 
     if ($null -ne $LastError -or $null -eq $Response) {
         $StatusCode = if ($LastError) { $LastError.Exception.Response.StatusCode.value__ } else { '?' }
+        $Hint = switch ($StatusCode) {
+            401     { 'Check your API key — it may be invalid or expired.' }
+            403     { 'Access denied — verify your API key has the required permissions.' }
+            429     { 'Rate limit exceeded — wait a moment and try again.' }
+            { $_ -in 500, 502, 503 } { 'Server error — the API may be temporarily unavailable.' }
+            default { '' }
+        }
         Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $($LastError.Exception.Message)"
+        if ($Hint) { Write-Warning "$($Backend): $Hint" }
         return $null
     }
 
@@ -229,7 +237,8 @@ function Invoke-AIApi {
             try {
                 $Text = $Response.candidates[0].content.parts[0].text
             } catch {
-                Write-Warning "Gemini: unexpected response shape"
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Gemini: unexpected response shape (top-level keys: $TopKeys). Expected candidates[].content.parts[].text"
                 return $null
             }
         }
@@ -237,7 +246,8 @@ function Invoke-AIApi {
             try {
                 $Text = ($Response.content | Where-Object { $_.type -eq 'text' } | Select-Object -First 1).text
             } catch {
-                Write-Warning "Claude: unexpected response shape"
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Claude: unexpected response shape (top-level keys: $TopKeys). Expected content[].text"
                 return $null
             }
         }
@@ -245,7 +255,8 @@ function Invoke-AIApi {
             try {
                 $Text = $Response.choices[0].message.content
             } catch {
-                Write-Warning "Groq: unexpected response shape"
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "Groq: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }
