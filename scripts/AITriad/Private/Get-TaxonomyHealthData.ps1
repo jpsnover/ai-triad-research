@@ -12,11 +12,14 @@ function Get-TaxonomyHealthData {
            and aggregate unmapped concepts
         3. Deriving orphan nodes, most/least cited, stance variance,
            coverage balance, and cross-cutting reference health
+    .PARAMETER GraphMode
+        When set, also computes graph-structural health metrics from edges.json.
     .PARAMETER RepoRoot
         Path to the repository root. Defaults to $script:RepoRoot.
     #>
     [CmdletBinding()]
     param(
+        [switch]$GraphMode,
         [string]$RepoRoot = $script:RepoRoot
     )
 
@@ -33,9 +36,11 @@ function Get-TaxonomyHealthData {
         foreach ($Node in $Entry.nodes) {
             $NodeIndex[$Node.id] = @{
                 POV              = $PovKey
-                Category         = if ($PovKey -eq 'cross-cutting') { 'Cross-Cutting' } else { $Node.category }
+                Category         = if ($PovKey -eq 'cross-cutting') { 'Cross-Cutting' }
+                                   elseif ($Node.PSObject.Properties['category']) { $Node.category }
+                                   else { '' }
                 Label            = $Node.label
-                Description      = $Node.description
+                Description      = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
                 Citations        = 0
                 DocIds           = [System.Collections.Generic.List[string]]::new()
                 Stances          = [System.Collections.Generic.List[string]]::new()
@@ -101,14 +106,18 @@ function Get-TaxonomyHealthData {
         if ($Summary.unmapped_concepts) {
             foreach ($Concept in $Summary.unmapped_concepts) {
                 $DocUnmapped++
-                $NormKey = ($Concept.concept -replace '\s+', ' ').Trim().ToLower()
+                $ConceptText = if ($Concept.PSObject.Properties['concept']) { $Concept.concept } else { "$Concept" }
+                $NormKey = ($ConceptText -replace '\s+', ' ').Trim().ToLower()
+                if (-not $NormKey) { continue }
+                $SugPov = if ($Concept.PSObject.Properties['suggested_pov'])      { $Concept.suggested_pov }      else { $null }
+                $SugCat = if ($Concept.PSObject.Properties['suggested_category']) { $Concept.suggested_category } else { $null }
                 if (-not $UnmappedAgg.ContainsKey($NormKey)) {
                     $UnmappedAgg[$NormKey] = @{
-                        Concept           = $Concept.concept
+                        Concept           = $ConceptText
                         NormalizedKey     = $NormKey
                         Frequency         = 0
-                        SuggestedPov      = $Concept.suggested_pov
-                        SuggestedCategory = $Concept.suggested_category
+                        SuggestedPov      = $SugPov
+                        SuggestedCategory = $SugCat
                         ContributingDocs  = [System.Collections.Generic.List[string]]::new()
                         Reasons           = [System.Collections.Generic.List[string]]::new()
                     }
@@ -117,8 +126,9 @@ function Get-TaxonomyHealthData {
                 if ($DocId -notin $UnmappedAgg[$NormKey].ContributingDocs) {
                     $UnmappedAgg[$NormKey].ContributingDocs.Add($DocId)
                 }
-                if ($Concept.reason -and $Concept.reason -notin $UnmappedAgg[$NormKey].Reasons) {
-                    $UnmappedAgg[$NormKey].Reasons.Add($Concept.reason)
+                $ReasonText = if ($Concept.PSObject.Properties['reason']) { $Concept.reason } else { $null }
+                if ($ReasonText -and $ReasonText -notin $UnmappedAgg[$NormKey].Reasons) {
+                    $UnmappedAgg[$NormKey].Reasons.Add($ReasonText)
                 }
             }
         }
@@ -269,7 +279,162 @@ function Get-TaxonomyHealthData {
         PerDoc           = $SummaryStats.ToArray()
     }
 
-    # ── 5. Return hashtable ────────────────────────────────────────────────────
+    # ── 5. Graph health metrics (when -GraphMode) ──────────────────────────────
+    $GraphHealth = $null
+    if ($GraphMode) {
+        $TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
+        $EdgesPath = Join-Path $TaxDir 'edges.json'
+
+        if (-not (Test-Path $EdgesPath)) {
+            Write-Warning "Get-TaxonomyHealthData: edges.json not found — GraphMode metrics unavailable"
+        }
+        else {
+            $EdgesData    = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $ApprovedEdges = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
+
+            # Build POV lookup for each node
+            $NodePovLookup = @{}
+            foreach ($PovKey in $PovNames) {
+                $Entry = $script:TaxonomyData[$PovKey]
+                if (-not $Entry) { continue }
+                foreach ($Node in $Entry.nodes) {
+                    $NodePovLookup[$Node.id] = $PovKey
+                }
+            }
+
+            # ── Echo chamber score per POV ──
+            # Ratio of SUPPORTS to CONTRADICTS edges within the same POV
+            $EchoChamberScores = @{}
+            foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+                $SamePovSupports    = 0
+                $SamePovContradicts = 0
+                foreach ($Edge in $ApprovedEdges) {
+                    $SPov = $NodePovLookup[$Edge.source]
+                    $TPov = $NodePovLookup[$Edge.target]
+                    if ($SPov -eq $PovKey -and $TPov -eq $PovKey) {
+                        if ($Edge.type -eq 'SUPPORTS')    { $SamePovSupports++ }
+                        if ($Edge.type -eq 'CONTRADICTS') { $SamePovContradicts++ }
+                    }
+                }
+                $EchoChamberScores[$PovKey] = [ordered]@{
+                    SamePovSupports    = $SamePovSupports
+                    SamePovContradicts = $SamePovContradicts
+                    Ratio              = if ($SamePovContradicts -gt 0) {
+                        [Math]::Round($SamePovSupports / $SamePovContradicts, 2)
+                    } else {
+                        if ($SamePovSupports -gt 0) { [double]::PositiveInfinity } else { 0.0 }
+                    }
+                }
+            }
+
+            # ── Cross-POV connectivity ──
+            $CrossPovEdgeCount = 0
+            $TotalEdgeCount    = $ApprovedEdges.Count
+            foreach ($Edge in $ApprovedEdges) {
+                $SPov = $NodePovLookup[$Edge.source]
+                $TPov = $NodePovLookup[$Edge.target]
+                if ($SPov -and $TPov -and $SPov -ne $TPov) {
+                    $CrossPovEdgeCount++
+                }
+            }
+            $CrossPovPct = if ($TotalEdgeCount -gt 0) {
+                [Math]::Round(($CrossPovEdgeCount / $TotalEdgeCount) * 100, 1)
+            } else { 0.0 }
+
+            # ── Edge orphans (nodes with 0 edges) ──
+            $EdgedNodes = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($Edge in $ApprovedEdges) {
+                [void]$EdgedNodes.Add($Edge.source)
+                [void]$EdgedNodes.Add($Edge.target)
+            }
+            $EdgeOrphans = @($NodePovLookup.Keys | Where-Object { -not $EdgedNodes.Contains($_) } | Sort-Object)
+
+            # ── Hub concentration (Gini coefficient of degree distribution) ──
+            $DegreeMap = @{}
+            foreach ($NId in $NodePovLookup.Keys) { $DegreeMap[$NId] = 0 }
+            foreach ($Edge in $ApprovedEdges) {
+                if ($DegreeMap.ContainsKey($Edge.source)) { $DegreeMap[$Edge.source]++ }
+                if ($DegreeMap.ContainsKey($Edge.target)) { $DegreeMap[$Edge.target]++ }
+            }
+            $Degrees = @($DegreeMap.Values | Sort-Object)
+            $N = $Degrees.Count
+            $GiniCoeff = 0.0
+            if ($N -gt 0) {
+                $SumDiff = 0.0
+                $SumAll  = 0.0
+                for ($i = 0; $i -lt $N; $i++) {
+                    $SumAll += $Degrees[$i]
+                    for ($j = 0; $j -lt $N; $j++) {
+                        $SumDiff += [Math]::Abs($Degrees[$i] - $Degrees[$j])
+                    }
+                }
+                if ($SumAll -gt 0) {
+                    $GiniCoeff = [Math]::Round($SumDiff / (2 * $N * $SumAll), 4)
+                }
+            }
+
+            # ── Missing edge type pairs ──
+            # Cross-POV node pairs with SUPPORTS but no CONTRADICTS
+            $CrossPovSupports    = [System.Collections.Generic.HashSet[string]]::new()
+            $CrossPovContradicts = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($Edge in $ApprovedEdges) {
+                $SPov = $NodePovLookup[$Edge.source]
+                $TPov = $NodePovLookup[$Edge.target]
+                if ($SPov -and $TPov -and $SPov -ne $TPov) {
+                    $PairKey = if ($Edge.source -lt $Edge.target) { "$($Edge.source)|$($Edge.target)" } else { "$($Edge.target)|$($Edge.source)" }
+                    if ($Edge.type -eq 'SUPPORTS')    { [void]$CrossPovSupports.Add($PairKey) }
+                    if ($Edge.type -eq 'CONTRADICTS') { [void]$CrossPovContradicts.Add($PairKey) }
+                }
+            }
+            $MissingContradicts = @($CrossPovSupports | Where-Object { -not $CrossPovContradicts.Contains($_) })
+
+            # ── Echo chamber nodes (many SUPPORTS, 0 cross-POV CONTRADICTS) ──
+            $NodeCrossPovContradicts = @{}
+            $NodeSupportsCount      = @{}
+            foreach ($Edge in $ApprovedEdges) {
+                $SPov = $NodePovLookup[$Edge.source]
+                $TPov = $NodePovLookup[$Edge.target]
+                if ($Edge.type -eq 'SUPPORTS') {
+                    if (-not $NodeSupportsCount.ContainsKey($Edge.source)) { $NodeSupportsCount[$Edge.source] = 0 }
+                    $NodeSupportsCount[$Edge.source]++
+                }
+                if ($Edge.type -eq 'CONTRADICTS' -and $SPov -ne $TPov) {
+                    if (-not $NodeCrossPovContradicts.ContainsKey($Edge.source)) { $NodeCrossPovContradicts[$Edge.source] = 0 }
+                    if (-not $NodeCrossPovContradicts.ContainsKey($Edge.target)) { $NodeCrossPovContradicts[$Edge.target] = 0 }
+                    $NodeCrossPovContradicts[$Edge.source]++
+                    $NodeCrossPovContradicts[$Edge.target]++
+                }
+            }
+            $EchoChamberNodes = @($NodeSupportsCount.Keys | Where-Object {
+                $NodeSupportsCount[$_] -ge 3 -and
+                (-not $NodeCrossPovContradicts.ContainsKey($_) -or $NodeCrossPovContradicts[$_] -eq 0)
+            } | Sort-Object { $NodeSupportsCount[$_] } -Descending)
+
+            $GraphHealth = [ordered]@{
+                EchoChamberScores    = $EchoChamberScores
+                CrossPovConnectivity = [ordered]@{
+                    CrossPovEdges = $CrossPovEdgeCount
+                    TotalEdges    = $TotalEdgeCount
+                    Percentage    = $CrossPovPct
+                }
+                EdgeOrphans          = $EdgeOrphans
+                EdgeOrphanCount      = $EdgeOrphans.Count
+                HubConcentration     = [ordered]@{
+                    GiniCoefficient = $GiniCoeff
+                    MaxDegree       = if ($Degrees.Count -gt 0) { $Degrees[-1] } else { 0 }
+                    MedianDegree    = if ($Degrees.Count -gt 0) { $Degrees[[Math]::Floor($Degrees.Count / 2)] } else { 0 }
+                }
+                MissingEdgeTypePairs = [ordered]@{
+                    SupportsNoContradicts = $MissingContradicts
+                    Count                 = $MissingContradicts.Count
+                }
+                EchoChamberNodes     = $EchoChamberNodes
+                EchoChamberNodeCount = $EchoChamberNodes.Count
+            }
+        }
+    }
+
+    # ── 6. Return hashtable ────────────────────────────────────────────────────
     return @{
         TaxonomyVersion   = $TaxonomyVersion
         SummaryCount      = $SummaryStats.Count
@@ -285,5 +450,6 @@ function Get-TaxonomyHealthData {
         CoverageBalance   = $CoverageBalance
         CrossCuttingHealth = $CrossCuttingHealth
         SummaryStats      = $SummaryStatsResult
+        GraphHealth       = $GraphHealth
     }
 }

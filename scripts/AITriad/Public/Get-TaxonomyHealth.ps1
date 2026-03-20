@@ -21,10 +21,14 @@ function Get-TaxonomyHealth {
         Optional path to write the full health data as JSON.
     .PARAMETER Detailed
         Show per-node and per-document breakdowns.
+    .PARAMETER GraphMode
+        Include graph-structural health metrics (echo chambers, cross-POV connectivity, etc.).
     .PARAMETER PassThru
         Return the health data hashtable for piping to other commands.
     .EXAMPLE
         Get-TaxonomyHealth
+    .EXAMPLE
+        Get-TaxonomyHealth -GraphMode
     .EXAMPLE
         Get-TaxonomyHealth -Detailed -OutputFile health.json
     .EXAMPLE
@@ -36,6 +40,7 @@ function Get-TaxonomyHealth {
         [string]$RepoRoot   = $script:RepoRoot,
         [string]$OutputFile  = '',
         [switch]$Detailed,
+        [switch]$GraphMode,
         [switch]$PassThru
     )
 
@@ -44,7 +49,9 @@ function Get-TaxonomyHealth {
 
     # ── Compute health data ────────────────────────────────────────────────────
     Write-Step "Computing taxonomy health data"
-    $Health = Get-TaxonomyHealthData -RepoRoot $RepoRoot
+    $HealthParams = @{ RepoRoot = $RepoRoot }
+    if ($GraphMode) { $HealthParams['GraphMode'] = $true }
+    $Health = Get-TaxonomyHealthData @HealthParams
     Write-OK "Scanned $($Health.SummaryCount) summaries against taxonomy v$($Health.TaxonomyVersion)"
 
     # ── 1. Summary Statistics ──────────────────────────────────────────────────
@@ -187,7 +194,84 @@ function Get-TaxonomyHealth {
         }
     }
 
-    # ── 8. Per-Document Breakdown (Detailed only) ──────────────────────────────
+    # ── 8. Graph Health (GraphMode only) ────────────────────────────────────────
+    if ($GraphMode -and $Health.GraphHealth) {
+        $GH = $Health.GraphHealth
+
+        # Build label lookup for display
+        $NodeLabelMap = @{}
+        foreach ($NC in $Health.NodeCitations) { $NodeLabelMap[$NC.Id] = $NC.Label }
+
+        Write-Host "`n  GRAPH STRUCTURAL HEALTH" -ForegroundColor White
+        Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
+
+        # Echo chamber scores
+        Write-Host "`n  Echo Chamber Scores (intra-POV SUPPORTS:CONTRADICTS):" -ForegroundColor Cyan
+        foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+            $EC = $GH.EchoChamberScores[$PovKey]
+            $RatioStr = if ($EC.Ratio -eq [double]::PositiveInfinity) { 'Inf (no contradicts)' } else { "$($EC.Ratio):1" }
+            $Color = if ($EC.Ratio -ge 10 -or $EC.Ratio -eq [double]::PositiveInfinity) { 'Red' }
+                     elseif ($EC.Ratio -ge 5) { 'Yellow' }
+                     else { 'Green' }
+            Write-Host "    $($PovKey.PadRight(18)) $($EC.SamePovSupports) supports / $($EC.SamePovContradicts) contradicts = $RatioStr" -ForegroundColor $Color
+        }
+
+        # Cross-POV connectivity
+        Write-Host "`n  Cross-POV Connectivity:" -ForegroundColor Cyan
+        $CPov = $GH.CrossPovConnectivity
+        $ConnColor = if ($CPov.Percentage -ge 50) { 'Green' } elseif ($CPov.Percentage -ge 30) { 'Yellow' } else { 'Red' }
+        Write-Info "$($CPov.CrossPovEdges) / $($CPov.TotalEdges) edges cross POV boundaries ($($CPov.Percentage)%)"
+
+        # Edge orphans
+        if ($GH.EdgeOrphanCount -gt 0) {
+            Write-Host "`n  Edge Orphans ($($GH.EdgeOrphanCount) nodes with zero edges):" -ForegroundColor Yellow
+            foreach ($OId in $GH.EdgeOrphans | Select-Object -First 10) {
+                $OLabel = if ($NodeLabelMap.ContainsKey($OId)) { $NodeLabelMap[$OId] } else { $OId }
+                Write-Host "    $OId — $OLabel" -ForegroundColor DarkGray
+            }
+            if ($GH.EdgeOrphanCount -gt 10) {
+                Write-Host "    ... and $($GH.EdgeOrphanCount - 10) more" -ForegroundColor DarkGray
+            }
+        }
+        else {
+            Write-OK "No edge orphans — all nodes have at least one edge"
+        }
+
+        # Hub concentration
+        $HC = $GH.HubConcentration
+        $GiniColor = if ($HC.GiniCoefficient -ge 0.5) { 'Yellow' } else { 'Green' }
+        Write-Host "`n  Hub Concentration:" -ForegroundColor Cyan
+        Write-Host "    Gini coefficient : $($HC.GiniCoefficient)" -ForegroundColor $GiniColor
+        Write-Info "Max degree: $($HC.MaxDegree)  |  Median degree: $($HC.MedianDegree)"
+
+        # Missing edge type pairs
+        if ($GH.MissingEdgeTypePairs.Count -gt 0) {
+            Write-Host "`n  Missing Edge Types ($($GH.MissingEdgeTypePairs.Count) cross-POV pairs with SUPPORTS but no CONTRADICTS):" -ForegroundColor Yellow
+            foreach ($Pair in $GH.MissingEdgeTypePairs.SupportsNoContradicts | Select-Object -First 10) {
+                Write-Host "    $Pair" -ForegroundColor DarkGray
+            }
+            if ($GH.MissingEdgeTypePairs.Count -gt 10) {
+                Write-Host "    ... and $($GH.MissingEdgeTypePairs.Count - 10) more" -ForegroundColor DarkGray
+            }
+        }
+
+        # Echo chamber nodes
+        if ($GH.EchoChamberNodeCount -gt 0) {
+            Write-Host "`n  Echo Chamber Nodes ($($GH.EchoChamberNodeCount) with 3+ SUPPORTS, 0 cross-POV CONTRADICTS):" -ForegroundColor Yellow
+            foreach ($ECId in $GH.EchoChamberNodes | Select-Object -First 10) {
+                $ECLabel = if ($NodeLabelMap.ContainsKey($ECId)) { $NodeLabelMap[$ECId] } else { $ECId }
+                Write-Host "    $ECId — $ECLabel" -ForegroundColor DarkGray
+            }
+            if ($GH.EchoChamberNodeCount -gt 10) {
+                Write-Host "    ... and $($GH.EchoChamberNodeCount - 10) more" -ForegroundColor DarkGray
+            }
+        }
+        else {
+            Write-OK "No echo chamber nodes detected"
+        }
+    }
+
+    # ── 9. Per-Document Breakdown (Detailed only) ──────────────────────────────
     if ($Detailed) {
         Write-Host "`n  PER-DOCUMENT BREAKDOWN" -ForegroundColor White
         Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
@@ -235,6 +319,10 @@ function Get-TaxonomyHealth {
                 total_claims     = $Stats.TotalClaims
                 total_unmapped   = $Stats.TotalUnmapped
             }
+        }
+
+        if ($Health.GraphHealth) {
+            $ExportData['graph_health'] = $Health.GraphHealth
         }
 
         try {

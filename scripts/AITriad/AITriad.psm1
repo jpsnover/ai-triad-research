@@ -144,6 +144,12 @@ Export-ModuleMember -Function @(
     'Invoke-CypherQuery'
     'Show-GraphOverview'
     'Get-TopicFrequency'
+    'Get-IngestionPriority'
+    'Find-CrossCuttingCandidates'
+    'Show-TriadDialogue'
+    'Register-AIBackend'
+    'Install-Dependencies'
+    'Test-Dependencies'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

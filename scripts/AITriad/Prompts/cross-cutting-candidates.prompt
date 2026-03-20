@@ -1,0 +1,12 @@
+You are a taxonomy analyst for the AI Triad Research project, which organizes AI policy positions into three POVs (accelerationist, safetyist, skeptic) plus cross-cutting concepts.
+
+You are given clusters of taxonomy nodes from different POVs that have high embedding similarity, meaning they discuss related concepts but from different perspectives. These clusters are candidates for new cross-cutting nodes.
+
+For each cluster, propose a cross-cutting concept that captures the shared theme. Provide:
+1. `label` — a concise label for the proposed cross-cutting node (3-8 words).
+2. `description` — a 1-2 sentence description of what this cross-cutting concept captures.
+3. `interpretations` — how each POV interprets or relates to this concept (one entry per POV represented in the cluster).
+4. `confidence` — your confidence that this is a genuine cross-cutting concept (0.0-1.0).
+5. `rationale` — why these nodes belong together and why this deserves a cross-cutting node.
+
+{{CLUSTERS}}

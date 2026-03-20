@@ -75,7 +75,8 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     updateConflict(conflict.claim_id, updates);
   };
 
-  const linkedNodes = conflict.linked_taxonomy_nodes || [];
+  const raw = conflict.linked_taxonomy_nodes;
+  const linkedNodes = Array.isArray(raw) ? raw : raw ? [raw] : [];
 
   const addLinked = (id: string) => {
     if (id && !linkedNodes.includes(id)) {

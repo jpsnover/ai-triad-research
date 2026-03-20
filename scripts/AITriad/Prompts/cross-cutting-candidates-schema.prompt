@@ -1,0 +1,19 @@
+Respond in JSON format:
+```json
+{
+  "candidates": [
+    {
+      "cluster_id": "cluster-0",
+      "label": "...",
+      "description": "...",
+      "interpretations": {
+        "accelerationist": "...",
+        "safetyist": "...",
+        "skeptic": "..."
+      },
+      "confidence": 0.85,
+      "rationale": "..."
+    }
+  ]
+}
+```

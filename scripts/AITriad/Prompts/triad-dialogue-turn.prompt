@@ -1,0 +1,12 @@
+{{SYSTEM_PROMPT}}
+
+The topic under debate is:
+{{TOPIC}}
+
+Here is the transcript so far:
+{{TRANSCRIPT}}
+
+It is now your turn to speak. Respond with your argument for this round.
+Engage with the other speakers' previous points. Reference taxonomy nodes by ID.
+
+{{SCHEMA}}

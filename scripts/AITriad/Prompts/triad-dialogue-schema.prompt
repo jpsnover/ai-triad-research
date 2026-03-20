@@ -1,0 +1,12 @@
+Respond in JSON format:
+```json
+{
+  "content": "Your argument text here, 150-250 words. Reference taxonomy nodes like [acc-goals-002].",
+  "taxonomy_refs": [
+    {
+      "node_id": "acc-goals-002",
+      "relevance": "Brief explanation of why this node is relevant to your argument."
+    }
+  ]
+}
+```
