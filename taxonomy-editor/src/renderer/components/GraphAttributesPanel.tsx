@@ -147,6 +147,16 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
       </button>
       {open && (
         <div className="ga-grid">
+          {/* Assumptions — first */}
+          {attrs.assumes && attrs.assumes.length > 0 && (
+            <div className="ga-row ga-row-full">
+              <div className="ga-label">{LABEL_MAP.assumes}</div>
+              <ul className="ga-list">
+                {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
+          )}
+
           {/* Epistemic Type */}
           {attrs.epistemic_type && (
             <div className="ga-row">
@@ -175,24 +185,6 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Falsifiability + Policy Actionability — side by side meters */}
-          {(attrs.falsifiability || attrs.policy_actionability) && (
-            <div className="ga-row-meters">
-              {attrs.falsifiability && (
-                <div className="ga-meter-group">
-                  <div className="ga-label">{LABEL_MAP.falsifiability}</div>
-                  <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
-                </div>
-              )}
-              {attrs.policy_actionability && (
-                <div className="ga-meter-group">
-                  <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
-                  <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Audience */}
           {attrs.audience && (
             <div className="ga-row">
@@ -215,13 +207,21 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Assumptions */}
-          {attrs.assumes && attrs.assumes.length > 0 && (
-            <div className="ga-row ga-row-full">
-              <div className="ga-label">{LABEL_MAP.assumes}</div>
-              <ul className="ga-list">
-                {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
-              </ul>
+          {/* Falsifiability + Policy Actionability — side by side meters, last */}
+          {(attrs.falsifiability || attrs.policy_actionability) && (
+            <div className="ga-row-meters">
+              {attrs.falsifiability && (
+                <div className="ga-meter-group">
+                  <div className="ga-label">{LABEL_MAP.falsifiability}</div>
+                  <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+                </div>
+              )}
+              {attrs.policy_actionability && (
+                <div className="ga-meter-group">
+                  <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
+                  <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
+                </div>
+              )}
             </div>
           )}
 
