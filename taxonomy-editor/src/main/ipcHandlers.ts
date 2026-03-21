@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ipcMain, shell } from 'electron';
+import { ipcMain, shell, dialog, BrowserWindow } from 'electron';
 import {
   readTaxonomyFile,
   writeTaxonomyFile,
@@ -20,6 +20,7 @@ import {
   saveDebateSession,
   deleteDebateSession,
 } from './debateIO';
+import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
 import type { NodeEmbeddingInput } from './embeddings';
@@ -115,5 +116,63 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-debate-session', (_event, id: string) => {
     deleteDebateSession(id);
+  });
+
+  ipcMain.handle('export-debate-to-file', async (event, session: unknown) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { cancelled: true };
+
+    const data = session as { title?: string };
+    const defaultName = (data.title || 'debate')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 60);
+
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Export Debate',
+      defaultPath: `${defaultName}.json`,
+      filters: [
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'Markdown', extensions: ['md'] },
+        { name: 'Plain Text', extensions: ['txt'] },
+        { name: 'PDF', extensions: ['pdf'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { cancelled: true };
+    }
+
+    const fs = await import('fs');
+    const filePath = result.filePath;
+    const ext = filePath.split('.').pop()?.toLowerCase() || 'json';
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const debate = session as any;
+
+    switch (ext) {
+      case 'md': {
+        const md = debateToMarkdown(debate);
+        fs.writeFileSync(filePath, md, 'utf-8');
+        break;
+      }
+      case 'txt': {
+        const txt = debateToText(debate);
+        fs.writeFileSync(filePath, txt, 'utf-8');
+        break;
+      }
+      case 'pdf': {
+        const pdfBuffer = await debateToPdf(debate);
+        fs.writeFileSync(filePath, pdfBuffer);
+        break;
+      }
+      default: {
+        fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+        break;
+      }
+    }
+
+    return { cancelled: false, filePath };
   });
 }

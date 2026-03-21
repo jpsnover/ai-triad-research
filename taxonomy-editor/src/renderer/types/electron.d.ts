@@ -29,6 +29,7 @@ export interface ElectronAPI {
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
+  exportDebateToFile: (session: unknown) => Promise<{ cancelled: boolean; filePath?: string }>;
 }
 
 declare global {

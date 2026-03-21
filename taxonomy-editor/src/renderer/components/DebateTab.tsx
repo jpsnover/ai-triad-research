@@ -50,9 +50,10 @@ function resolveNode(nodeId: string) {
 export function DebateTab() {
   const {
     sessions, sessionsLoading, loadSessions,
-    activeDebateId, loadDebate, deleteDebate,
+    activeDebateId, activeDebate, loadDebate, deleteDebate,
     inspectedNodeId, inspectNode,
   } = useDebateStore();
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
   const { attributeInfo, attributeFilter } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
@@ -91,6 +92,20 @@ export function DebateTab() {
   const handleDelete = async (id: string) => {
     await deleteDebate(id);
     setConfirmDeleteId(null);
+  };
+
+  const handleExport = async () => {
+    if (!activeDebate) return;
+    try {
+      const result = await window.electronAPI.exportDebateToFile(activeDebate);
+      if (!result.cancelled && result.filePath) {
+        setExportStatus(`Exported to ${result.filePath}`);
+        setTimeout(() => setExportStatus(null), 4000);
+      }
+    } catch (err) {
+      setExportStatus(`Export failed: ${err}`);
+      setTimeout(() => setExportStatus(null), 4000);
+    }
   };
 
   return (
@@ -165,7 +180,15 @@ export function DebateTab() {
         </div>
       ) : (
         <div className="detail-panel debate-workspace-container">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            {exportStatus && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+            )}
+            {activeDebateId && (
+              <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
+                Export
+              </button>
+            )}
             <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
           </div>
           {activeDebateId ? (

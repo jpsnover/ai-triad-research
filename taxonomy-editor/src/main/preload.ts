@@ -95,4 +95,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   deleteDebateSession: (id: string): Promise<void> =>
     ipcRenderer.invoke('delete-debate-session', id),
+
+  exportDebateToFile: (session: unknown): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-debate-to-file', session),
 });
