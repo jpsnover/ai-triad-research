@@ -2333,6 +2333,19 @@ body {
   border-radius: 2px;
 }
 
+.ga-promoted-chip-interactive {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ga-promoted-chip-interactive:hover {
+  background: var(--bg-hover);
+  border-color: var(--focus-ring, #2563eb);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
 .ga-lineage-clickable {
   cursor: pointer;
   text-decoration: underline;

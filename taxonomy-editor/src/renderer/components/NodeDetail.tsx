@@ -193,7 +193,15 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <label>Intellectual Lineage</label>
           <div className="ga-promoted-list">
             {node.graph_attributes.intellectual_lineage.map((l, i) => (
-              <span key={i} className="ga-promoted-chip">{l}</span>
+              <span
+                key={i}
+                className="ga-promoted-chip ga-promoted-chip-interactive"
+                onClick={(e) => { e.stopPropagation(); runAttributeFilter('intellectual_lineage', l); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
+                title={`Click to filter, right-click for info: "${l}"`}
+              >
+                {l}
+              </span>
             ))}
           </div>
         </div>
