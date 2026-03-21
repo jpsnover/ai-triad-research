@@ -64,7 +64,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   };
 
   return (
-    <div className="edge-detail-panel" style={{ width, minWidth: width }}>
+    <div className="edge-detail-panel" style={{ flex: 1, minWidth: 280 }}>
       <div className="edge-detail-header">
         <h3>Edge Detail</h3>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -122,6 +122,17 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           </div>
         </div>
 
+        {/* Rationale */}
+        <div className="edge-detail-section">
+          <div className="edge-detail-section-label">Rationale</div>
+          <div className={`edge-detail-rationale${rationaleClamped ? ' clamped' : ''}`}>{edge.rationale}</div>
+          {edge.rationale.length > 200 && (
+            <button className="edge-detail-rationale-toggle" onClick={() => setRationaleClamped(!rationaleClamped)}>
+              {rationaleClamped ? 'Show more' : 'Show less'}
+            </button>
+          )}
+        </div>
+
         {/* Confidence */}
         <div className="edge-detail-section">
           <div className="edge-detail-section-label">Confidence</div>
@@ -148,17 +159,6 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
             <span className="edge-detail-strength-badge">{edge.strength}</span>
           </div>
         )}
-
-        {/* Rationale */}
-        <div className="edge-detail-section">
-          <div className="edge-detail-section-label">Rationale</div>
-          <div className={`edge-detail-rationale${rationaleClamped ? ' clamped' : ''}`}>{edge.rationale}</div>
-          {edge.rationale.length > 200 && (
-            <button className="edge-detail-rationale-toggle" onClick={() => setRationaleClamped(!rationaleClamped)}>
-              {rationaleClamped ? 'Show more' : 'Show less'}
-            </button>
-          )}
-        </div>
 
         {/* Notes */}
         {edge.notes && (
