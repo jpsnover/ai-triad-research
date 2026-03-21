@@ -1,0 +1,29 @@
+# ── Source documents — large PDFs, HTML, DOCX files ──
+# Only read these when explicitly asked to analyze a specific source.
+sources/*/raw/
+sources/*/*.pdf
+sources/*/*.html
+sources/*/*.docx
+sources/*.pdf
+sources/*.html
+
+# ── Snapshots — markdown conversions of source documents ──
+# These are large text files; read individual ones on demand only.
+sources/*/snapshot.md
+
+# ── Node modules and build artifacts ──
+node_modules/
+dist/
+.next/
+
+# ── Package lock files ──
+**/package-lock.json
+
+# ── Taxonomy embeddings (large numeric arrays) ──
+taxonomy/Origin/embeddings.json
+
+# ── Debate transcripts (can be large) ──
+debates/
+
+# ── Inbox (transient) ──
+sources/_inbox/
