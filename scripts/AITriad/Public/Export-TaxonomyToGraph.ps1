@@ -54,14 +54,12 @@ function Export-TaxonomyToGraph {
 
     if ($Credential) {
         $Pair = "$($Credential.UserName):$($Credential.GetNetworkCredential().Password)"
-        $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
-        $AuthHeader['Authorization'] = "Basic $([Convert]::ToBase64String($Bytes))"
     } else {
-        # Default Neo4j credentials
-        $Pair = 'neo4j:aitriad2026'
-        $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
-        $AuthHeader['Authorization'] = "Basic $([Convert]::ToBase64String($Bytes))"
+        $Neo4jPwd = if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }
+        $Pair = "neo4j:$Neo4jPwd"
     }
+    $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
+    $AuthHeader['Authorization'] = "Basic $([Convert]::ToBase64String($Bytes))"
 
     # Helper to run Cypher via HTTP API
     function Invoke-Cypher {

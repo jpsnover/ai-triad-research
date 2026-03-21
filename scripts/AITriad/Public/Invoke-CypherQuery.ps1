@@ -48,7 +48,8 @@ function Invoke-CypherQuery {
     if ($Credential) {
         $Pair = "$($Credential.UserName):$($Credential.GetNetworkCredential().Password)"
     } else {
-        $Pair = 'neo4j:aitriad2026'
+        $Neo4jPwd = if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }
+        $Pair = "neo4j:$Neo4jPwd"
     }
     $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
     $AuthHeader = @{ Authorization = "Basic $([Convert]::ToBase64String($Bytes))" }

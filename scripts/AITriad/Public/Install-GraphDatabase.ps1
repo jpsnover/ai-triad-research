@@ -16,7 +16,7 @@ function Install-GraphDatabase {
     .PARAMETER Force
         Remove and recreate the container even if it already exists.
     .PARAMETER Password
-        Neo4j password. Default: 'aitriad2026'.
+        Neo4j password. Falls back to NEO4J_PASSWORD env var, then 'aitriad2026'.
     .PARAMETER DataPath
         Path for persistent database storage. Default: ~/ai-triad-graphdb.
     .EXAMPLE
@@ -30,7 +30,7 @@ function Install-GraphDatabase {
     param(
         [switch]$Force,
 
-        [string]$Password = 'aitriad2026',
+        [string]$Password = $(if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }),
 
         [string]$DataPath = (Join-Path $HOME 'ai-triad-graphdb')
     )

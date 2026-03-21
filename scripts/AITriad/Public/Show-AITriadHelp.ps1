@@ -1039,7 +1039,7 @@ Show-EdgeViewer
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Remove and recreate existing container</td></tr>
-      <tr><td><code>-Password</code></td><td>string</td><td>No</td><td>Neo4j password. Default: <code>aitriad2026</code></td></tr>
+      <tr><td><code>-Password</code></td><td>string</td><td>No</td><td>Neo4j password. Falls back to <code>NEO4J_PASSWORD</code> env var, then <code>aitriad2026</code></td></tr>
       <tr><td><code>-DataPath</code></td><td>string</td><td>No</td><td>Persistent storage path. Default: <code>~/ai-triad-graphdb</code></td></tr>
     </table>
 <pre>
@@ -1223,10 +1223,6 @@ Show-AITriadHelp -PassThru
 
     # Copy hero image alongside HTML so the relative src works
     $HeroSource = Join-Path $script:RepoRoot 'docs' 'AITriad-Module.png'
-    if (-not (Test-Path $HeroSource)) {
-        # Fallback: check Downloads (original location)
-        $HeroSource = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads' 'AITriadModule.png'
-    }
     if (Test-Path $HeroSource) {
         Copy-Item -Path $HeroSource -Destination (Join-Path $TempDir 'AITriad-Module.png') -Force
     }
