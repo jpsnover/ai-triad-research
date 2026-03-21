@@ -203,25 +203,6 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth
         )}
       </div>
 
-      <div className="form-group">
-        <label>
-          Conflict IDs
-          <FieldHelp text="Links to documented conflicts where this cross-cutting concept is a point of disagreement between perspectives." />
-        </label>
-        <div className="chip-list">
-          {node.conflict_ids.map((id) => (
-            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeConflict} />
-          ))}
-        </div>
-        {!readOnly && (
-          <TypeaheadSelect
-            options={allConflictIds.filter(id => !node.conflict_ids.includes(id))}
-            onSelect={addConflict}
-            placeholder="Search conflicts..."
-          />
-        )}
-      </div>
-
       {node.graph_attributes && (
         <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
       )}

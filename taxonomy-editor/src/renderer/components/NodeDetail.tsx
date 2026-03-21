@@ -163,44 +163,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
 
-      <div className="form-group">
-        <label>
-          Cross-Cutting Refs
-          <FieldHelp text="Links to cross-cutting concepts that span all three perspectives. These connect this node to shared themes." />
-        </label>
-        <div className="chip-list">
-          {node.cross_cutting_refs.map((ref) => (
-            <LinkedChip key={ref} id={ref} depth={chipDepth} readOnly={readOnly} onRemove={removeRef} />
-          ))}
-        </div>
-        {!readOnly && (
-          <TypeaheadSelect
-            options={allCcIds.filter(id => !node.cross_cutting_refs.includes(id))}
-            onSelect={addRef}
-            placeholder="Search cross-cutting refs..."
-          />
-        )}
-      </div>
-
-      <div className="form-group">
-        <label>
-          Conflict IDs
-          <FieldHelp text="Links to documented conflicts where this node's claims are contested or contradicted by other perspectives." />
-        </label>
-        <div className="chip-list">
-          {(node.conflict_ids || []).map((id) => (
-            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeConflict} />
-          ))}
-        </div>
-        {!readOnly && (
-          <TypeaheadSelect
-            options={allConflictIds.filter(id => !(node.conflict_ids || []).includes(id))}
-            onSelect={addConflict}
-            placeholder="Search conflicts..."
-          />
-        )}
-      </div>
-
       {node.graph_attributes && (
         <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
       )}
