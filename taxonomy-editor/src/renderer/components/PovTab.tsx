@@ -161,6 +161,18 @@ export function PovTab({ pov }: PovTabProps) {
   const infoIsPane4 = showInfoPanel && hasPane3;
   const infoIsPane3 = showInfoPanel && !hasPane3;
 
+  // Any pane 3 is visible (including related edges and standalone info)
+  const anyPane3 = showSimilarPanel || showAttrFilterPanel || showRelatedPanel || infoIsPane3;
+
+  // Auto-collapse pane 1 when pane 3 opens; auto-expand when pane 3 closes
+  const prevAnyPane3 = useRef(false);
+  useEffect(() => {
+    const was = prevAnyPane3.current;
+    prevAnyPane3.current = anyPane3;
+    if (anyPane3 && !was) setListCollapsed(true);
+    if (!anyPane3 && was) setListCollapsed(false);
+  }, [anyPane3]);
+
   // Grow/shrink window when panes open/close (skip when maximized/fullscreen)
   const prevShowSimilar = useRef(false);
   const prevShowAnalysis = useRef(false);
