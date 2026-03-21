@@ -4,6 +4,12 @@
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
 export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods/Arguments';
 
+export interface PossibleFallacy {
+  fallacy: string;
+  confidence: 'likely' | 'possible' | 'borderline';
+  explanation: string;
+}
+
 export interface GraphAttributes {
   epistemic_type?: string;
   rhetorical_strategy?: string;
@@ -14,6 +20,7 @@ export interface GraphAttributes {
   policy_actionability?: string;
   intellectual_lineage?: string[];
   steelman_vulnerability?: string;
+  possible_fallacies?: PossibleFallacy[];
 }
 
 export interface PovNode {

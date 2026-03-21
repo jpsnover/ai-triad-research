@@ -56,6 +56,8 @@
         'Register-AIBackend'
         'Install-Dependencies'
         'Test-Dependencies'
+        'Find-PossibleFallacy'
+        'Show-FallacyInfo'
     )
 
     # Aliases exported from this module

@@ -2211,6 +2211,86 @@ body {
   font-style: italic;
 }
 
+/* ─── Possible Fallacies (inside Graph Attributes) ──── */
+
+.ga-fallacy-list {
+  margin: 2px 0 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-fallacy-item {
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border-left: 3px solid var(--warning, #d97706);
+}
+
+.ga-fallacy-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ga-fallacy-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1.5px solid;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ga-fallacy-likely {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.ga-fallacy-possible {
+  border-color: #d97706;
+  color: #d97706;
+}
+
+.ga-fallacy-borderline {
+  border-color: #64748b;
+  color: #64748b;
+}
+
+.ga-fallacy-confidence {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.ga-fallacy-about {
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--focus-ring, #2563eb);
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ga-fallacy-about:hover {
+  background: var(--bg-hover);
+  text-decoration: underline;
+}
+
+.ga-fallacy-explanation {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
 /* ─── Attribute Filter Panel (Pane 3) ────────────────── */
 
 .attr-filter-panel {

@@ -150,6 +150,8 @@ Export-ModuleMember -Function @(
     'Register-AIBackend'
     'Install-Dependencies'
     'Test-Dependencies'
+    'Find-PossibleFallacy'
+    'Show-FallacyInfo'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

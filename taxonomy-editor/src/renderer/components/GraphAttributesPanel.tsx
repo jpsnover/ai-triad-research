@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect } from 'react';
-import type { GraphAttributes } from '../types/taxonomy';
+import type { GraphAttributes, PossibleFallacy } from '../types/taxonomy';
+import { FALLACY_CATALOG } from '../data/fallacyInfo';
 
 interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
@@ -217,6 +218,39 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             <div className="ga-row ga-row-full">
               <div className="ga-label">{LABEL_MAP.steelman_vulnerability}</div>
               <div className="ga-steelman">{attrs.steelman_vulnerability}</div>
+            </div>
+          )}
+
+          {/* Possible Fallacies */}
+          {attrs.possible_fallacies && attrs.possible_fallacies.length > 0 && (
+            <div className="ga-row ga-row-full">
+              <div className="ga-label">Possible Fallacies</div>
+              <ul className="ga-fallacy-list">
+                {attrs.possible_fallacies.map((f: PossibleFallacy, i: number) => {
+                  const info = FALLACY_CATALOG[f.fallacy];
+                  const label = info ? info.label : f.fallacy.replace(/_/g, ' ');
+                  return (
+                    <li key={i} className="ga-fallacy-item">
+                      <div className="ga-fallacy-header">
+                        <span className={`ga-fallacy-badge ga-fallacy-${f.confidence}`}>
+                          {label}
+                        </span>
+                        <span className="ga-fallacy-confidence">{f.confidence}</span>
+                        {info && (
+                          <button
+                            className="ga-fallacy-about"
+                            onClick={() => window.electronAPI.openExternal(info.wikiUrl)}
+                            title={`Open Wikipedia article: ${label}`}
+                          >
+                            About
+                          </button>
+                        )}
+                      </div>
+                      <div className="ga-fallacy-explanation">{f.explanation}</div>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </div>

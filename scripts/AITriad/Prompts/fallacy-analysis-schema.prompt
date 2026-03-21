@@ -1,0 +1,32 @@
+OUTPUT SCHEMA:
+
+Return a JSON object mapping node IDs to their fallacy analysis:
+
+{
+  "node_id_1": {
+    "possible_fallacies": [
+      {
+        "fallacy": "slippery_slope",
+        "confidence": "possible",
+        "explanation": "The claim that any regulation will inevitably lead to total suppression of AI research assumes an unbroken causal chain without evidence for each intermediate step."
+      },
+      {
+        "fallacy": "false_dilemma",
+        "confidence": "likely",
+        "explanation": "Frames the choice as 'accelerate or fall behind' without considering measured development paths."
+      }
+    ]
+  },
+  "node_id_2": {
+    "possible_fallacies": []
+  }
+}
+
+CONSTRAINTS:
+  - The top-level keys MUST be the exact node IDs provided in the input.
+  - Every node in the input MUST have a corresponding entry in the output.
+  - The "possible_fallacies" array may be empty (0 items) or contain up to 3 items.
+  - The "fallacy" value MUST be one of the exact keys from the KNOWN FALLACIES list.
+  - The "confidence" value MUST be one of: "likely", "possible", "borderline".
+  - The "explanation" MUST reference the specific node content, not generic reasoning.
+  - Return ONLY the JSON object. No markdown, no commentary.
