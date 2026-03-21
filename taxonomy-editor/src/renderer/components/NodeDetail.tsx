@@ -188,6 +188,24 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
 
+      {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
+        <div className="form-group">
+          <label>Intellectual Lineage</label>
+          <div className="ga-promoted-list">
+            {node.graph_attributes.intellectual_lineage.map((l, i) => (
+              <span key={i} className="ga-promoted-chip">{l}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {node.graph_attributes?.steelman_vulnerability && (
+        <div className="form-group">
+          <label>Steelman Vulnerability</label>
+          <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+        </div>
+      )}
+
       {node.graph_attributes && (
         <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
       )}

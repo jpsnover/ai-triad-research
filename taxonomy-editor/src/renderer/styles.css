@@ -2290,6 +2290,49 @@ body {
   color: var(--text-muted);
 }
 
+/* Side-by-side meter row (Falsifiability + Policy Actionability) */
+
+.ga-row-meters {
+  display: flex;
+  gap: 20px;
+}
+
+.ga-meter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ─── Promoted fields (Lineage & Steelman outside GA panel) ── */
+
+.ga-promoted-text {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  border-left: 3px solid var(--danger, #dc2626);
+  font-style: italic;
+}
+
+.ga-promoted-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ga-promoted-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+}
+
 .ga-lineage-clickable {
   cursor: pointer;
   text-decoration: underline;

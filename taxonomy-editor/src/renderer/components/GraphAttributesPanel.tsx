@@ -175,13 +175,21 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Falsifiability — 5-point meter */}
-          {attrs.falsifiability && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.falsifiability}</div>
-              <div className="ga-value">
-                <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
-              </div>
+          {/* Falsifiability + Policy Actionability — side by side meters */}
+          {(attrs.falsifiability || attrs.policy_actionability) && (
+            <div className="ga-row-meters">
+              {attrs.falsifiability && (
+                <div className="ga-meter-group">
+                  <div className="ga-label">{LABEL_MAP.falsifiability}</div>
+                  <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+                </div>
+              )}
+              {attrs.policy_actionability && (
+                <div className="ga-meter-group">
+                  <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
+                  <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
+                </div>
+              )}
             </div>
           )}
 
@@ -207,16 +215,6 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Policy Actionability — 5-point meter */}
-          {attrs.policy_actionability && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
-              <div className="ga-value">
-                <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
-              </div>
-            </div>
-          )}
-
           {/* Assumptions */}
           {attrs.assumes && attrs.assumes.length > 0 && (
             <div className="ga-row ga-row-full">
@@ -224,35 +222,6 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
               <ul className="ga-list">
                 {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
               </ul>
-            </div>
-          )}
-
-          {/* Intellectual Lineage */}
-          {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
-            <div className="ga-row ga-row-full">
-              <div className="ga-label">{LABEL_MAP.intellectual_lineage}</div>
-              <ul className="ga-list">
-                {attrs.intellectual_lineage.map((l, i) => (
-                  <li key={i}>
-                    <span
-                      className={onBadgeClick ? 'ga-lineage-clickable' : ''}
-                      onClick={onBadgeClick ? (e) => { e.stopPropagation(); onBadgeClick('intellectual_lineage', l); } : undefined}
-                      onContextMenu={contextMenuHandler ? (e) => { e.preventDefault(); e.stopPropagation(); contextMenuHandler(e, 'intellectual_lineage', l); } : undefined}
-                      title={onBadgeClick ? `Find all nodes referencing "${l}"` : undefined}
-                    >
-                      {l}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Steelman Vulnerability */}
-          {attrs.steelman_vulnerability && (
-            <div className="ga-row ga-row-full">
-              <div className="ga-label">{LABEL_MAP.steelman_vulnerability}</div>
-              <div className="ga-steelman">{attrs.steelman_vulnerability}</div>
             </div>
           )}
 
