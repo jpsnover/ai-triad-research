@@ -208,6 +208,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     if (allEdges.length === 0) return;
     e.preventDefault();
+    e.stopPropagation();
 
     const currentIdx = selectedEdge
       ? allEdges.findIndex(ed => ed.source === selectedEdge.source && ed.target === selectedEdge.target && ed.type === selectedEdge.type)
@@ -233,7 +234,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   }
 
   return (
-    <div className="related-edges-panel" style={{ width, minWidth: width }} ref={panelRef} tabIndex={-1} onKeyDown={handleKeyDown}>
+    <div className="related-edges-panel" style={{ width, minWidth: width }} ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} onMouseDown={() => panelRef.current?.focus()}>
       <div className="related-edges-header">
         <div className="related-edges-title">
           <h3>Related Edges</h3>
