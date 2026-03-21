@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { Edge, EdgeType, EdgeStatus } from '../types/taxonomy';
 
@@ -93,7 +93,14 @@ function EdgeGroup({
   selectedEdge: Edge | null;
   onSelectEdge: (edge: Edge) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+
+  // Auto-expand when this group contains the selected edge
+  useEffect(() => {
+    if (selectedEdge && edges.some(e => e.source === selectedEdge.source && e.target === selectedEdge.target && e.type === selectedEdge.type)) {
+      setCollapsed(false);
+    }
+  }, [selectedEdge, edges]);
 
   return (
     <div className="related-edge-group">
@@ -129,6 +136,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const { edgesFile, edgesLoading, relatedNodeId, showRelatedEdges, selectedEdge, selectEdge } = useTaxonomyStore();
   const [collapsed, setCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EdgeStatus | ''>('');
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const nodeId = relatedNodeId;
 
@@ -173,9 +181,44 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     return count;
   }, [groupedEdges]);
 
+  // Flat list of all visible edges for keyboard navigation
+  const allEdges = useMemo(() => {
+    const flat: Edge[] = [];
+    for (const edges of groupedEdges.values()) {
+      flat.push(...edges);
+    }
+    return flat;
+  }, [groupedEdges]);
+
   const handleSelectEdge = useCallback((edge: Edge) => {
     selectEdge(edge);
   }, [selectEdge]);
+
+  // Focus panel when an edge is selected
+  useEffect(() => {
+    if (selectedEdge && panelRef.current) {
+      panelRef.current.focus();
+    }
+  }, [selectedEdge]);
+
+  // Keyboard: up/down to navigate edges
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (allEdges.length === 0) return;
+    e.preventDefault();
+
+    const currentIdx = selectedEdge
+      ? allEdges.findIndex(ed => ed.source === selectedEdge.source && ed.target === selectedEdge.target && ed.type === selectedEdge.type)
+      : -1;
+
+    let nextIdx: number;
+    if (e.key === 'ArrowDown') {
+      nextIdx = currentIdx < allEdges.length - 1 ? currentIdx + 1 : 0;
+    } else {
+      nextIdx = currentIdx > 0 ? currentIdx - 1 : allEdges.length - 1;
+    }
+    selectEdge(allEdges[nextIdx]);
+  }, [allEdges, selectedEdge, selectEdge]);
 
   if (!nodeId) return null;
 
@@ -188,7 +231,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   }
 
   return (
-    <div className="related-edges-panel" style={{ width, minWidth: width }}>
+    <div className="related-edges-panel" style={{ width, minWidth: width }} ref={panelRef} tabIndex={-1} onKeyDown={handleKeyDown}>
       <div className="related-edges-header">
         <div className="related-edges-title">
           <h3>Related Edges</h3>

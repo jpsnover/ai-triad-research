@@ -3475,6 +3475,10 @@ body {
   border-left: 1px solid var(--border-color);
 }
 
+.related-edges-panel:focus {
+  outline: none;
+}
+
 .related-edges-header {
   display: flex;
   align-items: center;

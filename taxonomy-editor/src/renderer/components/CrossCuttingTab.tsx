@@ -104,6 +104,15 @@ export function CrossCuttingTab() {
     });
   }, [showEdgeDetail]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-collapse pane 2 when edge detail (pane 4) opens; auto-expand when closed
+  const prevEdgeDetailForCollapse = useRef(false);
+  useEffect(() => {
+    const was = prevEdgeDetailForCollapse.current;
+    prevEdgeDetailForCollapse.current = showEdgeDetail;
+    if (showEdgeDetail && !was) setDetailCollapsed(true);
+    if (!showEdgeDetail && was) setDetailCollapsed(false);
+  }, [showEdgeDetail]);
+
   // Auto-refresh related edges when selection changes while panel is open
   useEffect(() => {
     if (showRelatedPanel && selectedNode) {
