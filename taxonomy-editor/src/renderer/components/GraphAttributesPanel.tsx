@@ -31,10 +31,6 @@ const BADGE_COLORS: Record<string, string> = {
   strategic_recommendation: '#059669',
   predictive: '#d97706',
   interpretive_lens: '#be185d',
-  // falsifiability / policy_actionability
-  high: '#16a34a',
-  medium: '#ca8a04',
-  low: '#dc2626',
   // emotional_register
   urgent: '#dc2626',
   measured: '#2563eb',
@@ -55,8 +51,43 @@ const INFO_FIELDS = new Set([
   'intellectual_lineage',
 ]);
 
+/** Map low/medium/high to a 1-5 scale position */
+const HARDNESS_LEVELS: Record<string, { score: number; label: string }> = {
+  low:    { score: 1, label: 'Low' },
+  medium: { score: 3, label: 'Med' },
+  high:   { score: 5, label: 'High' },
+};
+
 function formatValue(val: string): string {
   return val.replace(/_/g, ' ');
+}
+
+/** 5-point hardness meter for falsifiability and policy_actionability */
+function HardnessMeter({ field, value, onClick }: {
+  field: string;
+  value: string;
+  onClick?: (field: string, value: string) => void;
+}) {
+  const level = HARDNESS_LEVELS[value] || { score: 0, label: value };
+  const segments = 5;
+  return (
+    <div
+      className={`ga-meter${onClick ? ' ga-meter-clickable' : ''}`}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(field, value); } : undefined}
+      title={onClick ? `Find all nodes with ${formatValue(field)} = ${value}` : `${formatValue(field)}: ${value}`}
+    >
+      <div className="ga-meter-track">
+        {Array.from({ length: segments }, (_, i) => (
+          <div
+            key={i}
+            className={`ga-meter-seg${i < level.score ? ' ga-meter-filled' : ''}`}
+            data-level={value}
+          />
+        ))}
+      </div>
+      <span className="ga-meter-label">{level.label}</span>
+    </div>
+  );
 }
 
 function Badge({ field, value, onClick, onContextMenu }: {
@@ -144,11 +175,13 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Falsifiability */}
+          {/* Falsifiability — 5-point meter */}
           {attrs.falsifiability && (
             <div className="ga-row">
               <div className="ga-label">{LABEL_MAP.falsifiability}</div>
-              <div className="ga-value"><Badge field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} /></div>
+              <div className="ga-value">
+                <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+              </div>
             </div>
           )}
 
@@ -174,11 +207,13 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             </div>
           )}
 
-          {/* Policy Actionability */}
+          {/* Policy Actionability — 5-point meter */}
           {attrs.policy_actionability && (
             <div className="ga-row">
               <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
-              <div className="ga-value"><Badge field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} /></div>
+              <div className="ga-value">
+                <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
+              </div>
             </div>
           )}
 

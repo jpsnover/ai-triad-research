@@ -2214,13 +2214,15 @@ body {
 
 .ga-badge {
   display: inline-block;
-  padding: 1px 8px;
-  border: 1.5px solid;
-  border-radius: 10px;
-  font-size: 0.78rem;
-  font-weight: 500;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
   white-space: nowrap;
   background: transparent;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
 }
 
 .ga-list {
@@ -2237,12 +2239,55 @@ body {
 
 .ga-badge-clickable {
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s;
 }
 
 .ga-badge-clickable:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  transform: scale(1.05);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* ─── Hardness Meters (Falsifiability / Actionability) ── */
+
+.ga-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ga-meter-clickable {
+  cursor: pointer;
+}
+
+.ga-meter-track {
+  display: flex;
+  gap: 2px;
+}
+
+.ga-meter-seg {
+  width: 16px;
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 1px;
+}
+
+.ga-meter-seg.ga-meter-filled[data-level="high"] {
+  background: #16a34a;
+}
+
+.ga-meter-seg.ga-meter-filled[data-level="medium"] {
+  background: #d97706;
+}
+
+.ga-meter-seg.ga-meter-filled[data-level="low"] {
+  background: #dc2626;
+}
+
+.ga-meter-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
 
 .ga-lineage-clickable {
@@ -2294,10 +2339,10 @@ body {
 
 .ga-fallacy-badge {
   display: inline-block;
-  padding: 1px 8px;
-  border: 1.5px solid;
-  border-radius: 10px;
-  font-size: 0.78rem;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -3550,6 +3595,7 @@ body {
 .related-edge-node {
   font-weight: 600;
   font-size: 0.75rem;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -3586,25 +3632,25 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
 .related-edge-status.status-approved {
   color: var(--text-primary);
-  background: rgba(34, 197, 94, 0.15);
-  border-left: 2px solid #16a34a;
+  background: rgba(5, 150, 105, 0.12);
+  border-left: 2px solid #059669;
 }
 
 .related-edge-status.status-proposed {
   color: var(--text-primary);
-  background: rgba(245, 158, 11, 0.15);
-  border-left: 2px solid #d97706;
+  background: rgba(37, 99, 235, 0.10);
+  border-left: 2px solid #2563eb;
 }
 
 .related-edge-status.status-rejected {
   color: var(--text-primary);
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(220, 38, 38, 0.10);
   border-left: 2px solid #dc2626;
 }
 
@@ -3726,6 +3772,7 @@ body {
 .edge-detail-endpoint-id {
   font-size: 0.8rem;
   font-weight: 600;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
   cursor: pointer;
 }
 
@@ -3810,24 +3857,24 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 .edge-detail-status-badge.status-approved {
   color: var(--text-primary);
-  background: rgba(34, 197, 94, 0.15);
-  border-left: 3px solid #16a34a;
+  background: rgba(5, 150, 105, 0.12);
+  border-left: 3px solid #059669;
 }
 
 .edge-detail-status-badge.status-proposed {
   color: var(--text-primary);
-  background: rgba(245, 158, 11, 0.15);
-  border-left: 3px solid #d97706;
+  background: rgba(37, 99, 235, 0.10);
+  border-left: 3px solid #2563eb;
 }
 
 .edge-detail-status-badge.status-rejected {
   color: var(--text-primary);
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(220, 38, 38, 0.10);
   border-left: 3px solid #dc2626;
 }
 
