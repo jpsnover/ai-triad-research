@@ -12,6 +12,45 @@ import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { generateResearchPrompt } from '../utils/researchPrompt';
 
+function OverflowMenu({ moveTargets, onMove, onDelete }: {
+  moveTargets: string[];
+  onMove: (cat: string) => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  return (
+    <div className="overflow-menu-wrapper" ref={menuRef}>
+      <button className="btn btn-ghost btn-sm overflow-menu-trigger" onClick={() => setOpen(!open)} title="More actions">&hellip;</button>
+      {open && (
+        <div className="overflow-menu-dropdown">
+          {moveTargets.map(cat => (
+            <button key={cat} className="overflow-menu-item" onClick={() => { onMove(cat); setOpen(false); }}>
+              Move to {cat}
+            </button>
+          ))}
+          <div className="overflow-menu-divider" />
+          <button className="overflow-menu-item overflow-menu-danger" onClick={() => { onDelete(); setOpen(false); }}>
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface NodeDetailProps {
   pov: Pov;
   node: PovNode;
@@ -108,25 +147,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             </button>
           )}
           {!readOnly && (
-            <select
-              className="move-select"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  movePovNodeCategory(pov, node.id, e.target.value as Category);
-                }
-              }}
-            >
-              <option value="" disabled>Move to...</option>
-              {moveTargets.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          )}
-          {!readOnly && (
-            <button className="btn btn-danger btn-sm" onClick={() => setShowDelete(true)}>
-              Delete
-            </button>
+            <OverflowMenu
+              moveTargets={moveTargets}
+              onMove={(cat) => movePovNodeCategory(pov, node.id, cat as Category)}
+              onDelete={() => setShowDelete(true)}
+            />
           )}
         </div>
       </div>

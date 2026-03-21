@@ -37,8 +37,8 @@ export function CrossCuttingTab() {
   });
   const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-edge-detail-width',
-    defaultWidth: 380,
-    minWidth: 280,
+    defaultWidth: 480,
+    minWidth: 320,
     maxWidth: 700,
   });
   const showAttrFilterPanel = attributeFilter !== null;

@@ -70,7 +70,7 @@ function EdgeRow({
         </span>
         <ConfidenceBar value={edge.confidence} />
         <span className={`related-edge-status status-${edge.status}`}>
-          {STATUS_LABEL[edge.status]}
+          {edge.status === 'approved' ? '\u2713 ' : edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{STATUS_LABEL[edge.status]}
         </span>
       </div>
       <div className="related-edge-label">{otherLabel}</div>

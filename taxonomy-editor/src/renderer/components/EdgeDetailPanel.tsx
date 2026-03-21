@@ -32,6 +32,7 @@ function povLabel(id: string): string {
 
 export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [rationaleClamped, setRationaleClamped] = useState(true);
   const { selectedEdge, selectEdge, getLabelForId, edgesFile, setActiveTab, setSelectedNodeId, showRelatedEdges } = useTaxonomyStore();
 
   if (!selectedEdge) return null;
@@ -136,7 +137,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
         <div className="edge-detail-section">
           <div className="edge-detail-section-label">Status</div>
           <span className={`edge-detail-status-badge status-${edge.status}`}>
-            {edge.status}
+            {edge.status === 'approved' ? '\u2713 ' : edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{edge.status}
           </span>
         </div>
 
@@ -151,7 +152,12 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
         {/* Rationale */}
         <div className="edge-detail-section">
           <div className="edge-detail-section-label">Rationale</div>
-          <div className="edge-detail-rationale">{edge.rationale}</div>
+          <div className={`edge-detail-rationale${rationaleClamped ? ' clamped' : ''}`}>{edge.rationale}</div>
+          {edge.rationale.length > 200 && (
+            <button className="edge-detail-rationale-toggle" onClick={() => setRationaleClamped(!rationaleClamped)}>
+              {rationaleClamped ? 'Show more' : 'Show less'}
+            </button>
+          )}
         </div>
 
         {/* Notes */}
