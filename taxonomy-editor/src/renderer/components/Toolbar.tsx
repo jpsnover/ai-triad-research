@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
 import { SettingsDialog } from './SettingsDialog';
 
-type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage';
+type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console';
 
 export function Toolbar() {
   const {
@@ -148,6 +148,16 @@ export function Toolbar() {
         </button>
       </div>
       <div className="toolbar-bottom">
+        <button
+          className={`toolbar-icon${toolbarPanel === 'console' ? ' toolbar-icon-active' : ''}`}
+          onClick={() => toggle('console')}
+          data-tooltip="Console"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+        </button>
         <button
           className="toolbar-icon"
           onClick={() => setShowHelp(true)}

@@ -5,6 +5,7 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
+import { registerTerminalHandlers, cleanupTerminal } from './terminal';
 
 let mainWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
@@ -180,6 +181,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpcHandlers();
+  registerTerminalHandlers(() => mainWindow);
   registerWindowHandlers();
   startFocusServer();
   createWindow();
@@ -190,6 +192,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  cleanupTerminal();
   if (focusServer) {
     focusServer.close();
     focusServer = null;

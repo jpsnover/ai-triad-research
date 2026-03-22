@@ -19,6 +19,7 @@ import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { LineagePanel } from './LineagePanel';
+import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 
 interface PovTabProps {
@@ -264,6 +265,8 @@ export function PovTab({ pov }: PovTabProps) {
         return <AttributeInfoPanel />;
       case 'lineage':
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
+      case 'console':
+        return <TerminalPanel />;
       default:
         return null;
     }
@@ -276,7 +279,7 @@ export function PovTab({ pov }: PovTabProps) {
   return (
     <div className="two-column">
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter') ? (
+      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -322,7 +325,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -330,7 +333,7 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="detail-panel">
           {renderSearchPreview()}
         </div>
-      ) : toolbarPanel === 'attrFilter' ? null
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
       : toolbarPanel === 'lineage' ? (
         <>
           <div className="detail-panel">

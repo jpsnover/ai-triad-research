@@ -255,11 +255,11 @@ interface TaxonomyState {
   showRelatedEdges: (nodeId: string | null) => void;
   selectEdge: (edge: Edge | null) => void;
 
-  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null;
-  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null) => void;
+  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console' | null;
+  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console' | null) => void;
   pendingLineageValue: string | null;
   navigateToLineage: (value: string) => void;
-  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null; nodeId: string | null } | null;
+  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console' | null; nodeId: string | null } | null;
   navigateBack: () => void;
 }
 

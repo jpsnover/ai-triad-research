@@ -30,6 +30,12 @@ export interface ElectronAPI {
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown) => Promise<{ cancelled: boolean; filePath?: string }>;
+  terminalSpawn: () => Promise<void>;
+  terminalWrite: (data: string) => Promise<void>;
+  terminalResize: (cols: number, rows: number) => Promise<void>;
+  terminalKill: () => Promise<void>;
+  onTerminalData: (callback: (data: string) => void) => () => void;
+  onTerminalExit: (callback: () => void) => () => void;
 }
 
 declare global {

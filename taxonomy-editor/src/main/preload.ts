@@ -98,4 +98,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   exportDebateToFile: (session: unknown): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session),
+
+  // Terminal
+  terminalSpawn: (): Promise<void> =>
+    ipcRenderer.invoke('terminal:spawn'),
+  terminalWrite: (data: string): Promise<void> =>
+    ipcRenderer.invoke('terminal:write', data),
+  terminalResize: (cols: number, rows: number): Promise<void> =>
+    ipcRenderer.invoke('terminal:resize', cols, rows),
+  terminalKill: (): Promise<void> =>
+    ipcRenderer.invoke('terminal:kill'),
+  onTerminalData: (callback: (data: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: string) => callback(data);
+    ipcRenderer.on('terminal:data', handler);
+    return () => { ipcRenderer.removeListener('terminal:data', handler); };
+  },
+  onTerminalExit: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('terminal:exit', handler);
+    return () => { ipcRenderer.removeListener('terminal:exit', handler); };
+  },
 });

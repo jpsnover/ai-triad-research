@@ -2672,6 +2672,41 @@ body {
   border: none;
 }
 
+/* ─── Terminal Panel ───────────────────────────────────── */
+
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #1e1e2e;
+}
+
+.terminal-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+
+.terminal-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cdd6f4;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+}
+
 .ga-panel {
   margin-top: 12px;
   border: 1px solid var(--border-color);
