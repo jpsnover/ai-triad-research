@@ -99,6 +99,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportDebateToFile: (session: unknown): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session),
 
+  // URL fetch (from main process to avoid CSP)
+  fetchUrlContent: (url: string): Promise<{ content: string; error?: string }> =>
+    ipcRenderer.invoke('fetch-url-content', url),
+
+  // File picker
+  pickDocumentFile: (): Promise<{ cancelled: boolean; filePath?: string; content?: string }> =>
+    ipcRenderer.invoke('pick-document-file'),
+
   // Terminal
   terminalSpawn: (): Promise<void> =>
     ipcRenderer.invoke('terminal:spawn'),

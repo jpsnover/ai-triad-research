@@ -3764,6 +3764,49 @@ body {
   cursor: not-allowed;
 }
 
+.debate-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.debate-input-wrapper .debate-input {
+  width: 100%;
+}
+
+.debate-mention-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.debate-mention-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.debate-mention-item:hover,
+.debate-mention-item.selected {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.debate-length-select {
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
 .debate-send-btn {
   white-space: nowrap;
 }
@@ -3787,6 +3830,116 @@ body {
   color: var(--text-secondary);
   margin-top: 16px;
   margin-bottom: 6px;
+}
+
+.new-debate-source-types {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.new-debate-source-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.new-debate-source-option.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.new-debate-source-option input[type="radio"] {
+  accent-color: var(--focus-ring);
+}
+
+.new-debate-file-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.new-debate-file-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.new-debate-url-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.new-debate-url-input:focus {
+  border-color: var(--focus-ring);
+}
+
+/* Debate source panel (Pane 2 for document/URL debates) */
+
+.debate-source-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.debate-source-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.debate-source-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+}
+
+.debate-source-ref {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  margin-top: 2px;
+}
+
+.debate-source-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.debate-source-body .webview-frame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.debate-source-content {
+  padding: 12px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  font-family: inherit;
 }
 
 .new-debate-topic {
@@ -4096,6 +4249,27 @@ body {
   outline: none;
 }
 
+.related-edges-node-banner {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.related-edges-node-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.related-edges-node-label {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
 .related-edges-header {
   display: flex;
   align-items: center;
@@ -4144,6 +4318,29 @@ body {
   padding: 8px 14px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.related-edges-threshold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.related-edges-threshold-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.related-edges-threshold-slider {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--focus-ring);
 }
 
 .related-edges-filter {

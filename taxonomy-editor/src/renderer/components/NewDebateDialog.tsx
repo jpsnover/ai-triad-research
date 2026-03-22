@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { PoverId, DebateSourceType } from '../types/debate';
 
 interface NewDebateDialogProps {
   onClose: () => void;
@@ -15,6 +15,10 @@ const AI_POVERS: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassan
 export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { createDebate, loadDebate, updatePhase } = useDebateStore();
   const [topic, setTopic] = useState('');
+  const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
+  const [sourceRef, setSourceRef] = useState('');
+  const [sourceContent, setSourceContent] = useState('');
+  const [fileName, setFileName] = useState('');
   const [selected, setSelected] = useState<Set<PoverId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -26,14 +30,70 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     setSelected(next);
   };
 
-  const canStart = topic.trim().length > 0 && selected.size >= 2;
+  const handlePickFile = async () => {
+    const result = await window.electronAPI.pickDocumentFile();
+    if (result.cancelled || !result.filePath || !result.content) return;
+    setSourceRef(result.filePath);
+    setSourceContent(result.content);
+    setFileName(result.filePath.split('/').pop() || result.filePath);
+    // Auto-set topic from filename if empty
+    if (!topic) {
+      const name = result.filePath.split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+      setTopic(`Discuss: ${name}`);
+    }
+  };
+
+  const hasSource = sourceType === 'topic'
+    ? topic.trim().length > 0
+    : sourceType === 'document'
+      ? sourceContent.length > 0
+      : sourceRef.trim().length > 0;
+
+  const canStart = hasSource && selected.size >= 2;
 
   const handleStart = async () => {
     if (!canStart || creating) return;
     setCreating(true);
+
+    let finalTopic = topic.trim();
+    let finalContent = sourceContent;
+
+    if (sourceType === 'url') {
+      if (!finalTopic) finalTopic = `Discuss: ${sourceRef.trim()}`;
+      // Fetch URL content via main process to avoid CSP restrictions
+      try {
+        const result = await window.electronAPI.fetchUrlContent(sourceRef.trim());
+        if (result.error) {
+          finalContent = `[Failed to fetch URL content: ${result.error}]`;
+        } else {
+          finalContent = result.content;
+          // Strip HTML tags for plain text
+          const tmp = document.createElement('div');
+          tmp.innerHTML = finalContent;
+          finalContent = tmp.textContent || tmp.innerText || finalContent;
+          if (finalContent.length > 30000) {
+            finalContent = finalContent.slice(0, 30000) + '\n\n[Content truncated at 30,000 characters]';
+          }
+        }
+      } catch (err) {
+        finalContent = `[Failed to fetch URL content: ${err}]`;
+      }
+    }
+
+    if (sourceType === 'document' && !finalTopic) {
+      finalTopic = `Discuss: ${fileName}`;
+    }
+
     const povers = Array.from(selected);
     if (userIsPover && !povers.includes('user')) povers.push('user');
-    const id = await createDebate(topic.trim(), povers, userIsPover);
+    const id = await createDebate(
+      finalTopic,
+      povers,
+      userIsPover,
+      sourceType,
+      sourceType === 'topic' ? '' : sourceRef.trim(),
+      sourceType === 'topic' ? '' : finalContent,
+    );
     await loadDebate(id);
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
@@ -46,15 +106,79 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       <div className="dialog new-debate-dialog" onClick={(e) => e.stopPropagation()}>
         <h2>New Debate</h2>
 
-        <label className="new-debate-label">Topic</label>
-        <textarea
-          className="new-debate-topic"
-          placeholder="What should we debate?"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          rows={3}
-          autoFocus
-        />
+        <label className="new-debate-label">Source</label>
+        <div className="new-debate-source-types">
+          <label className={`new-debate-source-option${sourceType === 'topic' ? ' active' : ''}`}>
+            <input type="radio" name="sourceType" value="topic" checked={sourceType === 'topic'} onChange={() => setSourceType('topic')} />
+            Topic
+          </label>
+          <label className={`new-debate-source-option${sourceType === 'document' ? ' active' : ''}`}>
+            <input type="radio" name="sourceType" value="document" checked={sourceType === 'document'} onChange={() => setSourceType('document')} />
+            Document
+          </label>
+          <label className={`new-debate-source-option${sourceType === 'url' ? ' active' : ''}`}>
+            <input type="radio" name="sourceType" value="url" checked={sourceType === 'url'} onChange={() => setSourceType('url')} />
+            URL
+          </label>
+        </div>
+
+        {sourceType === 'topic' && (
+          <>
+            <label className="new-debate-label">Topic</label>
+            <textarea
+              className="new-debate-topic"
+              placeholder="What should we debate?"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              rows={3}
+              autoFocus
+            />
+          </>
+        )}
+
+        {sourceType === 'document' && (
+          <>
+            <label className="new-debate-label">Document</label>
+            <div className="new-debate-file-picker">
+              <button className="btn" onClick={handlePickFile}>
+                {fileName ? fileName : 'Choose file...'}
+              </button>
+              {sourceContent && (
+                <span className="new-debate-file-info">{Math.round(sourceContent.length / 1024)}KB loaded</span>
+              )}
+            </div>
+            <label className="new-debate-label">Topic (optional)</label>
+            <textarea
+              className="new-debate-topic"
+              placeholder="Focus the debate on a specific aspect of this document..."
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              rows={2}
+            />
+          </>
+        )}
+
+        {sourceType === 'url' && (
+          <>
+            <label className="new-debate-label">URL</label>
+            <input
+              className="new-debate-url-input"
+              type="url"
+              placeholder="https://example.com/article"
+              value={sourceRef}
+              onChange={(e) => setSourceRef(e.target.value)}
+              autoFocus
+            />
+            <label className="new-debate-label">Topic (optional)</label>
+            <textarea
+              className="new-debate-topic"
+              placeholder="Focus the debate on a specific aspect of this content..."
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              rows={2}
+            />
+          </>
+        )}
 
         <label className="new-debate-label">Debaters</label>
         <div className="new-debate-povers">

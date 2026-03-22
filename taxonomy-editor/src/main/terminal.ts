@@ -1,71 +1,91 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// Uses a Python PTY broker to allocate a real pseudo-terminal.
+// Python's pty module works everywhere without native Node bindings.
+
 import { ipcMain, BrowserWindow } from 'electron';
-import * as pty from 'node-pty';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 
-let ptyProcess: pty.IPty | null = null;
+let brokerProcess: ChildProcess | null = null;
 
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, '..', 'scripts');
+const BROKER_SCRIPT = path.resolve(__dirname, '..', '..', 'src', 'main', 'pty-broker.py');
 
 export function registerTerminalHandlers(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('terminal:spawn', () => {
-    if (ptyProcess) return; // already running
+    if (brokerProcess) return;
 
-    const shell = '/usr/local/bin/pwsh';
-    ptyProcess = pty.spawn(shell, ['-NoLogo'], {
-      name: 'xterm-256color',
-      cols: 120,
-      rows: 30,
+    const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force`;
+
+    brokerProcess = spawn('python3', [BROKER_SCRIPT], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, TERM: 'xterm-256color' },
+      env: {
+        ...process.env,
+        TERM: 'xterm-256color',
+        PTY_COLS: '120',
+        PTY_ROWS: '30',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    ptyProcess.onData((data: string) => {
+    brokerProcess.stdout?.on('data', (data: Buffer) => {
       const win = getWindow();
       if (win && !win.isDestroyed()) {
-        win.webContents.send('terminal:data', data);
+        win.webContents.send('terminal:data', data.toString());
       }
     });
 
-    ptyProcess.onExit(() => {
-      ptyProcess = null;
+    brokerProcess.stderr?.on('data', (data: Buffer) => {
+      const win = getWindow();
+      if (win && !win.isDestroyed()) {
+        // Show stderr as terminal output too (for error messages)
+        win.webContents.send('terminal:data', data.toString());
+      }
+    });
+
+    brokerProcess.on('exit', () => {
+      brokerProcess = null;
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         win.webContents.send('terminal:exit');
       }
     });
 
-    // Import AITriad module on startup
-    const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force\r`;
-    ptyProcess.write(importCmd);
+    // Import AITriad module after a brief delay for shell startup
+    setTimeout(() => {
+      if (brokerProcess && brokerProcess.stdin) {
+        brokerProcess.stdin.write(importCmd + '\r');
+      }
+    }, 500);
   });
 
   ipcMain.handle('terminal:write', (_event, data: string) => {
-    if (ptyProcess) {
-      ptyProcess.write(data);
+    if (brokerProcess && brokerProcess.stdin) {
+      brokerProcess.stdin.write(data);
     }
   });
 
   ipcMain.handle('terminal:resize', (_event, cols: number, rows: number) => {
-    if (ptyProcess) {
-      ptyProcess.resize(cols, rows);
+    if (brokerProcess && brokerProcess.stdin) {
+      // Send resize via custom escape sequence that the broker interprets
+      brokerProcess.stdin.write(`\x1b]R;${cols};${rows}\x07`);
     }
   });
 
   ipcMain.handle('terminal:kill', () => {
-    if (ptyProcess) {
-      ptyProcess.kill();
-      ptyProcess = null;
+    if (brokerProcess) {
+      brokerProcess.kill();
+      brokerProcess = null;
     }
   });
 }
 
 export function cleanupTerminal(): void {
-  if (ptyProcess) {
-    ptyProcess.kill();
-    ptyProcess = null;
+  if (brokerProcess) {
+    brokerProcess.kill();
+    brokerProcess = null;
   }
 }

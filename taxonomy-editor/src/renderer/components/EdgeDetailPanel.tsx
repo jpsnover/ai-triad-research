@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 interface EdgeDetailPanelProps {
-  width: number;
+  width?: number;
 }
 
 const POV_COLOR: Record<string, string> = {

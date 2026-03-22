@@ -8,11 +8,34 @@
 
 const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.';
 
+const LENGTH_INSTRUCTIONS: Record<string, string> = {
+  brief: 'Be concise. Keep your response brief and focused — 2-3 sentences maximum. Get straight to the point.',
+  medium: 'Provide a moderately detailed response — 1-2 paragraphs. Cover the key points without excessive elaboration.',
+  detailed: 'Provide a thorough, in-depth response — 3-5 paragraphs. Develop your arguments fully with evidence and reasoning.',
+};
+
+export function lengthInstruction(length: string): string {
+  const instruction = LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medium;
+  console.log(`[debate-prompt] lengthInstruction called with: "${length}" → "${instruction}"`);
+  return instruction;
+}
+
+/** Format source context for document/URL debates */
+function sourceContext(sourceContent?: string): string {
+  if (!sourceContent) return '';
+  // Truncate for prompt size limits
+  const content = sourceContent.length > 15000
+    ? sourceContent.slice(0, 15000) + '\n\n[Content truncated]'
+    : sourceContent;
+  return `\n\nThe debate is about the following document/content:\n\n---\n${content}\n---\n\nBase your arguments on the specific claims, evidence, and reasoning found in this document. Reference specific parts of the document when making your points.`;
+}
+
 export function clarificationPrompt(
   label: string,
   pov: string,
   personality: string,
   topic: string,
+  debateSourceContent?: string,
 ): string {
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -20,7 +43,7 @@ ${READING_LEVEL}
 
 A user wants to debate the following topic:
 
-"${topic}"
+"${topic}"${sourceContext(debateSourceContent)}
 
 Ask 0-2 concise clarifying questions that would help you make the strongest possible argument from your perspective. Your questions should:
 - Help narrow the scope so you can give a focused argument
@@ -58,10 +81,13 @@ export function openingStatementPrompt(
   taxonomyContext: string,
   priorBlock: string,
   isFirst: boolean,
+  debateSourceContent?: string,
+  length: string = 'medium',
 ): string {
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
+${lengthInstruction(length)}
 
 Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
 
@@ -70,9 +96,9 @@ ${priorBlock}
 
 The debate topic is:
 
-"${topic}"
+"${topic}"${sourceContext(debateSourceContent)}
 
-Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive. 1-2 paragraphs.
+Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 
 ${isFirst ? 'You are delivering the first opening statement.' : 'You have read the prior opening statements. You may reference or contrast with them, but focus on your own position.'}
 
@@ -94,17 +120,20 @@ export function debateResponsePrompt(
   recentTranscript: string,
   question: string,
   addressing: string,
+  debateSourceContent?: string,
+  length: string = 'medium',
 ): string {
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
+${lengthInstruction(length)}
 
 Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
 
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"
+"${topic}"${sourceContext(debateSourceContent)}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
@@ -158,10 +187,12 @@ export function crossRespondPrompt(
   recentTranscript: string,
   focusPoint: string,
   addressing: string,
+  length: string = 'medium',
 ): string {
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
+${lengthInstruction(length)}
 
 Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words.
 

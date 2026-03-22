@@ -446,10 +446,18 @@ function OpeningActions() {
 }
 
 /** Main debate phase action bar */
+const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
+  { id: 'prometheus', label: 'Prometheus', color: POVER_INFO.prometheus.color },
+  { id: 'sentinel', label: 'Sentinel', color: POVER_INFO.sentinel.color },
+  { id: 'cassandra', label: 'Cassandra', color: POVER_INFO.cassandra.color },
+];
+
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, responseLength, setResponseLength } = useDebateStore();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!activeDebate) return null;
@@ -457,10 +465,41 @@ function DebateActions() {
   const isGenerating = !!debateGenerating;
   const disabled = isGenerating || sending || activeDebate.phase === 'closed';
 
+  // Filter mention options to active AI povers
+  const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as PoverId));
+
+  const insertMention = (label: string) => {
+    // Find the last @ in the input and replace from there
+    const atIdx = input.lastIndexOf('@');
+    const before = atIdx >= 0 ? input.slice(0, atIdx) : input;
+    setInput(`${before}@${label} `);
+    setMentionOpen(false);
+    setMentionIndex(0);
+    inputRef.current?.focus();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    // Show mention popup when @ is typed at end or after a space
+    const atIdx = val.lastIndexOf('@');
+    if (atIdx >= 0 && (atIdx === 0 || val[atIdx - 1] === ' ')) {
+      const afterAt = val.slice(atIdx + 1).toLowerCase();
+      // Only show if there's no space after @  (still typing the name)
+      if (!afterAt.includes(' ')) {
+        setMentionOpen(true);
+        setMentionIndex(0);
+        return;
+      }
+    }
+    setMentionOpen(false);
+  };
+
   const handleSend = async () => {
     if (!input.trim() || disabled) return;
     const text = input;
     setInput('');
+    setMentionOpen(false);
     setSending(true);
     await askQuestion(text);
     setSending(false);
@@ -468,6 +507,28 @@ function DebateActions() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (mentionOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(i => Math.min(i + 1, mentionOptions.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(i => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(mentionOptions[mentionIndex].label);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionOpen(false);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -485,16 +546,42 @@ function DebateActions() {
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
       <div className="debate-action-bar-inner">
-        <input
-          ref={inputRef}
-          className="debate-input"
-          type="text"
-          placeholder="Ask a question (@Sentinel to target)..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-        />
+        <div className="debate-input-wrapper">
+          <input
+            ref={inputRef}
+            className="debate-input"
+            type="text"
+            placeholder="Ask a question (@Sentinel to target)..."
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
+            disabled={disabled}
+          />
+          {mentionOpen && mentionOptions.length > 0 && (
+            <div className="debate-mention-dropdown">
+              {mentionOptions.map((opt, i) => (
+                <div
+                  key={opt.id}
+                  className={`debate-mention-item${i === mentionIndex ? ' selected' : ''}`}
+                  onMouseDown={(e) => { e.preventDefault(); insertMention(opt.label); }}
+                >
+                  <span style={{ color: opt.color, fontWeight: 600 }}>{opt.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <select
+          className="debate-length-select"
+          value={responseLength}
+          onChange={(e) => setResponseLength(e.target.value as 'brief' | 'medium' | 'detailed')}
+          title="Response depth"
+        >
+          <option value="brief">Brief</option>
+          <option value="medium">Medium</option>
+          <option value="detailed">Detailed</option>
+        </select>
         <button
           className="btn btn-primary debate-send-btn"
           onClick={handleSend}

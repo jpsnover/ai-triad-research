@@ -259,6 +259,8 @@ interface TaxonomyState {
   setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console' | null) => void;
   pendingLineageValue: string | null;
   navigateToLineage: (value: string) => void;
+  pendingSearchRelatedId: string | null;
+  navigateToSearchRelated: (nodeId: string) => void;
   previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'console' | null; nodeId: string | null } | null;
   navigateBack: () => void;
 }
@@ -1304,6 +1306,15 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     set({
       toolbarPanel: 'lineage',
       pendingLineageValue: value,
+      previousView: { panel: state.toolbarPanel, nodeId: state.selectedNodeId },
+    });
+  },
+  pendingSearchRelatedId: null,
+  navigateToSearchRelated: (nodeId) => {
+    const state = get();
+    set({
+      toolbarPanel: 'search',
+      pendingSearchRelatedId: nodeId,
       previousView: { panel: state.toolbarPanel, nodeId: state.selectedNodeId },
     });
   },

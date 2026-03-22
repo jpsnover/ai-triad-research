@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import type {
   DebateSession,
   DebateSessionSummary,
+  DebateSourceType,
   PoverId,
   TranscriptEntry,
   TaxonomyRef,
@@ -110,9 +111,9 @@ function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): str
 
 // ── Prompt builders (delegate to prompts/debate.ts) ──────
 
-function buildClarificationPrompt(poverId: Exclude<PoverId, 'user'>, topic: string): string {
+function buildClarificationPrompt(poverId: Exclude<PoverId, 'user'>, topic: string, sourceContent?: string): string {
   const info = POVER_INFO[poverId];
-  return clarificationPrompt(info.label, info.pov, info.personality, topic);
+  return clarificationPrompt(info.label, info.pov, info.personality, topic, sourceContent);
 }
 
 function buildSynthesisPrompt(
@@ -133,6 +134,8 @@ function buildOpeningStatementPrompt(
   topic: string,
   taxonomyContext: string,
   priorStatements: { speaker: string; statement: string }[],
+  sourceContent?: string,
+  length: string = 'medium',
 ): string {
   const info = POVER_INFO[poverId];
   let priorBlock = '';
@@ -142,7 +145,7 @@ function buildOpeningStatementPrompt(
       priorBlock += `\n${ps.speaker}:\n${ps.statement}\n`;
     }
   }
-  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0);
+  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0, sourceContent, length);
 }
 
 function buildDebateResponsePrompt(
@@ -152,9 +155,11 @@ function buildDebateResponsePrompt(
   recentTranscript: string,
   question: string,
   addressing: string,
+  sourceContent?: string,
+  length: string = 'medium',
 ): string {
   const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing);
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length);
 }
 
 function buildCrossRespondSelectionPrompt(
@@ -171,9 +176,10 @@ function buildCrossRespondPrompt(
   recentTranscript: string,
   focusPoint: string,
   addressing: string,
+  length: string = 'medium',
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing);
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length);
 }
 
 function buildDebateSynthesisPrompt(
@@ -290,6 +296,8 @@ interface DebateStore {
   debateLoading: boolean;
   debateGenerating: PoverId | null;
   debateError: string | null;
+  responseLength: 'brief' | 'medium' | 'detailed';
+  setResponseLength: (length: 'brief' | 'medium' | 'detailed') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
@@ -297,7 +305,7 @@ interface DebateStore {
   // Actions
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
   closeDebate: () => void;
@@ -339,6 +347,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   activeDebate: null,
   debateLoading: false,
   debateGenerating: null,
+  responseLength: 'medium',
+  setResponseLength: (length) => set({ responseLength: length }),
   debateError: null,
   debateProgress: null,
   debateActivity: null,
@@ -354,7 +364,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover) => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '') => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -369,6 +379,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         refined: null,
         final: topic,
       },
+      source_type: sourceType,
+      source_ref: sourceRef,
+      source_content: sourceContent,
       active_povers: povers,
       user_is_pover: userIsPover,
       transcript: [],
@@ -478,7 +491,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Fire all clarification requests in parallel
     const promises = aiPovers.map(async (poverId) => {
       set({ debateGenerating: poverId });
-      const prompt = buildClarificationPrompt(poverId, topic);
+      const prompt = buildClarificationPrompt(poverId, topic, activeDebate.source_content || undefined);
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is formulating questions (${model})`, set);
         let questions: string[];
@@ -611,7 +624,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const ctx = getTaxonomyContext(info.pov);
       const taxonomyBlock = formatTaxonomyContext(ctx);
 
-      const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements);
+      const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
 
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${info.label} is preparing opening statement (${model})`, set);
@@ -739,6 +752,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         currentTranscript,
         cleanedInput,
         target ? poverId : 'all',
+        activeDebate.source_content || undefined,
+        get().responseLength,
       );
 
       try {
@@ -851,6 +866,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       currentTranscript,
       focusPoint,
       addressingLabel,
+      get().responseLength,
     );
 
     try {

@@ -148,6 +148,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     semanticResults, embeddingLoading, embeddingError,
     similarResults, similarLoading, similarStep, similarError, runSimilarSearch,
     clearSimilarSearch, setToolbarPanel,
+    pendingSearchRelatedId,
   } = useTaxonomyStore();
 
   const [mode, setMode] = useState<SearchPanelMode>('taxonomy');
@@ -164,6 +165,28 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const isSemantic = findMode === 'semantic';
 
   useEffect(() => { checkApiKey(); }, [checkApiKey]);
+
+  // Auto-switch to Related mode when navigated from Similar Search button
+  useEffect(() => {
+    if (!pendingSearchRelatedId) return;
+    const nodeId = pendingSearchRelatedId;
+    useTaxonomyStore.setState({ pendingSearchRelatedId: null });
+    setMode('related');
+    setRelatedNodeId(nodeId);
+    setRelatedQuery('');
+    const label = getLabelForId(nodeId);
+    const state = useTaxonomyStore.getState();
+    let desc = '';
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const n = state[pov]?.nodes.find(n => n.id === nodeId);
+      if (n) { desc = n.description; break; }
+    }
+    if (!desc && state.crossCutting) {
+      const n = state.crossCutting.nodes.find(n => n.id === nodeId);
+      if (n) desc = n.description;
+    }
+    runSimilarSearch(nodeId, label, desc);
+  }, [pendingSearchRelatedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced semantic search
   useEffect(() => {

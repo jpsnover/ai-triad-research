@@ -29,8 +29,9 @@ interface PovTabProps {
 export function PovTab({ pov }: PovTabProps) {
   const {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
-    runSimilarSearch, similarResults, similarLoading, similarError,
+    similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
+    navigateToSearchRelated,
     attributeFilter, attributeInfo,
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
     relatedNodeId, showRelatedEdges, selectedEdge,
@@ -108,7 +109,7 @@ export function PovTab({ pov }: PovTabProps) {
 
   const handleSimilarSearch = () => {
     if (selectedNode) {
-      runSimilarSearch(selectedNode.id, selectedNode.label, selectedNode.description);
+      navigateToSearchRelated(selectedNode.id);
     }
   };
 
@@ -179,12 +180,7 @@ export function PovTab({ pov }: PovTabProps) {
     }
   }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh similar search when selection changes while panel is open
-  useEffect(() => {
-    if (showSimilarPanel && selectedNode && !similarLoading) {
-      runSimilarSearch(selectedNode.id, selectedNode.label, selectedNode.description);
-    }
-  }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // (Similar search auto-refresh is handled by SearchPanel)
 
   // Render cross-POV node detail for search preview
   const renderSearchPreview = () => {
@@ -333,6 +329,14 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="detail-panel">
           {renderSearchPreview()}
         </div>
+      ) : toolbarPanel === 'related' ? (
+        <div className="detail-panel">
+          {showEdgeDetail ? (
+            <EdgeDetailPanel width={0} />
+          ) : (
+            <div className="detail-panel-empty">Select an edge to view details</div>
+          )}
+        </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
       : toolbarPanel === 'lineage' ? (
         <>
@@ -369,13 +373,6 @@ export function PovTab({ pov }: PovTabProps) {
                 <div className="detail-panel-empty">Select a node to edit</div>
               )}
             </div>
-          )}
-          {/* Pane 3: Edge Detail (child of Related Edges, when related is in Pane 1) */}
-          {toolbarPanel === 'related' && showEdgeDetail && (
-            <>
-              <div className="resize-handle" onMouseDown={onEdgeDetailResize} />
-              <EdgeDetailPanel width={edgeDetailWidth} />
-            </>
           )}
           {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
         </>

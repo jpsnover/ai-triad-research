@@ -33,6 +33,8 @@ export interface ContextSummary {
   summary: string;
 }
 
+export type DebateSourceType = 'topic' | 'document' | 'url';
+
 export interface DebateSession {
   id: string;
   title: string;
@@ -44,6 +46,11 @@ export interface DebateSession {
     refined: string | null;
     final: string;
   };
+  source_type: DebateSourceType;
+  /** For document: file path; for url: the URL; for topic: empty */
+  source_ref: string;
+  /** For document/url: the loaded text content for prompt injection */
+  source_content: string;
   active_povers: PoverId[];
   user_is_pover: boolean;
   transcript: TranscriptEntry[];

@@ -30,6 +30,8 @@ export interface ElectronAPI {
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown) => Promise<{ cancelled: boolean; filePath?: string }>;
+  fetchUrlContent: (url: string) => Promise<{ content: string; error?: string }>;
+  pickDocumentFile: () => Promise<{ cancelled: boolean; filePath?: string; content?: string }>;
   terminalSpawn: () => Promise<void>;
   terminalWrite: (data: string) => Promise<void>;
   terminalResize: (cols: number, rows: number) => Promise<void>;

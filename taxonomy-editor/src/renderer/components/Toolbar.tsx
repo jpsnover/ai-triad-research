@@ -11,6 +11,7 @@ type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage'
 export function Toolbar() {
   const {
     toolbarPanel, setToolbarPanel,
+    activeTab, setActiveTab,
     selectedNodeId,
     clearSimilarSearch, getLabelForId,
     showRelatedEdges,
@@ -43,6 +44,12 @@ export function Toolbar() {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   };
 
+  const switchTab = (tab: 'cross-cutting' | 'conflicts' | 'debate') => {
+    clearCurrentPanel();
+    setToolbarPanel(null);
+    setActiveTab(tab);
+  };
+
   const toggle = (panel: ToolbarPanel) => {
     if (toolbarPanel === panel) {
       // Close the panel
@@ -61,7 +68,7 @@ export function Toolbar() {
   return (
     <div className="toolbar">
       <div className="toolbar-top">
-        {previousView && (
+        {previousView && toolbarPanel !== null && (
           <>
             <button
               className="toolbar-icon toolbar-back"
@@ -77,10 +84,14 @@ export function Toolbar() {
           </>
         )}
         <button
-          className={`toolbar-icon${toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-icon${toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
+            // If on a non-POV tab, switch back to the last POV tab
+            if (['cross-cutting', 'conflicts', 'debate'].includes(activeTab)) {
+              setActiveTab('accelerationist');
+            }
           }}
           data-tooltip="Taxonomy"
         >
@@ -144,6 +155,37 @@ export function Toolbar() {
             <path d="M5 12h14" />
             <path d="M8 17l-3 3" />
             <path d="M16 17l3 3" />
+          </svg>
+        </button>
+        <div className="toolbar-separator" />
+        <button
+          className={`toolbar-icon${activeTab === 'cross-cutting' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('cross-cutting')}
+          data-tooltip="Cross-Cutting"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        <button
+          className={`toolbar-icon${activeTab === 'conflicts' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('conflicts')}
+          data-tooltip="Conflicts"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+        <button
+          className={`toolbar-icon${activeTab === 'debate' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('debate')}
+          data-tooltip="Debate"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </button>
       </div>

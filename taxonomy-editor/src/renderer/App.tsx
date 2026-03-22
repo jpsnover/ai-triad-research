@@ -99,7 +99,7 @@ export function App() {
 
   return (
     <div className="app">
-      {toolbarPanel === null && <TabBar />}
+      {toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">

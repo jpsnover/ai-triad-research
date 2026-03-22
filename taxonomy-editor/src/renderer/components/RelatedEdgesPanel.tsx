@@ -138,6 +138,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const { edgesFile, edgesLoading, relatedNodeId, showRelatedEdges, selectedEdge, selectEdge } = useTaxonomyStore();
   const [collapsed, setCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EdgeStatus | ''>('');
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const nodeId = relatedNodeId;
@@ -150,6 +151,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     for (const edge of edgesFile.edges) {
       if (edge.source !== nodeId && edge.target !== nodeId) continue;
       if (statusFilter && edge.status !== statusFilter) continue;
+      if (edge.confidence < confidenceThreshold) continue;
 
       const existing = groups.get(edge.type);
       if (existing) {
@@ -165,7 +167,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     }
 
     return groups;
-  }, [edgesFile, nodeId, statusFilter]);
+  }, [edgesFile, nodeId, statusFilter, confidenceThreshold]);
 
   // Get edge type definitions for labels
   const edgeTypeDefs = useMemo(() => {
@@ -226,8 +228,14 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     );
   }
 
+  const nodeLabel = useTaxonomyStore.getState().getLabelForId(nodeId);
+
   return (
     <div className="related-edges-panel" style={width ? { width, minWidth: width } : undefined} ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} onMouseDown={() => panelRef.current?.focus()}>
+      <div className="related-edges-node-banner">
+        <span className="related-edges-node-id" style={{ color: nodeColor(nodeId) }}>{nodeId}</span>
+        <span className="related-edges-node-label">{nodeLabel}</span>
+      </div>
       <div className="related-edges-header">
         <div className="related-edges-title">
           <h3>Related Edges</h3>
@@ -256,6 +264,19 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
           <option value="proposed">Proposed</option>
           <option value="rejected">Rejected</option>
         </select>
+        <div className="related-edges-threshold">
+          <label className="related-edges-threshold-label">
+            Confidence &ge; {Math.round(confidenceThreshold * 100)}%
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={Math.round(confidenceThreshold * 100)}
+            onChange={(e) => setConfidenceThreshold(Number(e.target.value) / 100)}
+            className="related-edges-threshold-slider"
+          />
+        </div>
       </div>
 
       <div className="related-edges-body">

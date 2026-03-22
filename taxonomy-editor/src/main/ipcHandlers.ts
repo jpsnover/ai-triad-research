@@ -175,4 +175,32 @@ export function registerIpcHandlers(): void {
 
     return { cancelled: false, filePath };
   });
+
+  ipcMain.handle('fetch-url-content', async (_event, url: string) => {
+    try {
+      const resp = await fetch(url);
+      const text = await resp.text();
+      return { content: text };
+    } catch (err) {
+      return { content: '', error: String(err) };
+    }
+  });
+
+  ipcMain.handle('pick-document-file', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { cancelled: true };
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select a document for debate',
+      filters: [
+        { name: 'Documents', extensions: ['md', 'txt', 'pdf', 'docx', 'html'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return { cancelled: true };
+    const filePath = result.filePaths[0];
+    const fs = await import('fs');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return { cancelled: false, filePath, content };
+  });
 }

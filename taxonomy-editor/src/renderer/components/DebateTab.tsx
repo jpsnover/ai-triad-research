@@ -173,39 +173,80 @@ export function DebateTab() {
 
       <div className="resize-handle" onMouseDown={onMouseDown} />
 
-      {/* Center pane: Debate workspace */}
-      {detailCollapsed ? (
-        <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
-          <span className="pane-collapsed-label">Workspace</span>
-        </div>
-      ) : (
-        <div className="detail-panel debate-workspace-container">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            {exportStatus && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
-            )}
-            {activeDebateId && (
-              <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
-                Export
-              </button>
-            )}
-            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+      {/* For document/URL debates: Pane 2 = source content, Pane 3 = workspace */}
+      {activeDebate && activeDebate.source_type !== 'topic' ? (
+        <>
+          {/* Pane 2: Document/URL content */}
+          <div className="detail-panel debate-source-panel">
+            <div className="debate-source-header">
+              <span className="debate-source-title">
+                {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
+              </span>
+              {activeDebate.source_ref && (
+                <span className="debate-source-ref" title={activeDebate.source_ref}>
+                  {activeDebate.source_type === 'document'
+                    ? activeDebate.source_ref.split('/').pop()
+                    : activeDebate.source_ref}
+                </span>
+              )}
+            </div>
+            <div className="debate-source-body">
+              {activeDebate.source_type === 'url' ? (
+                <webview src={activeDebate.source_ref} className="webview-frame" />
+              ) : (
+                <pre className="debate-source-content">{activeDebate.source_content}</pre>
+              )}
+            </div>
           </div>
-          {activeDebateId ? (
+          <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+          {/* Pane 3: Debate workspace */}
+          <div className="detail-panel debate-workspace-container" style={{ width: pane3Width, minWidth: pane3Width }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              {exportStatus && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+              )}
+              <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+            </div>
             <DebateWorkspace />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Topic debate: Pane 2 = workspace (original layout) */}
+          {detailCollapsed ? (
+            <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
+              <span className="pane-collapsed-label">Workspace</span>
+            </div>
           ) : (
-            <div className="debate-empty-state">
-              <h2>POV Debater</h2>
-              <p>Select a debate from the list or create a new one.</p>
-              <button className="btn" onClick={() => setShowNewDialog(true)}>
-                + New Debate
-              </button>
+            <div className="detail-panel debate-workspace-container">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                {exportStatus && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+                )}
+                {activeDebateId && (
+                  <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
+                    Export
+                  </button>
+                )}
+                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+              </div>
+              {activeDebateId ? (
+                <DebateWorkspace />
+              ) : (
+                <div className="debate-empty-state">
+                  <h2>POV Debater</h2>
+                  <p>Select a debate from the list or create a new one.</p>
+                  <button className="btn" onClick={() => setShowNewDialog(true)}>
+                    + New Debate
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Pane 3: Node inspector (shown when a taxonomy pill is clicked) */}
+      {/* Node inspector (shown when a taxonomy pill is clicked) */}
       {inspectedNodeId && (() => {
         const resolved = resolveNode(inspectedNodeId);
         if (!resolved) return null;

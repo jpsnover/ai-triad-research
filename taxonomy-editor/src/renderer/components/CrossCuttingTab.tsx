@@ -238,6 +238,14 @@ export function CrossCuttingTab() {
         <div className="detail-panel">
           {renderSearchPreview()}
         </div>
+      ) : toolbarPanel === 'related' ? (
+        <div className="detail-panel">
+          {showEdgeDetail ? (
+            <EdgeDetailPanel />
+          ) : (
+            <div className="detail-panel-empty">Select an edge to view details</div>
+          )}
+        </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
       : toolbarPanel === 'lineage' ? (
         <>
@@ -274,13 +282,6 @@ export function CrossCuttingTab() {
                 <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
               )}
             </div>
-          )}
-          {/* Pane 3: Edge Detail (child of Related Edges, when related is in Pane 1) */}
-          {toolbarPanel === 'related' && showEdgeDetail && (
-            <>
-              <div className="resize-handle" onMouseDown={onEdgeDetailResize} />
-              <EdgeDetailPanel width={edgeDetailWidth} />
-            </>
           )}
           {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
         </>
