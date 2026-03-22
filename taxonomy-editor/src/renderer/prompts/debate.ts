@@ -24,8 +24,8 @@ export function lengthInstruction(length: string): string {
 function sourceContext(sourceContent?: string): string {
   if (!sourceContent) return '';
   // Truncate for prompt size limits
-  const content = sourceContent.length > 15000
-    ? sourceContent.slice(0, 15000) + '\n\n[Content truncated]'
+  const content = sourceContent.length > 50000
+    ? sourceContent.slice(0, 50000) + '\n\n[Content truncated]'
     : sourceContent;
   return `\n\nThe debate is about the following document/content:\n\n---\n${content}\n---\n\nBase your arguments on the specific claims, evidence, and reasoning found in this document. Reference specific parts of the document when making your points.`;
 }

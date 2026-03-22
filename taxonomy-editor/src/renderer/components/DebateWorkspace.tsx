@@ -378,7 +378,7 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, responseLength, setResponseLength } = useDebateStore();
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -386,9 +386,35 @@ function OpeningActions() {
 
   const isGenerating = !!debateGenerating;
   const userIsPover = activeDebate.user_is_pover;
+  const hasAnyOpening = activeDebate.transcript.some((e) => e.type === 'opening');
   const hasUserOpening = activeDebate.transcript.some(
     (e) => e.type === 'opening' && e.speaker === 'user',
   );
+
+  // Before any openings have started — let user pick length and start
+  if (!hasAnyOpening && !isGenerating) {
+    return (
+      <div className="debate-action-bar">
+        {debateError && <div className="debate-error">{debateError}</div>}
+        <div className="debate-action-hint">Choose the depth for opening statements, then begin.</div>
+        <div className="debate-action-bar-inner">
+          <select
+            className="debate-length-select"
+            value={responseLength}
+            onChange={(e) => setResponseLength(e.target.value as 'brief' | 'medium' | 'detailed')}
+            title="Opening statement depth"
+          >
+            <option value="brief">Brief</option>
+            <option value="medium">Medium</option>
+            <option value="detailed">Detailed</option>
+          </select>
+          <button className="btn btn-primary" onClick={() => runOpeningStatements()}>
+            Begin Opening Statements
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // AI POVers still generating
   if (isGenerating) {
@@ -758,17 +784,8 @@ export function DebateWorkspace() {
     }
   }, [activeDebate?.phase, activeDebate?.transcript.length, runClarification]);
 
-  // Auto-trigger opening statements when entering opening phase
-  useEffect(() => {
-    if (
-      activeDebate?.phase === 'opening' &&
-      !activeDebate.transcript.some((e) => e.type === 'opening') &&
-      !hasTriggeredOpening.current
-    ) {
-      hasTriggeredOpening.current = true;
-      runOpeningStatements();
-    }
-  }, [activeDebate?.phase, activeDebate?.transcript, runOpeningStatements]);
+  // Opening statements are now manually triggered via the OpeningActions button
+  // (no auto-trigger — user picks depth first)
 
   // Reset trigger flags when debate changes
   useEffect(() => {

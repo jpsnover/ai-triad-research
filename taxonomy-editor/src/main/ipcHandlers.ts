@@ -179,8 +179,47 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('fetch-url-content', async (_event, url: string) => {
     try {
       const resp = await fetch(url);
-      const text = await resp.text();
-      return { content: text };
+      const html = await resp.text();
+
+      // Extract readable text from HTML:
+      // 1. Remove script, style, noscript, svg, and head tags with their content
+      let cleaned = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+        .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '');
+
+      // 2. Replace block-level tags with newlines for readability
+      cleaned = cleaned
+        .replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article|header|footer|nav|aside)>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/td>/gi, '\t')
+        .replace(/<hr\s*\/?>/gi, '\n---\n');
+
+      // 3. Strip all remaining HTML tags
+      cleaned = cleaned.replace(/<[^>]+>/g, '');
+
+      // 4. Decode common HTML entities
+      cleaned = cleaned
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+
+      // 5. Collapse whitespace: multiple blank lines → double newline, multiple spaces → single
+      cleaned = cleaned
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      return { content: cleaned };
     } catch (err) {
       return { content: '', error: String(err) };
     }

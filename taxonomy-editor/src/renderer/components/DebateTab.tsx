@@ -11,6 +11,7 @@ import { NodeDetail } from './NodeDetail';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
+import { DebateSourceViewer } from './DebateSourceViewer';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 
@@ -191,11 +192,11 @@ export function DebateTab() {
               )}
             </div>
             <div className="debate-source-body">
-              {activeDebate.source_type === 'url' ? (
-                <webview src={activeDebate.source_ref} className="webview-frame" />
-              ) : (
-                <pre className="debate-source-content">{activeDebate.source_content}</pre>
-              )}
+              <DebateSourceViewer
+                content={activeDebate.source_content}
+                sourceType={activeDebate.source_type as 'document' | 'url'}
+                sourceRef={activeDebate.source_ref}
+              />
             </div>
           </div>
           <div className="resize-handle" onMouseDown={onPane3MouseDown} />

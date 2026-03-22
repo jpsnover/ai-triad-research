@@ -3931,6 +3931,105 @@ body {
   height: 100%;
 }
 
+/* ─── Debate Source Viewer (search + content) ─────────── */
+
+.debate-source-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.debate-source-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.debate-source-search-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.debate-source-search-input:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+
+.debate-source-search-mode {
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.debate-source-search-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.debate-source-similar-results {
+  max-height: 180px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.debate-source-similar-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.debate-source-similar-item:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.debate-source-similar-item.active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+.debate-source-similar-score {
+  font-weight: 700;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.debate-source-similar-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate-source-highlight {
+  background: rgba(250, 204, 21, 0.3);
+  border-radius: 2px;
+}
+
+.debate-source-highlight.active {
+  background: var(--focus-ring);
+  color: #fff;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
 .debate-source-content {
   padding: 12px;
   font-size: 0.82rem;
@@ -3940,6 +4039,8 @@ body {
   word-wrap: break-word;
   margin: 0;
   font-family: inherit;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .new-debate-topic {

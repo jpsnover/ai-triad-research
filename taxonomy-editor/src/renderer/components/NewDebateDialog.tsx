@@ -60,19 +60,15 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
     if (sourceType === 'url') {
       if (!finalTopic) finalTopic = `Discuss: ${sourceRef.trim()}`;
-      // Fetch URL content via main process to avoid CSP restrictions
+      // Fetch and extract readable text via main process (strips scripts, styles, tags)
       try {
         const result = await window.electronAPI.fetchUrlContent(sourceRef.trim());
         if (result.error) {
           finalContent = `[Failed to fetch URL content: ${result.error}]`;
         } else {
           finalContent = result.content;
-          // Strip HTML tags for plain text
-          const tmp = document.createElement('div');
-          tmp.innerHTML = finalContent;
-          finalContent = tmp.textContent || tmp.innerText || finalContent;
-          if (finalContent.length > 30000) {
-            finalContent = finalContent.slice(0, 30000) + '\n\n[Content truncated at 30,000 characters]';
+          if (finalContent.length > 100000) {
+            finalContent = finalContent.slice(0, 100000) + '\n\n[Content truncated at 100,000 characters]';
           }
         }
       } catch (err) {
@@ -96,7 +92,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
-    store.updatePhase('clarification');
+    // Skip clarification for document/URL debates — go straight to opening
+    store.updatePhase(sourceType === 'topic' ? 'clarification' : 'opening');
     await store.saveDebate();
     onClose();
   };
