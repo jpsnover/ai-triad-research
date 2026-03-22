@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { Edge, EdgeType, EdgeStatus } from '../types/taxonomy';
 
 interface RelatedEdgesPanelProps {
-  width: number;
+  width?: number;
 }
 
 const POV_COLOR: Record<string, string> = {
@@ -196,13 +196,6 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     selectEdge(edge);
   }, [selectEdge]);
 
-  // Focus panel when an edge is selected
-  useEffect(() => {
-    if (selectedEdge && panelRef.current) {
-      panelRef.current.focus();
-    }
-  }, [selectedEdge]);
-
   // Keyboard: up/down to navigate edges
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -234,7 +227,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   }
 
   return (
-    <div className="related-edges-panel" style={{ width, minWidth: width }} ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} onMouseDown={() => panelRef.current?.focus()}>
+    <div className="related-edges-panel" style={width ? { width, minWidth: width } : undefined} ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown} onMouseDown={() => panelRef.current?.focus()}>
       <div className="related-edges-header">
         <div className="related-edges-title">
           <h3>Related Edges</h3>

@@ -133,7 +133,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   // Call Python batch-encode via stdin
   const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
     const child = execFile(
-      'python',
+      'python3',
       [EMBED_SCRIPT, 'batch-encode'],
       { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (err, stdout, stderr) => {
@@ -192,7 +192,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
     execFile(
-      'python',
+      'python3',
       [EMBED_SCRIPT, 'encode', text],
       { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
       (err, stdout, stderr) => {

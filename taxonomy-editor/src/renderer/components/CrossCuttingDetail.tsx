@@ -21,7 +21,7 @@ interface CrossCuttingDetailProps {
 }
 
 export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth = 0 }: CrossCuttingDetailProps) {
-  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo } = useTaxonomyStore();
+  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const formRef = useRef<HTMLDivElement>(null);
@@ -91,16 +91,16 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth
             onClick={handleResearchPrompt}
             title="Generate a research prompt for this concept and copy to clipboard"
           >
-            {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
+            {clipboardState === 'copied' ? '\u2713 Copied!' : <><span className="btn-icon">&#9998;</span> Research</>}
           </button>
           {onRelated && (
             <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
-              Related
+              <span className="btn-icon">&#8596;</span> Related
             </button>
           )}
           {onPin && (
             <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
-              Pin
+              <span className="btn-icon">&#9744;</span> Pin
             </button>
           )}
           {!readOnly && (
@@ -133,11 +133,18 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth
         <HighlightedTextarea
           value={node.description}
           onChange={(v) => update({ description: v })}
-          rows={3}
+          rows={4}
           readOnly={readOnly}
         />
         {err('description') && <div className="error-text">{err('description')}</div>}
       </div>
+
+      {node.graph_attributes?.steelman_vulnerability && (
+        <div className="form-group">
+          <label>Steelman Vulnerability</label>
+          <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+        </div>
+      )}
 
       {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
         <div className="form-group">
@@ -147,21 +154,14 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth
               <span
                 key={i}
                 className="ga-promoted-chip ga-promoted-chip-interactive"
-                onClick={(e) => { e.stopPropagation(); runAttributeFilter('intellectual_lineage', l); }}
+                onClick={(e) => { e.stopPropagation(); navigateToLineage(l); }}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-                title={`Click to filter, right-click for info: "${l}"`}
+                title={`Click to view lineage info: "${l}"`}
               >
                 {l}
               </span>
             ))}
           </div>
-        </div>
-      )}
-
-      {node.graph_attributes?.steelman_vulnerability && (
-        <div className="form-group">
-          <label>Steelman Vulnerability</label>
-          <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
         </div>
       )}
 

@@ -1,11 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { TabId } from '../types/taxonomy';
-import { HelpDialog } from './HelpDialog';
-import { SettingsDialog } from './SettingsDialog';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Accelerationist' },
@@ -17,22 +14,7 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export function TabBar() {
-  const { activeTab, setActiveTab, loadAll } = useTaxonomyStore();
-  const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [taxonomyDirs, setTaxonomyDirs] = useState<string[]>([]);
-  const [activeDir, setActiveDir] = useState('Origin');
-
-  useEffect(() => {
-    window.electronAPI.getTaxonomyDirs().then(setTaxonomyDirs);
-    window.electronAPI.getActiveTaxonomyDir().then(setActiveDir);
-  }, []);
-
-  const handleDirChange = useCallback(async (dirName: string) => {
-    await window.electronAPI.setTaxonomyDir(dirName);
-    setActiveDir(dirName);
-    await loadAll();
-  }, [loadAll]);
+  const { activeTab, setActiveTab } = useTaxonomyStore();
 
   return (
     <div className="tab-bar">
@@ -46,28 +28,6 @@ export function TabBar() {
           {tab.label}
         </button>
       ))}
-      <div className="tab-bar-actions">
-        {taxonomyDirs.length > 1 && (
-          <select
-            className="taxonomy-dir-select"
-            value={activeDir}
-            onChange={(e) => handleDirChange(e.target.value)}
-            title="Switch taxonomy"
-          >
-            {taxonomyDirs.map((dir) => (
-              <option key={dir} value={dir}>{dir}</option>
-            ))}
-          </select>
-        )}
-        <button className="tab-bar-menu-btn" onClick={() => setShowSettings(true)} title="Settings">
-          Settings
-        </button>
-        <button className="tab-bar-menu-btn" onClick={() => setShowHelp(true)} title="Help">
-          Help
-        </button>
-      </div>
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
-      {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

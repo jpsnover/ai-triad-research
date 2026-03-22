@@ -169,6 +169,7 @@ interface TaxonomyState {
 
   similarResults: { id: string; score: number }[] | null;
   similarLoading: boolean;
+  similarStep: string | null;
   similarError: string | null;
   similarThreshold: number;
   setSimilarThreshold: (threshold: number) => void;
@@ -253,6 +254,13 @@ interface TaxonomyState {
   loadEdges: () => Promise<void>;
   showRelatedEdges: (nodeId: string | null) => void;
   selectEdge: (edge: Edge | null) => void;
+
+  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null;
+  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null) => void;
+  pendingLineageValue: string | null;
+  navigateToLineage: (value: string) => void;
+  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | null; nodeId: string | null } | null;
+  navigateBack: () => void;
 }
 
 export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
@@ -293,10 +301,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   similarResults: null,
   similarLoading: false,
+  similarStep: null,
   similarError: null,
   similarThreshold: 60,
   setSimilarThreshold: (threshold) => set({ similarThreshold: threshold }),
-  clearSimilarSearch: () => set({ similarResults: null, similarError: null }),
+  clearSimilarSearch: () => {
+    const panel = get().toolbarPanel;
+    set({ similarResults: null, similarError: null, ...(panel === 'search' ? { toolbarPanel: null } : {}) });
+  },
 
   analysisResult: null,
   analysisLoading: false,
@@ -580,7 +592,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return;
     }
 
-    set({ similarLoading: true, similarError: null, similarResults: null });
+    set({ similarLoading: true, similarStep: 'Preparing search...', similarError: null, similarResults: null, toolbarPanel: 'search' });
 
     try {
       const state = get();
@@ -588,11 +600,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       // Rebuild cache if dirty (no scope filters — search all elements)
       if (state.embeddingDirty || cache.size === 0) {
+        set({ similarStep: 'Building embedding texts...' });
         const { ids, texts } = state.buildEmbeddingTexts(new Set(), new Set());
         if (texts.length === 0) {
-          set({ similarResults: [], similarLoading: false });
+          set({ similarResults: [], similarLoading: false, similarStep: null });
           return;
         }
+        set({ similarStep: `Computing embeddings for ${texts.length} nodes...` });
         const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
@@ -601,14 +615,16 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         set({ embeddingCache: cache, embeddingDirty: false });
       }
 
+      set({ similarStep: 'Computing query embedding...' });
       const { vector } = await window.electronAPI.computeQueryEmbedding(queryText);
+      set({ similarStep: 'Ranking results...' });
       // Use a low threshold (0.3) to get many results; the slider filters in UI
       const results = rankBySimilarity(vector, cache, 0.3, 200);
       // Exclude the source node itself
       const filtered = results.filter(r => r.id !== nodeId);
-      set({ similarResults: filtered, similarLoading: false });
+      set({ similarResults: filtered, similarLoading: false, similarStep: null });
     } catch (err) {
-      set({ similarLoading: false, similarError: String(err) });
+      set({ similarLoading: false, similarStep: null, similarError: String(err) });
     }
   },
 
@@ -1231,14 +1247,25 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
     }
 
-    set({ attributeFilter: { field, value, results } });
+    const current = get();
+    set({
+      attributeFilter: { field, value, results },
+      toolbarPanel: 'attrFilter',
+      previousView: { panel: current.toolbarPanel, nodeId: current.selectedNodeId },
+    });
   },
 
-  clearAttributeFilter: () => set({ attributeFilter: null }),
+  clearAttributeFilter: () => {
+    const panel = get().toolbarPanel;
+    set({ attributeFilter: null, ...(panel === 'attrFilter' ? { toolbarPanel: null } : {}) });
+  },
 
   attributeInfo: null,
-  showAttributeInfo: (field, value) => set({ attributeInfo: { field, value } }),
-  clearAttributeInfo: () => set({ attributeInfo: null }),
+  showAttributeInfo: (field, value) => set({ attributeInfo: { field, value }, toolbarPanel: 'attrInfo' }),
+  clearAttributeInfo: () => {
+    const panel = get().toolbarPanel;
+    set({ attributeInfo: null, ...(panel === 'attrInfo' ? { toolbarPanel: null } : {}) });
+  },
 
   edgesFile: null,
   edgesLoading: false,
@@ -1257,7 +1284,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   },
 
   showRelatedEdges: (nodeId) => {
-    set({ relatedNodeId: nodeId, selectedEdge: nodeId ? get().selectedEdge : null });
+    set({ relatedNodeId: nodeId, selectedEdge: nodeId ? get().selectedEdge : null, ...(nodeId ? { toolbarPanel: 'related' as const } : { toolbarPanel: null }) });
     // Lazy-load edges on first use
     if (nodeId && !get().edgesFile) {
       get().loadEdges();
@@ -1265,4 +1292,32 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   },
 
   selectEdge: (edge) => set({ selectedEdge: edge }),
+
+  toolbarPanel: null,
+  setToolbarPanel: (panel) => {
+    const state = get();
+    set({ toolbarPanel: panel, previousView: { panel: state.toolbarPanel, nodeId: state.selectedNodeId } });
+  },
+  pendingLineageValue: null,
+  navigateToLineage: (value) => {
+    const state = get();
+    set({
+      toolbarPanel: 'lineage',
+      pendingLineageValue: value,
+      previousView: { panel: state.toolbarPanel, nodeId: state.selectedNodeId },
+    });
+  },
+  previousView: null,
+  navigateBack: () => {
+    const prev = get().previousView;
+    if (!prev) {
+      set({ toolbarPanel: null, previousView: null });
+      return;
+    }
+    set({
+      toolbarPanel: prev.panel,
+      previousView: null,
+      ...(prev.nodeId ? { selectedNodeId: prev.nodeId } : {}),
+    });
+  },
 }));

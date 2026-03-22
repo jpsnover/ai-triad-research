@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizableVerticalSplit } from '../hooks/useResizablePanel';
 import type { Pov } from '../types/taxonomy';
@@ -54,7 +54,9 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   const { attributeFilter, clearAttributeFilter, runAttributeFilter, navigateToNode } = useTaxonomyStore();
   const [collapsed, setCollapsed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // ~30px per row, 5 rows = 155px default
   const { height: listHeight, onMouseDown: onSplitResize } = useResizableVerticalSplit({
@@ -67,7 +69,28 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   // Reset selection when filter changes
   useEffect(() => {
     setSelectedId(null);
+    setSelectedIndex(-1);
   }, [attributeFilter?.field, attributeFilter?.value]);
+
+  const selectByIndex = useCallback((index: number) => {
+    if (!attributeFilter || index < 0 || index >= attributeFilter.results.length) return;
+    setSelectedIndex(index);
+    setSelectedId(attributeFilter.results[index].id);
+    panelRef.current?.focus();
+    const el = listRef.current?.children[index] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [attributeFilter]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!attributeFilter) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectByIndex(Math.min(selectedIndex + 1, attributeFilter.results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectByIndex(Math.max(selectedIndex - 1, 0));
+    }
+  }, [selectedIndex, attributeFilter, selectByIndex]);
 
   if (!attributeFilter) return null;
 
@@ -123,10 +146,22 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   };
 
   return (
-    <div className="attr-filter-panel" style={width ? { width, minWidth: 320 } : undefined}>
+    <div className="attr-filter-panel" style={width ? { width, minWidth: 320 } : undefined} tabIndex={0} ref={panelRef} onKeyDown={handleKeyDown}>
       <div className="attr-filter-header">
         <div className="attr-filter-title">
-          <span className="attr-filter-field">{fieldLabel}</span>
+          <select
+            className="attr-filter-field-select"
+            value={field}
+            onChange={(e) => {
+              const newField = e.target.value;
+              const firstValue = FIELD_OPTIONS[newField]?.[0] || '';
+              if (firstValue) runAttributeFilter(newField, firstValue);
+            }}
+          >
+            {Object.entries(LABEL_MAP).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
           <span className="attr-filter-eq">=</span>
           {options ? (
             <select
@@ -157,11 +192,11 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
           {results.length === 0 ? (
             <div className="attr-filter-empty">No matching nodes</div>
           ) : (
-            results.map((r) => (
+            results.map((r, i) => (
               <div
                 key={r.id}
                 className={`attr-filter-row ${selectedId === r.id ? 'selected' : ''}`}
-                onClick={() => setSelectedId(r.id)}
+                onClick={() => selectByIndex(i)}
                 onDoubleClick={() => handleDoubleClick(r.id, r.pov)}
                 title="Double-click to navigate"
               >

@@ -146,31 +146,35 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
         Graph Attributes
       </button>
       {open && (
-        <div className="ga-grid">
-          {/* Assumptions — first */}
-          {attrs.assumes && attrs.assumes.length > 0 && (
-            <div className="ga-row ga-row-full">
-              <div className="ga-label">{LABEL_MAP.assumes}</div>
+        <div className="ga-grid-3col">
+          {/* Row 1: Assumptions | Epistemic Type + Falsifiability | Rhetorical Strategy */}
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.assumes}</div>
+            {attrs.assumes && attrs.assumes.length > 0 ? (
               <ul className="ga-list">
                 {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
               </ul>
-            </div>
-          )}
+            ) : <div className="ga-empty">&mdash;</div>}
+          </div>
 
-          {/* Epistemic Type */}
-          {attrs.epistemic_type && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
+            {attrs.epistemic_type ? (
               <div className="ga-value">
                 <Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
               </div>
-            </div>
-          )}
+            ) : <div className="ga-empty">&mdash;</div>}
+            {attrs.falsifiability && (
+              <div className="ga-cell-sub">
+                <div className="ga-label">{LABEL_MAP.falsifiability}</div>
+                <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+              </div>
+            )}
+          </div>
 
-          {/* Rhetorical Strategy */}
-          {attrs.rhetorical_strategy && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.rhetorical_strategy}</div>
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.rhetorical_strategy}</div>
+            {attrs.rhetorical_strategy ? (
               <div className="ga-value">
                 {attrs.rhetorical_strategy.split(',').map((s) => (
                   <Badge
@@ -182,52 +186,40 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
                   />
                 ))}
               </div>
-            </div>
-          )}
+            ) : <div className="ga-empty">&mdash;</div>}
+          </div>
 
-          {/* Audience */}
-          {attrs.audience && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.audience}</div>
+          {/* Row 2: Audience | Emotional Register | Policy Actionability */}
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.audience}</div>
+            {attrs.audience ? (
               <div className="ga-value">
                 {attrs.audience.split(',').map((s) => (
                   <Badge key={s.trim()} field="audience" value={s.trim()} onClick={onBadgeClick} />
                 ))}
               </div>
-            </div>
-          )}
+            ) : <div className="ga-empty">&mdash;</div>}
+          </div>
 
-          {/* Emotional Register */}
-          {attrs.emotional_register && (
-            <div className="ga-row">
-              <div className="ga-label">{LABEL_MAP.emotional_register}</div>
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.emotional_register}</div>
+            {attrs.emotional_register ? (
               <div className="ga-value">
                 <Badge field="emotional_register" value={attrs.emotional_register} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
               </div>
-            </div>
-          )}
+            ) : <div className="ga-empty">&mdash;</div>}
+          </div>
 
-          {/* Falsifiability + Policy Actionability — side by side meters, last */}
-          {(attrs.falsifiability || attrs.policy_actionability) && (
-            <div className="ga-row-meters">
-              {attrs.falsifiability && (
-                <div className="ga-meter-group">
-                  <div className="ga-label">{LABEL_MAP.falsifiability}</div>
-                  <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
-                </div>
-              )}
-              {attrs.policy_actionability && (
-                <div className="ga-meter-group">
-                  <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
-                  <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
-                </div>
-              )}
-            </div>
-          )}
+          <div className="ga-cell">
+            <div className="ga-label">{LABEL_MAP.policy_actionability}</div>
+            {attrs.policy_actionability ? (
+              <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
+            ) : <div className="ga-empty">&mdash;</div>}
+          </div>
 
-          {/* Possible Fallacies */}
+          {/* Possible Fallacies — full width */}
           {attrs.possible_fallacies && attrs.possible_fallacies.length > 0 && (
-            <div className="ga-row ga-row-full">
+            <div className="ga-cell ga-cell-full">
               <div className="ga-label">Possible Fallacies</div>
               <ul className="ga-fallacy-list">
                 {attrs.possible_fallacies.map((f: PossibleFallacy, i: number) => {

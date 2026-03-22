@@ -3,8 +3,8 @@
 
 import { useEffect } from 'react';
 import { useTaxonomyStore } from './hooks/useTaxonomyStore';
+import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
-import { SearchBar } from './components/SearchBar';
 import { SaveBar } from './components/SaveBar';
 import { PovTab } from './components/PovTab';
 import { CrossCuttingTab } from './components/CrossCuttingTab';
@@ -12,7 +12,7 @@ import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
 
 export function App() {
-  const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
 
   useEffect(() => {
     loadAll();
@@ -99,15 +99,17 @@ export function App() {
 
   return (
     <div className="app">
-      <TabBar />
-      <SearchBar />
-      <div className="tab-content">
-        {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
-        {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
-        {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
-        {activeTab === 'cross-cutting' && <CrossCuttingTab />}
-        {activeTab === 'conflicts' && <ConflictsTab />}
-        {activeTab === 'debate' && <DebateTab />}
+      {toolbarPanel === null && <TabBar />}
+      <div className="app-body">
+        <Toolbar />
+        <div className="tab-content">
+          {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
+          {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
+          {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
+          {activeTab === 'cross-cutting' && <CrossCuttingTab />}
+          {activeTab === 'conflicts' && <ConflictsTab />}
+          {activeTab === 'debate' && <DebateTab />}
+        </div>
       </div>
       <SaveBar />
     </div>

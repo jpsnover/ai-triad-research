@@ -101,6 +101,7 @@ function createWindow(): void {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true,
     },
   });
 

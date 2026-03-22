@@ -7,9 +7,11 @@ export function useKeyboardNav(
   orderedIds: string[],
   selectedId: string | null,
   onSelect: (id: string) => void,
+  disabled?: boolean,
 ): void {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (disabled) return;
       if (orderedIds.length === 0) return;
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
 
@@ -30,7 +32,7 @@ export function useKeyboardNav(
 
       onSelect(orderedIds[nextIndex]);
     },
-    [orderedIds, selectedId, onSelect],
+    [orderedIds, selectedId, onSelect, disabled],
   );
 
   useEffect(() => {
