@@ -19,7 +19,6 @@ ai-triad-research/
 │   └── PdfOptimizer.psm1     # PDF compression utilities
 ├── taxonomy/
 │   ├── Origin/               # Authoritative POV JSON files + embeddings.json
-│   ├── General/              # Plain-English rewrites for general audience
 │   └── schemas/              # JSON schemas for validation
 ├── sources/<doc-id>/         # Each source gets a directory
 │   ├── metadata.json         # id, title, pov_tags, topic_tags, summary_status

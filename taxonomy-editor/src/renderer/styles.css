@@ -2636,6 +2636,155 @@ body {
   gap: 4px;
 }
 
+/* ─── Prompts Panel ─────────── */
+
+.prompts-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.prompts-panel:focus {
+  outline: none;
+}
+
+.prompts-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.prompts-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.prompts-panel-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.prompts-panel-context {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompts-panel-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.prompts-panel-item {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-bottom: 1px solid var(--border-color-subtle, transparent);
+}
+
+.prompts-panel-item:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.prompts-panel-item.selected {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+.prompts-panel-item.selected .prompts-panel-item-source {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.prompts-panel-research {
+  border-bottom: 2px solid var(--border-color);
+}
+
+.prompts-panel-item-title {
+  font-weight: 500;
+}
+
+.prompts-panel-item-source {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ─── Prompt Detail Panel ─────────── */
+
+.prompt-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 4px 0;
+}
+
+.prompt-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 8px 0;
+  flex-shrink: 0;
+}
+
+.prompt-detail-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.prompt-detail-actions {
+  flex-shrink: 0;
+}
+
+.prompt-detail-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.prompt-detail-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.prompt-detail-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 10px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  resize: none;
+  tab-size: 2;
+}
+
+.prompt-detail-textarea:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+
 /* ─── Webview Pane (Pane 3, embedded browser) ─────────── */
 
 .webview-pane {

@@ -378,21 +378,6 @@ Get-Summary -Pov accelerationist -Stance opposed -Detailed
 </pre>
   </div>
 
-  <div class="func">
-    <h4>ConvertTo-GeneralTaxonomy</h4>
-    <div class="synopsis">Creates plain-English taxonomy files for a general audience using AI rewriting.</div>
-    <table>
-      <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model to use. Default: <code>gemini-3.1-flash-lite-preview</code></td></tr>
-      <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
-      <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
-      <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show plan without making API calls</td></tr>
-    </table>
-<pre>
-ConvertTo-GeneralTaxonomy -DryRun
-ConvertTo-GeneralTaxonomy -Model claude-sonnet-4-5 -Temperature 0.4
-</pre>
-  </div>
   <div class="back-to-top"><a href="#contents">&uarr; Contents</a></div>
 </div>
 

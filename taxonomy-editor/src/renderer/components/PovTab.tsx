@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Pov, Category, PovNode } from '../types/taxonomy';
+import { PROMPT_CATALOG, type PromptCatalogEntry } from '../data/promptCatalog';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
@@ -19,6 +20,7 @@ import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { LineagePanel } from './LineagePanel';
+import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 
@@ -45,6 +47,8 @@ export function PovTab({ pov }: PovTabProps) {
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
+  const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-analysis-panel-width',
@@ -261,6 +265,8 @@ export function PovTab({ pov }: PovTabProps) {
         return <AttributeInfoPanel />;
       case 'lineage':
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
+      case 'prompts':
+        return <PromptsPanel onSelectPrompt={handleSelectPrompt} />;
       case 'console':
         return <TerminalPanel />;
       default:
@@ -338,7 +344,11 @@ export function PovTab({ pov }: PovTabProps) {
           )}
         </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
-      : toolbarPanel === 'lineage' ? (
+      : toolbarPanel === 'prompts' ? (
+        <div className="detail-panel">
+          <PromptDetailPanel entry={selectedPromptEntry} />
+        </div>
+      ) : toolbarPanel === 'lineage' ? (
         <>
           <div className="detail-panel">
             {renderLineagePreview()}

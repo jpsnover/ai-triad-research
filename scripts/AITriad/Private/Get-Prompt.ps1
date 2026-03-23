@@ -17,7 +17,7 @@ function Get-Prompt {
     .EXAMPLE
         Get-Prompt -Name 'pov-summary-system'
     .EXAMPLE
-        Get-Prompt -Name 'general-taxonomy-pov' -Replacements @{ POV_LABEL = 'Safetyist' }
+        Get-Prompt -Name 'triad-dialogue-system' -Replacements @{ AGENT_NAME = 'Prometheus'; POV_LABEL = 'Accelerationist' }
     #>
     [CmdletBinding()]
     param(

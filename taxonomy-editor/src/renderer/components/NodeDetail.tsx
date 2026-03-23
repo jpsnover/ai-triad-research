@@ -10,7 +10,6 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
-import { generateResearchPrompt } from '../utils/researchPrompt';
 
 function OverflowMenu({ moveTargets, onMove, onDelete }: {
   moveTargets: string[];
@@ -62,17 +61,15 @@ interface NodeDetailProps {
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
-  const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const formRef = useRef<HTMLDivElement>(null);
 
-  const handleResearchPrompt = useCallback(async () => {
-    const prompt = generateResearchPrompt(node.label, node.description);
-    await navigator.clipboard.writeText(prompt);
-    setClipboardState('copied');
-    setTimeout(() => setClipboardState('idle'), 3000);
-  }, [node.label, node.description]);
+  const setSelectedNodeId = useTaxonomyStore((s) => s.setSelectedNodeId);
+  const handleResearchPrompt = useCallback(() => {
+    setSelectedNodeId(node.id);
+    setToolbarPanel('prompts');
+  }, [node.id, setSelectedNodeId, setToolbarPanel]);
 
   const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
   const moveTargets = ALL_CATEGORIES.filter(c => c !== node.category);
@@ -125,11 +122,11 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         <h2>{node.id}</h2>
         <div className="detail-header-actions">
           <button
-            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
+            className="btn btn-ghost btn-sm"
             onClick={handleResearchPrompt}
-            title="Generate a research prompt for this position and copy to clipboard"
+            title="Open research prompt editor for this position"
           >
-            {clipboardState === 'copied' ? '\u2713 Copied!' : <><span className="btn-icon">&#9998;</span> Research</>}
+            <span className="btn-icon">&#9998;</span> Research
           </button>
           {onRelated && (
             <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">

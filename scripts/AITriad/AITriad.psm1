@@ -117,7 +117,6 @@ Export-ModuleMember -Function @(
     'Save-Source'
     'Save-WaybackUrl'
     'Invoke-PIIAudit'
-    'ConvertTo-GeneralTaxonomy'
     'Update-Snapshot'
     'Show-TaxonomyEditor'
     'Show-POViewer'
