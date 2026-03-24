@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect } from 'react';
-import { useTaxonomyStore } from './hooks/useTaxonomyStore';
+import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
 import { SaveBar } from './components/SaveBar';
@@ -15,7 +15,7 @@ export function App() {
   const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
 
   useEffect(() => {
-    loadAll();
+    initAIModels().then(() => loadAll());
   }, [loadAll]);
 
   // Listen for menu-triggered taxonomy reload

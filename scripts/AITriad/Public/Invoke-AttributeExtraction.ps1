@@ -47,12 +47,8 @@ function Invoke-AttributeExtraction {
         [ValidateRange(1, 20)]
         [int]$BatchSize = 8,
 
-        [ValidateSet(
-            'gemini-3.1-flash-lite-preview',
-            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
-            'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
-            'groq-llama-3.3-70b', 'groq-llama-4-scout'
-        )]
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model = 'gemini-2.5-flash',
 
         [string]$ApiKey = '',
@@ -263,7 +259,7 @@ $SchemaPrompt
                         'epistemic_type', 'rhetorical_strategy', 'assumes',
                         'falsifiability', 'audience', 'emotional_register',
                         'policy_actionability', 'intellectual_lineage',
-                        'steelman_vulnerability'
+                        'steelman_vulnerability', 'possible_fallacies'
                     )
                     $Missing = @($RequiredFields | Where-Object {
                         -not $AttrObj.PSObject.Properties[$_]

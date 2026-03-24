@@ -43,6 +43,8 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'system';
 
+export type AIBackend = 'gemini' | 'claude' | 'groq';
+
 export type GeminiModel =
   | 'gemini-3.1-flash-lite-preview'
   | 'gemini-2.5-flash'
@@ -52,24 +54,122 @@ export type GeminiModel =
   | 'gemini-1.5-flash'
   | 'gemini-1.5-pro';
 
-export const GEMINI_MODELS: { value: GeminiModel; label: string }[] = [
-  { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (recommended)' },
-  { value: 'gemini-2.5-flash', label: '2.5 Flash' },
-  { value: 'gemini-2.5-pro', label: '2.5 Pro' },
-  { value: 'gemini-2.0-flash', label: '2.0 Flash' },
-  { value: 'gemini-2.0-flash-lite', label: '2.0 Flash Lite (fastest)' },
-  { value: 'gemini-1.5-flash', label: '1.5 Flash' },
-  { value: 'gemini-1.5-pro', label: '1.5 Pro' },
+export type ClaudeModel =
+  | 'claude-sonnet-4-5'
+  | 'claude-haiku-3.5';
+
+export type GroqModel =
+  | 'groq-llama-4-scout'
+  | 'groq-llama-3.3-70b';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel;
+
+export interface AIModelEntry { value: AIModel; label: string }
+
+export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
+  { value: 'gemini', label: 'Google Gemini' },
+  { value: 'claude', label: 'Anthropic Claude' },
+  { value: 'groq', label: 'Groq' },
 ];
 
-const GEMINI_MODEL_IDS: Set<string> = new Set(GEMINI_MODELS.map(m => m.value));
+export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
+  gemini: [
+    { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (recommended)' },
+    { value: 'gemini-2.5-flash', label: '2.5 Flash' },
+    { value: 'gemini-2.5-pro', label: '2.5 Pro' },
+    { value: 'gemini-2.0-flash', label: '2.0 Flash' },
+    { value: 'gemini-2.0-flash-lite', label: '2.0 Flash Lite (fastest)' },
+    { value: 'gemini-1.5-flash', label: '1.5 Flash' },
+    { value: 'gemini-1.5-pro', label: '1.5 Pro' },
+  ],
+  claude: [
+    { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
+    { value: 'claude-haiku-3.5', label: 'Haiku 3.5 (fastest)' },
+  ],
+  groq: [
+    { value: 'groq-llama-4-scout', label: 'Llama 4 Scout' },
+    { value: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B' },
+  ],
+};
 
-function getStoredModel(): GeminiModel {
+/** @deprecated Use MODELS_BY_BACKEND.gemini instead */
+export const GEMINI_MODELS = MODELS_BY_BACKEND.gemini;
+
+const ALL_MODEL_IDS: Set<string> = new Set(
+  Object.values(MODELS_BY_BACKEND).flat().map(m => m.value),
+);
+
+const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
+  gemini: 'gemini-3.1-flash-lite-preview',
+  claude: 'claude-sonnet-4-5',
+  groq: 'groq-llama-4-scout',
+};
+
+function getStoredBackend(): AIBackend {
+  try {
+    const stored = localStorage.getItem('taxonomy-editor-ai-backend');
+    if (stored === 'gemini' || stored === 'claude' || stored === 'groq') return stored;
+  } catch { /* ignore */ }
+  return 'gemini';
+}
+
+function getStoredModel(): AIModel {
   try {
     const stored = localStorage.getItem('taxonomy-editor-gemini-model');
-    if (stored && GEMINI_MODEL_IDS.has(stored)) return stored as GeminiModel;
+    if (stored && ALL_MODEL_IDS.has(stored)) return stored as AIModel;
   } catch { /* ignore */ }
-  return 'gemini-3.1-flash-lite-preview';
+  const backend = getStoredBackend();
+  return DEFAULT_MODELS[backend];
+}
+
+interface AIModelsConfig {
+  backends: { id: string; label: string }[];
+  models: { id: string; label: string; backend: string }[];
+  defaults: Record<string, string>;
+}
+
+/** Load ai-models.json from main process and update the in-memory catalogs */
+export async function initAIModels(): Promise<void> {
+  try {
+    const config = await window.electronAPI.loadAIModels() as AIModelsConfig | null;
+    if (!config?.models?.length) return;
+
+    // Rebuild backends
+    AI_BACKENDS.length = 0;
+    for (const b of config.backends) {
+      AI_BACKENDS.push({ value: b.id as AIBackend, label: b.label });
+    }
+
+    // Rebuild models by backend
+    for (const key of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
+      MODELS_BY_BACKEND[key] = [];
+    }
+    for (const m of config.models) {
+      const backend = m.backend as AIBackend;
+      if (!MODELS_BY_BACKEND[backend]) MODELS_BY_BACKEND[backend] = [];
+      MODELS_BY_BACKEND[backend].push({ value: m.id as AIModel, label: m.label });
+    }
+
+    // Rebuild defaults
+    for (const [k, v] of Object.entries(config.defaults)) {
+      DEFAULT_MODELS[k as AIBackend] = v as AIModel;
+    }
+
+    // Rebuild lookup set
+    ALL_MODEL_IDS.clear();
+    for (const m of config.models) ALL_MODEL_IDS.add(m.id);
+
+    console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);
+  } catch (err) {
+    console.warn('[AI Models] Failed to load ai-models.json, using built-in defaults:', err);
+  }
+}
+
+export function backendForModel(model: string): AIBackend {
+  if (model.startsWith('gemini')) return 'gemini';
+  if (model.startsWith('claude')) return 'claude';
+  if (model.startsWith('groq')) return 'groq';
+  return 'gemini';
 }
 
 export interface AnalysisElement {
@@ -208,6 +308,7 @@ interface TaxonomyState {
   createPovNode: (pov: Pov, category: Category) => string;
   deletePovNode: (pov: Pov, nodeId: string) => void;
   movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => void;
+  movePovNode: (sourcePov: Pov, nodeId: string, targetPov: Pov, targetCategory: Category) => void;
 
   updateCrossCuttingNode: (nodeId: string, updates: Partial<CrossCuttingNode>) => void;
   createCrossCuttingNode: () => string;
@@ -228,8 +329,10 @@ interface TaxonomyState {
   getLabelForId: (id: string) => string;
   lookupPinnedData: (id: string) => PinnedData | null;
 
-  geminiModel: GeminiModel;
-  setGeminiModel: (model: GeminiModel) => void;
+  aiBackend: AIBackend;
+  setAIBackend: (backend: AIBackend) => void;
+  geminiModel: AIModel;
+  setGeminiModel: (model: AIModel) => void;
 
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
@@ -255,13 +358,13 @@ interface TaxonomyState {
   showRelatedEdges: (nodeId: string | null) => void;
   selectEdge: (edge: Edge | null) => void;
 
-  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | null;
-  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | null) => void;
+  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | null;
+  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | null) => void;
   pendingLineageValue: string | null;
   navigateToLineage: (value: string) => void;
   pendingSearchRelatedId: string | null;
   navigateToSearchRelated: (nodeId: string) => void;
-  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | null; nodeId: string | null } | null;
+  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | null; nodeId: string | null } | null;
   navigateBack: () => void;
 }
 
@@ -908,6 +1011,119 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     });
   },
 
+  movePovNode: (sourcePov, nodeId, targetPov, targetCategory) => {
+    // Same-POV move delegates to existing function
+    if (sourcePov === targetPov) {
+      get().movePovNodeCategory(sourcePov, nodeId, targetCategory);
+      return;
+    }
+
+    set((state) => {
+      const sourceFile = state[sourcePov];
+      const targetFile = state[targetPov];
+      if (!sourceFile || !targetFile) return state;
+
+      const oldNode = sourceFile.nodes.find(n => n.id === nodeId);
+      if (!oldNode) return state;
+
+      const oldId = oldNode.id;
+      const targetExistingIds = targetFile.nodes.map(n => n.id);
+      const newId = generatePovNodeId(targetPov, targetCategory, targetExistingIds);
+
+      // Create new node in target POV — reset parent/children since they don't cross POVs
+      const newNode: PovNode = {
+        ...oldNode,
+        id: newId,
+        category: targetCategory,
+        parent_id: null,
+        children: [],
+      };
+
+      // Remove from source — fix orphaned children (clear their parent_id)
+      const newSourceNodes = sourceFile.nodes
+        .filter(n => n.id !== oldId)
+        .map(n => {
+          if (n.parent_id === oldId) return { ...n, parent_id: null };
+          if (n.children.includes(oldId)) return { ...n, children: n.children.filter(c => c !== oldId) };
+          return n;
+        });
+
+      // Add to target
+      const newTargetNodes = [...targetFile.nodes, newNode];
+
+      const replaceId = (id: string) => (id === oldId ? newId : id);
+      const newDirty = new Set(state.dirty);
+      newDirty.add(sourcePov);
+      newDirty.add(targetPov);
+
+      // Update cross-cutting linked_nodes
+      let newCrossCutting = state.crossCutting;
+      if (newCrossCutting) {
+        let ccChanged = false;
+        const ccNodes = newCrossCutting.nodes.map(n => {
+          if (n.linked_nodes.includes(oldId)) {
+            ccChanged = true;
+            return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
+          }
+          return n;
+        });
+        if (ccChanged) {
+          newCrossCutting = { ...newCrossCutting, last_modified: todayISO(), nodes: ccNodes };
+          newDirty.add('cross-cutting');
+        }
+      }
+
+      // Update conflicts linked_taxonomy_nodes
+      let newConflicts = state.conflicts;
+      let conflictsChanged = false;
+      newConflicts = newConflicts.map(c => {
+        if (c.linked_taxonomy_nodes.includes(oldId)) {
+          conflictsChanged = true;
+          newDirty.add(c.claim_id);
+          return { ...c, linked_taxonomy_nodes: c.linked_taxonomy_nodes.map(replaceId) };
+        }
+        return c;
+      });
+
+      // Update edges source/target
+      let newEdgesFile = state.edgesFile;
+      if (newEdgesFile) {
+        let edgesChanged = false;
+        const newEdges = newEdgesFile.edges.map(e => {
+          const srcMatch = e.source === oldId;
+          const tgtMatch = e.target === oldId;
+          if (srcMatch || tgtMatch) {
+            edgesChanged = true;
+            return {
+              ...e,
+              source: srcMatch ? newId : e.source,
+              target: tgtMatch ? newId : e.target,
+            };
+          }
+          return e;
+        });
+        if (edgesChanged) {
+          newEdgesFile = { ...newEdgesFile, edges: newEdges };
+          newDirty.add('edges');
+        }
+      }
+
+      // Update cross_cutting_refs on POV nodes that referenced old node via cc links
+      // (POV nodes reference CC nodes, not other POV nodes, so no update needed there)
+
+      return {
+        [sourcePov]: { ...sourceFile, last_modified: todayISO(), nodes: newSourceNodes },
+        [targetPov]: { ...targetFile, last_modified: todayISO(), nodes: newTargetNodes },
+        crossCutting: newCrossCutting,
+        conflicts: conflictsChanged ? newConflicts : state.conflicts,
+        edgesFile: newEdgesFile,
+        dirty: newDirty,
+        selectedNodeId: newId,
+        embeddingDirty: true,
+      };
+    });
+  },
+
   updateCrossCuttingNode: (nodeId, updates) => {
     set((state) => {
       const file = state.crossCutting;
@@ -1168,6 +1384,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     return null;
   },
 
+  aiBackend: getStoredBackend(),
+  setAIBackend: (backend) => {
+    try { localStorage.setItem('taxonomy-editor-ai-backend', backend); } catch { /* ignore */ }
+    const newModel = DEFAULT_MODELS[backend];
+    try { localStorage.setItem('taxonomy-editor-gemini-model', newModel); } catch { /* ignore */ }
+    set({ aiBackend: backend, geminiModel: newModel });
+  },
   geminiModel: getStoredModel(),
   setGeminiModel: (model) => {
     try { localStorage.setItem('taxonomy-editor-gemini-model', model); } catch { /* ignore */ }

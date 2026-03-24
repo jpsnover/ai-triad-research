@@ -43,12 +43,8 @@ function Invoke-BatchSummary {
         [Parameter(ValueFromPipeline)]
         [string[]]$DocId,
 
-        [ValidateSet(
-            'gemini-3.1-flash-lite-preview',
-            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
-            'claude-opus-4', 'claude-sonnet-4-5', 'claude-haiku-3.5',
-            'groq-llama-3.3-70b', 'groq-llama-4-scout'
-        )]
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model = $(if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }),
 
         [ValidateRange(0.0, 1.0)]

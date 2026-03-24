@@ -18,7 +18,14 @@ Return a JSON object mapping node IDs to their graph_attributes:
       "Specific thinker or framework 1",
       "Specific movement or landmark work 2"
     ],
-    "steelman_vulnerability": "The strongest counterargument in 1-2 sentences."
+    "steelman_vulnerability": "The strongest counterargument in 1-2 sentences.",
+    "possible_fallacies": [
+      {
+        "fallacy": "slippery_slope",
+        "confidence": "possible",
+        "explanation": "1-3 sentence explanation grounded in specific node content. Identify the specific reasoning gap and explain why it undermines the argument."
+      }
+    ]
   },
   "node_id_2": {
     ...
@@ -28,5 +35,8 @@ Return a JSON object mapping node IDs to their graph_attributes:
 CONSTRAINTS:
   - The top-level keys MUST be the exact node IDs provided in the input.
   - Every node in the input MUST have a corresponding entry in the output.
-  - All nine attribute fields are REQUIRED for every node.
+  - All ten attribute fields are REQUIRED for every node.
+  - The "possible_fallacies" array may be empty (0 items) or contain up to 3 items.
+  - The "fallacy" value MUST be one of the exact keys from the KNOWN FALLACIES list in the prompt.
+  - The "confidence" value MUST be one of: "likely", "possible", "borderline".
   - Return ONLY the JSON object. No markdown, no commentary.

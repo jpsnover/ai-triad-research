@@ -23,6 +23,7 @@ import {
   probingQuestionsPrompt,
   factCheckPrompt,
   contextCompressionPrompt,
+  crossCuttingClarificationPrompt,
 } from '../prompts/debate';
 
 export interface PromptCatalogEntry {
@@ -74,9 +75,16 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
   {
     id: 'debate-clarification',
     title: 'Debate: Clarification',
-    description: 'Asks 0-2 clarifying questions before a debate begins to narrow scope and surface assumptions.',
+    description: 'Generates 1-3 neutral clarifying questions before a debate begins to narrow scope and surface assumptions.',
     source: 'prompts/debate.ts',
-    template: clarificationPrompt('{debater_name}', '{pov}', '{personality}', '{topic}'),
+    template: clarificationPrompt('{topic}'),
+  },
+  {
+    id: 'debate-cc-clarification',
+    title: 'Debate: CC Clarification',
+    description: 'Generates 1-3 clarifying questions for a debate grounded in a cross-cutting concern, using the full CC node context.',
+    source: 'prompts/debate.ts',
+    template: crossCuttingClarificationPrompt('{topic}', '{cc_context}'),
   },
   {
     id: 'debate-synthesis-topic',

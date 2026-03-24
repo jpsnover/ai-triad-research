@@ -174,8 +174,8 @@ export function DebateTab() {
 
       <div className="resize-handle" onMouseDown={onMouseDown} />
 
-      {/* For document/URL debates: Pane 2 = source content, Pane 3 = workspace */}
-      {activeDebate && activeDebate.source_type !== 'topic' ? (
+      {/* For document/URL debates (non-cross-cutting): Pane 2 = source, Pane 3 = workspace */}
+      {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'cross-cutting' ? (
         <>
           {/* Pane 2: Document/URL content */}
           <div className="detail-panel debate-source-panel">
@@ -210,6 +210,26 @@ export function DebateTab() {
             </div>
             <DebateWorkspace />
           </div>
+        </>
+      ) : activeDebate && activeDebate.source_type === 'cross-cutting' ? (
+        <>
+          {/* Cross-cutting debate: workspace directly in Pane 2 (context via Details button) */}
+          {detailCollapsed ? (
+            <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
+              <span className="pane-collapsed-label">Workspace</span>
+            </div>
+          ) : (
+            <div className="detail-panel debate-workspace-container">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                {exportStatus && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+                )}
+                <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+              </div>
+              <DebateWorkspace />
+            </div>
+          )}
         </>
       ) : (
         <>

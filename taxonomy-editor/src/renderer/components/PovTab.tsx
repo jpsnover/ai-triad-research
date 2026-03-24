@@ -21,6 +21,7 @@ import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { LineagePanel } from './LineagePanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 
@@ -47,8 +48,12 @@ export function PovTab({ pov }: PovTabProps) {
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
+  // Clear pane 3 webview when a different lineage value is selected in pane 1
+  useEffect(() => { setLineageLinkUrl(null); }, [lineagePreviewValue]);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
+  const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
+  const handleSelectFallacy = useCallback((key: string | null) => setSelectedFallacyKey(key), []);
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-analysis-panel-width',
@@ -141,13 +146,15 @@ export function PovTab({ pov }: PovTabProps) {
   const hasToolbarPane = toolbarPanel !== null;
 
   // Auto-collapse pane 2 when edge detail opens; auto-expand when closed
+  // (only in non-toolbar mode — when toolbar=related, edge detail is already in pane 2)
   const prevEdgeDetailForCollapse = useRef(false);
   useEffect(() => {
     const was = prevEdgeDetailForCollapse.current;
     prevEdgeDetailForCollapse.current = showEdgeDetail;
+    if (toolbarPanel === 'related') return;
     if (showEdgeDetail && !was) setDetailCollapsed(true);
     if (!showEdgeDetail && was) setDetailCollapsed(false);
-  }, [showEdgeDetail]);
+  }, [showEdgeDetail, toolbarPanel]);
 
   // Grow/shrink window for Analysis panel (child of Similar, still Pane 3)
   const prevShowAnalysis = useRef(false);
@@ -163,19 +170,21 @@ export function PovTab({ pov }: PovTabProps) {
     });
   }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow/shrink window for Edge Detail panel (child of Related, still Pane 3)
+  // Grow/shrink window for Edge Detail panel (only in non-toolbar mode where it's a new Pane 3)
+  // When toolbar=related, edge detail is already in pane 2 — no window resize needed
   const prevShowEdgeDetail = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowEdgeDetail.current;
     prevShowEdgeDetail.current = showEdgeDetail;
     if (showEdgeDetail === wasShowing) return;
+    if (toolbarPanel === 'related') return;
     const delta = edgeDetailWidth + 4;
     window.electronAPI.isMaximized().then((max) => {
       if (max) return;
       if (showEdgeDetail) window.electronAPI.growWindow(delta);
       else window.electronAPI.shrinkWindow(delta);
     });
-  }, [showEdgeDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showEdgeDetail, toolbarPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-refresh related edges when selection changes while panel is open
   useEffect(() => {
@@ -267,6 +276,8 @@ export function PovTab({ pov }: PovTabProps) {
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
       case 'prompts':
         return <PromptsPanel onSelectPrompt={handleSelectPrompt} />;
+      case 'fallacy':
+        return <FallacyPanel onSelectFallacy={handleSelectFallacy} />;
       case 'console':
         return <TerminalPanel />;
       default:
@@ -281,7 +292,11 @@ export function PovTab({ pov }: PovTabProps) {
   return (
     <div className="two-column">
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? (
+      {toolbarPanel === 'search' ? (
+        <div className="list-panel" style={{ width }}>
+          {renderToolbarPane()}
+        </div>
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -347,6 +362,10 @@ export function PovTab({ pov }: PovTabProps) {
       : toolbarPanel === 'prompts' ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />
+        </div>
+      ) : toolbarPanel === 'fallacy' ? (
+        <div className="detail-panel">
+          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
         </div>
       ) : toolbarPanel === 'lineage' ? (
         <>

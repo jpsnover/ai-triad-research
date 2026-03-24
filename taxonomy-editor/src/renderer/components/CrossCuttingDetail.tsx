@@ -17,10 +17,11 @@ interface CrossCuttingDetailProps {
   readOnly?: boolean;
   onPin?: () => void;
   onRelated?: () => void;
+  onDebate?: () => void;
   chipDepth?: number;
 }
 
-export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth = 0 }: CrossCuttingDetailProps) {
+export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: CrossCuttingDetailProps) {
   const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
@@ -93,6 +94,11 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, chipDepth
           >
             {clipboardState === 'copied' ? '\u2713 Copied!' : <><span className="btn-icon">&#9998;</span> Research</>}
           </button>
+          {onDebate && (
+            <button className="btn btn-ghost btn-sm" onClick={onDebate} title="Start a structured debate from this cross-cutting concern">
+              <span className="btn-icon">&#9881;</span> Debate This
+            </button>
+          )}
           {onRelated && (
             <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
               <span className="btn-icon">&#8596;</span> Related

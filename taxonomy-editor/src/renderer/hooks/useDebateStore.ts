@@ -15,6 +15,8 @@ import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import {
   clarificationPrompt,
+  crossCuttingClarificationPrompt,
+  formatCrossCuttingDebateContext,
   synthesisPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
@@ -111,9 +113,8 @@ function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): str
 
 // ── Prompt builders (delegate to prompts/debate.ts) ──────
 
-function buildClarificationPrompt(poverId: Exclude<PoverId, 'user'>, topic: string, sourceContent?: string): string {
-  const info = POVER_INFO[poverId];
-  return clarificationPrompt(info.label, info.pov, info.personality, topic, sourceContent);
+function buildClarificationPrompt(topic: string, sourceContent?: string): string {
+  return clarificationPrompt(topic, sourceContent);
 }
 
 function buildSynthesisPrompt(
@@ -306,6 +307,7 @@ interface DebateStore {
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string) => Promise<string>;
+  createCrossCuttingDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
   closeDebate: () => void;
@@ -322,6 +324,8 @@ interface DebateStore {
   beginDebate: () => Promise<void>;
 
   // Phase 3: Opening Statements
+  openingOrder: Exclude<PoverId, 'user'>[];
+  setOpeningOrder: (order: Exclude<PoverId, 'user'>[]) => void;
   runOpeningStatements: () => Promise<void>;
   submitUserOpening: (statement: string) => Promise<void>;
 
@@ -349,6 +353,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateGenerating: null,
   responseLength: 'medium',
   setResponseLength: (length) => set({ responseLength: length }),
+  openingOrder: [],
+  setOpeningOrder: (order) => set({ openingOrder: order }),
   debateError: null,
   debateProgress: null,
   debateActivity: null,
@@ -390,6 +396,57 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     await window.electronAPI.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session });
     await get().loadSessions();
+    return id;
+  },
+
+  createCrossCuttingDebate: async (ccNodeId: string) => {
+    const taxState = useTaxonomyStore.getState();
+    const ccNode = taxState.crossCutting?.nodes.find(n => n.id === ccNodeId);
+    if (!ccNode) throw new Error(`Cross-cutting node ${ccNodeId} not found`);
+
+    // Resolve linked node descriptions
+    const linkedNodeDescriptions: string[] = [];
+    for (const linkedId of ccNode.linked_nodes) {
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        const file = taxState[pov];
+        const node = file?.nodes.find(n => n.id === linkedId);
+        if (node) {
+          linkedNodeDescriptions.push(`[${node.id}] ${node.label}: ${node.description}`);
+          break;
+        }
+      }
+    }
+
+    // Resolve conflict summaries
+    const conflictSummaries: string[] = [];
+    for (const conflictId of ccNode.conflict_ids) {
+      const conflict = taxState.conflicts.find(c => c.claim_id === conflictId);
+      if (conflict) {
+        const stances = conflict.instances.map(i => `${i.doc_id}: ${i.stance}`).join('; ');
+        conflictSummaries.push(`[${conflict.claim_id}] ${conflict.claim_label} — ${conflict.description} (${stances})`);
+      }
+    }
+
+    const attrs = ccNode.graph_attributes as Record<string, unknown> | undefined;
+    const sourceContent = formatCrossCuttingDebateContext({
+      id: ccNode.id,
+      label: ccNode.label,
+      description: ccNode.description,
+      interpretations: ccNode.interpretations,
+      assumes: attrs?.assumes as string[] | undefined,
+      steelmanVulnerability: attrs?.steelman_vulnerability as string | undefined,
+      possibleFallacies: attrs?.possible_fallacies as { fallacy: string; confidence: string; explanation: string }[] | undefined,
+      linkedNodeDescriptions,
+      conflictSummaries,
+    });
+
+    const topic = ccNode.label;
+    const allPovers: PoverId[] = ['prometheus', 'sentinel', 'cassandra'];
+
+    const id = await get().createDebate(topic, allPovers, false, 'cross-cutting', ccNodeId, sourceContent);
+    await get().loadDebate(id);
+    get().updatePhase('clarification');
+    await get().saveDebate();
     return id;
   },
 
@@ -479,58 +536,49 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   // ── Phase 2: Clarification ──────────────────────────────
 
   runClarification: async () => {
-    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    const { activeDebate, addTranscriptEntry, saveDebate, debateGenerating } = get();
     if (!activeDebate) return;
+
+    // Guard: don't run if already generating or if clarification already exists
+    if (debateGenerating) return;
+    if (activeDebate.transcript.some(e => e.type === 'clarification')) return;
 
     set({ debateError: null });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
-
-    // Fire all clarification requests in parallel
-    const promises = aiPovers.map(async (poverId) => {
-      set({ debateGenerating: poverId });
-      const prompt = buildClarificationPrompt(poverId, topic, activeDebate.source_content || undefined);
+    set({ debateGenerating: 'system' as PoverId });
+    const prompt = activeDebate.source_type === 'cross-cutting'
+      ? crossCuttingClarificationPrompt(topic, activeDebate.source_content)
+      : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
+    try {
+      const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
+      let questions: string[];
       try {
-        const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is formulating questions (${model})`, set);
-        let questions: string[];
-        try {
-          const parsed = JSON.parse(stripCodeFences(text));
-          questions = Array.isArray(parsed.questions) ? parsed.questions : [];
-        } catch {
-          questions = [text.trim()];
-        }
-        if (questions.length > 0) {
-          return { poverId, questions };
-        }
-        return null;
-      } catch (err) {
-        addTranscriptEntry({
-          type: 'system',
-          speaker: 'system',
-          content: `${POVER_INFO[poverId].label} failed to generate questions: ${String(err)}`,
-          taxonomy_refs: [],
-        });
-        return null;
+        const parsed = JSON.parse(stripCodeFences(text));
+        questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : [];
+      } catch {
+        questions = [text.trim()];
       }
-    });
-
-    const results = await Promise.all(promises);
-    set({ debateGenerating: null });
-
-    for (const r of results) {
-      if (r) {
+      if (questions.length > 0) {
         addTranscriptEntry({
           type: 'clarification',
-          speaker: r.poverId,
-          content: r.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+          speaker: 'system',
+          content: questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
           taxonomy_refs: [],
-          metadata: { questions: r.questions },
+          metadata: { questions },
         });
       }
+    } catch (err) {
+      addTranscriptEntry({
+        type: 'system',
+        speaker: 'system',
+        content: `Failed to generate clarifying questions: ${String(err)}`,
+        taxonomy_refs: [],
+      });
     }
 
+    set({ debateGenerating: null });
     get().updatePhase('clarification');
     await saveDebate();
   },
@@ -590,8 +638,20 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   beginDebate: async () => {
-    const { updatePhase, saveDebate, addTranscriptEntry } = get();
+    const { activeDebate, updatePhase, saveDebate, addTranscriptEntry } = get();
     updatePhase('opening');
+
+    // Initialize opening order with a random shuffle of active AI POVers
+    if (activeDebate) {
+      const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
+      const shuffled = [...aiPovers];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      set({ openingOrder: shuffled });
+    }
+
     addTranscriptEntry({
       type: 'system',
       speaker: 'system',
@@ -611,8 +671,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    // Get active AI POVers in fixed order: Prometheus → Sentinel → Cassandra
-    const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
+    // Use the user-configurable opening order (randomized at beginDebate)
+    const { openingOrder } = get();
+    const aiPovers = openingOrder.length > 0
+      ? openingOrder.filter((p) => activeDebate.active_povers.includes(p))
+      : AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
 
     // Collect prior statements as we go (sequential — each sees the ones before it)
     const priorStatements: { speaker: string; statement: string }[] = [];

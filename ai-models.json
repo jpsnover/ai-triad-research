@@ -1,0 +1,324 @@
+{
+  "backends": [
+    {
+      "id": "gemini",
+      "label": "Google Gemini"
+    },
+    {
+      "id": "claude",
+      "label": "Anthropic Claude"
+    },
+    {
+      "id": "groq",
+      "label": "Groq"
+    }
+  ],
+  "models": [
+    {
+      "id": "gemini-2.5-flash",
+      "apiModelId": "gemini-2.5-flash",
+      "label": "Gemini 2.5 Flash",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-pro",
+      "apiModelId": "gemini-2.5-pro",
+      "label": "Gemini 2.5 Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash",
+      "apiModelId": "gemini-2.0-flash",
+      "label": "Gemini 2.0 Flash",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-001",
+      "apiModelId": "gemini-2.0-flash-001",
+      "label": "Gemini 2.0 Flash 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite-001",
+      "apiModelId": "gemini-2.0-flash-lite-001",
+      "label": "Gemini 2.0 Flash-Lite 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite",
+      "apiModelId": "gemini-2.0-flash-lite",
+      "label": "Gemini 2.0 Flash-Lite",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-flash-preview-tts",
+      "apiModelId": "gemini-2.5-flash-preview-tts",
+      "label": "Gemini 2.5 Flash Preview TTS",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-pro-preview-tts",
+      "apiModelId": "gemini-2.5-pro-preview-tts",
+      "label": "Gemini 2.5 Pro Preview TTS",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3-1b-it",
+      "apiModelId": "gemma-3-1b-it",
+      "label": "Gemma 3 1B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3-4b-it",
+      "apiModelId": "gemma-3-4b-it",
+      "label": "Gemma 3 4B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3-12b-it",
+      "apiModelId": "gemma-3-12b-it",
+      "label": "Gemma 3 12B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3-27b-it",
+      "apiModelId": "gemma-3-27b-it",
+      "label": "Gemma 3 27B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3n-e4b-it",
+      "apiModelId": "gemma-3n-e4b-it",
+      "label": "Gemma 3n E4B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemma-3n-e2b-it",
+      "apiModelId": "gemma-3n-e2b-it",
+      "label": "Gemma 3n E2B",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-flash-latest",
+      "apiModelId": "gemini-flash-latest",
+      "label": "Gemini Flash Latest",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-flash-lite-latest",
+      "apiModelId": "gemini-flash-lite-latest",
+      "label": "Gemini Flash-Lite Latest",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-pro-latest",
+      "apiModelId": "gemini-pro-latest",
+      "label": "Gemini Pro Latest",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-flash-lite",
+      "apiModelId": "gemini-2.5-flash-lite",
+      "label": "Gemini 2.5 Flash-Lite",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-flash-image",
+      "apiModelId": "gemini-2.5-flash-image",
+      "label": "Nano Banana",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-flash-lite-preview-09-2025",
+      "apiModelId": "gemini-2.5-flash-lite-preview-09-2025",
+      "label": "Gemini 2.5 Flash-Lite Preview Sep 2025",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-pro-preview",
+      "apiModelId": "gemini-3-pro-preview",
+      "label": "Gemini 3 Pro Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "apiModelId": "gemini-3-flash-preview",
+      "label": "Gemini 3 Flash Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "apiModelId": "gemini-3.1-pro-preview",
+      "label": "Gemini 3.1 Pro Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-pro-preview-customtools",
+      "apiModelId": "gemini-3.1-pro-preview-customtools",
+      "label": "Gemini 3.1 Pro Preview Custom Tools",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-lite-preview",
+      "apiModelId": "gemini-3.1-flash-lite-preview",
+      "label": "Gemini 3.1 Flash Lite Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3-pro-image-preview",
+      "apiModelId": "gemini-3-pro-image-preview",
+      "label": "Nano Banana Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "nano-banana-pro-preview",
+      "apiModelId": "nano-banana-pro-preview",
+      "label": "Nano Banana Pro",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-image-preview",
+      "apiModelId": "gemini-3.1-flash-image-preview",
+      "label": "Nano Banana 2",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-robotics-er-1.5-preview",
+      "apiModelId": "gemini-robotics-er-1.5-preview",
+      "label": "Gemini Robotics-ER 1.5 Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.5-computer-use-preview-10-2025",
+      "apiModelId": "gemini-2.5-computer-use-preview-10-2025",
+      "label": "Gemini 2.5 Computer Use Preview 10-2025",
+      "backend": "gemini"
+    },
+    {
+      "id": "deep-research-pro-preview-12-2025",
+      "apiModelId": "deep-research-pro-preview-12-2025",
+      "label": "Deep Research Pro Preview (Dec-12-2025)",
+      "backend": "gemini"
+    },
+    {
+      "id": "claude-opus-4",
+      "apiModelId": "claude-opus-4-20250514",
+      "label": "Opus 4",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-4",
+      "apiModelId": "claude-sonnet-4-20250514",
+      "label": "Sonnet 4",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "apiModelId": "claude-haiku-4-5-20251001",
+      "label": "Haiku 4.5",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "apiModelId": "claude-sonnet-4-5",
+      "label": "Sonnet 4.5 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "apiModelId": "claude-sonnet-4-6",
+      "label": "Sonnet 4.6 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-opus-4-6",
+      "apiModelId": "claude-opus-4-6",
+      "label": "Opus 4.6 (alias)",
+      "backend": "claude"
+    },
+    {
+      "id": "groq-qwen-qwen3-32b",
+      "apiModelId": "qwen/qwen3-32b",
+      "label": "Qwen/Qwen3 32b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-allam-2-7b",
+      "apiModelId": "allam-2-7b",
+      "label": "Allam 2 7b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-moonshotai-kimi-k2",
+      "apiModelId": "moonshotai/kimi-k2-instruct",
+      "label": "Moonshotai/Kimi K2 Instruct",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-moonshotai-kimi-k2-instruct-0905",
+      "apiModelId": "moonshotai/kimi-k2-instruct-0905",
+      "label": "Moonshotai/Kimi K2 Instruct 0905",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-canopylabs-orpheus-arabic-saudi",
+      "apiModelId": "canopylabs/orpheus-arabic-saudi",
+      "label": "Canopylabs/Orpheus Arabic Saudi",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-120b",
+      "apiModelId": "openai/gpt-oss-120b",
+      "label": "Openai/Gpt Oss 120b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-4-scout-17b-16e",
+      "apiModelId": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "label": "Llama 4 Scout 17b 16e Instruct",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound",
+      "apiModelId": "groq/compound",
+      "label": "Groq/Compound",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound-mini",
+      "apiModelId": "groq/compound-mini",
+      "label": "Groq/Compound Mini",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.3-70b-versatile",
+      "apiModelId": "llama-3.3-70b-versatile",
+      "label": "Llama 3.3 70b Versatile",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-20b",
+      "apiModelId": "openai/gpt-oss-20b",
+      "label": "Openai/Gpt Oss 20b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-canopylabs-orpheus-v1-english",
+      "apiModelId": "canopylabs/orpheus-v1-english",
+      "label": "Canopylabs/Orpheus V1 English",
+      "backend": "groq"
+    }
+  ],
+  "defaults": {
+    "gemini": "gemini-3.1-flash-lite-preview",
+    "claude": "claude-sonnet-4-5",
+    "groq": "groq-openai-gpt-oss-120b"
+  },
+  "lastRefreshed": "2026-03-24T17:35:01.125Z"
+}

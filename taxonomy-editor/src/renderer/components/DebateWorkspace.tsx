@@ -7,6 +7,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
+import { DebateSourceViewer } from './DebateSourceViewer';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -88,6 +89,44 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
   );
 }
 
+/** Taxonomy refs with "Show reasoning" toggle */
+function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (refs.length === 0) return null;
+
+  return (
+    <div className="debate-taxonomy-refs-section">
+      <div className="debate-taxonomy-refs">
+        {refs.map((taxRef) => (
+          <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
+        ))}
+        <button
+          className="debate-reasoning-toggle"
+          onClick={() => setExpanded(e => !e)}
+        >
+          {expanded ? 'Hide reasoning' : 'Show reasoning'}
+        </button>
+      </div>
+      {expanded && (
+        <div className="debate-reasoning-list">
+          {refs.map((taxRef) => {
+            const label = getNodeLabel(taxRef.node_id);
+            const { colorVar } = nodeIdToTab(taxRef.node_id);
+            return (
+              <div key={taxRef.node_id} className="debate-reasoning-item">
+                <span className="debate-reasoning-node" style={{ color: colorVar }}>{taxRef.node_id}</span>
+                <span className="debate-reasoning-label">{label}</span>
+                <span className="debate-reasoning-text">{taxRef.relevance}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Shows LLM activity, model, and retry info during generation */
 function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore();
@@ -126,13 +165,7 @@ function StatementCard({ entry }: { entry: TranscriptEntry }) {
         <span className="debate-statement-type">{entry.type}</span>
       </div>
       <div className="debate-statement-content">{entry.content}</div>
-      {entry.taxonomy_refs.length > 0 && (
-        <div className="debate-taxonomy-refs">
-          {entry.taxonomy_refs.map((taxRef) => (
-            <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
-          ))}
-        </div>
-      )}
+      <TaxonomyRefsSection refs={entry.taxonomy_refs} />
     </div>
   );
 }
@@ -264,13 +297,7 @@ function FactCheckCard({ entry }: { entry: TranscriptEntry }) {
         </span>
       </div>
       <div className="debate-statement-content">{entry.content}</div>
-      {entry.taxonomy_refs.length > 0 && (
-        <div className="debate-taxonomy-refs">
-          {entry.taxonomy_refs.map((taxRef) => (
-            <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
-          ))}
-        </div>
-      )}
+      <TaxonomyRefsSection refs={entry.taxonomy_refs} />
     </div>
   );
 }
@@ -378,7 +405,7 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, responseLength, setResponseLength } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, responseLength, setResponseLength, openingOrder, setOpeningOrder } = useDebateStore();
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -391,12 +418,55 @@ function OpeningActions() {
     (e) => e.type === 'opening' && e.speaker === 'user',
   );
 
-  // Before any openings have started — let user pick length and start
+  const moveUp = (index: number) => {
+    if (index <= 0) return;
+    const next = [...openingOrder];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setOpeningOrder(next);
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= openingOrder.length - 1) return;
+    const next = [...openingOrder];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setOpeningOrder(next);
+  };
+
+  // Before any openings have started — let user pick length, order, and start
   if (!hasAnyOpening && !isGenerating) {
     return (
       <div className="debate-action-bar">
         {debateError && <div className="debate-error">{debateError}</div>}
-        <div className="debate-action-hint">Choose the depth for opening statements, then begin.</div>
+        <div className="debate-action-hint">Set order and depth for opening statements, then begin.</div>
+        {openingOrder.length > 0 && (
+          <div className="debate-opening-order">
+            <span className="debate-opening-order-label">Speaking order:</span>
+            <ol className="debate-opening-order-list">
+              {openingOrder.map((poverId, idx) => {
+                const info = POVER_INFO[poverId];
+                return (
+                  <li key={poverId} className="debate-opening-order-item">
+                    <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
+                    <span className="debate-opening-order-btns">
+                      <button
+                        className="debate-opening-order-btn"
+                        onClick={() => moveUp(idx)}
+                        disabled={idx === 0}
+                        title="Move up"
+                      >&#9650;</button>
+                      <button
+                        className="debate-opening-order-btn"
+                        onClick={() => moveDown(idx)}
+                        disabled={idx === openingOrder.length - 1}
+                        title="Move down"
+                      >&#9660;</button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
         <div className="debate-action-bar-inner">
           <select
             className="debate-length-select"
@@ -707,6 +777,7 @@ export function DebateWorkspace() {
   const hasTriggeredClarification = useRef(false);
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [showCCDetails, setShowCCDetails] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-scroll to bottom when new entries arrive
@@ -804,6 +875,7 @@ export function DebateWorkspace() {
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
   const isOpeningPhase = activeDebate.phase === 'opening';
   const isDebatePhase = activeDebate.phase === 'debate';
+  const isCrossCutting = activeDebate.source_type === 'cross-cutting';
 
   return (
     <div className="debate-workspace">
@@ -813,7 +885,38 @@ export function DebateWorkspace() {
           {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
         </span>
         <span className="debate-topic-text">{activeDebate.topic.final}</span>
+        {isCrossCutting && (
+          <button
+            className="btn btn-sm debate-cc-details-btn"
+            onClick={() => setShowCCDetails(true)}
+            title="View cross-cutting context used for this debate"
+          >
+            Details
+          </button>
+        )}
       </div>
+
+      {/* Cross-cutting context dialog */}
+      {showCCDetails && activeDebate.source_content && (
+        <div className="dialog-overlay" onClick={() => setShowCCDetails(false)}>
+          <div className="dialog debate-cc-details-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="debate-cc-details-header">
+              <h3>Cross-Cutting Context</h3>
+              {activeDebate.source_ref && (
+                <span className="debate-source-ref">{activeDebate.source_ref}</span>
+              )}
+              <button className="debate-inspect-close" onClick={() => setShowCCDetails(false)} title="Close">×</button>
+            </div>
+            <div className="debate-cc-details-body">
+              <DebateSourceViewer
+                content={activeDebate.source_content}
+                sourceType="document"
+                sourceRef={activeDebate.source_ref}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Refined topic editor (shown after synthesis, only during clarification) */}
       {activeDebate.topic.refined && activeDebate.phase === 'clarification' && (

@@ -11,8 +11,10 @@ export interface ElectronAPI {
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;
-  setApiKey: (key: string) => Promise<void>;
-  hasApiKey: () => Promise<boolean>;
+  loadAIModels: () => Promise<unknown>;
+  refreshAIModels: () => Promise<unknown>;
+  setApiKey: (key: string, backend?: string) => Promise<void>;
+  hasApiKey: (backend?: string) => Promise<boolean>;
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
   updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string }[]) => Promise<void>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;

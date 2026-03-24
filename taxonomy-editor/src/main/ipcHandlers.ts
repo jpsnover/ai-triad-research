@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ipcMain, shell, dialog, BrowserWindow } from 'electron';
+import fs from 'fs';
 import {
   readTaxonomyFile,
   writeTaxonomyFile,
@@ -23,9 +24,22 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
+import { refreshAIModels } from './modelDiscovery';
 import type { NodeEmbeddingInput } from './embeddings';
+import path from 'path';
+
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
 export function registerIpcHandlers(): void {
+  ipcMain.handle('load-ai-models', () => {
+    try {
+      const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  });
   ipcMain.handle('get-taxonomy-dirs', () => {
     return getTaxonomyDirs();
   });
@@ -62,12 +76,16 @@ export function registerIpcHandlers(): void {
     deleteConflictFile(claimId);
   });
 
-  ipcMain.handle('set-api-key', (_event, key: string) => {
-    storeApiKey(key);
+  ipcMain.handle('refresh-ai-models', async () => {
+    return refreshAIModels();
   });
 
-  ipcMain.handle('has-api-key', () => {
-    return hasApiKey();
+  ipcMain.handle('set-api-key', (_event, key: string, backend?: string) => {
+    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | undefined);
+  });
+
+  ipcMain.handle('has-api-key', (_event, backend?: string) => {
+    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | undefined);
   });
 
   ipcMain.handle('compute-embeddings', async (_event, texts: string[], ids?: string[]) => {

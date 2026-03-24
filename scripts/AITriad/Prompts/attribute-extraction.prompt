@@ -61,6 +61,36 @@ ATTRIBUTE VOCABULARY:
     The strongest counterargument against the STRONGEST version of this claim.
     1-2 sentences. Attack the steel man, not the straw man.
 
+  possible_fallacies (required, array of 0-3 objects):
+    Possible logical fallacies or cognitive biases in this node's reasoning.
+    Each object has three fields:
+      "fallacy" — exact key from the list below
+      "confidence" — "likely", "possible", or "borderline"
+      "explanation" — 1-3 sentences grounded in the specific node content
+    An empty array is perfectly acceptable for well-reasoned nodes. Do not force findings.
+    A rhetorical strategy is NOT automatically a fallacy — flag only when reasoning
+    genuinely risks being unsound.
+
+    Known fallacy keys:
+      Informal: ad_hominem, appeal_to_authority, appeal_to_consequences,
+        appeal_to_emotion, appeal_to_fear, appeal_to_nature, appeal_to_novelty,
+        appeal_to_popularity, appeal_to_tradition, argument_from_analogy,
+        argument_from_ignorance, argument_from_incredulity, argument_from_silence,
+        bandwagon_fallacy, begging_the_question, burden_of_proof, cherry_picking,
+        circular_reasoning, composition_division, continuum_fallacy,
+        correlation_causation, equivocation, false_cause, false_dilemma,
+        false_equivalence, gambler_fallacy, genetic_fallacy, guilt_by_association,
+        hasty_generalization, is_ought_problem, loaded_question, middle_ground,
+        moralistic_fallacy, moving_the_goalposts, naturalistic_fallacy,
+        nirvana_fallacy, no_true_scotsman, red_herring, reification, slippery_slope,
+        special_pleading, straw_man, sunk_cost, texas_sharpshooter, tu_quoque,
+        unfalsifiability
+      Formal: affirming_the_consequent, denying_the_antecedent,
+        affirming_a_disjunct, undistributed_middle
+      Cognitive biases: base_rate_neglect, anchoring_bias, availability_heuristic,
+        confirmation_bias, dunning_kruger, hindsight_bias, optimism_bias,
+        status_quo_bias, survivorship_bias
+
 CROSS-CUTTING NODES:
 For cross-cutting nodes (id starts with "cc-"), also consider the three POV
 interpretations when generating attributes. The epistemic_type and rhetorical_strategy

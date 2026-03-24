@@ -31,23 +31,20 @@ function sourceContext(sourceContent?: string): string {
 }
 
 export function clarificationPrompt(
-  label: string,
-  pov: string,
-  personality: string,
   topic: string,
   debateSourceContent?: string,
 ): string {
-  return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-Your personality: ${personality}.
+  return `You are a neutral debate facilitator preparing a multi-perspective debate on AI policy.
 ${READING_LEVEL}
 
 A user wants to debate the following topic:
 
 "${topic}"${sourceContext(debateSourceContent)}
 
-Ask 0-2 concise clarifying questions that would help you make the strongest possible argument from your perspective. Your questions should:
-- Help narrow the scope so you can give a focused argument
+Generate 1 to 3 concise clarifying questions that would help sharpen the debate. Your questions should:
+- Help narrow the scope so the debate stays focused
 - Surface assumptions the user might not realize they're making
+- Be neutral — do not favor any particular perspective
 - Be concise (one sentence each)
 
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
@@ -89,7 +86,7 @@ Your personality: ${personality}.
 ${READING_LEVEL}
 ${lengthInstruction(length)}
 
-Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
+Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
 ${taxonomyContext}
 ${priorBlock}
@@ -106,7 +103,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
+    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
   ]
 }`;
 }
@@ -128,7 +125,7 @@ Your personality: ${personality}.
 ${READING_LEVEL}
 ${lengthInstruction(length)}
 
-Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field.
+Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
 ${taxonomyContext}
 
@@ -147,7 +144,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
+    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
   ]
 }`;
 }
@@ -213,7 +210,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "brief note on how this informed your argument"}
+    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
   ]
 }`;
 }
@@ -338,4 +335,87 @@ ${entries}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {"summary": "your summary text"}`;
+}
+
+// ── Cross-Cutting Concern Debate ─────────────────────────
+
+interface CrossCuttingDebateInput {
+  id: string;
+  label: string;
+  description: string;
+  interpretations: { accelerationist: string; safetyist: string; skeptic: string };
+  assumes?: string[];
+  steelmanVulnerability?: string;
+  possibleFallacies?: { fallacy: string; confidence: string; explanation: string }[];
+  linkedNodeDescriptions?: string[];
+  conflictSummaries?: string[];
+}
+
+/** Build a rich source-content block from a cross-cutting node for prompt injection */
+export function formatCrossCuttingDebateContext(cc: CrossCuttingDebateInput): string {
+  const lines: string[] = [
+    `=== CROSS-CUTTING CONCERN: ${cc.id} ===`,
+    `Label: ${cc.label}`,
+    `Description: ${cc.description}`,
+    '',
+    '=== POV INTERPRETATIONS ===',
+    `Accelerationist: ${cc.interpretations.accelerationist}`,
+    '',
+    `Safetyist: ${cc.interpretations.safetyist}`,
+    '',
+    `Skeptic: ${cc.interpretations.skeptic}`,
+  ];
+
+  if (cc.assumes && cc.assumes.length > 0) {
+    lines.push('', '=== UNDERLYING ASSUMPTIONS ===');
+    for (const a of cc.assumes) lines.push(`- ${a}`);
+  }
+
+  if (cc.steelmanVulnerability) {
+    lines.push('', '=== STEELMAN VULNERABILITY ===', cc.steelmanVulnerability);
+  }
+
+  if (cc.possibleFallacies && cc.possibleFallacies.length > 0) {
+    lines.push('', '=== IDENTIFIED FALLACIES ===');
+    for (const f of cc.possibleFallacies) {
+      lines.push(`- ${f.fallacy.replace(/_/g, ' ')} (${f.confidence}): ${f.explanation}`);
+    }
+  }
+
+  if (cc.linkedNodeDescriptions && cc.linkedNodeDescriptions.length > 0) {
+    lines.push('', '=== LINKED TAXONOMY NODES ===');
+    for (const desc of cc.linkedNodeDescriptions) lines.push(desc);
+  }
+
+  if (cc.conflictSummaries && cc.conflictSummaries.length > 0) {
+    lines.push('', '=== DOCUMENTED CONFLICTS ===');
+    for (const cs of cc.conflictSummaries) lines.push(cs);
+  }
+
+  return lines.join('\n');
+}
+
+/** Clarification prompt specialized for cross-cutting concern debates */
+export function crossCuttingClarificationPrompt(
+  topic: string,
+  ccContext: string,
+): string {
+  return `You are a neutral debate facilitator preparing a structured debate grounded in a cross-cutting concern from an AI policy taxonomy.
+${READING_LEVEL}
+
+The user wants to debate this topic:
+
+"${topic}"
+
+${ccContext}
+
+The three POV interpretations above show where the perspectives already diverge. Generate 1 to 3 clarifying questions that would help focus the debate. Your questions should:
+- Identify which specific dimension of this concern the user most wants to explore (e.g., the timeline question vs. the policy response vs. the epistemic disagreement)
+- Surface which assumptions or fallacies the user finds most interesting to probe
+- Help the debaters go beyond restating their pre-existing interpretations
+- Be neutral — do not favor any perspective
+- Be concise (one sentence each)
+
+Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
+{"questions": ["question 1", "question 2"]}`;
 }

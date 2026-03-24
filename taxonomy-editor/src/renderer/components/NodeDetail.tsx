@@ -11,9 +11,14 @@ import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 
-function OverflowMenu({ moveTargets, onMove, onDelete }: {
-  moveTargets: string[];
-  onMove: (cat: string) => void;
+interface MoveTarget {
+  label: string;
+  action: () => void;
+  isTransfer?: boolean;
+}
+
+function OverflowMenu({ moveTargets, onDelete }: {
+  moveTargets: MoveTarget[];
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -30,16 +35,31 @@ function OverflowMenu({ moveTargets, onMove, onDelete }: {
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
   }, [open]);
 
+  // Group: same-POV category moves first, then cross-POV transfers
+  const categoryMoves = moveTargets.filter(t => !t.isTransfer);
+  const transfers = moveTargets.filter(t => t.isTransfer);
+
   return (
     <div className="overflow-menu-wrapper" ref={menuRef}>
       <button className="btn btn-ghost btn-sm overflow-menu-trigger" onClick={() => setOpen(!open)} title="More actions">&hellip;</button>
       {open && (
         <div className="overflow-menu-dropdown">
-          {moveTargets.map(cat => (
-            <button key={cat} className="overflow-menu-item" onClick={() => { onMove(cat); setOpen(false); }}>
-              Move to {cat}
+          {categoryMoves.map(t => (
+            <button key={t.label} className="overflow-menu-item" onClick={() => { t.action(); setOpen(false); }}>
+              Move to {t.label}
             </button>
           ))}
+          {transfers.length > 0 && (
+            <>
+              <div className="overflow-menu-divider" />
+              <div className="overflow-menu-section-label">Transfer to</div>
+              {transfers.map(t => (
+                <button key={t.label} className="overflow-menu-item overflow-menu-transfer" onClick={() => { t.action(); setOpen(false); }}>
+                  {t.label}
+                </button>
+              ))}
+            </>
+          )}
           <div className="overflow-menu-divider" />
           <button className="overflow-menu-item overflow-menu-danger" onClick={() => { onDelete(); setOpen(false); }}>
             Delete
@@ -60,8 +80,16 @@ interface NodeDetailProps {
   chipDepth?: number;
 }
 
+const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
+const ALL_POVS: Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
+const POV_LABELS: Record<Pov, string> = {
+  accelerationist: 'Accelerationist',
+  safetyist: 'Safetyist',
+  skeptic: 'Skeptic',
+};
+
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +99,21 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
     setToolbarPanel('prompts');
   }, [node.id, setSelectedNodeId, setToolbarPanel]);
 
-  const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
-  const moveTargets = ALL_CATEGORIES.filter(c => c !== node.category);
+  // Same-POV category moves
+  const categoryMoveTargets: MoveTarget[] = ALL_CATEGORIES
+    .filter(c => c !== node.category)
+    .map(c => ({ label: c, action: () => movePovNodeCategory(pov, node.id, c) }));
+
+  // Cross-POV transfers (every other POV × every category)
+  const transferTargets: MoveTarget[] = ALL_POVS
+    .filter(p => p !== pov)
+    .flatMap(p => ALL_CATEGORIES.map(c => ({
+      label: `${POV_LABELS[p]} / ${c}`,
+      action: () => movePovNode(pov, node.id, p, c),
+      isTransfer: true,
+    })));
+
+  const moveTargets = [...categoryMoveTargets, ...transferTargets];
 
   const allCcIds = getAllNodeIds().filter(id => id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
@@ -146,7 +187,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           {!readOnly && (
             <OverflowMenu
               moveTargets={moveTargets}
-              onMove={(cat) => movePovNodeCategory(pov, node.id, cat as Category)}
               onDelete={() => setShowDelete(true)}
             />
           )}

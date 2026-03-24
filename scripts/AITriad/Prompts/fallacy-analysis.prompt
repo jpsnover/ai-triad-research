@@ -18,7 +18,7 @@ IMPORTANT GUIDELINES:
 3. For each flagged fallacy, provide:
    - The fallacy name (use the exact key from the KNOWN FALLACIES list below)
    - A confidence level: "likely", "possible", or "borderline"
-   - A 1-2 sentence explanation grounded in the specific node content
+   - A 1-3 sentence explanation grounded in the specific node content
 
 4. Flag 0-3 fallacies per node. It is perfectly acceptable (and often correct) to
    flag ZERO fallacies for a well-reasoned node. Do not force findings.

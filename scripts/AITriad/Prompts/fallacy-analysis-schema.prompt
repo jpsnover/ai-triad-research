@@ -8,12 +8,12 @@ Return a JSON object mapping node IDs to their fallacy analysis:
       {
         "fallacy": "slippery_slope",
         "confidence": "possible",
-        "explanation": "The claim that any regulation will inevitably lead to total suppression of AI research assumes an unbroken causal chain without evidence for each intermediate step."
+        "explanation": "The claim that any regulation will inevitably lead to total suppression of AI research assumes an unbroken causal chain without evidence for each intermediate step. No mechanism is offered to explain how modest oversight escalates to a total ban, and historical precedent in other industries shows regulation often coexists with innovation."
       },
       {
         "fallacy": "false_dilemma",
         "confidence": "likely",
-        "explanation": "Frames the choice as 'accelerate or fall behind' without considering measured development paths."
+        "explanation": "Frames the choice as 'accelerate or fall behind' without considering measured development paths. This binary framing ignores a spectrum of viable strategies between full-speed development and stagnation, such as phased deployment or domain-specific acceleration."
       }
     ]
   },

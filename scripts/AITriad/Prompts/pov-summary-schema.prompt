@@ -70,7 +70,7 @@
   ],
   "unmapped_concepts": [
     {
-      "suggested_label": "<concise 3-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
+      "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
       "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
@@ -78,7 +78,7 @@
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "suggested_label": "<concise 3-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
+      "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
       "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "safetyist",

@@ -33,7 +33,7 @@ export interface ContextSummary {
   summary: string;
 }
 
-export type DebateSourceType = 'topic' | 'document' | 'url';
+export type DebateSourceType = 'topic' | 'document' | 'url' | 'cross-cutting';
 
 export interface DebateSession {
   id: string;

@@ -26,7 +26,7 @@ QUANTITY GUIDANCE:
     A typical document yields 3-10 unmapped concepts. If you find fewer than 3, look
     harder — most documents introduce ideas, framings, or evidence not yet in the taxonomy.
     For each unmapped concept, provide:
-      • suggested_label: a concise 3-8 word label suitable as a taxonomy node name
+      • suggested_label: a concise 5-10 word label suitable as a taxonomy node name
       • suggested_description: 2-5 sentences defining the concept for the taxonomy
       • concept: 2-5 sentences grounding the concept in THIS specific document
     The label and description must be DISTINCT — the label is a short name (like a title),

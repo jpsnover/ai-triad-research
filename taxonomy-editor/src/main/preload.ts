@@ -31,11 +31,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteConflictFile: (claimId: string): Promise<void> =>
     ipcRenderer.invoke('delete-conflict-file', claimId),
 
-  setApiKey: (key: string): Promise<void> =>
-    ipcRenderer.invoke('set-api-key', key),
+  loadAIModels: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-ai-models'),
 
-  hasApiKey: (): Promise<boolean> =>
-    ipcRenderer.invoke('has-api-key'),
+  refreshAIModels: (): Promise<unknown> =>
+    ipcRenderer.invoke('refresh-ai-models'),
+
+  setApiKey: (key: string, backend?: string): Promise<void> =>
+    ipcRenderer.invoke('set-api-key', key, backend),
+
+  hasApiKey: (backend?: string): Promise<boolean> =>
+    ipcRenderer.invoke('has-api-key', backend),
 
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
     ipcRenderer.invoke('compute-embeddings', texts, ids),

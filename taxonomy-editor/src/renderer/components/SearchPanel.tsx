@@ -14,18 +14,32 @@ type SearchPanelMode =
   | 'rhetorical_strategy'
   | 'audience'
   | 'emotional_register'
-  | 'policy_actionability';
+  | 'policy_actionability'
+  | 'possible_fallacy';
 
 const MODE_LABELS: Record<SearchPanelMode, string> = {
   taxonomy: 'Taxonomy',
   related: 'Related',
-  intellectual_lineage: 'Intellectual Lineage',
-  epistemic_type: 'Epistemic Type',
-  rhetorical_strategy: 'Rhetorical Strategy',
   audience: 'Audience',
   emotional_register: 'Emotional Register',
+  epistemic_type: 'Epistemic Type',
+  intellectual_lineage: 'Intellectual Lineage',
   policy_actionability: 'Policy Actionability',
+  possible_fallacy: 'Possible Fallacy',
+  rhetorical_strategy: 'Rhetorical Strategy',
 };
+
+/** Sorted dropdown entries: Taxonomy first, Related second, then alphabetical */
+const MODE_ENTRIES = Object.entries(MODE_LABELS).sort(([a], [b]) => {
+  if (a === 'taxonomy') return -1;
+  if (b === 'taxonomy') return 1;
+  if (a === 'related') return -1;
+  if (b === 'related') return 1;
+  return MODE_LABELS[a as SearchPanelMode].localeCompare(MODE_LABELS[b as SearchPanelMode]);
+});
+
+/** Persists the user's last search mode across toolbar switches */
+let _lastSearchMode: SearchPanelMode = 'taxonomy';
 
 const ATTRIBUTE_OPTIONS: Record<string, string[]> = {
   intellectual_lineage: [], // free-form — collected dynamically
@@ -51,7 +65,7 @@ const ATTRIBUTE_OPTIONS: Record<string, string[]> = {
 };
 
 function formatValue(val: string): string {
-  return val.replace(/_/g, ' ');
+  return val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 // ─── Unified result type for all modes ──────────────────
@@ -151,7 +165,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     pendingSearchRelatedId,
   } = useTaxonomyStore();
 
-  const [mode, setMode] = useState<SearchPanelMode>('taxonomy');
+  const [mode, setMode] = useState<SearchPanelMode>(_lastSearchMode);
   const [attrValue, setAttrValue] = useState<string>('');
   const [attrQuery, setAttrQuery] = useState('');
   const [relatedQuery, setRelatedQuery] = useState('');
@@ -229,6 +243,30 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     return [...vals].sort();
   }, [accelerationist, safetyist, skeptic, crossCutting]);
 
+  // ─── Collect unique possible fallacy values ─────────
+  const fallacyValues = useMemo(() => {
+    const vals = new Set<string>();
+    const state = useTaxonomyStore.getState();
+    const collectFallacies = (attrs: Record<string, unknown> | undefined) => {
+      const pf = attrs?.possible_fallacies;
+      if (Array.isArray(pf)) {
+        for (const entry of pf) {
+          if (entry && typeof entry === 'object' && typeof (entry as { fallacy: string }).fallacy === 'string') {
+            vals.add((entry as { fallacy: string }).fallacy);
+          }
+        }
+      }
+    };
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (file) for (const n of file.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
+    }
+    if (state.crossCutting) {
+      for (const n of state.crossCutting.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
+    }
+    return [...vals].sort();
+  }, [accelerationist, safetyist, skeptic, crossCutting]);
+
   // ─── Related mode filtered options ────────────────────
   const relatedFilteredIds = useMemo(() => {
     if (!relatedQuery) return allNodeIds.slice(0, 20);
@@ -289,14 +327,23 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   // ─── Attribute results ────────────────────────────────
   const attrResults = useMemo(() => {
     if (mode === 'taxonomy' || mode === 'related' || !attrValue) return [];
-    const field = mode;
     const normalizedValue = attrValue.toLowerCase();
     const results: SearchResult[] = [];
     const state = useTaxonomyStore.getState();
 
     const matchAttr = (attrs: Record<string, unknown> | undefined, nodeId: string, nodeLabel: string, pov: string) => {
       if (!attrs) return;
-      const raw = attrs[field];
+
+      // Special handling for possible_fallacy — search inside array of objects
+      if (mode === 'possible_fallacy') {
+        const pf = attrs.possible_fallacies;
+        if (Array.isArray(pf) && pf.some((entry: { fallacy?: string }) => entry?.fallacy?.toLowerCase() === normalizedValue)) {
+          results.push({ id: nodeId, label: nodeLabel, pov });
+        }
+        return;
+      }
+
+      const raw = attrs[mode];
       if (raw == null) return;
       if (Array.isArray(raw)) {
         if (raw.some((v: string) => v.toLowerCase().includes(normalizedValue))) {
@@ -381,6 +428,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
   const handleModeChange = (newMode: SearchPanelMode) => {
     setMode(newMode);
+    _lastSearchMode = newMode;
     setAttrValue('');
     setAttrQuery('');
     setRelatedNodeId(null);
@@ -426,16 +474,17 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
   // Determine options for current attribute mode
   const isAttrMode = mode !== 'taxonomy' && mode !== 'related';
+  const isTypeaheadAttr = mode === 'intellectual_lineage' || mode === 'possible_fallacy';
   const currentOptions = isAttrMode
-    ? (mode === 'intellectual_lineage' ? lineageValues : ATTRIBUTE_OPTIONS[mode] || [])
+    ? (mode === 'intellectual_lineage' ? lineageValues : mode === 'possible_fallacy' ? fallacyValues : ATTRIBUTE_OPTIONS[mode] || [])
     : [];
 
-  // Filtered options for intellectual lineage typeahead
+  // Filtered options for typeahead attribute modes
   const filteredAttrOptions = useMemo(() => {
-    if (mode !== 'intellectual_lineage' || !attrQuery) return currentOptions;
+    if (!isTypeaheadAttr || !attrQuery) return currentOptions;
     const q = attrQuery.toLowerCase();
     return currentOptions.filter(opt => opt.toLowerCase().includes(q));
-  }, [mode, attrQuery, currentOptions]);
+  }, [isTypeaheadAttr, attrQuery, currentOptions]);
 
   // Render a single result row
   const renderResultRow = (r: SearchResult, i: number) => (
@@ -473,7 +522,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
           value={mode}
           onChange={(e) => handleModeChange(e.target.value as SearchPanelMode)}
         >
-          {Object.entries(MODE_LABELS).map(([key, label]) => (
+          {MODE_ENTRIES.map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
@@ -562,11 +611,11 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
         {isAttrMode && (
           <div className="search-panel-attr">
-            {mode === 'intellectual_lineage' ? (
+            {isTypeaheadAttr ? (
               <div className="search-panel-typeahead">
                 {attrValue ? (
                   <div className="search-panel-selected-node">
-                    <span className="search-panel-selected-label">{attrValue}</span>
+                    <span className="search-panel-selected-label">{formatValue(attrValue)}</span>
                     <button className="btn btn-ghost btn-sm" onClick={() => { setAttrValue(''); setAttrQuery(''); }}>
                       &times;
                     </button>
@@ -578,7 +627,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
                       type="text"
                       value={attrQuery}
                       onChange={(e) => setAttrQuery(e.target.value)}
-                      placeholder="Type to search lineage values..."
+                      placeholder={`Type to search ${MODE_LABELS[mode].toLowerCase()} values...`}
                     />
                     {filteredAttrOptions.length > 0 && (
                       <div className="search-panel-typeahead-list">
@@ -588,13 +637,13 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
                             className="search-panel-typeahead-item"
                             onClick={() => { setAttrValue(opt); setAttrQuery(''); }}
                           >
-                            <span className="search-panel-typeahead-label">{opt}</span>
+                            <span className="search-panel-typeahead-label">{formatValue(opt)}</span>
                           </div>
                         ))}
                       </div>
                     )}
                     {attrQuery && filteredAttrOptions.length === 0 && (
-                      <div className="search-panel-attr-empty">No matching lineage values</div>
+                      <div className="search-panel-attr-empty">No matching values</div>
                     )}
                   </>
                 )}

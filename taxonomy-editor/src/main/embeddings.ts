@@ -349,21 +349,64 @@ function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limit
   };
 }
 
-export async function generateText(
+type AIBackend = 'gemini' | 'claude' | 'groq';
+
+function resolveBackend(model: string): AIBackend {
+  if (model.startsWith('claude')) return 'claude';
+  if (model.startsWith('groq')) return 'groq';
+  return 'gemini';
+}
+
+// ── API model ID mapping — loaded from ai-models.json ──
+// Maps friendly IDs (e.g. "claude-sonnet-4-5") to actual API model IDs
+// (e.g. "claude-sonnet-4-5-20250514"). Rebuilt on each call from config file.
+
+function loadModelMap(): Record<string, string> {
+  try {
+    const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
+    const map: Record<string, string> = {};
+    for (const m of config.models) {
+      if (m.apiModelId && m.apiModelId !== m.id) {
+        map[m.id] = m.apiModelId;
+      }
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+// Cache the map, reload when ai-models.json changes
+let _modelMapCache: Record<string, string> | null = null;
+let _modelMapMtime = 0;
+
+function getApiModelId(friendlyId: string): string {
+  try {
+    const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+    const stat = fs.statSync(configPath);
+    if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
+      _modelMapCache = loadModelMap();
+      _modelMapMtime = stat.mtimeMs;
+      console.log('[embeddings] Reloaded model map from ai-models.json');
+    }
+  } catch {
+    if (!_modelMapCache) _modelMapCache = {};
+  }
+  return _modelMapCache[friendlyId] || friendlyId;
+}
+
+async function generateViaGemini(
   prompt: string,
-  model?: string,
+  model: string,
+  apiKey: string,
   onRetry?: (progress: GenerateTextProgress) => void,
 ): Promise<string> {
-  const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured');
-
-  const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
-  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
-  console.log(`[generateText] Using model: ${resolvedModel}`);
-  const url = `${GEMINI_BASE}/${resolvedModel}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    console.log(`[generateText] Attempt ${attempt}/${MAX_RETRIES} - Calling Gemini generateContent...`);
+    console.log(`[generateText] Attempt ${attempt}/${MAX_RETRIES} - Calling Gemini ${model}...`);
 
     let response: Response;
     try {
@@ -446,4 +489,133 @@ export async function generateText(
   }
 
   throw new Error('generateText: exhausted all retry attempts');
+}
+
+async function generateViaClaude(
+  prompt: string,
+  model: string,
+  apiKey: string,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+  const maskedKey = apiKey.length > 12 ? apiKey.slice(0, 8) + '...' + apiKey.slice(-4) : '***';
+  console.log(`[Claude] model input: "${model}" → API model: "${apiModel}"`);
+  console.log(`[Claude] API key prefix: ${maskedKey}`);
+  console.log(`[Claude] URL: https://api.anthropic.com/v1/messages`);
+  console.log(`[Claude] anthropic-version: 2023-06-01`);
+
+  const requestBody = {
+    model: apiModel,
+    max_tokens: 8192,
+    messages: [{ role: 'user', content: prompt.slice(0, 100) + '...' }],
+  };
+  console.log(`[Claude] Request body (truncated):`, JSON.stringify(requestBody, null, 2));
+
+  const response = await withTimeout(
+    net.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        max_tokens: 8192,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    }),
+    120_000,
+    'Claude API request',
+  );
+
+  console.log(`[Claude] Response status: ${response.status}`);
+  console.log(`[Claude] Response headers:`, Object.fromEntries(response.headers.entries()));
+
+  const bodyText = await withTimeout(response.text(), 30_000, 'Reading Claude response');
+  console.log(`[Claude] Response body (first 500):`, bodyText.slice(0, 500));
+
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
+  if (!json.content || json.content.length === 0) {
+    throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
+  }
+
+  const result = json.content
+    .filter((c) => c.type === 'text')
+    .map((c) => c.text)
+    .join('');
+  console.log('[generateText] Claude success, result length:', result.length);
+  return result;
+}
+
+async function generateViaGroq(
+  prompt: string,
+  model: string,
+  apiKey: string,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+  console.log(`[generateText] Calling Groq ${apiModel}...`);
+
+  const response = await withTimeout(
+    net.fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 8192,
+      }),
+    }),
+    60_000,
+    'Groq API request',
+  );
+
+  const bodyText = await withTimeout(response.text(), 30_000, 'Reading Groq response');
+
+  if (!response.ok) {
+    throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
+  if (!json.choices || json.choices.length === 0) {
+    throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+  }
+
+  const result = json.choices[0].message.content;
+  console.log('[generateText] Groq success, result length:', result.length);
+  return result;
+}
+
+export async function generateText(
+  prompt: string,
+  model?: string,
+  onRetry?: (progress: GenerateTextProgress) => void,
+): Promise<string> {
+  const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
+  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
+  const backend = resolveBackend(resolvedModel);
+
+  const apiKey = loadApiKey(backend);
+  if (!apiKey) {
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+  }
+
+  console.log(`[generateText] Backend: ${backend}, model: ${resolvedModel}`);
+
+  switch (backend) {
+    case 'claude':
+      return generateViaClaude(prompt, resolvedModel, apiKey);
+    case 'groq':
+      return generateViaGroq(prompt, resolvedModel, apiKey);
+    default:
+      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry);
+  }
 }

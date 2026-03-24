@@ -1,12 +1,14 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { useDebateStore } from '../hooks/useDebateStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { NodeDetail } from './NodeDetail';
+import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PinnedPanel } from './PinnedPanel';
 import { SearchPanel } from './SearchPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
@@ -30,6 +32,7 @@ export function CrossCuttingTab() {
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
+  const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
   const { width, onMouseDown } = useResizablePanel();
   const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-edge-detail-width',
@@ -105,6 +108,14 @@ export function CrossCuttingTab() {
       showRelatedEdges(selectedNode.id);
     }
   };
+
+  const { createCrossCuttingDebate } = useDebateStore();
+  const { setActiveTab } = useTaxonomyStore();
+  const handleDebate = useCallback(async () => {
+    if (!selectedNode) return;
+    await createCrossCuttingDebate(selectedNode.id);
+    setActiveTab('debate');
+  }, [selectedNode, createCrossCuttingDebate, setActiveTab]);
 
   // Render the promoted panel content for Pane 1
   // Render cross-POV node detail for search preview
@@ -184,6 +195,8 @@ export function CrossCuttingTab() {
         return <AttributeInfoPanel />;
       case 'lineage':
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
+      case 'fallacy':
+        return <FallacyPanel onSelectFallacy={setSelectedFallacyKey} />;
       case 'console':
         return <TerminalPanel />;
       default:
@@ -247,7 +260,11 @@ export function CrossCuttingTab() {
           )}
         </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
-      : toolbarPanel === 'lineage' ? (
+      : toolbarPanel === 'fallacy' ? (
+        <div className="detail-panel">
+          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
+        </div>
+      ) : toolbarPanel === 'lineage' ? (
         <>
           <div className="detail-panel">
             {renderLineagePreview()}
@@ -277,7 +294,7 @@ export function CrossCuttingTab() {
                 <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
               </div>
               {selectedNode ? (
-                <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} />
+                <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
               ) : (
                 <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
               )}

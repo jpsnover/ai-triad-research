@@ -34,6 +34,24 @@ class TaxonomyNode {
 $script:TaxonomyData = @{}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Load ai-models.json — single source of truth for backend/model lists
+# ─────────────────────────────────────────────────────────────────────────────
+$script:AIModelConfig  = $null
+$script:ValidModelIds  = @()
+
+$AIModelsPath = Join-Path $script:RepoRoot 'ai-models.json'
+if (Test-Path $AIModelsPath) {
+    try {
+        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json
+        $script:ValidModelIds = @($script:AIModelConfig.models | ForEach-Object { $_.id })
+        Write-Verbose "AI Models: loaded $($script:ValidModelIds.Count) models from ai-models.json"
+    }
+    catch {
+        Write-Warning "AI Models: failed to load ai-models.json — $($_.Exception.Message)"
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Dot-source Private/ then Public/ functions
 # ─────────────────────────────────────────────────────────────────────────────
 foreach ($Scope in @('Private', 'Public')) {
