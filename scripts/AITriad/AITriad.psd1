@@ -52,6 +52,7 @@
         'Find-CrossCuttingCandidates'
         'Show-TriadDialogue'
         'Register-AIBackend'
+        'Install-AITriadData'
         'Install-Dependencies'
         'Test-Dependencies'
         'Find-PossibleFallacy'
