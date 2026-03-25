@@ -43,14 +43,7 @@ function Install-AITriadData {
 
     # ── Resolve target path ──
     if ([string]::IsNullOrWhiteSpace($DataPath)) {
-        Initialize-DataConfig
-        $Root = $script:DataConfig.data_root
-        if ([System.IO.Path]::IsPathRooted($Root)) {
-            $DataPath = $Root
-        }
-        else {
-            $DataPath = Join-Path $script:RepoRoot $Root
-        }
+        $DataPath = Get-DataRoot
     }
 
     $DataPath = [System.IO.Path]::GetFullPath($DataPath)

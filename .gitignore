@@ -24,6 +24,9 @@ Thumbs.db
 *.env
 secrets.json
 
+# Build output
+/build/
+
 # Data — lives in ai-triad-data repo (see .aitriad.json)
 /taxonomy/Origin/
 /sources/

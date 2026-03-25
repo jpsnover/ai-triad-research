@@ -6,9 +6,23 @@ Set-StrictMode -Version Latest
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Module root paths
+# Supports both dev layout (scripts/AITriad/) and PSGallery install (flat module dir)
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModuleRoot = $PSScriptRoot
-$script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+
+# Detect if we're in a dev repo (scripts/AITriad/) or a PSGallery install
+$_candidateRepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..') -ErrorAction SilentlyContinue)?.Path
+if ($_candidateRepoRoot -and (Test-Path (Join-Path $_candidateRepoRoot '.aitriad.json'))) {
+    $script:RepoRoot = $_candidateRepoRoot
+    $script:IsDevInstall = $true
+} elseif ($_candidateRepoRoot -and (Test-Path (Join-Path $_candidateRepoRoot 'CLAUDE.md'))) {
+    $script:RepoRoot = $_candidateRepoRoot
+    $script:IsDevInstall = $true
+} else {
+    # PSGallery or standalone install — module root IS the root
+    $script:RepoRoot = $PSScriptRoot
+    $script:IsDevInstall = $false
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TaxonomyNode class — must live in .psm1 for PowerShell type resolution
@@ -39,7 +53,11 @@ $script:TaxonomyData = @{}
 $script:AIModelConfig  = $null
 $script:ValidModelIds  = @()
 
+# Try repo root first (dev), then module root (PSGallery install)
 $AIModelsPath = Join-Path $script:RepoRoot 'ai-models.json'
+if (-not (Test-Path $AIModelsPath)) {
+    $AIModelsPath = Join-Path $script:ModuleRoot 'ai-models.json'
+}
 if (Test-Path $AIModelsPath) {
     try {
         $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json
@@ -64,27 +82,32 @@ foreach ($Scope in @('Private', 'Public')) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Import companion modules (kept separate for AMSI isolation)
+# Import companion modules
+# Dev: scripts/ dir (parent of AITriad/)
+# PSGallery: bundled in module root alongside AITriad.psm1
 # ─────────────────────────────────────────────────────────────────────────────
-$ScriptsDir = Join-Path $script:ModuleRoot '..'
+$_companionDirs = @(
+    (Join-Path $script:ModuleRoot '..')     # Dev layout: scripts/
+    $script:ModuleRoot                       # PSGallery: bundled in module root
+)
 
-$DocConvertersPath = Join-Path $ScriptsDir 'DocConverters.psm1'
-if (Test-Path $DocConvertersPath) {
-    try {
-        Import-Module $DocConvertersPath -Force
+foreach ($_name in @('DocConverters', 'AIEnrich')) {
+    $_loaded = $false
+    foreach ($_dir in $_companionDirs) {
+        $_path = Join-Path $_dir "$_name.psm1"
+        if (Test-Path $_path) {
+            try {
+                Import-Module $_path -Force
+                $_loaded = $true
+                break
+            }
+            catch {
+                Write-Warning "Failed to import ${_name}.psm1: $_ — related features will be unavailable."
+            }
+        }
     }
-    catch {
-        Write-Warning "Failed to import DocConverters.psm1: $_ — PDF/HTML conversion will be unavailable."
-    }
-}
-
-$AIEnrichPath = Join-Path $ScriptsDir 'AIEnrich.psm1'
-if (Test-Path $AIEnrichPath) {
-    try {
-        Import-Module $AIEnrichPath -Force
-    }
-    catch {
-        Write-Warning "Failed to import AIEnrich.psm1: $_ — AI API calls will be unavailable."
+    if (-not $_loaded) {
+        Write-Verbose "${_name}.psm1 not found — related features will be unavailable."
     }
 }
 
