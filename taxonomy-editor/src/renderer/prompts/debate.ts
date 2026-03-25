@@ -54,7 +54,19 @@ function sourceContext(sourceContent?: string): string {
   const content = sourceContent.length > 50000
     ? sourceContent.slice(0, 50000) + '\n\n[Content truncated]'
     : sourceContent;
-  return `\n\nThe debate is about the following document/content:\n\n---\n${content}\n---\n\nBase your arguments on the specific claims, evidence, and reasoning found in this document. Reference specific parts of the document when making your points.`;
+  return `\n\n=== SOURCE DOCUMENT ===\n${content}\n=== END SOURCE DOCUMENT ===
+
+When engaging with this document:
+- Identify the document's central thesis and key claims. Distinguish its empirical claims (testable facts) from normative claims (value judgments) and framing choices (how it defines terms or scopes the problem).
+- Cite specific passages when supporting or challenging a point. Do not paraphrase vaguely — anchor your argument in what the document actually says.
+- Note what the document assumes without defending, what evidence it omits, and whose perspective it centers.
+- If the document uses a term in a specific way, flag where its definition differs from how your POV uses the same term.`;
+}
+
+/** Shorter source reminder for cross-respond (avoids re-sending full text) */
+function sourceReminder(sourceContent?: string): string {
+  if (!sourceContent) return '';
+  return `\n\nThis debate is grounded in a source document. Stay anchored to its specific claims and evidence. When you reference the document, cite specific passages rather than paraphrasing loosely.`;
 }
 
 export function clarificationPrompt(
@@ -128,7 +140,7 @@ The debate topic is:
 "${topic}"${sourceContext(debateSourceContent)}
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
-
+${debateSourceContent ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n` : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${includeSteelman ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
 ${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -235,6 +247,7 @@ export function crossRespondPrompt(
   focusPoint: string,
   addressing: string,
   length: string = 'medium',
+  debateSourceContent?: string,
 ): string {
   const lengthKey = length || 'medium';
   const includeSteelman = lengthKey !== 'brief';
@@ -253,7 +266,7 @@ ${DIALECTICAL_MOVES}
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"
+"${topic}"${sourceReminder(debateSourceContent)}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
@@ -277,7 +290,16 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 export function debateSynthesisPrompt(
   topic: string,
   transcript: string,
+  hasSourceDocument: boolean = false,
 ): string {
+  const documentAnalysis = hasSourceDocument ? `
+7. Document vs. debater claims: Separate the claims that originate from the source document from arguments the debaters constructed independently. For each document claim that was contested, note which debaters accepted it and which challenged it.` : '';
+
+  const documentSchema = hasSourceDocument ? `,
+  "document_claims": [
+    {"claim": "what the document asserts", "accepted_by": ["prometheus"], "challenged_by": ["sentinel"], "challenge_basis": "brief summary of why it was challenged"}
+  ]` : '';
+
   return `You are a debate analyst. Analyze this structured debate and produce a synthesis.
 ${READING_LEVEL}
 
@@ -293,7 +315,7 @@ Identify:
 3. For each disagreement, classify whether it is EMPIRICAL (different beliefs about facts), VALUES (different priorities), or DEFINITIONAL (different meanings for key terms)
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
 5. Questions that remain unresolved
-6. Which taxonomy nodes were referenced and how they were used
+6. Which taxonomy nodes were referenced and how they were used${documentAnalysis}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -303,7 +325,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],
   "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]
+  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]${documentSchema}
 }`;
 }
 
@@ -311,9 +333,16 @@ export function probingQuestionsPrompt(
   topic: string,
   transcript: string,
   unreferencedNodes: string[],
+  hasSourceDocument: boolean = false,
 ): string {
   const unreferencedBlock = unreferencedNodes.length > 0
     ? `\n\n=== TAXONOMY NODES NOT YET REFERENCED ===\n${unreferencedNodes.join('\n')}`
+    : '';
+
+  const documentGuidance = hasSourceDocument
+    ? `- Identify parts of the source document that debaters ignored, glossed over, or mischaracterized — ask them to address those specific passages
+- Ask whether the document's framing itself is contested: does it define key terms in a way that advantages one perspective?
+`
     : '';
 
   return `You are a debate facilitator. Given this debate, suggest 3-5 probing questions that would advance the discussion.
@@ -323,7 +352,7 @@ The best probing question is a "crux" — one where a debater would say: "If the
 - Would actually change someone's mind if answered — not just interesting-sounding questions
 - Distinguish between empirical disagreements (resolvable with evidence) and value disagreements (requiring trade-off reasoning)
 - Expose unstated assumptions that debaters are relying on without defending
-- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
+${documentGuidance}- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
 - Push debaters beyond their comfort zones — ask them to engage with evidence that challenges their view
 
 For each question, indicate which debater's position it most threatens and why.
@@ -463,6 +492,38 @@ export function formatCrossCuttingDebateContext(cc: CrossCuttingDebateInput): st
   }
 
   return lines.join('\n');
+}
+
+/** Clarification prompt specialized for document/URL debates */
+export function documentClarificationPrompt(
+  topic: string,
+  sourceContent: string,
+): string {
+  const content = sourceContent.length > 50000
+    ? sourceContent.slice(0, 50000) + '\n\n[Content truncated]'
+    : sourceContent;
+
+  return `You are a neutral debate facilitator preparing a multi-perspective debate grounded in a specific document.
+${READING_LEVEL}
+
+The user wants to debate:
+
+"${topic}"
+
+=== SOURCE DOCUMENT ===
+${content}
+=== END SOURCE DOCUMENT ===
+
+Before the debate begins, you need to help the user focus. Generate 1 to 3 clarifying questions that:
+- Identify the document's 2-3 most debatable claims — the ones where the three AI policy perspectives (accelerationist, safetyist, skeptic) would disagree most sharply
+- Ask which of these claims or tensions the user most wants to explore
+- Surface whether the user is more interested in the document's empirical claims (are the facts right?), its normative framing (are the values right?), or its methodology (is the reasoning sound?)
+- Note any key terms the document defines in a way that different perspectives would contest
+- Be neutral — do not favor any perspective
+- Be concise (one sentence each)
+
+Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
+{"questions": ["question 1", "question 2"]}`;
 }
 
 /** Clarification prompt specialized for cross-cutting concern debates */

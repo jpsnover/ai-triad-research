@@ -21,18 +21,27 @@ interface CrossCuttingDetailProps {
   chipDepth?: number;
 }
 
-export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: CrossCuttingDetailProps) {
-  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage } = useTaxonomyStore();
-  const [showDelete, setShowDelete] = useState(false);
-  const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
-  const formRef = useRef<HTMLDivElement>(null);
+type CCTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'skeptic';
 
-  const handleResearchPrompt = useCallback(async () => {
-    const prompt = generateResearchPrompt(node.label, node.description);
-    await navigator.clipboard.writeText(prompt);
-    setClipboardState('copied');
-    setTimeout(() => setClipboardState('idle'), 3000);
-  }, [node.label, node.description]);
+const CC_TABS: { id: CCTab; label: string; color: string }[] = [
+  { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
+  { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
+  { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
+  { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
+  { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
+];
+
+const POV_TITLES: Record<string, string> = {
+  accelerationist: 'Accelerationist View: The Path to Progress',
+  safetyist: 'Safetyist View: The Case for Caution',
+  skeptic: 'Skeptic View: Questioning the Narrative',
+};
+
+export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: CrossCuttingDetailProps) {
+  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, getLabelForId } = useTaxonomyStore();
+  const [showDelete, setShowDelete] = useState(false);
+  const [activeTab, setActiveTab] = useState<CCTab>('overview');
+  const formRef = useRef<HTMLDivElement>(null);
 
   const allPovIds = getAllNodeIds().filter(id => !id.startsWith('cc-'));
   const allConflictIds = getAllConflictIds();
@@ -72,49 +81,28 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
     update({ linked_nodes: node.linked_nodes.filter(n => n !== id) });
   };
 
-  const addConflict = (id: string) => {
-    if (id && !node.conflict_ids.includes(id)) {
-      update({ conflict_ids: [...node.conflict_ids, id] });
-    }
-  };
-
-  const removeConflict = (id: string) => {
-    update({ conflict_ids: node.conflict_ids.filter(c => c !== id) });
+  // Filter linked nodes by POV prefix for the supporting evidence sidebar
+  const linkedByPov = (pov: string) => {
+    const prefix = pov === 'accelerationist' ? 'acc-' : pov === 'safetyist' ? 'saf-' : 'skp-';
+    return node.linked_nodes.filter(id => id.startsWith(prefix));
   };
 
   return (
-    <div ref={formRef}>
-      <div className="detail-header">
-        <h2>{node.id}</h2>
-        <div className="detail-header-actions">
-          <button
-            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
-            onClick={handleResearchPrompt}
-            title="Generate a research prompt for this concept and copy to clipboard"
-          >
-            {clipboardState === 'copied' ? '\u2713 Copied!' : <><span className="btn-icon">&#9998;</span> Research</>}
+    <div ref={formRef} className="cc-detail">
+      {/* Action pill toolbar — matches POV detail style */}
+      <div className="node-detail-toolbar">
+        {onDebate && (
+          <button className="node-detail-pill" onClick={onDebate} title="Start a structured debate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Debate
           </button>
-          {onDebate && (
-            <button className="btn btn-ghost btn-sm" onClick={onDebate} title="Start a structured debate from this cross-cutting concern">
-              <span className="btn-icon">&#9881;</span> Debate This
-            </button>
-          )}
-          {onRelated && (
-            <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
-              <span className="btn-icon">&#8596;</span> Related
-            </button>
-          )}
-          {onPin && (
-            <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
-              <span className="btn-icon">&#9744;</span> Pin
-            </button>
-          )}
-          {!readOnly && (
-            <button className="btn btn-danger btn-sm" onClick={() => setShowDelete(true)}>
-              Delete
-            </button>
-          )}
-        </div>
+        )}
+        {onPin && (
+          <button className="node-detail-pill" onClick={onPin} title="Pin for comparison">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            Pin
+          </button>
+        )}
       </div>
 
       {hasErrors && (
@@ -124,120 +112,157 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
         </div>
       )}
 
-      <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
-        <label>Label</label>
-        <HighlightedInput
-          value={node.label}
-          onChange={(v) => update({ label: v })}
-          readOnly={readOnly}
-        />
-        {err('label') && <div className="error-text">{err('label')}</div>}
+      {/* Title line — matches POV detail category:label style */}
+      <div className="node-detail-title-line" data-cat="Cross-Cutting">
+        <span className="node-detail-category">CROSS-CUTTING</span>
+        <span className="node-detail-title-sep"> : </span>
+        <span className="node-detail-label-text">{node.label}</span>
       </div>
 
-      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-        <label>Description</label>
-        <HighlightedTextarea
-          value={node.description}
-          onChange={(v) => update({ description: v })}
-          rows={4}
-          readOnly={readOnly}
-        />
-        {err('description') && <div className="error-text">{err('description')}</div>}
+      {/* Tab bar */}
+      <div className="cc-detail-tabs">
+        {CC_TABS.filter(t => t.id !== 'attributes' || node.graph_attributes).map((tab) => (
+          <button
+            key={tab.id}
+            className={`cc-detail-tab ${activeTab === tab.id ? 'cc-detail-tab-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+            style={activeTab === tab.id ? { color: tab.color, borderBottomColor: tab.color } : undefined}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {node.graph_attributes?.steelman_vulnerability && (
-        <div className="form-group">
-          <label>Steelman Vulnerability</label>
-          <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
-        </div>
-      )}
+      {/* Tab content */}
+      <div className="cc-detail-tab-content">
+        {activeTab === 'overview' && (
+          <div className="cc-overview">
+            {!readOnly && (
+              <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
+                <label>Label</label>
+                <HighlightedInput
+                  value={node.label}
+                  onChange={(v) => update({ label: v })}
+                />
+                {err('label') && <div className="error-text">{err('label')}</div>}
+              </div>
+            )}
+            <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
+              <label>Description</label>
+              <HighlightedTextarea
+                value={node.description}
+                onChange={(v) => update({ description: v })}
+                rows={4}
+                readOnly={readOnly}
+              />
+              {err('description') && <div className="error-text">{err('description')}</div>}
+            </div>
 
-      {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
-        <div className="form-group">
-          <label>Intellectual Lineage</label>
-          <div className="ga-promoted-list">
-            {node.graph_attributes.intellectual_lineage.map((l, i) => (
-              <span
-                key={i}
-                className="ga-promoted-chip ga-promoted-chip-interactive"
-                onClick={(e) => { e.stopPropagation(); navigateToLineage(l); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-                title={`Click to view lineage info: "${l}"`}
-              >
-                {l}
-              </span>
-            ))}
+            {node.graph_attributes?.steelman_vulnerability && (
+              <div className="form-group">
+                <label>Steelman Vulnerability</label>
+                <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+              </div>
+            )}
+
+            {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
+              <div className="form-group">
+                <label>Intellectual Lineage</label>
+                <div className="ga-promoted-list">
+                  {node.graph_attributes.intellectual_lineage.map((l, i) => (
+                    <span
+                      key={i}
+                      className="ga-promoted-chip ga-promoted-chip-interactive"
+                      onClick={(e) => { e.stopPropagation(); navigateToLineage(l); }}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
+                      title={`Click to view lineage info: "${l}"`}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label>
+                Linked Nodes
+                <FieldHelp text="POV-specific nodes that relate to this cross-cutting concept." />
+              </label>
+              <div className="chip-list">
+                {node.linked_nodes.map((id) => (
+                  <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
+                ))}
+              </div>
+              {!readOnly && (
+                <TypeaheadSelect
+                  options={allPovIds.filter(id => !node.linked_nodes.includes(id))}
+                  onSelect={addLinked}
+                  placeholder="Search linked nodes..."
+                />
+              )}
+            </div>
+
           </div>
-        </div>
-      )}
+        )}
 
-      <div className={`form-group ${err('interpretations.accelerationist') ? 'has-error' : ''}`}>
-        <label>
-          Accelerationist Interpretation
-          <FieldHelp text="How the Accelerationist perspective understands or frames this cross-cutting concept." />
-        </label>
-        <HighlightedTextarea
-          value={node.interpretations.accelerationist}
-          onChange={(v) => updateInterpretation('accelerationist', v)}
-          rows={2}
-          readOnly={readOnly}
-          style={{ borderLeftColor: 'var(--color-acc)', borderLeftWidth: 3 }}
-        />
-        {err('interpretations.accelerationist') && <div className="error-text">{err('interpretations.accelerationist')}</div>}
-      </div>
-
-      <div className={`form-group ${err('interpretations.safetyist') ? 'has-error' : ''}`}>
-        <label>
-          Safetyist Interpretation
-          <FieldHelp text="How the Safetyist perspective understands or frames this cross-cutting concept." />
-        </label>
-        <HighlightedTextarea
-          value={node.interpretations.safetyist}
-          onChange={(v) => updateInterpretation('safetyist', v)}
-          rows={2}
-          readOnly={readOnly}
-          style={{ borderLeftColor: 'var(--color-saf)', borderLeftWidth: 3 }}
-        />
-        {err('interpretations.safetyist') && <div className="error-text">{err('interpretations.safetyist')}</div>}
-      </div>
-
-      <div className={`form-group ${err('interpretations.skeptic') ? 'has-error' : ''}`}>
-        <label>
-          Skeptic Interpretation
-          <FieldHelp text="How the Skeptic perspective understands or frames this cross-cutting concept." />
-        </label>
-        <HighlightedTextarea
-          value={node.interpretations.skeptic}
-          onChange={(v) => updateInterpretation('skeptic', v)}
-          rows={2}
-          readOnly={readOnly}
-          style={{ borderLeftColor: 'var(--color-skp)', borderLeftWidth: 3 }}
-        />
-        {err('interpretations.skeptic') && <div className="error-text">{err('interpretations.skeptic')}</div>}
-      </div>
-
-      <div className="form-group">
-        <label>
-          Linked Nodes
-          <FieldHelp text="POV-specific nodes that relate to this cross-cutting concept. Links this shared theme to specific perspective claims." />
-        </label>
-        <div className="chip-list">
-          {node.linked_nodes.map((id) => (
-            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
-          ))}
-        </div>
-        {!readOnly && (
-          <TypeaheadSelect
-            options={allPovIds.filter(id => !node.linked_nodes.includes(id))}
-            onSelect={addLinked}
-            placeholder="Search linked nodes..."
+        {activeTab === 'attributes' && node.graph_attributes && (
+          <GraphAttributesPanel
+            attrs={node.graph_attributes}
+            onBadgeClick={runAttributeFilter}
+            onShowAttributeInfo={showAttributeInfo}
+            defaultOpen
           />
         )}
-      </div>
 
-      {node.graph_attributes && (
-        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
-      )}
+        {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (
+          <div className="cc-pov-split">
+            {/* Left: Interpretation */}
+            <div className="cc-pov-interpretation">
+              <h3 className="cc-pov-heading">{POV_TITLES[activeTab]}</h3>
+              {readOnly ? (
+                <div className="cc-pov-text">{node.interpretations[activeTab]}</div>
+              ) : (
+                <div className={`form-group ${err(`interpretations.${activeTab}`) ? 'has-error' : ''}`}>
+                  <HighlightedTextarea
+                    value={node.interpretations[activeTab]}
+                    onChange={(v) => updateInterpretation(activeTab, v)}
+                    rows={8}
+                  />
+                  {err(`interpretations.${activeTab}`) && <div className="error-text">{err(`interpretations.${activeTab}`)}</div>}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Supporting Evidence (linked nodes for this POV) */}
+            <div className="cc-pov-evidence">
+              <h3
+                className="cc-pov-evidence-heading"
+                style={{ borderBottomColor: CC_TABS.find(t => t.id === activeTab)?.color }}
+              >Supporting Evidence</h3>
+              <div className="cc-pov-evidence-list">
+                {linkedByPov(activeTab).length > 0 ? (
+                  linkedByPov(activeTab).map((id) => (
+                    <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
+                  ))
+                ) : (
+                  <div className="cc-pov-evidence-empty">No linked nodes for this perspective</div>
+                )}
+              </div>
+              {!readOnly && (
+                <TypeaheadSelect
+                  options={allPovIds.filter(id => {
+                    const prefix = activeTab === 'accelerationist' ? 'acc-' : activeTab === 'safetyist' ? 'saf-' : 'skp-';
+                    return id.startsWith(prefix) && !node.linked_nodes.includes(id);
+                  })}
+                  onSelect={addLinked}
+                  placeholder={`Add ${activeTab} node...`}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {showDelete && !readOnly && (
         <DeleteConfirmDialog

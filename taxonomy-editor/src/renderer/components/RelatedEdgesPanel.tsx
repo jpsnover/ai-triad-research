@@ -63,19 +63,21 @@ function EdgeRow({
       <div className="related-edge-header">
         <span className="related-edge-direction">{direction}</span>
         <span
-          className="related-edge-node"
+          className="related-edge-label-primary"
           style={{ color: nodeColor(otherNodeId) }}
         >
-          {otherNodeId}
+          {otherLabel}
         </span>
-        <ConfidenceBar value={edge.confidence} />
         {edge.status !== 'approved' && (
           <span className={`related-edge-status status-${edge.status}`}>
             {edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{STATUS_LABEL[edge.status]}
           </span>
         )}
       </div>
-      <div className="related-edge-label">{otherLabel}</div>
+      <div className="related-edge-sub">
+        <span className="related-edge-id">{otherNodeId}</span>
+        <ConfidenceBar value={edge.confidence} />
+      </div>
     </div>
   );
 }

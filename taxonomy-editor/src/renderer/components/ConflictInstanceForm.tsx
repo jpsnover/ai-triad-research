@@ -5,7 +5,13 @@ import type { ConflictInstance } from '../types/taxonomy';
 import { todayISO } from '../utils/idGenerator';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
-import { FieldHelp } from './FieldHelp';
+
+const STANCE_COLORS: Record<string, string> = {
+  supports: '#16a34a',
+  disputes: '#ef4444',
+  neutral: '#6b7280',
+  qualifies: '#d97706',
+};
 
 interface ConflictInstanceFormProps {
   instance: ConflictInstance;
@@ -21,45 +27,46 @@ export function ConflictInstanceForm({ instance, index, onUpdate, onRemove, read
   const err = (field: string) => errorPrefix ? validationErrors[`${errorPrefix}.${field}`] : undefined;
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <span>Instance #{index + 1}</span>
-        {!readOnly && <button className="btn btn-danger btn-sm" onClick={() => onRemove(index)}>Remove</button>}
+    <div className="conflict-instance-card">
+      <div className="conflict-instance-header">
+        <span className="conflict-instance-num">Instance #{index + 1}</span>
+        {!readOnly && (
+          <button className="conflict-instance-remove" onClick={() => onRemove(index)} title="Remove instance">
+            &#128465;
+          </button>
+        )}
       </div>
-      <div className={`form-group ${err('doc_id') ? 'has-error' : ''}`}>
-        <label>
-          Document ID
-          <FieldHelp text="The identifier of the source document where this conflict instance was found." />
-        </label>
-        <HighlightedInput
-          value={instance.doc_id}
-          onChange={(v) => onUpdate(index, { doc_id: v })}
-          readOnly={readOnly}
-        />
-        {err('doc_id') && <div className="error-text">{err('doc_id')}</div>}
+
+      <div className="conflict-instance-row">
+        <div className={`form-group conflict-instance-doc ${err('doc_id') ? 'has-error' : ''}`}>
+          <label>Document ID</label>
+          <HighlightedInput
+            value={instance.doc_id}
+            onChange={(v) => onUpdate(index, { doc_id: v })}
+            readOnly={readOnly}
+          />
+          {err('doc_id') && <div className="error-text">{err('doc_id')}</div>}
+        </div>
+        <div className={`form-group conflict-instance-stance ${err('stance') ? 'has-error' : ''}`}>
+          <label>Stance</label>
+          <select
+            className="conflict-stance-select"
+            value={instance.stance}
+            onChange={(e) => onUpdate(index, { stance: e.target.value as ConflictInstance['stance'] })}
+            disabled={readOnly}
+            style={{ color: STANCE_COLORS[instance.stance] || undefined, fontWeight: 600 }}
+          >
+            <option value="supports" style={{ color: STANCE_COLORS.supports }}>Supports</option>
+            <option value="disputes" style={{ color: STANCE_COLORS.disputes }}>Disputes</option>
+            <option value="neutral" style={{ color: STANCE_COLORS.neutral }}>Neutral</option>
+            <option value="qualifies" style={{ color: STANCE_COLORS.qualifies }}>Qualifies</option>
+          </select>
+          {err('stance') && <div className="error-text">{err('stance')}</div>}
+        </div>
       </div>
-      <div className={`form-group ${err('stance') ? 'has-error' : ''}`}>
-        <label>
-          Stance
-          <FieldHelp text="How this document relates to the conflict claim: supports, disputes, neutral, or qualifies (partially agrees with caveats)." />
-        </label>
-        <select
-          value={instance.stance}
-          onChange={(e) => onUpdate(index, { stance: e.target.value as ConflictInstance['stance'] })}
-          disabled={readOnly}
-        >
-          <option value="supports">Supports</option>
-          <option value="disputes">Disputes</option>
-          <option value="neutral">Neutral</option>
-          <option value="qualifies">Qualifies</option>
-        </select>
-        {err('stance') && <div className="error-text">{err('stance')}</div>}
-      </div>
+
       <div className={`form-group ${err('assertion') ? 'has-error' : ''}`}>
-        <label>
-          Assertion
-          <FieldHelp text="What this document specifically claims about the conflict topic." />
-        </label>
+        <label>Assertion</label>
         <HighlightedTextarea
           value={instance.assertion}
           onChange={(v) => onUpdate(index, { assertion: v })}
@@ -68,11 +75,9 @@ export function ConflictInstanceForm({ instance, index, onUpdate, onRemove, read
         />
         {err('assertion') && <div className="error-text">{err('assertion')}</div>}
       </div>
+
       <div className={`form-group ${err('date_flagged') ? 'has-error' : ''}`}>
-        <label>
-          Date Flagged
-          <FieldHelp text="The date this conflict instance was identified. Format: YYYY-MM-DD." />
-        </label>
+        <label>Date Flagged</label>
         <HighlightedInput
           type="date"
           value={instance.date_flagged}

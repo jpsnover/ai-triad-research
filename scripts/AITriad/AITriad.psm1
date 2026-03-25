@@ -168,6 +168,7 @@ Export-ModuleMember -Function @(
     'Install-Dependencies'
     'Test-Dependencies'
     'Find-PossibleFallacy'
+    'Find-PolicyAction'
     'Show-FallacyInfo'
 ) -Alias @(
     'Import-Document'

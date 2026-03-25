@@ -20,6 +20,12 @@ interface ConflictDetailProps {
   chipDepth?: number;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  open: '#ef4444',
+  resolved: '#16a34a',
+  'wont-fix': '#d97706',
+};
+
 export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: ConflictDetailProps) {
   const {
     updateConflict,
@@ -92,28 +98,28 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
   const noopRemove = () => {};
 
   return (
-    <div ref={formRef}>
-      <div className="detail-header">
-        <h2>{conflict.claim_id}</h2>
-        <div className="detail-header-actions">
-          <button
-            className={`btn btn-sm${clipboardState === 'copied' ? ' btn-copied' : ' btn-ghost'}`}
-            onClick={handleResearchPrompt}
-            title="Generate a research prompt for this conflict and copy to clipboard"
-          >
-            {clipboardState === 'copied' ? '\u2713 Copied! Paste into your AI tool' : 'Research'}
+    <div ref={formRef} className="conflict-detail">
+      {/* Pill toolbar — matches POV/CC detail style */}
+      <div className="node-detail-toolbar">
+        <button
+          className={`node-detail-pill${clipboardState === 'copied' ? ' node-detail-pill-active' : ''}`}
+          onClick={handleResearchPrompt}
+          title="Generate a research prompt and copy to clipboard"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          {clipboardState === 'copied' ? 'Copied!' : 'Research'}
+        </button>
+        {onPin && (
+          <button className="node-detail-pill" onClick={onPin} title="Pin for comparison">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            Pin
           </button>
-          {onPin && (
-            <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
-              Pin
-            </button>
-          )}
-          {!readOnly && (
-            <button className="btn btn-danger btn-sm" onClick={() => setShowDelete(true)}>
-              Delete
-            </button>
-          )}
-        </div>
+        )}
+        {!readOnly && (
+          <button className="node-detail-pill" onClick={() => setShowDelete(true)} title="Delete conflict" style={{ color: '#dc2626', borderColor: '#dc2626' }}>
+            Delete
+          </button>
+        )}
       </div>
 
       {hasErrors && (
@@ -123,117 +129,120 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         </div>
       )}
 
-      <div className={`form-group ${err('claim_label') ? 'has-error' : ''}`}>
-        <label>
-          Claim Label
-          <FieldHelp text="A short, human-readable name for this conflict claim that summarizes the disputed point." />
-        </label>
-        <HighlightedInput
-          value={conflict.claim_label}
-          onChange={(v) => update({ claim_label: v })}
-          readOnly={readOnly}
-        />
-        {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
+      {/* Title line — matches POV/CC banner style */}
+      <div className="node-detail-title-line" data-cat="Conflict">
+        <span className="node-detail-category">CONFLICT</span>
+        <span className="node-detail-title-sep"> : </span>
+        <span className="node-detail-label-text">{conflict.claim_label}</span>
       </div>
 
-      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-        <label>Description</label>
-        <HighlightedTextarea
-          value={conflict.description}
-          onChange={(v) => update({ description: v })}
-          rows={3}
-          readOnly={readOnly}
-        />
-        {err('description') && <div className="error-text">{err('description')}</div>}
-      </div>
-
-      <div className="form-group">
-        <label>
-          Status
-          <FieldHelp text="Open: actively disputed. Resolved: consensus reached. Won't Fix: acknowledged but intentionally unresolved." />
-        </label>
-        <select
-          value={conflict.status}
-          onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
-          disabled={readOnly}
-        >
-          <option value="open">Open</option>
-          <option value="resolved">Resolved</option>
-          <option value="wont-fix">Won't Fix</option>
-        </select>
-      </div>
-
-      <div className="form-group">
-        <label>
-          Linked Taxonomy Nodes
-          <FieldHelp text="POV and cross-cutting nodes that are involved in or affected by this conflict." />
-        </label>
-        <div className="chip-list">
-          {linkedNodes.map((id) => (
-            <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
-          ))}
-        </div>
+      {/* Body */}
+      <div className="conflict-detail-body">
         {!readOnly && (
-          <TypeaheadSelect
-            options={allNodeIds.filter(id => !linkedNodes.includes(id))}
-            onSelect={addLinked}
-            placeholder="Search nodes..."
-          />
+          <div className={`form-group ${err('claim_label') ? 'has-error' : ''}`}>
+            <label>Claim Label</label>
+            <HighlightedInput
+              value={conflict.claim_label}
+              onChange={(v) => update({ claim_label: v })}
+            />
+            {err('claim_label') && <div className="error-text">{err('claim_label')}</div>}
+          </div>
         )}
-      </div>
 
-      <div className="form-group">
-        <label>
-          Instances
-          <FieldHelp text="Specific occurrences in source documents where this conflict was identified. Each instance records a document's stance and assertion." />
+        <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
+          <label>Description</label>
+          <HighlightedTextarea
+            value={conflict.description}
+            onChange={(v) => update({ description: v })}
+            rows={3}
+            readOnly={readOnly}
+          />
+          {err('description') && <div className="error-text">{err('description')}</div>}
+        </div>
+
+        <div className="conflict-detail-row">
+          <div className="form-group conflict-detail-status">
+            <label>Status</label>
+            <select
+              className="conflict-status-select"
+              value={conflict.status}
+              onChange={(e) => update({ status: e.target.value as ConflictFile['status'] })}
+              disabled={readOnly}
+              style={{ borderLeftColor: STATUS_COLORS[conflict.status] || '#888', borderLeftWidth: 3 }}
+            >
+              <option value="open">Open</option>
+              <option value="resolved">Resolved</option>
+              <option value="wont-fix">Won't Fix</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Linked Taxonomy Nodes</label>
+          <div className="chip-list">
+            {linkedNodes.map((id) => (
+              <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
+            ))}
+          </div>
+          {!readOnly && (
+            <TypeaheadSelect
+              options={allNodeIds.filter(id => !linkedNodes.includes(id))}
+              onSelect={addLinked}
+              placeholder="Search nodes..."
+            />
+          )}
+        </div>
+
+        {/* Instances */}
+        <div className="form-group">
+          <label>
+            Instances
+            <span className="conflict-count-badge">{conflict.instances.length}</span>
+          </label>
+          {conflict.instances.map((inst, i) => (
+            <ConflictInstanceForm
+              key={i}
+              instance={inst}
+              index={i}
+              onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictInstance(conflict.claim_id, idx, updates)}
+              onRemove={readOnly ? noopRemove : (idx) => removeConflictInstance(conflict.claim_id, idx)}
+              readOnly={readOnly}
+              errorPrefix={`${prefix}.instances.${i}`}
+            />
+          ))}
           {!readOnly && (
             <button
-              className="btn btn-sm"
-              style={{ marginLeft: 8 }}
+              className="btn btn-sm conflict-add-btn"
               onClick={() => addConflictInstance(conflict.claim_id, newEmptyInstance())}
             >
-              + Add
+              + Add Instance
             </button>
           )}
-        </label>
-        {conflict.instances.map((inst, i) => (
-          <ConflictInstanceForm
-            key={i}
-            instance={inst}
-            index={i}
-            onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictInstance(conflict.claim_id, idx, updates)}
-            onRemove={readOnly ? noopRemove : (idx) => removeConflictInstance(conflict.claim_id, idx)}
-            readOnly={readOnly}
-            errorPrefix={`${prefix}.instances.${i}`}
-          />
-        ))}
-      </div>
+        </div>
 
-      <div className="form-group">
-        <label>
-          Human Notes
-          <FieldHelp text="Analyst commentary on this conflict: observations, proposed resolutions, or contextual notes." />
+        {/* Human Notes */}
+        <div className="form-group">
+          <label>Human Notes</label>
+          {conflict.human_notes.map((note, i) => (
+            <ConflictNoteForm
+              key={i}
+              note={note}
+              index={i}
+              onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictNote(conflict.claim_id, idx, updates)}
+              onRemove={readOnly ? noopRemove : (idx) => removeConflictNote(conflict.claim_id, idx)}
+              readOnly={readOnly}
+              errorPrefix={`${prefix}.human_notes.${i}`}
+            />
+          ))}
           {!readOnly && (
             <button
-              className="btn btn-sm"
-              style={{ marginLeft: 8 }}
+              className="btn btn-sm conflict-add-btn"
               onClick={() => addConflictNote(conflict.claim_id, newEmptyNote())}
             >
-              + Add
+              + Add Note
             </button>
           )}
-        </label>
-        {conflict.human_notes.map((note, i) => (
-          <ConflictNoteForm
-            key={i}
-            note={note}
-            index={i}
-            onUpdate={readOnly ? noopUpdate : (idx, updates) => updateConflictNote(conflict.claim_id, idx, updates)}
-            onRemove={readOnly ? noopRemove : (idx) => removeConflictNote(conflict.claim_id, idx)}
-            readOnly={readOnly}
-            errorPrefix={`${prefix}.human_notes.${i}`}
-          />
-        ))}
+        </div>
       </div>
 
       {showDelete && !readOnly && (

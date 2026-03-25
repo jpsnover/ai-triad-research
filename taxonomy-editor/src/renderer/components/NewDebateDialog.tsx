@@ -92,8 +92,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
-    // Skip clarification for document/URL debates — go straight to opening
-    store.updatePhase(sourceType === 'topic' ? 'clarification' : 'opening');
+    // All source types now go through clarification (document/URL get a specialized prompt)
+    store.updatePhase('clarification');
     await store.saveDebate();
     onClose();
   };

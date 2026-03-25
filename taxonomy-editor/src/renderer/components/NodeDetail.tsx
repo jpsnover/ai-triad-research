@@ -99,7 +99,30 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
+  const [relatedSplitPct, setRelatedSplitPct] = useState(40);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleSplitMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = splitContainerRef.current;
+    if (!container) return;
+    const startX = e.clientX;
+    const startPct = relatedSplitPct;
+    const containerWidth = container.offsetWidth;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const newPct = Math.min(70, Math.max(20, startPct + (dx / containerWidth) * 100));
+      setRelatedSplitPct(newPct);
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [relatedSplitPct]);
 
   // Research prompt state
   const [researchText, setResearchText] = useState('');
@@ -356,11 +379,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         )}
 
         {activeTab === 'related' && (
-          <div className="node-detail-related-split">
-            <div className="node-detail-related-list">
+          <div className="node-detail-related-split" ref={splitContainerRef}>
+            <div className="node-detail-related-list" style={{ width: `${relatedSplitPct}%` }}>
               <RelatedEdgesPanel />
             </div>
-            <div className="node-detail-related-detail">
+            <div className="resize-handle" onMouseDown={handleSplitMouseDown} />
+            <div className="node-detail-related-detail" style={{ width: `${100 - relatedSplitPct}%` }}>
               {selectedEdge ? (
                 <EdgeDetailPanel width={0} />
               ) : (

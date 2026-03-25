@@ -56,6 +56,7 @@
         'Install-Dependencies'
         'Test-Dependencies'
         'Find-PossibleFallacy'
+        'Find-PolicyAction'
         'Show-FallacyInfo'
     )
 

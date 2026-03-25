@@ -16,6 +16,7 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
+  documentClarificationPrompt,
   formatCrossCuttingDebateContext,
   synthesisPrompt,
   openingStatementPrompt,
@@ -245,24 +246,27 @@ function buildCrossRespondPrompt(
   focusPoint: string,
   addressing: string,
   length: string = 'medium',
+  sourceContent?: string,
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length);
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent);
 }
 
 function buildDebateSynthesisPrompt(
   topic: string,
   transcript: string,
+  hasSourceDocument: boolean = false,
 ): string {
-  return debateSynthesisPrompt(topic, transcript);
+  return debateSynthesisPrompt(topic, transcript, hasSourceDocument);
 }
 
 function buildProbingQuestionsPrompt(
   topic: string,
   transcript: string,
   unreferencedNodes: string[],
+  hasSourceDocument: boolean = false,
 ): string {
-  return probingQuestionsPrompt(topic, transcript, unreferencedNodes);
+  return probingQuestionsPrompt(topic, transcript, unreferencedNodes, hasSourceDocument);
 }
 
 function buildFactCheckPrompt(
@@ -631,7 +635,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ debateGenerating: 'system' as PoverId });
     const prompt = activeDebate.source_type === 'cross-cutting'
       ? crossCuttingClarificationPrompt(topic, activeDebate.source_content)
-      : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
+      : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
+        ? documentClarificationPrompt(topic, activeDebate.source_content)
+        : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       let questions: string[];
@@ -1019,6 +1025,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       focusPoint,
       addressingLabel,
       get().responseLength,
+      activeDebate.source_content || undefined,
     );
 
     try {
@@ -1056,7 +1063,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
-    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript);
+    const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
+    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set);
@@ -1097,6 +1105,20 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           lines.push(`- ${c.question}${typeTag}`);
           if (c.if_yes) lines.push(`  - If yes: ${c.if_yes}`);
           if (c.if_no) lines.push(`  - If no: ${c.if_no}`);
+        }
+      }
+      if (synthesis.document_claims?.length > 0) {
+        lines.push('', '**Document Claims:**');
+        for (const dc of synthesis.document_claims) {
+          const accepted = Array.isArray(dc.accepted_by)
+            ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
+            : '';
+          const challenged = Array.isArray(dc.challenged_by)
+            ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
+            : '';
+          lines.push(`- ${dc.claim}`);
+          if (accepted) lines.push(`  - Accepted by: ${accepted}`);
+          if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${dc.challenge_basis}` : ''}`);
         }
       }
       if (synthesis.unresolved_questions?.length > 0) {
@@ -1156,7 +1178,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return match && !referencedNodes.has(match[1]);
     }).slice(0, 20); // Limit to keep prompt reasonable
 
-    const prompt = buildProbingQuestionsPrompt(activeDebate.topic.final, fullTranscript, unreferenced);
+    const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
+    const prompt = buildProbingQuestionsPrompt(activeDebate.topic.final, fullTranscript, unreferenced, hasSourceDoc);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating probing questions (${model})`, set);

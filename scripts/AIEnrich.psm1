@@ -13,19 +13,49 @@
 #>
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Model Registry
-# Maps friendly names to backend type and actual API model IDs.
+# Model Registry — loaded from ai-models.json (single source of truth)
+# Falls back to hardcoded defaults if the file is missing.
 # ─────────────────────────────────────────────────────────────────────────────
-$script:ModelRegistry = @{
-    'gemini-3.1-flash-lite-preview' = @{ Backend = 'gemini';  ApiModelId = 'gemini-3.1-flash-lite-preview' }
-    'gemini-2.5-flash'      = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash' }
-    'gemini-2.5-flash-lite' = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash-lite' }
-    'gemini-2.5-pro'        = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-pro' }
-    'claude-opus-4'         = @{ Backend = 'claude';  ApiModelId = 'claude-opus-4-20250514' }
-    'claude-sonnet-4-5'     = @{ Backend = 'claude';  ApiModelId = 'claude-sonnet-4-5-20250514' }
-    'claude-haiku-3.5'      = @{ Backend = 'claude';  ApiModelId = 'claude-3-5-haiku-20241022' }
-    'groq-llama-3.3-70b'    = @{ Backend = 'groq';    ApiModelId = 'llama-3.3-70b-versatile' }
-    'groq-llama-4-scout'    = @{ Backend = 'groq';    ApiModelId = 'meta-llama/llama-4-scout-17b-16e-instruct' }
+$script:ModelRegistry = @{}
+
+$_aiModelsPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ai-models.json'
+if (-not (Test-Path $_aiModelsPath)) {
+    $_aiModelsPath = Join-Path $PSScriptRoot 'ai-models.json'
+}
+# Also try repo root (two levels up from scripts/)
+if (-not (Test-Path $_aiModelsPath)) {
+    $_aiModelsPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'ai-models.json'
+}
+
+if (Test-Path $_aiModelsPath) {
+    try {
+        $_aiConfig = Get-Content -Raw -Path $_aiModelsPath | ConvertFrom-Json
+        foreach ($_m in $_aiConfig.models) {
+            $script:ModelRegistry[$_m.id] = @{
+                Backend    = $_m.backend
+                ApiModelId = if ($_m.PSObject.Properties['apiModelId']) { $_m.apiModelId } else { $_m.id }
+            }
+        }
+        Write-Verbose "AIEnrich: loaded $($script:ModelRegistry.Count) models from ai-models.json"
+    }
+    catch {
+        Write-Warning "AIEnrich: failed to load ai-models.json — $($_.Exception.Message). Using hardcoded fallback."
+    }
+}
+
+# Fallback if ai-models.json missing or empty
+if ($script:ModelRegistry.Count -eq 0) {
+    $script:ModelRegistry = @{
+        'gemini-3.1-flash-lite-preview' = @{ Backend = 'gemini';  ApiModelId = 'gemini-3.1-flash-lite-preview' }
+        'gemini-2.5-flash'      = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash' }
+        'gemini-2.5-flash-lite' = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash-lite' }
+        'gemini-2.5-pro'        = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-pro' }
+        'claude-opus-4'         = @{ Backend = 'claude';  ApiModelId = 'claude-opus-4-20250514' }
+        'claude-sonnet-4-5'     = @{ Backend = 'claude';  ApiModelId = 'claude-sonnet-4-5-20250514' }
+        'claude-haiku-3.5'      = @{ Backend = 'claude';  ApiModelId = 'claude-3-5-haiku-20241022' }
+        'groq-llama-3.3-70b'    = @{ Backend = 'groq';    ApiModelId = 'llama-3.3-70b-versatile' }
+        'groq-llama-4-scout'    = @{ Backend = 'groq';    ApiModelId = 'meta-llama/llama-4-scout-17b-16e-instruct' }
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

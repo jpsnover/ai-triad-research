@@ -94,14 +94,13 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           <div className="edge-detail-endpoint">
             <div className="edge-detail-endpoint-role">Source</div>
             <div
-              className="edge-detail-endpoint-id"
+              className="edge-detail-endpoint-label"
               style={{ color: nodeColor(edge.source) }}
               onClick={() => handleNavigate(edge.source)}
             >
-              {edge.source}
+              {sourceLabel}
             </div>
-            <div className="edge-detail-endpoint-label">{sourceLabel}</div>
-            <div className="edge-detail-endpoint-pov">{povLabel(edge.source)}</div>
+            <div className="edge-detail-endpoint-id">{edge.source}</div>
           </div>
 
           <div className="edge-detail-arrow">
@@ -111,14 +110,13 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           <div className="edge-detail-endpoint">
             <div className="edge-detail-endpoint-role">Target</div>
             <div
-              className="edge-detail-endpoint-id"
+              className="edge-detail-endpoint-label"
               style={{ color: nodeColor(edge.target) }}
               onClick={() => handleNavigate(edge.target)}
             >
-              {edge.target}
+              {targetLabel}
             </div>
-            <div className="edge-detail-endpoint-label">{targetLabel}</div>
-            <div className="edge-detail-endpoint-pov">{povLabel(edge.target)}</div>
+            <div className="edge-detail-endpoint-id">{edge.target}</div>
           </div>
         </div>
 

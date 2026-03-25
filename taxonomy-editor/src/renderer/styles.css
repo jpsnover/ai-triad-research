@@ -1282,6 +1282,18 @@ body {
   border: 1px solid rgba(176, 124, 198, 0.25);
 }
 
+.node-detail-title-line[data-cat="Cross-Cutting"] {
+  background: rgba(46, 170, 170, 0.08);
+  color: var(--color-cc, #2aaaaa);
+  border: 1px solid rgba(46, 170, 170, 0.2);
+}
+
+.node-detail-title-line[data-cat="Conflict"] {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
 .node-detail-title-sep {
   color: inherit;
   opacity: 0.5;
@@ -1350,17 +1362,15 @@ body {
 }
 
 .node-detail-related-list {
-  flex: 1;
   min-width: 0;
   overflow-y: auto;
-  border-right: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .node-detail-related-detail {
-  flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding-left: 8px;
+  flex: 1;
 }
 
 .node-detail-related-empty {
@@ -1371,6 +1381,113 @@ body {
   color: var(--text-secondary);
   font-size: 0.85rem;
   font-style: italic;
+}
+
+/* ─── Conflict detail ─────────────────────────────────── */
+
+.conflict-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.conflict-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
+.conflict-detail-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.conflict-detail-status {
+  flex: 0 0 auto;
+  min-width: 160px;
+}
+
+.conflict-status-select {
+  border-left-style: solid;
+}
+
+.conflict-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--border-color);
+  color: var(--text-primary);
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.conflict-add-btn {
+  margin-top: 8px;
+}
+
+/* ─── Conflict instance card ──────────────────────────── */
+
+.conflict-instance-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.conflict-instance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.conflict-instance-num {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.conflict-instance-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #ef4444;
+  opacity: 0.6;
+  padding: 0 4px;
+}
+
+.conflict-instance-remove:hover {
+  opacity: 1;
+}
+
+.conflict-instance-row {
+  display: flex;
+  gap: 12px;
+}
+
+.conflict-instance-doc {
+  flex: 2;
+}
+
+.conflict-instance-stance {
+  flex: 1;
+  min-width: 120px;
+}
+
+.conflict-stance-select {
+  font-weight: 600;
 }
 
 /* ─── Node detail research tab ──────────────────────────── */
@@ -3541,6 +3658,44 @@ body {
 
 /* ─── Possible Fallacies (inside Graph Attributes) ──── */
 
+/* ─── Policy Actions ──────────────────────────────────── */
+
+.ga-policy-actions-compact {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ga-policy-actions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-policy-action-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--focus-ring, #2563eb);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.ga-policy-action-text {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ga-policy-action-framing {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .ga-fallacy-list {
   margin: 2px 0 0 0;
   padding: 0;
@@ -4090,6 +4245,140 @@ body {
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
   flex-shrink: 0;
+}
+
+/* ─── Cross-Cutting Detail (tabbed view) ──────────────── */
+
+.cc-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+
+.cc-detail-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.cc-detail-tab {
+  background: none;
+  border: none;
+  padding: 8px 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.cc-detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.cc-detail-tab-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--focus-ring, #2563eb);
+}
+
+.cc-detail-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: 16px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-overview {
+  padding-right: 4px;
+}
+
+/* POV interpretation split layout */
+.cc-pov-split {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.cc-pov-interpretation {
+  flex: 2;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-pov-interpretation .form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-pov-interpretation .form-group textarea,
+.cc-pov-interpretation .form-group .highlighted-input-container {
+  flex: 1;
+  min-height: 120px;
+  resize: none;
+}
+
+.cc-pov-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+}
+
+.cc-pov-text {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.cc-pov-evidence {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.cc-pov-evidence-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+  padding-bottom: 6px;
+  border-bottom: 3px solid var(--color-acc, #16a34a);
+}
+
+.cc-detail-tab-active[style] ~ .cc-pov-evidence .cc-pov-evidence-heading {
+  /* Color is set dynamically via tab color */
+}
+
+.cc-pov-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.cc-pov-evidence-empty {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-style: italic;
+  padding: 8px 0;
 }
 
 .debate-cc-details-btn {
@@ -5290,15 +5579,16 @@ body {
   text-align: center;
 }
 
-.related-edge-node {
+.related-edge-label-primary {
   font-weight: 600;
-  font-size: 0.75rem;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  cursor: pointer;
-  flex-shrink: 0;
+  font-size: 0.8rem;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.related-edge-node:hover {
+.related-edge-label-primary:hover {
   text-decoration: underline;
 }
 
@@ -5352,14 +5642,20 @@ body {
   border-left: 2px solid #dc2626;
 }
 
-.related-edge-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+.related-edge-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 2px 0 0 22px;
+}
+
+.related-edge-id {
+  font-size: 0.7rem;
+  color: var(--text-primary);
   line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  opacity: 0.7;
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -5467,28 +5763,23 @@ body {
   margin-bottom: 4px;
 }
 
-.edge-detail-endpoint-id {
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  cursor: pointer;
-}
-
-.edge-detail-endpoint-id:hover {
-  text-decoration: underline;
-}
-
 .edge-detail-endpoint-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
   line-height: 1.3;
 }
 
-.edge-detail-endpoint-pov {
-  font-size: 0.65rem;
-  color: var(--text-muted);
+.edge-detail-endpoint-label:hover {
+  text-decoration: underline;
+}
+
+.edge-detail-endpoint-id {
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  opacity: 0.7;
   margin-top: 2px;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
 }
 
 .edge-detail-arrow {

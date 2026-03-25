@@ -13,7 +13,12 @@ Return a JSON object mapping node IDs to their graph_attributes:
     "falsifiability": "high",
     "audience": "policymakers, technical_researchers",
     "emotional_register": "measured",
-    "policy_actionability": "medium",
+    "policy_actions": [
+      {
+        "action": "Require pre-deployment safety evaluations for frontier AI models",
+        "framing": "The empirical evidence of misspecified objectives directly supports mandatory testing before deployment to catch harmful behaviors early."
+      }
+    ],
     "intellectual_lineage": [
       "Specific thinker or framework 1",
       "Specific movement or landmark work 2"
@@ -36,6 +41,8 @@ CONSTRAINTS:
   - The top-level keys MUST be the exact node IDs provided in the input.
   - Every node in the input MUST have a corresponding entry in the output.
   - All ten attribute fields are REQUIRED for every node.
+  - The "policy_actions" array may be empty (0 items) or contain up to 3 items.
+  - Each policy action "action" field must be specific and concrete (5-15 words).
   - The "possible_fallacies" array may be empty (0 items) or contain up to 3 items.
   - The "fallacy" value MUST be one of the exact keys from the KNOWN FALLACIES list in the prompt.
   - The "confidence" value MUST be one of: "likely", "possible", "borderline".
