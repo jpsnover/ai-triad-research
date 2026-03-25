@@ -1,13 +1,13 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 2026 Snover International Consulting LLC. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 @{
     RootModule        = 'AITriad.psm1'
     ModuleVersion     = '0.1.0'
     GUID              = 'a7c3e1f0-4b2d-4e8a-9f6c-1d3b5e7a9c0f'
-    Author            = 'jsnov'
-    CompanyName       = 'AI Triad Research'
-    Copyright         = '(c) 2026 AI Triad Research. All rights reserved.'
+    Author            = 'Jeffrey Snover'
+    CompanyName       = 'Snover International Consulting LLC'
+    Copyright         = '(c) 2026 Snover International Consulting LLC. All rights reserved.'
     Description       = 'AI Triad Research — taxonomy queries, document ingestion, POV analysis'
     PowerShellVersion = '7.0'
 
@@ -19,9 +19,9 @@
         'Invoke-POVSummary'
         'Invoke-BatchSummary'
         'Find-Conflict'
-        'Find-Source'
+        'Find-AITSource'
         'Save-WaybackUrl'
-        'Save-Source'
+        'Save-AITSource'
         'Invoke-PIIAudit'
         'Update-Snapshot'
         'Show-TaxonomyEditor'
@@ -31,7 +31,7 @@
         'Get-TaxonomyHealth'
         'Invoke-TaxonomyProposal'
         'Compare-Taxonomy'
-        'Get-Source'
+        'Get-AITSource'
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'
@@ -53,7 +53,7 @@
         'Show-TriadDialogue'
         'Register-AIBackend'
         'Install-AITriadData'
-        'Install-Dependencies'
+        'Install-AIDependencies'
         'Test-Dependencies'
         'Find-PossibleFallacy'
         'Find-PolicyAction'

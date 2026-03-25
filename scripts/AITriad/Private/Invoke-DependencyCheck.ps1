@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Shared dependency checking engine used by Install-Dependencies and Test-Dependencies.
+# Shared dependency checking engine used by Install-AIDependencies and Test-Dependencies.
 # Dot-sourced by AITriad.psm1 — do NOT export.
 
 function Invoke-DependencyCheck {

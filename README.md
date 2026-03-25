@@ -63,7 +63,7 @@ cd ai-triad-research
 Import-Module ./scripts/AITriad/AITriad.psm1
 
 # 3. Check dependencies (installs missing ones with -Fix)
-Install-Dependencies -Fix
+Install-AIDependencies -Fix
 
 # 4. Configure your AI API key (opens a browser-based UI)
 Register-AIBackend

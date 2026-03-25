@@ -3,11 +3,11 @@
 
 <#
 .SYNOPSIS
-    Bootstrap script — loads the AITriad module and runs Install-Dependencies.
+    Bootstrap script — loads the AITriad module and runs Install-AIDependencies.
 .DESCRIPTION
     This standalone script exists so users can run dependency checks before
     the module is set up. It loads the module and delegates to the
-    Install-Dependencies cmdlet.
+    Install-AIDependencies cmdlet.
 .PARAMETER Fix
     Attempt to install missing dependencies automatically.
 .PARAMETER Quiet
@@ -17,9 +17,9 @@
 .PARAMETER SkipPython
     Skip Python and embedding dependency checks.
 .EXAMPLE
-    ./scripts/Install-Dependencies.ps1
+    ./scripts/Install-AIDependencies.ps1
 .EXAMPLE
-    ./scripts/Install-Dependencies.ps1 -Fix
+    ./scripts/Install-AIDependencies.ps1 -Fix
 #>
 
 #Requires -Version 7.0
@@ -41,5 +41,5 @@ if ($Quiet)      { $Params['Quiet'] = $true }
 if ($SkipNode)   { $Params['SkipNode'] = $true }
 if ($SkipPython) { $Params['SkipPython'] = $true }
 
-$Result = Install-Dependencies @Params -PassThru
+$Result = Install-AIDependencies @Params -PassThru
 exit $(if ($Result.Failed -gt 0) { 1 } else { 0 })

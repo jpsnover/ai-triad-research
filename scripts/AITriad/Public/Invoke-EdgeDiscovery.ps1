@@ -6,7 +6,7 @@ function Invoke-EdgeDiscovery {
     .SYNOPSIS
         Uses AI to discover typed edges between taxonomy nodes (Phase 2 of LAG proposal).
     .DESCRIPTION
-        For each taxonomy node, sends the node plus the full candidate list to an LLM,
+        For each taxonomy node, sends the node plus a filtered candidate list to an LLM,
         which proposes typed, directed edges with confidence scores and rationale.
 
         Edges are stored in taxonomy/Origin/edges.json. Proposed edges require human
@@ -14,6 +14,18 @@ function Invoke-EdgeDiscovery {
 
         Nodes that have been edited since their last edge discovery are marked STALE
         and can be selectively re-processed with -StaleOnly.
+
+        SCALING FEATURES
+        ----------------
+        - Embedding pre-filter (-TopKCandidates): uses embeddings.json to send only the
+          top-K most semantically similar candidates per node instead of the full list,
+          reducing prompt size from O(N) to O(K) per call. Disabled with -SkipEmbeddingFilter.
+        - Cross-POV floor (-MinPerOtherPov): guarantees a minimum number of candidates
+          from each non-source POV to preserve cross-cutting relationship discovery.
+        - Parallel workers (-MaxConcurrent): runs multiple API calls concurrently using
+          ForEach-Object -Parallel. Default 1 (sequential).
+        - Checkpointing (-CheckpointEvery): writes edges.json every N nodes in sequential
+          mode so progress is not lost on crash or interruption.
     .PARAMETER POV
         Process only nodes from this POV. If omitted, processes all POVs and cross-cutting.
         Valid values: accelerationist, safetyist, skeptic, cross-cutting.
@@ -26,11 +38,26 @@ function Invoke-EdgeDiscovery {
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
-        Sampling temperature (0.0-1.0). Default: 0.3 (slightly creative for relationship discovery).
+        Sampling temperature (0.0-1.0). Default: 0.3.
     .PARAMETER DryRun
         Build and display the prompt for the first node, but do NOT call the API.
     .PARAMETER Force
         Re-discover edges for all nodes, even those that already have edges and are not STALE.
+    .PARAMETER MaxConcurrent
+        Number of parallel API workers. Default: 1 (sequential). Values > 1 enable
+        ForEach-Object -Parallel. Checkpointing is only active in sequential mode.
+    .PARAMETER TopKCandidates
+        Maximum number of embedding-filtered candidates per source node. Default: 40.
+        Has no effect when -SkipEmbeddingFilter is set or embeddings.json is absent.
+    .PARAMETER MinPerOtherPov
+        Minimum candidates from each non-source POV, added after top-K ranking to
+        ensure cross-cutting edge discovery. Default: 4.
+    .PARAMETER SkipEmbeddingFilter
+        Disable embedding-based pre-filtering and send all candidates per node.
+        Use when embeddings.json is stale or to replicate original behavior.
+    .PARAMETER CheckpointEvery
+        Write edges.json after every N nodes in sequential mode. Default: 10. Set to 0
+        to disable checkpointing (write only at the end).
     .PARAMETER RepoRoot
         Path to the repository root. Defaults to the module-resolved repo root.
     .EXAMPLE
@@ -41,6 +68,10 @@ function Invoke-EdgeDiscovery {
         Invoke-EdgeDiscovery -StaleOnly
     .EXAMPLE
         Invoke-EdgeDiscovery -NodeId "acc-goals-001" -Force
+    .EXAMPLE
+        Invoke-EdgeDiscovery -MaxConcurrent 6
+    .EXAMPLE
+        Invoke-EdgeDiscovery -TopKCandidates 30 -MinPerOtherPov 6
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -64,6 +95,20 @@ function Invoke-EdgeDiscovery {
 
         [switch]$Force,
 
+        [ValidateRange(1, 32)]
+        [int]$MaxConcurrent = 1,
+
+        [ValidateRange(5, 500)]
+        [int]$TopKCandidates = 40,
+
+        [ValidateRange(0, 20)]
+        [int]$MinPerOtherPov = 4,
+
+        [switch]$SkipEmbeddingFilter,
+
+        [ValidateRange(0, 100)]
+        [int]$CheckpointEvery = 10,
+
         [string]$RepoRoot = $script:RepoRoot
     )
 
@@ -74,13 +119,13 @@ function Invoke-EdgeDiscovery {
 
     if (-not (Test-Path $RepoRoot)) {
         Write-Fail "Repo root not found: $RepoRoot"
-        throw "Repo root not found"
+        throw 'Repo root not found'
     }
 
     $TaxDir = Get-TaxonomyDir
     if (-not (Test-Path $TaxDir)) {
         Write-Fail "Taxonomy directory not found: $TaxDir"
-        throw "Taxonomy directory not found"
+        throw 'Taxonomy directory not found'
     }
 
     if (-not $DryRun) {
@@ -93,6 +138,8 @@ function Invoke-EdgeDiscovery {
             Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
             throw 'No API key configured'
         }
+    } else {
+        $ResolvedKey = ''
     }
 
     # ── Step 2: Load all taxonomy nodes ──
@@ -140,47 +187,36 @@ function Invoke-EdgeDiscovery {
         }
     }
 
+    # Use a List for O(1) appends instead of O(N²) array concatenation
+    $EdgesList = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($Edge in @($EdgesData.edges)) {
+        $EdgesList.Add($Edge)
+    }
+
     # Build a set of existing edge keys for dedup: "source|type|target"
     $ExistingEdgeKeys = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($Edge in $EdgesData.edges) {
-        $Key = "$($Edge.source)|$($Edge.type)|$($Edge.target)"
-        [void]$ExistingEdgeKeys.Add($Key)
+    foreach ($Edge in $EdgesList) {
+        [void]$ExistingEdgeKeys.Add("$($Edge.source)|$($Edge.type)|$($Edge.target)")
     }
 
     # ── Step 4: Determine which nodes to process ──
     $NodesToProcess = [System.Collections.Generic.List[PSObject]]::new()
 
-    # Build set of node IDs that have been discovered
     $DiscoveredNodeIds = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($Entry in $EdgesData.discovery_log) {
         [void]$DiscoveredNodeIds.Add($Entry.node_id)
     }
 
     foreach ($Node in $AllNodes) {
-        # Filter by POV if specified
-        if ($POV -and $NodePovMap[$Node.id] -ne $POV) { continue }
+        if ($POV    -and $NodePovMap[$Node.id] -ne $POV)    { continue }
+        if ($NodeId -and $Node.id -ne $NodeId)              { continue }
 
-        # Filter by NodeId if specified
-        if ($NodeId -and $Node.id -ne $NodeId) { continue }
-
-        # Check if node needs processing
         $NeedsProcessing = $false
+        if     ($Force)                                                                               { $NeedsProcessing = $true }
+        elseif ($StaleOnly -and $Node.PSObject.Properties['edge_status'] -and $Node.edge_status -eq 'STALE') { $NeedsProcessing = $true }
+        elseif (-not $Force -and -not $StaleOnly -and -not $DiscoveredNodeIds.Contains($Node.id))    { $NeedsProcessing = $true }
 
-        if ($Force) {
-            $NeedsProcessing = $true
-        } elseif ($StaleOnly) {
-            # Check if node is marked STALE
-            if ($Node.PSObject.Properties['edge_status'] -and $Node.edge_status -eq 'STALE') {
-                $NeedsProcessing = $true
-            }
-        } elseif (-not $DiscoveredNodeIds.Contains($Node.id)) {
-            # Not yet discovered
-            $NeedsProcessing = $true
-        }
-
-        if ($NeedsProcessing) {
-            $NodesToProcess.Add($Node)
-        }
+        if ($NeedsProcessing) { $NodesToProcess.Add($Node) }
     }
 
     if ($NodesToProcess.Count -eq 0) {
@@ -190,43 +226,70 @@ function Invoke-EdgeDiscovery {
 
     Write-Info "$($NodesToProcess.Count) nodes to process"
 
-    # ── Step 5: Build candidate list (compact format for context efficiency) ──
-    $CandidateList = foreach ($Node in $AllNodes) {
-        $Entry = [ordered]@{
-            id    = $Node.id
-            pov   = $NodePovMap[$Node.id]
-            label = $Node.label
-        }
-        if ($Node.PSObject.Properties['category']) {
-            $Entry['category'] = $Node.category
-        }
-        if ($Node.PSObject.Properties['description']) {
-            # Truncate long descriptions to save context
-            $Desc = $Node.description
-            if ($Desc.Length -gt 200) {
-                $Desc = $Desc.Substring(0, 197) + '...'
+    # ── Step 5: Load embeddings (best-effort) ──
+    $Embeddings = @{}   # node ID → [double[]]
+
+    if (-not $SkipEmbeddingFilter) {
+        $EmbeddingsPath = Join-Path $TaxDir 'embeddings.json'
+        if (Test-Path $EmbeddingsPath) {
+            try {
+                $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json
+                foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
+                    $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
+                }
+                Write-OK "Loaded embeddings for $($Embeddings.Count) nodes (TopK=$TopKCandidates, MinPerPov=$MinPerOtherPov)"
+            } catch {
+                Write-Warn "Could not load embeddings.json, using full candidate list: $($_.Exception.Message)"
             }
-            $Entry['description'] = $Desc
+        } else {
+            Write-Info 'embeddings.json not found — using full candidate list'
         }
-        $Entry
+    } else {
+        Write-Info 'Embedding filter disabled (-SkipEmbeddingFilter)'
     }
-    $CandidateJson = $CandidateList | ConvertTo-Json -Depth 5
 
     # ── Step 6: Load prompts ──
     $SystemPrompt = Get-Prompt -Name 'edge-discovery'
     $SchemaPrompt = Get-Prompt -Name 'edge-discovery-schema'
 
-    # ── Step 7: Process each node ──
-    $TotalProcessed = 0
-    $TotalEdges     = 0
-    $TotalFailed    = 0
-    $NewEdgeTypes   = [System.Collections.Generic.List[PSObject]]::new()
+    # ── Step 7: Build per-node filtered candidate list and full prompt ──
+    Write-Step 'Building per-node prompts'
 
-    $NodeNum = 0
+    $NodePrompts = @{}   # node ID → full prompt string
+    $AllNodeArray = $AllNodes.ToArray()
+
     foreach ($Node in $NodesToProcess) {
-        $NodeNum++
         $PovKey = $NodePovMap[$Node.id]
-        Write-Step "[$NodeNum/$($NodesToProcess.Count)] $($Node.id) ($PovKey)"
+
+        # Filter candidates for this source node
+        if ($Embeddings.Count -gt 0) {
+            $Candidates = Get-FilteredCandidates `
+                -SourceId      $Node.id `
+                -Embeddings    $Embeddings `
+                -AllNodes      $AllNodeArray `
+                -NodePovMap    $NodePovMap `
+                -TopK          $TopKCandidates `
+                -MinPerOtherPov $MinPerOtherPov
+        } else {
+            $Candidates = @($AllNodes | Where-Object { $_.id -ne $Node.id })
+        }
+
+        # Build compact candidate JSON
+        $CandidateList = foreach ($Cand in $Candidates) {
+            $Entry = [ordered]@{
+                id    = $Cand.id
+                pov   = $NodePovMap[$Cand.id]
+                label = $Cand.label
+            }
+            if ($Cand.PSObject.Properties['category'])    { $Entry['category']    = $Cand.category }
+            if ($Cand.PSObject.Properties['description']) {
+                $Desc = $Cand.description
+                if ($Desc.Length -gt 200) { $Desc = $Desc.Substring(0, 197) + '...' }
+                $Entry['description'] = $Desc
+            }
+            $Entry
+        }
+        $CandidateJson = $CandidateList | ConvertTo-Json -Depth 5
 
         # Build source node context (full detail)
         $SourceContext = [ordered]@{
@@ -235,15 +298,11 @@ function Invoke-EdgeDiscovery {
             label       = $Node.label
             description = $Node.description
         }
-        if ($Node.PSObject.Properties['category']) {
-            $SourceContext['category'] = $Node.category
-        }
+        if ($Node.PSObject.Properties['category'])         { $SourceContext['category']        = $Node.category }
         if ($PovKey -eq 'cross-cutting' -and $Node.PSObject.Properties['interpretations']) {
             $SourceContext['interpretations'] = $Node.interpretations
         }
-        if ($Node.PSObject.Properties['graph_attributes']) {
-            $SourceContext['graph_attributes'] = $Node.graph_attributes
-        }
+        if ($Node.PSObject.Properties['graph_attributes']) { $SourceContext['graph_attributes'] = $Node.graph_attributes }
 
         $SourceJson = $SourceContext | ConvertTo-Json -Depth 10
 
@@ -276,149 +335,234 @@ $SchemaPrompt
             Write-Host $SourceJson -ForegroundColor White
             Write-Host ''
             Write-Host '--- CANDIDATE NODES ---' -ForegroundColor Yellow
-            Write-Host "($($AllNodes.Count) nodes, ~$($CandidateJson.Length) chars)" -ForegroundColor DarkGray
+            $CandCount = @($Candidates).Count
+            Write-Host "($CandCount candidates, ~$($CandidateJson.Length) chars)" -ForegroundColor DarkGray
+            if ($Embeddings.Count -gt 0) {
+                Write-Host "  (filtered from $($AllNodes.Count) using embeddings)" -ForegroundColor DarkGray
+            }
             Write-Host ''
             Write-Host "Total prompt length: ~$($FullPrompt.Length) chars (~$([Math]::Round($FullPrompt.Length / 4)) tokens est.)" -ForegroundColor Cyan
             Write-Host "Nodes to process: $($NodesToProcess.Count)" -ForegroundColor Cyan
             return
         }
 
-        # ── Call AI API ──
-        $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-        try {
-            $Result = Invoke-AIApi `
-                -Prompt $FullPrompt `
-                -Model $Model `
-                -ApiKey $ResolvedKey `
-                -Temperature $Temperature `
-                -MaxTokens 16384 `
-                -JsonMode `
-                -TimeoutSec 120
-        } catch {
-            Write-Fail "API call failed for $($Node.id): $_"
-            $TotalFailed++
-            continue
-        }
-        $Stopwatch.Stop()
-        Write-Info "API response in $([Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1))s"
+        $NodePrompts[$Node.id] = $FullPrompt
+    }
 
-        # ── Parse response ──
-        $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
-        try {
-            $Discovery = $ResponseText | ConvertFrom-Json -Depth 20
-        } catch {
-            Write-Warn "JSON parse failed, attempting repair..."
-            $Repaired = Repair-TruncatedJson -Text $ResponseText
-            try {
-                $Discovery = $Repaired | ConvertFrom-Json -Depth 20
-            } catch {
-                Write-Fail "Could not parse response for $($Node.id)"
+    # ── Step 8: Execute edge discovery ──
+    $TotalProcessed = 0
+    $TotalEdges     = 0
+    $TotalFailed    = 0
+    $NewEdgeTypes   = [System.Collections.Generic.List[PSObject]]::new()
+
+    # Shared save-checkpoint logic (called in sequential mode)
+    $SaveCheckpoint = {
+        param([string]$Path, [PSObject]$Data, [System.Collections.Generic.List[PSObject]]$List)
+        $Data.edges         = $List.ToArray()
+        $Data.last_modified = (Get-Date).ToString('yyyy-MM-dd')
+        $Json = $Data | ConvertTo-Json -Depth 20
+        Set-Content -Path $Path -Value $Json -Encoding UTF8
+        Write-Info "Checkpoint saved ($($List.Count) edges)"
+    }
+
+    if ($MaxConcurrent -le 1) {
+        # ── Sequential path (with checkpointing) ──
+        $NodeNum = 0
+        foreach ($Node in $NodesToProcess) {
+            $NodeNum++
+            $PovKey = $NodePovMap[$Node.id]
+            Write-Step "[$NodeNum/$($NodesToProcess.Count)] $($Node.id) ($PovKey)"
+
+            $Disc = Invoke-NodeEdgeDiscovery `
+                -Node        $Node `
+                -FullPrompt  $NodePrompts[$Node.id] `
+                -Model       $Model `
+                -ApiKey      $ResolvedKey `
+                -Temperature $Temperature
+
+            # ── Process result ──
+            if ($Disc.Error) {
+                Write-Fail "$($Disc.NodeId): $($Disc.Error)"
                 $TotalFailed++
                 continue
             }
-        }
 
-        # Validate source_node_id
-        if ($Discovery.source_node_id -ne $Node.id) {
-            Write-Warn "$($Node.id): response source_node_id mismatch ('$($Discovery.source_node_id)'), correcting"
-        }
+            Write-Info "$($Disc.NodeId): API response in $($Disc.ElapsedSec)s"
 
-        # ── Process new edge types ──
-        if ($Discovery.PSObject.Properties['new_edge_types'] -and $Discovery.new_edge_types) {
-            foreach ($NewType in $Discovery.new_edge_types) {
-                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
-                $NewEdgeTypes.Add($NewType)
-            }
-        }
-
-        # ── Process edges ──
-        $NodeEdgeCount = 0
-        if ($Discovery.PSObject.Properties['edges'] -and $Discovery.edges) {
-            foreach ($Edge in @($Discovery.edges)) {
-                # Skip malformed edge objects (can happen from truncated JSON repair)
-                if (-not $Edge.PSObject.Properties['target'] -or
-                    -not $Edge.PSObject.Properties['type'] -or
-                    -not $Edge.PSObject.Properties['confidence']) {
-                    Write-Warn "$($Node.id): skipping malformed edge (missing target/type/confidence)"
+            $NodeEdgeCount = 0
+            foreach ($Edge in @($Disc.RawEdges)) {
+                if (-not ($Edge.PSObject.Properties['target'] -and
+                          $Edge.PSObject.Properties['type']   -and
+                          $Edge.PSObject.Properties['confidence'])) {
+                    Write-Warn "$($Disc.NodeId): malformed edge (missing target/type/confidence), skipping"
                     continue
                 }
-
-                # Validate target exists
                 if (-not $NodePovMap.ContainsKey($Edge.target)) {
-                    Write-Warn "$($Node.id) → $($Edge.target): target not found in taxonomy, skipping"
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): target not in taxonomy, skipping"
                     continue
                 }
-
-                # Skip self-edges
-                if ($Edge.target -eq $Node.id) {
-                    Write-Warn "$($Node.id): self-edge skipped"
+                if ($Edge.target -eq $Disc.NodeId) {
+                    Write-Warn "$($Disc.NodeId): self-edge skipped"
                     continue
                 }
-
-                # Validate confidence
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) {
-                    Write-Warn "$($Node.id) → $($Edge.target): confidence $Confidence < 0.5, skipping"
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): confidence $Confidence < 0.5, skipping"
                     continue
                 }
-
-                # Check for duplicate
-                $EdgeKey = "$($Node.id)|$($Edge.type)|$($Edge.target)"
+                $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"
                 if ($ExistingEdgeKeys.Contains($EdgeKey)) {
-                    Write-Info "$($Node.id) → $($Edge.target) ($($Edge.type)): already exists, skipping"
+                    Write-Info "$($Disc.NodeId) → $($Edge.target) ($($Edge.type)): already exists, skipping"
                     continue
                 }
 
-                # Build edge object
-                $Rationale = if ($Edge.PSObject.Properties['rationale']) { $Edge.rationale } else { '' }
-                $EdgeObj = [ordered]@{
-                    source        = $Node.id
+                $Bidir    = if ($Edge.PSObject.Properties['bidirectional']) { [bool]$Edge.bidirectional } else { $false }
+                $Rationale = if ($Edge.PSObject.Properties['rationale'])    { $Edge.rationale }           else { '' }
+                $EdgeObj  = [ordered]@{
+                    source        = $Disc.NodeId
                     target        = $Edge.target
                     type          = $Edge.type
-                    bidirectional = if ($Edge.PSObject.Properties['bidirectional']) { [bool]$Edge.bidirectional } else { $false }
+                    bidirectional = $Bidir
                     confidence    = $Confidence
                     rationale     = $Rationale
                     status        = 'proposed'
                     discovered_at = (Get-Date).ToString('yyyy-MM-dd')
                     model         = $Model
                 }
+                if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
+                if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
 
-                if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) {
-                    $EdgeObj['strength'] = $Edge.strength
-                }
-                if ($Edge.PSObject.Properties['notes'] -and $Edge.notes) {
-                    $EdgeObj['notes'] = $Edge.notes
-                }
-
-                # Add to edges array
-                $EdgesData.edges += [PSCustomObject]$EdgeObj
+                $EdgesList.Add([PSCustomObject]$EdgeObj)
                 [void]$ExistingEdgeKeys.Add($EdgeKey)
-
-                # Also add reverse key for bidirectional edges
-                if ($EdgeObj.bidirectional) {
-                    $ReverseKey = "$($Edge.target)|$($Edge.type)|$($Node.id)"
-                    [void]$ExistingEdgeKeys.Add($ReverseKey)
-                }
-
+                if ($Bidir) { [void]$ExistingEdgeKeys.Add("$($Edge.target)|$($Edge.type)|$($Disc.NodeId)") }
                 $NodeEdgeCount++
                 $TotalEdges++
             }
+
+            foreach ($NewType in @($Disc.NewEdgeTypes)) {
+                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                $NewEdgeTypes.Add($NewType)
+            }
+
+            Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s) proposed"
+
+            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+                node_id       = $Disc.NodeId
+                discovered_at = (Get-Date).ToString('yyyy-MM-dd')
+                model         = $Model
+                edge_count    = $NodeEdgeCount
+            }
+
+            $TotalProcessed++
+
+            # Checkpoint
+            if ($CheckpointEvery -gt 0 -and $TotalProcessed % $CheckpointEvery -eq 0) {
+                if ($PSCmdlet.ShouldProcess($EdgesPath, "Write checkpoint after $TotalProcessed nodes")) {
+                    try {
+                        & $SaveCheckpoint $EdgesPath $EdgesData $EdgesList
+                    } catch {
+                        Write-Warn "Checkpoint write failed: $($_.Exception.Message)"
+                    }
+                }
+            }
         }
 
-        Write-OK "$($Node.id): $NodeEdgeCount edge(s) proposed"
+    } else {
+        # ── Parallel path ──
+        Write-Info "Running $MaxConcurrent parallel workers"
 
-        # Update discovery log
-        $EdgesData.discovery_log += [PSCustomObject][ordered]@{
-            node_id       = $Node.id
-            discovered_at = (Get-Date).ToString('yyyy-MM-dd')
-            model         = $Model
-            edge_count    = $NodeEdgeCount
+        $DiscFnBody   = (Get-Command Invoke-NodeEdgeDiscovery).ScriptBlock.ToString()
+        $AIEnrichPath = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
+        $ParallelBag  = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
+
+        $NodesToProcess | ForEach-Object -Parallel {
+            Import-Module $using:AIEnrichPath -Force
+            . ([scriptblock]::Create("function Invoke-NodeEdgeDiscovery {$using:DiscFnBody}"))
+
+            $Prompts = $using:NodePrompts
+            $Disc = Invoke-NodeEdgeDiscovery `
+                -Node        $_ `
+                -FullPrompt  $Prompts[$_.id] `
+                -Model       $using:Model `
+                -ApiKey      $using:ResolvedKey `
+                -Temperature $using:Temperature
+
+            [void]($using:ParallelBag).Add($Disc)
+
+        } -ThrottleLimit $MaxConcurrent
+
+        # ── Merge parallel results ──
+        Write-Step 'Merging parallel results'
+
+        foreach ($Disc in $ParallelBag) {
+            if ($Disc.Error) {
+                Write-Fail "$($Disc.NodeId): $($Disc.Error)"
+                $TotalFailed++
+                continue
+            }
+
+            Write-Info "$($Disc.NodeId): $($Disc.ElapsedSec)s"
+
+            $NodeEdgeCount = 0
+            foreach ($Edge in @($Disc.RawEdges)) {
+                if (-not ($Edge.PSObject.Properties['target'] -and
+                          $Edge.PSObject.Properties['type']   -and
+                          $Edge.PSObject.Properties['confidence'])) {
+                    Write-Warn "$($Disc.NodeId): malformed edge, skipping"
+                    continue
+                }
+                if (-not $NodePovMap.ContainsKey($Edge.target)) {
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): target not in taxonomy, skipping"
+                    continue
+                }
+                if ($Edge.target -eq $Disc.NodeId) { continue }
+                $Confidence = [double]$Edge.confidence
+                if ($Confidence -lt 0.5) { continue }
+                $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"
+                if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
+
+                $Bidir    = if ($Edge.PSObject.Properties['bidirectional']) { [bool]$Edge.bidirectional } else { $false }
+                $Rationale = if ($Edge.PSObject.Properties['rationale'])    { $Edge.rationale }           else { '' }
+                $EdgeObj  = [ordered]@{
+                    source        = $Disc.NodeId
+                    target        = $Edge.target
+                    type          = $Edge.type
+                    bidirectional = $Bidir
+                    confidence    = $Confidence
+                    rationale     = $Rationale
+                    status        = 'proposed'
+                    discovered_at = (Get-Date).ToString('yyyy-MM-dd')
+                    model         = $Model
+                }
+                if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
+                if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
+
+                $EdgesList.Add([PSCustomObject]$EdgeObj)
+                [void]$ExistingEdgeKeys.Add($EdgeKey)
+                if ($Bidir) { [void]$ExistingEdgeKeys.Add("$($Edge.target)|$($Edge.type)|$($Disc.NodeId)") }
+                $NodeEdgeCount++
+                $TotalEdges++
+            }
+
+            foreach ($NewType in @($Disc.NewEdgeTypes)) {
+                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                $NewEdgeTypes.Add($NewType)
+            }
+
+            Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s)"
+
+            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+                node_id       = $Disc.NodeId
+                discovered_at = (Get-Date).ToString('yyyy-MM-dd')
+                model         = $Model
+                edge_count    = $NodeEdgeCount
+            }
+
+            $TotalProcessed++
         }
-
-        $TotalProcessed++
     }
 
-    # ── Step 8: Add any new edge types to the schema ──
+    # ── Step 9: Add any new edge types to the schema ──
     if ($NewEdgeTypes.Count -gt 0) {
         foreach ($NewType in $NewEdgeTypes) {
             $Existing = $EdgesData.edge_types | Where-Object { $_.type -eq $NewType.type }
@@ -434,16 +578,16 @@ $SchemaPrompt
         }
     }
 
-    # ── Step 9: Write edges file ──
+    # ── Step 10: Write edges file ──
     if ($TotalProcessed -gt 0) {
         if ($PSCmdlet.ShouldProcess($EdgesPath, 'Write edges file')) {
+            $EdgesData.edges        = $EdgesList.ToArray()
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
             $Json = $EdgesData | ConvertTo-Json -Depth 20
             try {
                 Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
                 Write-OK "Saved edges to $EdgesPath"
-            }
-            catch {
+            } catch {
                 Write-Fail "Failed to write edges.json — $($_.Exception.Message)"
                 Write-Info "$TotalEdges edges were discovered but NOT saved. Check file permissions and try again."
                 throw
@@ -460,7 +604,7 @@ $SchemaPrompt
     if ($NewEdgeTypes.Count -gt 0) {
         Write-Host "  New edge types:   $($NewEdgeTypes.Count)" -ForegroundColor Yellow
     }
-    Write-Host "  Total edges in store: $($EdgesData.edges.Count)" -ForegroundColor Cyan
+    Write-Host "  Total edges in store: $($EdgesList.Count)" -ForegroundColor Cyan
     Write-Host ''
     Write-Host 'Proposed edges need human approval. Use Approve-Edge or Review-Edges to manage.' -ForegroundColor DarkGray
     Write-Host ''

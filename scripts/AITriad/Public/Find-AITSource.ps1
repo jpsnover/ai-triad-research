@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Find-Source {
+function Find-AITSource {
     <#
     .SYNOPSIS
         Finds source documents whose summaries reference given taxonomy node IDs.
@@ -18,16 +18,16 @@ function Find-Source {
     .PARAMETER Id
         One or more taxonomy node ID patterns (supports wildcards).
     .EXAMPLE
-        Find-Source -Id 'skp-methods-005'
+        Find-AITSource -Id 'skp-methods-005'
         # Exact match — sources referencing that single node.
     .EXAMPLE
-        Find-Source -Id 'skp-methods*'
+        Find-AITSource -Id 'skp-methods*'
         # Wildcard — all skeptic methods nodes.
     .EXAMPLE
-        Find-Source -Id 'acc-goals-001','saf-data-002'
+        Find-AITSource -Id 'acc-goals-001','saf-data-002'
         # Multiple IDs — sources referencing either node.
     .EXAMPLE
-        Find-Source -Id 'cc-*'
+        Find-AITSource -Id 'cc-*'
         # All cross-cutting references.
     #>
     [CmdletBinding()]

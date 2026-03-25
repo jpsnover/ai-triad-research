@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Get-Source {
+function Get-AITSource {
     <#
     .SYNOPSIS
         Lists and filters source documents in the repository.
@@ -23,16 +23,16 @@ function Get-Source {
     .PARAMETER SourceType
         Filter to sources with this exact source_type.
     .EXAMPLE
-        Get-Source
+        Get-AITSource
         # Lists all sources sorted by date.
     .EXAMPLE
-        Get-Source '*china*'
+        Get-AITSource '*china*'
         # Sources whose ID matches *china*.
     .EXAMPLE
-        Get-Source -Pov safetyist
+        Get-AITSource -Pov safetyist
         # Sources tagged with the safetyist POV.
     .EXAMPLE
-        Get-Source -Status pending
+        Get-AITSource -Status pending
         # Sources whose summary is pending.
     #>
     [CmdletBinding()]
@@ -52,7 +52,7 @@ function Get-Source {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $SourcesDir = Get-SourcesDir
+    $SourcesDir = Get-AITSourcesDir
 
     if (-not (Test-Path $SourcesDir)) {
         Write-Warning "Sources directory not found: $SourcesDir"

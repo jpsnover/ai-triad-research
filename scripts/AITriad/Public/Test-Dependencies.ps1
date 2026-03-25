@@ -7,7 +7,7 @@ function Test-Dependencies {
         Tests whether all project dependencies are present, working, and up to date.
     .DESCRIPTION
         Runs smoke tests on all dependencies and checks for outdated packages.
-        Unlike Install-Dependencies, this command never installs or updates
+        Unlike Install-AIDependencies, this command never installs or updates
         anything — it only reports what it finds.
 
         For each dependency it checks:

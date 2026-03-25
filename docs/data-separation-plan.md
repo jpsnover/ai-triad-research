@@ -103,7 +103,7 @@ $TaxDir = Resolve-DataPath $script:Config.taxonomy_dir
 - `Invoke-POVSummary.ps1`, `Invoke-BatchSummary.ps1` — summaries/ write
 - `Find-Conflict.ps1` — conflicts/ write
 - `Show-TriadDialogue.ps1` — debates/ write
-- `Get-Source.ps1`, `Get-Summary.ps1` — data reads
+- `Get-AITSource.ps1`, `Get-Summary.ps1` — data reads
 - `Get-TaxonomyHealth.ps1` — reads all directories
 - And ~13 more
 

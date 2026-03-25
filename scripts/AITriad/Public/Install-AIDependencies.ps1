@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Install-Dependencies {
+function Install-AIDependencies {
     <#
     .SYNOPSIS
         Verifies and optionally installs all dependencies for AI Triad Research.
@@ -27,11 +27,11 @@ function Install-Dependencies {
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
-        Install-Dependencies
+        Install-AIDependencies
     .EXAMPLE
-        Install-Dependencies -Fix
+        Install-AIDependencies -Fix
     .EXAMPLE
-        Install-Dependencies -Quiet -SkipNode
+        Install-AIDependencies -Quiet -SkipNode
     #>
     [CmdletBinding()]
     param(

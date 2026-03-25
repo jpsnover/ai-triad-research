@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Save-Source {
+function Save-AITSource {
     <#
     .SYNOPSIS
         Copies raw source documents to a target directory.
@@ -13,7 +13,7 @@ function Save-Source {
         If it already exists its contents are removed first.
 
         DocId accepts pipeline input by property name, so output from
-        Find-Source or other commands that emit a DocId property can be
+        Find-AITSource or other commands that emit a DocId property can be
         piped directly.
 
         The directory is prepared (created or cleared) once on the first
@@ -25,14 +25,14 @@ function Save-Source {
         One or more document IDs whose raw files should be copied.
         Accepts pipeline input by property name.
     .EXAMPLE
-        Save-Source -Directory './export' -DocId 'ai-as-normal-technology-2026'
+        Save-AITSource -Directory './export' -DocId 'ai-as-normal-technology-2026'
         # Copy one document's raw files.
     .EXAMPLE
-        Save-Source -Directory './export' -DocId 'ai-as-normal-technology-2026','concrete-problems-ai-safety-2026'
+        Save-AITSource -Directory './export' -DocId 'ai-as-normal-technology-2026','concrete-problems-ai-safety-2026'
         # Copy multiple documents' raw files.
     .EXAMPLE
-        Find-Source -Id 'skp-methods-005' | Save-Source -Directory './export'
-        # Pipeline from Find-Source.
+        Find-AITSource -Id 'skp-methods-005' | Save-AITSource -Directory './export'
+        # Pipeline from Find-AITSource.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
