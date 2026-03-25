@@ -56,7 +56,7 @@ function Get-ConflictEvolution {
     $ErrorActionPreference = 'Stop'
 
     # ── Load taxonomy nodes ──
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
     $AllNodes = @{}
     $NodePovMap = @{}
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
@@ -78,7 +78,7 @@ function Get-ConflictEvolution {
     }
 
     # ── Load conflicts ──
-    $ConflictDir = Join-Path $RepoRoot 'conflicts'
+    $ConflictDir = Get-ConflictsDir
     if (-not (Test-Path $ConflictDir)) {
         Write-Fail "Conflicts directory not found: $ConflictDir"
         return

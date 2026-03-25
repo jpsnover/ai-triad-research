@@ -6,7 +6,7 @@
 function Add-ToSummaryQueue {
     param([string]$DocId)
 
-    $QueueFile = Join-Path $script:RepoRoot '.summarise-queue.json'
+    $QueueFile = Get-QueueFile
     $Queue = @()
     if (Test-Path $QueueFile) {
         try {

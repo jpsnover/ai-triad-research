@@ -52,7 +52,7 @@ function Get-Source {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $SourcesDir = Join-Path $script:RepoRoot 'sources'
+    $SourcesDir = Get-SourcesDir
 
     if (-not (Test-Path $SourcesDir)) {
         Write-Warning "Sources directory not found: $SourcesDir"

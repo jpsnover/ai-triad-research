@@ -76,7 +76,7 @@ function Find-CrossCuttingCandidates {
 
     # ── Step 2: Load embeddings ───────────────────────────────────────────────
     Write-Step 'Loading embeddings'
-    $EmbeddingsFile = Join-Path $RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+    $EmbeddingsFile = Get-TaxonomyDir 'embeddings.json'
     $Embeddings     = @{}
 
     if (-not (Test-Path $EmbeddingsFile)) {
@@ -99,7 +99,7 @@ function Find-CrossCuttingCandidates {
 
     # ── Step 3: Load edges for boost scoring ──────────────────────────────────
     Write-Step 'Loading edges'
-    $TaxDir    = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir    = Get-TaxonomyDir
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $EdgePairs = @{}  # "nodeA|nodeB" → list of edge types
 

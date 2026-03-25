@@ -138,7 +138,7 @@ function Get-Tax {
             return
         }
 
-        $EmbeddingsFile = Join-Path $script:RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+        $EmbeddingsFile = Get-TaxonomyDir 'embeddings.json'
         if (-not (Test-Path $EmbeddingsFile)) {
             Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
             return
@@ -206,7 +206,7 @@ function Get-Tax {
             return
         }
 
-        $EmbeddingsFile = Join-Path $script:RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+        $EmbeddingsFile = Get-TaxonomyDir 'embeddings.json'
         if (-not (Test-Path $EmbeddingsFile)) {
             Write-Error "embeddings.json not found. Run Update-TaxEmbeddings first."
             return

@@ -9,7 +9,7 @@ function Resolve-DocId {
         [string]$Year = (Get-Date -Format 'yyyy')
     )
 
-    $SourcesDir = Join-Path $script:RepoRoot 'sources'
+    $SourcesDir = Get-SourcesDir
     if (-not (Test-Path $SourcesDir)) {
         Write-Warning "Sources directory not found: $SourcesDir — uniqueness check skipped"
     }

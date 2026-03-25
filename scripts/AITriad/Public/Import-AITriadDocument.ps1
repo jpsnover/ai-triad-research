@@ -91,7 +91,7 @@ function Import-AITriadDocument {
     $ErrorActionPreference = 'Stop'
 
     # -- Paths ----------------------------------------------------------------
-    $SourcesDir = Join-Path $script:RepoRoot 'sources'
+    $SourcesDir = Get-SourcesDir
     $InboxDir   = Join-Path $SourcesDir '_inbox'
 
     # -- AI API key (read once; absence is non-fatal) -------------------------

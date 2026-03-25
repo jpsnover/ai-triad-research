@@ -32,8 +32,8 @@ function Find-Conflict {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $ConflictsDir = Join-Path $script:RepoRoot 'conflicts'
-    $SummariesDir = Join-Path $script:RepoRoot 'summaries'
+    $ConflictsDir = Get-ConflictsDir
+    $SummariesDir = Get-SummariesDir
 
     # -- Load summary --------------------------------------------------------
     $SummaryPath = Join-Path $SummariesDir "$DocId.json"

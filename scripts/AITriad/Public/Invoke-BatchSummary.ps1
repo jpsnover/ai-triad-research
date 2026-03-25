@@ -83,11 +83,11 @@ function Invoke-BatchSummary {
 
     # -- Paths ----------------------------------------------------------------
     $RepoRoot      = $script:RepoRoot
-    $SourcesDir    = Join-Path $RepoRoot 'sources'
-    $SummariesDir  = Join-Path $RepoRoot 'summaries'
-    $TaxonomyDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
-    $VersionFile   = Join-Path $RepoRoot 'TAXONOMY_VERSION'
-    $ConflictsDir  = Join-Path $RepoRoot 'conflicts'
+    $SourcesDir    = Get-SourcesDir
+    $SummariesDir  = Get-SummariesDir
+    $TaxonomyDir   = Get-TaxonomyDir
+    $VersionFile   = Get-VersionFile
+    $ConflictsDir  = Get-ConflictsDir
 
     # -- POV file -> camp mapping ---------------------------------------------
     $PovFileMap = [ordered]@{

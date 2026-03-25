@@ -24,6 +24,7 @@ import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { EdgeBrowser } from './EdgeBrowser';
 
 interface PovTabProps {
   pov: Pov;
@@ -299,6 +300,10 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="list-panel" style={{ width }}>
           {renderToolbarPane()}
         </div>
+      ) : toolbarPanel === 'edges' ? (
+        <div className="list-panel list-panel-full">
+          <EdgeBrowser />
+        </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
@@ -345,7 +350,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -361,7 +366,7 @@ export function PovTab({ pov }: PovTabProps) {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console') ? null
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges') ? null
       : toolbarPanel === 'prompts' ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />

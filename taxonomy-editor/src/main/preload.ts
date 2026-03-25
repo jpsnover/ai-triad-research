@@ -89,6 +89,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadEdges: (): Promise<unknown> =>
     ipcRenderer.invoke('load-edges'),
 
+  updateEdgeStatus: (index: number, status: string): Promise<unknown> =>
+    ipcRenderer.invoke('update-edge-status', index, status),
+
+  bulkUpdateEdges: (indices: number[], status: string): Promise<unknown> =>
+    ipcRenderer.invoke('bulk-update-edges', indices, status),
+
   // Debate sessions
   listDebateSessions: (): Promise<unknown[]> =>
     ipcRenderer.invoke('list-debate-sessions'),

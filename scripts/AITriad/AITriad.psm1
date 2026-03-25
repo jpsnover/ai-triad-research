@@ -91,7 +91,7 @@ if (Test-Path $AIEnrichPath) {
 # ─────────────────────────────────────────────────────────────────────────────
 # Load taxonomy data at import time (same logic as standalone Taxonomy.psm1)
 # ─────────────────────────────────────────────────────────────────────────────
-$TaxonomyDir = Join-Path $script:RepoRoot 'taxonomy' 'Origin'
+$TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json') { continue }
@@ -118,7 +118,6 @@ Set-Alias -Name 'Import-Document'  -Value 'Import-AITriadDocument'  -Scope Globa
 Set-Alias -Name 'TaxonomyEditor'   -Value 'Show-TaxonomyEditor'    -Scope Global
 Set-Alias -Name 'POViewer'         -Value 'Show-POViewer'           -Scope Global
 Set-Alias -Name 'SummaryViewer'    -Value 'Show-SummaryViewer'      -Scope Global
-Set-Alias -Name 'EdgeViewer'       -Value 'Show-EdgeViewer'         -Scope Global
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +138,6 @@ Export-ModuleMember -Function @(
     'Show-TaxonomyEditor'
     'Show-POViewer'
     'Show-SummaryViewer'
-    'Show-EdgeViewer'
     'Show-AITriadHelp'
     'Get-TaxonomyHealth'
     'Invoke-TaxonomyProposal'
@@ -175,6 +173,5 @@ Export-ModuleMember -Function @(
     'TaxonomyEditor'
     'POViewer'
     'SummaryViewer'
-    'EdgeViewer'
     'Redo-Snapshots'
 )

@@ -124,7 +124,7 @@ function Export-TaxonomyToGraph {
 
     # ── Step 4: Load and export taxonomy nodes ──
     Write-Step 'Exporting taxonomy nodes'
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
     $NodeCount = 0
 
@@ -230,7 +230,7 @@ SET $SetParts
 
     # ── Step 6: Export conflicts ──
     Write-Step 'Exporting conflicts'
-    $ConflictDir = Join-Path $RepoRoot 'conflicts'
+    $ConflictDir = Get-ConflictsDir
     $ConflictCount = 0
     $ConflictFailCount = 0
 

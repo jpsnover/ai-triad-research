@@ -156,7 +156,7 @@ function Show-FallacyInfo {
         Write-Host "  Taxonomy nodes flagged for $($Match.display_name):" -ForegroundColor Yellow
         Write-Host "  $('─' * 50)" -ForegroundColor DarkGray
 
-        $TaxDir  = Join-Path $RepoRoot 'taxonomy' 'Origin'
+        $TaxDir  = Get-TaxonomyDir
         $Found   = 0
         $PovKeys = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
 

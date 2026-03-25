@@ -90,7 +90,7 @@ function Get-IngestionPriority {
     }
 
     # --- One-sided conflicts (score 8) ---
-    $ConflictDir = Join-Path $RepoRoot 'conflicts'
+    $ConflictDir = Get-ConflictsDir
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
             try {
@@ -180,7 +180,7 @@ function Get-IngestionPriority {
         if ($POV -ne 'all' -and $NC.POV -ne $POV) { continue }
 
         # Check if this node is only cited from docs tagged with a single POV
-        $SourcesDir = Join-Path $RepoRoot 'sources'
+        $SourcesDir = Get-SourcesDir
         $DocPovs = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($DId in $NC.DocIds) {
             $MetaPath = Join-Path $SourcesDir $DId 'metadata.json'

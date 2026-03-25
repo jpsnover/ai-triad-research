@@ -70,7 +70,7 @@ function Get-TopicFrequency {
         throw "Repository root not found: $RepoRoot"
     }
 
-    $SummariesDir = Join-Path $RepoRoot 'summaries'
+    $SummariesDir = Get-SummariesDir
     if (-not (Test-Path $SummariesDir)) {
         Write-Fail "Summaries directory not found: $SummariesDir"
         Write-Info "Run Invoke-POVSummary to generate summaries first."
@@ -176,7 +176,7 @@ function Get-TopicFrequency {
 
     # ── Step 2: Load embeddings ──────────────────────────────────────────────
     Write-Step "Loading embeddings"
-    $EmbeddingsFile = Join-Path $RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+    $EmbeddingsFile = Get-TaxonomyDir 'embeddings.json'
     $Embeddings     = @{}
 
     if (Test-Path $EmbeddingsFile) {

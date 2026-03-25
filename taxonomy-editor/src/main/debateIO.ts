@@ -4,8 +4,9 @@
 import fs from 'fs';
 import path from 'path';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
-const DEBATES_DIR = path.join(PROJECT_ROOT, 'debates');
+import { resolveDataPath } from './fileIO';
+
+const DEBATES_DIR = resolveDataPath('debates');
 
 export interface DebateSessionSummary {
   id: string;

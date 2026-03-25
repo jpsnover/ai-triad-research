@@ -77,7 +77,7 @@ function Invoke-EdgeDiscovery {
         throw "Repo root not found"
     }
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
     if (-not (Test-Path $TaxDir)) {
         Write-Fail "Taxonomy directory not found: $TaxDir"
         throw "Taxonomy directory not found"

@@ -11,6 +11,7 @@ import {
   createConflictFile,
   deleteConflictFile,
   readEdgesFile,
+  writeEdgesFile,
   getTaxonomyDirs,
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
@@ -117,6 +118,31 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-edges', () => {
     return readEdgesFile();
+  });
+
+  ipcMain.handle('update-edge-status', (_event, index: number, status: string) => {
+    const data = readEdgesFile() as Record<string, unknown>;
+    if (!data) throw new Error('No edges.json found');
+    const edges = data['edges'] as Record<string, unknown>[];
+    if (index < 0 || index >= edges.length) throw new Error(`Index ${index} out of range`);
+    edges[index]['status'] = status;
+    writeEdgesFile(data);
+    return { index, status };
+  });
+
+  ipcMain.handle('bulk-update-edges', (_event, indices: number[], status: string) => {
+    const data = readEdgesFile() as Record<string, unknown>;
+    if (!data) throw new Error('No edges.json found');
+    const edges = data['edges'] as Record<string, unknown>[];
+    let updated = 0;
+    for (const idx of indices) {
+      if (idx >= 0 && idx < edges.length) {
+        edges[idx]['status'] = status;
+        updated++;
+      }
+    }
+    writeEdgesFile(data);
+    return { updated, status };
   });
 
   // ── Debate session handlers ────────────────────────────

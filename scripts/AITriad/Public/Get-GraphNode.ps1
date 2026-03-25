@@ -44,7 +44,7 @@ function Get-GraphNode {
 
     Set-StrictMode -Version Latest
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
 
     # Load all nodes
     $AllNodes = @{}

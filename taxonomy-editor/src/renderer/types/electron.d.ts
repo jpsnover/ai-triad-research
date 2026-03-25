@@ -27,6 +27,8 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
   loadEdges: () => Promise<unknown>;
+  updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
+  bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
   listDebateSessions: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;

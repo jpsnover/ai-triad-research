@@ -1,0 +1,10 @@
+{
+  "data_root": ".",
+  "taxonomy_dir": "taxonomy/Origin",
+  "sources_dir": "sources",
+  "summaries_dir": "summaries",
+  "conflicts_dir": "conflicts",
+  "debates_dir": "debates",
+  "queue_file": ".summarise-queue.json",
+  "version_file": "TAXONOMY_VERSION"
+}

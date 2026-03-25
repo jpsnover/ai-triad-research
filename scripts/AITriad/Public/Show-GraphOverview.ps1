@@ -29,7 +29,7 @@ function Show-GraphOverview {
 
     Set-StrictMode -Version Latest
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
 
     # ── Load nodes ──
     $AllNodes = @{}

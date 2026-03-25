@@ -125,7 +125,7 @@ function Get-Edge {
 
     Set-StrictMode -Version Latest
 
-    $TaxDir    = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir    = Get-TaxonomyDir
     $EdgesPath = Join-Path $TaxDir 'edges.json'
 
     if (-not (Test-Path $EdgesPath)) {

@@ -49,8 +49,8 @@ function Get-Summary {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $SummariesDir = Join-Path $script:RepoRoot 'summaries'
-    $SourcesDir   = Join-Path $script:RepoRoot 'sources'
+    $SummariesDir = Get-SummariesDir
+    $SourcesDir   = Get-SourcesDir
 
     if (-not (Test-Path $SummariesDir)) {
         Write-Warning "Summaries directory not found: $SummariesDir"

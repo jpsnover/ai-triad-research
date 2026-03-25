@@ -49,14 +49,14 @@ function Get-TaxonomyHealthData {
     }
 
     # ── 2. Read TAXONOMY_VERSION ───────────────────────────────────────────────
-    $VersionFile = Join-Path $RepoRoot 'TAXONOMY_VERSION'
+    $VersionFile = Get-VersionFile
     $TaxonomyVersion = if (Test-Path $VersionFile) {
         (Get-Content $VersionFile -Raw).Trim()
     } else { 'unknown' }
 
     # ── 3. Scan every summaries/*.json ─────────────────────────────────────────
-    $SummariesDir = Join-Path $RepoRoot 'summaries'
-    $SourcesDir   = Join-Path $RepoRoot 'sources'
+    $SummariesDir = Get-SummariesDir
+    $SourcesDir   = Get-SourcesDir
 
     if (-not (Test-Path $SummariesDir)) {
         throw "Summaries directory not found: $SummariesDir"
@@ -282,7 +282,7 @@ function Get-TaxonomyHealthData {
     # ── 5. Graph health metrics (when -GraphMode) ──────────────────────────────
     $GraphHealth = $null
     if ($GraphMode) {
-        $TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
+        $TaxDir   = Get-TaxonomyDir
         $EdgesPath = Join-Path $TaxDir 'edges.json'
 
         if (-not (Test-Path $EdgesPath)) {

@@ -88,7 +88,7 @@ function Show-TriadDialogue {
     # ── Step 3: Build POV context per agent ───────────────────────────────────
     Write-Step 'Building POV context for agents'
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
 
     # Load all nodes
     $AllNodes = @{}
@@ -466,7 +466,7 @@ function Show-TriadDialogue {
     # Write to file
     $TargetFile = if ($OutputFile) { $OutputFile }
                   else {
-                      $DebatesDir = Join-Path $RepoRoot 'debates'
+                      $DebatesDir = Get-DebatesDir
                       if (-not (Test-Path $DebatesDir)) {
                           $null = New-Item -ItemType Directory -Path $DebatesDir -Force
                       }

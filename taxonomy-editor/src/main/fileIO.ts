@@ -6,9 +6,54 @@ import path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
-const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
-let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
-const CONFLICTS_DIR = path.join(PROJECT_ROOT, 'conflicts');
+// ── Data path resolution from .aitriad.json ──
+interface AiTriadConfig {
+  data_root: string;
+  taxonomy_dir: string;
+  sources_dir: string;
+  summaries_dir: string;
+  conflicts_dir: string;
+  debates_dir: string;
+  queue_file: string;
+  version_file: string;
+}
+
+function loadDataConfig(): AiTriadConfig {
+  const defaults: AiTriadConfig = {
+    data_root: '.',
+    taxonomy_dir: 'taxonomy/Origin',
+    sources_dir: 'sources',
+    summaries_dir: 'summaries',
+    conflicts_dir: 'conflicts',
+    debates_dir: 'debates',
+    queue_file: '.summarise-queue.json',
+    version_file: 'TAXONOMY_VERSION',
+  };
+  try {
+    const configPath = path.join(PROJECT_ROOT, '.aitriad.json');
+    if (fs.existsSync(configPath)) {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      return { ...defaults, ...raw };
+    }
+  } catch { /* use defaults */ }
+  return defaults;
+}
+
+function resolveDataPath(subPath: string): string {
+  const config = loadDataConfig();
+  const envRoot = process.env.AI_TRIAD_DATA_ROOT;
+  const dataRoot = envRoot || (path.isAbsolute(config.data_root)
+    ? config.data_root
+    : path.resolve(PROJECT_ROOT, config.data_root));
+  return path.isAbsolute(subPath) ? subPath : path.resolve(dataRoot, subPath);
+}
+
+const _config = loadDataConfig();
+const TAXONOMY_BASE = path.dirname(resolveDataPath(_config.taxonomy_dir));
+let activeTaxonomyDir = resolveDataPath(_config.taxonomy_dir);
+const CONFLICTS_DIR = resolveDataPath(_config.conflicts_dir);
+
+export { PROJECT_ROOT, resolveDataPath };
 
 const POV_FILE_MAP: Record<string, string> = {
   accelerationist: 'accelerationist.json',
@@ -98,4 +143,9 @@ export function readEdgesFile(): unknown | null {
   if (!fs.existsSync(edgesPath)) return null;
   const raw = fs.readFileSync(edgesPath, 'utf-8');
   return JSON.parse(raw);
+}
+
+export function writeEdgesFile(data: unknown): void {
+  const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
+  fs.writeFileSync(edgesPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }

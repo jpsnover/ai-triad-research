@@ -23,11 +23,8 @@ let embeddingsCache: EmbeddingsFile | null = null;
 let embeddingsCachePath: string | null = null;
 
 function getEmbeddingsPath(): string {
-  // Import fileIO's active taxonomy dir logic
-  const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
-  // Read the same active dir that fileIO uses — default to Origin
-  const originDir = path.join(TAXONOMY_BASE, 'Origin');
-  return path.join(originDir, 'embeddings.json');
+  const { resolveDataPath } = require('./fileIO');
+  return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
 }
 
 function loadEmbeddingsFile(): EmbeddingsFile | null {

@@ -427,7 +427,7 @@ function Invoke-DependencyCheck {
                 catch { DWarn "Could not check Python packages: $_" }
             }
 
-            $EmbFile = Join-Path $RepoRoot 'taxonomy' 'Origin' 'embeddings.json'
+            $EmbFile = Get-TaxonomyDir 'embeddings.json'
             if (Test-Path $EmbFile) {
                 try {
                     $EmbData = Get-Content -Raw -Path $EmbFile | ConvertFrom-Json -Depth 3
@@ -489,7 +489,7 @@ function Invoke-DependencyCheck {
     # ── 8. DATA INTEGRITY ────────────────────────────────────────────────────
     DSection 'DATA INTEGRITY'
 
-    $TaxDir    = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir    = Get-TaxonomyDir
     $TaxFiles  = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json')
     $TotalNodes = 0
     foreach ($TF in $TaxFiles) {

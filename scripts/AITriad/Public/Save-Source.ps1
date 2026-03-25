@@ -47,7 +47,7 @@ function Save-Source {
         Set-StrictMode -Version Latest
         $ErrorActionPreference = 'Stop'
 
-        $SourcesDir  = Join-Path $script:RepoRoot 'sources'
+        $SourcesDir  = Get-SourcesDir
         $Prepared    = $false
         $CopiedCount = 0
     }

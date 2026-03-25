@@ -19,7 +19,7 @@ function Invoke-ProposalApply {
 
     Set-StrictMode -Version Latest
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
 
     $PovFileMap = @{
         accelerationist = 'accelerationist.json'

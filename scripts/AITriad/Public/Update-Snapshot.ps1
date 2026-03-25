@@ -32,7 +32,7 @@ function Update-Snapshot {
     # Paths (use module-scoped $script:RepoRoot set by AITriad.psm1)
     # ─────────────────────────────────────────────────────────────────────────
     $RepoRoot   = $script:RepoRoot
-    $SourcesDir = Join-Path $RepoRoot 'sources'
+    $SourcesDir = Get-SourcesDir
 
     # ─────────────────────────────────────────────────────────────────────────
     # Extract the provenance header from an existing snapshot.md

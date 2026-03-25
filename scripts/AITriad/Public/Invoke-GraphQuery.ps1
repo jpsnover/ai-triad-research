@@ -78,7 +78,7 @@ function Invoke-GraphQuery {
         throw 'No API key configured'
     }
 
-    $TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+    $TaxDir = Get-TaxonomyDir
 
     # ── Step 2: Load full graph ──
     Write-Step 'Loading taxonomy graph'
@@ -132,7 +132,7 @@ function Invoke-GraphQuery {
     # ── Step 4: Optionally load conflicts ──
     $ConflictData = @()
     if ($IncludeConflicts) {
-        $ConflictDir = Join-Path $RepoRoot 'conflicts'
+        $ConflictDir = Get-ConflictsDir
         if (Test-Path $ConflictDir) {
             foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
                 try {

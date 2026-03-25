@@ -66,15 +66,15 @@ function Invoke-POVSummary {
 
     $paths = @{
         Root         = $RepoRoot
-        TaxonomyDir  = Join-Path $RepoRoot "taxonomy" "Origin"
-        SourcesDir   = Join-Path $RepoRoot "sources"
-        SummariesDir = Join-Path $RepoRoot "summaries"
-        ConflictsDir = Join-Path $RepoRoot "conflicts"
-        VersionFile  = Join-Path $RepoRoot "TAXONOMY_VERSION"
-        DocDir       = Join-Path $RepoRoot "sources" $DocId
-        SnapshotFile = Join-Path $RepoRoot "sources" $DocId "snapshot.md"
-        MetadataFile = Join-Path $RepoRoot "sources" $DocId "metadata.json"
-        SummaryFile  = Join-Path $RepoRoot "summaries" "$DocId.json"
+        TaxonomyDir  = Get-TaxonomyDir
+        SourcesDir   = Get-SourcesDir
+        SummariesDir = Get-SummariesDir
+        ConflictsDir = Get-ConflictsDir
+        VersionFile  = Get-VersionFile
+        DocDir       = Join-Path (Get-SourcesDir) $DocId
+        SnapshotFile = Join-Path (Get-SourcesDir) $DocId "snapshot.md"
+        MetadataFile = Join-Path (Get-SourcesDir) $DocId "metadata.json"
+        SummaryFile  = Join-Path (Get-SummariesDir) "$DocId.json"
     }
 
     if (-not (Test-Path $paths.Root)) {
