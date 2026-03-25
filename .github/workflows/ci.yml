@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-powershell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ../ai-triad-data
+          fetch-depth: 1
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests/'
+          $config.Output.Verbosity = 'Detailed'
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config
+
+      - name: Build module
+        shell: pwsh
+        run: ./scripts/Build-Module.ps1 -Clean
+
+      - name: Validate built manifest
+        shell: pwsh
+        run: Test-ModuleManifest -Path ./build/AITriad/AITriad.psd1
+
+  test-electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: taxonomy-editor
+        run: npm ci
+
+      - name: TypeScript check (main)
+        working-directory: taxonomy-editor
+        run: npx tsc --noEmit -p tsconfig.main.json
+
+      - name: Build
+        working-directory: taxonomy-editor
+        run: npm run build

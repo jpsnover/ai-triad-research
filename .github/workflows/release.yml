@@ -1,0 +1,189 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '20'
+  PWSH_VERSION: '7.5'
+
+jobs:
+  # ── Run Pester tests ──────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ../ai-triad-data
+          # Shallow clone to save time — tests only need taxonomy files
+          fetch-depth: 1
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests/'
+          $config.Output.Verbosity = 'Detailed'
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config
+
+  # ── Build PowerShell module ───────────────────────────────
+  build-ps-module:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build module
+        shell: pwsh
+        run: ./scripts/Build-Module.ps1 -Clean
+
+      - name: Validate manifest
+        shell: pwsh
+        run: Test-ModuleManifest -Path ./build/AITriad/AITriad.psd1
+
+      - name: Upload module artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITriad-Module
+          path: build/AITriad/
+
+      - name: Publish to PSGallery
+        if: env.PSGALLERY_API_KEY != ''
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          Publish-Module -Path ./build/AITriad -NuGetApiKey $env:PSGALLERY_API_KEY -Repository PSGallery
+
+  # ── Build Electron app (macOS) ────────────────────────────
+  build-electron-mac:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: taxonomy-editor
+        run: npm ci
+
+      - name: Build app
+        working-directory: taxonomy-editor
+        run: npm run build
+
+      - name: Package for macOS
+        working-directory: taxonomy-editor
+        run: npx electron-builder --mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITriad-macOS
+          path: taxonomy-editor/release/*.dmg
+
+  # ── Build Electron app (Windows) ──────────────────────────
+  build-electron-win:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: taxonomy-editor
+        run: npm ci
+
+      - name: Build app
+        working-directory: taxonomy-editor
+        run: npm run build
+
+      - name: Package for Windows
+        working-directory: taxonomy-editor
+        run: npx electron-builder --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITriad-Windows
+          path: taxonomy-editor/release/*.exe
+
+  # ── Build Electron app (Linux) ────────────────────────────
+  build-electron-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: taxonomy-editor
+        run: npm ci
+
+      - name: Build app
+        working-directory: taxonomy-editor
+        run: npm run build
+
+      - name: Package for Linux
+        working-directory: taxonomy-editor
+        run: npx electron-builder --linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITriad-Linux
+          path: |
+            taxonomy-editor/release/*.AppImage
+            taxonomy-editor/release/*.deb
+
+  # ── Create GitHub Release ─────────────────────────────────
+  create-release:
+    needs: [build-ps-module, build-electron-mac, build-electron-win, build-electron-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/AITriad-Module/**
+            artifacts/AITriad-macOS/**
+            artifacts/AITriad-Windows/**
+            artifacts/AITriad-Linux/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
