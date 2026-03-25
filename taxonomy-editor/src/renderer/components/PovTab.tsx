@@ -146,15 +146,17 @@ export function PovTab({ pov }: PovTabProps) {
   const hasToolbarPane = toolbarPanel !== null;
 
   // Auto-collapse pane 2 when edge detail opens; auto-expand when closed
-  // (only in non-toolbar mode — when toolbar=related, edge detail is already in pane 2)
+  // Skip when toolbar=related (edge detail is in pane 2) or when NodeDetail's Related tab is active
   const prevEdgeDetailForCollapse = useRef(false);
   useEffect(() => {
     const was = prevEdgeDetailForCollapse.current;
     prevEdgeDetailForCollapse.current = showEdgeDetail;
     if (toolbarPanel === 'related') return;
+    // If relatedNodeId is set but toolbar isn't 'related', NodeDetail's Related tab is handling it
+    if (relatedNodeId && !toolbarPanel) return;
     if (showEdgeDetail && !was) setDetailCollapsed(true);
     if (!showEdgeDetail && was) setDetailCollapsed(false);
-  }, [showEdgeDetail, toolbarPanel]);
+  }, [showEdgeDetail, toolbarPanel, relatedNodeId]);
 
   // Grow/shrink window for Analysis panel (child of Similar, still Pane 3)
   const prevShowAnalysis = useRef(false);
@@ -171,20 +173,21 @@ export function PovTab({ pov }: PovTabProps) {
   }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Grow/shrink window for Edge Detail panel (only in non-toolbar mode where it's a new Pane 3)
-  // When toolbar=related, edge detail is already in pane 2 — no window resize needed
+  // Skip when toolbar=related or when NodeDetail's Related tab is handling edges inline
   const prevShowEdgeDetail = useRef(false);
   useEffect(() => {
     const wasShowing = prevShowEdgeDetail.current;
     prevShowEdgeDetail.current = showEdgeDetail;
     if (showEdgeDetail === wasShowing) return;
     if (toolbarPanel === 'related') return;
+    if (relatedNodeId && !toolbarPanel) return; // NodeDetail Related tab is active
     const delta = edgeDetailWidth + 4;
     window.electronAPI.isMaximized().then((max) => {
       if (max) return;
       if (showEdgeDetail) window.electronAPI.growWindow(delta);
       else window.electronAPI.shrinkWindow(delta);
     });
-  }, [showEdgeDetail, toolbarPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showEdgeDetail, toolbarPanel, relatedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-refresh related edges when selection changes while panel is open
   useEffect(() => {

@@ -11,7 +11,7 @@ import type {
   TaxonomyRef,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode, GraphAttributes } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import {
   clarificationPrompt,
@@ -91,7 +91,30 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   return { povNodes, crossCuttingNodes };
 }
 
-/** Format taxonomy nodes into a concise context block for the LLM prompt */
+/** Format a single node's graph attributes as compact context lines */
+function formatNodeAttributes(attrs: GraphAttributes | undefined): string[] {
+  if (!attrs) return [];
+  const lines: string[] = [];
+  if (attrs.assumes && attrs.assumes.length > 0) {
+    lines.push(`  Assumes: ${attrs.assumes.join('; ')}`);
+  }
+  if (attrs.steelman_vulnerability) {
+    lines.push(`  Key vulnerability: ${attrs.steelman_vulnerability}`);
+  }
+  if (attrs.possible_fallacies && attrs.possible_fallacies.length > 0) {
+    const fallacyList = attrs.possible_fallacies
+      .filter(f => f.confidence !== 'borderline')
+      .map(f => `${f.fallacy.replace(/_/g, ' ')} (${f.confidence})`)
+      .join(', ');
+    if (fallacyList) lines.push(`  Watch for: ${fallacyList}`);
+  }
+  if (attrs.epistemic_type) {
+    lines.push(`  Epistemic type: ${attrs.epistemic_type}`);
+  }
+  return lines;
+}
+
+/** Format taxonomy nodes into a rich context block for the LLM prompt */
 function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): string {
   // Include up to maxNodes POV nodes + all cross-cutting (usually ~15)
   const povSlice = ctx.povNodes.slice(0, maxNodes);
@@ -99,15 +122,58 @@ function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): str
 
   for (const n of povSlice) {
     lines.push(`[${n.id}] ${n.label}: ${n.description}`);
+    lines.push(...formatNodeAttributes(n.graph_attributes));
   }
 
   if (ctx.crossCuttingNodes.length > 0) {
     lines.push('', '=== CROSS-CUTTING CONCERNS ===');
     for (const n of ctx.crossCuttingNodes) {
       lines.push(`[${n.id}] ${n.label}: ${n.description}`);
+      lines.push(...formatNodeAttributes(n.graph_attributes));
     }
   }
 
+  return lines.join('\n');
+}
+
+/** Format relevant edges between active debaters' nodes for the moderator */
+function formatEdgeContext(activePovers: string[]): string {
+  const edgesFile = useTaxonomyStore.getState().edgesFile;
+  if (!edgesFile?.edges) return '';
+
+  // Map pover labels to POV prefixes
+  const povPrefixes: Record<string, string> = {
+    accelerationist: 'acc-', safetyist: 'saf-', skeptic: 'skp-',
+  };
+  const labelToPov: Record<string, string> = {
+    Prometheus: 'accelerationist', Sentinel: 'safetyist', Cassandra: 'skeptic',
+  };
+
+  // Find cross-POV edges of high-signal types
+  const signalTypes = new Set(['CONTRADICTS', 'TENSION_WITH', 'WEAKENS', 'RESPONDS_TO']);
+  const activePovs = activePovers.map(l => labelToPov[l]).filter(Boolean);
+  const activePrefixes = activePovs.map(p => povPrefixes[p]).filter(Boolean);
+
+  const relevantEdges = edgesFile.edges.filter(e => {
+    if (!signalTypes.has(e.type)) return false;
+    if (e.status !== 'approved' && e.confidence < 0.75) return false;
+    // Must be cross-POV
+    const srcPrefix = activePrefixes.find(p => e.source.startsWith(p));
+    const tgtPrefix = activePrefixes.find(p => e.target.startsWith(p));
+    return srcPrefix && tgtPrefix && srcPrefix !== tgtPrefix;
+  });
+
+  if (relevantEdges.length === 0) return '';
+
+  // Take top edges by confidence
+  const top = relevantEdges
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 15);
+
+  const lines = ['', '=== KNOWN TENSIONS BETWEEN POSITIONS ==='];
+  for (const e of top) {
+    lines.push(`${e.source} ${e.type} ${e.target} (confidence: ${e.confidence.toFixed(2)})`);
+  }
   return lines.join('\n');
 }
 
@@ -167,7 +233,8 @@ function buildCrossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
 ): string {
-  return crossRespondSelectionPrompt(recentTranscript, activePovers);
+  const edgeContext = formatEdgeContext(activePovers);
+  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext);
 }
 
 function buildCrossRespondPrompt(
@@ -261,10 +328,18 @@ function formatRecentTranscript(
   return parts.join('\n\n');
 }
 
+/** Extended metadata from enriched debate prompts */
+interface PoverResponseMeta {
+  move_types?: string[];
+  disagreement_type?: string;
+  key_assumptions?: { assumption: string; if_wrong: string }[];
+}
+
 /** Parse a POVer response JSON from the LLM */
-function parsePoverResponse(text: string): { statement: string; taxonomyRefs: TaxonomyRef[] } {
+function parsePoverResponse(text: string): { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta } {
   let statement: string;
   let taxonomyRefs: TaxonomyRef[] = [];
+  let meta: PoverResponseMeta = {};
 
   try {
     const parsed = JSON.parse(stripCodeFences(text));
@@ -277,11 +352,17 @@ function parsePoverResponse(text: string): { statement: string; taxonomyRefs: Ta
           relevance: (r.relevance as string) || '',
         }));
     }
+    // Capture enriched debate metadata
+    meta = {
+      move_types: Array.isArray(parsed.move_types) ? parsed.move_types : undefined,
+      disagreement_type: typeof parsed.disagreement_type === 'string' ? parsed.disagreement_type : undefined,
+      key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
+    };
   } catch {
     statement = text.trim();
   }
 
-  return { statement, taxonomyRefs };
+  return { statement, taxonomyRefs, meta };
 }
 
 // ── Store interface ──────────────────────────────────────
@@ -691,13 +772,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${info.label} is preparing opening statement (${model})`, set);
-        const { statement, taxonomyRefs } = parsePoverResponse(text);
+        const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
         addTranscriptEntry({
           type: 'opening',
           speaker: poverId,
           content: statement,
           taxonomy_refs: taxonomyRefs,
+          metadata: { ...meta },
         });
 
         priorStatements.push({ speaker: info.label, statement });
@@ -821,7 +903,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is responding (${model})`, set);
-        const { statement, taxonomyRefs } = parsePoverResponse(text);
+        const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
         addTranscriptEntry({
           type: 'statement',
@@ -829,6 +911,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           content: statement,
           taxonomy_refs: taxonomyRefs,
           addressing: 'user',
+          metadata: { ...meta },
         });
       } catch (err) {
         addTranscriptEntry({
@@ -849,6 +932,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     set({ debateError: null });
+
+    // Lazy-load edges for moderator context
+    const taxState = useTaxonomyStore.getState();
+    if (!taxState.edgesFile) {
+      await useTaxonomyStore.getState().loadEdges();
+    }
 
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
@@ -934,7 +1023,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `${info.label} is cross-responding (${model})`, set);
-      const { statement, taxonomyRefs } = parsePoverResponse(text);
+      const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
       addTranscriptEntry({
         type: 'statement',
@@ -942,7 +1031,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         content: statement,
         taxonomy_refs: taxonomyRefs,
         addressing: 'all',
-        metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel },
+        metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, ...meta },
       });
     } catch (err) {
       addTranscriptEntry({
@@ -991,13 +1080,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (synthesis.areas_of_disagreement?.length > 0) {
         lines.push('', '**Areas of Disagreement:**');
         for (const d of synthesis.areas_of_disagreement) {
-          lines.push(`- ${d.point}`);
+          const typeTag = d.type ? ` [${d.type}]` : '';
+          lines.push(`- ${d.point}${typeTag}`);
           if (Array.isArray(d.positions)) {
             for (const pos of d.positions) {
               const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label || pos.pover;
               lines.push(`  - ${label}: ${pos.stance}`);
             }
           }
+        }
+      }
+      if (synthesis.cruxes?.length > 0) {
+        lines.push('', '**Cruxes (mind-changing questions):**');
+        for (const c of synthesis.cruxes) {
+          const typeTag = c.type ? ` [${c.type}]` : '';
+          lines.push(`- ${c.question}${typeTag}`);
+          if (c.if_yes) lines.push(`  - If yes: ${c.if_yes}`);
+          if (c.if_no) lines.push(`  - If no: ${c.if_no}`);
         }
       }
       if (synthesis.unresolved_questions?.length > 0) {

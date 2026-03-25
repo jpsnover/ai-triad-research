@@ -9,6 +9,7 @@ interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
   onBadgeClick?: (field: string, value: string) => void;
   onShowAttributeInfo?: (field: string, value: string) => void;
+  defaultOpen?: boolean;
 }
 
 const LABEL_MAP: Record<string, string> = {
@@ -110,8 +111,8 @@ function Badge({ field, value, onClick, onContextMenu }: {
   );
 }
 
-export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo }: GraphAttributesPanelProps) {
-  const [open, setOpen] = useState(false);
+export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, defaultOpen }: GraphAttributesPanelProps) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string; value: string } | null>(null);
 
   // Close context menu on Escape or outside click
@@ -137,14 +138,16 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
 
   return (
     <div className="ga-panel">
-      <button
-        className="ga-toggle"
-        onClick={() => setOpen(!open)}
-        type="button"
-      >
-        <span className={`ga-chevron ${open ? 'ga-chevron-open' : ''}`}>&#9654;</span>
-        Graph Attributes
-      </button>
+      {!defaultOpen && (
+        <button
+          className="ga-toggle"
+          onClick={() => setOpen(!open)}
+          type="button"
+        >
+          <span className={`ga-chevron ${open ? 'ga-chevron-open' : ''}`}>&#9654;</span>
+          Graph Attributes
+        </button>
+      )}
       {open && (
         <div className="ga-grid-3col">
           {/* Row 1: Assumptions | Epistemic Type + Falsifiability | Rhetorical Strategy */}
@@ -194,8 +197,8 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo 
             <div className="ga-label">{LABEL_MAP.audience}</div>
             {attrs.audience ? (
               <div className="ga-value">
-                {attrs.audience.split(',').map((s) => (
-                  <Badge key={s.trim()} field="audience" value={s.trim()} onClick={onBadgeClick} />
+                {attrs.audience.split(',').map(s => s.trim()).sort((a, b) => a.localeCompare(b)).map((s) => (
+                  <Badge key={s} field="audience" value={s} onClick={onBadgeClick} />
                 ))}
               </div>
             ) : <div className="ga-empty">&mdash;</div>}

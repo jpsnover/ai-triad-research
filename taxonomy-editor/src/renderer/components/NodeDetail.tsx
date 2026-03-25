@@ -10,6 +10,10 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
+import { RelatedEdgesPanel } from './RelatedEdgesPanel';
+import { EdgeDetailPanel } from './EdgeDetailPanel';
+import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { researchPrompt } from '../prompts/research';
 
 interface MoveTarget {
   label: string;
@@ -88,16 +92,47 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: 'Skeptic',
 };
 
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'research';
+
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
+  const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
+  const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const setSelectedNodeId = useTaxonomyStore((s) => s.setSelectedNodeId);
-  const handleResearchPrompt = useCallback(() => {
-    setSelectedNodeId(node.id);
-    setToolbarPanel('prompts');
-  }, [node.id, setSelectedNodeId, setToolbarPanel]);
+  // Research prompt state
+  const [researchText, setResearchText] = useState('');
+  const [researchCopied, setResearchCopied] = useState(false);
+  const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Generate research prompt when tab is selected or node changes
+  useEffect(() => {
+    if (activeTab === 'research') {
+      setResearchText(researchPrompt(node.label, node.description));
+      setResearchCopied(false);
+    }
+  }, [activeTab, node.id, node.label, node.description]);
+
+  const handleResearchCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(researchText);
+      setResearchCopied(true);
+      setTimeout(() => setResearchCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+
+  // When switching to Related tab, set relatedNodeId and load edges without switching toolbar
+  useEffect(() => {
+    if (activeTab === 'related') {
+      if (relatedNodeId !== node.id) {
+        useTaxonomyStore.setState({ relatedNodeId: node.id, selectedEdge: null });
+      }
+      if (!edgesFile) {
+        loadEdges();
+      }
+    }
+  }, [activeTab, node.id, relatedNodeId, edgesFile, loadEdges]);
 
   // Same-POV category moves
   const categoryMoveTargets: MoveTarget[] = ALL_CATEGORIES
@@ -157,40 +192,29 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
     update({ conflict_ids: (node.conflict_ids || []).filter(c => c !== id) });
   };
 
+  const hasGraphAttrs = !!node.graph_attributes;
+
   return (
-    <div ref={formRef}>
-      <div className="detail-header">
-        <h2>{node.id}</h2>
-        <div className="detail-header-actions">
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={handleResearchPrompt}
-            title="Open research prompt editor for this position"
-          >
-            <span className="btn-icon">&#9998;</span> Research
+    <div ref={formRef} className="node-detail-tabbed">
+      <div className="node-detail-toolbar">
+        {onSimilarSearch && (
+          <button className="node-detail-pill" onClick={onSimilarSearch} title="Find similar taxonomy elements">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Similar Search
           </button>
-          {onRelated && (
-            <button className="btn btn-ghost btn-sm" onClick={onRelated} title="Show all edges connected to this node">
-              <span className="btn-icon">&#8596;</span> Related
-            </button>
-          )}
-          {onSimilarSearch && (
-            <button className="btn btn-ghost btn-sm" onClick={onSimilarSearch} title="Find similar taxonomy elements">
-              <span className="btn-icon">&#8981;</span> Similar Search
-            </button>
-          )}
-          {onPin && (
-            <button className="btn btn-ghost btn-sm" onClick={onPin} title="Pin for comparison">
-              <span className="btn-icon">&#9744;</span> Pin
-            </button>
-          )}
-          {!readOnly && (
-            <OverflowMenu
-              moveTargets={moveTargets}
-              onDelete={() => setShowDelete(true)}
-            />
-          )}
-        </div>
+        )}
+        {onPin && (
+          <button className="node-detail-pill" onClick={onPin} title="Pin for comparison">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            Pin
+          </button>
+        )}
+        {!readOnly && (
+          <OverflowMenu
+            moveTargets={moveTargets}
+            onDelete={() => setShowDelete(true)}
+          />
+        )}
       </div>
 
       {hasErrors && (
@@ -200,60 +224,182 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         </div>
       )}
 
-      <div className="detail-category-banner" data-cat={node.category}>
-        {node.category}
+      <div className="node-detail-title-line" data-cat={node.category}>
+        <span className="node-detail-category">{node.category}</span>
+        <span className="node-detail-title-sep"> : </span>
+        <span className="node-detail-label-text">{node.label}</span>
       </div>
 
-      <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
-        <label>Label</label>
-        <HighlightedInput
-          value={node.label}
-          onChange={(v) => update({ label: v })}
-          readOnly={readOnly}
-        />
-        {err('label') && <div className="error-text">{err('label')}</div>}
+      {/* Tab bar */}
+      <div className="node-detail-tabs">
+        <button
+          className={`node-detail-tab ${activeTab === 'content' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('content')}
+        >
+          Content
+        </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('related')}
+        >
+          Related
+        </button>
+        {hasGraphAttrs && (
+          <button
+            className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
+            onClick={() => setActiveTab('attributes')}
+          >
+            Attributes
+          </button>
+        )}
+        <button
+          className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('research')}
+        >
+          Research
+        </button>
       </div>
 
-      <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-        <label>Description</label>
-        <HighlightedTextarea
-          value={node.description}
-          onChange={(v) => update({ description: v })}
-          rows={5}
-          readOnly={readOnly}
-        />
-        {err('description') && <div className="error-text">{err('description')}</div>}
-      </div>
+      {/* Tab content */}
+      <div className="node-detail-tab-content">
+        {activeTab === 'content' && (
+          <>
+            {!readOnly && (
+              <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
+                <label>Label</label>
+                <HighlightedInput
+                  value={node.label}
+                  onChange={(v) => update({ label: v })}
+                />
+                {err('label') && <div className="error-text">{err('label')}</div>}
+              </div>
+            )}
 
-      {node.graph_attributes?.steelman_vulnerability && (
-        <div className="form-group">
-          <label>Steelman Vulnerability</label>
-          <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
-        </div>
-      )}
+            <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
+              <label>Description</label>
+              <HighlightedTextarea
+                value={node.description}
+                onChange={(v) => update({ description: v })}
+                rows={5}
+                readOnly={readOnly}
+              />
+              {err('description') && <div className="error-text">{err('description')}</div>}
+            </div>
 
-      {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
-        <div className="form-group">
-          <label>Intellectual Lineage</label>
-          <div className="ga-promoted-list">
-            {node.graph_attributes.intellectual_lineage.map((l, i) => (
-              <span
-                key={i}
-                className="ga-promoted-chip ga-promoted-chip-interactive"
-                onClick={(e) => { e.stopPropagation(); navigateToLineage(l); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-                title={`Click to view lineage info: "${l}"`}
-              >
-                {l}
-              </span>
-            ))}
+            {node.graph_attributes?.steelman_vulnerability && (
+              <div className="form-group">
+                <label>Steelman Vulnerability</label>
+                <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+              </div>
+            )}
+
+            {node.graph_attributes?.intellectual_lineage && node.graph_attributes.intellectual_lineage.length > 0 && (
+              <div className="form-group">
+                <label>Intellectual Lineage</label>
+                <div className="ga-promoted-list">
+                  {node.graph_attributes.intellectual_lineage.map((l, i) => (
+                    <span
+                      key={i}
+                      className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
+                      title={`Click to view lineage info: "${l}"`}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+                {expandedLineage && (() => {
+                  const info = INTELLECTUAL_LINEAGES[expandedLineage];
+                  if (!info) return (
+                    <div className="lineage-inline-detail">
+                      <div className="lineage-inline-header">
+                        <span className="lineage-inline-label">{expandedLineage}</span>
+                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+                      </div>
+                      <div className="lineage-inline-empty">No detailed information available for this lineage.</div>
+                    </div>
+                  );
+                  return (
+                    <div className="lineage-inline-detail">
+                      <div className="lineage-inline-header">
+                        <span className="lineage-inline-label">{info.label}</span>
+                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+                      </div>
+                      <div className="lineage-inline-summary">{info.summary}</div>
+                      {info.example && (
+                        <div className="lineage-inline-example">
+                          <span className="lineage-inline-example-label">Example:</span> {info.example}
+                        </div>
+                      )}
+                      {info.links && info.links.length > 0 && (
+                        <div className="lineage-inline-links">
+                          {info.links.map((link, li) => (
+                            <a
+                              key={li}
+                              className="lineage-inline-link"
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal(link.url); }}
+                              title={link.url}
+                            >
+                              {link.label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'related' && (
+          <div className="node-detail-related-split">
+            <div className="node-detail-related-list">
+              <RelatedEdgesPanel />
+            </div>
+            <div className="node-detail-related-detail">
+              {selectedEdge ? (
+                <EdgeDetailPanel width={0} />
+              ) : (
+                <div className="node-detail-related-empty">Select an edge to view details</div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {node.graph_attributes && (
-        <GraphAttributesPanel attrs={node.graph_attributes} onBadgeClick={runAttributeFilter} onShowAttributeInfo={showAttributeInfo} />
-      )}
+        {activeTab === 'attributes' && hasGraphAttrs && (
+          <GraphAttributesPanel
+            attrs={node.graph_attributes!}
+            onBadgeClick={runAttributeFilter}
+            onShowAttributeInfo={showAttributeInfo}
+            defaultOpen
+          />
+        )}
+
+        {activeTab === 'research' && (
+          <div className="node-detail-research">
+            <div className="node-detail-research-header">
+              <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
+              <button
+                className={`btn btn-sm${researchCopied ? '' : ' btn-ghost'}`}
+                onClick={handleResearchCopy}
+              >
+                {researchCopied ? '\u2713 Copied' : 'Copy'}
+              </button>
+            </div>
+            <textarea
+              ref={researchTextareaRef}
+              className="node-detail-research-textarea"
+              value={researchText}
+              onChange={(e) => setResearchText(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
+        )}
+      </div>
 
       {showDelete && !readOnly && (
         <DeleteConfirmDialog

@@ -144,13 +144,15 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           </div>
         </div>
 
-        {/* Status */}
-        <div className="edge-detail-section">
-          <div className="edge-detail-section-label">Status</div>
-          <span className={`edge-detail-status-badge status-${edge.status}`}>
-            {edge.status === 'approved' ? '\u2713 ' : edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{edge.status}
-          </span>
-        </div>
+        {/* Status — only show if not approved */}
+        {edge.status !== 'approved' && (
+          <div className="edge-detail-section">
+            <div className="edge-detail-section-label">Status</div>
+            <span className={`edge-detail-status-badge status-${edge.status}`}>
+              {edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{edge.status}
+            </span>
+          </div>
+        )}
 
         {/* Strength */}
         {edge.strength && (
@@ -167,18 +169,6 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
             <div className="edge-detail-notes">{edge.notes}</div>
           </div>
         )}
-
-        {/* Metadata */}
-        <div className="edge-detail-meta-grid">
-          <div className="edge-detail-meta-item">
-            <span className="edge-detail-meta-key">Model</span>
-            <span className="edge-detail-meta-value">{edge.model}</span>
-          </div>
-          <div className="edge-detail-meta-item">
-            <span className="edge-detail-meta-key">Discovered</span>
-            <span className="edge-detail-meta-value">{edge.discovered_at}</span>
-          </div>
-        </div>
       </div>
     </div>
   );

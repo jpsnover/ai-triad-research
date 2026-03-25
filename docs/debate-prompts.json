@@ -1,0 +1,353 @@
+{
+  "title": "POV Debater — AI Prompt Catalog",
+  "description": "All AI prompts used by the taxonomy-editor debate feature. Source: taxonomy-editor/src/renderer/prompts/debate.ts",
+  "shared_directives": {
+    "reading_level": "Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.",
+    "length_instructions": {
+      "brief": "Be concise. Keep your response brief and focused — 2-3 sentences maximum. Get straight to the point.",
+      "medium": "Provide a moderately detailed response — 1-2 paragraphs. Cover the key points without excessive elaboration.",
+      "detailed": "Provide a thorough, in-depth response — 3-5 paragraphs. Develop your arguments fully with evidence and reasoning."
+    },
+    "response_format": "All prompts require the AI to respond ONLY with a JSON object — no markdown, no code fences."
+  },
+  "prompts": [
+    {
+      "name": "clarificationPrompt",
+      "function": "clarificationPrompt(topic, debateSourceContent?)",
+      "phase": "clarification",
+      "called_by": "useDebateStore.runClarification()",
+      "description": "Generates 1-3 clarifying questions to sharpen a debate topic before opening statements begin. Used for topic-based and document/URL debates (not cross-cutting).",
+      "role": "Neutral debate facilitator",
+      "inputs": {
+        "topic": "The user's debate topic string",
+        "debateSourceContent": "Optional document/URL content (truncated to 50K chars)"
+      },
+      "output_schema": {
+        "questions": ["string — 1 to 3 concise clarifying questions"]
+      },
+      "guidelines": [
+        "Narrow the scope so the debate stays focused",
+        "Surface assumptions the user might not realize they're making",
+        "Be neutral — do not favor any particular perspective",
+        "Be concise (one sentence each)"
+      ]
+    },
+    {
+      "name": "crossCuttingClarificationPrompt",
+      "function": "crossCuttingClarificationPrompt(topic, ccContext)",
+      "phase": "clarification",
+      "called_by": "useDebateStore.runClarification() — when source_type === 'cross-cutting'",
+      "description": "Specialized clarification prompt for debates grounded in a cross-cutting taxonomy concern. Receives the full cross-cutting context (node description, three POV interpretations, assumptions, fallacies, linked nodes, conflicts) and generates questions that help the user pick which dimension to explore.",
+      "role": "Neutral debate facilitator with cross-cutting taxonomy context",
+      "inputs": {
+        "topic": "The debate topic (typically the cross-cutting node label)",
+        "ccContext": "Formatted cross-cutting context from formatCrossCuttingDebateContext()"
+      },
+      "output_schema": {
+        "questions": ["string — 1 to 3 clarifying questions"]
+      },
+      "guidelines": [
+        "Identify which specific dimension the user wants to explore (timeline, policy response, epistemic disagreement, etc.)",
+        "Surface which assumptions or fallacies the user finds most interesting to probe",
+        "Help debaters go beyond restating their pre-existing POV interpretations",
+        "Be neutral and concise"
+      ]
+    },
+    {
+      "name": "synthesisPrompt",
+      "function": "synthesisPrompt(originalTopic, qaPairs)",
+      "phase": "clarification → opening transition",
+      "called_by": "useDebateStore.submitAnswersAndSynthesize()",
+      "description": "After the user answers clarifying questions, this prompt synthesizes the original topic and the user's answers into a refined, specific debate topic statement. The refined topic becomes the grounding for all subsequent debate phases.",
+      "role": "Topic synthesizer",
+      "inputs": {
+        "originalTopic": "The original debate topic string",
+        "qaPairs": "Formatted string of clarification Q&A pairs"
+      },
+      "output_schema": {
+        "refined_topic": "string — 1 to 3 sentences incorporating scope and constraints"
+      },
+      "guidelines": [
+        "Incorporate key constraints and scope clarifications from the answers",
+        "Produce a clear, specific debate topic statement"
+      ]
+    },
+    {
+      "name": "openingStatementPrompt",
+      "function": "openingStatementPrompt(label, pov, personality, topic, taxonomyContext, priorBlock, isFirst, debateSourceContent?, length)",
+      "phase": "opening",
+      "called_by": "useDebateStore.runOpeningStatements() — called once per AI debater in the configured opening order",
+      "description": "Each AI debater (Prometheus/Sentinel/Cassandra) delivers an opening statement from their POV. Called sequentially — each debater sees prior statements and can reference/contrast them. The user controls depth (brief/medium/detailed) and speaking order.",
+      "role": "AI debater representing a specific POV (accelerationist, safetyist, or skeptic)",
+      "inputs": {
+        "label": "Debater name (Prometheus, Sentinel, or Cassandra)",
+        "pov": "POV camp (accelerationist, safetyist, skeptic)",
+        "personality": "Personality description string",
+        "topic": "The refined debate topic",
+        "taxonomyContext": "Formatted taxonomy nodes for this debater's POV",
+        "priorBlock": "Text of prior opening statements (empty for first speaker)",
+        "isFirst": "Boolean — true if delivering the first opening statement",
+        "debateSourceContent": "Optional document content",
+        "length": "Response depth: brief, medium, or detailed"
+      },
+      "output_schema": {
+        "statement": "string — the opening statement text",
+        "taxonomy_refs": [
+          {
+            "node_id": "e.g. acc-goals-002",
+            "relevance": "string — 1 to 4 sentences explaining how the node informed the argument"
+          }
+        ]
+      },
+      "guidelines": [
+        "Reference taxonomy positions naturally, never say 'According to taxonomy node X'",
+        "taxonomy_refs relevance must be 1-4 sentences (not brief labels)",
+        "Vary sentence openings; never start with 'This node'",
+        "Frame the issue from your perspective and establish your core argument",
+        "Be specific, substantive, and persuasive"
+      ]
+    },
+    {
+      "name": "debateResponsePrompt",
+      "function": "debateResponsePrompt(label, pov, personality, topic, taxonomyContext, recentTranscript, question, addressing, debateSourceContent?, length)",
+      "phase": "debate",
+      "called_by": "useDebateStore.askQuestion() — when the user asks a question directed at a specific debater or the panel",
+      "description": "Generates a debater's response to a user question during the active debate phase. The debater sees recent transcript history and responds from their POV perspective, engaging with prior debate points.",
+      "role": "AI debater responding to a user question",
+      "inputs": {
+        "label": "Debater name",
+        "pov": "POV camp",
+        "personality": "Personality description",
+        "topic": "Refined debate topic",
+        "taxonomyContext": "POV taxonomy context",
+        "recentTranscript": "Recent debate history string",
+        "question": "The user's question or prompt",
+        "addressing": "Who the question targets — specific debater name or 'all'",
+        "debateSourceContent": "Optional document content",
+        "length": "Response depth"
+      },
+      "output_schema": {
+        "statement": "string — the response text",
+        "taxonomy_refs": [
+          {
+            "node_id": "string",
+            "relevance": "string — 1 to 4 sentences"
+          }
+        ]
+      },
+      "guidelines": [
+        "Be specific, substantive, and engage with the debate history",
+        "Reference points made by other debaters when relevant",
+        "1-2 paragraphs"
+      ]
+    },
+    {
+      "name": "crossRespondSelectionPrompt",
+      "function": "crossRespondSelectionPrompt(recentTranscript, activePovers)",
+      "phase": "debate",
+      "called_by": "useDebateStore.crossRespond() — first step: moderator picks who should speak next",
+      "description": "The moderator AI analyzes the current debate state and selects which debater should respond next, to whom, and about what point. This drives autonomous cross-debater exchanges. Detects if debaters are in agreement and suggests new angles.",
+      "role": "Debate moderator / exchange coordinator",
+      "inputs": {
+        "recentTranscript": "Recent debate exchange text",
+        "activePovers": "Array of active debater names"
+      },
+      "output_schema": {
+        "responder": "string — debater name who should speak next",
+        "addressing": "string — debater name to address, or 'general'",
+        "focus_point": "string — the specific point or question to address",
+        "agreement_detected": "boolean"
+      },
+      "guidelines": [
+        "Choose the response that would most disambiguate the current disagreement or surface a new dimension",
+        "If all debaters seem to agree, say so and suggest what angle could be explored next"
+      ]
+    },
+    {
+      "name": "crossRespondPrompt",
+      "function": "crossRespondPrompt(label, pov, personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length)",
+      "phase": "debate",
+      "called_by": "useDebateStore.crossRespond() — second step: the selected debater delivers their response",
+      "description": "After the moderator selects a debater via crossRespondSelectionPrompt, this prompt generates that debater's substantive response to the assigned focus point. Creates debater-to-debater exchanges without user intervention.",
+      "role": "AI debater responding to moderator assignment",
+      "inputs": {
+        "label": "Debater name",
+        "pov": "POV camp",
+        "personality": "Personality description",
+        "topic": "Refined debate topic",
+        "taxonomyContext": "POV taxonomy context",
+        "recentTranscript": "Recent debate history",
+        "focusPoint": "The specific point assigned by the moderator",
+        "addressing": "Who to address — specific debater or 'general'",
+        "length": "Response depth"
+      },
+      "output_schema": {
+        "statement": "string — the response text",
+        "taxonomy_refs": [
+          {
+            "node_id": "string",
+            "relevance": "string"
+          }
+        ]
+      },
+      "guidelines": [
+        "Engage directly with what was said",
+        "If you disagree, explain why with specifics",
+        "If you agree on some points, say so and push further",
+        "1-2 paragraphs"
+      ]
+    },
+    {
+      "name": "debateSynthesisPrompt",
+      "function": "debateSynthesisPrompt(topic, transcript)",
+      "phase": "synthesis (triggered manually or after sufficient exchanges)",
+      "called_by": "useDebateStore — synthesis action in debate phase",
+      "description": "Analyzes the full debate transcript and produces a structured synthesis identifying areas of agreement, disagreement, unresolved questions, and taxonomy coverage. Shown as a synthesis card in the transcript.",
+      "role": "Debate analyst",
+      "inputs": {
+        "topic": "Refined debate topic",
+        "transcript": "Full debate transcript text"
+      },
+      "output_schema": {
+        "areas_of_agreement": [{"point": "string", "povers": ["string"]}],
+        "areas_of_disagreement": [{"point": "string", "positions": [{"pover": "string", "stance": "string"}]}],
+        "unresolved_questions": ["string"],
+        "taxonomy_coverage": [{"node_id": "string", "how_used": "string"}]
+      },
+      "guidelines": [
+        "Identify areas where debaters agree and which debaters",
+        "Identify genuine disagreements with each debater's specific stance",
+        "Surface questions that remain unresolved",
+        "Track which taxonomy nodes were referenced and how"
+      ]
+    },
+    {
+      "name": "probingQuestionsPrompt",
+      "function": "probingQuestionsPrompt(topic, transcript, unreferencedNodes)",
+      "phase": "debate (triggered manually)",
+      "called_by": "useDebateStore — probing questions action",
+      "description": "Generates 3-5 probing questions to advance the debate. Prioritizes questions that surface disagreement, expose assumptions, and explore taxonomy areas not yet discussed. Unreferenced taxonomy nodes are provided to encourage broader coverage.",
+      "role": "Debate facilitator",
+      "inputs": {
+        "topic": "Refined debate topic",
+        "transcript": "Debate transcript text",
+        "unreferencedNodes": "Array of taxonomy node descriptions not yet cited in the debate"
+      },
+      "output_schema": {
+        "questions": [
+          {"text": "string — the probing question", "targets": ["string — debater names"]}
+        ]
+      },
+      "guidelines": [
+        "Surface genuine disagreement or expose unstated assumptions",
+        "Push debaters beyond their comfort zones",
+        "Explore taxonomy areas not yet discussed (when unreferenced nodes are provided)",
+        "3-5 questions"
+      ]
+    },
+    {
+      "name": "factCheckPrompt",
+      "function": "factCheckPrompt(selectedText, statementContext, taxonomyNodes, conflictData)",
+      "phase": "debate (triggered by user right-click on selected text)",
+      "called_by": "useDebateStore.factCheckSelection()",
+      "description": "Fact-checks a specific claim selected by the user from the debate transcript. Cross-references the claim against taxonomy positions, known conflicts in the research database, and the debate context. Returns a verdict (supported/disputed/unverifiable/false) with explanation.",
+      "role": "Fact-checker",
+      "inputs": {
+        "selectedText": "The specific text the user selected to fact-check",
+        "statementContext": "The full statement containing the selected text",
+        "taxonomyNodes": "Formatted relevant taxonomy positions",
+        "conflictData": "Known conflicts from the research database"
+      },
+      "output_schema": {
+        "verdict": "supported | disputed | unverifiable | false",
+        "explanation": "string — brief explanation of assessment",
+        "sources": [
+          {"node_id": "string — taxonomy node ID"},
+          {"conflict_id": "string — conflict ID"}
+        ]
+      },
+      "guidelines": [
+        "Check consistency with taxonomy data and known research",
+        "Check internal consistency with other debate statements",
+        "Check against known conflicts or counter-evidence"
+      ]
+    },
+    {
+      "name": "contextCompressionPrompt",
+      "function": "contextCompressionPrompt(entries)",
+      "phase": "debate (triggered automatically when transcript exceeds 16 entries with 8+ uncompressed)",
+      "called_by": "useDebateStore.compressOldTranscript() — auto-triggered during debate phase",
+      "description": "Summarizes older debate segments to manage context window size. The summary replaces the original entries in the prompt context for subsequent AI calls, keeping the debate functional without hitting token limits. Preserves key arguments, agreement/disagreement, factual claims, and taxonomy references.",
+      "role": "Context compressor",
+      "inputs": {
+        "entries": "Formatted string of older debate transcript entries to compress"
+      },
+      "output_schema": {
+        "summary": "string — compressed summary text"
+      },
+      "guidelines": [
+        "Preserve key arguments and who made them",
+        "Preserve points of agreement and disagreement",
+        "Preserve factual claims and evidence cited",
+        "Keep taxonomy node reference IDs",
+        "Be concise but complete"
+      ]
+    },
+    {
+      "name": "formatCrossCuttingDebateContext",
+      "function": "formatCrossCuttingDebateContext(cc: CrossCuttingDebateInput)",
+      "phase": "setup (debate creation)",
+      "called_by": "useDebateStore.createCrossCuttingDebate()",
+      "description": "Not an AI prompt itself, but a formatter that builds the rich source-content block injected into cross-cutting debate prompts. Assembles the cross-cutting node's label, description, three POV interpretations, assumptions, steelman vulnerability, possible fallacies, linked node descriptions, and conflict summaries into a structured text block.",
+      "role": "Context formatter (no AI call)",
+      "inputs": {
+        "id": "Cross-cutting node ID (e.g. cc-001)",
+        "label": "Node label",
+        "description": "Node description",
+        "interpretations": "Object with accelerationist, safetyist, skeptic interpretation strings",
+        "assumes": "Optional array of underlying assumptions",
+        "steelmanVulnerability": "Optional steelman vulnerability string",
+        "possibleFallacies": "Optional array of {fallacy, confidence, explanation}",
+        "linkedNodeDescriptions": "Optional array of linked node description strings",
+        "conflictSummaries": "Optional array of conflict summary strings"
+      },
+      "output": "Formatted plain-text block with === section headers ==="
+    }
+  ],
+  "debate_flow": {
+    "description": "The debate proceeds through phases. Each phase uses specific prompts.",
+    "phases": [
+      {
+        "phase": "setup",
+        "description": "User creates a debate (topic, document, URL, or cross-cutting). For cross-cutting, formatCrossCuttingDebateContext assembles the source context.",
+        "prompts_used": ["formatCrossCuttingDebateContext"]
+      },
+      {
+        "phase": "clarification",
+        "description": "AI generates clarifying questions. User answers. AI synthesizes a refined topic.",
+        "prompts_used": ["clarificationPrompt OR crossCuttingClarificationPrompt", "synthesisPrompt"]
+      },
+      {
+        "phase": "opening",
+        "description": "Each AI debater delivers an opening statement in the configured order (randomized, user-adjustable). Each sees prior statements.",
+        "prompts_used": ["openingStatementPrompt (called per debater)"]
+      },
+      {
+        "phase": "debate",
+        "description": "Interactive debate. User asks questions, AI debaters respond. Cross-respond generates debater-to-debater exchanges. Probing questions and fact-checking available. Context auto-compresses when transcript grows large.",
+        "prompts_used": [
+          "debateResponsePrompt (user questions)",
+          "crossRespondSelectionPrompt + crossRespondPrompt (autonomous exchanges)",
+          "probingQuestionsPrompt (facilitator questions)",
+          "factCheckPrompt (claim verification)",
+          "contextCompressionPrompt (automatic context management)"
+        ]
+      },
+      {
+        "phase": "synthesis",
+        "description": "AI produces a structured analysis of the debate identifying agreements, disagreements, and unresolved questions.",
+        "prompts_used": ["debateSynthesisPrompt"]
+      }
+    ]
+  }
+}

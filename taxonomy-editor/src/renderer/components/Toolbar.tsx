@@ -89,12 +89,24 @@ export function Toolbar() {
             <div className="toolbar-separator" />
           </>
         )}
+        {/* Search */}
+        <button
+          className={`toolbar-icon${toolbarPanel === 'search' ? ' toolbar-icon-active' : ''}`}
+          onClick={() => toggle('search')}
+          data-tooltip="Search"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </button>
+        <div className="toolbar-separator" />
+        {/* Taxonomy */}
         <button
           className={`toolbar-icon${toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
-            // If on a non-POV tab, switch back to the last POV tab
             if (['cross-cutting', 'conflicts', 'debate'].includes(activeTab)) {
               setActiveTab('accelerationist');
             }
@@ -108,48 +120,31 @@ export function Toolbar() {
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
         </button>
+        {/* Cross-Cutting */}
+        <button
+          className={`toolbar-icon${activeTab === 'cross-cutting' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('cross-cutting')}
+          data-tooltip="Cross-Cutting"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        {/* Conflicts */}
+        <button
+          className={`toolbar-icon${activeTab === 'conflicts' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('conflicts')}
+          data-tooltip="Conflicts"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
         <div className="toolbar-separator" />
-        <button
-          className={`toolbar-icon${toolbarPanel === 'search' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('search')}
-          data-tooltip="Search"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </button>
-        <button
-          className={`toolbar-icon${toolbarPanel === 'related' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('related')}
-          data-tooltip="Related Edges"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="5" cy="12" r="3" />
-            <circle cx="19" cy="12" r="3" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-          </svg>
-        </button>
-        <button
-          className={`toolbar-icon${toolbarPanel === 'attrFilter' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('attrFilter')}
-          data-tooltip="Attribute Filter"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-          </svg>
-        </button>
-        <button
-          className={`toolbar-icon${toolbarPanel === 'attrInfo' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('attrInfo')}
-          data-tooltip="Attribute Info"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-        </button>
+        {/* Intellectual Lineage */}
         <button
           className={`toolbar-icon${toolbarPanel === 'lineage' ? ' toolbar-icon-active' : ''}`}
           onClick={() => toggle('lineage')}
@@ -163,6 +158,7 @@ export function Toolbar() {
             <path d="M16 17l3 3" />
           </svg>
         </button>
+        {/* Possible Fallacies */}
         <button
           className={`toolbar-icon${toolbarPanel === 'fallacy' ? ' toolbar-icon-active' : ''}`}
           onClick={() => toggle('fallacy')}
@@ -175,27 +171,7 @@ export function Toolbar() {
           </svg>
         </button>
         <div className="toolbar-separator" />
-        <button
-          className={`toolbar-icon${activeTab === 'cross-cutting' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
-          onClick={() => switchTab('cross-cutting')}
-          data-tooltip="Cross-Cutting"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-        <button
-          className={`toolbar-icon${activeTab === 'conflicts' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
-          onClick={() => switchTab('conflicts')}
-          data-tooltip="Conflicts"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </button>
+        {/* Debates */}
         <button
           className={`toolbar-icon${activeTab === 'debate' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
           onClick={() => switchTab('debate')}
