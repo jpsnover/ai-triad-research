@@ -24,6 +24,11 @@ Thumbs.db
 *.env
 secrets.json
 
-# Inbox is transient; contents committed per-doc after ingestion
-sources/_inbox/*
-!sources/_inbox/.gitkeep
+# Data — lives in ai-triad-data repo (see .aitriad.json)
+/taxonomy/Origin/
+/sources/
+/summaries/
+/conflicts/
+/debates/
+/.summarise-queue.json
+/TAXONOMY_VERSION
