@@ -26,6 +26,7 @@ import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
+import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import type { NodeEmbeddingInput } from './embeddings';
 import path from 'path';
 
@@ -75,6 +76,14 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-conflict-file', (_event, claimId: string) => {
     deleteConflictFile(claimId);
+  });
+
+  ipcMain.handle('check-data-updates', async () => {
+    return checkForDataUpdates();
+  });
+
+  ipcMain.handle('pull-data-updates', async () => {
+    return pullDataUpdates();
   });
 
   ipcMain.handle('refresh-ai-models', async () => {

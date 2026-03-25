@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
@@ -11,12 +11,59 @@ import { CrossCuttingTab } from './components/CrossCuttingTab';
 import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
 
+interface DataUpdateInfo {
+  available: boolean;
+  behindCount: number;
+  error?: string;
+}
+
 export function App() {
   const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+  const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<string | null>(null);
 
   useEffect(() => {
     initAIModels().then(() => loadAll());
   }, [loadAll]);
+
+  // Check for data updates after initial load
+  useEffect(() => {
+    if (loading) return;
+    window.electronAPI.checkDataUpdates()
+      .then((status: unknown) => {
+        const s = status as DataUpdateInfo;
+        if (s.available) {
+          setDataUpdate(s);
+        }
+      })
+      .catch(() => { /* offline or no git — silent */ });
+  }, [loading]);
+
+  const handlePullUpdates = async () => {
+    setPulling(true);
+    setPullResult(null);
+    try {
+      const result = await window.electronAPI.pullDataUpdates() as { success: boolean; message: string };
+      if (result.success) {
+        setPullResult('Updated successfully. Reloading...');
+        setDataUpdate(null);
+        // Reload taxonomy data with new data
+        setTimeout(() => {
+          useTaxonomyStore.getState().loadAll();
+          setPullResult(null);
+        }, 1000);
+      } else {
+        setPullResult(`Update failed: ${result.message}`);
+      }
+    } catch (err) {
+      setPullResult(`Error: ${String(err)}`);
+    } finally {
+      setPulling(false);
+    }
+  };
+
+  const dismissUpdate = () => setDataUpdate(null);
 
   // Listen for menu-triggered taxonomy reload
   useEffect(() => {
@@ -99,6 +146,24 @@ export function App() {
 
   return (
     <div className="app">
+      {/* Data update banner */}
+      {dataUpdate && (
+        <div className="data-update-banner">
+          <span className="data-update-text">
+            {dataUpdate.behindCount} data update{dataUpdate.behindCount !== 1 ? 's' : ''} available
+          </span>
+          <button
+            className="btn btn-sm data-update-btn"
+            onClick={handlePullUpdates}
+            disabled={pulling}
+          >
+            {pulling ? 'Updating...' : 'Download'}
+          </button>
+          <button className="data-update-dismiss" onClick={dismissUpdate} title="Dismiss">&times;</button>
+          {pullResult && <span className="data-update-result">{pullResult}</span>}
+        </div>
+      )}
+
       {toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />

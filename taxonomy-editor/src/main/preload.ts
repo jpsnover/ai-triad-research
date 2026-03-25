@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteConflictFile: (claimId: string): Promise<void> =>
     ipcRenderer.invoke('delete-conflict-file', claimId),
 
+  checkDataUpdates: (): Promise<unknown> =>
+    ipcRenderer.invoke('check-data-updates'),
+
+  pullDataUpdates: (): Promise<unknown> =>
+    ipcRenderer.invoke('pull-data-updates'),
+
   loadAIModels: (): Promise<unknown> =>
     ipcRenderer.invoke('load-ai-models'),
 

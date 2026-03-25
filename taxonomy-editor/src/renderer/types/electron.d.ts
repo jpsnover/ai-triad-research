@@ -11,6 +11,8 @@ export interface ElectronAPI {
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;
+  checkDataUpdates: () => Promise<unknown>;
+  pullDataUpdates: () => Promise<unknown>;
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;

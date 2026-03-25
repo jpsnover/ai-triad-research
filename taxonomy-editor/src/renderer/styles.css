@@ -241,6 +241,50 @@ body {
 
 /* ─── App body (toolbar + tab content) ─────────────────── */
 
+/* ─── Data update banner ─────────────────────────────── */
+
+.data-update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(37, 99, 235, 0.12);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.25);
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.data-update-text {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.data-update-btn {
+  background: var(--focus-ring, #2563eb) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.data-update-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 4px;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.data-update-dismiss:hover {
+  color: var(--text-primary);
+}
+
+.data-update-result {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
 .app-body {
   flex: 1;
   display: flex;
