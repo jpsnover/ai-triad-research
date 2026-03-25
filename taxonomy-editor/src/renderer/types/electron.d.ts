@@ -11,6 +11,9 @@ export interface ElectronAPI {
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;
+  isDataAvailable: () => Promise<boolean>;
+  getDataRoot: () => Promise<string>;
+  cloneDataRepo: (targetPath: string) => Promise<{ success: boolean; message: string }>;
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
   loadAIModels: () => Promise<unknown>;

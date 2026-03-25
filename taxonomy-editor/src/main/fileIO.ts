@@ -4,7 +4,22 @@
 import fs from 'fs';
 import path from 'path';
 
+import { app } from 'electron';
+
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const IS_PACKAGED = app?.isPackaged ?? false;
+
+// ── Platform-specific default data directory ──
+function getPlatformDataDir(): string {
+  if (process.platform === 'darwin') {
+    return path.join(app.getPath('home'), 'Library', 'Application Support', 'AITriad', 'data');
+  } else if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || app.getPath('userData'), '..', 'AITriad', 'data');
+  } else {
+    const xdgData = process.env.XDG_DATA_HOME || path.join(app.getPath('home'), '.local', 'share');
+    return path.join(xdgData, 'aitriad', 'data');
+  }
+}
 
 // ── Data path resolution from .aitriad.json ──
 interface AiTriadConfig {
@@ -20,7 +35,7 @@ interface AiTriadConfig {
 
 function loadDataConfig(): AiTriadConfig {
   const defaults: AiTriadConfig = {
-    data_root: '.',
+    data_root: IS_PACKAGED ? getPlatformDataDir() : '.',
     taxonomy_dir: 'taxonomy/Origin',
     sources_dir: 'sources',
     summaries_dir: 'summaries',
@@ -29,13 +44,26 @@ function loadDataConfig(): AiTriadConfig {
     queue_file: '.summarise-queue.json',
     version_file: 'TAXONOMY_VERSION',
   };
-  try {
-    const configPath = path.join(PROJECT_ROOT, '.aitriad.json');
-    if (fs.existsSync(configPath)) {
-      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      return { ...defaults, ...raw };
-    }
-  } catch { /* use defaults */ }
+
+  // Search for .aitriad.json in multiple locations
+  const searchPaths = [
+    path.join(PROJECT_ROOT, '.aitriad.json'),
+  ];
+  if (IS_PACKAGED) {
+    searchPaths.push(path.join(process.resourcesPath, '.aitriad.json'));
+  }
+
+  for (const configPath of searchPaths) {
+    try {
+      if (fs.existsSync(configPath)) {
+        const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        console.log(`[fileIO] Loaded config from ${configPath}`);
+        return { ...defaults, ...raw };
+      }
+    } catch { /* try next */ }
+  }
+
+  console.log(`[fileIO] Using default config (packaged=${IS_PACKAGED}, data_root=${defaults.data_root})`);
   return defaults;
 }
 
@@ -46,6 +74,20 @@ function resolveDataPath(subPath: string): string {
     ? config.data_root
     : path.resolve(PROJECT_ROOT, config.data_root));
   return path.isAbsolute(subPath) ? subPath : path.resolve(dataRoot, subPath);
+}
+
+/** Check if data directory exists and has taxonomy files */
+export function isDataAvailable(): boolean {
+  try {
+    const taxDir = resolveDataPath(loadDataConfig().taxonomy_dir);
+    return fs.existsSync(taxDir) && fs.readdirSync(taxDir).some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
+  } catch {
+    return false;
+  }
+}
+
+export function getDataRootPath(): string {
+  return resolveDataPath('.');
 }
 
 const _config = loadDataConfig();

@@ -1,0 +1,65 @@
+appId: com.berkmanklein.ai-triad.taxonomy-editor
+productName: AI Triad Taxonomy Editor
+copyright: Copyright (c) 2026 Jeffrey Snover
+
+directories:
+  output: release/
+  buildResources: build/
+
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+  - node_modules/**/*
+  - package.json
+
+extraResources:
+  - from: "../ai-models.json"
+    to: "ai-models.json"
+  - from: "../taxonomy/schemas/"
+    to: "taxonomy/schemas/"
+
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  category: public.app-category.education
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerHeaderIcon: build/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  category: Education
+  icon: build/icons/
+
+publish: null

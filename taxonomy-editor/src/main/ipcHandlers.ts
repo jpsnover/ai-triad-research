@@ -3,6 +3,7 @@
 
 import { ipcMain, shell, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
+import { execFile } from 'child_process';
 import {
   readTaxonomyFile,
   writeTaxonomyFile,
@@ -24,6 +25,7 @@ import {
 } from './debateIO';
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
+import { isDataAvailable, getDataRootPath } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
@@ -76,6 +78,31 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-conflict-file', (_event, claimId: string) => {
     deleteConflictFile(claimId);
+  });
+
+  ipcMain.handle('is-data-available', () => {
+    return isDataAvailable();
+  });
+
+  ipcMain.handle('get-data-root', () => {
+    return getDataRootPath();
+  });
+
+  ipcMain.handle('clone-data-repo', async (_event, targetPath: string) => {
+    const repoUrl = 'https://github.com/jpsnover/ai-triad-data.git';
+    return new Promise<{ success: boolean; message: string }>((resolve) => {
+      const parentDir = path.dirname(targetPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      execFile('git', ['clone', repoUrl, targetPath], { timeout: 300000 }, (err, stdout, stderr) => {
+        if (err) {
+          resolve({ success: false, message: stderr || err.message });
+        } else {
+          resolve({ success: true, message: stdout || 'Cloned successfully' });
+        }
+      });
+    });
   });
 
   ipcMain.handle('check-data-updates', async () => {

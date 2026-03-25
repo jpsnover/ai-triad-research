@@ -31,6 +31,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteConflictFile: (claimId: string): Promise<void> =>
     ipcRenderer.invoke('delete-conflict-file', claimId),
 
+  isDataAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('is-data-available'),
+
+  getDataRoot: (): Promise<string> =>
+    ipcRenderer.invoke('get-data-root'),
+
+  cloneDataRepo: (targetPath: string): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke('clone-data-repo', targetPath),
+
   checkDataUpdates: (): Promise<unknown> =>
     ipcRenderer.invoke('check-data-updates'),
 

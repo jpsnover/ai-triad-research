@@ -10,6 +10,7 @@ import { PovTab } from './components/PovTab';
 import { CrossCuttingTab } from './components/CrossCuttingTab';
 import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
+import { FirstRunDialog } from './components/FirstRunDialog';
 
 interface DataUpdateInfo {
   available: boolean;
@@ -22,9 +23,22 @@ export function App() {
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
+  const [showFirstRun, setShowFirstRun] = useState(false);
+  const [dataRoot, setDataRoot] = useState('');
 
   useEffect(() => {
-    initAIModels().then(() => loadAll());
+    // Check if data is available before loading
+    Promise.all([
+      window.electronAPI.isDataAvailable(),
+      window.electronAPI.getDataRoot(),
+    ]).then(([available, root]) => {
+      setDataRoot(root);
+      if (!available) {
+        setShowFirstRun(true);
+      } else {
+        initAIModels().then(() => loadAll());
+      }
+    });
   }, [loadAll]);
 
   // Check for data updates after initial load
@@ -139,6 +153,20 @@ export function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [zoomIn, zoomOut, zoomReset]);
+
+  const handleFirstRunComplete = () => {
+    setShowFirstRun(false);
+    initAIModels().then(() => loadAll());
+  };
+
+  const handleFirstRunSkip = () => {
+    setShowFirstRun(false);
+    initAIModels().then(() => loadAll());
+  };
+
+  if (showFirstRun) {
+    return <FirstRunDialog dataRoot={dataRoot} onComplete={handleFirstRunComplete} onSkip={handleFirstRunSkip} />;
+  }
 
   if (loading) {
     return <div className="loading">Loading taxonomy files...</div>;
