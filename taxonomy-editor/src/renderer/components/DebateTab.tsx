@@ -76,6 +76,17 @@ export function DebateTab() {
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [inspectCollapsed, setInspectCollapsed] = useState(false);
   const [pane4Collapsed, setPane4Collapsed] = useState(false);
+  const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
+
+  const renderSearchPreview = () => {
+    if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
+    const resolved = resolveNode(searchPreviewId);
+    if (!resolved) return <div className="detail-panel-empty">Node not found</div>;
+    if (resolved.kind === 'crossCutting') {
+      return <CrossCuttingDetail node={resolved.node} readOnly chipDepth={0} />;
+    }
+    return <NodeDetail pov={resolved.pov} node={resolved.node} readOnly chipDepth={0} />;
+  };
 
   const showInfoPanel = attributeInfo !== null;
   const showAttrFilterPanel = attributeFilter !== null;
@@ -114,9 +125,9 @@ export function DebateTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel (e.g. Search) */}
       {toolbarPanel === 'search' ? (
-        <div className="list-panel list-panel-full">
+        <div className="list-panel" style={{ width }}>
           <SearchPanel
-            onSelectResult={(id) => inspectNode(id)}
+            onSelectResult={(id) => setSearchPreviewId(id)}
           />
         </div>
       ) : listCollapsed ? (
@@ -177,6 +188,15 @@ export function DebateTab() {
             ))}
           </div>
         </div>
+      )}
+
+      {toolbarPanel === 'search' && (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            {renderSearchPreview()}
+          </div>
+        </>
       )}
 
       {toolbarPanel !== 'search' && (
