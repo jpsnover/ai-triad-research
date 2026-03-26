@@ -334,23 +334,30 @@ function Invoke-DependencyCheck {
         }
     }
 
+    if (Get-Command markitdown -ErrorAction SilentlyContinue) {
+        try {
+            $MidVer = (& markitdown --version 2>&1).Trim()
+            DPass "markitdown $MidVer (PDF, DOCX, PPTX, XLSX, HTML, images → Markdown)"
+        }
+        catch { DPass 'markitdown available' }
+    }
+    else {
+        DWarn "markitdown not found — document conversion quality will be reduced"
+        DSkip "Install: pip install 'markitdown[all]'"
+    }
+
     if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
         try {
             $PdfVer = (pdftotext -v 2>&1 | Select-Object -First 1)
-            DPass "pdftotext available ($PdfVer)"
+            DPass "pdftotext available ($PdfVer) — PDF fallback"
         }
-        catch { DPass 'pdftotext available' }
+        catch { DPass 'pdftotext available (PDF fallback)' }
     }
     elseif (Get-Command mutool -ErrorAction SilentlyContinue) {
-        DPass 'mutool available (fallback PDF extractor)'
+        DPass 'mutool available (PDF fallback)'
     }
     else {
-        DWarn 'Neither pdftotext nor mutool found — PDF extraction will be limited'
-        if ($IsInstallMode) {
-            Install-Pkg -Name 'poppler' -PackageNames @{
-                brew = 'poppler'; apt = 'poppler-utils'; dnf = 'poppler-utils'; yum = 'poppler-utils'
-            }
-        }
+        DSkip 'pdftotext/mutool not found — markitdown handles PDF if installed'
     }
 
     # ── 6. PYTHON & EMBEDDINGS ────────────────────────────────────────────────
@@ -425,6 +432,16 @@ function Invoke-DependencyCheck {
                     }
                 }
                 catch { DWarn "Could not check Python packages: $_" }
+            }
+
+            # markitdown auto-install (pip, only when Python is available and -Fix is set)
+            if (-not (Get-Command markitdown -ErrorAction SilentlyContinue)) {
+                if ($IsInstallMode -and $Fix) {
+                    DFix "Installing markitdown via pip..."
+                    & $PythonCmd -m pip install 'markitdown[all]' 2>&1 | Out-Null
+                    if ($LASTEXITCODE -eq 0) { $Ctx.Fixed++; DPass 'markitdown installed' }
+                    else { DFail 'markitdown pip install failed' }
+                }
             }
 
             $EmbFile = Get-TaxonomyDir 'embeddings.json'

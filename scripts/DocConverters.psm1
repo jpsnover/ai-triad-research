@@ -191,13 +191,51 @@ function Get-HtmlMeta {
 Import-Module (Join-Path $PSScriptRoot 'PdfOptimizer.psm1') -Force
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PDF → plain text extraction
-# Tries pdftotext (poppler), then mutool (mupdf), then .NET as last resort.
+# markitdown — Microsoft's universal file → Markdown converter (Python CLI)
+# Handles PDF, DOCX, PPTX, XLSX, HTML, CSV, JSON, XML, images, EPubs, and more.
+# Install: pip install 'markitdown[all]'
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertFrom-MarkItDown {
+    <#
+    .SYNOPSIS
+        Convert any supported file to Markdown using Microsoft's markitdown CLI.
+    .DESCRIPTION
+        Runs the markitdown Python CLI and returns Markdown text. Returns $null if
+        markitdown is not installed or the conversion fails, so callers can fall
+        back to other tools.
+    .PARAMETER FilePath
+        Absolute path to the file to convert.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$FilePath
+    )
+
+    if (-not (Test-ExternalTool 'markitdown')) { return $null }
+
+    Write-Host "   →  Using markitdown for conversion" -ForegroundColor Gray
+    try {
+        $Result = & markitdown $FilePath 2>$null
+        if ($LASTEXITCODE -eq 0 -and $Result) {
+            return ($Result -join "`n").Trim()
+        }
+    }
+    catch { }
+
+    Write-Host "   ⚠  markitdown failed for '$(Split-Path $FilePath -Leaf)'" -ForegroundColor Yellow
+    return $null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PDF → Markdown
+# Priority: markitdown → pdftotext → mutool → placeholder
 # ─────────────────────────────────────────────────────────────────────────────
 function ConvertFrom-Pdf {
     param(
         [Parameter(Mandatory)][string]$PdfPath
     )
+
+    $md = ConvertFrom-MarkItDown -FilePath $PdfPath
+    if ($md) { return $md }
 
     if (Test-ExternalTool 'pdftotext') {
         Write-Host "   →  Using pdftotext for PDF extraction" -ForegroundColor Gray
@@ -219,19 +257,22 @@ function ConvertFrom-Pdf {
         if ($LASTEXITCODE -eq 0 -and $Result) { return $Result -join "`n" }
     }
 
-    # Fallback: tell the user what to install; return a placeholder snapshot
-    Write-Host "   ⚠  No PDF extraction tool found. Install pdftotext (poppler-utils) or mutool (mupdf-tools)." -ForegroundColor Yellow
+    Write-Host "   ⚠  No PDF extraction tool found. Install markitdown ('pip install markitdown[all]'), pdftotext, or mutool." -ForegroundColor Yellow
     Write-Host "   ⚠  Snapshot will contain placeholder text — re-run after installing a tool." -ForegroundColor Yellow
-    return "# PDF EXTRACTION FAILED`n`nSource: $PdfPath`n`nInstall pdftotext or mutool and re-run Import-Document.ps1 -File '$PdfPath' to regenerate this snapshot."
+    return "# PDF EXTRACTION FAILED`n`nSource: $PdfPath`n`nInstall markitdown ('pip install markitdown[all]') or pdftotext and re-run Import-AITriadDocument -File '$PdfPath'."
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DOCX → Markdown
+# Priority: markitdown → pandoc → ZIP/XML fallback
 # ─────────────────────────────────────────────────────────────────────────────
 function ConvertFrom-Docx {
     param(
         [Parameter(Mandatory)][string]$DocxPath
     )
+
+    $md = ConvertFrom-MarkItDown -FilePath $DocxPath
+    if ($md) { return $md }
 
     if (Test-ExternalTool 'pandoc') {
         Write-Host "   →  Using pandoc for DOCX → Markdown conversion" -ForegroundColor Gray
@@ -247,7 +288,7 @@ function ConvertFrom-Docx {
     }
 
     # Fallback: extract XML from the ZIP and strip tags
-    Write-Host "   →  Pandoc not found — using ZIP/XML fallback for DOCX" -ForegroundColor Gray
+    Write-Host "   →  Using ZIP/XML fallback for DOCX" -ForegroundColor Gray
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
@@ -255,7 +296,6 @@ function ConvertFrom-Docx {
         $DocXml = Get-Content (Join-Path $TempDir 'word' 'document.xml') -Raw
         Remove-Item $TempDir -Recurse -Force
 
-        # Extract paragraph text from XML
         $Paragraphs = [regex]::Matches($DocXml, '(?is)<w:p\b[^>]*>(.*?)</w:p>')
         $Lines = foreach ($para in $Paragraphs) {
             $Text = [regex]::Replace($para.Groups[1].Value, '<[^>]+>', '').Trim()
@@ -264,8 +304,28 @@ function ConvertFrom-Docx {
         return $Lines -join "`n`n"
     } catch {
         Write-Host "   ⚠  DOCX fallback extraction failed: $_" -ForegroundColor Yellow
-        return "# DOCX EXTRACTION FAILED`n`nSource: $DocxPath`n`nInstall pandoc and re-run to regenerate this snapshot."
+        return "# DOCX EXTRACTION FAILED`n`nSource: $DocxPath`n`nInstall markitdown ('pip install markitdown[all]') or pandoc and re-run."
     }
 }
 
-Export-ModuleMember -Function ConvertFrom-Html, Get-HtmlMeta, ConvertFrom-Pdf, ConvertFrom-Docx, Test-ExternalTool
+# ─────────────────────────────────────────────────────────────────────────────
+# PPTX / XLSX / generic office → Markdown via markitdown
+# ─────────────────────────────────────────────────────────────────────────────
+function ConvertFrom-Office {
+    <#
+    .SYNOPSIS
+        Convert PowerPoint, Excel, or other Office files to Markdown via markitdown.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$FilePath
+    )
+
+    $md = ConvertFrom-MarkItDown -FilePath $FilePath
+    if ($md) { return $md }
+
+    $Leaf = Split-Path $FilePath -Leaf
+    Write-Host "   ⚠  markitdown not available — cannot convert '$Leaf'. Install with 'pip install markitdown[all]'." -ForegroundColor Yellow
+    return "# CONVERSION FAILED`n`nSource: $FilePath`n`nInstall markitdown ('pip install markitdown[all]') and re-run Import-AITriadDocument -File '$FilePath'."
+}
+
+Export-ModuleMember -Function ConvertFrom-Html, Get-HtmlMeta, ConvertFrom-Pdf, ConvertFrom-Docx, ConvertFrom-Office, ConvertFrom-MarkItDown, Test-ExternalTool

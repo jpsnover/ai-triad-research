@@ -189,7 +189,24 @@ function Import-AITriadDocument {
                     $Title        = if ($Meta.Title) { $Meta.Title } else {
                         [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) }
                     $Authors      = $Meta.Author
-                    $MarkdownText = ConvertFrom-Html -Html $HtmlContent
+                    # Prefer markitdown for HTML (better semantic extraction)
+                    $MidMd = ConvertFrom-MarkItDown -FilePath $ResolvedFile
+                    $MarkdownText = if ($MidMd) { $MidMd } else { ConvertFrom-Html -Html $HtmlContent }
+                }
+                { $_ -in '.pptx', '.ppt' } {
+                    $SourceType   = 'presentation'
+                    $MarkdownText = ConvertFrom-Office -FilePath $ResolvedFile
+                    $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
+                }
+                { $_ -in '.xlsx', '.xls', '.csv' } {
+                    $SourceType   = 'spreadsheet'
+                    $MarkdownText = ConvertFrom-Office -FilePath $ResolvedFile
+                    $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
+                }
+                { $_ -in '.epub' } {
+                    $SourceType   = 'ebook'
+                    $MarkdownText = ConvertFrom-Office -FilePath $ResolvedFile
+                    $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
                 }
                 { $_ -in '.md', '.txt' } {
                     $SourceType   = if ($Ext -eq '.md') { 'markdown' } else { 'plaintext' }
@@ -199,10 +216,18 @@ function Import-AITriadDocument {
                     if ($H1Match.Success) { $Title = $H1Match.Groups[1].Value.Trim() }
                 }
                 Default {
-                    Write-Warn "Unsupported file type '$Ext' — storing raw, no Markdown conversion"
-                    $SourceType   = 'unknown'
-                    $MarkdownText = "# $(Split-Path $ResolvedFile -Leaf)`n`n[Binary file — no text extraction available]"
-                    $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile)
+                    # Try markitdown as a last-resort universal converter
+                    $MidMd = ConvertFrom-MarkItDown -FilePath $ResolvedFile
+                    if ($MidMd) {
+                        $SourceType   = 'document'
+                        $MarkdownText = $MidMd
+                        $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
+                    } else {
+                        Write-Warn "Unsupported file type '$Ext' — storing raw, no Markdown conversion"
+                        $SourceType   = 'unknown'
+                        $MarkdownText = "# $(Split-Path $ResolvedFile -Leaf)`n`n[Binary file — no text extraction available]"
+                        $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile)
+                    }
                 }
             }
 

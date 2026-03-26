@@ -28,3 +28,6 @@ gitpython>=3.1
 
 # Semantic embeddings for taxonomy search
 sentence-transformers>=2.7
+
+# Document conversion (PDF, DOCX, PPTX, XLSX, HTML, images → Markdown)
+markitdown[all]>=0.1
