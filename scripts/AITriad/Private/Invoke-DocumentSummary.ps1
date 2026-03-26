@@ -15,6 +15,7 @@ function Invoke-DocumentSummary {
         [Parameter(Mandatory)][string]$TaxonomyVersion,
         [Parameter(Mandatory)][string]$TaxonomyJson,
         [Parameter(Mandatory)][string]$SystemPromptTemplate,
+        [string]$ChunkSystemPromptTemplate = '',
         [Parameter(Mandatory)][string]$OutputSchema,
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now
@@ -139,6 +140,7 @@ function Invoke-ChunkedSummary {
         [Parameter(Mandatory)][string]$TaxonomyVersion,
         [Parameter(Mandatory)][string]$TaxonomyJson,
         [Parameter(Mandatory)][string]$SystemPromptTemplate,
+        [string]$ChunkSystemPromptTemplate = '',
         [Parameter(Mandatory)][string]$OutputSchema,
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now
@@ -154,7 +156,11 @@ function Invoke-ChunkedSummary {
     Write-Host "  `u{2502}  split into $ChunkCount chunks" -ForegroundColor Cyan
 
     # -- Load chunk-specific system prompt ------------------------------------
-    $ChunkSystemPrompt = Get-Prompt -Name 'pov-summary-chunk-system'
+    $ChunkSystemPrompt = if ($ChunkSystemPromptTemplate) {
+        $ChunkSystemPromptTemplate
+    } else {
+        Get-Prompt -Name 'pov-summary-chunk-system'
+    }
     $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
 
     # -- Process each chunk sequentially (API rate limits) --------------------

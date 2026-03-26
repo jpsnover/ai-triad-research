@@ -322,22 +322,24 @@ function Invoke-BatchSummary {
     }
 
     # -- STEP 5 — Shared prompt components ------------------------------------
-    $OutputSchema          = Get-Prompt -Name 'pov-summary-schema'
-    $SystemPromptTemplate  = Get-Prompt -Name 'pov-summary-system'
+    $OutputSchema              = Get-Prompt -Name 'pov-summary-schema'
+    $SystemPromptTemplate      = Get-Prompt -Name 'pov-summary-system'
+    $ChunkSystemPromptTemplate = Get-Prompt -Name 'pov-summary-chunk-system'
 
     # -- STEP 6 — Process documents -------------------------------------------
     Write-Step "Processing $($DocsToProcess.Count) document(s)"
 
     $SharedParams = @{
-        ApiKey               = $ApiKey
-        Model                = $Model
-        Temperature          = $Temperature
-        TaxonomyVersion      = $TaxonomyVersion
-        TaxonomyJson         = $TaxonomyJson
-        SystemPromptTemplate = $SystemPromptTemplate
-        OutputSchema         = $OutputSchema
-        SummariesDir         = $SummariesDir
-        Now                  = $Now
+        ApiKey                     = $ApiKey
+        Model                      = $Model
+        Temperature                = $Temperature
+        TaxonomyVersion            = $TaxonomyVersion
+        TaxonomyJson               = $TaxonomyJson
+        SystemPromptTemplate       = $SystemPromptTemplate
+        ChunkSystemPromptTemplate  = $ChunkSystemPromptTemplate
+        OutputSchema               = $OutputSchema
+        SummariesDir               = $SummariesDir
+        Now                        = $Now
     }
 
     $Results = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
@@ -356,7 +358,7 @@ function Invoke-BatchSummary {
                            'Build-DensityScaledPrompt','Build-DocHeader','Parse-AIResponse',
                            'Finalize-Summary','Repair-TruncatedJson',
                            'Invoke-ChunkedSummary','Merge-ChunkSummaries',
-                           'Split-DocumentChunks','Get-Prompt') |
+                           'Split-DocumentChunks') |
                          ForEach-Object {
                              $cmd = Get-Command $_ -ErrorAction SilentlyContinue
                              if ($cmd) { "function $_ {$($cmd.ScriptBlock.ToString())}" }
