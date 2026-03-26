@@ -5837,6 +5837,45 @@ body {
   color: var(--text-primary);
 }
 
+.related-edges-pov-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.related-edges-pov-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--pov-color);
+  background: color-mix(in srgb, var(--pov-color) 15%, transparent);
+  color: var(--pov-color);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.related-edges-pov-btn:hover {
+  background: color-mix(in srgb, var(--pov-color) 25%, transparent);
+}
+
+.related-edges-pov-btn-hidden {
+  opacity: 0.35;
+  background: transparent;
+  text-decoration: line-through;
+}
+
+.related-edges-pov-btn-count {
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
 .related-edges-toolbar {
   padding: 8px 14px;
   border-bottom: 1px solid var(--border-color);

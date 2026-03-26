@@ -136,14 +136,55 @@ function EdgeGroup({
   );
 }
 
+const POV_PREFIXES = ['acc-', 'saf-', 'skp-', 'cc-'] as const;
+type PovPrefix = typeof POV_PREFIXES[number];
+
+const POV_LABELS: Record<PovPrefix, string> = {
+  'acc-': 'Accelerationist',
+  'saf-': 'Safetyist',
+  'skp-': 'Skeptic',
+  'cc-': 'Cross-Cutting',
+};
+
+function otherNodePrefix(edge: Edge, nodeId: string): PovPrefix | null {
+  const otherId = edge.source === nodeId ? edge.target : edge.source;
+  return POV_PREFIXES.find(p => otherId.startsWith(p)) ?? null;
+}
+
 export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
   const { edgesFile, edgesLoading, relatedNodeId, showRelatedEdges, selectedEdge, selectEdge } = useTaxonomyStore();
   const [collapsed, setCollapsed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EdgeStatus | ''>('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
+  const [hiddenPovs, setHiddenPovs] = useState<Set<PovPrefix>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
 
   const nodeId = relatedNodeId;
+
+  // Per-POV counts after status/confidence filter (before POV filter)
+  const povCounts = useMemo(() => {
+    const counts = { 'acc-': 0, 'saf-': 0, 'skp-': 0, 'cc-': 0 } as Record<PovPrefix, number>;
+    if (!edgesFile || !nodeId) return counts;
+    for (const edge of edgesFile.edges) {
+      if (edge.source !== nodeId && edge.target !== nodeId) continue;
+      if (statusFilter && edge.status !== statusFilter) continue;
+      if (edge.confidence < confidenceThreshold) continue;
+      const prefix = otherNodePrefix(edge, nodeId);
+      if (prefix) counts[prefix]++;
+    }
+    return counts;
+  }, [edgesFile, nodeId, statusFilter, confidenceThreshold]);
+
+  // Reset hidden POVs when node changes
+  useEffect(() => { setHiddenPovs(new Set()); }, [nodeId]);
+
+  const togglePov = useCallback((prefix: PovPrefix) => {
+    setHiddenPovs(prev => {
+      const next = new Set(prev);
+      if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
+      return next;
+    });
+  }, []);
 
   // Find all edges where this node is source or target, grouped by edge type
   const groupedEdges = useMemo(() => {
@@ -154,6 +195,8 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
       if (edge.source !== nodeId && edge.target !== nodeId) continue;
       if (statusFilter && edge.status !== statusFilter) continue;
       if (edge.confidence < confidenceThreshold) continue;
+      const prefix = otherNodePrefix(edge, nodeId);
+      if (prefix && hiddenPovs.has(prefix)) continue;
 
       const existing = groups.get(edge.type);
       if (existing) {
@@ -169,7 +212,7 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
     }
 
     return groups;
-  }, [edgesFile, nodeId, statusFilter, confidenceThreshold]);
+  }, [edgesFile, nodeId, statusFilter, confidenceThreshold, hiddenPovs]);
 
   // Get edge type definitions for labels
   const edgeTypeDefs = useMemo(() => {
@@ -253,6 +296,22 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
             &times;
           </button>
         </div>
+      </div>
+
+      {/* POV filter buttons */}
+      <div className="related-edges-pov-filters">
+        {POV_PREFIXES.filter(p => povCounts[p] > 0).map(prefix => (
+          <button
+            key={prefix}
+            className={`related-edges-pov-btn${hiddenPovs.has(prefix) ? ' related-edges-pov-btn-hidden' : ''}`}
+            style={{ '--pov-color': POV_COLOR[prefix] } as React.CSSProperties}
+            onClick={() => togglePov(prefix)}
+            title={`${hiddenPovs.has(prefix) ? 'Show' : 'Hide'} ${POV_LABELS[prefix]}`}
+          >
+            {POV_LABELS[prefix]}
+            <span className="related-edges-pov-btn-count">{povCounts[prefix]}</span>
+          </button>
+        ))}
       </div>
 
       <div className="related-edges-toolbar">
