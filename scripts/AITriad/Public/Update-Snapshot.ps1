@@ -77,12 +77,24 @@ function Update-Snapshot {
             '.pdf' {
                 return ConvertFrom-Pdf -PdfPath $FilePath
             }
+            { $_ -in '.docx', '.doc' } {
+                return ConvertFrom-Docx -DocxPath $FilePath
+            }
             { $_ -in '.htm', '.html' } {
+                $MidMd = ConvertFrom-MarkItDown -FilePath $FilePath
+                if ($MidMd) { return $MidMd }
                 $Raw = Get-Content $FilePath -Raw -Encoding UTF8
                 return ConvertFrom-Html -Html $Raw
             }
+            { $_ -in '.pptx', '.ppt', '.xlsx', '.xls', '.csv', '.epub' } {
+                return ConvertFrom-Office -FilePath $FilePath
+            }
             { $_ -in '.txt', '.md' } {
                 return Get-Content $FilePath -Raw -Encoding UTF8
+            }
+            Default {
+                $MidMd = ConvertFrom-MarkItDown -FilePath $FilePath
+                if ($MidMd) { return $MidMd }
             }
         }
         return $null
@@ -94,11 +106,13 @@ function Update-Snapshot {
     $DocDirs = Get-ChildItem -Path $SourcesDir -Directory |
         Where-Object { Test-Path (Join-Path $_.FullName 'raw') }
 
-    $PdfCount   = 0
-    $HtmlCount  = 0
-    $TxtCount   = 0
-    $SkipCount  = 0
-    $ErrorCount = 0
+    $PdfCount    = 0
+    $DocxCount   = 0
+    $HtmlCount   = 0
+    $OfficeCount = 0
+    $TxtCount    = 0
+    $SkipCount   = 0
+    $ErrorCount  = 0
 
     Write-Host "Update-Snapshot: scanning $($DocDirs.Count) source directories..." -ForegroundColor Cyan
 
@@ -113,18 +127,23 @@ function Update-Snapshot {
             continue
         }
 
-        # Pick the primary raw file: PDF first, then HTML, then text
+        # Pick the primary raw file: PDF first, then DOCX, HTML, Office, then text
         $RawFile = $RawFiles | Where-Object { $_.Extension -eq '.pdf' }  | Select-Object -First 1
         if (-not $RawFile) {
+            $RawFile = $RawFiles | Where-Object { $_.Extension -in '.docx', '.doc' } | Select-Object -First 1
+        }
+        if (-not $RawFile) {
             $RawFile = $RawFiles | Where-Object { $_.Extension -in '.html', '.htm' } | Select-Object -First 1
+        }
+        if (-not $RawFile) {
+            $RawFile = $RawFiles | Where-Object { $_.Extension -in '.pptx', '.ppt', '.xlsx', '.xls', '.csv', '.epub' } | Select-Object -First 1
         }
         if (-not $RawFile) {
             $RawFile = $RawFiles | Where-Object { $_.Extension -in '.txt', '.md' }   | Select-Object -First 1
         }
         if (-not $RawFile) {
-            Write-Host "   [$DocId] No supported file type — skipping" -ForegroundColor Yellow
-            $SkipCount++
-            continue
+            # Try the first file regardless — markitdown may handle it
+            $RawFile = $RawFiles | Select-Object -First 1
         }
 
         $Ext = $RawFile.Extension.ToLower()
@@ -139,9 +158,11 @@ function Update-Snapshot {
         try {
             # Track counts
             switch ($Ext) {
-                '.pdf'                      { $PdfCount++  }
-                { $_ -in '.html', '.htm' } { $HtmlCount++ }
-                { $_ -in '.txt', '.md' }   { $TxtCount++  }
+                '.pdf'                                                            { $PdfCount++    }
+                { $_ -in '.docx', '.doc' }                                       { $DocxCount++   }
+                { $_ -in '.html', '.htm' }                                       { $HtmlCount++   }
+                { $_ -in '.pptx', '.ppt', '.xlsx', '.xls', '.csv', '.epub' }    { $OfficeCount++ }
+                { $_ -in '.txt', '.md' }                                         { $TxtCount++    }
             }
 
             $NewMarkdown = Invoke-ReConvert -FilePath $RawFile.FullName -Extension $Ext
@@ -168,10 +189,12 @@ function Update-Snapshot {
     Write-Host '  ════════════════════════════════════════════════' -ForegroundColor Cyan
     Write-Host '  Update-Snapshot complete' -ForegroundColor Green
     Write-Host '  ════════════════════════════════════════════════' -ForegroundColor Cyan
-    Write-Host "    PDF  conversions : $PdfCount"  -ForegroundColor White
-    Write-Host "    HTML conversions : $HtmlCount" -ForegroundColor White
-    Write-Host "    Text pass-through: $TxtCount"  -ForegroundColor White
-    Write-Host "    Skipped          : $SkipCount" -ForegroundColor Gray
-    Write-Host "    Errors           : $ErrorCount" -ForegroundColor $(if ($ErrorCount -gt 0) { 'Red' } else { 'Gray' })
+    Write-Host "    PDF  conversions : $PdfCount"    -ForegroundColor White
+    Write-Host "    DOCX conversions : $DocxCount"   -ForegroundColor White
+    Write-Host "    HTML conversions : $HtmlCount"   -ForegroundColor White
+    Write-Host "    Office/other     : $OfficeCount" -ForegroundColor White
+    Write-Host "    Text pass-through: $TxtCount"    -ForegroundColor White
+    Write-Host "    Skipped          : $SkipCount"   -ForegroundColor Gray
+    Write-Host "    Errors           : $ErrorCount"  -ForegroundColor $(if ($ErrorCount -gt 0) { 'Red' } else { 'Gray' })
     Write-Host ''
 }

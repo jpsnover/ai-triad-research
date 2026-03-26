@@ -322,22 +322,22 @@ function Invoke-BatchSummary {
     }
 
     # -- STEP 5 — Shared prompt components ------------------------------------
-    $OutputSchema = Get-Prompt -Name 'pov-summary-schema'
-    $SystemPrompt = Get-Prompt -Name 'pov-summary-system'
+    $OutputSchema          = Get-Prompt -Name 'pov-summary-schema'
+    $SystemPromptTemplate  = Get-Prompt -Name 'pov-summary-system'
 
     # -- STEP 6 — Process documents -------------------------------------------
     Write-Step "Processing $($DocsToProcess.Count) document(s)"
 
     $SharedParams = @{
-        ApiKey          = $ApiKey
-        Model           = $Model
-        Temperature     = $Temperature
-        TaxonomyVersion = $TaxonomyVersion
-        TaxonomyJson    = $TaxonomyJson
-        SystemPrompt    = $SystemPrompt
-        OutputSchema    = $OutputSchema
-        SummariesDir    = $SummariesDir
-        Now             = $Now
+        ApiKey               = $ApiKey
+        Model                = $Model
+        Temperature          = $Temperature
+        TaxonomyVersion      = $TaxonomyVersion
+        TaxonomyJson         = $TaxonomyJson
+        SystemPromptTemplate = $SystemPromptTemplate
+        OutputSchema         = $OutputSchema
+        SummariesDir         = $SummariesDir
+        Now                  = $Now
     }
 
     $Results = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
@@ -350,13 +350,26 @@ function Invoke-BatchSummary {
     } else {
         Write-Info "Running $MaxConcurrent parallel workers"
 
+        # Capture all helper functions needed by Invoke-DocumentSummary
         $FnBody        = (Get-Command Invoke-DocumentSummary).ScriptBlock.ToString()
+        $HelperFns     = @('Get-DensityFloors','Test-SummaryDensity','Build-DensityRetryNudge',
+                           'Build-DensityScaledPrompt','Build-DocHeader','Parse-AIResponse',
+                           'Finalize-Summary','Repair-TruncatedJson',
+                           'Invoke-ChunkedSummary','Merge-ChunkSummaries',
+                           'Split-DocumentChunks','Get-Prompt') |
+                         ForEach-Object {
+                             $cmd = Get-Command $_ -ErrorAction SilentlyContinue
+                             if ($cmd) { "function $_ {$($cmd.ScriptBlock.ToString())}" }
+                         }
+        $HelperBlock   = $HelperFns -join "`n"
         $AIEnrichPath  = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
 
         $DocsToProcess | ForEach-Object -Parallel {
             Import-Module $using:AIEnrichPath -Force
             $fn = [scriptblock]::Create("function Invoke-DocumentSummary {$using:FnBody}")
             . $fn
+            $helpers = [scriptblock]::Create($using:HelperBlock)
+            . $helpers
 
             $bag    = $using:Results
             $Result = Invoke-DocumentSummary -Doc $_ @using:SharedParams
