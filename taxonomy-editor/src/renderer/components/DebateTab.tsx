@@ -12,6 +12,7 @@ import { CrossCuttingDetail } from './CrossCuttingDetail';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { DebateSourceViewer } from './DebateSourceViewer';
+import { SearchPanel } from './SearchPanel';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 
@@ -55,7 +56,7 @@ export function DebateTab() {
     inspectedNodeId, inspectNode,
   } = useDebateStore();
   const [exportStatus, setExportStatus] = useState<string | null>(null);
-  const { attributeInfo, attributeFilter } = useTaxonomyStore();
+  const { attributeInfo, attributeFilter, toolbarPanel } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
     storageKey: 'debate-inspect-panel-width',
@@ -111,8 +112,14 @@ export function DebateTab() {
 
   return (
     <div className="two-column">
-      {/* Left pane: Session list */}
-      {listCollapsed ? (
+      {/* Left pane: Session list OR toolbar panel (e.g. Search) */}
+      {toolbarPanel === 'search' ? (
+        <div className="list-panel list-panel-full">
+          <SearchPanel
+            onSelectResult={(id) => inspectNode(id)}
+          />
+        </div>
+      ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">Debates</span>
         </div>
@@ -172,167 +179,171 @@ export function DebateTab() {
         </div>
       )}
 
-      <div className="resize-handle" onMouseDown={onMouseDown} />
+      {toolbarPanel !== 'search' && (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
 
-      {/* For document/URL debates (non-cross-cutting): Pane 2 = source, Pane 3 = workspace */}
-      {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'cross-cutting' ? (
-        <>
-          {/* Pane 2: Document/URL content */}
-          <div className="detail-panel debate-source-panel">
-            <div className="debate-source-header">
-              <span className="debate-source-title">
-                {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
-              </span>
-              {activeDebate.source_ref && (
-                <span className="debate-source-ref" title={activeDebate.source_ref}>
-                  {activeDebate.source_type === 'document'
-                    ? activeDebate.source_ref.split('/').pop()
-                    : activeDebate.source_ref}
-                </span>
-              )}
-            </div>
-            <div className="debate-source-body">
-              <DebateSourceViewer
-                content={activeDebate.source_content}
-                sourceType={activeDebate.source_type as 'document' | 'url'}
-                sourceRef={activeDebate.source_ref}
-              />
-            </div>
-          </div>
-          <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-          {/* Pane 3: Debate workspace */}
-          <div className="detail-panel debate-workspace-container" style={{ width: pane3Width, minWidth: pane3Width }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              {exportStatus && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
-              )}
-              <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
-            </div>
-            <DebateWorkspace />
-          </div>
-        </>
-      ) : activeDebate && activeDebate.source_type === 'cross-cutting' ? (
-        <>
-          {/* Cross-cutting debate: workspace directly in Pane 2 (context via Details button) */}
-          {detailCollapsed ? (
-            <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
-              <span className="pane-collapsed-label">Workspace</span>
-            </div>
-          ) : (
-            <div className="detail-panel debate-workspace-container">
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                {exportStatus && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
-                )}
-                <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
-                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+          {/* Pane 2 / 3: Debate workspace (layout depends on source type) */}
+          {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'cross-cutting' ? (
+            <>
+              {/* Pane 2: Document/URL content */}
+              <div className="detail-panel debate-source-panel">
+                <div className="debate-source-header">
+                  <span className="debate-source-title">
+                    {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
+                  </span>
+                  {activeDebate.source_ref && (
+                    <span className="debate-source-ref" title={activeDebate.source_ref}>
+                      {activeDebate.source_type === 'document'
+                        ? activeDebate.source_ref.split('/').pop()
+                        : activeDebate.source_ref}
+                    </span>
+                  )}
+                </div>
+                <div className="debate-source-body">
+                  <DebateSourceViewer
+                    content={activeDebate.source_content}
+                    sourceType={activeDebate.source_type as 'document' | 'url'}
+                    sourceRef={activeDebate.source_ref}
+                  />
+                </div>
               </div>
-              <DebateWorkspace />
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          {/* Topic debate: Pane 2 = workspace (original layout) */}
-          {detailCollapsed ? (
-            <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
-              <span className="pane-collapsed-label">Workspace</span>
-            </div>
-          ) : (
-            <div className="detail-panel debate-workspace-container">
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                {exportStatus && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
-                )}
-                {activeDebateId && (
-                  <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
-                    Export
-                  </button>
-                )}
-                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
-              </div>
-              {activeDebateId ? (
+              <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+              {/* Pane 3: Debate workspace */}
+              <div className="detail-panel debate-workspace-container" style={{ width: pane3Width, minWidth: pane3Width }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  {exportStatus && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+                  )}
+                  <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+                </div>
                 <DebateWorkspace />
+              </div>
+            </>
+          ) : activeDebate && activeDebate.source_type === 'cross-cutting' ? (
+            <>
+              {/* Cross-cutting debate: workspace directly in Pane 2 (context via Details button) */}
+              {detailCollapsed ? (
+                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
+                  <span className="pane-collapsed-label">Workspace</span>
+                </div>
               ) : (
-                <div className="debate-empty-state">
-                  <h2>POV Debater</h2>
-                  <p>Select a debate from the list or create a new one.</p>
-                  <button className="btn" onClick={() => setShowNewDialog(true)}>
-                    + New Debate
-                  </button>
+                <div className="detail-panel debate-workspace-container">
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    {exportStatus && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+                    )}
+                    <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+                    <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+                  </div>
+                  <DebateWorkspace />
                 </div>
               )}
-            </div>
+            </>
+          ) : (
+            <>
+              {/* Topic debate: Pane 2 = workspace */}
+              {detailCollapsed ? (
+                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
+                  <span className="pane-collapsed-label">Workspace</span>
+                </div>
+              ) : (
+                <div className="detail-panel debate-workspace-container">
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    {exportStatus && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
+                    )}
+                    {activeDebateId && (
+                      <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
+                        Export
+                      </button>
+                    )}
+                    <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+                  </div>
+                  {activeDebateId ? (
+                    <DebateWorkspace />
+                  ) : (
+                    <div className="debate-empty-state">
+                      <h2>POV Debater</h2>
+                      <p>Select a debate from the list or create a new one.</p>
+                      <button className="btn" onClick={() => setShowNewDialog(true)}>
+                        + New Debate
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
+
+          {/* Node inspector (shown when a taxonomy pill is clicked) */}
+          {inspectedNodeId && (() => {
+            const resolved = resolveNode(inspectedNodeId);
+            if (!resolved) return null;
+            if (inspectCollapsed) {
+              return (
+                <>
+                  <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+                  <div className="pane-collapsed" onClick={() => setInspectCollapsed(false)} title="Expand inspector">
+                    <span className="pane-collapsed-label">Inspector</span>
+                  </div>
+                </>
+              );
+            }
+            return (
+              <>
+                <div className="resize-handle" onMouseDown={onPane3MouseDown} />
+                <div className="detail-panel debate-inspect-panel" style={{ width: pane3Width, minWidth: pane3Width }}>
+                  <div className="debate-inspect-header">
+                    <span className="debate-inspect-title">{resolved.node.label}</span>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <button className="pane-collapse-btn" onClick={() => setInspectCollapsed(true)} title="Collapse">&lsaquo;</button>
+                      <button
+                        className="debate-inspect-close"
+                        onClick={() => inspectNode(null)}
+                        title="Close inspector"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div className="debate-inspect-body">
+                    {resolved.kind === 'crossCutting' ? (
+                      <CrossCuttingDetail node={resolved.node} readOnly />
+                    ) : (
+                      <NodeDetail pov={resolved.pov} node={resolved.node} readOnly />
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
+          {/* Pane 4: Attribute Info / Filter (shown when triggered from Pane 3) */}
+          {showPane4 && (() => {
+            if (pane4Collapsed) {
+              return (
+                <>
+                  <div className="resize-handle" onMouseDown={onPane4MouseDown} />
+                  <div className="pane-collapsed" onClick={() => setPane4Collapsed(false)} title="Expand">
+                    <span className="pane-collapsed-label">{showAttrFilterPanel ? 'Filter' : 'Info'}</span>
+                  </div>
+                </>
+              );
+            }
+            return (
+              <>
+                <div className="resize-handle" onMouseDown={onPane4MouseDown} />
+                {showAttrFilterPanel ? (
+                  <AttributeFilterPanel width={pane4Width} />
+                ) : showInfoPanel ? (
+                  <AttributeInfoPanel width={pane4Width} />
+                ) : null}
+              </>
+            );
+          })()}
         </>
       )}
-
-      {/* Node inspector (shown when a taxonomy pill is clicked) */}
-      {inspectedNodeId && (() => {
-        const resolved = resolveNode(inspectedNodeId);
-        if (!resolved) return null;
-        if (inspectCollapsed) {
-          return (
-            <>
-              <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-              <div className="pane-collapsed" onClick={() => setInspectCollapsed(false)} title="Expand inspector">
-                <span className="pane-collapsed-label">Inspector</span>
-              </div>
-            </>
-          );
-        }
-        return (
-          <>
-            <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-            <div className="detail-panel debate-inspect-panel" style={{ width: pane3Width, minWidth: pane3Width }}>
-              <div className="debate-inspect-header">
-                <span className="debate-inspect-title">{resolved.node.label}</span>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <button className="pane-collapse-btn" onClick={() => setInspectCollapsed(true)} title="Collapse">&lsaquo;</button>
-                  <button
-                    className="debate-inspect-close"
-                    onClick={() => inspectNode(null)}
-                    title="Close inspector"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              <div className="debate-inspect-body">
-                {resolved.kind === 'crossCutting' ? (
-                  <CrossCuttingDetail node={resolved.node} readOnly />
-                ) : (
-                  <NodeDetail pov={resolved.pov} node={resolved.node} readOnly />
-                )}
-              </div>
-            </div>
-          </>
-        );
-      })()}
-
-      {/* Pane 4: Attribute Info / Filter (shown when triggered from Pane 3) */}
-      {showPane4 && (() => {
-        if (pane4Collapsed) {
-          return (
-            <>
-              <div className="resize-handle" onMouseDown={onPane4MouseDown} />
-              <div className="pane-collapsed" onClick={() => setPane4Collapsed(false)} title="Expand">
-                <span className="pane-collapsed-label">{showAttrFilterPanel ? 'Filter' : 'Info'}</span>
-              </div>
-            </>
-          );
-        }
-        return (
-          <>
-            <div className="resize-handle" onMouseDown={onPane4MouseDown} />
-            {showAttrFilterPanel ? (
-              <AttributeFilterPanel width={pane4Width} />
-            ) : showInfoPanel ? (
-              <AttributeInfoPanel width={pane4Width} />
-            ) : null}
-          </>
-        );
-      })()}
 
       {showNewDialog && (
         <NewDebateDialog onClose={() => setShowNewDialog(false)} />

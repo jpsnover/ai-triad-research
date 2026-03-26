@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
@@ -92,6 +92,7 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
 /** Taxonomy refs with "Show reasoning" toggle */
 function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
   const [expanded, setExpanded] = useState(false);
+  const inspectNode = useDebateStore((s) => s.inspectNode);
 
   if (refs.length === 0) return null;
 
@@ -115,7 +116,13 @@ function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
             const { colorVar } = nodeIdToTab(taxRef.node_id);
             return (
               <div key={taxRef.node_id} className="debate-reasoning-item">
-                <span className="debate-reasoning-node" style={{ color: colorVar }}>{taxRef.node_id}</span>
+                <button
+                  className="debate-reasoning-node"
+                  style={{ color: colorVar }}
+                  onClick={() => inspectNode(taxRef.node_id)}
+                >
+                  {taxRef.node_id}
+                </button>
                 <span className="debate-reasoning-label">{label}</span>
                 <span className="debate-reasoning-text">{taxRef.relevance}</span>
               </div>
@@ -149,7 +156,134 @@ function ProgressIndicator() {
   );
 }
 
-function StatementCard({ entry }: { entry: TranscriptEntry }) {
+// ── Similar POVs panel ───────────────────────────────────
+
+function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () => void }) {
+  const { semanticResults, getLabelForId } = useTaxonomyStore();
+  const inspectNode = useDebateStore((s) => s.inspectNode);
+  const [searching, setSearching] = useState(true);
+  const isFirstRender = useRef(true);
+
+  // Don't mark done on the initial mount (semanticResults may be stale from a previous search);
+  // only react to genuine updates that arrive after this component mounts.
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    setSearching(false);
+  }, [semanticResults]);
+
+  const rows = semanticResults.filter(r => r.score >= 0.4).slice(0, 20);
+  const truncatedQuery = query.length > 70 ? query.slice(0, 67) + '…' : query;
+
+  return (
+    <div className="debate-similar-pov-panel">
+      <div className="debate-similar-pov-header">
+        <span className="debate-similar-pov-title">Similar POVs</span>
+        <span className="debate-similar-pov-query" title={query}>&ldquo;{truncatedQuery}&rdquo;</span>
+        <button className="debate-find-close" onClick={onClose} title="Close">×</button>
+      </div>
+      {searching ? (
+        <div className="debate-similar-pov-status">Searching…</div>
+      ) : rows.length === 0 ? (
+        <div className="debate-similar-pov-status">No similar POVs found.</div>
+      ) : (
+        <div className="debate-similar-pov-rows">
+          {rows.map(r => {
+            const label = getLabelForId(r.id);
+            const { colorVar } = nodeIdToTab(r.id);
+            return (
+              <button
+                key={r.id}
+                className="debate-similar-pov-row"
+                onClick={() => inspectNode(r.id)}
+                title={label}
+              >
+                <span className="debate-similar-pov-score">{Math.round(r.score * 100)}%</span>
+                <span className="debate-similar-pov-id" style={{ color: colorVar }}>{r.id}</span>
+                <span className="debate-similar-pov-label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Find-in-debate helpers ────────────────────────────────
+
+function countOccurrences(text: string, query: string): number {
+  if (!query) return 0;
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  let count = 0, pos = 0;
+  while ((pos = lower.indexOf(q, pos)) !== -1) { count++; pos += q.length; }
+  return count;
+}
+
+function HighlightedText({ text, query, matchOffset, currentIndex }: {
+  text: string; query: string; matchOffset: number; currentIndex: number;
+}) {
+  if (!query) return <>{text}</>;
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let pos = 0, n = 0;
+  while (pos <= text.length) {
+    const idx = lower.indexOf(q, pos);
+    if (idx === -1) { if (pos < text.length) parts.push(text.slice(pos)); break; }
+    if (idx > pos) parts.push(text.slice(pos, idx));
+    const gi = matchOffset + n;
+    parts.push(
+      <mark
+        key={gi}
+        className={`debate-find-match${gi === currentIndex ? ' debate-find-match-current' : ''}`}
+        data-find-index={gi}
+      >
+        {text.slice(idx, idx + query.length)}
+      </mark>
+    );
+    n++; pos = idx + query.length;
+  }
+  return <>{parts}</>;
+}
+
+function FindBar({ query, onQueryChange, current, total, onPrev, onNext, onClose }: {
+  query: string; onQueryChange: (q: string) => void;
+  current: number; total: number;
+  onPrev: () => void; onNext: () => void; onClose: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  return (
+    <div className="debate-find-bar">
+      <input
+        ref={inputRef}
+        className="debate-find-input"
+        type="text"
+        placeholder="Find in debate…"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+          else if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? onPrev() : onNext(); }
+        }}
+      />
+      <span className="debate-find-count">
+        {total === 0 ? (query ? 'No results' : '') : `${current + 1} / ${total}`}
+      </span>
+      <button className="debate-find-nav" onClick={onPrev} disabled={total === 0} title="Previous (Shift+Enter)">▲</button>
+      <button className="debate-find-nav" onClick={onNext} disabled={total === 0} title="Next (Enter)">▼</button>
+      <button className="debate-find-close" onClick={onClose} title="Close (Esc)">×</button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+
+function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
+  entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
+}) {
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
   return (
@@ -164,7 +298,11 @@ function StatementCard({ entry }: { entry: TranscriptEntry }) {
         </span>
         <span className="debate-statement-type">{entry.type}</span>
       </div>
-      <div className="debate-statement-content">{entry.content}</div>
+      <div className="debate-statement-content">
+        {findQuery
+          ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+          : entry.content}
+      </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
     </div>
   );
@@ -207,9 +345,11 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
 function DebateContextMenu({
   menu,
   onClose,
+  onSimilarPovSearch,
 }: {
   menu: ContextMenuState;
   onClose: () => void;
+  onSimilarPovSearch: (query: string) => void;
 }) {
   const { factCheckSelection, debateGenerating } = useDebateStore();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -242,6 +382,11 @@ function DebateContextMenu({
     onClose();
   };
 
+  const handleSimilarPovs = () => {
+    onSimilarPovSearch(menu.selectedText);
+    onClose();
+  };
+
   const handleFactCheck = async () => {
     onClose();
     await factCheckSelection(menu.selectedText, menu.entryId);
@@ -263,6 +408,9 @@ function DebateContextMenu({
       <button className="debate-context-menu-item" onClick={handleSearchGoogle}>
         Search Google for &lsquo;{truncatedText}&rsquo;
       </button>
+      <button className="debate-context-menu-item" onClick={handleSimilarPovs}>
+        Similar POVs for &lsquo;{truncatedText}&rsquo;
+      </button>
       {menu.isPoverStatement && (
         <button
           className="debate-context-menu-item debate-context-menu-fact-check"
@@ -277,7 +425,9 @@ function DebateContextMenu({
 }
 
 /** Fact-check result card */
-function FactCheckCard({ entry }: { entry: TranscriptEntry }) {
+function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
+  entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
+}) {
   const factCheck = entry.metadata?.fact_check as {
     verdict: string;
     explanation: string;
@@ -296,7 +446,11 @@ function FactCheckCard({ entry }: { entry: TranscriptEntry }) {
           {factCheck?.verdict || 'unknown'}
         </span>
       </div>
-      <div className="debate-statement-content">{entry.content}</div>
+      <div className="debate-statement-content">
+        {findQuery
+          ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+          : entry.content}
+      </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
     </div>
   );
@@ -773,12 +927,70 @@ export function DebateWorkspace() {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
   } = useDebateStore();
+  const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredClarification = useRef(false);
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSimilarPovSearch = useCallback((query: string) => {
+    setStoreFindQuery(query);
+    setStoreFindMode('semantic');
+    setToolbarPanel('search');
+    runSemanticSearch(query, new Set(), new Set());
+  }, [runSemanticSearch, setStoreFindQuery, setStoreFindMode, setToolbarPanel]);
+
+  // ── Find state ────────────────────────────────────────
+  const [findVisible, setFindVisible] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [findCurrentIndex, setFindCurrentIndex] = useState(0);
+
+  const { findTotal, findOffsets } = useMemo(() => {
+    if (!findQuery || !activeDebate) return { findTotal: 0, findOffsets: new Map<string, number>() };
+    const offsets = new Map<string, number>();
+    let total = 0;
+    for (const entry of activeDebate.transcript) {
+      const count = countOccurrences(entry.content, findQuery);
+      if (count > 0) { offsets.set(entry.id, total); total += count; }
+    }
+    return { findTotal: total, findOffsets: offsets };
+  }, [findQuery, activeDebate?.transcript]);
+
+  useEffect(() => { setFindCurrentIndex(0); }, [findQuery, findTotal]);
+
+  useEffect(() => {
+    if (!findVisible || findTotal === 0) return;
+    document.querySelector(`[data-find-index="${findCurrentIndex}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [findCurrentIndex, findVisible, findQuery, findTotal]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setFindVisible(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const findNext = useCallback(() => {
+    if (findTotal === 0) return;
+    setFindCurrentIndex(i => (i + 1) % findTotal);
+  }, [findTotal]);
+
+  const findPrev = useCallback(() => {
+    if (findTotal === 0) return;
+    setFindCurrentIndex(i => (i - 1 + findTotal) % findTotal);
+  }, [findTotal]);
+
+  const closeFind = useCallback(() => {
+    setFindVisible(false);
+    setFindQuery('');
+  }, []);
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
@@ -923,6 +1135,19 @@ export function DebateWorkspace() {
         <RefinedTopicEditor />
       )}
 
+      {/* Find bar */}
+      {findVisible && (
+        <FindBar
+          query={findQuery}
+          onQueryChange={setFindQuery}
+          current={findCurrentIndex}
+          total={findTotal}
+          onPrev={findPrev}
+          onNext={findNext}
+          onClose={closeFind}
+        />
+      )}
+
       {/* Transcript */}
       <div className="debate-transcript" onContextMenu={handleContextMenu}>
         {activeDebate.transcript.length === 0 && !debateGenerating && (
@@ -930,13 +1155,14 @@ export function DebateWorkspace() {
             The debate is ready to begin. Clarification questions will appear here.
           </div>
         )}
-        {activeDebate.transcript.map((entry) => (
-          entry.type === 'probing'
+        {activeDebate.transcript.map((entry) => {
+          const matchOffset = findOffsets.get(entry.id) ?? 0;
+          return entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} />
             : entry.type === 'fact-check'
-            ? <FactCheckCard key={entry.id} entry={entry} />
-            : <StatementCard key={entry.id} entry={entry} />
-        ))}
+            ? <FactCheckCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
+            : <StatementCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
+        })}
         {debateGenerating && (
           <div className="debate-statement debate-generating">
             <div className="debate-statement-header">
@@ -965,6 +1191,7 @@ export function DebateWorkspace() {
         <DebateContextMenu
           menu={contextMenu}
           onClose={() => setContextMenu(null)}
+          onSimilarPovSearch={handleSimilarPovSearch}
         />
       )}
     </div>
