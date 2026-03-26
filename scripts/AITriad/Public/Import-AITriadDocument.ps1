@@ -413,6 +413,8 @@ function Import-AITriadDocument {
 
             Write-Step "Processing $($InboxFiles.Count) file(s) from inbox"
             $IngestedIds = @()
+            # Track inbox files for deferred cleanup — only remove after full pipeline succeeds
+            $InboxCleanup = @{}  # DocId → @{ File = path; Sidecar = path }
 
             foreach ($InboxFile in $InboxFiles) {
                 Write-Host ''
@@ -441,9 +443,10 @@ function Import-AITriadDocument {
                         -TopicTags  $SidecarTopic
 
                     $IngestedIds += $DocId
-
-                    Remove-Item $InboxFile.FullName -Force
-                    if (Test-Path $SidecarPath) { Remove-Item $SidecarPath -Force }
+                    $InboxCleanup[$DocId] = @{
+                        File    = $InboxFile.FullName
+                        Sidecar = $SidecarPath
+                    }
 
                 } catch {
                     Write-Fail "Failed to ingest $($InboxFile.Name): $_"
@@ -461,8 +464,21 @@ function Import-AITriadDocument {
             if (-not $NoSummarize -and $IngestedIds.Count -gt 0) {
                 foreach ($id in $IngestedIds) {
                     Write-Step "Running POV summarization for $id"
-                    Invoke-BatchSummary -DocId $id -Model $Model -Temperature $Temperature
+                    try {
+                        Invoke-BatchSummary -DocId $id -Model $Model -Temperature $Temperature
+                    } catch {
+                        Write-Fail "Summarization failed for $id`: $_"
+                        Write-Info "File left in inbox for retry."
+                        $null = $InboxCleanup.Remove($id)
+                    }
                 }
+            }
+
+            # -- Remove inbox files only for fully successful documents ----------
+            foreach ($entry in $InboxCleanup.GetEnumerator()) {
+                $paths = $entry.Value
+                if (Test-Path $paths.File) { Remove-Item $paths.File -Force }
+                if (Test-Path $paths.Sidecar) { Remove-Item $paths.Sidecar -Force }
             }
         }
     }

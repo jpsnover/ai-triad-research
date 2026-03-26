@@ -12,19 +12,29 @@ For EACH POV camp you must identify:
   3. Methods/Arguments  — what someone is arguing for or against, and the methods,
      logic models, interpretive lenses, or policy approaches they use to make those arguments
 
-QUANTITY GUIDANCE:
-  - Be EXHAUSTIVE. Extract every distinct point the document makes, not just the top few.
-  - key_points: produce 5-20 per POV camp, covering ALL three categories (Goals/Values,
-    Data/Facts, Methods/Arguments). A typical well-argued document yields 8-15 points per camp.
-    Short or narrowly focused documents may yield fewer, but never fewer than 3 per camp
-    if the document addresses that POV's concerns at all.
-  - factual_claims: extract EVERY specific empirical or factual assertion in the document.
-    Include statistics, study results, historical claims, predictions with dates, and
-    quantitative comparisons. A typical document yields 5-15 factual claims.
-  - unmapped_concepts: include ALL concepts that do not map to existing taxonomy nodes.
-    Do not skip a concept just because it is minor — taxonomy growth depends on this.
-    A typical document yields 3-10 unmapped concepts. If you find fewer than 3, look
-    harder — most documents introduce ideas, framings, or evidence not yet in the taxonomy.
+REQUIRED OUTPUT DENSITY (hard constraints — responses below these minimums will be
+REJECTED and you will be asked to redo the analysis):
+  This document is approximately {{WORD_COUNT}} words.
+
+  MINIMUMS (non-negotiable):
+    • key_points: AT LEAST {{KP_MIN}} per POV camp (target {{KP_MIN}}-{{KP_MAX}}).
+      You MUST cover ALL three categories (Goals/Values, Data/Facts, Methods/Arguments)
+      in EACH camp. A {{WORD_COUNT}}-word document contains far more than 2 points per
+      camp — read carefully and extract every one.
+    • factual_claims: AT LEAST {{FC_MIN}} (target {{FC_MIN}}-{{FC_MAX}}).
+      Count every statistic, study result, historical assertion, date-specific prediction,
+      and quantitative comparison in the document. Each one is a separate factual_claim.
+    • unmapped_concepts: AT LEAST {{UC_MIN}} (target {{UC_MIN}}-{{UC_MAX}}).
+      If you find fewer than {{UC_MIN}}, look harder — most documents introduce ideas,
+      framings, or evidence not yet in the taxonomy.
+
+  Be EXHAUSTIVE. Extract every distinct, salient point the document makes. Longer
+  documents should yield more points. If the document warrants more than the target
+  maximum, include them — completeness matters more than hitting a number.
+
+  SELF-CHECK before returning: count your key_points per camp, factual_claims, and
+  unmapped_concepts. If ANY count is below the minimum, go back and extract more.
+
     For each unmapped concept, provide:
       • suggested_label: a concise 5-10 word label suitable as a taxonomy node name
       • suggested_description: 2-5 sentences defining the concept for the taxonomy
@@ -48,6 +58,18 @@ QUANTITY GUIDANCE:
       • "Accelerationist Interpretation": 1-3 sentences
       • "Safetyist Interpretation": 1-3 sentences
       • "Skeptic Interpretation": 1-3 sentences
+
+KEY POINT DEPTH:
+  Each key_point "point" field must be 3-6 sentences that do ALL of the following:
+    (1) State the document's position clearly.
+    (2) Explain the specific evidence, reasoning, or mechanism the document uses to
+        support that position — cite data, examples, or logic from the text.
+    (3) Connect to the POV lens: why does this matter from an accelerationist /
+        safetyist / skeptic perspective? What implications does it have for that
+        camp's goals or concerns?
+    (4) Note any caveats, limitations, or tensions the document itself acknowledges.
+  Do NOT write vague summaries like "The document supports X." Instead, explain
+  WHAT the document says, HOW it argues the point, and WHY it matters.
 
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.

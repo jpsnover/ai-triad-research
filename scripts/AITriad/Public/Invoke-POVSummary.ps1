@@ -180,8 +180,27 @@ function Invoke-POVSummary {
     # -- STEP 4 — Build the prompt --------------------------------------------
     Write-Step "Building prompt"
 
+    # Density-scaled extraction guidance based on document size
+    $wordCount = ($snapshotText -split '\s+').Count
+    $floors = Get-DensityFloors -WordCount $wordCount
+    $kpMin  = $floors.KpMin
+    $kpMax  = [Math]::Max(8,  [int]($wordCount / 200))
+    $fcMin  = $floors.FcMin
+    $fcMax  = [Math]::Max(8,  [int]($wordCount / 300))
+    $ucMin  = $floors.UcMin
+    $ucMax  = [Math]::Max(5,  [int]($wordCount / 800))
+    Write-Info "Document: ~$wordCount words → key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax"
+
     $outputSchema = Get-Prompt -Name 'pov-summary-schema'
-    $systemPrompt = Get-Prompt -Name 'pov-summary-system'
+    $systemPrompt = Get-Prompt -Name 'pov-summary-system' -Replacements @{
+        WORD_COUNT = $wordCount
+        KP_MIN     = $kpMin
+        KP_MAX     = $kpMax
+        FC_MIN     = $fcMin
+        FC_MAX     = $fcMax
+        UC_MIN     = $ucMin
+        UC_MAX     = $ucMax
+    }
 
     $fullPrompt = @"
 $systemPrompt
@@ -234,99 +253,124 @@ $snapshotText
         return
     }
 
-    # -- STEP 5 — Call the AI API ----------------------------------------------
+    # -- STEP 5 — Call the AI API (with density validation + retry) ------------
     Write-Step "Calling AI API ($Model)"
 
+    $densityFloors = Get-DensityFloors -WordCount $wordCount
+    $maxDensityRetries = 1
     $startTime = Get-Date
-    Write-Info "Sending request..."
+    $summaryObject = $null
 
-    $aiResult = Invoke-AIApi `
-        -Prompt      $fullPrompt `
-        -Model       $Model `
-        -ApiKey      $ApiKey `
-        -Temperature $Temperature `
-        -MaxTokens   32768 `
-        -JsonMode `
-        -TimeoutSec  120
-
-    if ($null -eq $aiResult) {
-        throw "AI API call returned null for $DocId"
-    }
-
-    $elapsed = (Get-Date) - $startTime
-    Write-OK "Response received from $($aiResult.Backend) in $([int]$elapsed.TotalSeconds)s"
-
-    # -- STEP 6 — Extract and validate the response JSON ----------------------
-    Write-Step "Parsing and validating AI response"
-
-    $rawText = $aiResult.Text
-
-    Write-Verbose "Raw AI response:"
-    Write-Verbose $rawText
-
-    $cleanedText = $rawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-    $cleanedText = $cleanedText.Trim()
-
-    try {
-        $summaryObject = $cleanedText | ConvertFrom-Json -Depth 20
-        Write-OK "Valid JSON received from $($aiResult.Backend)"
-    } catch {
-        # Attempt repair of truncated JSON
-        Write-Warn "JSON parse failed — attempting repair"
-        $repaired = Repair-TruncatedJson -Text $rawText
-        if ($repaired) {
-            try {
-                $summaryObject = $repaired | ConvertFrom-Json -Depth 20
-                Write-OK "JSON repaired successfully (truncated response recovered)"
-            } catch {
-                $summaryObject = $null
-            }
+    for ($densityAttempt = 0; $densityAttempt -le $maxDensityRetries; $densityAttempt++) {
+        $attemptPrompt = $fullPrompt
+        if ($densityAttempt -gt 0) {
+            Write-Warn "Retry $densityAttempt/$maxDensityRetries — density too low"
+            $attemptPrompt = $fullPrompt + "`n`n" + $densityRetryNudge
         }
-        if ($null -eq $summaryObject) {
-            Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
-            $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
-            Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
-            Write-Info "Raw response saved to: $debugPath"
-            throw "AI returned invalid JSON for $DocId"
+
+        Write-Info "Sending request..."
+
+        $aiResult = Invoke-AIApi `
+            -Prompt      $attemptPrompt `
+            -Model       $Model `
+            -ApiKey      $ApiKey `
+            -Temperature $Temperature `
+            -MaxTokens   32768 `
+            -JsonMode `
+            -TimeoutSec  120
+
+        if ($null -eq $aiResult) {
+            throw "AI API call returned null for $DocId"
         }
-    }
 
-    $requiredKeys = @("pov_summaries", "factual_claims", "unmapped_concepts")
-    $missingKeys  = $requiredKeys | Where-Object { $null -eq $summaryObject.PSObject.Properties[$_] }
-    if ($missingKeys) {
-        Write-Warn "Response is missing expected keys: $($missingKeys -join ', ')"
-        Write-Info "Continuing with partial data — review the summary file manually."
-    }
+        $elapsed = (Get-Date) - $startTime
+        Write-OK "Response received from $($aiResult.Backend) in $([int]$elapsed.TotalSeconds)s"
 
-    $validStances = @("strongly_aligned","aligned","neutral","opposed","strongly_opposed","not_applicable")
-    $camps = @("accelerationist","safetyist","skeptic")
+        # -- STEP 6 — Extract and validate the response JSON ----------------------
+        Write-Step "Parsing and validating AI response"
 
-    foreach ($camp in $camps) {
-        $campData = $summaryObject.pov_summaries.$camp
-        if ($campData) {
-            if ($campData.key_points) {
-                foreach ($kp in $campData.key_points) {
-                    if ($kp.stance -notin $validStances) {
-                        Write-Warn "Invalid stance '$($kp.stance)' for $camp key_point — replacing with 'neutral'"
-                        $kp.stance = 'neutral'
-                    }
+        $rawText = $aiResult.Text
+
+        Write-Verbose "Raw AI response:"
+        Write-Verbose $rawText
+
+        $cleanedText = $rawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
+        $cleanedText = $cleanedText.Trim()
+
+        try {
+            $summaryObject = $cleanedText | ConvertFrom-Json -Depth 20
+            Write-OK "Valid JSON received from $($aiResult.Backend)"
+        } catch {
+            # Attempt repair of truncated JSON
+            Write-Warn "JSON parse failed — attempting repair"
+            $repaired = Repair-TruncatedJson -Text $rawText
+            if ($repaired) {
+                try {
+                    $summaryObject = $repaired | ConvertFrom-Json -Depth 20
+                    Write-OK "JSON repaired successfully (truncated response recovered)"
+                } catch {
+                    $summaryObject = $null
                 }
             }
-            $pointCount = if ($campData.key_points) { @($campData.key_points).Count } else { 0 }
-            $nullNodes  = if ($campData.key_points) { @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
-            Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
-        } else {
-            Write-Warn "  $camp : no data returned — may not be relevant to this document"
+            if ($null -eq $summaryObject) {
+                Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
+                $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
+                Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
+                Write-Info "Raw response saved to: $debugPath"
+                throw "AI returned invalid JSON for $DocId"
+            }
         }
-    }
 
-    $factualClaimCount    = if ($summaryObject.factual_claims)    { $summaryObject.factual_claims.Count }    else { 0 }
-    $unmappedConceptCount = if ($summaryObject.unmapped_concepts) { $summaryObject.unmapped_concepts.Count } else { 0 }
+        $requiredKeys = @("pov_summaries", "factual_claims", "unmapped_concepts")
+        $missingKeys  = $requiredKeys | Where-Object { $null -eq $summaryObject.PSObject.Properties[$_] }
+        if ($missingKeys) {
+            Write-Warn "Response is missing expected keys: $($missingKeys -join ', ')"
+            Write-Info "Continuing with partial data — review the summary file manually."
+        }
 
-    Write-OK "  factual_claims    : $factualClaimCount"
-    Write-OK "  unmapped_concepts : $unmappedConceptCount"
-    if ($unmappedConceptCount -gt 0) {
-        Write-Warn "$unmappedConceptCount concept(s) didn't map to existing taxonomy nodes — review for taxonomy expansion."
+        $validStances = @("strongly_aligned","aligned","neutral","opposed","strongly_opposed","not_applicable")
+        $camps = @("accelerationist","safetyist","skeptic")
+
+        foreach ($camp in $camps) {
+            $campData = $summaryObject.pov_summaries.$camp
+            if ($campData) {
+                if ($campData.key_points) {
+                    foreach ($kp in $campData.key_points) {
+                        if ($kp.stance -notin $validStances) {
+                            Write-Warn "Invalid stance '$($kp.stance)' for $camp key_point — replacing with 'neutral'"
+                            $kp.stance = 'neutral'
+                        }
+                    }
+                }
+                $pointCount = if ($campData.key_points) { @($campData.key_points).Count } else { 0 }
+                $nullNodes  = if ($campData.key_points) { @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
+                Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
+            } else {
+                Write-Warn "  $camp : no data returned — may not be relevant to this document"
+            }
+        }
+
+        $factualClaimCount    = if ($summaryObject.factual_claims)    { @($summaryObject.factual_claims).Count }    else { 0 }
+        $unmappedConceptCount = if ($summaryObject.unmapped_concepts) { @($summaryObject.unmapped_concepts).Count } else { 0 }
+
+        Write-OK "  factual_claims    : $factualClaimCount"
+        Write-OK "  unmapped_concepts : $unmappedConceptCount"
+        if ($unmappedConceptCount -gt 0) {
+            Write-Warn "$unmappedConceptCount concept(s) didn't map to existing taxonomy nodes — review for taxonomy expansion."
+        }
+
+        # -- Density validation ---------------------------------------------------
+        $densityCheck = Test-SummaryDensity -SummaryObject $summaryObject -Floors $densityFloors
+        if ($densityCheck.Pass) {
+            break
+        }
+
+        $densityRetryNudge = Build-DensityRetryNudge -Shortfalls $densityCheck.Shortfalls
+        Write-Warn "Density check FAILED: $($densityCheck.Shortfalls -join '; ')"
+
+        if ($densityAttempt -eq $maxDensityRetries) {
+            Write-Warn "Accepting under-dense result after $($densityAttempt + 1) attempt(s)"
+        }
     }
 
     # -- STEP 7 — Write summary file ------------------------------------------
@@ -387,7 +431,7 @@ $snapshotText
             $claimLabel  = $claim.claim_label
             $docPosition = $claim.doc_position
             $hintId      = $claim.potential_conflict_id
-            $linkedNodes = if ($null -ne $claim.linked_taxonomy_nodes) { @($claim.linked_taxonomy_nodes) } else { @() }
+            $linkedNodes = if ($null -ne $claim.linked_taxonomy_nodes) { ,@($claim.linked_taxonomy_nodes) } else { ,@() }
 
             # Normalize stance value
             $stance = if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $docPosition } else { 'neutral' }

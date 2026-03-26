@@ -14,7 +14,7 @@ function Invoke-DocumentSummary {
         [Parameter(Mandatory)][double]$Temperature,
         [Parameter(Mandatory)][string]$TaxonomyVersion,
         [Parameter(Mandatory)][string]$TaxonomyJson,
-        [Parameter(Mandatory)][string]$SystemPrompt,
+        [Parameter(Mandatory)][string]$SystemPromptTemplate,
         [Parameter(Mandatory)][string]$OutputSchema,
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now
@@ -48,6 +48,11 @@ function Invoke-DocumentSummary {
     # SINGLE-CALL PATH (small documents)
     # ========================================================================
 
+    # -- Build density-scaled system prompt -----------------------------------
+    $WordCount = ($SnapshotText -split '\s+').Count
+    $DensityFloors = Get-DensityFloors -WordCount $WordCount
+    $SystemPrompt = Build-DensityScaledPrompt -WordCount $WordCount -Template $SystemPromptTemplate
+
     # -- Build prompt ---------------------------------------------------------
     $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
     $FullPrompt = @"
@@ -65,31 +70,54 @@ $DocHeader
 $SnapshotText
 "@
 
-    # -- Call AI API ----------------------------------------------------------
+    # -- Call AI API (with density validation + retry) -------------------------
+    $MaxDensityRetries = 1
     $StartTime = Get-Date
+    $SummaryObject = $null
 
-    $AIResult = Invoke-AIApi `
-        -Prompt     $FullPrompt `
-        -Model      $Model `
-        -ApiKey     $ApiKey `
-        -Temperature $Temperature `
-        -MaxTokens  65536 `
-        -JsonMode `
-        -TimeoutSec 300 `
-        -MaxRetries 3 `
-        -RetryDelays @(5, 15, 45)
+    for ($Attempt = 0; $Attempt -le $MaxDensityRetries; $Attempt++) {
+        $AttemptPrompt = $FullPrompt
+        if ($Attempt -gt 0) {
+            Write-Host "  `u{2502}  `u{21BB} Retry $Attempt/$MaxDensityRetries — density too low" -ForegroundColor Yellow
+            $AttemptPrompt = $FullPrompt + "`n`n" + $DensityRetryNudge
+        }
 
-    if ($null -eq $AIResult) {
-        Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId" -ForegroundColor Red
-        return @{ Success = $false; DocId = $ThisDocId; Error = 'API call returned null' }
-    }
+        $AIResult = Invoke-AIApi `
+            -Prompt     $AttemptPrompt `
+            -Model      $Model `
+            -ApiKey     $ApiKey `
+            -Temperature $Temperature `
+            -MaxTokens  65536 `
+            -JsonMode `
+            -TimeoutSec 300 `
+            -MaxRetries 3 `
+            -RetryDelays @(5, 15, 45)
 
-    $Elapsed = (Get-Date) - $StartTime
-    Write-Host "  `u{2502}  `u{2713} Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+        if ($null -eq $AIResult) {
+            Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId" -ForegroundColor Red
+            return @{ Success = $false; DocId = $ThisDocId; Error = 'API call returned null' }
+        }
 
-    $SummaryObject = Parse-AIResponse -RawText $AIResult.Text -ThisDocId $ThisDocId -SummariesDir $SummariesDir
-    if ($null -eq $SummaryObject) {
-        return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        $Elapsed = (Get-Date) - $StartTime
+        Write-Host "  `u{2502}  `u{2713} Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+
+        $SummaryObject = Parse-AIResponse -RawText $AIResult.Text -ThisDocId $ThisDocId -SummariesDir $SummariesDir
+        if ($null -eq $SummaryObject) {
+            return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
+        }
+
+        $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
+        if ($DensityCheck.Pass) {
+            break
+        }
+
+        # Build a nudge message for the retry with specific shortfalls
+        $DensityRetryNudge = Build-DensityRetryNudge -Shortfalls $DensityCheck.Shortfalls
+        Write-Host "  `u{2502}  `u{26A0} Density check FAILED: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
+
+        if ($Attempt -eq $MaxDensityRetries) {
+            Write-Host "  `u{2502}  `u{26A0} Accepting under-dense result after $($Attempt + 1) attempt(s)" -ForegroundColor Yellow
+        }
     }
 
     return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
@@ -110,7 +138,7 @@ function Invoke-ChunkedSummary {
         [Parameter(Mandatory)][double]$Temperature,
         [Parameter(Mandatory)][string]$TaxonomyVersion,
         [Parameter(Mandatory)][string]$TaxonomyJson,
-        [Parameter(Mandatory)][string]$SystemPrompt,
+        [Parameter(Mandatory)][string]$SystemPromptTemplate,
         [Parameter(Mandatory)][string]$OutputSchema,
         [Parameter(Mandatory)][string]$SummariesDir,
         [Parameter(Mandatory)][string]$Now
@@ -216,6 +244,14 @@ $ChunkText
 
     Write-Host "  `u{2502}  `u{2713} Merged ($([int]$Elapsed.TotalSeconds)s total, $ChunkCount chunks)" -ForegroundColor Green
 
+    # -- Density check on merged result (warn only, no retry for chunked) ----
+    $WordCount = ($SnapshotText -split '\s+').Count
+    $DensityFloors = Get-DensityFloors -WordCount $WordCount
+    $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
+    if (-not $DensityCheck.Pass) {
+        Write-Host "  `u{2502}  `u{26A0} Merged density below floor: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
+    }
+
     return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
         -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
         -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed -ChunkCount $ChunkCount
@@ -224,6 +260,104 @@ $ChunkText
 # ============================================================================
 # SHARED HELPERS
 # ============================================================================
+
+function Get-DensityFloors {
+    param([int]$WordCount)
+
+    return @{
+        KpMin = [Math]::Max(3,  [int]($WordCount / 500))
+        FcMin = [Math]::Max(3,  [int]($WordCount / 800))
+        UcMin = [Math]::Max(2,  [int]($WordCount / 2000))
+    }
+}
+
+function Test-SummaryDensity {
+    param(
+        [object]$SummaryObject,
+        [hashtable]$Floors
+    )
+
+    $Camps = @('accelerationist','safetyist','skeptic')
+    $Shortfalls = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($Camp in $Camps) {
+        $CampData = $SummaryObject.pov_summaries.$Camp
+        $Count = 0
+        if ($CampData -and $CampData.key_points) {
+            $Count = @($CampData.key_points).Count
+        }
+        if ($Count -lt $Floors.KpMin) {
+            $null = $Shortfalls.Add("$Camp key_points: $Count < $($Floors.KpMin) min")
+        }
+    }
+
+    $FcCount = 0
+    if ($SummaryObject.factual_claims) {
+        $FcCount = @($SummaryObject.factual_claims).Count
+    }
+    if ($FcCount -lt $Floors.FcMin) {
+        $null = $Shortfalls.Add("factual_claims: $FcCount < $($Floors.FcMin) min")
+    }
+
+    $UcCount = 0
+    if ($SummaryObject.unmapped_concepts) {
+        $UcCount = @($SummaryObject.unmapped_concepts).Count
+    }
+    if ($UcCount -lt $Floors.UcMin) {
+        $null = $Shortfalls.Add("unmapped_concepts: $UcCount < $($Floors.UcMin) min")
+    }
+
+    return @{
+        Pass       = ($Shortfalls.Count -eq 0)
+        Shortfalls = @($Shortfalls)
+    }
+}
+
+function Build-DensityRetryNudge {
+    param([string[]]$Shortfalls)
+
+    $Lines = @(
+        "IMPORTANT: Your previous response was REJECTED because it did not meet the"
+        "required output density minimums. Specific shortfalls:"
+    )
+    foreach ($s in $Shortfalls) {
+        $Lines += "  - $s"
+    }
+    $Lines += @(
+        ""
+        "Go back through the document and extract MORE points. The document contains"
+        "substantially more content than you captured. Read each section, paragraph,"
+        "and data point carefully. Every distinct claim, argument, or piece of evidence"
+        "should be its own key_point or factual_claim."
+    )
+    return ($Lines -join "`n")
+}
+
+function Build-DensityScaledPrompt {
+    param(
+        [int]$WordCount,
+        [string]$Template
+    )
+
+    $Floors = Get-DensityFloors -WordCount $WordCount
+    $kpMin = $Floors.KpMin
+    $kpMax = [Math]::Max(8,  [int]($WordCount / 200))
+    $fcMin = $Floors.FcMin
+    $fcMax = [Math]::Max(8,  [int]($WordCount / 300))
+    $ucMin = $Floors.UcMin
+    $ucMax = [Math]::Max(5,  [int]($WordCount / 800))
+
+    Write-Host "  `u{2502}  ~$WordCount words `u{2192} key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax" -ForegroundColor Gray
+
+    return $Template `
+        -replace '{{WORD_COUNT}}', $WordCount `
+        -replace '{{KP_MIN}}',     $kpMin `
+        -replace '{{KP_MAX}}',     $kpMax `
+        -replace '{{FC_MIN}}',     $fcMin `
+        -replace '{{FC_MAX}}',     $fcMax `
+        -replace '{{UC_MIN}}',     $ucMin `
+        -replace '{{UC_MAX}}',     $ucMax
+}
 
 function Build-DocHeader {
     param(
