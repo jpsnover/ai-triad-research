@@ -100,6 +100,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 
+  // Node ↔ Source index
+  buildNodeSourceIndex: (): Promise<unknown> =>
+    ipcRenderer.invoke('build-node-source-index'),
+
   // Edges
   loadEdges: (): Promise<unknown> =>
     ipcRenderer.invoke('load-edges'),

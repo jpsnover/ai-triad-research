@@ -56,8 +56,8 @@ function Find-Conflict {
     $appended = 0
     $skipped  = 0
 
-    $claims = $summaryObject["factual_claims"]
-    if (-not $claims -or $claims.Count -eq 0) {
+    $claims = @($summaryObject["factual_claims"])
+    if ($claims.Count -eq 0 -or ($claims.Count -eq 1 -and $null -eq $claims[0])) {
         Write-Info "No factual claims to process for $DocId."
         return [PSCustomObject]@{
             PSTypeName      = 'AITriad.ConflictResult'
@@ -76,9 +76,10 @@ function Find-Conflict {
         $claimLabel  = $claim["claim_label"]
         $docPosition = $claim["doc_position"]
         $hintId      = $claim["potential_conflict_id"]
-        $linkedNodes = if ($claim.Contains("linked_taxonomy_nodes") -and $claim["linked_taxonomy_nodes"]) {
-            @($claim["linked_taxonomy_nodes"])
-        } else { @() }
+        $linkedNodes = @()
+        if ($claim.Contains("linked_taxonomy_nodes") -and $claim["linked_taxonomy_nodes"]) {
+            $linkedNodes = @($claim["linked_taxonomy_nodes"])
+        }
 
         # Normalize stance value
         $stance = if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $docPosition } else { 'neutral' }
@@ -119,7 +120,7 @@ function Find-Conflict {
                     claim_label           = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
                     description           = $claimText
                     status                = "open"
-                    linked_taxonomy_nodes = $linkedNodes
+                    linked_taxonomy_nodes = [string[]]$linkedNodes
                     instances             = @($newInstance)
                     human_notes           = @()
                 }
@@ -162,7 +163,7 @@ function Find-Conflict {
                     claim_label           = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
                     description           = $claimText
                     status                = "open"
-                    linked_taxonomy_nodes = $linkedNodes
+                    linked_taxonomy_nodes = [string[]]$linkedNodes
                     instances             = @($newInstance)
                     human_notes           = @()
                 }

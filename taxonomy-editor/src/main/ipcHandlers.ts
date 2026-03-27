@@ -16,6 +16,7 @@ import {
   getTaxonomyDirs,
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
+  buildNodeSourceIndex,
 } from './fileIO';
 import {
   listDebateSessions,
@@ -150,6 +151,10 @@ export function registerIpcHandlers(): void {
     if (/^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+  });
+
+  ipcMain.handle('build-node-source-index', () => {
+    return buildNodeSourceIndex();
   });
 
   ipcMain.handle('load-edges', () => {

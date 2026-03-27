@@ -6,6 +6,8 @@ import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme
 import { rankBySimilarity } from '../utils/similarity';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
+import type { AIBackend, AIModel } from './aiModels';
+import { getStoredBackend, getStoredModel, storeBackend, storeModel, DEFAULT_MODELS } from './aiModels';
 
 interface SummaryViewerState {
   // Data
@@ -40,6 +42,12 @@ interface SummaryViewerState {
   potentialEdges: PotentialEdge[] | null;
   potentialEdgesLoading: boolean;
   potentialEdgesError: string | null;
+
+  // AI settings
+  aiBackend: AIBackend;
+  aiModel: AIModel;
+  setAIBackend: (backend: AIBackend) => void;
+  setAIModel: (model: AIModel) => void;
 
   // Actions
   loadSources: () => Promise<void>;
@@ -80,6 +88,19 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   potentialEdges: null,
   potentialEdgesLoading: false,
   potentialEdgesError: null,
+
+  aiBackend: getStoredBackend(),
+  aiModel: getStoredModel(),
+  setAIBackend: (backend) => {
+    storeBackend(backend);
+    const newModel = DEFAULT_MODELS[backend];
+    storeModel(newModel);
+    set({ aiBackend: backend, aiModel: newModel });
+  },
+  setAIModel: (model) => {
+    storeModel(model);
+    set({ aiModel: model });
+  },
 
   loadSources: async () => {
     try {
@@ -204,19 +225,9 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         set({ taxonomy });
       }
 
-      // Compute embedding for the new node and add to cache (fire-and-forget)
-      try {
-        const vectors = await window.electronAPI.computeEmbeddings([description]);
-        if (vectors.length > 0) {
-          set(state => {
-            const cache = new Map(state.embeddingCache);
-            cache.set(result.nodeId, vectors[0]);
-            return { embeddingCache: cache };
-          });
-        }
-      } catch {
-        // Non-fatal — embedding will be computed on next similar search
-      }
+      // Invalidate embedding cache so next similar search reloads from file
+      // (the new node's embedding will be available after Update-TaxEmbeddings)
+      set({ embeddingCache: new Map() });
     }
     return result;
   },
@@ -231,25 +242,18 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     try {
       let cache = get().embeddingCache;
 
-      // Build embedding cache if empty
+      // Load pre-computed embeddings from embeddings.json if cache is empty
       if (cache.size === 0) {
-        const taxonomy = get().taxonomy;
-        const ids = Object.keys(taxonomy);
-        if (ids.length === 0) {
-          set({ similarLoading: false, similarError: 'No taxonomy nodes loaded' });
+        const loaded = await window.electronAPI.loadEmbeddings();
+        if (!loaded || Object.keys(loaded).length === 0) {
+          set({ similarLoading: false, similarError: 'No embeddings found. Run Update-TaxEmbeddings to generate them.' });
           return;
         }
-        const texts = ids.map(id => {
-          const node = taxonomy[id];
-          return node.description;
-        });
-        const vectors = await window.electronAPI.computeEmbeddings(texts);
-        cache = new Map<string, number[]>();
-        ids.forEach((id, i) => cache.set(id, vectors[i]));
+        cache = new Map<string, number[]>(Object.entries(loaded));
         set({ embeddingCache: cache });
       }
 
-      // Compute query embedding
+      // Compute query embedding via local Python (same model as embeddings.json)
       const queryText = `${concept}: ${description}`;
       const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
 
@@ -293,7 +297,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       const systemPrompt = buildPotentialEdgesSystemPrompt();
       const userPrompt = buildPotentialEdgesUserPrompt(concept, candidateNodes);
 
-      const rawText = await window.electronAPI.generateContent(systemPrompt, userPrompt);
+      const rawText = await window.electronAPI.generateContent(systemPrompt, userPrompt, get().aiModel);
       // Strip markdown fences and trailing commas that Gemini sometimes emits
       const cleaned = rawText
         .replace(/^```(?:json)?\s*/i, '')

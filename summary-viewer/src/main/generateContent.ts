@@ -1,11 +1,50 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import fs from 'fs';
+import path from 'path';
 import { loadApiKey } from './apiKeyStore';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MAX_RETRIES = 5;
+
+type AIBackend = 'gemini' | 'claude' | 'groq';
+
+function resolveBackend(model: string): AIBackend {
+  if (model.startsWith('claude')) return 'claude';
+  if (model.startsWith('groq')) return 'groq';
+  return 'gemini';
+}
+
+// ── API model ID mapping from ai-models.json ──
+
+let _modelMapCache: Record<string, string> | null = null;
+let _modelMapMtime = 0;
+
+function getApiModelId(friendlyId: string): string {
+  try {
+    const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+    const stat = fs.statSync(configPath);
+    if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
+      const map: Record<string, string> = {};
+      for (const m of config.models) {
+        if (m.apiModelId && m.apiModelId !== m.id) {
+          map[m.id] = m.apiModelId;
+        }
+      }
+      _modelMapCache = map;
+      _modelMapMtime = stat.mtimeMs;
+    }
+  } catch {
+    if (!_modelMapCache) _modelMapCache = {};
+  }
+  return _modelMapCache[friendlyId] || friendlyId;
+}
+
+// ── Gemini ──
 
 interface GeminiGenerateResponse {
   candidates: Array<{
@@ -15,14 +54,13 @@ interface GeminiGenerateResponse {
   }>;
 }
 
-export async function generateContent(
+async function generateViaGemini(
   systemPrompt: string,
   userPrompt: string,
+  model: string,
+  apiKey: string,
 ): Promise<string> {
-  const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured');
-
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
   const body = {
     system_instruction: {
@@ -70,4 +108,114 @@ export async function generateContent(
   }
 
   throw new Error('generateContent: exhausted all retry attempts');
+}
+
+// ── Claude ──
+
+async function generateViaClaude(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  apiKey: string,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: apiModel,
+      max_tokens: 8192,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
+  if (!json.content || json.content.length === 0) {
+    throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
+  }
+
+  return json.content
+    .filter((c) => c.type === 'text')
+    .map((c) => c.text)
+    .join('');
+}
+
+// ── Groq ──
+
+async function generateViaGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  apiKey: string,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: apiModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 8192,
+    }),
+  });
+
+  const bodyText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
+  if (!json.choices || json.choices.length === 0) {
+    throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+  }
+
+  return json.choices[0].message.content;
+}
+
+// ── Main entry point ──
+
+export async function generateContent(
+  systemPrompt: string,
+  userPrompt: string,
+  model?: string,
+): Promise<string> {
+  const DEFAULT_MODEL = 'gemini-2.5-flash';
+  const resolvedModel = model || DEFAULT_MODEL;
+  const backend = resolveBackend(resolvedModel);
+
+  const apiKey = loadApiKey(backend);
+  if (!apiKey) {
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+  }
+
+  console.log(`[generateContent] Backend: ${backend}, model: ${resolvedModel}`);
+
+  switch (backend) {
+    case 'claude':
+      return generateViaClaude(systemPrompt, userPrompt, resolvedModel, apiKey);
+    case 'groq':
+      return generateViaGroq(systemPrompt, userPrompt, resolvedModel, apiKey);
+    default:
+      return generateViaGemini(systemPrompt, userPrompt, resolvedModel, apiKey);
+  }
 }

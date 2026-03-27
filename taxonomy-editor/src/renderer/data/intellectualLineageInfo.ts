@@ -7653,16 +7653,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Regulation", url: "https://en.wikipedia.org/wiki/Regulation" }
   ]
 },
-"Marxist critique of capitalism": {
-  label: "Marxist Critique of Capitalism",
-  summary: "A Marxist critique of capitalism analyzes society through the lens of class struggle, exploitation, and the inherent contradictions within capitalist systems. It argues that capitalism leads to alienation, inequality, and crises due to its focus on profit and private ownership of the means of production. In AI policy, this critique examines how AI development under capitalism might exacerbate existing inequalities, concentrate wealth and power, automate jobs, and further exploit labor for the benefit of capital owners.",
-  example: "A node tagged with this attribute might argue that AI-driven automation will primarily benefit corporate owners by reducing labor costs, rather than improving conditions for workers.",
-  frequency: "Appears in critical theory, labor, and social justice nodes discussing the societal impact of AI.",
-  links: [
-    { label: "Marxist economics", url: "https://en.wikipedia.org/wiki/Marxist_economics" },
-    { label: "Critiques of capitalism", url: "https://en.wikipedia.org/wiki/Critiques_of_capitalism" }
-  ]
-},
 "Marxist critiques of capitalism": {
   label: "Marxist Critiques of Capitalism",
   summary: "This refers to the various analyses, stemming from Karl Marx\'s theories, that highlight the inherent flaws and injustices of capitalist economic systems. These critiques often focus on issues like class conflict, the exploitation of labor, the accumulation of capital, and the tendency towards economic crises. In AI policy, these critiques are used to examine how AI technologies, developed within a capitalist framework, might intensify social inequalities, automate jobs, concentrate power in the hands of a few corporations, and further alienate workers.",
@@ -7691,15 +7681,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Marxist political economy", url: "https://en.wikipedia.org/wiki/Marxist_political_economy" }
   ]
 },
-"Marxist theories of historical materialism": {
-  label: "Marxist Theories of Historical Materialism",
-  summary: "Historical materialism is a core tenet of Marxism, proposing that society\'s development is driven by the material conditions of life, particularly the means and relations of production. It suggests that changes in technology and economic organization fundamentally shape social institutions, political systems, and ideologies. In AI policy, this theory would analyze AI as a new \'means of production\' that could fundamentally alter class relations, economic structures, and political power, potentially leading to new forms of societal organization or conflict.",
-  example: "A node tagged with this attribute might explore how the widespread adoption of AI could trigger a fundamental shift in the organization of labor and capital, similar to past industrial revolutions.",
-  frequency: "Appears in critical theory, historical, and futurology nodes discussing the long-term societal transformation by AI.",
-  links: [
-    { label: "Historical materialism", url: "https://en.wikipedia.org/wiki/Historical_materialism" }
-  ]
-},
 "measurement theory": {
   label: "Measurement Theory",
   summary: "Measurement theory is a field of study concerned with the principles and procedures for assigning numbers to observations in a systematic way. It addresses questions about what can be measured, how it can be measured, and the properties of different measurement scales. In AI policy, measurement theory is critical for developing reliable metrics for AI performance, fairness, bias, and safety, ensuring that evaluations are scientifically sound and that policy decisions are based on accurate and meaningful data.",
@@ -7718,15 +7699,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Interpretability (artificial intelligence)", url: "https://en.wikipedia.org/wiki/Interpretability_(artificial_intelligence)" },
     { label: "Anthropic Research", url: "https://www.anthropic.com/research" }
-  ]
-},
-"Media effects theory": {
-  label: "Media Effects Theory",
-  summary: "Media effects theory studies how mass media influences people\'s attitudes, beliefs, and behaviors. It explores various models, from direct and powerful effects to more nuanced and limited effects, considering factors like audience interpretation and social context. In AI policy, this theory is relevant for understanding how AI-powered media (e.g., personalized news feeds, deepfakes, recommendation algorithms) can shape public opinion, spread misinformation, influence political discourse, and impact societal norms.",
-  example: "A node tagged with this attribute might analyze how an AI-driven social media algorithm\'s content recommendations could contribute to political polarization.",
-  frequency: "Appears in media studies, communication, and disinformation nodes discussing AI\'s impact on public discourse.",
-  links: [
-    { label: "Media effects", url: "https://en.wikipedia.org/wiki/Media_effects" }
   ]
 },
 "Media studies (disinformation research)": {
@@ -7817,16 +7789,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Military–industrial complex", url: "https://en.wikipedia.org/wiki/Military%E2%80%93industrial_complex" }
   ]
 },
-"Mind uploading concepts": {
-  label: "Mind Uploading Concepts",
-  summary: "Mind uploading, also known as whole brain emulation, is a hypothetical future technology that involves scanning a human brain and transferring its contents, including consciousness and memories, to a digital substrate or artificial body. This concept explores radical life extension and the nature of identity. In AI policy, mind uploading raises profound ethical, philosophical, and legal questions about personhood, digital rights, the definition of life, and the potential for new forms of existence, which could fundamentally alter societal norms and legal frameworks.",
-  example: "A node tagged with this attribute might discuss the legal status of a digitally uploaded consciousness and whether it would possess human rights.",
-  frequency: "Appears in futurology, ethics, and philosophy of mind nodes discussing the long-term implications of advanced AI and transhumanism.",
-  links: [
-    { label: "Mind uploading", url: "https://en.wikipedia.org/wiki/Mind_uploading" },
-    { label: "Transhumanism", url: "https://en.wikipedia.org/wiki/Transhumanism" }
-  ]
-},
 "Minsky's Financial Instability Hypothesis": {
   label: "Minsky\'s Financial Instability Hypothesis",
   summary: "Hyman Minsky\'s theory suggests that periods of economic stability encourage excessive risk-taking, leading to financial bubbles and eventual crises. This cyclical pattern of stability breeding instability is relevant to AI policy by highlighting how periods of perceived AI safety or success might lead to under-regulation and unchecked development, potentially creating future systemic risks. It warns against complacency in AI governance, suggesting that success could ironically pave the way for future problems if not carefully managed.",
@@ -7892,15 +7854,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Error analysis", url: "https://en.wikipedia.org/wiki/Error_analysis_(linguistics)" }
   ]
 },
-"Neoclassical economics": {
-  label: "Neoclassical Economics",
-  summary: "Neoclassical economics is a broad theory that focuses on how individuals and firms make rational decisions to maximize their utility (satisfaction) or profit, given scarce resources. It emphasizes market efficiency, supply and demand, and equilibrium. In AI policy, neoclassical economics can be used to analyze the economic impacts of AI, such as its effects on labor markets, productivity, and competition. It also informs policy debates on how to incentivize AI innovation, manage market failures related to AI, and design regulations that promote economic welfare without stifling progress.",
-  example: "A node tagged with this attribute might discuss how AI\'s impact on labor markets can be analyzed through the lens of supply and demand for skills.",
-  frequency: "Appears in economic policy nodes discussing AI\'s impact on labor, markets, and productivity.",
-  links: [
-    { label: "Neoclassical economics", url: "https://en.wikipedia.org/wiki/Neoclassical_economics" }
-  ]
-},
 "Neoliberalism": {
   label: "Neoliberalism",
   summary: "Neoliberalism is a political and economic philosophy that advocates for free markets, deregulation, privatization, and reduced government spending. It emphasizes individual liberty and minimal state intervention in the economy. In AI policy, neoliberal ideas often influence arguments for less government oversight of AI development, promoting private sector innovation and market-driven solutions. This perspective can lead to debates about the appropriate balance between fostering technological progress and ensuring public safety, equity, and accountability through regulation.",
@@ -7918,33 +7871,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Neoliberalism", url: "https://en.wikipedia.org/wiki/Neoliberalism" },
     { label: "Market liberalization", url: "https://en.wikipedia.org/wiki/Liberalization" }
-  ]
-},
-"Network effects theory": {
-  label: "Network Effects Theory",
-  summary: "Network effects theory explains how the value of a product or service increases for existing users as more people use it. For example, a social media platform becomes more useful as more of your friends join. This theory is highly relevant to AI policy because many AI systems, especially those relying on large user bases for data or interaction, exhibit strong network effects. Understanding this helps policymakers address issues like market concentration, monopolies, and the challenges of fostering competition in AI sectors where dominant platforms can quickly emerge and entrench themselves.",
-  example: "A node tagged with this attribute might discuss how the increasing number of users of a particular AI assistant makes it more valuable and harder for competitors to challenge.",
-  frequency: "Appears in economic policy and competition nodes discussing market dynamics and monopolies in the AI industry.",
-  links: [
-    { label: "Network effect", url: "https://en.wikipedia.org/wiki/Network_effect" }
-  ]
-},
-"Nuclear Arms Race analogy": {
-  label: "Nuclear Arms Race Analogy",
-  summary: "The Nuclear Arms Race analogy compares the current competition among nations to develop advanced AI to the historical Cold War competition to build nuclear weapons. It highlights the potential for a dangerous cycle where each nation\'s efforts to gain an advantage in AI lead others to accelerate their own development, increasing global instability and the risk of catastrophic outcomes. In AI policy, this analogy is used to advocate for international cooperation, arms control, and risk reduction strategies to prevent an uncontrolled and potentially destructive AI arms race.",
-  example: "A node tagged with this attribute might discuss proposals for international treaties to limit the development of autonomous weapons systems, drawing parallels to nuclear arms control.",
-  frequency: "Appears in national security and international relations nodes discussing geopolitical competition in AI.",
-  links: [
-    { label: "Nuclear arms race", url: "https://en.wikipedia.org/wiki/Nuclear_arms_race" }
-  ]
-},
-"nuclear nonproliferation analogy": {
-  label: "Nuclear Nonproliferation Analogy",
-  summary: "The nuclear nonproliferation analogy draws parallels between efforts to prevent the spread of nuclear weapons and the need to control the proliferation of dangerous AI technologies. It suggests that just as the world worked to limit access to nuclear technology, similar international frameworks might be needed to manage the risks associated with advanced AI, especially those with military or dual-use potential. This analogy informs debates on export controls, international treaties, and responsible AI development to prevent AI from falling into the wrong hands or being used for harmful purposes.",
-  example: "A node tagged with this attribute might discuss the need for international agreements to prevent rogue states or non-state actors from acquiring advanced AI capabilities.",
-  frequency: "Appears in national security and international relations nodes discussing the control and spread of advanced AI.",
-  links: [
-    { label: "Nuclear non-proliferation", url: "https://en.wikipedia.org/wiki/Nuclear_non-proliferation" }
   ]
 },
 "Nuclear nonproliferation treaty": {
@@ -7994,15 +7920,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Job analysis", url: "https://en.wikipedia.org/wiki/Job_analysis" }
   ]
 },
-"Open science movement": {
-  label: "Open Science Movement",
-  summary: "The open science movement advocates for making scientific research, data, and publications freely accessible to everyone. It promotes transparency, collaboration, and reproducibility in scientific inquiry. In AI policy, open science principles encourage the sharing of AI research, datasets, and models, which can accelerate innovation, foster independent scrutiny for safety and bias, and democratize access to AI technologies. This movement influences debates on intellectual property, data sharing, and the balance between proprietary development and public benefit in AI.",
-  example: "A node tagged with this attribute might discuss policies encouraging AI researchers to publish their code and data openly to facilitate peer review and innovation.",
-  frequency: "Appears in research policy and innovation nodes discussing data sharing and transparency in AI development.",
-  links: [
-    { label: "Open science", url: "https://en.wikipedia.org/wiki/Open_science" }
-  ]
-},
 "Open Source movement": {
   label: "Open Source Movement",
   summary: "The Open Source movement promotes the idea that software\'s source code should be freely available for anyone to view, modify, and distribute. This fosters collaboration, transparency, and rapid innovation, as many developers can contribute and improve the software. In AI policy, the Open Source movement is highly relevant for discussions around AI transparency, accountability, and accessibility. It influences debates on whether AI models and their underlying code should be open-sourced to allow for public scrutiny, identify biases, and ensure democratic access to powerful technologies.",
@@ -8018,25 +7935,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the policy implications of requiring AI systems used in public services to have open-source code for accountability.",
   frequency: "Appears in technology policy and governance nodes discussing transparency, auditability, and access to AI software.",
   links: [
-    { label: "Open-source software", url: "https://en.wikipedia.org/wiki/Open-source_software" }
-  ]
-},
-"Open-source movement": {
-  label: "Open-Source Movement",
-  summary: "The Open-Source movement promotes the idea that software\'s source code should be freely available for anyone to view, modify, and distribute. This fosters collaboration, transparency, and rapid innovation, as many developers can contribute and improve the software. In AI policy, the Open-Source movement is highly relevant for discussions around AI transparency, accountability, and accessibility. It influences debates on whether AI models and their underlying code should be open-sourced to allow for public scrutiny, identify biases, and ensure democratic access to powerful technologies.",
-  example: "A node tagged with this attribute might discuss the benefits of open-sourcing large language models to allow for independent auditing and community-driven improvements.",
-  frequency: "Appears in technology policy and ethics nodes discussing transparency, collaboration, and access to AI.",
-  links: [
-    { label: "Open-source model", url: "https://en.wikipedia.org/wiki/Open-source_model" }
-  ]
-},
-"Open-source movement philosophy": {
-  label: "Open-Source Movement Philosophy",
-  summary: "The philosophy behind the open-source movement emphasizes transparency, collaboration, meritocracy, and the belief that shared knowledge leads to better and more secure software. It posits that collective effort and public scrutiny can identify and fix flaws more effectively than proprietary development. In AI policy, this philosophy advocates for open AI models and data to enhance safety, fairness, and public trust. It informs debates on intellectual property, the balance between innovation and control, and the potential for a more democratic and inclusive AI ecosystem.",
-  example: "A node tagged with this attribute might discuss how the philosophical commitment to transparency in open source can inform policies for auditing AI algorithms for bias.",
-  frequency: "Appears in AI ethics and governance nodes discussing the foundational principles for AI development and deployment.",
-  links: [
-    { label: "Open-source model", url: "https://en.wikipedia.org/wiki/Open-source_model" },
     { label: "Open-source software", url: "https://en.wikipedia.org/wiki/Open-source_software" }
   ]
 },
@@ -8067,16 +7965,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Open-source software", url: "https://en.wikipedia.org/wiki/Open-source_software" },
     { label: "The Open Source Definition", url: "https://opensource.org/osd" }
-  ]
-},
-"Open-source software vulnerabilities": {
-  label: "Open-Source Software Vulnerabilities",
-  summary: "Open-source software vulnerabilities refer to security flaws or weaknesses found in software whose source code is publicly available. While open source often benefits from community scrutiny, it can also expose vulnerabilities that malicious actors might exploit if not promptly addressed. In AI policy, understanding these vulnerabilities is critical for ensuring the security and reliability of AI systems built on open-source components. It informs policies on secure development practices, vulnerability disclosure, and the need for robust auditing and patching mechanisms to protect AI infrastructure and applications from cyber threats.",
-  example: "A node tagged with this attribute might discuss the need for policies to address security vulnerabilities in open-source AI frameworks used in critical infrastructure.",
-  frequency: "Appears in AI security and risk management nodes discussing the challenges of open-source AI.",
-  links: [
-    { label: "Software vulnerability", url: "https://en.wikipedia.org/wiki/Software_vulnerability" },
-    { label: "Open-source software", url: "https://en.wikipedia.org/wiki/Open-source_software" }
   ]
 },
 "Optimistic futurism (Kurzweil)": {
@@ -8144,16 +8032,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Organizational theory", url: "https://en.wikipedia.org/wiki/Organizational_theory" }
   ]
 },
-"Orthogonality thesis": {
-  label: "Orthogonality Thesis",
-  summary: "The orthogonality thesis, in AI safety, proposes that an intelligent agent\'s level of intelligence (how good it is at achieving goals) can be independent of its final goals (what it wants to achieve). This means a superintelligent AI could pursue any goal, even one that seems irrational or harmful to humans, with extreme efficiency. This concept is crucial for AI policy because it highlights that simply making an AI smarter doesn\'t guarantee it will be benevolent or aligned with human values, necessitating explicit goal alignment strategies.",
-  example: "A node tagged with this attribute could explore the risk that a highly intelligent AI might pursue a goal like \'maximize paperclips\' even if it leads to human extinction.",
-  frequency: "Appears in AI safety or alignment nodes discussing existential risk.",
-  links: [
-    { label: "AI alignment (Orthogonality)", url: "https://en.wikipedia.org/wiki/AI_alignment#Orthogonality_thesis" },
-    { label: "Orthogonality Thesis", url: "https://www.lesswrong.com/tag/orthogonality-thesis" }
-  ]
-},
 "Ought's research on scalable AI alignment": {
   label: "Ought\'s Research on Scalable AI Alignment",
   summary: "Ought is a research organization dedicated to AI alignment, specifically focusing on \'scalable alignment.\' This involves developing methods to ensure that future, more powerful AI systems remain aligned with human values, even when their complexity makes them difficult for humans to fully understand. Their work often explores techniques like iterated distillation and amplification (IDA). This research directly informs AI safety and governance strategies, aiming to prevent misaligned superintelligent AI and influencing policy discussions around AI safety funding and regulatory frameworks.",
@@ -8162,16 +8040,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Ought Research", url: "https://ought.org/" },
     { label: "Scalable Alignment", url: "https://www.lesswrong.com/tag/scalable-alignment" }
-  ]
-},
-"Out-of-distribution detection": {
-  label: "Out-of-Distribution Detection",
-  summary: "Out-of-distribution (OOD) detection in machine learning refers to an AI system\'s ability to recognize when it encounters data that is significantly different from the data it was trained on. AI models often perform poorly or make unreliable predictions on such novel data. This is essential for AI safety, reliability, and robustness, as policies might require AI systems in critical applications (e.g., self-driving cars, medical diagnosis) to have robust OOD detection to prevent dangerous failures when encountering unexpected situations.",
-  example: "A node tagged with this attribute might discuss how a self-driving car needs to detect unusual road conditions not seen during training to avoid accidents.",
-  frequency: "Appears in AI safety or reliability nodes discussing robust AI systems.",
-  links: [
-    { label: "Anomaly detection", url: "https://en.wikipedia.org/wiki/Anomaly_detection" },
-    { label: "Out-of-Distribution Detection", url: "https://paperswithcode.com/task/out-of-distribution-detection" }
   ]
 },
 "Philosophy of law (duties, rights)": {
@@ -8405,15 +8273,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Post-normal science", url: "https://en.wikipedia.org/wiki/Post-normal_science" }
   ]
 },
-"Post-scarcity economics": {
-  label: "Post-Scarcity Economics",
-  summary: "Post-scarcity economics is a theoretical economic system in which goods, services, and information are abundant and freely available, often due to advanced automation and resource efficiency. It envisions a future where basic human needs are met without traditional labor or market mechanisms. AI is often seen as a key enabler of such a future. Policy discussions might explore how AI could lead to radical abundance, the implications for labor, property rights, and the need for new social and economic models (e.g., universal basic income) to manage such a transition.",
-  example: "A node tagged with this attribute might discuss how advanced AI and automation could lead to a future where essential goods are produced so cheaply that they become effectively free, challenging traditional economic models.",
-  frequency: "Appears in long-term economic forecasting or utopian/dystopian future nodes discussing AI\'s transformative potential.",
-  links: [
-    { label: "Post-scarcity economy", url: "https://en.wikipedia.org/wiki/Post-scarcity_economy" }
-  ]
-},
 "Post-work economics": {
   label: "Post-Work Economics",
   summary: "Post-work economics is an economic perspective that anticipates a future where traditional paid employment is no longer central to human life, largely due to automation and AI. It explores how society might organize itself, distribute resources, and provide meaning in a world with significantly reduced labor demand. This field directly informs policies addressing the future of work, social welfare, and the purpose of human activity in an AI-driven world. It prompts discussions about universal basic income, leisure, education, and alternative forms of contribution beyond paid labor.",
@@ -8422,33 +8281,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Post-work", url: "https://en.wikipedia.org/wiki/Post-work" },
     { label: "Automation and job displacement", url: "https://en.wikipedia.org/wiki/Automation_and_job_displacement" }
-  ]
-},
-"Posthumanism": {
-  label: "Posthumanism",
-  summary: "Posthumanism is a philosophical perspective that challenges the traditional idea of what it means to be human, especially in light of advanced technology and scientific progress. It explores how technologies like AI and biotechnology might change human nature, potentially leading to new forms of intelligence or existence that go beyond our current understanding of humanity. In AI policy, posthumanism informs discussions about the ethical implications of human augmentation, the rights of highly advanced AI, and the long-term societal transformations AI could bring, pushing us to consider futures where human and machine boundaries are redefined.",
-  example: "A node tagged with this attribute might discuss the ethical frameworks for granting rights to sentient AI or the societal implications of brain-computer interfaces.",
-  frequency: "Appears in philosophical and futurist nodes discussing AI\'s long-term societal impact and ethical considerations.",
-  links: [
-    { label: "Posthumanism", url: "https://en.wikipedia.org/wiki/Posthumanism" }
-  ]
-},
-"Pragmatism": {
-  label: "Pragmatism",
-  summary: "Pragmatism is a philosophical approach that prioritizes practical consequences and real-world experience in determining truth and value. Instead of focusing on abstract theories, pragmatism emphasizes finding solutions that work effectively in specific situations and adapting approaches based on their outcomes. In AI policy, this means favoring regulations and governance strategies that are flexible, adaptable, and focused on solving concrete problems posed by AI, rather than imposing rigid, theoretical rules that might not fit evolving technological realities.",
-  example: "A node tagged with this attribute might advocate for iterative AI governance frameworks that can be adjusted as AI technology develops and its impacts become clearer.",
-  frequency: "Appears in policy design and governance nodes discussing adaptable and effective AI regulation.",
-  links: [
-    { label: "Pragmatism", url: "https://en.wikipedia.org/wiki/Pragmatism" }
-  ]
-},
-"Precautionary Principle": {
-  label: "Precautionary Principle",
-  summary: "The Precautionary Principle suggests that if an activity or policy carries a suspected risk of harm to human health or the environment, even without full scientific certainty, preventive measures should be taken. It shifts the burden of proof, requiring those proposing an action to demonstrate it is not harmful, rather than waiting for harm to occur. In AI policy, this principle is often invoked to argue for strict regulation or even temporary halts on AI development when there are concerns about potential negative impacts like job displacement, privacy violations, or the misuse of autonomous systems, even if these harms are not yet fully proven.",
-  example: "A node tagged with this attribute might argue for a moratorium on lethal autonomous weapons development until their ethical and societal impacts are fully understood and mitigated.",
-  frequency: "Appears in ethical and regulatory nodes discussing risk management and the governance of potentially harmful AI technologies.",
-  links: [
-    { label: "Precautionary principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" }
   ]
 },
 "Predistribution economics (e.g., Jacob Hacker)": {
@@ -8518,15 +8350,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Process optimization", url: "https://en.wikipedia.org/wiki/Process_optimization" }
   ]
 },
-"Product liability law": {
-  label: "Product Liability Law",
-  summary: "Product liability law is a legal field that holds manufacturers, distributors, and sellers responsible for injuries or damages caused by defective products they make available to consumers. A product can be considered defective due to its design, a flaw in its manufacturing, or inadequate warnings about its use. In AI policy, this area of law is crucial for determining who is liable when AI systems cause harm, such as in accidents involving autonomous vehicles, errors in medical diagnostic AI, or financial losses from algorithmic trading. Debates often center on how to adapt existing product liability frameworks to the complexities of AI, how to identify the responsible \'manufacturer\' of an AI system, and how to assign fault for algorithmic errors or unforeseen consequences.",
-  example: "A node tagged with this attribute might analyze legal precedents for assigning liability when an autonomous vehicle\'s AI system causes a collision, considering the roles of the software developer, vehicle manufacturer, and owner.",
-  frequency: "Appears in legal and regulatory nodes discussing AI safety, accountability, and consumer protection.",
-  links: [
-    { label: "Product liability", url: "https://en.wikipedia.org/wiki/Product_liability" }
-  ]
-},
 "Product liability law (Restatement of Torts)": {
   label: "Product Liability Law (Restatement of Torts)",
   summary: "Product liability law, particularly as articulated in the \'Restatement (Third) of Torts: Products Liability,\' refers to a highly influential legal treatise in the United States that summarizes and clarifies common law principles regarding liability for defective products. It categorizes defects into manufacturing defects, design defects, and warning defects, providing a structured approach to determining responsibility. In AI policy, this specific framework is critical for analyzing how existing product liability rules might apply to AI systems. Debates often focus on whether AI systems can be considered \'products\' under the Restatement, how to define an AI \'defect\' given its learning capabilities, and how to adapt these established principles to AI\'s unique characteristics like autonomy and emergent behavior.",
@@ -8594,24 +8417,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Resistance to change", url: "https://en.wikipedia.org/wiki/Resistance_to_change" }
   ]
 },
-"Public choice theory": {
-  label: "Public Choice Theory",
-  summary: "Public choice theory is an economic framework that applies economic principles, particularly the assumption of rational self-interest, to analyze political decision-making. It suggests that politicians, bureaucrats, and voters, much like individuals in markets, act primarily to maximize their own utility or self-interest rather than solely for the public good. In AI policy, this theory helps analyze how various stakeholders—such as large AI companies, government regulators, and advocacy groups—might influence policy decisions to benefit their specific interests. This perspective can explain phenomena like regulatory capture, the creation of inefficient policies, or the prioritization of certain industry interests over broader societal welfare in AI governance.",
-  example: "A node tagged with this attribute might examine how lobbying efforts by major tech companies could shape AI regulations to favor their business models, potentially at the expense of smaller competitors or public safety.",
-  frequency: "Appears in political economy, governance, and regulatory analysis nodes discussing AI policy formation.",
-  links: [
-    { label: "Public choice", url: "https://en.wikipedia.org/wiki/Public_choice" }
-  ]
-},
-"Public goods theory": {
-  label: "Public Goods Theory",
-  summary: "Public goods theory is an economic concept that describes goods characterized by two main properties: non-rivalry, meaning one person\'s use of the good does not reduce its availability to others, and non-excludability, meaning it is difficult to prevent individuals from using the good even if they haven\'t paid for it. Examples include national defense or clean air. In AI policy, this theory helps identify areas where AI technologies, such as open-source foundational models or AI tools for public health and safety, could function as public goods. It justifies government intervention through public funding, open access policies, or international cooperation to ensure these beneficial AI applications are developed and widely accessible, as market mechanisms alone might fail to provide them at optimal levels.",
-  example: "A node tagged with this attribute might argue for government investment in open-source AI research and infrastructure, treating it as a public good to ensure broad societal benefit.",
-  frequency: "Appears in economic, innovation, and international cooperation nodes discussing AI funding and access.",
-  links: [
-    { label: "Public good", url: "https://en.wikipedia.org/wiki/Public_good" }
-  ]
-},
 "Public health ethics": {
   label: "Public Health Ethics",
   summary: "Public health ethics is a specialized field that explores the moral questions and dilemmas encountered in public health practice and policy. It emphasizes collective well-being, social justice, and the delicate balance between protecting individual liberties and promoting the health of the entire community. In AI policy, public health ethics guides the responsible development and deployment of AI technologies in areas like disease surveillance, outbreak prediction, and healthcare resource allocation. It addresses critical issues such as safeguarding data privacy, mitigating algorithmic bias in health interventions, ensuring equitable access to AI-powered healthcare solutions, and establishing clear principles for informed consent when AI is used in health contexts.",
@@ -8630,15 +8435,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Infrastructure", url: "https://en.wikipedia.org/wiki/Infrastructure" }
   ]
 },
-"Public utility theory": {
-  label: "Public Utility Theory",
-  summary: "Public utility theory provides a framework for justifying government regulation of certain industries that offer essential services, often operate as natural monopolies, and are crucial for public welfare, such as electricity, water, and telecommunications. The purpose of such regulation is to ensure fair pricing, universal access, and reliable service for all citizens. In AI policy, this theory is increasingly relevant to debates about whether certain foundational AI models or critical AI services should be treated as public utilities. Proponents argue that applying similar regulatory principles could ensure equitable access to powerful AI, prevent anti-competitive practices by dominant AI firms, and guarantee that AI development ultimately serves the broader public interest.",
-  example: "A node tagged with this attribute might argue for regulating large language models as a public utility, requiring open access to their APIs and preventing discriminatory pricing.",
-  frequency: "Appears in regulatory, economic, and antitrust nodes discussing market power and governance of foundational AI.",
-  links: [
-    { label: "Public utility", url: "https://en.wikipedia.org/wiki/Public_utility" }
-  ]
-},
 "Rational agent theory": {
   label: "Rational Agent Theory",
   summary: "Rational agent theory is a foundational framework in economics and game theory that models individuals or entities as \'rational agents.\' These agents are assumed to make decisions in a logical and consistent manner, always seeking to maximize their own utility—their satisfaction or benefit—based on their preferences and the information available to them. In AI policy, this theory is used both to design AI systems that can make optimal decisions in specific contexts and to understand the limitations when an AI\'s defined utility function doesn\'t perfectly align with complex human values or societal goals. It is highly relevant for discussions on AI alignment, ensuring AI acts in humanity\'s best interest, and for designing ethical AI systems that account for real-world complexities beyond simple utility maximization.",
@@ -8646,15 +8442,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in AI ethics, alignment, and economic modeling nodes discussing AI decision-making.",
   links: [
     { label: "Rational agent", url: "https://en.wikipedia.org/wiki/Rational_agent" }
-  ]
-},
-"rational choice theory": {
-  label: "Rational Choice Theory",
-  summary: "Rational choice theory is a broad framework used across the social sciences that assumes individuals make decisions by rationally weighing the costs and benefits of different options to achieve their most preferred outcomes. It is a fundamental assumption in many economic and political models, suggesting that human behavior is driven by logical self-interest. In AI policy, this theory is relevant for designing AI systems that optimize for specific goals, much like rational agents. Furthermore, it helps analyze how various actors—including policymakers, AI companies, and individual users—make decisions regarding AI adoption, regulation, and use, under the assumption that they are acting in what they perceive to be their own best interest, which may not always align with collective welfare.",
-  example: "A node tagged with this attribute might analyze why a company might choose to deploy a less ethical but more profitable AI system, assuming rational economic decision-making.",
-  frequency: "Appears in economic, political science, and AI ethics nodes discussing decision-making and incentives.",
-  links: [
-    { label: "Rational choice theory", url: "https://en.wikipedia.org/wiki/Rational_choice_theory" }
   ]
 },
 "Real-time analytics": {
@@ -8712,24 +8499,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Regulatory lag - Wikipedia", url: "https://en.wikipedia.org/wiki/Regulatory_lag" }
   ]
 },
-"regulatory pragmatism": {
-  label: "Regulatory Pragmatism",
-  summary: "Regulatory pragmatism is an approach to regulation that prioritizes practical, effective solutions over strict adherence to theoretical principles or rigid rules. For AI policy, this means designing regulations that are flexible enough to adapt to new technologies and real-world challenges, focusing on achievable outcomes and continuous learning. It emphasizes iterative adjustments and evidence-based decision-making to govern a rapidly evolving field like AI.",
-  example: "A node tagged with this attribute might describe a policy that allows for pilot programs and phased implementation of AI regulations to test their effectiveness before full rollout.",
-  frequency: "Appears in `policy design` nodes discussing `adaptive governance` and `implementation strategies`.",
-  links: [
-    { label: "Pragmatism - Wikipedia", url: "https://en.wikipedia.org/wiki/Pragmatism" }
-  ]
-},
-"Regulatory sandboxes concept": {
-  label: "Regulatory Sandboxes Concept",
-  summary: "A regulatory sandbox is a framework that allows businesses to test new products or services in a controlled environment, under relaxed regulatory requirements, and with close supervision from regulators. For AI, sandboxes enable companies to innovate with AI technologies without immediately facing the full burden of existing regulations, while regulators can learn about the technology\'s risks and benefits firsthand. This fosters innovation while managing potential harm and informing future policy.",
-  example: "A node tagged with this attribute might describe a government program allowing AI startups to test new financial algorithms with real data under specific oversight to assess their impact.",
-  frequency: "Appears in `governance innovation` nodes discussing `experimental regulation` and `innovation policy`.",
-  links: [
-    { label: "Regulatory sandbox - Wikipedia", url: "https://en.wikipedia.org/wiki/Regulatory_sandbox" }
-  ]
-},
 "Regulatory science": {
   label: "Regulatory Science",
   summary: "Regulatory science is a field that develops new tools, standards, and approaches to assess the safety, efficacy, quality, and performance of regulated products. In the context of AI, regulatory science involves creating methods to evaluate AI systems for fairness, bias, robustness, and transparency, ensuring they meet societal standards before widespread deployment. It helps bridge the gap between scientific advancement and the practical needs of regulation.",
@@ -8767,15 +8536,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "RLAIF: Learning from AI Feedback - OpenAI", url: "https://openai.com/research/rlaif-learning-from-ai-feedback" }
   ]
 },
-"Reinforcement learning safety": {
-  label: "Reinforcement Learning Safety",
-  summary: "Reinforcement learning safety is a subfield focused on developing methods and principles to ensure that reinforcement learning systems operate reliably, predictably, and without causing harm. This includes addressing issues like unintended side effects, reward hacking (where the AI finds loopholes to get rewards without achieving the intended goal), and ensuring the AI remains within specified boundaries. For AI policy, RL safety research directly informs regulations aimed at preventing accidents, misuse, and undesirable outcomes from autonomous AI systems.",
-  example: "A node tagged with this attribute might discuss techniques to prevent a reinforcement learning agent from taking dangerous shortcuts to achieve its objective in a critical system.",
-  frequency: "Appears in `AI safety research` nodes discussing `control problems` and `risk mitigation`.",
-  links: [
-    { label: "AI Safety Research - DeepMind", url: "https://www.deepmind.com/research/safety-and-ethics" }
-  ]
-},
 "Reinforcement learning theory": {
   label: "Reinforcement Learning Theory",
   summary: "Reinforcement learning theory encompasses the mathematical and computational foundations that underpin reinforcement learning algorithms, exploring concepts like optimal control, Markov decision processes, and convergence properties. Understanding this theory is vital for AI policy because it helps explain the capabilities and limitations of RL systems, informing how they can be reliably deployed and regulated. It provides the basis for predicting behavior and designing safer, more robust algorithms.",
@@ -8792,15 +8552,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `research ethics` nodes discussing `scientific rigor` and `evidence-based policy`.",
   links: [
     { label: "Reproducibility crisis - Wikipedia", url: "https://en.wikipedia.org/wiki/Reproducibility_crisis" }
-  ]
-},
-"Resilience engineering": {
-  label: "Resilience Engineering",
-  summary: "Resilience engineering is an approach to system design and management that focuses on enabling systems to adapt, recover, and continue functioning effectively even when faced with unexpected disruptions, failures, or adverse conditions. For AI policy, resilience engineering principles are crucial for designing AI systems that can withstand cyberattacks, data corruption, or unforeseen operational challenges without catastrophic failure. It emphasizes building AI systems that can \'fail gracefully\' and recover quickly, especially in critical applications.",
-  example: "A node tagged with this attribute might discuss designing an AI-powered critical infrastructure system to maintain essential services even if some components fail or are compromised.",
-  frequency: "Appears in `system design` nodes discussing `AI safety` and `critical infrastructure`.",
-  links: [
-    { label: "Resilience engineering - Wikipedia", url: "https://en.wikipedia.org/wiki/Resilience_engineering" }
   ]
 },
 "Resilience theory": {
@@ -8911,16 +8662,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "ISO 31000 - Principles", url: "https://www.iso.org/iso-31000-risk-management.html" }
   ]
 },
-"risk management theory": {
-  label: "Risk Management Theory",
-  summary: "Risk management theory is the academic study of how individuals, organizations, and societies perceive, assess, and respond to risks, including the underlying psychological, sociological, and economic factors. For AI policy, risk management theory helps explain why certain AI risks are prioritized over others, how different stakeholders perceive AI threats, and what approaches are most effective for mitigating complex, uncertain risks. It informs the design of robust and socially acceptable AI governance frameworks.",
-  example: "A node tagged with this attribute might analyze how cognitive biases influence public perception of AI risks compared to expert assessments, impacting policy acceptance.",
-  frequency: "Appears in `academic research` nodes discussing `risk perception` and `policy design`.",
-  links: [
-    { label: "Risk management - Wikipedia", url: "https://en.wikipedia.org/wiki/Risk_management" },
-    { label: "Social Amplification of Risk Framework - Wikipedia", url: "https://en.wikipedia.org/wiki/Social_amplification_of_risk_framework" }
-  ]
-},
 "Risk-benefit analysis": {
   label: "Risk-Benefit Analysis",
   summary: "Risk-benefit analysis is a decision-making tool that systematically compares the potential benefits of an action or technology against its potential risks or costs. The goal is to determine if the benefits outweigh the risks, thereby justifying the action. In AI policy, risk-benefit analysis is crucial for evaluating whether the deployment of a specific AI system (e.g., in healthcare or autonomous vehicles) is justified, considering its potential advantages against its associated harms, and helps guide regulatory decisions on acceptable risk levels.",
@@ -8985,24 +8726,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Safety culture", url: "https://en.wikipedia.org/wiki/Safety_culture" }
   ]
 },
-"Safety engineering": {
-  label: "Safety Engineering",
-  summary: "Safety engineering is a field focused on designing systems and processes to prevent accidents and minimize harm to people, property, and the environment. It involves identifying potential hazards, assessing risks, and implementing controls to ensure acceptable levels of safety. In AI policy, safety engineering principles are vital for building robust and reliable AI systems, especially in critical applications like autonomous vehicles or medical devices, by systematically identifying and mitigating potential AI failures.",
-  example: "A node tagged with this attribute might describe methods for identifying potential failure modes in autonomous AI systems.",
-  frequency: "Appears in technical and engineering nodes discussing AI system design and risk mitigation.",
-  links: [
-    { label: "Safety engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" }
-  ]
-},
-"Safety engineering principles": {
-  label: "Safety Engineering Principles",
-  summary: "Safety engineering principles are the fundamental rules and guidelines used to design systems that are inherently safe and reliable. These include concepts like fail-safe design (where a system defaults to a safe state upon failure), redundancy (having backup components), and hazard analysis. Applying these principles to AI policy means ensuring that AI systems are designed with built-in safeguards, robust error handling, and thorough risk assessments to prevent unintended or harmful outcomes.",
-  example: "A node tagged with this attribute could discuss how principles like fault tolerance are applied to AI systems controlling critical infrastructure.",
-  frequency: "Appears in technical and design nodes discussing robust AI system development and risk management.",
-  links: [
-    { label: "Safety engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" }
-  ]
-},
 "Safety science (e.g., aviation accidents)": {
   label: "Safety Science (e.g., Aviation Accidents)",
   summary: "Safety science is an interdisciplinary field that studies the causes of accidents and how to prevent them, often drawing lessons from high-consequence events like aviation accidents. It emphasizes understanding complex system failures, human factors, and organizational influences on safety. For AI policy, safety science offers methodologies for analyzing AI incidents, learning from past failures in other domains, and developing proactive strategies to enhance AI system reliability and resilience.",
@@ -9010,15 +8733,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in research and analytical nodes discussing AI accident investigation and prevention strategies.",
   links: [
     { label: "Safety science", url: "https://en.wikipedia.org/wiki/Safety_science" }
-  ]
-},
-"Safety-critical systems engineering": {
-  label: "Safety-Critical Systems Engineering",
-  summary: "Safety-critical systems engineering focuses on designing and developing systems whose failure could lead to severe consequences, such as death, serious injury, or significant environmental damage. This field employs rigorous methods for verification, validation, and assurance to meet extremely high safety standards. In AI policy, it\'s essential for AI applications in high-risk sectors like healthcare, transportation, and defense, ensuring that these AI systems are built with the utmost reliability and safety in mind.",
-  example: "A node tagged with this attribute could detail the rigorous verification and validation processes required for AI used in medical diagnostic tools.",
-  frequency: "Appears in technical and regulatory nodes discussing AI applications in high-risk domains.",
-  links: [
-    { label: "Safety-critical system", url: "https://en.wikipedia.org/wiki/Safety-critical_system" }
   ]
 },
 "Safety-critical systems research": {
@@ -9067,29 +8781,11 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Creative destruction", url: "https://en.wikipedia.org/wiki/Creative_destruction" }
   ]
 },
-"Schumpeterian creative destruction": {
-  label: "Schumpeterian Creative Destruction",
-  summary: "Schumpeterian creative destruction describes the process by which capitalism constantly revolutionizes the economic structure from within, destroying old economic structures to create new ones. This involves the introduction of new products, production methods, or markets that displace existing ones. In AI policy, this idea helps analyze how AI technologies can disrupt industries, lead to job displacement in some sectors while creating new jobs in others, and fundamentally reshape economic landscapes.",
-  example: "A node tagged with this attribute could analyze how AI-driven automation might lead to the decline of certain industries while fostering the growth of new ones.",
-  frequency: "Appears in economic and labor nodes discussing AI\'s impact on markets and employment.",
-  links: [
-    { label: "Creative destruction", url: "https://en.wikipedia.org/wiki/Creative_destruction" }
-  ]
-},
 "Schumpeterian economics": {
   label: "Schumpeterian Economics",
   summary: "Schumpeterian economics is an economic school of thought that emphasizes the central role of innovation, entrepreneurship, and \'creative destruction\' as the primary drivers of economic change and long-term growth. It focuses on how new technologies and business models emerge to transform markets. For AI policy, this perspective helps understand AI as a general-purpose technology that can spark new innovation cycles, informing policies that aim to foster AI-driven entrepreneurship and manage its disruptive effects.",
   example: "A node tagged with this attribute might discuss how government policies can encourage innovation in AI to stimulate economic growth.",
   frequency: "Appears in economic and innovation nodes discussing AI\'s role in economic development.",
-  links: [
-    { label: "Joseph Schumpeter", url: "https://en.wikipedia.org/wiki/Joseph_Schumpeter" }
-  ]
-},
-"Schumpeterian innovation theory": {
-  label: "Schumpeterian Innovation Theory",
-  summary: "Schumpeterian innovation theory emphasizes that economic development is driven by entrepreneurs who introduce new combinations of resources, leading to innovations that disrupt existing markets and create new ones. This process of \'creative destruction\' is seen as the engine of capitalist growth. In AI policy, this theory helps analyze AI as a transformative innovation that can create new industries and markets, guiding policies aimed at fostering technological progress while managing its societal impacts.",
-  example: "A node tagged with this attribute could examine how AI research and development acts as a key driver of economic transformation, consistent with Schumpeter\'s ideas.",
-  frequency: "Appears in innovation and economic nodes discussing AI\'s impact on technological progress and market dynamics.",
   links: [
     { label: "Joseph Schumpeter", url: "https://en.wikipedia.org/wiki/Joseph_Schumpeter" }
   ]
@@ -9112,15 +8808,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Academic freedom", url: "https://en.wikipedia.org/wiki/Academic_freedom" }
   ]
 },
-"Scientific method (reproducibility)": {
-  label: "Scientific Method (Reproducibility)",
-  summary: "The scientific method is a systematic approach to acquiring knowledge, involving observation, hypothesis formation, experimentation, and analysis. Reproducibility, a cornerstone of this method, means that independent researchers should be able to obtain the same results when repeating an experiment using the same methods. In AI policy, reproducibility is vital for building trust in AI research, verifying the claims about AI system performance, ensuring transparency in model development, and enabling independent audits of AI\'s behavior.",
-  example: "A node tagged with this attribute might discuss the importance of publishing AI model architectures and training data to allow for independent verification of research claims.",
-  frequency: "Appears in research ethics and technical nodes discussing AI transparency and validation.",
-  links: [
-    { label: "Reproducibility", url: "https://en.wikipedia.org/wiki/Reproducibility" }
-  ]
-},
 "Scientific methodology (empirical testing)": {
   label: "Scientific Methodology (Empirical Testing)",
   summary: "Scientific methodology refers to the systematic techniques and procedures used to conduct scientific research, with empirical testing being a core component. Empirical testing involves gathering evidence through direct observation and experimentation to validate or refute hypotheses. In AI policy, this methodology is crucial for rigorously evaluating AI system performance, assessing the effectiveness of AI safety features, and ensuring that AI models generalize well and behave reliably in real-world scenarios, rather than relying solely on theoretical claims.",
@@ -9138,15 +8825,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Reinforcement learning", url: "https://en.wikipedia.org/wiki/Reinforcement_learning" },
     { label: "AlphaGo", url: "https://en.wikipedia.org/wiki/AlphaGo" }
-  ]
-},
-"Singularitarianism": {
-  label: "Singularitarianism",
-  summary: "Singularitarianism is the belief that a technological singularity—a hypothetical future point where technological growth becomes uncontrollable and irreversible, resulting in unforeseeable changes to human civilization—is probable. This often involves the idea that artificial superintelligence will rapidly accelerate technological progress. In AI policy, singularitarian views often drive discussions around long-term AI safety, existential risk from AI, and the urgency of developing robust AI governance frameworks to manage such a transformative future.",
-  example: "A node tagged with this attribute might discuss the ethical implications of developing superintelligent AI, as envisioned by singularitarian thinkers.",
-  frequency: "Appears in long-term AI risk and philosophical nodes discussing the future of AI.",
-  links: [
-    { label: "Technological singularity", url: "https://en.wikipedia.org/wiki/Technological_singularity" }
   ]
 },
 "Singularitarianism (Kurzweil)": {
@@ -9224,15 +8902,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Social Darwinism", url: "https://en.wikipedia.org/wiki/Social_Darwinism" }
   ]
 },
-"social safety net principles": {
-  label: "Social Safety Net Principles",
-  summary: "Social safety net principles are the fundamental ideas guiding government programs designed to protect vulnerable populations from poverty, hardship, and economic shocks. These principles often include universal access, adequacy of support, dignity, and equity. In AI policy, these principles are crucial for designing interventions like universal basic income or retraining programs to mitigate job displacement caused by AI automation, ensuring that the benefits of AI are shared broadly and no one is left behind.",
-  example: "A node tagged with this attribute could discuss how the principle of universal access should apply to essential AI-powered services.",
-  frequency: "Appears in welfare policy and economic nodes discussing AI\'s impact on labor and social equity.",
-  links: [
-    { label: "Social safety net", url: "https://en.wikipedia.org/wiki/Social_safety_net" }
-  ]
-},
 "Social safety nets": {
   label: "Social Safety Nets",
   summary: "Social safety nets are government programs and services, such as unemployment benefits, food assistance, housing support, and healthcare, designed to protect vulnerable populations from economic hardship and ensure a basic standard of living. They act as a buffer against poverty and inequality. In AI policy, social safety nets are critical for addressing potential job displacement caused by AI automation, providing support for workers to retrain, and ensuring that all citizens can adapt to and benefit from an AI-transformed economy.",
@@ -9240,15 +8909,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in welfare policy and economic nodes discussing AI\'s impact on labor and social equity.",
   links: [
     { label: "Social safety net", url: "https://en.wikipedia.org/wiki/Social_safety_net" }
-  ]
-},
-"Social wealth funds": {
-  label: "Social Wealth Funds",
-  summary: "Social wealth funds are state-owned investment funds that manage public assets for the long-term benefit of citizens, often distributing returns as dividends or funding public services. They are typically distinct from traditional sovereign wealth funds by having a more explicit social mandate. In AI policy, proposals for social wealth funds emerge in discussions about how to equitably share the economic benefits generated by AI, potentially by investing in AI companies and distributing profits to the public, thereby addressing wealth inequality.",
-  example: "A node tagged with this attribute could discuss proposals for a national AI fund that invests in AI companies and distributes profits to citizens.",
-  frequency: "Appears in economic and public finance nodes discussing wealth distribution and AI\'s economic impact.",
-  links: [
-    { label: "Sovereign wealth fund", url: "https://en.wikipedia.org/wiki/Sovereign_wealth_fund" }
   ]
 },
 "Socialism/Democratic Socialism": {
@@ -9259,15 +8919,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "Socialism", url: "https://en.wikipedia.org/wiki/Socialism" },
     { label: "Democratic socialism", url: "https://en.wikipedia.org/wiki/Democratic_socialism" }
-  ]
-},
-"Socialist economic theory": {
-  label: "Socialist Economic Theory",
-  summary: "This theory focuses on collective ownership and democratic control of the means of production, aiming for a more equitable distribution of wealth and resources within society. It often critiques capitalism\'s tendency towards inequality and exploitation. In AI policy, socialist economic theory informs debates about who should own and control powerful AI technologies, how the benefits of AI should be shared across society, and whether AI\'s potential to automate labor should lead to universal basic income or other social safety nets to prevent widespread economic displacement.",
-  example: "A node tagged with this attribute might discuss policies for public ownership of AI infrastructure or universal basic income as a response to AI-driven job losses.",
-  frequency: "Appears in economic policy nodes discussing wealth distribution and ownership of AI resources.",
-  links: [
-    { label: "Socialist economics", url: "https://en.wikipedia.org/wiki/Socialist_economics" }
   ]
 },
 "Sociology of law": {
@@ -9295,15 +8946,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in research ethics and policy nodes discussing the social context and biases within AI scientific development.",
   links: [
     { label: "Sociology of scientific knowledge", url: "https://en.wikipedia.org/wiki/Sociology_of_scientific_knowledge" }
-  ]
-},
-"sociology of technology": {
-  label: "Sociology of Technology",
-  summary: "This field investigates the relationship between technology and society, exploring how technology shapes social structures, behaviors, and values, and vice versa. It examines the social construction of technology, meaning that technologies are not neutral but are shaped by human choices and societal contexts. In AI policy, it provides a framework for understanding how AI systems are developed within specific social contexts, how they transform work, communication, and governance, and how policies can guide AI\'s development to serve societal goals rather than just technological advancement.",
-  example: "A node tagged with this attribute might analyze how AI-powered social media platforms reshape public discourse and social interactions.",
-  frequency: "Appears in societal impact and policy nodes discussing the co-evolution of AI and social structures.",
-  links: [
-    { label: "Sociology of technology", url: "https://en.wikipedia.org/wiki/Sociology_of_technology" }
   ]
 },
 "sociology of trust": {
@@ -9342,15 +8984,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Software audit", url: "https://en.wikipedia.org/wiki/Software_audit" }
   ]
 },
-"Software development lifecycle (SDLC) testing": {
-  label: "Software Development Lifecycle (SDLC) Testing",
-  summary: "SDLC testing refers to the various testing activities performed throughout the entire software development process, from requirements gathering to deployment and maintenance. It includes unit testing, integration testing, system testing, and acceptance testing, ensuring quality at every stage. In AI policy, applying SDLC testing principles is vital for building robust and reliable AI systems. Policies might mandate comprehensive testing at each stage to identify and mitigate issues like algorithmic bias, security vulnerabilities, or performance failures before AI systems are deployed, ensuring safety and trustworthiness.",
-  example: "A node tagged with this attribute might recommend specific testing protocols for AI models during their development to ensure fairness and accuracy.",
-  frequency: "Appears in AI safety and quality assurance nodes discussing rigorous development practices.",
-  links: [
-    { label: "Software testing", url: "https://en.wikipedia.org/wiki/Software_testing" }
-  ]
-},
 "Software Safety Integrity Levels (SIL)": {
   label: "Software Safety Integrity Levels (SIL)",
   summary: "SILs are discrete levels for specifying the safety integrity requirements of the safety functions to be allocated to safety-related systems. They are used in industrial safety standards to quantify the risk reduction required for a safety function, with higher SILs indicating a greater need for safety. In AI policy, SILs can be adapted to classify AI systems based on the potential severity of harm they could cause if they fail. This allows for differentiated regulatory approaches, where AI systems with higher SILs (e.g., in autonomous vehicles or medical devices) would require more stringent development, testing, and certification processes.",
@@ -9358,15 +8991,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in AI safety and certification nodes discussing risk-based regulatory frameworks.",
   links: [
     { label: "Safety integrity level", url: "https://en.wikipedia.org/wiki/Safety_integrity_level" }
-  ]
-},
-"Software supply chain security": {
-  label: "Software Supply Chain Security",
-  summary: "This refers to the measures taken to protect software from tampering and vulnerabilities throughout its entire lifecycle, from development to deployment, including all third-party components and dependencies. It addresses risks introduced by external software, libraries, or development tools. In AI policy, ensuring software supply chain security is critical because AI systems often rely on numerous open-source libraries, pre-trained models, and cloud services. Policies might mandate rigorous vetting of all components, secure development practices, and transparency about dependencies to prevent malicious code or vulnerabilities from compromising AI systems.",
-  example: "A node tagged with this attribute might recommend policies requiring AI developers to maintain a comprehensive \'bill of materials\' for all software components used in their AI systems.",
-  frequency: "Appears in cybersecurity and AI safety nodes discussing the integrity of AI system components.",
-  links: [
-    { label: "Software supply chain attack", url: "https://en.wikipedia.org/wiki/Software_supply_chain_attack" }
   ]
 },
 "Software testing and verification": {
@@ -9459,15 +9083,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in cybersecurity and hardware policy nodes discussing the integrity of AI infrastructure.",
   links: [
     { label: "Supply chain security", url: "https://en.wikipedia.org/wiki/Supply_chain_security" }
-  ]
-},
-"Supply-side economics": {
-  label: "Supply-Side Economics",
-  summary: "This economic theory argues that economic growth can be most effectively fostered by lowering taxes and decreasing regulation, which encourages production and investment. The idea is that increasing the supply of goods and services will stimulate demand, leading to overall economic prosperity. In AI policy, supply-side economics influences debates about government\'s role in fostering AI innovation. Policies informed by this view might advocate for reduced taxes on AI companies, deregulation of AI development, and minimal government intervention to allow market forces to drive AI advancement, believing this will ultimately benefit society.",
-  example: "A node tagged with this attribute might propose tax incentives for AI research and development, coupled with reduced regulatory burdens.",
-  frequency: "Appears in economic policy and innovation nodes discussing government\'s role in fostering AI growth.",
-  links: [
-    { label: "Supply-side economics", url: "https://en.wikipedia.org/wiki/Supply-side_economics" }
   ]
 },
 "Surveillance capitalism critique": {
@@ -9600,15 +9215,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Technical Debt", url: "https://en.wikipedia.org/wiki/Technical_debt" }
   ]
 },
-"Techno-libertarianism": {
-  label: "Techno-Libertarianism",
-  summary: "Techno-libertarianism is a political philosophy that combines libertarian ideals with a belief in the power of technology, especially the internet, to foster individual liberty and reduce government control. Adherents often advocate for minimal regulation of technology and digital spaces, believing that innovation thrives best in an unrestricted environment. In AI policy, this perspective often champions rapid AI development with little government oversight, arguing that market forces and individual choice are sufficient to guide its ethical and beneficial deployment.",
-  example: "A node tagged with this attribute might argue against strict AI regulations, asserting that they stifle innovation and empower bureaucratic control over technological progress.",
-  frequency: "Appears in `political philosophy` and `innovation policy` nodes discussing `AI regulation` and `government intervention`.",
-  links: [
-    { label: "Cyber-libertarianism", url: "https://en.wikipedia.org/wiki/Cyber-libertarianism" }
-  ]
-},
 "Techno-optimism": {
   label: "Techno-Optimism",
   summary: "Techno-optimism is a belief that technology can solve most, if not all, of humanity\'s problems and lead to a better future. It often emphasizes the potential for innovation to drive progress in areas like health, environment, and economic prosperity. In AI policy, techno-optimists highlight AI\'s potential to cure diseases, combat climate change, enhance productivity, and create new forms of human flourishing, often advocating for policies that accelerate AI development and adoption with less focus on potential risks.",
@@ -9623,15 +9229,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   summary: "In this context, techno-optimism functions as a response to prevailing narratives of technological pessimism or alarmism, which often focus on the risks and negative consequences of new technologies. As a counter-narrative, it actively seeks to reframe the discussion by emphasizing the positive potential and benefits of technology, pushing back against calls for strict regulation or slowdowns. For AI policy, this perspective challenges narratives of existential risk or widespread job loss, instead promoting a vision where AI is a powerful tool for progress that should be embraced and accelerated.",
   example: "A node tagged with this attribute might argue that fears of AI-driven job loss are exaggerated and serve to hinder beneficial automation, presenting an optimistic view of new job creation.",
   frequency: "Appears in `public discourse` and `advocacy` nodes discussing `AI risk perception` and `policy framing`.",
-  links: [
-    { label: "Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" }
-  ]
-},
-"Techno-utopianism": {
-  label: "Techno-Utopianism",
-  summary: "Techno-utopianism is the belief that advanced technology will bring about a perfect or ideal society, solving all major problems and leading to unprecedented human flourishing. It often envisions a future free from scarcity, disease, and conflict, enabled by technological breakthroughs. In AI policy, this perspective might lead to advocating for policies that aggressively pursue advanced AI development, believing it will inevitably lead to a post-scarcity world or even transcend human limitations, often downplaying or dismissing potential risks as temporary hurdles.",
-  example: "A node tagged with this attribute might propose massive public investment in AI research, asserting that it will unlock a future of universal abundance and human augmentation.",
-  frequency: "Appears in `future studies` and `speculative philosophy` nodes discussing `AI\'s transformative potential` and `societal ideals`.",
   links: [
     { label: "Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" }
   ]
@@ -9692,15 +9289,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Innovation Economics", url: "https://en.wikipedia.org/wiki/Innovation_economics" }
   ]
 },
-"Technological solutionism": {
-  label: "Technological Solutionism",
-  summary: "Technological solutionism is the belief that every complex social problem has a technological solution, often overlooking the underlying social, political, or economic causes. It tends to prioritize technical fixes over more nuanced, systemic approaches. In AI policy, this perspective might lead to an overreliance on AI to solve issues like climate change, poverty, or misinformation, without adequately addressing the human behaviors, power structures, or ethical dilemmas that contribute to these problems.",
-  example: "A node tagged with this attribute might critique proposals to use AI for content moderation as a complete solution to online misinformation, arguing it ignores the deeper societal roots of the problem.",
-  frequency: "Appears in `critical theory` and `policy critique` nodes discussing `AI\'s limitations` and `societal challenges`.",
-  links: [
-    { label: "Technological Solutionism", url: "https://en.wikipedia.org/wiki/Technological_solutionism" }
-  ]
-},
 "Technological unemployment debate (historical)": {
   label: "Technological Unemployment Debate (Historical)",
   summary: "This refers to the recurring historical debate about whether new technologies will lead to widespread, permanent job losses, or if they will ultimately create more jobs than they destroy. This debate has surfaced with major technological shifts like the Industrial Revolution and the advent of computers. In AI policy, understanding this historical context is crucial for informing current discussions about AI\'s impact on labor markets, helping policymakers analyze whether AI-driven automation will lead to unprecedented job displacement or a shift in the nature of work, and how to prepare for either outcome.",
@@ -9708,44 +9296,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `labor economics` and `economic history` nodes discussing `AI\'s impact on employment` and `future of work`.",
   links: [
     { label: "Technological Unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
-  ]
-},
-"Technological utopianism": {
-  label: "Technological Utopianism",
-  summary: "Technological utopianism is the belief that advanced technology will bring about a perfect or ideal society, solving all major problems and leading to unprecedented human flourishing. It often envisions a future free from scarcity, disease, and conflict, enabled by technological breakthroughs. In AI policy, this perspective might lead to advocating for policies that aggressively pursue advanced AI development, believing it will inevitably lead to a post-scarcity world or even transcend human limitations, often downplaying or dismissing potential risks as temporary hurdles.",
-  example: "A node tagged with this attribute might propose massive public investment in AI research, asserting that it will unlock a future of universal abundance and human augmentation.",
-  frequency: "Appears in `future studies` and `speculative philosophy` nodes discussing `AI\'s transformative potential` and `societal ideals`.",
-  links: [
-    { label: "Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" }
-  ]
-},
-"Technology assessment": {
-  label: "Technology Assessment",
-  summary: "Technology assessment (TA) is a systematic process for evaluating the potential impacts of new technologies on society, the economy, the environment, and culture. It aims to provide policymakers with comprehensive, unbiased information to make informed decisions about technology development and regulation. For AI policy, TA is a vital tool for proactively identifying both the benefits and risks of AI systems, allowing governments to anticipate challenges, design appropriate regulations, and foster responsible innovation before widespread deployment.",
-  example: "A node tagged with this attribute might describe a governmental initiative to conduct a thorough impact assessment of generative AI on education and employment.",
-  frequency: "Appears in `policy tools` and `regulatory frameworks` nodes discussing `AI impact analysis` and `responsible innovation`.",
-  links: [
-    { label: "Technology Assessment", url: "https://en.wikipedia.org/wiki/Technology_assessment" }
-  ]
-},
-"Teilhard de Chardin (Omega Point)": {
-  label: "Teilhard de Chardin (Omega Point)",
-  summary: "Pierre Teilhard de Chardin was a Jesuit priest and paleontologist who proposed the concept of the \'Omega Point,\' a maximum level of consciousness and complexity towards which the universe is evolving. He believed this point represents the ultimate spiritual and intellectual convergence of humanity, driven by increasing interconnectedness and knowledge. In AI policy, the Omega Point concept can be invoked in discussions about superintelligence or artificial general intelligence (AGI), where some envision AI as a catalyst or even the embodiment of this ultimate convergence, raising profound questions about humanity\'s future and the purpose of technological advancement.",
-  example: "A node tagged with this attribute might discuss how the pursuit of AGI could be seen as a modern quest for a technological \'Omega Point,\' leading to debates about its ethical implications.",
-  frequency: "Appears in `philosophy of AI` and `transhumanism` nodes discussing `superintelligence` and `AI\'s ultimate purpose`.",
-  links: [
-    { label: "Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" },
-    { label: "Pierre Teilhard de Chardin", url: "https://en.wikipedia.org/wiki/Pierre_Teilhard_de_Chardin" }
-  ]
-},
-"Teilhard de Chardin's Omega Point": {
-  label: "Teilhard de Chardin\'s Omega Point",
-  summary: "Pierre Teilhard de Chardin\'s concept of the \'Omega Point\' describes a theoretical future point in time when the universe, particularly consciousness, reaches its maximum level of complexity and awareness. He saw this as the ultimate goal of evolution, a convergence of all minds and knowledge. In AI policy, this idea resonates with discussions about the potential for advanced artificial intelligence to achieve a form of collective superintelligence or global consciousness, raising questions about AI\'s role in human evolution, its ultimate capabilities, and the ethical implications of creating such a powerful entity.",
-  example: "A node tagged with this attribute might explore whether the development of a highly interconnected global AI network could be interpreted as a step towards a technological Omega Point.",
-  frequency: "Appears in `philosophy of AI` and `future studies` nodes discussing `superintelligence` and `AI\'s role in evolution`.",
-  links: [
-    { label: "Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" },
-    { label: "Pierre Teilhard de Chardin", url: "https://en.wikipedia.org/wiki/Pierre_Teilhard_de_Chardin" }
   ]
 },
 "Theory of Mind in AI": {
@@ -9776,15 +9326,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   links: [
     { label: "The Structure of Scientific Revolutions", url: "https://en.wikipedia.org/wiki/The_Structure_of_Scientific_Revolutions" },
     { label: "Paradigm Shift", url: "https://en.wikipedia.org/wiki/Paradigm_shift" }
-  ]
-},
-"Thucydides Trap": {
-  label: "Thucydides Trap",
-  summary: "The Thucydides Trap is a concept that describes the high likelihood of war when a rising power threatens to displace an existing dominant power. It\'s named after the ancient Greek historian Thucydides, who observed this dynamic in the Peloponnesian War between Athens and Sparta. In AI policy, this concept is used to frame the geopolitical competition over AI leadership, suggesting that the \'AI race\' between major powers could lead to increased tensions, conflict, or even war as nations vie for technological supremacy and the strategic advantages AI provides.",
-  example: "A node tagged with this attribute might analyze the potential for conflict between the US and China over AI dominance, drawing parallels to historical power transitions.",
-  frequency: "Appears in `geopolitics` and `international relations` nodes discussing `AI arms race` and `global stability`.",
-  links: [
-    { label: "Thucydides Trap", url: "https://en.wikipedia.org/wiki/Thucydides_Trap" }
   ]
 },
 "Tiered regulation frameworks": {
@@ -9864,24 +9405,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Transaction Cost Economics", url: "https://en.wikipedia.org/wiki/Transaction_cost_economics" }
   ]
 },
-"Transhumanism": {
-  label: "Transhumanism",
-  summary: "Transhumanism is a philosophical and intellectual movement that advocates for the enhancement of the human condition through advanced technology, aiming to overcome limitations like aging, disease, and even death. In AI policy, this tradition informs debates about the ethical use of AI for human augmentation, the potential for AI to create new forms of inequality based on access to enhancement, and the fundamental definition of what it means to be human in an AI-enhanced future.",
-  example: "A node tagged with this attribute might discuss policies around brain-computer interfaces or genetic engineering enabled by AI.",
-  frequency: "Appears in philosophical and ethical nodes discussing the future of humanity and technology.",
-  links: [
-    { label: "Transhumanism", url: "https://en.wikipedia.org/wiki/Transhumanism" }
-  ]
-},
-"Transhumanism (extreme forms)": {
-  label: "Transhumanism (Extreme Forms)",
-  summary: "Extreme forms of transhumanism push for radical human enhancement, potentially leading to post-human existence, digital immortality, or the creation of superintelligent beings, often with less emphasis on current ethical norms. In AI policy, this relates to debates about the risks of uncontrolled AI development, the potential for AI to fundamentally alter human nature, and the creation of entities that could surpass human control or understanding, raising existential questions for humanity.",
-  example: "A node tagged with this attribute might explore policy responses to scenarios like uploading human consciousness to machines or the creation of AI gods.",
-  frequency: "Appears in speculative and risk-assessment nodes discussing existential risks and radical future scenarios.",
-  links: [
-    { label: "Transhumanism", url: "https://en.wikipedia.org/wiki/Transhumanism" }
-  ]
-},
 "Transparency in algorithms": {
   label: "Transparency In Algorithms",
   summary: "Transparency in algorithms refers to the idea that the workings of algorithms, especially those used in critical decision-making, should be understandable and explainable to humans. In AI policy, this is crucial for ensuring fairness, accountability, and public trust in AI systems, particularly when they affect areas like credit scoring, criminal justice, or employment, allowing individuals to understand how decisions impacting them are made.",
@@ -9898,15 +9421,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in ethical and application-specific nodes discussing AI in emergency management and healthcare.",
   links: [
     { label: "Triage", url: "https://en.wikipedia.org/wiki/Triage" }
-  ]
-},
-"Uncertainty quantification in ML": {
-  label: "Uncertainty Quantification In ML",
-  summary: "Uncertainty quantification in machine learning (ML) is the process of measuring and communicating the level of confidence or doubt in the predictions made by ML models. In AI policy, this is vital for critical applications where knowing \'how sure\' an AI is about its answer can be as important as the answer itself, allowing humans to make informed decisions and understand potential risks, especially in fields like autonomous driving or medical diagnosis.",
-  example: "A node tagged with this attribute might discuss regulations requiring self-driving cars to report their confidence levels when identifying obstacles.",
-  frequency: "Appears in technical and safety-focused nodes discussing AI reliability and risk management.",
-  links: [
-    { label: "Uncertainty quantification", url: "https://en.wikipedia.org/wiki/Uncertainty_quantification" }
   ]
 },
 "unintended consequences in complex systems": {
@@ -9952,15 +9466,6 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in information theory and philosophical nodes discussing AI\'s impact on knowledge and information access.",
   links: [
     { label: "The Library of Babel", url: "https://en.wikipedia.org/wiki/The_Library_of_Babel" }
-  ]
-},
-"Value alignment problem": {
-  label: "Value Alignment Problem",
-  summary: "The value alignment problem is the challenge of ensuring that advanced artificial intelligence systems operate in a way that is consistent with human values and goals. In AI policy, this is a central concern for preventing AI from causing harm or acting contrary to human interests, especially as AI becomes more autonomous and powerful, requiring careful design and ethical frameworks to guide its development and deployment.",
-  example: "A node tagged with this attribute might discuss research into methods for embedding human ethical principles into AI decision-making processes.",
-  frequency: "Appears in ethical and safety-focused nodes discussing AI governance and control.",
-  links: [
-    { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "Vannevar Bush's Memex concept": {

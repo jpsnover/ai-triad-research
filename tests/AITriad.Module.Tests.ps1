@@ -13,6 +13,21 @@
     Or from the repo root: Invoke-Pester
 #>
 
+BeforeDiscovery {
+    # Detect whether the separate data repo is available (may not be in CI).
+    # Must be in BeforeDiscovery so -Skip: expressions can reference $HasDataRepo.
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+    $configPath = Join-Path $repoRoot '.aitriad.json'
+    if (Test-Path $configPath) {
+        $cfg = Get-Content -Raw $configPath | ConvertFrom-Json
+        $dataRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $cfg.data_root))
+        $taxDir = Join-Path $dataRoot $cfg.taxonomy_dir
+        $HasDataRepo = Test-Path $taxDir
+    } else {
+        $HasDataRepo = Test-Path (Join-Path $repoRoot 'taxonomy' 'Origin')
+    }
+}
+
 BeforeAll {
     # Load module from source (dev layout)
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psd1'
@@ -56,9 +71,8 @@ Describe 'Module Loading' {
 }
 
 Describe 'Data Path Resolution' {
-    It 'Get-Tax should return nodes when data is available' {
+    It 'Get-Tax should return nodes when data is available' -Skip:(-not $HasDataRepo) {
         $nodes = Get-Tax
-        # May be 0 if no data repo — that's OK in CI
         $nodes | Should -Not -BeNullOrEmpty -Because 'Data repo should be available'
     }
 
@@ -96,8 +110,8 @@ Describe 'AI Model Configuration' {
         }
     }
 
-    It 'Model validation should work for known models' {
-        # Test via parameter validation on a real cmdlet
+    It 'Model validation should work for known models' -Skip:(-not $HasDataRepo) {
+        # Test via parameter validation on a real cmdlet (requires taxonomy data)
         { Find-PolicyAction -Model 'gemini-2.5-flash' -DryRun -POV accelerationist -ErrorAction Stop } | Should -Not -Throw
     }
 
@@ -162,8 +176,8 @@ Describe 'Cmdlet Parameter Validation' {
         { Find-PolicyAction -POV 'invalid' -DryRun } | Should -Throw
     }
 
-    It 'Invoke-AttributeExtraction should accept -DryRun' {
-        # DryRun should not throw (may warn about no nodes)
+    It 'Invoke-AttributeExtraction should accept -DryRun' -Skip:(-not $HasDataRepo) {
+        # DryRun should not throw (requires taxonomy data)
         { Invoke-AttributeExtraction -DryRun -POV accelerationist -ErrorAction SilentlyContinue } | Should -Not -Throw
     }
 

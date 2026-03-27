@@ -6,7 +6,7 @@
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
           "category": "Goals/Values",
-          "point": "<1-6 sentences: (1) state the document's position, (2) explain HOW/WHY, (3) note nuance — Accelerationist lens>",
+          "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "<e.g. Section 2, paragraph 3>"
         },
@@ -28,7 +28,7 @@
           "verbatim": "...",
           "excerpt_context": "..."
         },
-        { "...": "repeat for EVERY relevant Methods/Arguments point — aim for 5-20 total key_points per camp" }
+        { "...": "repeat for EVERY relevant Methods/Arguments point" }
       ]
     },
     "safetyist": {
@@ -37,11 +37,11 @@
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
-          "point": "<1-6 sentences — Safetyist lens>",
+          "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
         },
-        { "...": "repeat — 5-20 key_points covering all three categories" }
+        { "...": "repeat — cover all three categories" }
       ]
     },
     "skeptic": {
@@ -50,11 +50,11 @@
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
           "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
-          "point": "<1-6 sentences — Skeptic lens>",
+          "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
         },
-        { "...": "repeat — 5-20 key_points covering all three categories" }
+        { "...": "repeat — cover all three categories" }
       ]
     }
   },
@@ -66,7 +66,7 @@
       "potential_conflict_id": "<existing conflict id if relevant, OR null>",
       "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"]
     },
-    { "...": "repeat for EVERY factual claim — aim for 5-15 claims" }
+    { "...": "repeat for EVERY factual claim" }
   ],
   "unmapped_concepts": [
     {
@@ -93,6 +93,6 @@
       "Safetyist Interpretation": "<2-5 sentences in plain language (grade-10 level): how safetyists would interpret or use this concept>",
       "Skeptic Interpretation": "<2-5 sentences in plain language (grade-10 level): how skeptics would interpret or use this concept>"
     },
-    { "...": "repeat for ALL unmapped concepts — aim for 3-10. Include interpretations ONLY for cross-cutting concepts." }
+    { "...": "repeat for ALL unmapped concepts. Include interpretations ONLY for cross-cutting concepts." }
   ]
 }

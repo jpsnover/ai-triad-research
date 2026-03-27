@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import ApiKeyDialog from './ApiKeyDialog';
+import SettingsDialog from './SettingsDialog';
 import type { GraphAttributes } from '../types/types';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
@@ -29,7 +29,7 @@ export default function SimilarResultsPane() {
   const runSimilarSearch = useStore(s => s.runSimilarSearch);
   const taxonomy = useStore(s => s.taxonomy);
 
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showIds, setShowIds] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('match');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -204,7 +204,7 @@ export default function SimilarResultsPane() {
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ marginLeft: 8 }}
-                onClick={() => setShowApiKeyDialog(true)}
+                onClick={() => setShowSettings(true)}
               >
                 Configure API Key
               </button>
@@ -212,17 +212,8 @@ export default function SimilarResultsPane() {
           </div>
         )}
 
-        {showApiKeyDialog && (
-          <ApiKeyDialog
-            onClose={() => setShowApiKeyDialog(false)}
-            onSaved={() => {
-              setShowApiKeyDialog(false);
-              if (similarQuery) {
-                const state = useStore.getState();
-                runSimilarSearch(state.similarQuery!, state.similarQueryDescription || state.similarQuery!);
-              }
-            }}
-          />
+        {showSettings && (
+          <SettingsDialog onClose={() => setShowSettings(false)} />
         )}
 
         {similarResults !== null && !similarLoading && (

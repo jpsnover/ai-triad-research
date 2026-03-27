@@ -94,6 +94,8 @@ const _config = loadDataConfig();
 const TAXONOMY_BASE = path.dirname(resolveDataPath(_config.taxonomy_dir));
 let activeTaxonomyDir = resolveDataPath(_config.taxonomy_dir);
 const CONFLICTS_DIR = resolveDataPath(_config.conflicts_dir);
+const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
+const SOURCES_DIR = resolveDataPath(_config.sources_dir);
 
 export { PROJECT_ROOT, resolveDataPath };
 
@@ -190,4 +192,99 @@ export function readEdgesFile(): unknown | null {
 export function writeEdgesFile(data: unknown): void {
   const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
   fs.writeFileSync(edgesPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+}
+
+// ── Node ↔ Source reverse index ──────────────────────────────────────────────
+
+export interface SourceReference {
+  docId: string;
+  title: string;
+  pov: string;
+  stance: string;
+  point: string;
+  verbatim: string;
+  excerptContext: string;
+  url: string | null;
+  sourceType: string;
+  datePublished: string;
+}
+
+export type NodeSourceIndex = Record<string, SourceReference[]>;
+
+/**
+ * Scan all summary JSON files and build a reverse index:
+ * nodeId → list of source references that mapped to it.
+ * Also loads source metadata for titles/URLs.
+ */
+export function buildNodeSourceIndex(): NodeSourceIndex {
+  const index: NodeSourceIndex = {};
+
+  if (!fs.existsSync(SUMMARIES_DIR)) return index;
+
+  // Pre-load source metadata for titles/URLs
+  const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
+  if (fs.existsSync(SOURCES_DIR)) {
+    for (const entry of fs.readdirSync(SOURCES_DIR, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(SOURCES_DIR, entry.name, 'metadata.json');
+      try {
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          metaCache[entry.name] = {
+            title: meta.title || entry.name,
+            url: meta.url || null,
+            sourceType: meta.source_type || 'unknown',
+            datePublished: meta.date_published || meta.source_time || '',
+          };
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Scan all summary files
+  for (const file of fs.readdirSync(SUMMARIES_DIR)) {
+    if (!file.endsWith('.json')) continue;
+    const docId = file.replace(/\.json$/, '');
+
+    let summary: {
+      pov_summaries?: Record<string, {
+        key_points?: Array<{
+          taxonomy_node_id?: string | null;
+          point?: string;
+          stance?: string;
+          verbatim?: string;
+          excerpt_context?: string;
+        }>;
+      }>;
+    };
+
+    try {
+      summary = JSON.parse(fs.readFileSync(path.join(SUMMARIES_DIR, file), 'utf-8'));
+    } catch { continue; }
+
+    const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
+
+    for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
+      for (const kp of povData.key_points || []) {
+        const nodeId = kp.taxonomy_node_id;
+        if (!nodeId) continue;
+
+        if (!index[nodeId]) index[nodeId] = [];
+        index[nodeId].push({
+          docId,
+          title: meta.title,
+          pov,
+          stance: kp.stance || 'neutral',
+          point: kp.point || '',
+          verbatim: kp.verbatim || '',
+          excerptContext: kp.excerpt_context || '',
+          url: meta.url,
+          sourceType: meta.sourceType,
+          datePublished: meta.datePublished,
+        });
+      }
+    }
+  }
+
+  return index;
 }

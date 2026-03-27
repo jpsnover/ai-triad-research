@@ -51,10 +51,11 @@ function createWindow(): void {
       label: 'Settings',
       submenu: [
         {
-          label: 'Configure API Key\u2026',
+          label: 'Settings\u2026',
+          accelerator: 'CmdOrCtrl+,',
           click: () => {
             if (mainWindow) {
-              mainWindow.webContents.send('menu-configure-api-key');
+              mainWindow.webContents.send('menu-settings');
             }
           },
         },

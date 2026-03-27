@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import ApiKeyDialog from './ApiKeyDialog';
+import SettingsDialog from './SettingsDialog';
 import type { PotentialEdge, TaxonomyNode } from '../types/types';
 
 type SortKey = 'confidence' | 'type' | 'target' | 'direction';
@@ -40,7 +40,7 @@ export default function PotentialEdgesPane() {
   const clearPotentialEdges = useStore(s => s.clearPotentialEdges);
   const taxonomy = useStore(s => s.taxonomy);
 
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('confidence');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -148,7 +148,7 @@ export default function PotentialEdgesPane() {
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ marginLeft: 8 }}
-                onClick={() => setShowApiKeyDialog(true)}
+                onClick={() => setShowSettings(true)}
               >
                 Configure API Key
               </button>
@@ -156,11 +156,8 @@ export default function PotentialEdgesPane() {
           </div>
         )}
 
-        {showApiKeyDialog && (
-          <ApiKeyDialog
-            onClose={() => setShowApiKeyDialog(false)}
-            onSaved={() => setShowApiKeyDialog(false)}
-          />
+        {showSettings && (
+          <SettingsDialog onClose={() => setShowSettings(false)} />
         )}
 
         {potentialEdges !== null && !potentialEdgesLoading && (

@@ -52,7 +52,7 @@ function Get-AITSource {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $SourcesDir = Get-AITSourcesDir
+    $SourcesDir = Get-SourcesDir
 
     if (-not (Test-Path $SourcesDir)) {
         Write-Warning "Sources directory not found: $SourcesDir"
@@ -112,6 +112,7 @@ function Get-AITSource {
             PovTags       = if ($Props['pov_tags'])       { $Meta.pov_tags }       else { @() }
             TopicTags     = if ($Props['topic_tags'])     { $Meta.topic_tags }     else { @() }
             OneLiner      = if ($Props['one_liner'])      { $Meta.one_liner }      else { $null }
+            Directory     = $Folder.FullName
         })
     }
 

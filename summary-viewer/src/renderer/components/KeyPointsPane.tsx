@@ -335,6 +335,7 @@ export default function KeyPointsPane() {
   const [expandedFragments, setExpandedFragments] = useState<Set<string>>(new Set());
   const [claimsExpanded, setClaimsExpanded] = useState(true);
   const [unmappedExpanded, setUnmappedExpanded] = useState(true);
+  const [unmappedCollapsedPovs, setUnmappedCollapsedPovs] = useState<Set<string>>(new Set());
   const [visibleDescs, setVisibleDescs] = useState<Set<string>>(new Set());
   const [visibleAttrs, setVisibleAttrs] = useState<Set<string>>(new Set());
 
@@ -892,12 +893,22 @@ export default function KeyPointsPane() {
                     const cfg = POV_CONFIG[pov];
                     const povLabel = cfg?.label || pov;
                     const povColor = cfg?.colorVar || 'var(--text-secondary)';
+                    const isPovCollapsed = unmappedCollapsedPovs.has(pov);
+                    const togglePov = () => {
+                      setUnmappedCollapsedPovs(prev => {
+                        const next = new Set(prev);
+                        if (next.has(pov)) next.delete(pov);
+                        else next.add(pov);
+                        return next;
+                      });
+                    };
                     return (
                       <div key={pov} className="unmapped-pov-group">
-                        <div className="unmapped-pov-header" style={{ color: povColor }}>
+                        <button className="unmapped-pov-header" style={{ color: povColor }} onClick={togglePov}>
+                          <span className="unmapped-pov-arrow">{isPovCollapsed ? '\u25B6' : '\u25BC'}</span>
                           {povLabel} <span className="unmapped-pov-count">({group.length})</span>
-                        </div>
-                        {group.map((uc, i) => (
+                        </button>
+                        {!isPovCollapsed && group.map((uc, i) => (
                           <UnmappedCard
                             key={`unmapped-${uc.docId}-${uc.sourceIndex}`}
                             uc={uc}

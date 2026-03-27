@@ -183,6 +183,18 @@
       "backend": "gemini"
     },
     {
+      "id": "lyria-3-clip-preview",
+      "apiModelId": "lyria-3-clip-preview",
+      "label": "Lyria 3 Clip Preview",
+      "backend": "gemini"
+    },
+    {
+      "id": "lyria-3-pro-preview",
+      "apiModelId": "lyria-3-pro-preview",
+      "label": "Lyria 3 Pro Preview",
+      "backend": "gemini"
+    },
+    {
       "id": "gemini-robotics-er-1.5-preview",
       "apiModelId": "gemini-robotics-er-1.5-preview",
       "label": "Gemini Robotics-ER 1.5 Preview",
@@ -237,33 +249,9 @@
       "backend": "claude"
     },
     {
-      "id": "groq-qwen-qwen3-32b",
-      "apiModelId": "qwen/qwen3-32b",
-      "label": "Qwen/Qwen3 32b",
-      "backend": "groq"
-    },
-    {
       "id": "groq-allam-2-7b",
       "apiModelId": "allam-2-7b",
       "label": "Allam 2 7b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-moonshotai-kimi-k2",
-      "apiModelId": "moonshotai/kimi-k2-instruct",
-      "label": "Moonshotai/Kimi K2 Instruct",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-moonshotai-kimi-k2-instruct-0905",
-      "apiModelId": "moonshotai/kimi-k2-instruct-0905",
-      "label": "Moonshotai/Kimi K2 Instruct 0905",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-canopylabs-orpheus-arabic-saudi",
-      "apiModelId": "canopylabs/orpheus-arabic-saudi",
-      "label": "Canopylabs/Orpheus Arabic Saudi",
       "backend": "groq"
     },
     {
@@ -273,9 +261,39 @@
       "backend": "groq"
     },
     {
+      "id": "groq-qwen-qwen3-32b",
+      "apiModelId": "qwen/qwen3-32b",
+      "label": "Qwen/Qwen3 32b",
+      "backend": "groq"
+    },
+    {
       "id": "groq-llama-4-scout-17b-16e",
       "apiModelId": "meta-llama/llama-4-scout-17b-16e-instruct",
       "label": "Llama 4 Scout 17b 16e Instruct",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.3-70b-versatile",
+      "apiModelId": "llama-3.3-70b-versatile",
+      "label": "Llama 3.3 70b Versatile",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-moonshotai-kimi-k2-instruct-0905",
+      "apiModelId": "moonshotai/kimi-k2-instruct-0905",
+      "label": "Moonshotai/Kimi K2 Instruct 0905",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-moonshotai-kimi-k2",
+      "apiModelId": "moonshotai/kimi-k2-instruct",
+      "label": "Moonshotai/Kimi K2 Instruct",
       "backend": "groq"
     },
     {
@@ -291,27 +309,21 @@
       "backend": "groq"
     },
     {
-      "id": "groq-llama-3.3-70b-versatile",
-      "apiModelId": "llama-3.3-70b-versatile",
-      "label": "Llama 3.3 70b Versatile",
+      "id": "groq-canopylabs-orpheus-v1-english",
+      "apiModelId": "canopylabs/orpheus-v1-english",
+      "label": "Canopylabs/Orpheus V1 English",
       "backend": "groq"
     },
     {
-      "id": "groq-llama-3.1-8b-instant",
-      "apiModelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8b Instant",
+      "id": "groq-canopylabs-orpheus-arabic-saudi",
+      "apiModelId": "canopylabs/orpheus-arabic-saudi",
+      "label": "Canopylabs/Orpheus Arabic Saudi",
       "backend": "groq"
     },
     {
       "id": "groq-openai-gpt-oss-20b",
       "apiModelId": "openai/gpt-oss-20b",
       "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-canopylabs-orpheus-v1-english",
-      "apiModelId": "canopylabs/orpheus-v1-english",
-      "label": "Canopylabs/Orpheus V1 English",
       "backend": "groq"
     }
   ],
@@ -320,5 +332,5 @@
     "claude": "claude-sonnet-4-5",
     "groq": "groq-openai-gpt-oss-120b"
   },
-  "lastRefreshed": "2026-03-24T17:35:01.125Z"
+  "lastRefreshed": "2026-03-26T18:50:35.042Z"
 }

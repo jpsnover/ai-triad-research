@@ -11,6 +11,7 @@ import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { generateResearchPrompt } from '../utils/researchPrompt';
+import { SourcesPanel } from './SourcesPanel';
 
 interface CrossCuttingDetailProps {
   node: CrossCuttingNode;
@@ -21,11 +22,12 @@ interface CrossCuttingDetailProps {
   chipDepth?: number;
 }
 
-type CCTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'skeptic';
+type CCTab = 'overview' | 'attributes' | 'sources' | 'accelerationist' | 'safetyist' | 'skeptic';
 
 const CC_TABS: { id: CCTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
   { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
+  { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
   { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
   { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
   { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
@@ -213,6 +215,10 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
             onShowAttributeInfo={showAttributeInfo}
             defaultOpen
           />
+        )}
+
+        {activeTab === 'sources' && (
+          <SourcesPanel nodeId={node.id} />
         )}
 
         {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (

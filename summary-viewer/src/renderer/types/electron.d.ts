@@ -30,13 +30,16 @@ export interface ElectronAPI {
   loadSnapshot: (sourceId: string) => Promise<string>;
   loadTaxonomy: () => Promise<unknown>;
   addTaxonomyNode: (req: AddTaxonomyNodeRequest) => Promise<AddTaxonomyNodeResult>;
-  setApiKey: (key: string) => Promise<void>;
-  hasApiKey: () => Promise<boolean>;
+  setApiKey: (key: string, backend?: string) => Promise<void>;
+  hasApiKey: (backend?: string) => Promise<boolean>;
+  loadAIModels: () => Promise<unknown>;
+  refreshAIModels: () => Promise<unknown>;
+  loadEmbeddings: () => Promise<Record<string, number[]> | null>;
   computeEmbeddings: (texts: string[]) => Promise<number[][]>;
   computeQueryEmbedding: (text: string) => Promise<number[]>;
-  generateContent: (systemPrompt: string, userPrompt: string) => Promise<string>;
+  generateContent: (systemPrompt: string, userPrompt: string, model?: string) => Promise<string>;
   openInTaxonomyEditor: (nodeId: string) => Promise<{ ok: boolean; error?: string }>;
-  onMenuConfigureApiKey: (callback: () => void) => () => void;
+  onMenuSettings: (callback: () => void) => () => void;
 }
 
 declare global {

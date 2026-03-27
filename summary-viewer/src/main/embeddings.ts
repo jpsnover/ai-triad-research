@@ -1,81 +1,129 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { loadApiKey } from './apiKeyStore';
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
+import { resolveDataPath } from './fileIO';
 
-const GEMINI_MODEL = 'gemini-embedding-001';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const BATCH_SIZE = 100;
-const MAX_RETRIES = 5;
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 
-interface GeminiBatchResponse {
-  embeddings: { values: number[] }[];
+// ---------- Local embeddings from embeddings.json ----------
+
+interface EmbeddingsFile {
+  model: string;
+  dimension: number;
+  node_count: number;
+  nodes: Record<string, { pov: string; vector: number[] }>;
 }
 
-async function callGeminiBatchApi(
-  texts: string[],
-  taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY',
-  apiKey: string,
-): Promise<number[][]> {
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:batchEmbedContents?key=${apiKey}`;
+let embeddingsCache: EmbeddingsFile | null = null;
+let embeddingsCachePath: string | null = null;
 
-  const requests = texts.map(text => ({
-    model: `models/${GEMINI_MODEL}`,
-    content: { parts: [{ text }] },
-    taskType,
-  }));
+function getEmbeddingsPath(): string {
+  return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
+}
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests }),
-    });
-
-    if (response.status === 429) {
-      if (attempt === MAX_RETRIES) {
-        throw new Error(
-          'Gemini Embedding API rate limited after ' + MAX_RETRIES + ' attempts. ' +
-          'Please wait a minute and try again.',
-        );
-      }
-      const backoff = Math.min(2 ** attempt, 30);
-      console.log(`[batchEmbed] Rate limited (429), retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
-      continue;
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Gemini API error ${response.status}: ${body}`);
-    }
-
-    const json = (await response.json()) as GeminiBatchResponse;
-    return json.embeddings.map(e => e.values);
+function loadEmbeddingsFile(): EmbeddingsFile | null {
+  const filePath = getEmbeddingsPath();
+  if (embeddingsCache && embeddingsCachePath === filePath) {
+    return embeddingsCache;
   }
-
-  throw new Error('callGeminiBatchApi: exhausted all retry attempts');
-}
-
-export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
-  const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured');
-
-  const allVectors: number[][] = [];
-
-  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE);
-    const vectors = await callGeminiBatchApi(batch, 'RETRIEVAL_DOCUMENT', apiKey);
-    allVectors.push(...vectors);
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    embeddingsCache = JSON.parse(raw) as EmbeddingsFile;
+    embeddingsCachePath = filePath;
+    console.log(`[embeddings] Loaded ${embeddingsCache.node_count} local embeddings (${embeddingsCache.dimension}d)`);
+    return embeddingsCache;
+  } catch (err) {
+    console.warn('[embeddings] Could not load embeddings.json:', err);
+    return null;
   }
-
-  return allVectors;
 }
 
-export async function computeQueryEmbedding(text: string): Promise<number[]> {
-  const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured');
+/**
+ * Load all pre-computed embeddings from embeddings.json.
+ * Returns a map of node ID → vector, or null if the file is unavailable.
+ */
+export function loadEmbeddings(): Record<string, number[]> | null {
+  const data = loadEmbeddingsFile();
+  if (!data) return null;
+  const result: Record<string, number[]> = {};
+  for (const [id, entry] of Object.entries(data.nodes)) {
+    result[id] = entry.vector;
+  }
+  return result;
+}
 
-  const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
-  return vectors[0];
+/**
+ * Compute embeddings for arbitrary texts via local Python batch-encode.
+ * Used for within-document semantic search (paragraphs not in embeddings.json).
+ */
+export function computeEmbeddings(texts: string[]): Promise<number[][]> {
+  const items = texts.map((text, i) => ({ id: String(i), text }));
+  const inputJson = JSON.stringify(items);
+
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'python3',
+      [EMBED_SCRIPT, 'batch-encode'],
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
+          return;
+        }
+        try {
+          const result = JSON.parse(stdout) as Record<string, number[]>;
+          const vectors = texts.map((_, i) => result[String(i)]);
+          if (vectors.some(v => !v)) {
+            reject(new Error('Python batch-encode returned incomplete results'));
+            return;
+          }
+          resolve(vectors);
+        } catch (parseErr) {
+          reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
+        }
+      },
+    );
+    child.stdin!.write(inputJson);
+    child.stdin!.end();
+  });
+}
+
+/**
+ * Compute a query embedding for a single text.
+ * Uses the local Python sentence-transformers model (same model as embeddings.json).
+ */
+export function computeQueryEmbedding(text: string): Promise<number[]> {
+  return computeQueryViaLocalPython(text);
+}
+
+// ---------- Local Python embedding ----------
+
+function computeQueryViaLocalPython(text: string): Promise<number[]> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'python3',
+      [EMBED_SCRIPT, 'encode', text],
+      { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`Python embed failed: ${err.message}\n${stderr}`));
+          return;
+        }
+        try {
+          const vector = JSON.parse(stdout) as number[];
+          if (!Array.isArray(vector) || vector.length === 0) {
+            reject(new Error('Python embed returned empty vector'));
+            return;
+          }
+          resolve(vector);
+        } catch (parseErr) {
+          reject(new Error(`Failed to parse Python output: ${parseErr}`));
+        }
+      },
+    );
+  });
 }

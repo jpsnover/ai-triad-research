@@ -14,6 +14,7 @@ import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { researchPrompt } from '../prompts/research';
+import { SourcesPanel } from './SourcesPanel';
 
 interface MoveTarget {
   label: string;
@@ -92,7 +93,7 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: 'Skeptic',
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'research';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'sources' | 'research';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile } = useTaxonomyStore();
@@ -276,6 +277,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           </button>
         )}
         <button
+          className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('sources')}
+        >
+          Sources
+        </button>
+        <button
           className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('research')}
         >
@@ -401,6 +408,10 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             onShowAttributeInfo={showAttributeInfo}
             defaultOpen
           />
+        )}
+
+        {activeTab === 'sources' && (
+          <SourcesPanel nodeId={node.id} />
         )}
 
         {activeTab === 'research' && (

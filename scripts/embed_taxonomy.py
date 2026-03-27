@@ -24,9 +24,36 @@ from pathlib import Path
 
 import numpy as np
 
-TAXONOMY_DIR = Path(__file__).resolve().parent.parent / "taxonomy" / "Origin"
-EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_DEFAULT_TAXONOMY_DIR = _SCRIPT_DIR.parent / "taxonomy" / "Origin"
 MODEL_NAME = "all-MiniLM-L6-v2"
+
+# Resolved at runtime via --taxonomy-dir or .aitriad.json
+TAXONOMY_DIR: Path = _DEFAULT_TAXONOMY_DIR
+EMBEDDINGS_FILE: Path = _DEFAULT_TAXONOMY_DIR / "embeddings.json"
+
+
+def _resolve_taxonomy_dir(override=None):
+    """Resolve the taxonomy directory from override, .aitriad.json, or default."""
+    global TAXONOMY_DIR, EMBEDDINGS_FILE
+
+    if override:
+        TAXONOMY_DIR = Path(override).resolve()
+    else:
+        # Try .aitriad.json
+        config_path = _SCRIPT_DIR.parent / ".aitriad.json"
+        if config_path.exists():
+            try:
+                cfg = json.loads(config_path.read_text(encoding="utf-8"))
+                data_root = cfg.get("data_root", ".")
+                tax_dir = cfg.get("taxonomy_dir", "taxonomy/Origin")
+                base = Path(data_root) if Path(data_root).is_absolute() else (_SCRIPT_DIR.parent / data_root)
+                TAXONOMY_DIR = (base / tax_dir).resolve()
+            except (json.JSONDecodeError, OSError):
+                pass  # fall through to default
+
+    EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
+    return TAXONOMY_DIR
 
 
 def _load_model():
@@ -263,6 +290,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Semantic embedding tools for the AI Triad taxonomy."
     )
+    parser.add_argument(
+        "--taxonomy-dir",
+        default=None,
+        help="Override taxonomy directory (default: resolved from .aitriad.json)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # generate
@@ -316,6 +348,7 @@ def main():
     sub.add_parser("batch-encode", help="Encode multiple texts from stdin JSON [{id, text}] -> {id: vector}")
 
     args = parser.parse_args()
+    _resolve_taxonomy_dir(args.taxonomy_dir)
 
     if args.command == "generate":
         cmd_generate(args)

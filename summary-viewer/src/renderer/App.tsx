@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useResizablePanes } from './hooks/useResizablePanes';
 import { useStore } from './store/useStore';
+import { initAIModels } from './store/aiModels';
 import ResizeHandle from './components/ResizeHandle';
 import SourcesPane from './components/SourcesPane';
 import KeyPointsPane from './components/KeyPointsPane';
@@ -11,7 +12,7 @@ import DocumentPane from './components/DocumentPane';
 import SimilarResultsPane from './components/SimilarResultsPane';
 import PotentialEdgesPane from './components/PotentialEdgesPane';
 import ErrorBoundary from './components/ErrorBoundary';
-import ApiKeyDialog from './components/ApiKeyDialog';
+import SettingsDialog from './components/SettingsDialog';
 
 function useThemeEffect() {
   const theme = useStore(s => s.theme);
@@ -42,7 +43,11 @@ export default function App() {
   const potentialEdgesQuery = useStore(s => s.potentialEdgesQuery);
   const showSimilar = similarQuery !== null;
   const showPotentialEdges = potentialEdgesQuery !== null;
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    initAIModels();
+  }, []);
 
   useEffect(() => {
     if (!loaded) {
@@ -50,10 +55,10 @@ export default function App() {
     }
   }, [loaded, loadSources]);
 
-  // Listen for Settings > Configure API Key menu click
+  // Listen for Settings menu click
   useEffect(() => {
-    return window.electronAPI.onMenuConfigureApiKey(() => {
-      setShowApiKeyDialog(true);
+    return window.electronAPI.onMenuSettings(() => {
+      setShowSettings(true);
     });
   }, []);
 
@@ -99,11 +104,8 @@ export default function App() {
         {pane1Visible ? '\u25C0' : '\u25B6'}
       </button>
 
-      {showApiKeyDialog && (
-        <ApiKeyDialog
-          onClose={() => setShowApiKeyDialog(false)}
-          onSaved={() => setShowApiKeyDialog(false)}
-        />
+      {showSettings && (
+        <SettingsDialog onClose={() => setShowSettings(false)} />
       )}
     </div>
   );

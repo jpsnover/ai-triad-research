@@ -4,11 +4,76 @@
 import fs from 'fs';
 import path from 'path';
 
+import { app } from 'electron';
+
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
-const SOURCES_DIR = path.join(PROJECT_ROOT, 'sources');
-const SUMMARIES_DIR = path.join(PROJECT_ROOT, 'summaries');
-const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
-let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
+const IS_PACKAGED = app?.isPackaged ?? false;
+
+// ── Platform-specific default data directory ──
+function getPlatformDataDir(): string {
+  if (process.platform === 'darwin') {
+    return path.join(app.getPath('home'), 'Library', 'Application Support', 'AITriad', 'data');
+  } else if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || app.getPath('userData'), '..', 'AITriad', 'data');
+  } else {
+    const xdgData = process.env.XDG_DATA_HOME || path.join(app.getPath('home'), '.local', 'share');
+    return path.join(xdgData, 'aitriad', 'data');
+  }
+}
+
+// ── Data path resolution from .aitriad.json ──
+interface AiTriadConfig {
+  data_root: string;
+  taxonomy_dir: string;
+  sources_dir: string;
+  summaries_dir: string;
+  conflicts_dir: string;
+}
+
+function loadDataConfig(): AiTriadConfig {
+  const defaults: AiTriadConfig = {
+    data_root: IS_PACKAGED ? getPlatformDataDir() : '.',
+    taxonomy_dir: 'taxonomy/Origin',
+    sources_dir: 'sources',
+    summaries_dir: 'summaries',
+    conflicts_dir: 'conflicts',
+  };
+
+  const searchPaths = [
+    path.join(PROJECT_ROOT, '.aitriad.json'),
+  ];
+  if (IS_PACKAGED) {
+    searchPaths.push(path.join(process.resourcesPath, '.aitriad.json'));
+  }
+
+  for (const configPath of searchPaths) {
+    try {
+      if (fs.existsSync(configPath)) {
+        const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        console.log(`[fileIO] Loaded config from ${configPath}`);
+        return { ...defaults, ...raw };
+      }
+    } catch { /* try next */ }
+  }
+
+  console.log(`[fileIO] Using default config (packaged=${IS_PACKAGED}, data_root=${defaults.data_root})`);
+  return defaults;
+}
+
+export function resolveDataPath(subPath: string): string {
+  const config = loadDataConfig();
+  const envRoot = process.env.AI_TRIAD_DATA_ROOT;
+  const dataRoot = envRoot || (path.isAbsolute(config.data_root)
+    ? config.data_root
+    : path.resolve(PROJECT_ROOT, config.data_root));
+  return path.isAbsolute(subPath) ? subPath : path.resolve(dataRoot, subPath);
+}
+
+const _config = loadDataConfig();
+const SOURCES_DIR = resolveDataPath(_config.sources_dir);
+const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
+const TAXONOMY_BASE = path.dirname(resolveDataPath(_config.taxonomy_dir));
+let activeTaxonomyDir = resolveDataPath(_config.taxonomy_dir);
 
 export interface DiscoveredSource {
   id: string;

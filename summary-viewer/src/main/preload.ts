@@ -28,11 +28,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addTaxonomyNode: (req: { pov: string; category: string; label: string; description: string; interpretations?: { accelerationist: string; safetyist: string; skeptic: string }; docId?: string; conceptIndex?: number }): Promise<unknown> =>
     ipcRenderer.invoke('add-taxonomy-node', req),
 
-  setApiKey: (key: string): Promise<void> =>
-    ipcRenderer.invoke('set-api-key', key),
+  setApiKey: (key: string, backend?: string): Promise<void> =>
+    ipcRenderer.invoke('set-api-key', key, backend),
 
-  hasApiKey: (): Promise<boolean> =>
-    ipcRenderer.invoke('has-api-key'),
+  hasApiKey: (backend?: string): Promise<boolean> =>
+    ipcRenderer.invoke('has-api-key', backend),
+
+  loadAIModels: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-ai-models'),
+
+  refreshAIModels: (): Promise<unknown> =>
+    ipcRenderer.invoke('refresh-ai-models'),
+
+  loadEmbeddings: (): Promise<Record<string, number[]> | null> =>
+    ipcRenderer.invoke('load-embeddings'),
 
   computeEmbeddings: (texts: string[]): Promise<number[][]> =>
     ipcRenderer.invoke('compute-embeddings', texts),
@@ -40,15 +49,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeQueryEmbedding: (text: string): Promise<number[]> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateContent: (systemPrompt: string, userPrompt: string): Promise<string> =>
-    ipcRenderer.invoke('generate-content', systemPrompt, userPrompt),
+  generateContent: (systemPrompt: string, userPrompt: string, model?: string): Promise<string> =>
+    ipcRenderer.invoke('generate-content', systemPrompt, userPrompt, model),
 
   openInTaxonomyEditor: (nodeId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('open-in-taxonomy-editor', nodeId),
 
-  onMenuConfigureApiKey: (callback: () => void): (() => void) => {
+  onMenuSettings: (callback: () => void): (() => void) => {
     const handler = () => callback();
-    ipcRenderer.on('menu-configure-api-key', handler);
-    return () => { ipcRenderer.removeListener('menu-configure-api-key', handler); };
+    ipcRenderer.on('menu-settings', handler);
+    return () => { ipcRenderer.removeListener('menu-settings', handler); };
   },
 });

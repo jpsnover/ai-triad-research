@@ -31,6 +31,7 @@ export interface ElectronAPI {
   shrinkWindow: (deltaWidth: number) => Promise<void>;
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
+  buildNodeSourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;

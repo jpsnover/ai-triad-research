@@ -190,9 +190,10 @@ export function PovTab({ pov }: PovTabProps) {
     });
   }, [showEdgeDetail, toolbarPanel, relatedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh related edges when selection changes while panel is open
+  // Auto-refresh related edges when selection changes while toolbar panel is open
+  // Only trigger when the user explicitly opened the toolbar Related panel (not NodeDetail's Related tab)
   useEffect(() => {
-    if (showRelatedPanel && selectedNode) {
+    if (toolbarPanel === 'related' && selectedNode) {
       showRelatedEdges(selectedNode.id);
     }
   }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
