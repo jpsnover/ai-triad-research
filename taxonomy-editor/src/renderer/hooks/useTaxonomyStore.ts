@@ -577,10 +577,23 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
             }
           }
 
-          // Flag nodes where contradictions outnumber agreements
+          // Flag nodes where contradictions outnumber agreements — but only
+          // if they're true outliers. If most nodes in the cluster have high
+          // contradiction ratios, the NLI signal is noise (same-POV nodes
+          // discussing different topics), not a real misfit.
+          const candidateMisfits: string[] = [];
           for (const [nodeId, counts] of nodeCounts) {
             if (counts.contradicts > counts.agrees) {
-              misfits.add(nodeId);
+              candidateMisfits.push(nodeId);
+            }
+          }
+          // Only flag if fewer than half the cluster's nodes are candidates
+          // — if most/all nodes are "misfits", none of them really are
+          for (let ci = 0; ci < multiClusters.length; ci++) {
+            const clusterIds = new Set(multiClusters[ci].nodeIds);
+            const clusterCandidates = candidateMisfits.filter(id => clusterIds.has(id));
+            if (clusterCandidates.length > 0 && clusterCandidates.length < clusterIds.size / 2) {
+              for (const id of clusterCandidates) misfits.add(id);
             }
           }
 
