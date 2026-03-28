@@ -44,6 +44,7 @@ function Export-TaxonomyToGraph {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Step 1: Check Neo4j connectivity ──
     Write-Step 'Checking Neo4j connection'
@@ -132,7 +133,7 @@ function Export-TaxonomyToGraph {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         foreach ($Node in $FileData.nodes) {
             $Props = @{
                 id          = $Node.id
@@ -182,7 +183,7 @@ function Export-TaxonomyToGraph {
     $EdgeFailCount = 0
 
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
 
         foreach ($Edge in $EdgesData.edges) {
             $EdgeProps = @{
@@ -237,7 +238,7 @@ SET $SetParts
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
             try {
-                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
 
                 $ConflictProps = @{
                     claim_id       = $Conflict.claim_id
@@ -286,7 +287,7 @@ MERGE (c)-[:LINKED_TO]->(n)
         $EmbCount = 0
 
         if (Test-Path $EmbPath) {
-            $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
+            $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
             foreach ($Entry in $EmbData.PSObject.Properties) {
                 $NodeId = $Entry.Name
                 $Vector = @($Entry.Value)

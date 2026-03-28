@@ -75,7 +75,7 @@ function Invoke-PolicyRefinement {
     # -- Load registry and taxonomy files --------------------------------------
     Write-Step 'Loading policy registry and taxonomy'
 
-    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
     Write-OK "Registry loaded: $($Registry.policies.Count) policies"
 
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
@@ -83,7 +83,7 @@ function Invoke-PolicyRefinement {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (Test-Path $FilePath) {
-            $TaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $TaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         }
     }
 
@@ -225,7 +225,7 @@ INSTRUCTIONS:
                 continue
             }
 
-            $Parsed = $JsonMatch.Value | ConvertFrom-Json
+            $Parsed = $JsonMatch.Value | ConvertFrom-Json -Depth 20
 
             if (-not $Parsed.PSObject.Properties['refined_action'] -or [string]::IsNullOrWhiteSpace($Parsed.refined_action)) {
                 Write-Warn "$Pid`: LLM returned empty or missing refined_action"

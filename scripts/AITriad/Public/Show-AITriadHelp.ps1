@@ -28,6 +28,7 @@ function Show-AITriadHelp {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # Read module version from manifest
     $ManifestPath = Join-Path $PSScriptRoot '..' 'AITriad.psd1'

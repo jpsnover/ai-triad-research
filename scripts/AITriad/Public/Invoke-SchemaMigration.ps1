@@ -65,7 +65,7 @@ function Invoke-SchemaMigration {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         foreach ($Node in $FileData.nodes) {
             $TotalNodes++

@@ -42,6 +42,9 @@ function Update-Snapshot {
     function Get-SnapshotHeader {
         param([string]$SnapshotPath)
 
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
         if (-not (Test-Path $SnapshotPath)) { return '' }
 
         $Lines       = Get-Content $SnapshotPath -Encoding UTF8
@@ -178,7 +181,8 @@ function Update-Snapshot {
 
         } catch {
             $ErrorCount++
-            Write-Host "   [$DocId] ERROR: $_" -ForegroundColor Yellow
+            Write-Host "   [$DocId] Snapshot conversion failed for '$($RawFile.FullName)' ($Ext): $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "   Check that the source file is a valid $Ext document. If the file is corrupt, replace it in the raw/ folder and re-run." -ForegroundColor Yellow
         }
     }
 

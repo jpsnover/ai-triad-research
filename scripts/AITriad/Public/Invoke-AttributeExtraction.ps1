@@ -64,6 +64,7 @@ function Invoke-AttributeExtraction {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Step 1: Validate environment ──
     Write-Step 'Validating environment'
@@ -116,7 +117,7 @@ function Invoke-AttributeExtraction {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         # Identify nodes needing attributes
         $AllNodes = @($FileData.nodes)
@@ -225,7 +226,8 @@ $SchemaPrompt
                     -JsonMode `
                     -TimeoutSec 120
             } catch {
-                Write-Fail "API call failed for batch $BatchNum`: $_"
+                Write-Fail "API call failed for batch $BatchNum ($($Batch.Count) nodes) using model '$Model': $($_.Exception.Message)"
+                Write-Info 'Check that your API key is valid and you have not exceeded your quota. Re-run with -Verbose for details.'
                 $TotalFailed += $Batch.Count
                 continue
             }
@@ -242,7 +244,8 @@ $SchemaPrompt
                 try {
                     $Attributes = $Repaired | ConvertFrom-Json -Depth 20
                 } catch {
-                    Write-Fail "Could not parse response for batch $BatchNum"
+                    Write-Fail "Could not parse API response for batch $BatchNum ($($Batch.Count) nodes) after JSON repair: $($_.Exception.Message)"
+                    Write-Info 'The AI model returned malformed JSON. Try re-running the batch or using a different -Model.'
                     $TotalFailed += $Batch.Count
                     continue
                 }

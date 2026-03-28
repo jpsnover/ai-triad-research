@@ -69,6 +69,43 @@ export function resolveDataPath(subPath: string): string {
   return path.isAbsolute(subPath) ? subPath : path.resolve(dataRoot, subPath);
 }
 
+/** Parse JSON with diagnostic error messages that identify the problem and suggest a fix. */
+function parseJsonFile(filePath: string): unknown {
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const basename = path.basename(filePath);
+    let diagnosis: string;
+    if (raw.length === 0) {
+      diagnosis = `${basename} is empty (0 bytes). It may have been truncated during a failed write.`;
+    } else if (fs.existsSync(filePath + '.tmp')) {
+      diagnosis = `${basename} appears corrupted and a .tmp file exists, indicating a write was interrupted. ` +
+        `Try: rename ${basename}.tmp to ${basename} to recover the last successful write.`;
+    } else if (!raw.trimStart().startsWith('{') && !raw.trimStart().startsWith('[')) {
+      diagnosis = `${basename} does not start with {{ or [ — it may not be JSON. First 100 chars: "${raw.slice(0, 100)}"`;
+    } else {
+      diagnosis = `${basename} contains malformed JSON. It may have been hand-edited incorrectly or truncated. Parse error: ${msg}`;
+    }
+    throw new Error(`${diagnosis} File: ${filePath}`);
+  }
+}
+
+/** Write JSON atomically: write to .tmp then rename. */
+function writeJsonFileAtomic(filePath: string, data: unknown): void {
+  const content = JSON.stringify(data, null, 2) + '\n';
+  const tmpPath = filePath + '.tmp';
+  try {
+    fs.writeFileSync(tmpPath, content, 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to write ${path.basename(filePath)}: ${msg}. File: ${filePath}`);
+  }
+}
+
 const _config = loadDataConfig();
 const SOURCES_DIR = resolveDataPath(_config.sources_dir);
 const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
@@ -171,8 +208,7 @@ export function discoverSources(): DiscoveredSource[] {
 export function loadSummary(docId: string): PipelineSummary | null {
   const summaryPath = path.join(SUMMARIES_DIR, `${docId}.json`);
   if (!fs.existsSync(summaryPath)) return null;
-  const raw = fs.readFileSync(summaryPath, 'utf-8');
-  return JSON.parse(raw);
+  return parseJsonFile(summaryPath) as PipelineSummary;
 }
 
 export interface GraphAttributes {
@@ -381,17 +417,18 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     raw.nodes.push(newNode);
     raw.last_modified = new Date().toISOString().split('T')[0];
 
-    fs.writeFileSync(filePath, JSON.stringify(raw, null, 2) + '\n', 'utf-8');
+    writeJsonFileAtomic(filePath, raw);
 
     // Mark the unmapped concept as resolved in the summary JSON
     if (req.docId != null && req.conceptIndex != null) {
       try {
         const summaryPath = path.join(SUMMARIES_DIR, `${req.docId}.json`);
         if (fs.existsSync(summaryPath)) {
-          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
-          if (Array.isArray(summary.unmapped_concepts) && summary.unmapped_concepts[req.conceptIndex]) {
-            summary.unmapped_concepts[req.conceptIndex].resolved_node_id = newId;
-            fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2) + '\n', 'utf-8');
+          const summary = parseJsonFile(summaryPath) as Record<string, unknown>;
+          const concepts = summary.unmapped_concepts as Array<Record<string, unknown>> | undefined;
+          if (Array.isArray(concepts) && concepts[req.conceptIndex]) {
+            concepts[req.conceptIndex].resolved_node_id = newId;
+            writeJsonFileAtomic(summaryPath, summary);
           }
         }
       } catch {

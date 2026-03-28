@@ -39,7 +39,7 @@ function Invoke-ProposalApply {
     }
 
     try {
-        $Raw = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $Raw = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
     } catch {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to parse $FileName`: $_" }
     }

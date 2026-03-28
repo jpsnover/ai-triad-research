@@ -32,6 +32,7 @@ import {
   todayISO,
 } from '../utils/idGenerator';
 import { rankBySimilarity } from '../utils/similarity';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
 
@@ -616,7 +617,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       set({ clusterView: { clusters: multiClusters, misfits: misfits.size > 0 ? misfits : undefined }, clusterLoading: false });
     } catch (err) {
-      set({ clusterLoading: false, clusterError: String(err) });
+      set({ clusterLoading: false, clusterError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -680,7 +681,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0, analysisCached: false });
     } catch (err) {
-      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0, analysisRetry: null });
+      set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
     }
@@ -772,7 +773,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       set({ analysisStep: 4, analysisRetry: null });
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0 });
     } catch (err) {
-      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0, analysisRetry: null });
+      set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
     }
@@ -861,7 +862,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const results = rankBySimilarity(vector, cache, 0.3, 25);
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
-      set({ embeddingLoading: false, embeddingError: String(err) });
+      set({ embeddingLoading: false, embeddingError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -904,7 +905,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const filtered = results.filter(r => r.id !== nodeId);
       set({ similarResults: filtered, similarLoading: false, similarStep: null });
     } catch (err) {
-      set({ similarLoading: false, similarStep: null, similarError: String(err) });
+      set({ similarLoading: false, similarStep: null, similarError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -937,7 +938,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         embeddingDirty: true,
       });
     } catch (err) {
-      set({ loading: false, saveError: String(err) });
+      set({ loading: false, saveError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -1035,7 +1036,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         });
       }
     } catch (err) {
-      set({ saveError: `Save failed: ${err}` });
+      set({ saveError: `Save failed: ${mapErrorToUserMessage(err)}` });
     }
   },
 

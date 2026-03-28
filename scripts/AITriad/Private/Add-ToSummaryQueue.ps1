@@ -10,7 +10,7 @@ function Add-ToSummaryQueue {
     $Queue = @()
     if (Test-Path $QueueFile) {
         try {
-            $Raw = Get-Content $QueueFile -Raw | ConvertFrom-Json
+            $Raw = Get-Content $QueueFile -Raw | ConvertFrom-Json -Depth 20
             $Queue = @($Raw)
         }
         catch {

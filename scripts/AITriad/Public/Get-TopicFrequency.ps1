@@ -116,7 +116,7 @@ function Get-TopicFrequency {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warning "Failed to parse $($File.Name): $_"
@@ -181,7 +181,7 @@ function Get-TopicFrequency {
 
     if (Test-Path $EmbeddingsFile) {
         try {
-            $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json
+            $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json -Depth 20
             $EmbNodes = if ($EmbData.PSObject.Properties['nodes']) { $EmbData.nodes } else { $EmbData }
             foreach ($Prop in $EmbNodes.PSObject.Properties) {
                 $Val = $Prop.Value
@@ -322,7 +322,7 @@ function Get-TopicFrequency {
 
                 if ($AIResult -and $AIResult.Text) {
                     $LabelText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $Labels = $LabelText | ConvertFrom-Json
+                    $Labels = $LabelText | ConvertFrom-Json -Depth 20
                     $AILabeled = $true
                     Write-OK "AI labeling complete ($($AIResult.Backend))"
                 }

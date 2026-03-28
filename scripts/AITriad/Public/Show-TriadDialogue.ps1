@@ -95,7 +95,7 @@ function Show-TriadDialogue {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = @{
                 POV         = $PovKey
@@ -111,7 +111,7 @@ function Show-TriadDialogue {
     $AllEdges  = @()
     $NodeDegree = @{}
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         $AllEdges  = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
         foreach ($Edge in $AllEdges) {
             if (-not $NodeDegree.ContainsKey($Edge.source)) { $NodeDegree[$Edge.source] = 0 }
@@ -177,7 +177,7 @@ function Show-TriadDialogue {
         # Load top 20 policies for this POV from the policy registry
         $PolicyRegistryPath = Join-Path $TaxDir 'policy_actions.json'
         if (Test-Path $PolicyRegistryPath) {
-            $PolicyReg = Get-Content -Raw -Path $PolicyRegistryPath | ConvertFrom-Json
+            $PolicyReg = Get-Content -Raw -Path $PolicyRegistryPath | ConvertFrom-Json -Depth 20
             if ($PolicyReg.policies) {
                 $PovPolicies = @($PolicyReg.policies |
                     Where-Object { $_.source_povs -contains $PovKey } |
@@ -230,13 +230,13 @@ function Show-TriadDialogue {
 
         $ResponseText = $TurnResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
         try {
-            return $ResponseText | ConvertFrom-Json
+            return $ResponseText | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warn "Failed to parse $AgentSpeaker response — attempting repair"
             try {
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
-                return $Repaired | ConvertFrom-Json
+                return $Repaired | ConvertFrom-Json -Depth 20
             }
             catch {
                 Write-Warn "Repair failed for $AgentSpeaker"
@@ -419,12 +419,13 @@ function Show-TriadDialogue {
 
         if ($SynthResult -and $SynthResult.Text) {
             $SynthText = $SynthResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-            $Synthesis = $SynthText | ConvertFrom-Json
+            $Synthesis = $SynthText | ConvertFrom-Json -Depth 20
             Write-OK 'Synthesis complete'
         }
     }
     catch {
-        Write-Warn "Synthesis generation failed: $_"
+        Write-Warn "Synthesis generation failed for topic '$Topic' using model '$Model': $($_.Exception.Message)"
+        Write-Info 'The dialogue transcript was generated but synthesis could not be produced. Check your API key/quota and try running synthesis separately.'
     }
 
     # Display synthesis
@@ -500,7 +501,8 @@ function Show-TriadDialogue {
         Write-OK "Debate saved to: $TargetFile"
     }
     catch {
-        Write-Warn "Failed to write debate file: $($_.Exception.Message)"
+        Write-Warn "Failed to save debate to '$TargetFile': $($_.Exception.Message)"
+        Write-Info 'The debate completed but could not be persisted. Check file permissions and disk space, then re-run with -SaveTo to retry.'
     }
 
     return $DebateData

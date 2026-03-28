@@ -149,7 +149,7 @@ function Invoke-BatchSummary {
             Write-Fail "Taxonomy file missing: $FilePath"
             throw "Taxonomy file missing: $FileName"
         }
-        $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
+        $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json -Depth 20
         $NodeCount = $TaxonomyContext[$FileName].nodes.Count
         Write-OK "  $FileName ($NodeCount nodes)"
     }
@@ -234,7 +234,7 @@ function Invoke-BatchSummary {
     $DocsToSkip     = [System.Collections.Generic.List[hashtable]]::new()
 
     foreach ($MetaFile in $AllMetaFiles) {
-        $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json
+        $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json -Depth 20
         $ThisDocId = $Meta.id
 
         if ($HasDocFilter -and $ThisDocId -notin $DocIdFilter) { continue }
@@ -310,7 +310,7 @@ function Invoke-BatchSummary {
     foreach ($Doc in $DocsToSkip) {
         try {
             $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-            $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
+            $MetaUpdated = $MetaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
             $MetaUpdated['summary_version'] = $TaxonomyVersion
             $MetaUpdated['summary_status']  = 'current'
             $MetaUpdated['summary_updated'] = $Now

@@ -1,0 +1,466 @@
+{
+  "metadata": {
+    "generated_at": "2026-03-28T09:10:10Z",
+    "taxonomy_version": "unknown",
+    "node_count": 451,
+    "summary_count": 118,
+    "edge_count": 15813,
+    "conflict_count": 1145,
+    "sample_doc_ids": "all"
+  },
+  "node_mapping": {
+    "total_key_points": 2562,
+    "null_mapped": 62,
+    "null_mapped_pct": 2.4,
+    "invalid_node_refs": 8,
+    "category_inconsistencies": 14,
+    "category_inconsistent_ids": [
+      "skp-goals-001",
+      "skp-goals-002",
+      "saf-goals-002",
+      "saf-goals-001",
+      "saf-data-006",
+      "saf-goals-003",
+      "skp-goals-003",
+      "acc-goals-006",
+      "skp-goals-004",
+      "acc-methods-011",
+      "acc-goals-002",
+      "acc-goals-003",
+      "saf-goals-004",
+      "skp-goals-005"
+    ],
+    "unreferenced_node_count": 294,
+    "unreferenced_node_pct": 65.2
+  },
+  "density": {
+    "doc_count": 118,
+    "median_kp_per_1k": 1.95,
+    "p10_kp_per_1k": 0.19,
+    "p90_kp_per_1k": 2.48,
+    "zero_kp_camp_entries": 0,
+    "low_density_docs": [
+      {
+        "DocId": "please-dont-outsource-your-critical-thinking-2026",
+        "Camp": "accelerationist",
+        "WordCount": 8801,
+        "KPCount": 1,
+        "KPPer1K": 0.11
+      },
+      {
+        "DocId": "skin-game-decision-making-via-multi-stakeholder-alignment-2026",
+        "Camp": "skeptic",
+        "WordCount": 16297,
+        "KPCount": 2,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "approach-technical-agi-safety-security-2026",
+        "Camp": "skeptic",
+        "WordCount": 80491,
+        "KPCount": 10,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "situational-awareness-decade-ahead-2026",
+        "Camp": "skeptic",
+        "WordCount": 49660,
+        "KPCount": 6,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "concrete-problems-ai-safety-2026",
+        "Camp": "skeptic",
+        "WordCount": 17355,
+        "KPCount": 2,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "tell-me-about-yourself-llms-are-aware-their-learned-2026",
+        "Camp": "skeptic",
+        "WordCount": 30248,
+        "KPCount": 4,
+        "KPPer1K": 0.13
+      },
+      {
+        "DocId": "power-seekingaiexistentialrisk-2026",
+        "Camp": "skeptic",
+        "WordCount": 39472,
+        "KPCount": 5,
+        "KPPer1K": 0.13
+      },
+      {
+        "DocId": "philosophy-technology-stanford-encyclopedia-philosophy-2026",
+        "Camp": "accelerationist",
+        "WordCount": 21107,
+        "KPCount": 3,
+        "KPPer1K": 0.14
+      },
+      {
+        "DocId": "future-jobs-report-2025-2026",
+        "Camp": "safetyist",
+        "WordCount": 123512,
+        "KPCount": 19,
+        "KPPer1K": 0.15
+      },
+      {
+        "DocId": "philosophy-technology-stanford-encyclopedia-philosophy-2026-2",
+        "Camp": "safetyist",
+        "WordCount": 20479,
+        "KPCount": 3,
+        "KPPer1K": 0.15
+      }
+    ],
+    "high_density_docs": []
+  },
+  "edges": {
+    "total_edges": 15813,
+    "type_distribution": {
+      "SUPPORTS": 6797,
+      "TENSION_WITH": 2576,
+      "WEAKENS": 1625,
+      "CONTRADICTS": 1560,
+      "RESPONDS_TO": 1137,
+      "ASSUMES": 899,
+      "INTERPRETS": 448,
+      "PROPOSES": 335,
+      "SUPPORTED_BY": 320,
+      "COMPLEMENTS": 30,
+      "CITES": 8,
+      "CONTributes_TO_RISK": 6,
+      "IS_A_POSITION_WITHIN": 6,
+      "EXEMPLIFIES": 4,
+      "EXACERBATES": 4,
+      "AIMS_TO_MITIGATE": 4,
+      "VALIDATES_ARGUMENT_WITHIN": 3,
+      "GENERALIZES": 3,
+      "ENABLES": 3,
+      "JUSTIFIES": 3,
+      "CITATION_EQUIVALENT": 2,
+      "ILLUSTRATES": 2,
+      "DEFINES_SCOPE_BY_EXCLUDING": 2,
+      "IS_A_METHOD_OF": 2,
+      "CAUSES": 2,
+      "PROVIDES_CONTEXT_FOR": 2,
+      "IS_EQUIVALENT_TO": 2,
+      "ANALOGOUS_TO": 2,
+      "INFLUENCES": 1,
+      "INCLUDES": 1,
+      "TARGETS": 1,
+      "CITATION_OF_CONCEPT": 1,
+      "HIGHLIGHTS_VULNERABILITY_TO": 1,
+      "DEFINES_ASPECT_OF": 1,
+      "SHARES_MECHANISM_WITH": 1,
+      "ELABORATES_ON": 1,
+      "SPECIALIZES": 1,
+      "USES": 1,
+      "HIGHLIGHTS_IMPORTANCE_OF": 1,
+      "INSTANTIATES": 1,
+      "INFORMS_DESIGN_OR_INTERACTION": 1,
+      "ENCOMPASSES_ELEMENT": 1,
+      "EXPLAINS": 1,
+      "LEADS_TO": 1,
+      "ILLUSTRATES_CONSEQUENCE": 1,
+      "REITERATES": 1,
+      "UNDERLIES": 1,
+      "PREVENTS_NEED_FOR": 1,
+      "VULNERABLE_TO": 1,
+      "IS_AN_EXAMPLE_OF": 1,
+      "UNDERSCORES_IMPORTANCE_OF": 1,
+      "INFORMED_BY": 1,
+      "IS_A_RESTATEMENT_OF": 1,
+      "DESCRIBES_SAME_CONCEPT_AS": 1
+    },
+    "canonical_type_count": 15042.0,
+    "non_canonical_type_count": 771.0,
+    "non_canonical_types": [
+      {
+        "type": "PROPOSES",
+        "count": 335
+      },
+      {
+        "type": "SUPPORTED_BY",
+        "count": 320
+      },
+      {
+        "type": "COMPLEMENTS",
+        "count": 30
+      },
+      {
+        "type": "CITES",
+        "count": 8
+      },
+      {
+        "type": "CONTributes_TO_RISK",
+        "count": 6
+      },
+      {
+        "type": "IS_A_POSITION_WITHIN",
+        "count": 6
+      },
+      {
+        "type": "AIMS_TO_MITIGATE",
+        "count": 4
+      },
+      {
+        "type": "EXEMPLIFIES",
+        "count": 4
+      },
+      {
+        "type": "EXACERBATES",
+        "count": 4
+      },
+      {
+        "type": "GENERALIZES",
+        "count": 3
+      },
+      {
+        "type": "VALIDATES_ARGUMENT_WITHIN",
+        "count": 3
+      },
+      {
+        "type": "ENABLES",
+        "count": 3
+      },
+      {
+        "type": "JUSTIFIES",
+        "count": 3
+      },
+      {
+        "type": "DEFINES_SCOPE_BY_EXCLUDING",
+        "count": 2
+      },
+      {
+        "type": "CITATION_EQUIVALENT",
+        "count": 2
+      },
+      {
+        "type": "ILLUSTRATES",
+        "count": 2
+      },
+      {
+        "type": "CAUSES",
+        "count": 2
+      },
+      {
+        "type": "IS_A_METHOD_OF",
+        "count": 2
+      },
+      {
+        "type": "PROVIDES_CONTEXT_FOR",
+        "count": 2
+      },
+      {
+        "type": "ANALOGOUS_TO",
+        "count": 2
+      },
+      {
+        "type": "IS_EQUIVALENT_TO",
+        "count": 2
+      },
+      {
+        "type": "UNDERLIES",
+        "count": 1
+      },
+      {
+        "type": "INCLUDES",
+        "count": 1
+      },
+      {
+        "type": "TARGETS",
+        "count": 1
+      },
+      {
+        "type": "CITATION_OF_CONCEPT",
+        "count": 1
+      },
+      {
+        "type": "HIGHLIGHTS_VULNERABILITY_TO",
+        "count": 1
+      },
+      {
+        "type": "DEFINES_ASPECT_OF",
+        "count": 1
+      },
+      {
+        "type": "ELABORATES_ON",
+        "count": 1
+      },
+      {
+        "type": "SHARES_MECHANISM_WITH",
+        "count": 1
+      },
+      {
+        "type": "USES",
+        "count": 1
+      },
+      {
+        "type": "HIGHLIGHTS_IMPORTANCE_OF",
+        "count": 1
+      },
+      {
+        "type": "SPECIALIZES",
+        "count": 1
+      },
+      {
+        "type": "INSTANTIATES",
+        "count": 1
+      },
+      {
+        "type": "ENCOMPASSES_ELEMENT",
+        "count": 1
+      },
+      {
+        "type": "UNDERSCORES_IMPORTANCE_OF",
+        "count": 1
+      },
+      {
+        "type": "LEADS_TO",
+        "count": 1
+      },
+      {
+        "type": "ILLUSTRATES_CONSEQUENCE",
+        "count": 1
+      },
+      {
+        "type": "EXPLAINS",
+        "count": 1
+      },
+      {
+        "type": "PREVENTS_NEED_FOR",
+        "count": 1
+      },
+      {
+        "type": "VULNERABLE_TO",
+        "count": 1
+      },
+      {
+        "type": "IS_AN_EXAMPLE_OF",
+        "count": 1
+      },
+      {
+        "type": "INFORMED_BY",
+        "count": 1
+      },
+      {
+        "type": "REITERATES",
+        "count": 1
+      },
+      {
+        "type": "INFLUENCES",
+        "count": 1
+      },
+      {
+        "type": "IS_A_RESTATEMENT_OF",
+        "count": 1
+      },
+      {
+        "type": "INFORMS_DESIGN_OR_INTERACTION",
+        "count": 1
+      },
+      {
+        "type": "DESCRIBES_SAME_CONCEPT_AS",
+        "count": 1
+      }
+    ],
+    "orphan_edges": 787,
+    "self_edges": 0,
+    "goals_supports_data": 138
+  },
+  "conflicts": {
+    "total_conflicts": 1145,
+    "single_instance": 1056,
+    "single_instance_pct": 92.2,
+    "multi_instance": 89,
+    "status_open": 1145,
+    "status_resolved": 0
+  },
+  "fallacies": {
+    "nodes_with_fallacies": 239,
+    "nodes_without_fallacies": 212,
+    "flagging_rate_pct": 53.0,
+    "total_flags": 395,
+    "avg_per_flagged_node": 1.7,
+    "confidence_likely": 137,
+    "confidence_possible": 202,
+    "confidence_borderline": 56,
+    "top_fallacy_types": [
+      {
+        "type": "optimism_bias",
+        "count": 53
+      },
+      {
+        "type": "Argument_From_Analogy",
+        "count": 49
+      },
+      {
+        "type": "false_dilemma",
+        "count": 43
+      },
+      {
+        "type": "Slippery_Slope",
+        "count": 39
+      },
+      {
+        "type": "Hasty_Generalization",
+        "count": 36
+      },
+      {
+        "type": "Nirvana_Fallacy",
+        "count": 21
+      },
+      {
+        "type": "Appeal_To_Fear",
+        "count": 19
+      },
+      {
+        "type": "Reification",
+        "count": 19
+      },
+      {
+        "type": "Straw_Man",
+        "count": 15
+      },
+      {
+        "type": "naturalistic_fallacy",
+        "count": 10
+      },
+      {
+        "type": "False_Cause",
+        "count": 10
+      },
+      {
+        "type": "Genetic_Fallacy",
+        "count": 9
+      },
+      {
+        "type": "Argument_From_Ignorance",
+        "count": 9
+      },
+      {
+        "type": "Ad_Hominem",
+        "count": 9
+      },
+      {
+        "type": "Appeal_To_Consequences",
+        "count": 7
+      }
+    ]
+  },
+  "descriptions": {
+    "total_nodes": 451,
+    "median_desc_length": 305,
+    "p10_desc_length": 182,
+    "p90_desc_length": 449,
+    "short_descriptions": 16,
+    "stub_descriptions": 20,
+    "genus_differentia_pattern": 26,
+    "genus_differentia_pct": 5.8
+  },
+  "unmapped_concepts": {
+    "total_unmapped_concepts": 425,
+    "resolved": 52,
+    "unresolved": 373,
+    "resolved_pct": 12.2
+  }
+}

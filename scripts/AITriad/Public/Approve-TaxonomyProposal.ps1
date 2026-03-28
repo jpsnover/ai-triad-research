@@ -45,13 +45,14 @@ function Approve-TaxonomyProposal {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     if (-not (Test-Path $Path)) {
         Write-Fail "Proposal file not found: $Path"
         return
     }
 
-    $ProposalData = Get-Content -Raw -Path $Path | ConvertFrom-Json
+    $ProposalData = Get-Content -Raw -Path $Path | ConvertFrom-Json -Depth 20
 
     if (-not $ProposalData.proposals -or $ProposalData.proposals.Count -eq 0) {
         Write-OK 'No proposals in file.'

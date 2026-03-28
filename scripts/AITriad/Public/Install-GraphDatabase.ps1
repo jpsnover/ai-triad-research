@@ -36,6 +36,7 @@ function Install-GraphDatabase {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $ContainerName = 'ai-triad-neo4j'
 

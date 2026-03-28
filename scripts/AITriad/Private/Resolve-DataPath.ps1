@@ -40,7 +40,7 @@ function Initialize-DataConfig {
     foreach ($ConfigPath in $ConfigPaths) {
         if (Test-Path $ConfigPath) {
             try {
-                $script:DataConfig = Get-Content -Raw -Path $ConfigPath | ConvertFrom-Json
+                $script:DataConfig = Get-Content -Raw -Path $ConfigPath | ConvertFrom-Json -Depth 20
                 Write-Verbose "Data config: loaded from $ConfigPath"
                 return
             }

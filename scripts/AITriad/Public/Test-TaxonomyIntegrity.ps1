@@ -29,6 +29,7 @@ function Test-TaxonomyIntegrity {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
     $Issues = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -47,7 +48,7 @@ function Test-TaxonomyIntegrity {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         foreach ($Node in $FileData.nodes) {
             [void]$AllNodeIds.Add($Node.id)
@@ -83,7 +84,7 @@ function Test-TaxonomyIntegrity {
     $Checks++
     $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
         $RegistryIds = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($Pol in $Registry.policies) { [void]$RegistryIds.Add($Pol.id) }
 
@@ -132,7 +133,7 @@ function Test-TaxonomyIntegrity {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $BadEdges = 0
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
         if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
 
@@ -151,7 +152,7 @@ function Test-TaxonomyIntegrity {
     $EmbPath = Join-Path $TaxDir 'embeddings.json'
     $MissingEmb = 0
     if (Test-Path $EmbPath) {
-        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
+        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
         $EmbIds = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($Prop in $EmbData.nodes.PSObject.Properties) { [void]$EmbIds.Add($Prop.Name) }
 

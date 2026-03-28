@@ -64,6 +64,7 @@ function Invoke-GraphQuery {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Step 1: Validate environment ──
     Write-Step 'Validating environment'
@@ -91,7 +92,7 @@ function Invoke-GraphQuery {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         foreach ($Node in $FileData.nodes) {
             $NodeEntry = [ordered]@{
                 id          = $Node.id
@@ -119,7 +120,7 @@ function Invoke-GraphQuery {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $GraphEdges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         if ($StatusFilter -eq 'all') {
             $GraphEdges = @($EdgesData.edges)
         } else {
@@ -136,7 +137,7 @@ function Invoke-GraphQuery {
         if (Test-Path $ConflictDir) {
             foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
                 try {
-                    $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+                    $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
                     $ConflictData += [ordered]@{
                         claim_id             = $Conflict.claim_id
                         claim_label          = $Conflict.claim_label

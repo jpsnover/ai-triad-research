@@ -125,14 +125,51 @@ export function setActiveTaxonomyDir(dirName: string): void {
   activeTaxonomyDir = newDir;
 }
 
+/** Parse JSON with diagnostic error messages that identify the problem and suggest a fix. */
+function parseJsonFile(filePath: string): unknown {
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const basename = path.basename(filePath);
+    // Diagnose the specific problem
+    let diagnosis: string;
+    if (raw.length === 0) {
+      diagnosis = `${basename} is empty (0 bytes). It may have been truncated during a failed write.`;
+    } else if (fs.existsSync(filePath + '.tmp')) {
+      diagnosis = `${basename} appears corrupted and a .tmp file exists, indicating a write was interrupted. ` +
+        `Try: rename ${basename}.tmp to ${basename} to recover the last successful write.`;
+    } else if (!raw.trimStart().startsWith('{') && !raw.trimStart().startsWith('[')) {
+      diagnosis = `${basename} does not start with {{ or [ — it may not be JSON. First 100 chars: "${raw.slice(0, 100)}"`;
+    } else {
+      diagnosis = `${basename} contains malformed JSON. It may have been hand-edited incorrectly or truncated. Parse error: ${msg}`;
+    }
+    throw new Error(`${diagnosis} File: ${filePath}`);
+  }
+}
+
+/** Write JSON atomically: write to .tmp then rename, preventing corruption on crash/disk-full. */
+function writeJsonFileAtomic(filePath: string, data: unknown): void {
+  const content = JSON.stringify(data, null, 2) + '\n';
+  const tmpPath = filePath + '.tmp';
+  try {
+    fs.writeFileSync(tmpPath, content, 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+  } catch (err) {
+    // Clean up tmp file if rename failed
+    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to write ${path.basename(filePath)}: ${msg}. File: ${filePath}`);
+  }
+}
+
 export function readTaxonomyFile(pov: string): unknown {
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
   }
-  const filePath = path.join(activeTaxonomyDir, filename);
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(raw);
+  return parseJsonFile(path.join(activeTaxonomyDir, filename));
 }
 
 export function writeTaxonomyFile(pov: string, data: unknown): void {
@@ -140,15 +177,13 @@ export function writeTaxonomyFile(pov: string, data: unknown): void {
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
   }
-  const filePath = path.join(activeTaxonomyDir, filename);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  writeJsonFileAtomic(path.join(activeTaxonomyDir, filename), data);
 }
 
 export function readPolicyRegistry(): unknown {
   const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
   if (!fs.existsSync(filePath)) return null;
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(raw);
+  return parseJsonFile(filePath);
 }
 
 export function readAllConflictFiles(): unknown[] {
@@ -156,10 +191,15 @@ export function readAllConflictFiles(): unknown[] {
     return [];
   }
   const files = fs.readdirSync(CONFLICTS_DIR).filter(f => f.endsWith('.json'));
-  return files.map(f => {
-    const raw = fs.readFileSync(path.join(CONFLICTS_DIR, f), 'utf-8');
-    return JSON.parse(raw);
-  });
+  const results: unknown[] = [];
+  for (const f of files) {
+    try {
+      results.push(parseJsonFile(path.join(CONFLICTS_DIR, f)));
+    } catch (err) {
+      console.warn(`[fileIO] Skipping corrupt conflict file ${f}:`, err);
+    }
+  }
+  return results;
 }
 
 export function writeConflictFile(claimId: string, data: unknown): void {
@@ -167,7 +207,7 @@ export function writeConflictFile(claimId: string, data: unknown): void {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Conflict file not found: ${claimId}`);
   }
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  writeJsonFileAtomic(filePath, data);
 }
 
 export function createConflictFile(claimId: string, data: unknown): void {
@@ -178,7 +218,7 @@ export function createConflictFile(claimId: string, data: unknown): void {
   if (fs.existsSync(filePath)) {
     throw new Error(`Conflict file already exists: ${claimId}`);
   }
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  writeJsonFileAtomic(filePath, data);
 }
 
 export function deleteConflictFile(claimId: string): void {
@@ -192,13 +232,12 @@ export function deleteConflictFile(claimId: string): void {
 export function readEdgesFile(): unknown | null {
   const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
   if (!fs.existsSync(edgesPath)) return null;
-  const raw = fs.readFileSync(edgesPath, 'utf-8');
-  return JSON.parse(raw);
+  return parseJsonFile(edgesPath);
 }
 
 export function writeEdgesFile(data: unknown): void {
   const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
-  fs.writeFileSync(edgesPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  writeJsonFileAtomic(edgesPath, data);
 }
 
 // ── Node ↔ Source reverse index ──────────────────────────────────────────────

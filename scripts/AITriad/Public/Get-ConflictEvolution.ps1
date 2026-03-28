@@ -62,7 +62,7 @@ function Get-ConflictEvolution {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = $Node
             $NodePovMap[$Node.id] = $PovKey
@@ -73,7 +73,7 @@ function Get-ConflictEvolution {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $AllEdges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         $AllEdges = @($EdgesData.edges)
     }
 
@@ -89,7 +89,7 @@ function Get-ConflictEvolution {
 
     foreach ($File in $ConflictFiles) {
         try {
-            $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
             if ($Id -and $Conflict.claim_id -ne $Id) { continue }
             $Conflicts.Add($Conflict)
         } catch {

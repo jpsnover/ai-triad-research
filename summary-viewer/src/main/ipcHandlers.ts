@@ -20,6 +20,7 @@ import { loadEmbeddings, computeEmbeddings, computeQueryEmbedding } from './embe
 import { generateContent } from './generateContent';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { refreshAIModels } from './modelDiscovery';
+import { diagnosePythonEmbeddings } from './diagnosePython';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
@@ -86,15 +87,35 @@ export function registerIpcHandlers(): void {
     return loadEmbeddings();
   });
 
-  ipcMain.handle('compute-embeddings', (_event, texts: string[]) => {
-    return computeEmbeddings(texts);
+  ipcMain.handle('compute-embeddings', async (_event, texts: string[]) => {
+    try {
+      return await computeEmbeddings(texts);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] compute-embeddings failed:', msg);
+      const diagnosis = diagnosePythonEmbeddings();
+      throw new Error(`Embedding computation failed: ${msg}. ${diagnosis}`);
+    }
   });
 
-  ipcMain.handle('compute-query-embedding', (_event, text: string) => {
-    return computeQueryEmbedding(text);
+  ipcMain.handle('compute-query-embedding', async (_event, text: string) => {
+    try {
+      return await computeQueryEmbedding(text);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] compute-query-embedding failed:', msg);
+      const diagnosis = diagnosePythonEmbeddings();
+      throw new Error(`Query embedding failed: ${msg}. ${diagnosis}`);
+    }
   });
 
-  ipcMain.handle('generate-content', (_event, systemPrompt: string, userPrompt: string, model?: string) => {
-    return generateContent(systemPrompt, userPrompt, model);
+  ipcMain.handle('generate-content', async (_event, systemPrompt: string, userPrompt: string, model?: string) => {
+    try {
+      return await generateContent(systemPrompt, userPrompt, model);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] generate-content failed:', msg);
+      throw new Error(`AI generation failed: ${msg}`);
+    }
   });
 }

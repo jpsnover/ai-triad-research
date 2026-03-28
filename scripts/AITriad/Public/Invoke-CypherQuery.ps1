@@ -42,6 +42,7 @@ function Invoke-CypherQuery {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $HttpUri = $Uri -replace 'bolt://', 'http://' -replace ':7687', ':7474'
 

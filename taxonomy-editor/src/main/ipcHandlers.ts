@@ -32,6 +32,7 @@ import { isDataAvailable, getDataRootPath } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings, classifyNli } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
+import { diagnosePythonEmbeddings } from './diagnosePython';
 import type { NodeEmbeddingInput, NliPair } from './embeddings';
 import path from 'path';
 
@@ -133,15 +134,36 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('compute-embeddings', async (_event, texts: string[], ids?: string[]) => {
-    return { vectors: await computeEmbeddings(texts, ids) };
+    try {
+      return { vectors: await computeEmbeddings(texts, ids) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] compute-embeddings failed:', msg);
+      const diagnosis = diagnosePythonEmbeddings();
+      throw new Error(`Embedding computation failed: ${msg}. ${diagnosis}`);
+    }
   });
 
   ipcMain.handle('compute-query-embedding', async (_event, text: string) => {
-    return { vector: await computeQueryEmbedding(text) };
+    try {
+      return { vector: await computeQueryEmbedding(text) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] compute-query-embedding failed:', msg);
+      const diagnosis = diagnosePythonEmbeddings();
+      throw new Error(`Query embedding failed: ${msg}. ${diagnosis}`);
+    }
   });
 
   ipcMain.handle('update-node-embeddings', async (_event, nodes: NodeEmbeddingInput[]) => {
-    await updateNodeEmbeddings(nodes);
+    try {
+      await updateNodeEmbeddings(nodes);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] update-node-embeddings failed:', msg);
+      const diagnosis = diagnosePythonEmbeddings();
+      throw new Error(`Embedding update failed for ${nodes.length} node(s): ${msg}. ${diagnosis}`);
+    }
   });
 
   ipcMain.handle('nli-classify', async (_event, pairs: NliPair[]) => {
@@ -149,11 +171,17 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('generate-text', async (event, prompt: string, model?: string) => {
-    return {
-      text: await generateText(prompt, model, (progress) => {
-        event.sender.send('generate-text-progress', progress);
-      }),
-    };
+    try {
+      return {
+        text: await generateText(prompt, model, (progress) => {
+          event.sender.send('generate-text-progress', progress);
+        }),
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] generate-text failed:', msg);
+      throw new Error(`AI generation failed: ${msg}`);
+    }
   });
 
   ipcMain.handle('open-external', (_event, url: string) => {

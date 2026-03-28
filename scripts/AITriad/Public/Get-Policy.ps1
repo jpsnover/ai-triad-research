@@ -44,6 +44,7 @@ function Get-Policy {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
     $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
@@ -53,7 +54,7 @@ function Get-Policy {
         return
     }
 
-    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
     $Policies = @($Registry.policies)
 
     # ── Filter ──
@@ -85,7 +86,7 @@ function Get-Policy {
         foreach ($PovKey in $PovFiles) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }

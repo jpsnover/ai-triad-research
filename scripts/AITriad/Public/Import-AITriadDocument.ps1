@@ -427,7 +427,7 @@ function Import-AITriadDocument {
 
                 if (Test-Path $SidecarPath) {
                     try {
-                        $Sidecar     = Get-Content $SidecarPath -Raw | ConvertFrom-Json
+                        $Sidecar     = Get-Content $SidecarPath -Raw | ConvertFrom-Json -Depth 20
                         $SidecarPov  = if ($Sidecar.pov_tags)   { $Sidecar.pov_tags }   else { @() }
                         $SidecarTopic= if ($Sidecar.topic_tags) { $Sidecar.topic_tags } else { @() }
                         Write-Info "Sidecar found: pov=$($SidecarPov -join ',')  topics=$($SidecarTopic -join ',')"

@@ -112,7 +112,7 @@ function Find-CrossCuttingCandidates {
         throw 'embeddings.json required for cross-cutting candidate discovery'
     }
 
-    $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json
+    $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json -Depth 20
     $EmbNodes = if ($EmbData.PSObject.Properties['nodes']) { $EmbData.nodes } else { $EmbData }
     foreach ($Prop in $EmbNodes.PSObject.Properties) {
         $Val = $Prop.Value
@@ -132,7 +132,7 @@ function Find-CrossCuttingCandidates {
     $EdgePairs = @{}  # "nodeA|nodeB" → list of edge types
 
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         foreach ($Edge in $EdgesData.edges) {
             $EdgeStatus = if ($Edge.PSObject.Properties['status']) { $Edge.status } else { '' }
             if ($EdgeStatus -ne 'approved') { continue }
@@ -261,7 +261,7 @@ function Find-CrossCuttingCandidates {
         $NliJson = $NliInput | ConvertTo-Json -Depth 5 -Compress
         try {
             $NliResult = $NliJson | python3 $EmbedScript nli-classify 2>$null
-            $NliParsed = $NliResult | ConvertFrom-Json
+            $NliParsed = $NliResult | ConvertFrom-Json -Depth 20
 
             for ($i = 0; $i -lt $SimilarPairs.Count; $i++) {
                 if ($i -lt $NliParsed.Count) {
@@ -586,7 +586,7 @@ function Find-CrossCuttingCandidates {
 
                 if ($AIResult -and $AIResult.Text) {
                     $ResponseText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $AILabels = ($ResponseText | ConvertFrom-Json).candidates
+                    $AILabels = ($ResponseText | ConvertFrom-Json -Depth 20).candidates
                     Write-OK "AI proposed $($AILabels.Count) cross-cutting concepts ($($AIResult.Backend))"
                 }
                 else {

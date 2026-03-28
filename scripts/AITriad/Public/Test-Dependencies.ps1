@@ -43,6 +43,9 @@ function Test-Dependencies {
         [string]$RepoRoot = $script:RepoRoot
     )
 
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
     $Result = Invoke-DependencyCheck -Mode test -Quiet:$Quiet `
         -SkipNode:$SkipNode -SkipPython:$SkipPython -RepoRoot $RepoRoot
 

@@ -41,7 +41,7 @@ function Compare-Taxonomy {
         foreach ($File in $Files) {
             if ($File.Name -in @('embeddings.json', 'cross-cutting.json')) { continue }
             try {
-                $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+                $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
                 foreach ($Node in $Json.nodes) {
                     $Nodes[$Node.id] = [PSCustomObject]@{
                         Id          = $Node.id

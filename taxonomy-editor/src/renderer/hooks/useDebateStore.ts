@@ -13,6 +13,7 @@ import type {
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode, GraphAttributes } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -65,6 +66,22 @@ async function generateTextWithProgress(
     unsubscribe();
     set({ debateProgress: null, debateActivity: null });
   }
+}
+
+/**
+ * Guard against race conditions in async debate operations.
+ * Captures the active debate ID at call time; returns a checker that
+ * verifies the debate hasn't changed during an await.
+ */
+function createDebateGuard(get: () => { activeDebateId: string | null }): () => boolean {
+  const capturedId = get().activeDebateId;
+  return () => {
+    if (capturedId !== get().activeDebateId) {
+      console.warn(`[debate] Active debate changed during async operation (was ${capturedId}, now ${get().activeDebateId}). Discarding stale results.`);
+      return false;
+    }
+    return true;
+  };
 }
 
 /** Strip markdown code fences from LLM responses */
@@ -542,7 +559,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const session = raw as DebateSession;
       set({ activeDebateId: id, activeDebate: session, debateLoading: false });
     } catch (err) {
-      set({ debateLoading: false, debateError: String(err) });
+      set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -555,7 +572,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
       await get().loadSessions();
     } catch (err) {
-      set({ debateError: String(err) });
+      set({ debateError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -610,7 +627,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         ),
       }));
     } catch (err) {
-      set({ debateError: String(err) });
+      set({ debateError: mapErrorToUserMessage(err) });
     }
   },
 
@@ -628,6 +645,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (debateGenerating) return;
     if (activeDebate.transcript.some(e => e.type === 'clarification')) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
@@ -640,6 +658,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
+      if (!isStillValid()) return;
       let questions: string[];
       try {
         const parsed = JSON.parse(stripCodeFences(text));
@@ -660,7 +679,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
-        content: `Failed to generate clarifying questions: ${String(err)}`,
+        content: `Failed to generate clarifying questions: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
     }
@@ -673,6 +692,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   submitAnswersAndSynthesize: async (answers: string) => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+
+    const isStillValid = createDebateGuard(get);
 
     addTranscriptEntry({
       type: 'answer',
@@ -699,6 +720,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
+      if (!isStillValid()) return;
       let refinedTopic: string;
       try {
         const parsed = JSON.parse(stripCodeFences(text));
@@ -717,7 +739,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         metadata: { refined_topic: refinedTopic },
       });
     } catch (err) {
-      set({ debateError: `Topic synthesis failed: ${String(err)}` });
+      set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
       await saveDebate();
@@ -754,6 +776,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
@@ -778,6 +801,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${info.label} is preparing opening statement (${model})`, set);
+        if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
         addTranscriptEntry({
@@ -796,7 +820,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
-          content: `${info.label} failed to deliver opening statement: ${String(err)}`,
+          content: `${info.label} failed to deliver opening statement: ${mapErrorToUserMessage(err)}`,
           taxonomy_refs: [],
         });
       }
@@ -847,6 +871,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate || !input.trim()) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null });
 
     // Parse @-mention to determine target
@@ -909,6 +934,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       try {
         const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is responding (${model})`, set);
+        if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
         addTranscriptEntry({
@@ -923,7 +949,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
-          content: `${info.label} failed to respond: ${String(err)}`,
+          content: `${info.label} failed to respond: ${mapErrorToUserMessage(err)}`,
           taxonomy_refs: [],
         });
       }
@@ -937,6 +963,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null });
 
     // Lazy-load edges for moderator context
@@ -968,6 +995,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(selectionPrompt, model, `Selecting next responder (${model})`, set);
+      if (!isStillValid()) return;
       try {
         const parsed = JSON.parse(stripCodeFences(text));
 
@@ -1001,7 +1029,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         focusPoint = 'the most recent points raised in the debate';
       }
     } catch (err) {
-      set({ debateError: `Cross-respond selection failed: ${String(err)}`, debateGenerating: null });
+      set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
       return;
     }
 
@@ -1030,6 +1058,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `${info.label} is cross-responding (${model})`, set);
+      if (!isStillValid()) return;
       const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
       addTranscriptEntry({
@@ -1044,7 +1073,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
-        content: `${info.label} failed to cross-respond: ${String(err)}`,
+        content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
     }
@@ -1059,6 +1088,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateGenerating: 'prometheus' });
 
     const model = getConfiguredModel();
@@ -1068,6 +1098,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set);
+      if (!isStillValid()) return;
 
       let synthesis;
       try {
@@ -1140,7 +1171,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         metadata: { synthesis },
       });
     } catch (err) {
-      set({ debateError: `Synthesis failed: ${String(err)}` });
+      set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
       await saveDebate();
@@ -1151,6 +1182,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateGenerating: 'prometheus' });
 
     const model = getConfiguredModel();
@@ -1183,6 +1215,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating probing questions (${model})`, set);
+      if (!isStillValid()) return;
 
       let questions: { text: string; targets: string[] }[] = [];
       try {
@@ -1200,7 +1233,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         metadata: { probing_questions: questions },
       });
     } catch (err) {
-      set({ debateError: `Probing questions failed: ${String(err)}` });
+      set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
       await saveDebate();
@@ -1218,6 +1251,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return;
     }
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateGenerating: 'prometheus' });
 
     const model = getConfiguredModel();
@@ -1264,6 +1298,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
+      if (!isStillValid()) return;
 
       let result;
       try {
@@ -1302,7 +1337,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         },
       });
     } catch (err) {
-      set({ debateError: `Fact check failed: ${String(err)}` });
+      set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
       await saveDebate();
@@ -1335,6 +1370,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const toCompress = transcript.slice(startIdx, endIdx);
     if (toCompress.length < 4) return; // Not enough to bother
 
+    const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateGenerating: 'prometheus' });
 
     const model = getConfiguredModel();
@@ -1349,6 +1385,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Compressing debate history (${model})`, set);
+      if (!isStillValid()) return;
 
       let summary: string;
       try {
@@ -1374,7 +1411,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       await saveDebate();
     } catch (err) {
-      set({ debateError: `Context compression failed: ${String(err)}` });
+      set({ debateError: `Context compression failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
     }

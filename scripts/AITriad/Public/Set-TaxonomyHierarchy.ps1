@@ -52,7 +52,7 @@ function Set-TaxonomyHierarchy {
         if (Test-Path $FilePath) {
             $TaxFiles[$PovKey] = @{
                 Path = $FilePath
-                Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+                Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
                 Modified = $false
             }
         }

@@ -34,6 +34,7 @@ function Register-AIBackend {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $EnvFilePath = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.aitriad-env'
 
@@ -469,7 +470,7 @@ init();
 
                     'POST /api/test' {
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
-                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
+                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json -Depth 20
                         $Reader.Close()
 
                         $TestBackend = $Body.backend
@@ -541,7 +542,7 @@ init();
 
                     'POST /api/save' {
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
-                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
+                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json -Depth 20
                         $Reader.Close()
 
                         $SaveResult = @{ ok = $true; message = '' }

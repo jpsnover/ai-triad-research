@@ -46,6 +46,7 @@ function Find-GraphPath {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
 
@@ -56,7 +57,7 @@ function Find-GraphPath {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
@@ -83,7 +84,7 @@ function Find-GraphPath {
         Write-Warn 'No edges.json found. Run Invoke-EdgeDiscovery first.'
         return
     }
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
 
     # Build adjacency: nodeId → list of (neighbor, edge)
     $Adjacency = @{}

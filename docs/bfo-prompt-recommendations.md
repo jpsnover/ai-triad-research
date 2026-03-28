@@ -1,42 +1,194 @@
 # Prompt Improvements Through the Lens of Basic Formal Ontology
 
 **Author:** Ontology review, 2026-03-27
+**Revised:** 2026-03-28 (added baseline measurements, risk analysis, consumer audit, revised implementation plan)
 **Scope:** All prompt templates in `scripts/AITriad/Prompts/`, `prompts/`, and `taxonomy-editor/src/renderer/prompts/`
 
 ---
 
 ## Executive Summary
 
-The AI Triad taxonomy is an impressive applied ontology for mapping AI policy discourse. It already exhibits several strong ontological commitments: a fixed upper-level partition (three POVs + cross-cutting), a triaxial category system (Goals/Values, Data/Facts, Methods/Arguments), and typed relations between nodes. However, when evaluated against the design principles of Basic Formal Ontology (BFO) -- the ISO/IEC 21838-2 standard for top-level ontologies -- several systematic issues emerge in the prompts that instruct AI models to populate, extend, and reason over this taxonomy.
+The AI Triad taxonomy is an applied ontology for mapping AI policy discourse. It already exhibits several strong ontological commitments: a fixed upper-level partition (three POVs + cross-cutting), a triaxial category system (Goals/Values, Data/Facts, Methods/Arguments), and typed relations between nodes. However, when evaluated against the design principles of Basic Formal Ontology (BFO) -- the ISO/IEC 21838-2 standard for top-level ontologies -- several systematic issues emerge in the prompts that instruct AI models to populate, extend, and reason over this taxonomy.
 
-The recommendations below are ordered by expected impact on output quality. Each identifies the BFO principle being violated, the specific prompts affected, the concrete change proposed, and the justification for why the change will produce better results.
+This document proposes 10 recommendations ordered by expected impact, a baseline measurement to track results, a complete consumer audit of affected code, and a phased implementation plan with validation gates and rollback procedures.
 
 ---
 
-## 1. Enforce Genus-Differentia Definitions for All Nodes
+## Baseline Measurements (2026-03-28)
 
-### BFO Principle
-Every class in a well-formed ontology must be defined by (a) its genus -- the immediate parent class it falls under -- and (b) its differentia -- the characteristics that distinguish it from sibling classes under the same genus. This is not an academic nicety; it is the single most effective guard against node overlap, category bleed, and redundant proposals.
+Before any changes, run `Measure-TaxonomyBaseline` to establish quantitative baselines. These numbers are the success criteria: each phase must demonstrably improve at least one metric without regressing others.
 
-### Current Problem
-The prompts instruct the AI to write node descriptions as self-contained narrative paragraphs (e.g., "Full description... should be a self-contained paragraph that can be understood without reading other nodes"). The resulting descriptions read like encyclopedia entries rather than formal definitions. For example:
+**Current state** (from `docs/baseline-2026-03-28.json`):
 
-> *"Think of AI as a super-powered brain for all of humanity. It could help cure diseases, fix the climate, and make sure everyone has enough of what they need."* (acc-goals-001)
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Taxonomy nodes | 451 | Across 4 POV files |
+| Summaries | 118 | Documents processed |
+| Edges | 15,813 | In edges.json |
+| Conflicts | 1,145 | In conflicts/ |
+| **Node Mapping** | | |
+| Total key_points across all summaries | 2,562 | |
+| Unmapped (null taxonomy_node_id) | 62 (2.4%) | Low is good |
+| Invalid node refs (node doesn't exist) | 8 | Data hygiene issue |
+| Category inconsistencies | 14 nodes | Same node assigned different categories across summaries |
+| Unreferenced nodes | 294/451 (65.2%) | Nodes never cited by any document |
+| **Density** | | |
+| Median KP per 1K words | 1.95 | |
+| P10–P90 range | 0.19–2.48 | 13x spread (addressed by density scaling) |
+| Zero-KP camp entries | 0 | Good — every doc yields something per camp |
+| **Edges** | | |
+| Canonical types (7) | 15,042 (95.1%) | |
+| Non-canonical types (40+) | 771 (4.9%) | Phase 3 target |
+| Orphan edges (ref deleted nodes) | 787 | Data hygiene |
+| Self-edges | 0 | Good |
+| Domain violations (Goals SUPPORTS Data) | 138 | Phase 3 target |
+| **Conflicts** | | |
+| Single-instance | 1,056 (92.2%) | Only 89 have corroboration from multiple sources |
+| **Fallacies** | | |
+| Nodes flagged | 239/451 (53%) | Phase 5 target: should this be lower? |
+| Total flags | 395 (likely: 137, possible: 202, borderline: 56) | |
+| Avg per flagged node | 1.7 | |
+| **Descriptions** | | |
+| Median length | 305 chars | |
+| Short (<50 chars) | 16 | |
+| Stubs (description == label) | 20 | |
+| Already genus-differentia | 26 (5.8%) | Phase 1 target: 100% |
+| **Unmapped Concepts** | | |
+| Total across summaries | 425 | |
+| Resolved to new nodes | 52 (12.2%) | |
 
-This tells a reader what the node is *about*, but not what *kind of thing* it is, what *distinguishes* it from adjacent nodes, or what its *necessary and sufficient conditions* for membership are. This directly causes:
-- AI models proposing new nodes that overlap with existing ones (they can't tell where one node's boundary ends)
-- Inconsistent mapping decisions during document analysis (multiple nodes "seem to fit")
-- Taxonomy proposals that recommend MERGE for nodes that were always distinct, or miss merges for nodes that were always the same thing
+**Re-run after each phase:** `Measure-TaxonomyBaseline -OutputPath ./docs/baseline-post-phase-N.json`
 
-### Affected Prompts
-- `TaxonomyRefiner.md` -- currently says "Boundary-Based Description (3-6 Sentences): Define the concept's boundaries. Explicitly state what is included and what is excluded." This is the right instinct but doesn't enforce the genus-differentia structure.
-- `pov-summary-system.prompt` -- `suggested_description` for unmapped concepts
-- `taxonomy-proposal.prompt` -- descriptions for NEW and RELABEL proposals
-- `ai-triad-analysis-prompt.md` -- Part 2 new node descriptions
+---
 
-### Proposed Change
+## Consumer Audit
 
-**In `TaxonomyRefiner.md`**, replace the current description instruction with:
+Every data element changed by this plan is consumed by code in multiple locations. Changes that don't update all consumers will cause runtime errors or silent data corruption. This audit must be verified before each phase begins.
+
+### Data Element: Node Descriptions
+
+Changed by: Phase 1 (genus-differentia rewrite)
+
+| Consumer | File | How It Uses Descriptions |
+|----------|------|------------------------|
+| NodeDetail content tab | `taxonomy-editor/src/renderer/components/NodeDetail.tsx` | Renders description in editable textarea |
+| CrossCuttingDetail overview | `taxonomy-editor/src/renderer/components/CrossCuttingDetail.tsx` | Renders description in editable textarea |
+| SourcesPanel | `taxonomy-editor/src/renderer/components/SourcesPanel.tsx` | Not affected (shows source points, not node descriptions) |
+| SimilarResultsPane | `summary-viewer/src/renderer/components/SimilarResultsPane.tsx` | Displays description in search results |
+| Debate prompts | `taxonomy-editor/src/renderer/prompts/debate.ts` | Feeds description as context to debate agents |
+| Analysis prompts | `taxonomy-editor/src/renderer/prompts/analysis.ts` | Feeds description to AI analysis |
+| Research prompt | `taxonomy-editor/src/renderer/prompts/research.ts` | Uses description in research prompt generation |
+| Embedding generation | `scripts/embed_taxonomy.py` | Encodes descriptions as vectors — new style may shift similarity space |
+| Get-TaxonomyHealth | `scripts/AITriad/Public/Get-TaxonomyHealth.ps1` | Reads descriptions for coverage analysis |
+| Invoke-POVSummary | `scripts/AITriad/Prompts/pov-summary-system.prompt` | Full taxonomy (with descriptions) embedded in every prompt |
+| Invoke-EdgeDiscovery | `scripts/AITriad/Prompts/edge-discovery.prompt` | Node descriptions used as context for edge proposal |
+
+**Risk:** Changing description style from conversational to formal will affect embedding similarity space. Nodes that were "similar" under narrative descriptions may become "dissimilar" under genus-differentia definitions, or vice versa. After Phase 1, embeddings MUST be regenerated (`Update-TaxEmbeddings`) and similarity search results reviewed.
+
+### Data Element: Edge Types
+
+Changed by: Phase 3 (consolidation from 40+ types to 7 canonical)
+
+| Consumer | File | How It Uses Edge Types |
+|----------|------|----------------------|
+| RelatedEdgesPanel | `taxonomy-editor/src/renderer/components/RelatedEdgesPanel.tsx` | Renders edge type as colored badge, filters by type |
+| EdgeDetailPanel | `taxonomy-editor/src/renderer/components/EdgeDetailPanel.tsx` | Displays edge type in detail view |
+| EdgeBrowser | `taxonomy-editor/src/renderer/components/EdgeBrowser.tsx` | Search/sort/filter by edge type; type dropdown |
+| edge_types definitions | `taxonomy/Origin/edges.json` (lines 5–266) | Defines all valid types with metadata |
+| Invoke-EdgeDiscovery | `scripts/AITriad/Prompts/edge-discovery.prompt` | Lists valid types for AI to assign |
+| edge-discovery-schema | `scripts/AITriad/Prompts/edge-discovery-schema.prompt` | Schema includes type enum |
+| potentialEdges | `summary-viewer/src/renderer/prompts/potentialEdges.ts` | Lists edge types for LLM proposals |
+| Find-Conflict | `scripts/AITriad/Public/Find-Conflict.ps1` | Uses edges for conflict chain detection |
+| Get-TaxonomyHealth | `scripts/AITriad/Public/Get-TaxonomyHealth.ps1` | Counts edge types for coverage metrics |
+
+**Risk:** This is the highest-blast-radius change. Every file above has hardcoded type strings. Phase 3 requires updating ALL of them atomically — partial migration leaves the system in an inconsistent state.
+
+### Data Element: `steelman_vulnerability`
+
+Changed by: Phase 5 (string → object with per-POV keys)
+
+| Consumer | File | How It Uses It |
+|----------|------|---------------|
+| NodeDetail content tab | `taxonomy-editor/src/renderer/components/NodeDetail.tsx` | Renders as text in Content tab |
+| GraphAttributesPanel | `taxonomy-editor/src/renderer/components/GraphAttributesPanel.tsx` | Displays in attributes view |
+| Debate prompts | `taxonomy-editor/src/renderer/prompts/debate.ts` | May feed to debate agents as vulnerability context |
+| Analysis prompts | `taxonomy-editor/src/renderer/prompts/analysis.ts` | Used in AI analysis |
+| SimilarResultsPane | `summary-viewer/src/renderer/components/SimilarResultsPane.tsx` | Displays in expanded node details |
+| TypeScript type | `taxonomy-editor/src/renderer/types/taxonomy.ts` | `steelman_vulnerability?: string` type definition |
+
+**Risk:** Changing from `string` to `{ from_accelerationist, from_safetyist, from_skeptic }` is a breaking type change. Every renderer that does `node.graph_attributes.steelman_vulnerability` and expects a string will show `[object Object]` or crash. TypeScript type definitions, renderer components, and prompt templates must all update simultaneously.
+
+### Data Element: `possible_fallacies`
+
+Changed by: Phase 5 (add `type` field to each fallacy entry)
+
+| Consumer | File | How It Uses It |
+|----------|------|---------------|
+| GraphAttributesPanel | `taxonomy-editor/src/renderer/components/GraphAttributesPanel.tsx` | Renders fallacy badges |
+| FallacyPanel | `taxonomy-editor/src/renderer/components/FallacyPanel.tsx` | Dedicated fallacy display |
+| fallacyInfo | `taxonomy-editor/src/renderer/data/fallacyInfo.ts` | Fallacy metadata/descriptions |
+| AttributeFilterPanel | `taxonomy-editor/src/renderer/components/AttributeFilterPanel.tsx` | Filter nodes by fallacy type |
+
+**Risk:** Low — adding a new field (`type`) to existing objects is additive. Consumers that don't know about `type` will ignore it. But to realize the value (filtering by fallacy tier), UI components need updating.
+
+### Data Element: `factual_claims` (temporal fields)
+
+Changed by: Phase 5 (add `temporal_scope`, `temporal_bound`)
+
+| Consumer | File | How It Uses It |
+|----------|------|---------------|
+| KeyPointsPane | `summary-viewer/src/renderer/components/KeyPointsPane.tsx` | Displays factual claims |
+| Find-Conflict | `scripts/AITriad/Public/Find-Conflict.ps1` | Processes claims for conflict detection |
+| Invoke-POVSummary | `scripts/AITriad/Public/Invoke-POVSummary.ps1` | Writes claims to summary files |
+| pov-summary-schema | `scripts/AITriad/Prompts/pov-summary-schema.prompt` | Defines claim structure |
+
+**Risk:** Low for new summaries (schema is additive). Backfilling 118 existing summary files with retroactive temporal classification is error-prone — the AI is classifying claims it didn't extract, without access to the original document context.
+
+### Data Element: Cross-cutting `disagreement_type`
+
+Changed by: Phase 4 (new field on CC nodes)
+
+| Consumer | File | How It Uses It |
+|----------|------|---------------|
+| CrossCuttingDetail | `taxonomy-editor/src/renderer/components/CrossCuttingDetail.tsx` | Should display it (new UI needed) |
+| cross-cutting-candidates | `scripts/AITriad/Prompts/cross-cutting-candidates.prompt` | Produces it |
+| Debate synthesis | `scripts/AITriad/Prompts/triad-dialogue-synthesis.prompt` | Classifies disputes |
+
+**Risk:** Low — purely additive field.
+
+### Data Element: `ontological_level`
+
+Changed by: Phase 2 (new field in graph_attributes)
+
+| Consumer | File | How It Uses It |
+|----------|------|---------------|
+| GraphAttributesPanel | `taxonomy-editor/src/renderer/components/GraphAttributesPanel.tsx` | Should display it (new UI needed) |
+| attribute-extraction | `scripts/AITriad/Prompts/attribute-extraction.prompt` | Produces it |
+| Edge discovery | `scripts/AITriad/Prompts/edge-discovery.prompt` | Phase 3 uses it for CONTRADICTS constraints |
+
+**Risk:** Low — additive field. But Phase 3 depends on it being populated accurately, creating an ordering dependency.
+
+---
+
+## Recommendations
+
+The 10 recommendations below are ordered by expected impact on output quality. Each identifies the BFO principle, affected prompts, the proposed change, and the risks specific to this project.
+
+### 1. Enforce Genus-Differentia Definitions for All Nodes
+
+**BFO Principle:** Every class must be defined by its genus (parent class) and differentia (distinguishing characteristics from siblings).
+
+**Current Problem:** Descriptions are narrative paragraphs that tell readers what a node is *about*, not what *kind of thing* it is or what *distinguishes* it from neighbors. This causes node overlap, ambiguous mapping, and false MERGE proposals.
+
+**Affected Prompts:**
+- `TaxonomyRefiner.md` — replace description instruction with genus-differentia template
+- `pov-summary-system.prompt` — add genus-differentia rule for `suggested_description`
+- `taxonomy-proposal.prompt` — add genus-differentia rule for NEW/RELABEL descriptions
+- `ai-triad-analysis-prompt.md` — add genus-differentia rule for Part 2
+
+**Proposed Change:**
+
+In `TaxonomyRefiner.md`, replace the current description instruction with:
 
 ```
 Genus-Differentia Description (3-6 Sentences):
@@ -52,6 +204,9 @@ Genus-Differentia Description (3-6 Sentences):
 
   Sentence 6 (optional): Note any edge cases or borderline situations.
 
+  IMPORTANT: Write at a grade-10 reading level. The genus-differentia structure
+  should be clear but the language should remain conversational.
+
   Example:
     BEFORE: "The best way to make AI smarter is to give it more computing
     power and data, without limits."
@@ -64,7 +219,7 @@ Genus-Differentia Description (3-6 Sentences):
     rather than WHETHER to scale."
 ```
 
-**In `pov-summary-system.prompt`**, add to the unmapped concept instructions:
+In `pov-summary-system.prompt`, add to unmapped concept instructions:
 
 ```
   • suggested_description MUST begin with: "A [Goals/Values | Data/Facts |
@@ -74,141 +229,79 @@ Genus-Differentia Description (3-6 Sentences):
     existing node is and why this concept is distinct from it.
 ```
 
-**In `taxonomy-proposal.prompt`**, add to the description field guidance:
+**Style Risk:** The grade-10 reading level convention and newspaper-headline style must be preserved. Genus-differentia structure should organize the content but not make it read like a textbook. The example above demonstrates this balance. Validate with the prompt: "Could a non-specialist understand this description?"
 
-```
-  The "description" field for NEW and RELABEL proposals MUST use genus-differentia
-  form: "[Category type] within [POV] that [differentia]. Necessary conditions:
-  [what must be present]. Excludes: [nearest node and boundary]."
-```
-
-### Why This Produces Better Results
-
-1. **Reduces false MERGE proposals** by ~40-60%. When two nodes have explicit differentia, the AI can evaluate whether the distinguishing criterion is meaningful rather than guessing from narrative overlap.
-2. **Reduces ambiguous mappings** during document analysis. When `pov-summary-system.prompt` must choose between two nodes, genus-differentia descriptions provide a decision procedure: check the necessary conditions, check the exclusion boundary.
-3. **Prevents taxonomy drift**. As hundreds of documents are processed and unmapped concepts accumulate, narrative descriptions degrade into near-synonyms. Genus-differentia definitions remain testable.
-4. **Makes parent-child relationships semantically rigorous**. A child node's genus is its parent; its differentia is what specializes it. This transforms the hierarchy from "related topics" into true subsumption.
+**Measurement:** Compare `descriptions.genus_differentia_pct` (currently 5.8%), `node_mapping.category_inconsistencies` (currently 14), and `node_mapping.unreferenced_node_count` (currently 294) before and after.
 
 ---
 
-## 2. Distinguish Universals from Particulars in Node Classification
+### 2. Distinguish Universals from Particulars in Node Classification
 
-### BFO Principle
-BFO draws a hard line between universals (types/classes that can have instances) and particulars (specific instances). The question "Is node X a type of claim, or a specific claim?" has enormous consequences for how the taxonomy should be structured, queried, and extended.
+**BFO Principle:** BFO draws a hard line between universals (types/classes) and particulars (specific instances).
 
-### Current Problem
-The taxonomy intermixes two fundamentally different kinds of entities without distinguishing them:
+**Current Problem:** The taxonomy intermixes class-level nodes ("Preventing AI Global Catastrophe") with instance-level nodes ("RLHF reliably prevents deceptive alignment") without distinguishing them. This causes `falsifiability` to be assigned uniformly, CONTRADICTS edges between nodes at different generality levels, and inconsistent granularity in taxonomy proposals.
 
-- **Universal nodes** that define a *class* of positions: e.g., "Preventing AI Global Catastrophe" (saf-goals-001) is a category -- many different authors make many different arguments under this umbrella.
-- **Particular nodes** that state a *specific* empirical claim: e.g., a Data/Facts node asserting "Current AI systems cause measurable bias in hiring" is a singular falsifiable proposition.
+**Affected Prompts:**
+- `attribute-extraction.prompt` — add `ontological_level` as required attribute
+- `edge-discovery.prompt` — add ontological constraint on CONTRADICTS (Phase 3 dependency)
+- `taxonomy-proposal.prompt` — add ontological level guidance for NEW nodes
 
-The prompts never ask the AI to make this distinction, which causes several downstream problems:
-- The `attribute-extraction.prompt` assigns `falsifiability` uniformly, but universals aren't falsifiable (the *class* "existential risk claims" can't be true or false; individual instances can).
-- The `edge-discovery.prompt` discovers CONTRADICTS edges between universals, but universals don't contradict each other -- their instances do. "Accelerationism" doesn't contradict "Safetyism"; specific accelerationist claims contradict specific safetyist claims.
-- The `taxonomy-proposal.prompt` proposes NEW nodes without specifying whether the new node is a class or an instance, leading to inconsistent granularity.
+**Proposed Change:**
 
-### Affected Prompts
-- `attribute-extraction.prompt`
-- `edge-discovery.prompt`
-- `taxonomy-proposal.prompt`
-- `pov-summary-system.prompt`
-
-### Proposed Change
-
-**In `attribute-extraction.prompt`**, add a new required attribute:
+In `attribute-extraction.prompt`, add:
 
 ```
   ontological_level (required, string -- pick ONE):
     "universal" -- this node defines a CLASS of claims, positions, or approaches.
       Multiple distinct arguments from different documents can be instances of it.
-      Example: "Preventing AI Global Catastrophe" is a universal -- many different
-      arguments fall under this heading.
+      Example: "Preventing AI Global Catastrophe" is a universal.
     "particular" -- this node states a SPECIFIC claim, prediction, or policy
       proposal. It is a single assertion, not a category.
-      Example: "AGI will arrive by 2030" is a particular -- it makes one
-      falsifiable prediction.
+      Example: "AGI will arrive by 2030" is a particular.
     "bridging" -- this node defines a class but is narrow enough that it is
       approaching a single claim. Flag for potential split or reclassification.
 ```
 
-**In `edge-discovery.prompt`**, add a constraint:
+**Risk:** The `bridging` category may become a dumping ground. After Phase 2, check: if >15% of nodes get `bridging`, the distinction isn't working and the definition needs sharpening.
 
-```
-  ONTOLOGICAL CONSTRAINT ON CONTRADICTS:
-    CONTRADICTS edges should only be proposed between nodes at the same level of
-    generality. Two universal-level nodes (broad categories) exist in TENSION_WITH
-    each other, not CONTRADICTION. Reserve CONTRADICTS for pairs where accepting
-    one genuinely entails rejecting the other -- which typically requires specific,
-    falsifiable claims on both sides.
-
-    Ask yourself: "Could a reasonable person hold both positions simultaneously?"
-    If yes, use TENSION_WITH. If no, use CONTRADICTS.
-```
-
-### Why This Produces Better Results
-
-1. **Sharpens the conflict detection pipeline.** Currently, `Find-Conflict` operates on `factual_claims` extracted from summaries, but the graph's CONTRADICTS edges are drawn between taxonomy nodes of varying generality. Distinguishing universals from particulars ensures that CONTRADICTS edges connect claims that are actually in logical opposition rather than just "different camps."
-2. **Improves `falsifiability` accuracy.** A universal node like "Human oversight is essential" has low falsifiability (it's a normative class), while a particular like "RLHF reliably prevents deceptive alignment" has high falsifiability. Currently these both get assigned the same attribute without the ontological context to differentiate them.
-3. **Produces better taxonomy proposals.** When the AI knows it's proposing a universal vs. a particular, it can calibrate granularity: universals should cluster 3-7 instances (matching TaxonomyRefiner.md's heuristic), while particulars should be atomic and falsifiable.
+**Measurement:** Cross-check after population: nodes with `ontological_level: "particular"` should have `falsifiability: "high"` or `"medium"`; `universal` nodes should rarely be `"high"`. Disagreement rate indicates classification quality.
 
 ---
 
-## 3. Replace the Goals/Data/Methods Triaxis with BFO-Aligned Categories
+### 3. Sub-Category Disambiguation for Goals/Data/Methods
 
-### BFO Principle
-BFO partitions reality into **continuants** (entities that persist through time and have no temporal parts) and **occurrents** (processes, events, and temporal regions). Within continuants, it distinguishes **independent continuants** (objects, organisms, organizations), **specifically dependent continuants** (qualities, dispositions, roles, functions), and **generically dependent continuants** (information content entities -- plans, claims, arguments, datasets).
+**BFO Principle:** BFO partitions dependent continuants into qualities, dispositions, and roles. The Goals/Data/Methods triaxis conflates sub-types within each.
 
-### Current Problem
-The Goals/Values, Data/Facts, Methods/Arguments triaxis is intuitively useful but ontologically imprecise. The categories overlap in ways that create persistent classification ambiguity:
+**Current Problem:** "Methods/Arguments" conflates policy mechanisms (things people DO) with reasoning frameworks (things people SAY). "Goals/Values" conflates terminal values with instrumental goals. "Data/Facts" conflates observations, predictions, and consensus claims. This causes the most common inter-run classification disagreements.
 
-- **"Methods/Arguments"** conflates two very different things: *methods* (approaches, policies, mechanisms -- things people DO) and *arguments* (reasoning patterns, rhetorical moves -- things people SAY). A policy proposal ("require pre-deployment audits") is a method. An analogical argument ("AI is like nuclear weapons") is a reasoning pattern. These behave differently: methods have implementers, costs, and timelines; arguments have premises, conclusions, and validity.
+**Affected Prompts:**
+- `pov-summary-system.prompt` — add CATEGORY DISAMBIGUATION block
+- `TaxonomyRefiner.md` — add same disambiguation section
 
-- **"Goals/Values"** conflates terminal values (things desired for their own sake) with instrumental goals (things desired as means to other ends). "Human flourishing" is a terminal value. "Maintain American AI leadership" is an instrumental goal. This matters because instrumental goals can be shared across POVs while terminal values diverge.
+**Proposed Change:**
 
-- **"Data/Facts"** is the cleanest category but still conflates empirical observations (things measured) with predictions (things forecasted) and expert consensus claims (things believed by authorities). These have very different epistemic statuses.
-
-The prompts never help the AI navigate these sub-distinctions, so classification is inconsistent: a passage about "requiring safety audits" might be classified as Goals/Values (it's a desired policy), Data/Facts (if it cites audit outcomes), or Methods/Arguments (it's a proposed approach).
-
-### Affected Prompts
-- `pov-summary-system.prompt` (category assignment for key_points)
-- `TaxonomyRefiner.md` (structural framework assignment)
-- `taxonomy-proposal.prompt` (category for new nodes)
-- `ai-triad-analysis-prompt.md` (per-axis mapping)
-
-### Proposed Change
-
-Rather than restructuring the entire taxonomy (which would require re-processing all summaries), add **sub-category guidance** to the prompts that use categories. This preserves backward compatibility while improving precision.
-
-**In `pov-summary-system.prompt`**, after the category definitions, add:
+Add after category definitions in `pov-summary-system.prompt`:
 
 ```
   CATEGORY DISAMBIGUATION (apply when a passage could fit multiple categories):
 
   Goals/Values splits into:
-    - Terminal values: desired end-states valued for their own sake
-      (human flourishing, freedom, safety). TEST: "Would this camp want
-      this even if it didn't lead to anything else?"
-    - Instrumental goals: desired states valued as means to terminal values
-      (open-source access, compute scaling, regulatory capture prevention).
+    - Terminal values: desired end-states valued for their own sake.
+      TEST: "Would this camp want this even if it didn't lead to anything else?"
+    - Instrumental goals: desired states valued as means to terminal values.
       TEST: "Does this camp want this BECAUSE it leads to something else?"
 
   Data/Facts splits into:
     - Empirical observations: measured, documented phenomena with citations
-      (bias audit results, benchmark scores, incident reports)
-    - Predictions: forecasts about future states (AGI timelines, job
-      displacement projections, scaling law extrapolations)
+    - Predictions: forecasts about future states
     - Consensus claims: positions attributed to expert communities
-      ("most ML researchers believe...", "the safety community holds...")
 
   Methods/Arguments splits into:
-    - Policy mechanisms: concrete interventions with implementers and targets
-      (licensing regimes, audit requirements, compute thresholds).
+    - Policy mechanisms: concrete interventions with implementers and targets.
       TEST: "Could this be written into a bill or regulation?"
     - Reasoning frameworks: interpretive lenses, analogies, or argumentative
-      structures used to support positions (precautionary principle,
-      cost-benefit framing, nuclear analogy).
-      TEST: "Is this a way of THINKING about the issue rather than a
-      way of ACTING on it?"
+      structures. TEST: "Is this a way of THINKING about the issue rather
+      than a way of ACTING on it?"
 
   When assigning category, use these sub-categories to resolve ambiguity.
   Record the sub-category in the "category" field using the format
@@ -216,41 +309,26 @@ Rather than restructuring the entire taxonomy (which would require re-processing
   but does not change the schema.
 ```
 
-**In `TaxonomyRefiner.md`**, add the same disambiguation section after the Structural Framework block.
+**Risk:** This is prompt-only guidance with no schema field to capture it. The AI may apply it inconsistently since there's no structured output to enforce it. Consider adding an optional `sub_category` field to key_points in a future iteration if measurement shows improvement.
 
-### Why This Produces Better Results
-
-1. **Resolves the most common source of inter-rater disagreement.** When two runs of `Invoke-POVSummary` classify the same passage differently, it's almost always a Goals vs. Methods ambiguity or a Data/Facts vs. Methods ambiguity. The sub-category tests provide a decision procedure.
-2. **Improves cross-document consistency.** When the same policy proposal appears in 10 different source documents, it should be classified the same way every time. Sub-category tests make this more likely.
-3. **Enables richer graph queries.** If `Invoke-GraphQuery` can distinguish "prediction nodes" from "observation nodes" within Data/Facts, it can answer questions like "Which predictions are supported by observations?" -- currently impossible without manual inspection.
-4. **Aligns with BFO's information artifact ontology (IAO)** without requiring a schema migration. IAO distinguishes data items, measurement datums, predictions, and claims as different types of information content entities. The sub-categories mirror this distinction.
+**Measurement:** Compare `node_mapping.category_inconsistencies` (currently 14) before and after.
 
 ---
 
-## 4. Formalize Relation Semantics in Edge Discovery
+### 4. Formalize Relation Semantics in Edge Discovery
 
-### BFO Principle
-The OBO Relation Ontology (RO), built on BFO, defines relations with formal properties: domain and range constraints (what types of entities can occupy each position), cardinality, transitivity, symmetry, reflexivity, and inverse relations. Every relation has a formal definition that specifies exactly what it means for two entities to stand in that relation.
+**BFO Principle:** The OBO Relation Ontology defines relations with domain/range constraints, transitivity, symmetry, and formal definitions.
 
-### Current Problem
-The `edge-discovery.prompt` defines 9 edge types with natural-language descriptions but no formal constraints. This leads to several issues:
+**Current Problem:** Edge types lack formal constraints. Goals/Values nodes SUPPORTS Data/Facts nodes (138 domain violations). CONTRADICTS is used between universals (should be TENSION_WITH). 40+ custom types exist beyond the 7 canonical types. SUPPORTED_BY is a redundant inverse of SUPPORTS.
 
-**a) Domain/range violations.** SUPPORTS is defined as "the source's claim directly strengthens or provides evidence for the target." But there's no constraint on what types of nodes can participate. A Goals/Values node can SUPPORTS a Data/Facts node, which is semantically odd -- values don't provide evidence for facts. The AI produces these edges because nothing tells it not to.
+**Affected Prompts:**
+- `edge-discovery.prompt` — replace type definitions with formally constrained versions
+- `edge-discovery-schema.prompt` — update to match reduced vocabulary
+- `summary-viewer/src/renderer/prompts/potentialEdges.ts` — align edge types
 
-**b) Missing inverse relations.** SUPPORTS and SUPPORTED_BY are listed as separate edge types, but they are simply inverses of each other. The prompt says "Inverse of SUPPORTS when the relationship direction matters" -- but direction always matters for directed edges. This creates ambiguity about when to use which.
+**Proposed Change:**
 
-**c) No transitivity rules.** If A ASSUMES B and B ASSUMES C, does A ASSUMES C? The current prompt doesn't say, so the AI sometimes proposes transitive closures and sometimes doesn't, creating inconsistent graph density.
-
-**d) Overlapping types.** WEAKENS and CONTRADICTS differ in degree but the prompt provides no criterion for the threshold between them. RESPONDS_TO and CONTRADICTS overlap: a rebuttal both responds to and contradicts.
-
-### Affected Prompts
-- `edge-discovery.prompt`
-- `edge-discovery-schema.prompt`
-- `summary-viewer/src/renderer/prompts/potentialEdges.ts`
-
-### Proposed Change
-
-**In `edge-discovery.prompt`**, replace the edge type definitions with formally constrained versions:
+Replace edge type definitions with formally constrained 7-type vocabulary:
 
 ```
 EDGE TYPE VOCABULARY (with formal constraints):
@@ -261,16 +339,13 @@ EDGE TYPE VOCABULARY (with formal constraints):
     Definition: The source provides empirical evidence, logical reasoning,
     or methodological justification that increases confidence in the target.
     NOT for: values endorsing other values (use ASSUMES or TENSION_WITH).
-    Transitivity: NOT transitive. A supports B and B supports C does NOT
-    mean A supports C. Each edge must be independently justified.
+    Transitivity: NOT transitive.
 
   CONTRADICTS (bidirectional)
     Domain: nodes at the same ontological level (both universals or both
     particulars) AND within the same or comparable categories
     Range:  same constraints as domain
-    Definition: Accepting the source as true requires rejecting the target,
-    or vice versa. Must involve logical incompatibility, not mere emphasis
-    difference.
+    Definition: Accepting the source as true requires rejecting the target.
     Test: "Is there a possible world where both are true?" If yes, use
     TENSION_WITH instead.
     Transitivity: NOT transitive.
@@ -278,221 +353,146 @@ EDGE TYPE VOCABULARY (with formal constraints):
   ASSUMES (directional: source -> target)
     Domain: any node
     Range:  any node
-    Definition: The source's claim LOGICALLY DEPENDS on the target being
-    true. If target were shown false, source would lose its rational basis.
-    Test: "Does denying the target make the source incoherent or groundless?"
-    Transitivity: YES -- if A assumes B and B assumes C, then A transitively
-    assumes C. However, only propose DIRECT assumptions. The system computes
-    transitive closure automatically.
+    Definition: The source's claim LOGICALLY DEPENDS on the target being true.
+    Test: "Does denying the target make the source incoherent?"
+    Transitivity: YES -- only propose direct assumptions.
 
   WEAKENS (directional: source -> target)
     Domain: Data/Facts or Methods/Arguments nodes
     Range:  any node
-    Definition: The source provides evidence or reasoning that reduces
-    confidence in the target WITHOUT making it logically impossible.
+    Definition: The source reduces confidence in the target WITHOUT making
+    it logically impossible.
     Boundary with CONTRADICTS: if the source is true, could the target
-    STILL be true (perhaps less likely)? If yes -> WEAKENS. If no ->
-    CONTRADICTS.
+    STILL be true? If yes -> WEAKENS. If no -> CONTRADICTS.
 
   RESPONDS_TO (directional: source -> target)
     Domain: any node
     Range:  any node
-    Definition: The source was historically or rhetorically formulated as
-    a REACTION to the target. Implies temporal or argumentative sequence.
-    NOTE: RESPONDS_TO is about provenance, not logic. A response may
-    SUPPORT, CONTRADICT, or WEAKEN the target. If you propose RESPONDS_TO,
-    also consider whether a second edge (SUPPORTS, CONTRADICTS, or WEAKENS)
-    should accompany it.
+    Definition: The source was formulated as a REACTION to the target.
+    NOTE: RESPONDS_TO is about provenance, not logic. Also consider
+    a companion SUPPORTS/CONTRADICTS/WEAKENS edge.
 
   TENSION_WITH (bidirectional)
     Domain: any node
     Range:  any node
-    Definition: The source and target pull in different directions -- pursuing
-    one makes pursuing the other harder, but they are not logically
-    incompatible. Typical across POV boundaries where camps prioritize
-    differently without making contradictory claims.
+    Definition: The source and target pull in different directions but
+    are not logically incompatible.
 
   INTERPRETS (directional: source -> target)
     Domain: POV-specific nodes (acc-, saf-, skp-)
     Range:  Cross-cutting nodes (cc-) only
-    Definition: The source provides a POV-specific reading or operationalization
-    of the cross-cutting concept in the target.
-    Constraint: target MUST be a cross-cutting node.
+    Definition: The source provides a POV-specific reading of the target.
 ```
 
-Remove CITES (it describes document-level citation behavior, not a semantic relationship between positions) and SUPPORTED_BY (it is the inverse of SUPPORTS and creates redundancy; let the system compute inverses).
+Remove CITES (document-level, not semantic) and SUPPORTED_BY (redundant inverse).
 
-### Why This Produces Better Results
+**Edge type consolidation mapping for existing edges:**
 
-1. **Domain/range constraints eliminate nonsensical edges.** The AI will no longer propose that a Goals/Values node SUPPORTS a Data/Facts node, reducing noise in the graph by an estimated 15-25%.
-2. **Clear CONTRADICTS vs. TENSION_WITH vs. WEAKENS boundaries** resolve the most common edge-type confusion. The "possible world" test is a simple decision procedure the AI can apply.
-3. **Transitivity rules prevent redundant edges** (no need to propose A ASSUMES C if A ASSUMES B ASSUMES C) while ensuring transitive closure is available for graph queries.
-4. **INTERPRETS domain/range constraint** enforces the structural role of cross-cutting concepts -- they exist to be interpreted by POV-specific nodes, and this relation should only flow in that direction.
-5. **Removing CITES and SUPPORTED_BY** reduces the vocabulary to 7 well-defined types, decreasing decision paralysis and increasing inter-run consistency.
+| Custom Type | -> Canonical Type | Rationale |
+|-------------|-----------------|-----------|
+| REITERATES | SUPPORTS | Restating is supporting |
+| COMPLEMENTS | SUPPORTS | Complementary is mutually supporting |
+| VALIDATES_ARGUMENT_WITHIN | SUPPORTS | Validation is evidence |
+| HIGHLIGHTS_VULNERABILITY_TO | WEAKENS | Exposing vulnerability weakens |
+| POSES_PROBLEM_FOR | WEAKENS | Posing a problem reduces confidence |
+| EXACERBATES | WEAKENS | Making worse weakens position |
+| IS_A_POSITION_WITHIN | ASSUMES | Being a position within implies dependence |
+| ENABLES | SUPPORTS | Enabling provides basis for |
+| CAUSES | SUPPORTS | Causal link is evidentiary |
+| EXPLAINS | SUPPORTS | Explanation provides reasoning |
+| *(others)* | *(AI triage)* | Review remaining custom types individually |
+
+**CRITICAL RISK:** This is the highest-blast-radius change. See the Consumer Audit "Edge Types" section above — 9+ files with hardcoded type strings must all update atomically. A partial migration leaves the system inconsistent.
+
+**Measurement:** Compare `edges.non_canonical_type_count` (currently 771), `edges.goals_supports_data` (currently 138), and `edges.orphan_edges` (currently 787) before and after.
 
 ---
 
-## 5. Introduce Ontological Commitment Declarations for Cross-Cutting Concepts
+### 5. Cross-Cutting Disagreement Type Declarations
 
-### BFO Principle
-BFO distinguishes between a **quality** (an entity that inheres in a bearer -- "redness" inheres in an apple), a **disposition** (a potential that may or may not be realized -- "fragility" inheres in glass), and a **role** (a social or relational function -- "student" is a role). These are all specifically dependent continuants, but they behave very differently.
+**BFO Principle:** BFO distinguishes qualities, dispositions, and roles. Cross-cutting concepts represent different kinds of disagreement that should be classified.
 
-### Current Problem
-Cross-cutting concepts are the taxonomy's most ontologically complex entities. They represent shared vocabulary where "the illusion of agreement" occurs -- different camps use the same word to mean different things. But the prompts don't distinguish between different *kinds* of cross-cutting concepts:
+**Current Problem:** Cross-cutting concepts conflate contested terms (definitional disagreement), shared phenomena with contested interpretations (interpretive disagreement), and structural tensions (inherent trade-offs). The prompts treat all three identically.
 
-- **Contested terms** (like "safety" or "harm"): These are labels where the *definition itself* is the locus of disagreement. Each POV literally means something different by the word.
-- **Shared phenomena with contested interpretations** (like "scaling laws" or "AGI timelines"): These refer to the same external referent, but POVs disagree about its significance, likelihood, or implications.
-- **Structural tensions** (like "innovation vs. precaution"): These are inherent trade-offs that every POV must navigate, not contested definitions.
+**Affected Prompts:**
+- `cross-cutting-candidates.prompt` — add `disagreement_type` classification
+- `cross-cutting-candidates-schema.prompt` — add field
+- `triad-dialogue-synthesis.prompt` — add dispute classification
 
-Currently, `cross-cutting-candidates.prompt` and `pov-summary-system.prompt` treat all three types identically, asking only for per-POV interpretations. This means the AI doesn't know *what kind of disagreement* a cross-cutting concept represents, which limits the quality of debate synthesis, conflict detection, and graph queries.
-
-### Affected Prompts
-- `cross-cutting-candidates.prompt`
-- `cross-cutting-candidates-schema.prompt`
-- `pov-summary-system.prompt` (unmapped concepts with suggested_pov = "cross-cutting")
-- `triad-dialogue-synthesis.prompt`
-
-### Proposed Change
-
-**In `cross-cutting-candidates.prompt`**, add:
+**Proposed Change:**
 
 ```
-For each cross-cutting concept candidate, classify its DISAGREEMENT TYPE:
-
   disagreement_type (required, string -- pick ONE):
 
     "definitional" -- The POVs disagree about what this WORD MEANS.
-      The term itself is the battleground. Each POV's interpretation is
-      effectively a competing definition.
       Test: "Do the POVs disagree about the referent of this term?"
       Examples: "safety", "harm", "alignment", "fairness"
 
     "interpretive" -- The POVs agree on what exists but disagree about
       its SIGNIFICANCE, implications, or appropriate response.
       Test: "Do the POVs agree this thing exists but disagree about
-      what to do about it or how important it is?"
-      Examples: "scaling laws", "AI labor displacement", "model capabilities"
+      what to do about it?"
+      Examples: "scaling laws", "AI labor displacement"
 
     "structural" -- The concept names an inherent TENSION or trade-off
-      that every POV must navigate. No POV can simply endorse or reject it.
+      that every POV must navigate.
       Test: "Is this a dilemma rather than a position?"
-      Examples: "innovation vs. precaution", "openness vs. security",
-      "speed vs. safety"
+      Examples: "innovation vs. precaution", "openness vs. security"
 ```
 
-**In `triad-dialogue-synthesis.prompt`**, add:
+In `triad-dialogue-synthesis.prompt`, classify each area of disagreement as definitional (resolvable by clarifying terms), empirical (resolvable by evidence), evaluative (negotiable via value trade-offs), or structural (persistent).
 
-```
-For each area_of_disagreement, classify whether the dispute is:
-  - definitional (the speakers mean different things by the same word)
-  - empirical (the speakers disagree about facts)
-  - evaluative (the speakers agree on facts but weigh them differently)
-  - structural (the speakers face a genuine trade-off with no clean resolution)
+**Risk:** Low — additive field, no breaking changes.
 
-This classification determines whether the disagreement is RESOLVABLE
-(empirical disputes can be settled by evidence), NEGOTIABLE (evaluative
-disputes can be mediated by value trade-offs), or PERSISTENT (definitional
-and structural disputes tend to recur).
-```
-
-### Why This Produces Better Results
-
-1. **Enables actionable debate synthesis.** Currently, `triad-dialogue-synthesis.prompt` produces `areas_of_disagreement` as a flat list. With disagreement types, the synthesis can tell users: "These 3 disputes are empirical and could be resolved by specific studies. These 2 are definitional -- the speakers are literally talking past each other."
-2. **Improves conflict detection specificity.** `Find-Conflict` currently treats all factual claims equally. Distinguishing definitional from empirical disagreements prevents false conflicts (two POVs using "risk" to mean different things aren't *contradicting* each other; they're *equivocating*).
-3. **Grounds cross-cutting concepts in BFO's quality/disposition/role framework.** Definitional cross-cutting concepts are contested *qualities* (what property does "safety" pick out?). Interpretive concepts involve shared *dispositions* read differently (scaling laws as capability-disposition vs. risk-disposition). Structural concepts are *relational* tensions.
+**Measurement:** After population, verify distribution is not dominated by one type (would indicate the distinction isn't being applied).
 
 ---
 
-## 6. Add Mereological Constraints to Parent-Child Relationships
+### 6. Mereological Constraints for Parent-Child Relationships
 
-### BFO Principle
-BFO distinguishes **is_a** (subsumption: "every instance of the child is also an instance of the parent") from **part_of** (parthood: "every instance of the child is a part of an instance of the parent"). These are fundamentally different relations and confusing them produces incoherent hierarchies.
+**BFO Principle:** BFO distinguishes is_a (subsumption), part_of (parthood), and specialization.
 
-### Current Problem
-The `parent_id` / `children` structure in the taxonomy schema doesn't specify what the parent-child relationship means. In practice, it's used for at least three different things:
+**Current Problem:** `parent_id`/`children` structure doesn't specify the relationship type. In practice it's used for subsumption, decomposition, and elaboration interchangeably.
 
-1. **Subsumption** (is_a): "Preemptive Algorithmic Containment" is a kind of "AI Safety Method"
-2. **Decomposition** (part_of): "Technical Alignment" and "Governance Alignment" are parts of the broader "Alignment Agenda"
-3. **Elaboration** (specifies): "Require annual third-party audits" elaborates on "Prove AI is Safe First" -- it's a concrete instance of the general principle
+**Affected Prompts:**
+- `taxonomy-proposal.prompt` — add relationship type for SPLIT actions
+- `TaxonomyRefiner.md` — node calibration
+- `attribute-extraction.prompt` — attribute inheritance rules
 
-These three relations have different logical properties. Subsumption is transitive (if A is_a B and B is_a C, then A is_a C). Parthood is also transitive. But elaboration is not necessarily transitive.
+**Proposed Change:**
 
-The prompts never ask the AI to distinguish these, so the hierarchy is a mix of all three, making automated reasoning over the tree unreliable.
-
-### Affected Prompts
-- `taxonomy-proposal.prompt` (SPLIT action creates children)
-- `TaxonomyRefiner.md` (node calibration)
-- `pov-summary-system.prompt` (mapping to parent vs. child nodes)
-- `attribute-extraction.prompt` (attributes should inherit down is_a but not part_of)
-
-### Proposed Change
-
-**In `taxonomy-proposal.prompt`**, when describing SPLIT actions, add:
+For SPLIT proposals, specify relationship type:
 
 ```
-  For SPLIT proposals, specify the RELATIONSHIP TYPE between parent and children:
+  "is_a" -- Every child is a more specific version of the parent.
+    Test: "Is [child label] a kind of [parent label]?"
 
-    "is_a" -- Every child is a more specific version of the parent.
-      Test: "Is [child label] a kind of [parent label]?"
-      Property: attributes of the parent apply to all children.
-      Example: "Alignment Approaches" -> children: "Technical Alignment"
-      (a kind of alignment approach), "Governance Alignment" (a kind of
-      alignment approach).
+  "part_of" -- The children are components or aspects of the parent.
+    Test: "Is [child label] a part of [parent label]?"
 
-    "part_of" -- The children are components or aspects of the parent.
-      Test: "Is [child label] a part or component of [parent label]?"
-      Property: the parent is the sum of its parts; children may have
-      different attributes than the parent.
-      Example: "AI Governance Framework" -> children: "Enforcement
-      Mechanism", "Reporting Requirements", "Liability Rules".
-
-    "specializes" -- The children are concrete instances or applications
-      of a general principle stated by the parent.
-      Test: "Is [child label] a specific way to implement [parent label]?"
-      Property: the child inherits the parent's normative stance but adds
-      implementation specifics.
-      Example: "Prove AI is Safe First" -> children: "Pre-deployment red
-      teaming", "Mandatory interpretability audits".
+  "specializes" -- The children are concrete instances or applications.
+    Test: "Is [child label] a specific way to implement [parent label]?"
 ```
 
-**In `attribute-extraction.prompt`**, add:
+Add inheritance rule: is_a hierarchies inherit parent attributes; part_of hierarchies may not.
 
-```
-  INHERITANCE RULE: When a node has a parent_id, consider whether the parent's
-  attributes should carry down. For is_a hierarchies, the child inherits all
-  parent attributes and may add specificity. For part_of hierarchies, the child
-  may have DIFFERENT attributes than the parent.
-```
-
-### Why This Produces Better Results
-
-1. **Prevents incoherent SPLIT proposals.** Currently, an AI might split a node into "children" where one is a subtype and another is a component, producing a logically inconsistent tree. Explicit relationship types prevent this.
-2. **Enables attribute inheritance in graph queries.** If `Invoke-GraphQuery` knows that a child is_a parent, it can infer that the child shares the parent's assumptions, audience, and epistemic type -- dramatically reducing the number of nodes that need explicit attributes.
-3. **Improves document mapping precision.** When a passage maps to a parent node, the AI can determine whether it should really map to a child (if is_a, the most specific match wins) or whether the passage discusses the whole (if part_of, the parent is correct).
+**Risk:** Medium — requires auditing all existing parent-child relationships. Many may be ambiguous.
 
 ---
 
-## 7. Separate Discourse-Level from Domain-Level Ontological Claims
+### 7. Separate Discourse-Level from Domain-Level Ontological Claims
 
-### BFO Principle
-BFO is a *realist* ontology -- it represents entities that exist in reality. But there is a well-established distinction between a **domain ontology** (representing the subject matter -- in this case, AI systems, policies, labor markets, etc.) and a **discourse ontology** (representing the *arguments, claims, and positions* that people make about the domain).
+**BFO Principle:** Distinction between domain ontology (representing subject matter) and discourse ontology (representing arguments and positions about the subject).
 
-### Current Problem
-The AI Triad taxonomy is a discourse ontology -- it models what people *say* about AI policy, not AI systems themselves. But the prompts don't make this explicit, and the AI sometimes confuses the two levels:
+**Current Problem:** The taxonomy models what people *say* about AI policy, but prompts don't make this explicit. The AI sometimes confuses positions (discourse-level) with facts (domain-level), leading to category errors in `falsifiability` and CONTRADICTS edge assignment.
 
-- A node like "AI Creates a World of Plenty" is a *discourse entity* -- it's a position that people hold, not a fact about the world.
-- But `attribute-extraction.prompt` asks for `falsifiability`, which is a property of domain-level claims, not discourse-level positions. A position can *contain* falsifiable claims, but the position itself is a social object.
-- Similarly, `edge-discovery.prompt` asks the AI to identify CONTRADICTS edges, but contradiction is a logical relation between propositions, not between discursive positions. Two people can hold "contradictory" positions while actually agreeing on the facts and disagreeing on values -- that's TENSION_WITH, not CONTRADICTS.
+**Affected Prompts:**
+- `pov-summary-system.prompt` — add ONTOLOGICAL FRAMING block
+- `attribute-extraction.prompt` — reframe `falsifiability` to discourse-aware
 
-### Affected Prompts
-- `attribute-extraction.prompt`
-- `edge-discovery.prompt`
-- `pov-summary-system.prompt`
-- `graph-query.prompt`
+**Proposed Change:**
 
-### Proposed Change
-
-**In `pov-summary-system.prompt`**, add a framing paragraph:
+Add to `pov-summary-system.prompt`:
 
 ```
 ONTOLOGICAL FRAMING:
@@ -502,385 +502,330 @@ ONTOLOGICAL FRAMING:
 
   This means:
   - When you assign a key_point to a node, you are saying "this passage
-    expresses or engages with this discursive position," not "this passage
-    proves this claim is true."
-  - When you flag a factual_claim, you are identifying a domain-level assertion
-    EMBEDDED within a discursive position. The claim exists at the domain level;
-    the position exists at the discourse level.
-  - When you identify an unmapped_concept, you are discovering a NEW discursive
+    expresses this discursive position," not "this passage proves this true."
+  - When you flag a factual_claim, you identify a domain-level assertion
+    EMBEDDED within a discursive position.
+  - When you identify an unmapped_concept, you discover a NEW discursive
     position, not a new fact about AI.
 ```
 
-**In `attribute-extraction.prompt`**, reframe `falsifiability`:
+Reframe `falsifiability` in `attribute-extraction.prompt`:
 
 ```
-  falsifiability (required, string -- pick ONE):
-    How testable are the EMPIRICAL CLAIMS EMBEDDED in this discursive position?
-    "high" -- the position contains specific, falsifiable predictions or claims
-      that could be clearly disproven by evidence or events
-    "medium" -- the position contains some testable elements but also involves
-      value judgments or long time horizons that resist falsification
-    "low" -- the position is primarily normative, definitional, or framed in
-      ways that resist empirical testing
-    Note: this attribute describes the TESTABILITY of the position's factual
-    content, not the "truth" of the position itself. A value-laden position
-    with falsifiability "low" is not inferior to one with "high" -- it simply
-    operates in a different epistemic register.
+  falsifiability: How testable are the EMPIRICAL CLAIMS EMBEDDED in this
+  discursive position?
+    "high" -- specific, falsifiable predictions that could be disproven
+    "medium" -- some testable elements plus value judgments or long horizons
+    "low" -- primarily normative, definitional, or resistant to testing
+  Note: this describes TESTABILITY of factual content, not "truth" of the
+  position. A value-laden position with "low" falsifiability is not inferior.
 ```
 
-### Why This Produces Better Results
-
-1. **Prevents category errors in graph reasoning.** When `Invoke-GraphQuery` processes a question like "Which claims are falsifiable?", the domain/discourse distinction ensures it returns empirical predictions (domain-level), not value commitments mistakenly flagged as "falsifiable" (discourse-level).
-2. **Improves debate quality.** The debate prompts in `taxonomy-editor/src/renderer/prompts/debate.ts` already classify disagreements as EMPIRICAL, VALUES, or DEFINITIONAL. Explicitly framing the taxonomy as discourse-level makes this classification more reliable.
-3. **Aligns with BFO's Information Artifact Ontology (IAO).** In IAO, a "claim" is a generically dependent continuant -- it's an information entity that depends on a document or utterance for its existence. Framing the taxonomy this way connects it to a well-established formal framework for reasoning about information.
+**Risk:** Low — framing change, no schema impact.
 
 ---
 
-## 8. Add Temporal Qualifiers to Data/Facts Nodes and Predictions
+### 8. Temporal Qualifiers for Factual Claims
 
-### BFO Principle
-BFO treats temporal entities rigorously. **Occurrents** (processes, events) have temporal parts. **Continuants** persist through time but can change their properties via **temporal qualifications**. Every assertion about a continuant should be indexed to a time or time interval.
+**BFO Principle:** Every assertion about a continuant should be indexed to a time or time interval.
 
-### Current Problem
-Data/Facts nodes and `factual_claims` in summaries have no temporal indexing. A claim like "Current AI systems cause measurable bias in hiring" is time-stamped by the document's publication date, but the claim itself carries no temporal qualifier in the taxonomy. This creates problems:
+**Current Problem:** `factual_claims` have no temporal indexing. Stale claims persist without expiration signals. Predictions lack temporal bounds. Conflict detection can't distinguish temporal disagreement from genuine contradiction.
 
-- **Stale claims persist without expiration signals.** A 2024 claim about RLHF's effectiveness may be obsolete by 2026 as techniques evolve, but nothing in the taxonomy signals this.
-- **Predictions lack temporal bounds.** "AGI will arrive soon" and "AGI will arrive by 2030" are very different claims but would map to the same node.
-- **Conflict detection can't distinguish temporal disagreement.** Two documents might "contradict" each other simply because one was written in 2023 and the other in 2026 about the same evolving situation.
+**Affected Prompts:**
+- `pov-summary-system.prompt` — add `temporal_scope` and `temporal_bound` to factual_claims
+- `pov-summary-schema.prompt` — update schema
 
-### Affected Prompts
-- `pov-summary-system.prompt` (factual_claims extraction)
-- `attribute-extraction.prompt` (no temporal metadata)
-- `taxonomy-proposal.prompt` (no temporal awareness for NEW Data/Facts nodes)
-
-### Proposed Change
-
-**In `pov-summary-system.prompt`**, add to the factual_claims output specification:
+**Proposed Change:**
 
 ```
   For each factual_claim, also provide:
-    "temporal_scope" (required, string -- pick ONE):
-      "current_state" -- claim about how things are NOW (at time of document)
-      "historical" -- claim about past events or trends
-      "predictive" -- claim about future states or events
-      "timeless" -- claim presented as a general law or principle
-
-    "temporal_bound" (optional, string):
-      If the claim has an explicit or implied time bound, state it.
-      Example: "by 2030", "within the next decade", "as of 2024",
-      "since the release of GPT-4"
-
-    These temporal fields enable the conflict detection system to
-    distinguish genuine contradictions from temporal disagreements
-    (two claims about different time periods are not in conflict).
+    "temporal_scope" (required): "current_state" | "historical" | "predictive" | "timeless"
+    "temporal_bound" (optional): explicit time reference, e.g. "by 2030", "since GPT-4"
 ```
 
-### Why This Produces Better Results
+**Risk:** Low for new summaries. Backfilling existing summaries is error-prone (AI classifies without document context). Recommend: add to prompts now, backfill only when documents are re-summarized.
 
-1. **Reduces false conflicts by ~20-30%.** Many "contradictions" detected by `Find-Conflict` are simply claims about different time periods. Temporal scoping lets the system filter these out.
-2. **Enables temporal graph queries.** `Invoke-GraphQuery` could answer "Which 2024 predictions have been invalidated by 2026 data?" -- currently impossible.
-3. **Supports taxonomy hygiene.** Data/Facts nodes with `temporal_scope: "predictive"` and a past `temporal_bound` can be flagged for review: did the prediction come true?
+**Measurement:** Compare `conflicts.single_instance_pct` (currently 92.2%) after temporal-aware conflict detection is enabled — temporal filtering should reduce false single-instance conflicts.
 
 ---
 
-## 9. Strengthen the Fallacy Analysis Ontology
+### 9. Structured Fallacy Taxonomy
 
-### BFO Principle
-BFO models dispositions as entities that exist in a bearer and may or may not be realized under triggering conditions. A logical fallacy, properly understood, is not a property of an argument text but a *disposition* of a reasoning pattern -- it becomes a fallacy only when specific triggering conditions are met (e.g., "appeal to authority" is fallacious only when the authority is irrelevant or fabricated).
+**BFO Principle:** Dispositions (like fallacious reasoning patterns) become actual only under triggering conditions.
 
-### Current Problem
-The `fallacy-analysis.prompt` already notes that "appeal to authority is fallacious only if irrelevant," which shows good instinct. But the prompt lists 48+ fallacy keys as a flat vocabulary without any taxonomic structure. This causes two problems:
+**Current Problem:** 48+ fallacy keys listed as flat vocabulary. No distinction between structural fallacies (always invalid) and contextual fallacies (invalid only in certain contexts). Cognitive biases (properties of reasoners) conflated with fallacies (properties of arguments).
 
-1. **Over-flagging.** Without a principled distinction between structural fallacies (the argument form is invalid regardless of content) and contextual fallacies (the argument form is only fallacious in certain contexts), the AI tends to over-flag rhetorical strategies as fallacies.
-2. **Conflation of fallacies with cognitive biases.** The prompt lists both together ("Known fallacy keys: ... Cognitive biases: base_rate_neglect, anchoring_bias..."), but fallacies are properties of *arguments* while biases are properties of *reasoners*. A text can exhibit a fallacy but not a cognitive bias (which inheres in a person, not a text).
+**Affected Prompts:**
+- `fallacy-analysis.prompt` — restructure into 4 tiers
+- `attribute-extraction.prompt` — add `type` to `possible_fallacies` entries
 
-### Affected Prompts
-- `fallacy-analysis.prompt`
-- `attribute-extraction.prompt` (possible_fallacies field)
-
-### Proposed Change
-
-**In `fallacy-analysis.prompt`** and `attribute-extraction.prompt`, restructure the fallacy vocabulary:
+**Proposed Change:**
 
 ```
-FALLACY CLASSIFICATION:
-  Before assigning a fallacy, determine its TYPE:
+FALLACY CLASSIFICATION — determine TYPE before assigning:
 
-  1. FORMAL fallacies (argument STRUCTURE is invalid -- always a fallacy):
-     affirming_the_consequent, denying_the_antecedent, affirming_a_disjunct,
-     undistributed_middle
-     These can be identified from form alone.
+  1. FORMAL (argument structure is invalid — always a fallacy):
+     affirming_the_consequent, denying_the_antecedent, etc.
 
-  2. INFORMAL-STRUCTURAL fallacies (reasoning pattern is problematic
-     regardless of context):
-     circular_reasoning, begging_the_question, false_dilemma,
-     false_equivalence, composition_division, equivocation,
-     straw_man, red_herring, moving_the_goalposts, tu_quoque,
-     no_true_scotsman, special_pleading, loaded_question
+  2. INFORMAL-STRUCTURAL (reasoning pattern is problematic regardless of context):
+     circular_reasoning, false_dilemma, straw_man, etc.
      Flag with confidence "likely" when clearly present.
 
-  3. INFORMAL-CONTEXTUAL fallacies (reasoning pattern is problematic ONLY
-     in certain contexts -- requires judgment):
-     appeal_to_authority (fallacious only if authority is irrelevant
-       or fabricated -- legitimate when citing relevant domain experts),
-     appeal_to_emotion (fallacious only if emotion substitutes for evidence
-       -- legitimate when evidence is also provided),
-     appeal_to_consequences (fallacious only if used to deny facts --
-       legitimate in policy arguments where consequences ARE the point),
-     slippery_slope (fallacious only if intermediate steps are unsubstantiated
-       -- legitimate when causal mechanism is specified),
-     hasty_generalization (fallacious only if sample is genuinely inadequate
-       -- legitimate when pattern is well-established),
-     argument_from_analogy (fallacious only if disanalogies outweigh
-       analogies -- legitimate when structural similarities are genuine),
-     appeal_to_nature, appeal_to_novelty, appeal_to_tradition,
-     appeal_to_popularity, bandwagon_fallacy, appeal_to_fear,
-     genetic_fallacy, guilt_by_association, ad_hominem,
-     argument_from_ignorance, argument_from_incredulity,
-     argument_from_silence, correlation_causation, false_cause,
-     continuum_fallacy, gambler_fallacy, is_ought_problem,
-     middle_ground, moralistic_fallacy, naturalistic_fallacy,
-     nirvana_fallacy, sunk_cost, texas_sharpshooter,
-     cherry_picking, burden_of_proof, reification, unfalsifiability
-     Flag with confidence "possible" or "borderline" and ALWAYS explain
-     WHY the context makes it fallacious rather than legitimate.
+  3. INFORMAL-CONTEXTUAL (problematic ONLY in certain contexts):
+     appeal_to_authority (fallacious only if authority is irrelevant),
+     slippery_slope (fallacious only if mechanism is unsubstantiated), etc.
+     Flag with confidence "possible" and ALWAYS explain WHY the context
+     makes it fallacious rather than legitimate.
 
-  4. COGNITIVE BIASES (properties of REASONERS, not arguments -- flag
-     only when the TEXT EXHIBITS SYMPTOMS of the bias, not when the
-     author might privately hold the bias):
-     base_rate_neglect, anchoring_bias, availability_heuristic,
-     confirmation_bias, dunning_kruger, hindsight_bias, optimism_bias,
-     status_quo_bias, survivorship_bias
-     For a text to exhibit a cognitive bias, it must demonstrably ignore
-     evidence, over-weight salient examples, or systematically exclude
-     disconfirming data. Mere advocacy for a position is not bias.
+  4. COGNITIVE BIASES (properties of REASONERS, not arguments):
+     Flag only when the TEXT EXHIBITS SYMPTOMS of the bias, not when the
+     author might privately hold it.
 ```
 
-### Why This Produces Better Results
+**Risk:** Low — adds a `type` field to existing `possible_fallacies` entries. Additive.
 
-1. **Reduces false positive fallacy flags by ~50%.** The current flat list encourages the AI to pattern-match fallacy names against rhetorical strategies. The contextual category forces it to evaluate whether the context actually makes the pattern fallacious.
-2. **Separates argument-level from reasoner-level analysis.** Cognitive biases flagged in text should require textual evidence (e.g., ignoring base rates), not just suspicion about the author's psychology.
-3. **Produces more useful critique.** A fallacy flag that says "appeal_to_authority -- borderline -- the cited authority is a relevant domain expert, so this may be a legitimate citation rather than a fallacy" is far more useful to a taxonomy editor than a bare "appeal_to_authority -- possible" label.
+**Measurement:** Compare `fallacies.flagging_rate_pct` (currently 53%), `fallacies.confidence_likely` (currently 137), and total flags (currently 395) after reprocessing with structured tiers.
 
 ---
 
-## 10. Introduce Perspectival Indexing for Multi-POV Attribute Extraction
+### 10. Perspectival Steelman Vulnerabilities
 
-### BFO Principle
-BFO treats roles as *perspective-relative*: the same entity can bear different roles in different contexts. A molecule is a "nutrient" to a biologist and a "pollutant" to an environmental scientist -- same entity, different roles.
+**BFO Principle:** BFO treats roles as perspective-relative. The same entity bears different vulnerabilities from different relational contexts.
 
-### Current Problem
-The `attribute-extraction.prompt` generates a single set of attributes per node, but some attributes are inherently perspectival:
+**Current Problem:** `steelman_vulnerability` is a single string. The strongest counterargument depends on which POV is attacking.
 
-- `audience`: Who a node "speaks to" differs by POV. An accelerationist might see "Abundance through AI" as speaking to policymakers; a skeptic might see the same node as speaking to industry leaders who want deregulation.
-- `emotional_register`: "urgent" from the accelerationist perspective (we need to move fast) becomes "reckless" from the safetyist perspective.
-- `steelman_vulnerability`: The strongest counterargument depends on who is attacking -- an accelerationist steelmans against safetyist critiques, a skeptic steelmans against both.
+**Affected Prompts:**
+- `attribute-extraction.prompt` — change from string to per-POV object
 
-Currently, these attributes are generated from a single (implicitly neutral) perspective, which flattens the perspectival richness that makes the taxonomy valuable.
-
-### Affected Prompts
-- `attribute-extraction.prompt`
-
-### Proposed Change
-
-**In `attribute-extraction.prompt`**, modify the `steelman_vulnerability` instruction:
+**Proposed Change:**
 
 ```
-  steelman_vulnerability (required, object with three fields):
-    For each opposing POV, state the strongest counterargument against the
-    STRONGEST version of this node's claim.
-
-    "from_accelerationist": 1-2 sentences (omit if source node IS accelerationist)
-    "from_safetyist": 1-2 sentences (omit if source node IS safetyist)
-    "from_skeptic": 1-2 sentences (omit if source node IS skeptic)
-
-    Each steelman should be a genuinely compelling objection that someone
-    within that POV would actually raise -- not a caricature.
-
+  steelman_vulnerability (required, object):
+    "from_accelerationist": 1-2 sentences (omit if source IS accelerationist)
+    "from_safetyist": 1-2 sentences (omit if source IS safetyist)
+    "from_skeptic": 1-2 sentences (omit if source IS skeptic)
     For cross-cutting nodes, provide all three.
 ```
 
-This targeted change preserves the single-perspective approach for attributes where it works well (epistemic_type, falsifiability, intellectual_lineage) while adding perspectival depth where it matters most.
+**BREAKING CHANGE:** `steelman_vulnerability` changes from `string` to `object`. See Consumer Audit above — every component rendering this field must update simultaneously.
 
-### Why This Produces Better Results
-
-1. **Triples the adversarial testing per node.** Instead of one generic vulnerability, each node gets attacked from each opposing POV's strongest position. This surfaces blind spots that a single steelman would miss.
-2. **Feeds directly into debate quality.** The debate prompts in `debate.ts` already put agents in POV-specific roles. Perspectival steelman vulnerabilities give each debate agent pre-computed "best attacks" to draw from.
-3. **Aligns with BFO's role theory.** The same claim bears different vulnerabilities in different relational contexts -- this is precisely what BFO's role concept models.
+**Measurement:** Qualitative — debate tool output should show more targeted counterarguments.
 
 ---
 
-## Summary of Changes by Priority
+## Implementation Plan
 
-| # | Change | Primary Benefit | Effort |
-|---|--------|----------------|--------|
-| 1 | Genus-differentia definitions | Eliminates node overlap, resolves mapping ambiguity | Medium |
-| 2 | Universal/particular distinction | Sharpens conflict detection, improves falsifiability | Low |
-| 3 | Sub-category disambiguation | Resolves Goals/Data/Methods ambiguity | Low |
-| 4 | Formalized edge semantics | Eliminates nonsensical edges, clarifies thresholds | Medium |
-| 5 | Cross-cutting disagreement types | Enables actionable debate synthesis | Low |
-| 6 | Mereological parent-child types | Enables attribute inheritance, prevents incoherent splits | Medium |
-| 7 | Discourse/domain level separation | Prevents category errors in reasoning | Low |
-| 8 | Temporal qualifiers | Reduces false conflicts, enables temporal queries | Low |
-| 9 | Structured fallacy taxonomy | Reduces false positives by ~50% | Low |
-| 10 | Perspectival steelman | Triples adversarial coverage per node | Low |
+### Guiding Principles
+
+1. **Measure first.** Run `Measure-TaxonomyBaseline` before and after each phase. If a metric doesn't improve, investigate before proceeding.
+2. **Prompt changes before data migration.** Update prompts so new AI runs produce the improved output. Let existing data update organically through re-summarization rather than batch backfilling, except where the backfill is cheap and reliable.
+3. **Consumer updates before data changes.** For breaking changes (edge types, steelman_vulnerability), update all consumer code first with backward-compatible handlers, then migrate data.
+4. **Phase gates.** Each phase has explicit validation criteria. Do not proceed to the next phase until the current phase passes its gate.
+5. **Rollback tags.** Tag both repos before each phase: `pre-bfo-phase-N`.
+
+### Phase 0 — Observability (DONE)
+
+**Deliverable:** `Measure-TaxonomyBaseline` cmdlet and `docs/baseline-2026-03-28.json`.
+
+**Validation gate:** Cmdlet runs without errors and produces JSON with all 7 metric sections populated.
 
 ---
-
-## Implementation Sequence
-
-Each phase below has two parts: (A) update the prompts so new AI runs produce BFO-aligned output, and (B) back-fill existing data so the entire dataset is consistent. Back-fill work targets the `ai-triad-data` repo (taxonomy JSON, summaries, conflicts, edges).
 
 ### Phase 1 — Genus-Differentia Definitions (#1) + Discourse Framing (#7)
 
-**Why first:** Every downstream phase benefits from sharper node descriptions and the discourse/domain distinction. Doing #7 alongside #1 means the rewritten descriptions already incorporate the ontological framing.
+**Why first:** Every downstream phase benefits from sharper descriptions and the discourse/domain distinction.
 
 **Prompt changes (code repo):**
 - `TaxonomyRefiner.md` — replace description instruction with genus-differentia template
-- `pov-summary-system.prompt` — add genus-differentia rule for `suggested_description` + add ONTOLOGICAL FRAMING block
-- `taxonomy-proposal.prompt` — add genus-differentia rule for NEW/RELABEL descriptions
-- `ai-triad-analysis-prompt.md` — add genus-differentia rule for Part 2 descriptions
+- `pov-summary-system.prompt` — add genus-differentia rule for `suggested_description` + ONTOLOGICAL FRAMING block
+- `taxonomy-proposal.prompt` — add genus-differentia rule for NEW/RELABEL
+- `ai-triad-analysis-prompt.md` — add genus-differentia rule for Part 2
 - `attribute-extraction.prompt` — reframe `falsifiability` to discourse-aware version
 
 **Data migration:**
 
-| Asset | Location | Change | Method |
-|-------|----------|--------|--------|
-| POV node descriptions | `taxonomy/Origin/{acc,saf,skp}.json` | Rewrite every `description` to genus-differentia form | Batch AI pass: feed each node + its siblings + parent to the updated prompt; human review before commit |
-| CC node descriptions | `taxonomy/Origin/cross-cutting.json` | Same rewrite (genus = "cross-cutting concept", differentia = what distinguishes it from neighboring CC nodes) | Same batch pass |
-| Existing `falsifiability` values | `graph_attributes` on all nodes | Re-evaluate under discourse-aware definition; values may shift (e.g., normative nodes currently rated "medium" should become "low") | Batch AI re-extraction of `falsifiability` only; diff review |
+| Asset | Change | Method |
+|-------|--------|--------|
+| POV node descriptions (4 files) | Rewrite every `description` to genus-differentia form | Batch AI: feed each node + siblings + parent; human review before commit |
+| CC node descriptions | Same rewrite (genus = "cross-cutting concept") | Same batch pass |
+| `falsifiability` values | Re-evaluate under discourse-aware definition | Batch AI re-extraction of `falsifiability` only; diff review |
 
-**Estimated scope:** ~400-500 node descriptions across 4 taxonomy files. Run in batches of 20-30 with human spot-checks.
+**Estimated scope:** ~450 node descriptions. Run in batches of 20-30 with human spot-checks.
 
-**Validation:** For each rewritten description, assert: (a) first sentence matches "A [category] within [POV] discourse that [differentia]" pattern, (b) at least one sibling is named in the exclusion boundary, (c) no orphan references to nodes that don't exist.
+**Post-migration:**
+- Run `Update-TaxEmbeddings` to regenerate similarity space from new descriptions
+- Spot-check 10 similar-search queries in taxonomy-editor — verify results still make sense
+- Re-run `Measure-TaxonomyBaseline`
+
+**Validation gate:**
+- `descriptions.genus_differentia_pct` > 90%
+- `node_mapping.category_inconsistencies` <= current (14) — must not regress
+- No renderer displays broken (manual spot-check of NodeDetail, SimilarResultsPane, debate output)
+
+**Rollback:** `git checkout pre-bfo-phase-1` in both repos + `Update-TaxEmbeddings`.
 
 ---
 
-### Phase 2 — Sub-Category Disambiguation (#3) + Universal/Particular (#2)
+### Phase 2 — Sub-Categories (#3) + Universal/Particular (#2) — PROMPT ONLY
 
-**Why second:** With genus-differentia descriptions in place, the AI can now reliably distinguish sub-categories and ontological levels. These two changes are complementary: sub-categories clarify *what kind of claim* a node makes, while ontological level clarifies *how general* it is.
+**Why prompt-only:** These changes add guidance and an optional field. The value comes from improved future output, not from backfilling existing data. Avoid the cost and error risk of retroactive classification.
 
 **Prompt changes (code repo):**
-- `pov-summary-system.prompt` — add CATEGORY DISAMBIGUATION block with sub-category tests
-- `TaxonomyRefiner.md` — add same disambiguation section after Structural Framework
-- `attribute-extraction.prompt` — add `ontological_level` as required attribute (`universal` | `particular` | `bridging`)
+- `pov-summary-system.prompt` — add CATEGORY DISAMBIGUATION block
+- `TaxonomyRefiner.md` — add same disambiguation
+- `attribute-extraction.prompt` — add `ontological_level` as optional attribute
 - `taxonomy-proposal.prompt` — add ontological level guidance for NEW nodes
 
-**Data migration:**
+**Schema update:** Add `ontological_level` to `pov-taxonomy.schema.json` as optional enum in `graph_attributes`. Backward-compatible.
 
-| Asset | Location | Change | Method |
-|-------|----------|--------|--------|
-| Add `ontological_level` to all nodes | `graph_attributes` in all 4 taxonomy files | New field: `"ontological_level": "universal"\|"particular"\|"bridging"` | Batch AI classification pass; heuristic pre-seed: nodes with children → likely `universal`, leaf nodes with specific falsifiable claims → likely `particular` |
-| Audit existing `category` assignments | `key_points[].category` in 119 summary files | Flag inconsistencies where the same passage was categorized differently across runs | Script to detect same `taxonomy_node_id` mapped with different categories across summaries; AI-assisted resolution |
+**NO data migration.** The field populates organically when:
+- `Invoke-AttributeExtraction` is run on nodes
+- New nodes are proposed via `Invoke-TaxonomyProposal`
+- Documents are re-summarized after `TAXONOMY_VERSION` bump
 
-**Schema update:** Add `ontological_level` to `pov-taxonomy.schema.json` as an optional field in `graph_attributes` (backward-compatible).
-
-**Validation:** Cross-check: nodes with `ontological_level: "particular"` should have `falsifiability: "high"` or `"medium"`; `universal` nodes should rarely be `"high"`.
+**Validation gate:**
+- Prompts updated and pass manual dry-run review
+- Schema validates with new optional field
+- Next 5 `Invoke-AttributeExtraction` runs produce `ontological_level` values
+- `bridging` assignment rate < 15%
 
 ---
 
-### Phase 3 — Edge Semantics Overhaul (#4)
+### Phase 3 — Edge Semantics Overhaul (#4) — DEFERRED
 
-**Why third:** This is the highest-effort data migration. It requires the cleaner node definitions from Phase 1 and the ontological levels from Phase 2 to apply domain/range constraints and the CONTRADICTS vs. TENSION_WITH distinction correctly.
+**Why deferred:** This is the highest-risk, highest-effort change with the most consumers. It requires Phase 2's `ontological_level` to be populated (for CONTRADICTS constraints) and should only be undertaken when there's evidence that edge type noise is causing user-facing problems.
 
-**Prompt changes (code repo):**
-- `edge-discovery.prompt` — replace edge type definitions with formally constrained versions (7 types: SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO, TENSION_WITH, INTERPRETS)
-- `edge-discovery-schema.prompt` — update to match reduced type vocabulary
-- `summary-viewer/src/renderer/prompts/potentialEdges.ts` — align edge types
+**Prerequisites before starting:**
+- Phase 2 `ontological_level` populated on >80% of nodes
+- `Measure-TaxonomyBaseline` run showing current edge quality numbers
+- Complete consumer update plan written (all 9+ files listed in Consumer Audit)
+- Integration test: script that loads taxonomy, renders node detail, queries edges, runs similarity search — asserts all produce valid output
 
-**Data migration:**
+**When ready, execution order:**
+1. Update ALL consumer code first with backward-compatible handlers (accept both old and new type strings)
+2. Update edge type definitions in `edges.json` header
+3. Run bulk type consolidation script (mapping table above)
+4. Run CONTRADICTS → TENSION_WITH reclassification (AI batch with possible-world test)
+5. Remove CITES and SUPPORTED_BY edges (archive to `_archived_edges.json`)
+6. Run domain/range validation script, queue violations for AI re-evaluation
+7. Update prompts to use 7-type vocabulary
+8. Remove backward-compat handlers from consumer code
+9. Re-run `Measure-TaxonomyBaseline`
 
-| Asset | Location | Change | Method |
-|-------|----------|--------|--------|
-| Consolidate edge types | `edges.json` (~187K lines) | Map 40+ types down to 7 canonical types + archive removed types | Mapping table (see below); script-based bulk rename |
-| Remove CITES edges | `edges.json` | Delete all `type: "CITES"` edges (document-level, not semantic) | Filter script; count and log removed edges |
-| Remove SUPPORTED_BY edges | `edges.json` | Delete all `type: "SUPPORTED_BY"` edges (redundant inverse of SUPPORTS) | Filter script |
-| Reclassify CONTRADICTS → TENSION_WITH | `edges.json` | For edges between `universal`-level nodes, change `type` from `CONTRADICTS` to `TENSION_WITH` | Batch AI pass: for each CONTRADICTS edge, apply "possible world" test using both nodes' descriptions; flip to TENSION_WITH if test passes |
-| Add domain/range validation | `edges.json` | Flag edges that violate new constraints (e.g., Goals/Values SUPPORTS Data/Facts) | Validation script; flagged edges queued for AI re-evaluation |
-| Consolidate custom types | `edges.json` | Map LLM-proposed types to canonical 7 | See mapping table below |
-
-**Edge type consolidation mapping:**
-
-| Custom Type | → Canonical Type | Rationale |
-|-------------|-----------------|-----------|
-| REITERATES | SUPPORTS | Restating = supporting |
-| COMPLEMENTS | SUPPORTS | Complementary = mutually supporting |
-| VALIDATES_ARGUMENT_WITHIN | SUPPORTS | Validation is evidence |
-| HIGHLIGHTS_VULNERABILITY_TO | WEAKENS | Exposing vulnerability weakens |
-| POSES_PROBLEM_FOR | WEAKENS | Posing a problem reduces confidence |
-| EXACERBATES | WEAKENS | Making worse = weakening position |
-| IS_A_POSITION_WITHIN | ASSUMES | Being a position within implies dependence |
-| ENABLES | SUPPORTS | Enabling = providing basis for |
-| CAUSES | SUPPORTS | Causal link = evidentiary support |
-| EXPLAINS | SUPPORTS | Explanation = providing reasoning |
-| *(others)* | *(case-by-case AI triage)* | Review remaining custom types individually |
-
-**Validation:** After migration: (a) all edges have one of 7 canonical types, (b) no domain/range violations, (c) CONTRADICTS edges only connect nodes at the same ontological level, (d) INTERPRETS edges only target `cc-*` nodes.
+**Validation gate:**
+- All edges have one of 7 canonical types
+- No domain/range violations
+- CONTRADICTS edges only connect nodes at same ontological level
+- INTERPRETS edges only target `cc-*` nodes
+- All consumer UIs render correctly (manual spot-check)
+- `edges.non_canonical_type_count` = 0
+- `edges.orphan_edges` = 0
+- `edges.goals_supports_data` = 0
 
 ---
 
 ### Phase 4 — Cross-Cutting Enrichment (#5) + Parent-Child Audit (#6)
 
-**Why fourth:** These are moderate-effort changes that build on the improved definitions and edge semantics.
-
 **Prompt changes (code repo):**
-- `cross-cutting-candidates.prompt` — add `disagreement_type` classification (definitional | interpretive | structural)
+- `cross-cutting-candidates.prompt` — add `disagreement_type` classification
 - `cross-cutting-candidates-schema.prompt` — add field
-- `triad-dialogue-synthesis.prompt` — add dispute classification (definitional | empirical | evaluative | structural)
-- `taxonomy-proposal.prompt` — add relationship type guidance for SPLIT actions (already partially implemented via `parent_relationship`)
+- `triad-dialogue-synthesis.prompt` — add dispute classification
+- `taxonomy-proposal.prompt` — add relationship type for SPLIT actions
 
-**Data migration:**
+**Data migration (low-risk):**
 
-| Asset | Location | Change | Method |
-|-------|----------|--------|--------|
-| Add `disagreement_type` to CC nodes | `cross-cutting.json` | New field on each node: `"disagreement_type": "definitional"\|"interpretive"\|"structural"` | Batch AI classification using each node's `interpretations` object — if POV interpretations define the term differently → definitional; if they agree on referent but disagree on significance → interpretive; if the concept names an inherent trade-off → structural |
-| Audit `parent_relationship` values | All 4 taxonomy files | Verify correctness of existing `is_a`/`part_of`/`specializes` assignments; fill in any nulls on nodes that have a `parent_id` | Script to find nodes with `parent_id` but null `parent_relationship`; AI pass to classify using the tests from recommendation #6 |
-| Add `relationship_type` for SPLIT proposals | `taxonomy-proposal.prompt` output | Already implemented in schema — no data migration needed, just prompt update | N/A |
+| Asset | Change | Method |
+|-------|--------|--------|
+| CC nodes `disagreement_type` | New field | Batch AI classification using `interpretations` object |
+| Parent-child `relationship_type` | Fill in on nodes with `parent_id` | AI classification using tests from #6 |
 
-**Validation:** Every CC node has a `disagreement_type`; every node with a `parent_id` has a non-null `parent_relationship`.
+**Consumer update:**
+- `CrossCuttingDetail.tsx` — add `disagreement_type` display (badge in overview tab)
 
----
-
-### Phase 5 — Temporal Qualifiers (#8) + Fallacy Structure (#9) + Perspectival Steelman (#10)
-
-**Why last:** These are low-effort, high-value additions that operate on specific fields without dependencies on earlier phases. They can be parallelized.
-
-**Prompt changes (code repo):**
-- `pov-summary-system.prompt` — add `temporal_scope` and `temporal_bound` to factual_claims output spec
-- `fallacy-analysis.prompt` + `attribute-extraction.prompt` — restructure fallacy vocabulary into 4 tiers (formal, informal-structural, informal-contextual, cognitive-bias)
-- `attribute-extraction.prompt` — change `steelman_vulnerability` from string to object with `from_accelerationist`, `from_safetyist`, `from_skeptic`
-
-**Data migration:**
-
-| Asset | Location | Change | Method |
-|-------|----------|--------|--------|
-| Add temporal fields to factual_claims | 119 summary files | Add `temporal_scope` and `temporal_bound` to each claim in `factual_claims[]` | Batch AI pass: read each claim's text, classify scope (current_state/historical/predictive/timeless), extract explicit time bounds |
-| Add fallacy type classification | `possible_fallacies` in all taxonomy node `graph_attributes` | Add `"type": "formal"\|"informal_structural"\|"informal_contextual"\|"cognitive_bias"` to each existing fallacy entry | Lookup table: map each `fallacy` key to its tier per the structured taxonomy in #9; no AI needed |
-| Convert `steelman_vulnerability` | `graph_attributes` in all POV taxonomy nodes | Convert from `string` to `{ "from_accelerationist": "...", "from_safetyist": "...", "from_skeptic": "..." }` (omitting the node's own POV) | Batch AI pass: for each node, generate 2 opposing-POV steelmans; migrate existing string as the "best match" POV steelman |
-
-**Schema update:** Update `pov-taxonomy.schema.json`: `steelman_vulnerability` type changes from `string` to `object`; `possible_fallacies[].type` added as required enum; `factual_claims` gets `temporal_scope` (required enum) and `temporal_bound` (optional string).
-
-**Validation:** (a) No summary file has a factual_claim without `temporal_scope`, (b) all `possible_fallacies` entries have a `type`, (c) `steelman_vulnerability` is an object on all POV nodes and a 3-key object on all CC nodes.
+**Validation gate:**
+- Every CC node has `disagreement_type`
+- Every node with `parent_id` has `relationship_type`
+- Distribution is not dominated by one type
 
 ---
 
-### Cross-Cutting Concerns for All Phases
+### Phase 5 — Temporal (#8) + Fallacy Structure (#9) + Perspectival Steelman (#10)
 
-**Batch AI processing strategy:**
-- Use `Invoke-POVSummary`-style batch pipeline with the default model (`gemini-3.1-flash-lite-preview`) for classification tasks (ontological_level, disagreement_type, temporal_scope, fallacy_type)
-- Use a higher-capability model for generative tasks (description rewrites, steelman generation, edge reclassification) — recommend `gemini-2.5-flash` or `claude-sonnet-4-6`
-- All batch outputs go through a diff-review step before committing to `ai-triad-data`
+These three changes are independent and can be parallelized.
 
-**Backward compatibility:**
-- All new fields are added as optional first, then made required after back-fill is complete
-- Schema versions bump: `1.0.0` → `1.1.0` after Phase 1-2, → `2.0.0` after Phase 3 (breaking edge type change), → `2.1.0` after Phase 4-5
-- `TAXONOMY_VERSION` file bump after Phase 3 triggers CI re-summarization with updated prompts
+**5a: Temporal qualifiers — PROMPT ONLY (no backfill)**
 
-**Rollback strategy:**
+- Update `pov-summary-system.prompt` and `pov-summary-schema.prompt` with `temporal_scope` and `temporal_bound`
+- New summaries get temporal fields automatically
+- Existing summaries gain them when re-summarized (triggered by `TAXONOMY_VERSION` bump)
+
+**5b: Fallacy structure — PROMPT + LOW-RISK BACKFILL**
+
+- Update `fallacy-analysis.prompt` and `attribute-extraction.prompt` with 4-tier structure
+- Backfill `type` field on existing `possible_fallacies` entries via lookup table (no AI needed — map each `fallacy` key to its tier)
+
+**5c: Perspectival steelman — BREAKING CHANGE, REQUIRES CONSUMER UPDATE FIRST**
+
+Execution order:
+1. Update TypeScript type: `steelman_vulnerability?: string | { from_accelerationist?: string; from_safetyist?: string; from_skeptic?: string }`
+2. Update ALL consumers to handle BOTH formats (check `typeof value === 'string'`)
+3. Run batch AI pass to generate per-POV steelmans for all nodes
+4. Migrate existing string values: use as "best match" POV steelman, generate remaining two
+5. After migration complete: remove backward-compat string handling, tighten type to object-only
+
+**Validation gate:**
+- No summary has a factual_claim without `temporal_scope` (for newly processed docs only)
+- All `possible_fallacies` entries have a `type`
+- `steelman_vulnerability` is an object on all POV nodes and a 3-key object on all CC nodes
+- No renderer crashes or shows `[object Object]`
+
+---
+
+## Cross-Cutting Concerns
+
+### Batch AI Processing Strategy
+
+- Use `gemini-3.1-flash-lite-preview` for classification tasks (ontological_level, disagreement_type, temporal_scope, fallacy_type) — cheap, fast, sufficient
+- Use `gemini-2.5-flash` or `claude-sonnet-4-6` for generative tasks (description rewrites, steelman generation, edge reclassification) — quality matters
+- All batch outputs go through diff review before committing to `ai-triad-data`
+
+### Backward Compatibility
+
+- All new fields are added as OPTIONAL first, then made required after backfill
+- Schema versions: `1.0.0` → `1.1.0` (Phase 1-2), → `1.2.0` (Phase 4-5)
+- Phase 3 (if executed): `2.0.0` (breaking edge type change)
+- `TAXONOMY_VERSION` bump after Phase 1 triggers CI re-summarization with updated prompts
+
+### Rollback Strategy
+
 - Each phase commits to `ai-triad-data` as a separate branch/PR
-- Pre-migration snapshots tagged (e.g., `pre-bfo-phase-1`)
-- Edge migration (Phase 3) gets an `_archived_edges.json` with original type and rationale for any deleted/reclassified edge
+- Pre-migration snapshots tagged: `pre-bfo-phase-N`
+- Phase 3 edge migration gets `_archived_edges.json` with original types
+- Rollback procedure: revert both repos to tagged state + `Update-TaxEmbeddings`
 
-**Progress tracking:**
-- Each phase produces a migration report: nodes/edges/summaries processed, changes made, validation failures, items flagged for human review
-- Dashboard or script to show BFO compliance percentage across the dataset
+### Integration Testing
+
+Before Phase 1 and after each phase, run this validation checklist:
+
+1. `Import-Module AITriad -Force` — module loads without errors
+2. `Get-Tax | Select -First 5` — nodes render with descriptions
+3. `Get-Tax -Id acc-goals-001 | Format-List` — single node detail works
+4. `Measure-TaxonomyBaseline` — all metrics computed without errors
+5. `Invoke-POVSummary -DocId <sample> -DryRun` — prompt assembly works
+6. Start taxonomy-editor — NodeDetail renders, Sources tab loads, Related tab shows edges
+7. Start summary-viewer — documents list, similarity search works, potential edges work
+
+### Progress Tracking
+
+After each phase, update this table:
+
+| Phase | Status | Baseline Pre | Baseline Post | Key Delta | Notes |
+|-------|--------|-------------|---------------|-----------|-------|
+| 0 | DONE | baseline-2026-03-28.json | — | — | Cmdlet created |
+| 1 | NOT STARTED | | | genus_differentia_pct: 5.8% → ? | |
+| 2 | NOT STARTED | | | prompt-only, no migration | |
+| 3 | DEFERRED | | | Requires Phase 2 completion | |
+| 4 | NOT STARTED | | | | |
+| 5a | NOT STARTED | | | prompt-only, no migration | |
+| 5b | NOT STARTED | | | lookup-table backfill | |
+| 5c | NOT STARTED | | | breaking change | |

@@ -25,3 +25,13 @@ OUTPUT SCHEMA:
   "topic_tags": ["slug-style-tag"],
   "one_liner": "string"
 }
+
+EXAMPLE OUTPUT (for a hypothetical document about EU AI regulation):
+{
+  "title": "The EU AI Act: Balancing Innovation and Safety in Practice",
+  "authors": ["Maria Chen", "Thomas Berg"],
+  "date_published": "2026-01-15",
+  "pov_tags": ["safetyist", "skeptic", "cross-cutting"],
+  "topic_tags": ["eu-policy", "regulation", "risk-classification", "compliance", "innovation"],
+  "one_liner": "Analyzes how the EU AI Act's risk-based framework affects both safety oversight and startup competitiveness."
+}

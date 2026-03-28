@@ -78,6 +78,7 @@ function Set-Edge {
 
     begin {
         Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
         $TaxDir    = Get-TaxonomyDir
         $EdgesPath = Join-Path $TaxDir 'edges.json'
@@ -87,7 +88,7 @@ function Set-Edge {
             return
         }
 
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
         $MaxIndex  = $EdgesData.edges.Count - 1
 
         # Track whether any modifications were made

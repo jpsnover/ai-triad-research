@@ -481,7 +481,7 @@ function Finalize-Summary {
     # -- Update metadata.json -------------------------------------------------
     try {
         $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-        $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
+        $MetaUpdated = $MetaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
         $MetaUpdated['summary_version'] = $TaxonomyVersion
         $MetaUpdated['summary_status']  = 'current'
         $MetaUpdated['summary_updated'] = $Now

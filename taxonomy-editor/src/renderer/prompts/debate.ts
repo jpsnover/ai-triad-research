@@ -47,12 +47,33 @@ const DIALECTICAL_MOVES = `Your response should employ one or more of these dial
 - ESCALATE: Raise the stakes by connecting to a broader principle
 Include a "move_types" array in your response listing which moves you used.`;
 
+/** Find the last markdown heading before a character position */
+function findLastHeading(text: string, beforePos: number): string | null {
+  const region = text.slice(0, beforePos);
+  const headingPattern = /^#{1,6}\s+(.+)$/gm;
+  let lastMatch: string | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = headingPattern.exec(region)) !== null) {
+    lastMatch = m[1].trim();
+  }
+  return lastMatch;
+}
+
+/** Build a truncation notice that tells the model what was cut */
+function truncationNotice(text: string, limit: number): string {
+  const lastHeading = findLastHeading(text, limit);
+  if (lastHeading) {
+    return `\n\n[Document truncated at ~${(limit / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })},000 characters. Content after the section '${lastHeading}' is not available. Base your arguments only on the text above.]`;
+  }
+  return `\n\n[Document truncated at ~${(limit / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })},000 characters. The final portion of the document is not available.]`;
+}
+
 /** Format source context for document/URL debates */
 function sourceContext(sourceContent?: string): string {
   if (!sourceContent) return '';
   // Truncate for prompt size limits
   const content = sourceContent.length > 50000
-    ? sourceContent.slice(0, 50000) + '\n\n[Content truncated]'
+    ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
     : sourceContent;
   return `\n\n=== SOURCE DOCUMENT ===\n${content}\n=== END SOURCE DOCUMENT ===
 
@@ -500,7 +521,7 @@ export function documentClarificationPrompt(
   sourceContent: string,
 ): string {
   const content = sourceContent.length > 50000
-    ? sourceContent.slice(0, 50000) + '\n\n[Content truncated]'
+    ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
     : sourceContent;
 
   return `You are a neutral debate facilitator preparing a multi-perspective debate grounded in a specific document.

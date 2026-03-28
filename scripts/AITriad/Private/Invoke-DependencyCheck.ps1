@@ -220,7 +220,7 @@ function Invoke-DependencyCheck {
                 $Major = [int]($NodeVer -replace '^v', '' -split '\.' | Select-Object -First 1)
                 if ($Major -ge 20) {
                     $NodeResult = node -e "console.log(JSON.stringify({ok:true,version:process.version}))" 2>&1
-                    $NodeJson = $NodeResult | ConvertFrom-Json
+                    $NodeJson = $NodeResult | ConvertFrom-Json -Depth 20
                     if ($NodeJson.ok) {
                         DPass "Node.js $($NodeJson.version) (>= v20 required)"
                         $HasNode = $true
@@ -267,7 +267,7 @@ function Invoke-DependencyCheck {
                         $OutdatedRaw = npm outdated --json 2>$null
                         Pop-Location
                         if ($OutdatedRaw) {
-                            $Outdated = $OutdatedRaw | ConvertFrom-Json
+                            $Outdated = $OutdatedRaw | ConvertFrom-Json -Depth 20
                             $OutdatedCount = $Outdated.PSObject.Properties.Count
                             if ($OutdatedCount -gt 0) {
                                 DStale "$App — $OutdatedCount outdated package(s) (run 'npm update' in $App/ to update)"
@@ -372,7 +372,7 @@ function Invoke-DependencyCheck {
                     $PyMajor = [int](("$PyVer" -replace 'Python ', '') -split '\.' | Select-Object -First 1)
                     if ($PyMajor -ge 3) {
                         $PyTest = & $Cmd -c "import json; print(json.dumps({'ok': True}))" 2>&1
-                        $PyJson = $PyTest | ConvertFrom-Json
+                        $PyJson = $PyTest | ConvertFrom-Json -Depth 20
                         if ($PyJson.ok) { $PythonCmd = $Cmd; DPass "$Cmd — $PyVer"; break }
                     }
                 }
@@ -402,7 +402,7 @@ function Invoke-DependencyCheck {
                             try {
                                 $PipOutdated = & $PythonCmd -m pip list --outdated --format=json 2>$null
                                 if ($LASTEXITCODE -eq 0 -and $PipOutdated) {
-                                    $OutdatedPkgs = $PipOutdated | ConvertFrom-Json
+                                    $OutdatedPkgs = $PipOutdated | ConvertFrom-Json -Depth 20
                                     # Filter to packages in our requirements.txt
                                     $ReqNames = @(Get-Content $ReqFile | Where-Object { $_ -match '^\w' } | ForEach-Object { ($_ -split '[>=<]')[0].Trim().ToLower() })
                                     $Relevant = @($OutdatedPkgs | Where-Object { $_.name.ToLower() -in $ReqNames })
@@ -512,7 +512,7 @@ function Invoke-DependencyCheck {
     foreach ($TF in $TaxFiles) {
         $TFPath = Join-Path $TaxDir $TF
         if (Test-Path $TFPath) {
-            try { $TData = Get-Content -Raw -Path $TFPath | ConvertFrom-Json; $TotalNodes += @($TData.nodes).Count }
+            try { $TData = Get-Content -Raw -Path $TFPath | ConvertFrom-Json -Depth 20; $TotalNodes += @($TData.nodes).Count }
             catch { DFail "$TF — failed to parse JSON" }
         }
         else { DFail "$TF — not found in taxonomy/Origin/" }
@@ -521,7 +521,7 @@ function Invoke-DependencyCheck {
 
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {
-        try { $EData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json; DPass "edges.json valid ($(@($EData.edges).Count) edges)" }
+        try { $EData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20; DPass "edges.json valid ($(@($EData.edges).Count) edges)" }
         catch { DFail 'edges.json — failed to parse' }
     }
     else { DSkip 'edges.json not yet generated' }

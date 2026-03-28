@@ -72,6 +72,7 @@ function Find-PolicyAction {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
         $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
@@ -113,7 +114,7 @@ function Find-PolicyAction {
     $Registry = $null
     $RegistrySummary = ''
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
         Write-OK "Policy registry loaded: $($Registry.policies.Count) policies"
         # Build compact summary for prompt context (ID + action only, no vectors)
         $RegistrySummary = ($Registry.policies | ForEach-Object {
@@ -138,7 +139,7 @@ function Find-PolicyAction {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         $AllNodes = @($FileData.nodes)
 
@@ -267,7 +268,8 @@ $SchemaPrompt
                     -TimeoutSec 120
             }
             catch {
-                Write-Fail "API call failed for batch $BatchNum`: $_"
+                Write-Fail "API call failed for batch $BatchNum ($($Batch.Count) nodes) using model '$Model': $($_.Exception.Message)"
+                Write-Info 'Check that your API key is valid and you have not exceeded your quota. Re-run with -Verbose for details.'
                 $TotalFailed += $Batch.Count
                 continue
             }
@@ -286,7 +288,8 @@ $SchemaPrompt
                     $ActionData = $Repaired | ConvertFrom-Json -Depth 20
                 }
                 catch {
-                    Write-Fail "Could not parse response for batch $BatchNum"
+                    Write-Fail "Could not parse API response for batch $BatchNum ($($Batch.Count) nodes) after JSON repair: $($_.Exception.Message)"
+                    Write-Info 'The AI model returned malformed JSON. Try re-running the batch or using a different -Model.'
                     $TotalFailed += $Batch.Count
                     continue
                 }

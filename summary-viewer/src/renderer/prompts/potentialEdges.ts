@@ -46,7 +46,8 @@ EDGE TYPE VOCABULARY:
   COMPLEMENTS (directional: concept → target)
     The concept enhances or completes the target without directly supporting it.
 
-You may also propose edges FROM existing nodes TO the concept using the "inbound" flag.
+By default, edges go FROM the concept TO existing nodes (concept → target).
+Set "inbound": true to propose edges in the reverse direction (target → concept).
 
 EDGE ATTRIBUTES:
 

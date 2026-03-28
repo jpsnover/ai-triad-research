@@ -113,6 +113,7 @@ function Invoke-EdgeDiscovery {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Step 1: Validate environment ──
     Write-Step 'Validating environment'
@@ -153,7 +154,7 @@ function Invoke-EdgeDiscovery {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         foreach ($Node in $FileData.nodes) {
             $AllNodes.Add($Node)
             $NodePovMap[$Node.id] = $PovKey
@@ -165,7 +166,7 @@ function Invoke-EdgeDiscovery {
     # ── Step 3: Load existing edges ──
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
     } else {
         $EdgesData = [PSCustomObject]@{
             _schema_version = '1.0.0'
@@ -233,13 +234,14 @@ function Invoke-EdgeDiscovery {
         $EmbeddingsPath = Join-Path $TaxDir 'embeddings.json'
         if (Test-Path $EmbeddingsPath) {
             try {
-                $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json
+                $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json -Depth 20
                 foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
                     $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
                 }
                 Write-OK "Loaded embeddings for $($Embeddings.Count) nodes (TopK=$TopKCandidates, MinPerPov=$MinPerOtherPov)"
             } catch {
-                Write-Warn "Could not load embeddings.json, using full candidate list: $($_.Exception.Message)"
+                Write-Warn "Failed to parse embeddings from '$EmbeddingsPath': $($_.Exception.Message)"
+                Write-Info 'Falling back to full candidate list. To fix, regenerate embeddings with Update-TaxonomyEmbeddings.'
             }
         } else {
             Write-Info 'embeddings.json not found — using full candidate list'

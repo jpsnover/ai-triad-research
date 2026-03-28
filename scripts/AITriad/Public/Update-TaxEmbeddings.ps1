@@ -15,6 +15,7 @@ function Update-TaxEmbeddings {
     param()
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
     if (-not (Test-Path $EmbedScript)) {

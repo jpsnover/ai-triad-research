@@ -98,7 +98,7 @@ function Invoke-POVSummary {
         throw "metadata.json not found for $DocId"
     }
 
-    $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json
+    $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json -Depth 20
     if ((-not $Force) -and (-not $DryRun) -and ($metadata.summary_status -eq "current")) {
         Write-Warn "Summary is already current (taxonomy v$($metadata.summary_version))."
         Write-Info "Use -Force to re-process anyway."
@@ -155,7 +155,7 @@ function Invoke-POVSummary {
             Write-Fail "Taxonomy file missing: $filePath"
             throw "Taxonomy file missing: $file"
         }
-        $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json
+        $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json -Depth 20
         $nodeCount = $taxonomyContext[$file].nodes.Count
         Write-OK "  $file ($nodeCount nodes)"
     }
@@ -166,7 +166,7 @@ function Invoke-POVSummary {
     $policyRegistryContext = ''
     $policyRegistryPath = Join-Path $paths.TaxonomyDir 'policy_actions.json'
     if (Test-Path $policyRegistryPath) {
-        $policyReg = Get-Content -Raw -Path $policyRegistryPath | ConvertFrom-Json
+        $policyReg = Get-Content -Raw -Path $policyRegistryPath | ConvertFrom-Json -Depth 20
         if ($policyReg.policies -and $policyReg.policies.Count -gt 0) {
             # Build compact ID + action listing, one per line, cap at ~5KB
             $policyLines = $policyReg.policies | ForEach-Object { "$($_.id): $($_.action)" }
@@ -425,7 +425,7 @@ $snapshotText
 
     try {
         $metaRaw     = Get-Content $paths.MetadataFile -Raw
-        $metaUpdated = $metaRaw | ConvertFrom-Json -AsHashtable
+        $metaUpdated = $metaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
 
         $metaUpdated["summary_version"] = $taxonomyVersion
         $metaUpdated["summary_status"]  = "current"
@@ -469,7 +469,7 @@ $snapshotText
                 $existingPath = Join-Path $paths.ConflictsDir "$hintId.json"
 
                 if (Test-Path $existingPath) {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if ($alreadyLogged) {
                         Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
@@ -507,7 +507,7 @@ $snapshotText
                     Select-Object -First 1
 
                 if ($existingMatch) {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -AsHashtable
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if (-not $alreadyLogged) {
                         $conflictData["instances"] += $newInstance

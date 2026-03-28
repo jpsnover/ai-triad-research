@@ -35,9 +35,14 @@ ATTRIBUTE VOCABULARY:
     NOT: "AI is important" (too vague)
 
   falsifiability (required, string — pick ONE):
-    "high" — could be clearly disproven by specific evidence or events
-    "medium" — partially testable but involves value judgments or long time horizons
-    "low" — primarily a value claim, definitional, or unfalsifiable by nature
+    "high" — could be clearly disproven by specific evidence or events.
+      Example: "AGI will arrive by 2030" — a date-specific prediction with a clear pass/fail.
+    "medium" — partially testable but involves value judgments or long time horizons.
+      Example: "Open-source AI is safer than closed AI" — testable in principle but
+      depends on how "safer" is measured and over what timeframe.
+    "low" — primarily a value claim, definitional, or unfalsifiable by nature.
+      Example: "Human flourishing requires human control over AI" — normative; cannot
+      be disproven by evidence alone.
 
   audience (required, string — pick ONE or TWO, comma-separated):
     "policymakers", "technical_researchers", "industry_leaders",
@@ -69,7 +74,7 @@ ATTRIBUTE VOCABULARY:
     The strongest counterargument against the STRONGEST version of this claim.
     1-2 sentences. Attack the steel man, not the straw man.
 
-  possible_fallacies (required, array of 0-3 objects):
+  possible_fallacies (required, array of 0-3 objects — see overflow rule below):
     Possible logical fallacies or cognitive biases in this node's reasoning.
     Each object has three fields:
       "fallacy" — exact key from the list below
@@ -78,6 +83,9 @@ ATTRIBUTE VOCABULARY:
     An empty array is perfectly acceptable for well-reasoned nodes. Do not force findings.
     A rhetorical strategy is NOT automatically a fallacy — flag only when reasoning
     genuinely risks being unsound.
+    OVERFLOW RULE: If you identify more than 3 genuine fallacies, include the 3 most
+    significant. In the explanation of the third, append: "Additional fallacies identified
+    but omitted: [list their keys]." This preserves the signal without silent data loss.
 
     Known fallacy keys:
       Informal: ad_hominem, appeal_to_authority, appeal_to_consequences,

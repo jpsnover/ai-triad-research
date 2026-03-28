@@ -62,7 +62,7 @@ if (-not (Test-Path $AIModelsPath)) {
 }
 if (Test-Path $AIModelsPath) {
     try {
-        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json
+        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json -Depth 20
         $script:ValidModelIds = @($script:AIModelConfig.models | ForEach-Object { $_.id })
         Write-Verbose "AI Models: loaded $($script:ValidModelIds.Count) models from ai-models.json"
     }
@@ -121,7 +121,7 @@ if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json') { continue }
         try {
-            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
             $PovName = $File.BaseName.ToLower()
             $script:TaxonomyData[$PovName] = $Json
             Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
@@ -141,7 +141,7 @@ $script:PolicyRegistry = $null
 $RegistryFile = Join-Path $TaxonomyDir 'policy_actions.json'
 if (Test-Path $RegistryFile) {
     try {
-        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json
+        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json -Depth 20
         Write-Verbose "Policy registry: loaded $($script:PolicyRegistry.policy_count) policies"
     }
     catch {
@@ -178,6 +178,7 @@ Export-ModuleMember -Function @(
     'Show-SummaryViewer'
     'Show-AITriadHelp'
     'Get-TaxonomyHealth'
+    'Measure-TaxonomyBaseline'
     'Invoke-TaxonomyProposal'
     'Compare-Taxonomy'
     'Get-AITSource'

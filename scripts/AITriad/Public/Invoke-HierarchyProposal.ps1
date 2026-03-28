@@ -79,7 +79,7 @@ function Invoke-HierarchyProposal {
     foreach ($PovKey in $PovFileMap.Keys) {
         $FilePath = Join-Path $TaxDir $PovFileMap[$PovKey]
         if (Test-Path $FilePath) {
-            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
             Write-OK "$PovKey`: $($AllTaxData[$PovKey].nodes.Count) nodes"
         }
     }
@@ -90,7 +90,7 @@ function Invoke-HierarchyProposal {
     $EmbeddingsPath = Join-Path $TaxDir 'embeddings.json'
     if (Test-Path $EmbeddingsPath) {
         try {
-            $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json
+            $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json -Depth 20
             foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
                 $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
             }
@@ -110,7 +110,7 @@ function Invoke-HierarchyProposal {
     $AllEdges  = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
             $AllEdges  = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
             Write-OK "Loaded $($AllEdges.Count) approved edges"
         }

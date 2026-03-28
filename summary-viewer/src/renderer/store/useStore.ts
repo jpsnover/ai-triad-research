@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge, PolicyRegistryEntry } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
+import { mapErrorToUserMessage } from '../utils/errorMessages';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
 import type { AIBackend, AIModel } from './aiModels';
@@ -264,8 +265,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       const results = rankBySimilarity(queryVector, cache, 0.4, 50);
       set({ similarResults: results, similarLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      set({ similarError: message, similarLoading: false });
+      set({ similarError: mapErrorToUserMessage(err), similarLoading: false });
     }
   },
 
@@ -316,8 +316,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
       set({ potentialEdges: validEdges, potentialEdgesLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      set({ potentialEdgesError: message, potentialEdgesLoading: false });
+      set({ potentialEdgesError: mapErrorToUserMessage(err), potentialEdgesLoading: false });
     }
   },
 

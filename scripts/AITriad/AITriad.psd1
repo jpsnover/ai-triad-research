@@ -29,6 +29,7 @@
         'Show-SummaryViewer'
         'Show-AITriadHelp'
         'Get-TaxonomyHealth'
+        'Measure-TaxonomyBaseline'
         'Invoke-TaxonomyProposal'
         'Compare-Taxonomy'
         'Get-AITSource'

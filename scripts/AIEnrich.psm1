@@ -29,7 +29,7 @@ if (-not (Test-Path $_aiModelsPath)) {
 
 if (Test-Path $_aiModelsPath) {
     try {
-        $_aiConfig = Get-Content -Raw -Path $_aiModelsPath | ConvertFrom-Json
+        $_aiConfig = Get-Content -Raw -Path $_aiModelsPath | ConvertFrom-Json -Depth 20
         foreach ($_m in $_aiConfig.models) {
             $script:ModelRegistry[$_m.id] = @{
                 Backend    = $_m.backend
@@ -357,7 +357,7 @@ $Excerpt
         | ForEach-Object { $_.Trim() }
 
     try {
-        $Parsed = $CleanJson | ConvertFrom-Json -ErrorAction Stop
+        $Parsed = $CleanJson | ConvertFrom-Json -Depth 20 -ErrorAction Stop
     } catch {
         Write-Warning "$($AIResult.Backend): response was not valid JSON — metadata enrichment skipped"
         Write-Verbose "Raw AI response: $RawText"

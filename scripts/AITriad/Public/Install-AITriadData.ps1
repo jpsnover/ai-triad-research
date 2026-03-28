@@ -40,6 +40,7 @@ function Install-AITriadData {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Resolve target path ──
     if ([string]::IsNullOrWhiteSpace($DataPath)) {
@@ -98,7 +99,7 @@ function Install-AITriadData {
     # ── Update .aitriad.json if custom path was specified ──
     $ConfigPath = Join-Path $script:RepoRoot '.aitriad.json'
     if (Test-Path $ConfigPath) {
-        $Config = Get-Content -Raw $ConfigPath | ConvertFrom-Json
+        $Config = Get-Content -Raw $ConfigPath | ConvertFrom-Json -Depth 20
 
         # Compute relative path from code repo to data
         $RelativePath = [System.IO.Path]::GetRelativePath($script:RepoRoot, $DataPath)

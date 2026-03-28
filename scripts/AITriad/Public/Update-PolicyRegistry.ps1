@@ -32,6 +32,7 @@ function Update-PolicyRegistry {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
     $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
@@ -40,7 +41,7 @@ function Update-PolicyRegistry {
     $Registry = $null
     $ExistingPolicies = @{}
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
         foreach ($Pol in $Registry.policies) {
             $ExistingPolicies[$Pol.id] = $Pol
         }
@@ -58,7 +59,7 @@ function Update-PolicyRegistry {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         foreach ($Node in $FileData.nodes) {
             if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
@@ -157,7 +158,7 @@ function Update-PolicyRegistry {
 
                 # Update the node in the taxonomy file
                 $FilePath = Join-Path $TaxDir "$($U.POV).json"
-                $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+                $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
                 foreach ($Node in $FileData.nodes) {
                     if ($Node.id -ne $U.NodeId) { continue }
                     foreach ($PA in $Node.graph_attributes.policy_actions) {
@@ -178,7 +179,7 @@ function Update-PolicyRegistry {
         foreach ($PovKey in $PovFiles) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }

@@ -81,6 +81,7 @@ function Find-PossibleFallacy {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
         $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
@@ -131,7 +132,7 @@ function Find-PossibleFallacy {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
 
         $AllNodes = @($FileData.nodes)
 

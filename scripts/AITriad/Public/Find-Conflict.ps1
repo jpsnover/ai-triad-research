@@ -42,7 +42,12 @@ function Find-Conflict {
         return
     }
 
-    $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json -AsHashtable
+    try {
+        $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+    }
+    catch {
+        throw "Failed to parse summary file ${SummaryPath}: $($_.Exception.Message)"
+    }
 
     # -- Ensure conflicts/ exists --------------------------------------------
     if (-not (Test-Path $ConflictsDir)) {
@@ -96,7 +101,14 @@ function Find-Conflict {
             $existingPath = Join-Path $ConflictsDir "$hintId.json"
 
             if (Test-Path $existingPath) {
-                $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
+                try {
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                }
+                catch {
+                    Write-Warning "Skipping corrupt conflict file $($existingPath): $($_.Exception.Message)"
+                    $skipped++
+                    continue
+                }
                 $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                 if ($alreadyLogged) {
                     Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
@@ -139,7 +151,14 @@ function Find-Conflict {
                 Select-Object -First 1
 
             if ($existingMatch) {
-                $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -AsHashtable
+                try {
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                }
+                catch {
+                    Write-Warning "Skipping corrupt conflict file $($existingMatch.FullName): $($_.Exception.Message)"
+                    $skipped++
+                    continue
+                }
                 $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                 if ($alreadyLogged) {
                     Write-Info "  SKIP duplicate (fuzzy match): $($existingMatch.BaseName)"

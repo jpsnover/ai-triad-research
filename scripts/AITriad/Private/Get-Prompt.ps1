@@ -45,5 +45,11 @@ function Get-Prompt {
         $Text = $Text -replace [regex]::Escape("{{$Key}}"), $Replacements[$Key]
     }
 
+    # Warn if any placeholders remain unresolved
+    if ($Text -match '\{\{[A-Z_]+\}\}') {
+        $Remaining = [regex]::Matches($Text, '\{\{[A-Z_]+\}\}') | ForEach-Object { $_.Value } | Select-Object -Unique
+        Write-Warning "Unresolved placeholders in prompt '$Name': $($Remaining -join ', '). These will appear as literal text in the AI prompt."
+    }
+
     return $Text
 }

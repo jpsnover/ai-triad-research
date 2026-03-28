@@ -63,8 +63,13 @@ EDGE ATTRIBUTES:
 For each proposed edge, provide:
 
   confidence (required, number 0.0-1.0):
-    Your confidence that this edge genuinely exists. 0.8+ = strong, 0.5-0.8 = moderate.
-    Only propose edges with confidence >= 0.5.
+    Your confidence that this edge genuinely exists. Only propose edges >= 0.5.
+      0.9-1.0: The relationship is explicit — one node directly references the other's
+        core concept or they make logically incompatible claims.
+      0.7-0.9: The relationship is strongly implied — both nodes address the same
+        question from positions that clearly support/undermine each other.
+      0.5-0.7: The relationship is plausible but indirect — a reader would need to
+        draw an inference to connect them.
 
   rationale (required, string):
     1-2 sentences explaining WHY this edge exists. Be specific — reference the

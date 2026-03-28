@@ -72,7 +72,7 @@ function Get-AITSource {
         if (-not (Test-Path $MetaPath)) { continue }
 
         try {
-            $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+            $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warning "Failed to parse ${MetaPath}: $_"

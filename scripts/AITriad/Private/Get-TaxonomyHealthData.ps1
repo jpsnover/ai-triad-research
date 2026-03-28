@@ -68,7 +68,7 @@ function Get-TaxonomyHealthData {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warning "Get-TaxonomyHealthData: failed to parse $($File.Name): $_"
@@ -143,7 +143,7 @@ function Get-TaxonomyHealthData {
         $MetaPath = Join-Path $SourcesDir $DocId 'metadata.json'
         if (Test-Path $MetaPath) {
             try {
-                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
                 $Title = $Meta.title
             }
             catch { }
@@ -289,7 +289,7 @@ function Get-TaxonomyHealthData {
             Write-Warning "Get-TaxonomyHealthData: edges.json not found — GraphMode metrics unavailable"
         }
         else {
-            $EdgesData    = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $EdgesData    = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
             $ApprovedEdges = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
 
             # Build POV lookup for each node

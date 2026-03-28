@@ -10,6 +10,11 @@ You will receive:
 Your task:
   For each cluster that warrants grouping (cohesion_score >= 0.50 OR cluster
   size >= 3), propose a PARENT NODE that captures the common theme of its members.
+  Cohesion score interpretation:
+    0.80+: nodes are tightly related — near-certain grouping
+    0.60-0.80: nodes share a clear theme — grouping usually warranted
+    0.50-0.60: nodes are loosely related — group only if 3+ members reinforce the theme
+    <0.50: nodes may not belong together — skip unless cluster size >= 4
 
 PARENT NODE RULES:
   - The parent must be MORE GENERAL than any of its children.

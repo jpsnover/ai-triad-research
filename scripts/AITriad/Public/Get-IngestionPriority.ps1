@@ -94,7 +94,7 @@ function Get-IngestionPriority {
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
             try {
-                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
             }
             catch { continue }
 
@@ -186,7 +186,7 @@ function Get-IngestionPriority {
             $MetaPath = Join-Path $SourcesDir $DId 'metadata.json'
             if (Test-Path $MetaPath) {
                 try {
-                    $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+                    $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
                     if ($Meta.pov_tags) {
                         foreach ($PT in $Meta.pov_tags) { [void]$DocPovs.Add($PT) }
                     }
@@ -248,7 +248,7 @@ function Get-IngestionPriority {
 
                 if ($AIResult -and $AIResult.Text) {
                     $ResponseText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $AIRecommendations = ($ResponseText | ConvertFrom-Json).recommendations
+                    $AIRecommendations = ($ResponseText | ConvertFrom-Json -Depth 20).recommendations
                     Write-OK "AI generated $($AIRecommendations.Count) search recommendations ($($AIResult.Backend))"
                 }
                 else {

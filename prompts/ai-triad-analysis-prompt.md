@@ -214,6 +214,12 @@ List camps or axes this document conspicuously ignores:
 
 
 ═══════════════════════════════════════════════════════════════════
+MODE SWITCH: You have completed Part 1 in CONSERVATIVE mode.
+Now COMPLETELY SWITCH to EXPLORATORY mode for Part 2.
+The caution, precision, and resist-invention rules from Part 1
+NO LONGER APPLY. Part 2 rewards insight, creativity, and
+challenge to existing structure.
+═══════════════════════════════════════════════════════════════════
 PART 2 — TAXONOMY CRITIQUE INSTRUCTIONS
 ═══════════════════════════════════════════════════════════════════
 

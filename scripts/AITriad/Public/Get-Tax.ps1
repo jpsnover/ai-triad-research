@@ -109,6 +109,7 @@ function Get-Tax {
 
     begin {
         Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
         $CollectedIds = [System.Collections.Generic.List[string]]::new()
     }
 
@@ -162,7 +163,7 @@ function Get-Tax {
             return
         }
 
-        $Results = $PyResult | ConvertFrom-Json
+        $Results = $PyResult | ConvertFrom-Json -Depth 20
 
         if (-not $Results -or $Results.Count -eq 0) {
             Write-Host "No overlapping node pairs found above threshold $Threshold." -ForegroundColor Yellow
@@ -225,7 +226,7 @@ function Get-Tax {
             return
         }
 
-        $Results = $PyResult | ConvertFrom-Json
+        $Results = $PyResult | ConvertFrom-Json -Depth 20
 
         if (-not $Results -or $Results.Count -eq 0) {
             Write-Warning "No similar nodes found."

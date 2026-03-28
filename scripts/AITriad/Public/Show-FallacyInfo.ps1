@@ -60,6 +60,7 @@ function Show-FallacyInfo {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     # ── Load catalog ──
     $CatalogPath = Join-Path $script:ModuleRoot 'Private' 'fallacy-catalog.json'
@@ -68,7 +69,7 @@ function Show-FallacyInfo {
         throw 'Fallacy catalog not found'
     }
 
-    $Catalog = (Get-Content -Raw -Path $CatalogPath | ConvertFrom-Json).fallacies
+    $Catalog = (Get-Content -Raw -Path $CatalogPath | ConvertFrom-Json -Depth 20).fallacies
 
     # ── List mode ──
     if ($List) {
@@ -164,7 +165,7 @@ function Show-FallacyInfo {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
 
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes']) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['possible_fallacies']) { continue }

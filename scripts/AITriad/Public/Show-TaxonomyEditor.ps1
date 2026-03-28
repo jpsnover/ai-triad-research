@@ -18,6 +18,7 @@ function Show-TaxonomyEditor {
     param()
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $AppDir = Join-Path $script:RepoRoot 'taxonomy-editor'
     if (-not (Test-Path $AppDir)) {

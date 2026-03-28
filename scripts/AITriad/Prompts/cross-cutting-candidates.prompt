@@ -12,7 +12,14 @@ For each cluster, propose a cross-cutting concept that captures the shared theme
 2. `description` — a 1-2 sentence description of what this cross-cutting concept captures. For contradiction clusters, note that POVs take opposing positions.
 3. `relationship_type` — one of: "shared_concept" (entailment), "contested_topic" (contradiction), or "related_theme" (neutral).
 4. `interpretations` — how each POV interprets or relates to this concept (one entry per POV represented in the cluster).
-5. `confidence` — your confidence that this is a genuine cross-cutting concept (0.0-1.0).
+5. `confidence` — your confidence that this is a genuine cross-cutting concept (0.0-1.0):
+     0.8-1.0: The POVs explicitly use the same term or concept with competing definitions
+       or interpretations. Example: "safety" means different things to each camp.
+     0.5-0.8: The POVs address the same underlying issue but frame it differently.
+       Example: accelerationists and safetyists both discuss compute scaling but
+       draw opposite conclusions about its implications.
+     0.3-0.5: The connection is real but indirect — requires interpretation to see
+       the shared thread. Consider whether a cross-cutting node adds clarity or noise.
 6. `rationale` — why these nodes belong together and why this deserves a cross-cutting node.
 
 {{CLUSTERS}}

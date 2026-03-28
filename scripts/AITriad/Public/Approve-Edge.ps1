@@ -55,6 +55,7 @@ function Approve-Edge {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
     $EdgesPath = Join-Path $TaxDir 'edges.json'
@@ -64,7 +65,7 @@ function Approve-Edge {
         return
     }
 
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
 
     if ($Interactive) {
         $Proposed = @()

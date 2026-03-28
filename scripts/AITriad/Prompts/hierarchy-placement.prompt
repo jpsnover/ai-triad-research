@@ -12,7 +12,10 @@ Your task:
   B) CREATE a new parent — if 2+ orphans share a theme that no existing parent covers.
   C) LEAVE as top-level — ONLY if the node is genuinely unique with no thematic neighbors
      AND no existing parent could reasonably encompass it. This should be rare (at most 1-2
-     nodes per run).
+     nodes per run). A node qualifies as "genuinely unique" when: (1) no existing parent's
+     description covers its topic area, AND (2) no other orphan shares its theme closely
+     enough to justify creating a new parent. Example of genuinely unique: a node about
+     quantum computing's implications for AI when no other node addresses quantum topics.
 
 PLACEMENT RULES:
   - Prefer placing under an existing parent over creating new ones.

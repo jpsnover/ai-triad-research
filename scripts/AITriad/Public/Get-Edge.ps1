@@ -124,6 +124,7 @@ function Get-Edge {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir    = Get-TaxonomyDir
     $EdgesPath = Join-Path $TaxDir 'edges.json'
@@ -133,7 +134,7 @@ function Get-Edge {
         return
     }
 
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
 
     # ------------------------------------------------------------------
     # Index mode — fast return of a single edge
@@ -170,7 +171,7 @@ function Get-Edge {
         foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
             foreach ($Node in $FileData.nodes) {
                 $NodePovMap[$Node.id] = $PovKey
             }

@@ -17,11 +17,21 @@ IMPORTANT GUIDELINES:
 
 3. For each flagged fallacy, provide:
    - The fallacy name (use the exact key from the KNOWN FALLACIES list below)
-   - A confidence level: "likely", "possible", or "borderline"
+   - A confidence level:
+       "likely" — the reasoning pattern is clearly unsound. Example: "The argument
+         explicitly says 'anyone who disagrees is motivated by fear' — textbook ad hominem."
+       "possible" — the pattern is present but context might justify it. Example: "The
+         analogy to nuclear weapons has clear structural parallels but also disanalogies
+         the author doesn't address."
+       "borderline" — a faint signal that may or may not be a genuine fallacy. Example:
+         "The emotional language could be appeal_to_fear, but it's paired with evidence
+         that substantiates the concern."
    - A 1-3 sentence explanation grounded in the specific node content
 
 4. Flag 0-3 fallacies per node. It is perfectly acceptable (and often correct) to
    flag ZERO fallacies for a well-reasoned node. Do not force findings.
+   If you identify more than 3, include the 3 most significant and note the
+   omitted ones in the third explanation: "Additional fallacies omitted: [keys]."
 
 5. Consider the node's description, assumptions, rhetorical strategy, and
    epistemic type when analysing. A normative claim cannot commit a purely

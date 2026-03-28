@@ -43,6 +43,7 @@ function Get-GraphNode {
     )
 
     Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
 
@@ -53,7 +54,7 @@ function Get-GraphNode {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
@@ -75,7 +76,7 @@ function Get-GraphNode {
     $Edges = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
             $Edges = @($EdgesData.edges)
         }
         catch {

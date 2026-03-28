@@ -67,7 +67,7 @@ function Get-Summary {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
         }
         catch {
             Write-Warning "Failed to parse $($File.Name): $_"
@@ -81,7 +81,7 @@ function Get-Summary {
         $MetaPath = Join-Path $SourcesDir $Summary.doc_id 'metadata.json'
         if (Test-Path $MetaPath) {
             try {
-                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
                 $Title = $Meta.title
             }
             catch {

@@ -43,6 +43,9 @@ function Install-AIDependencies {
         [string]$RepoRoot = $script:RepoRoot
     )
 
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+
     $Result = Invoke-DependencyCheck -Mode install -Fix:$Fix -Quiet:$Quiet `
         -SkipNode:$SkipNode -SkipPython:$SkipPython -RepoRoot $RepoRoot
 
