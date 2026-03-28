@@ -38,7 +38,7 @@ NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
 NLI_LABELS = ["entailment", "neutral", "contradiction"]
 # Minimum logit margin between the winning label and runner-up.
 # If the margin is below this, the classification is downgraded to "neutral".
-NLI_CONFIDENCE_MARGIN = 1.5
+NLI_CONFIDENCE_MARGIN = 1.0
 
 # Resolved at runtime via --taxonomy-dir or .aitriad.json
 TAXONOMY_DIR: Path = _DEFAULT_TAXONOMY_DIR
