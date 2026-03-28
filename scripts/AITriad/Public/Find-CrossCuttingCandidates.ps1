@@ -195,14 +195,17 @@ function Find-CrossCuttingCandidates {
             # Boost for shared attributes
             $AttrsA = $NodeIndex[$IdA].GraphAttrs
             $AttrsB = $NodeIndex[$IdB].GraphAttrs
-            if ($AttrsA -and $AttrsB) {
+            if ($null -ne $AttrsA -and $null -ne $AttrsB) {
                 $SharedAttr = $false
                 foreach ($AttrName in @('assumes', 'intellectual_lineage')) {
-                    $ValA = if ($AttrsA.PSObject.Properties[$AttrName]) { @($AttrsA.$AttrName) } else { @() }
-                    $ValB = if ($AttrsB.PSObject.Properties[$AttrName]) { @($AttrsB.$AttrName) } else { @() }
-                    if ($ValA.Count -gt 0 -and $ValB.Count -gt 0) {
-                        foreach ($V in $ValA) {
-                            if ($V -in $ValB) { $SharedAttr = $true; break }
+                    $RawA = if ($AttrsA.PSObject.Properties[$AttrName]) { $AttrsA.$AttrName } else { $null }
+                    $RawB = if ($AttrsB.PSObject.Properties[$AttrName]) { $AttrsB.$AttrName } else { $null }
+                    if ($null -eq $RawA -or $null -eq $RawB) { continue }
+                    $ListA = [string[]]@($RawA)
+                    $ListB = [string[]]@($RawB)
+                    if ($ListA.Length -gt 0 -and $ListB.Length -gt 0) {
+                        foreach ($V in $ListA) {
+                            if ($V -in $ListB) { $SharedAttr = $true; break }
                         }
                     }
                     if ($SharedAttr) { break }
@@ -296,11 +299,17 @@ function Find-CrossCuttingCandidates {
         if ($RootA -ne $RootB) { $Parent[$RootA] = $RootB }
     }
 
-    foreach ($Pair in $AgreementPairs) {
+    # Only merge pairs with similarity >= 0.70 to prevent runaway chaining.
+    # Pairs between MinSimilarity and 0.70 still appear as standalone candidates.
+    $MergeThreshold = 0.70
+    $MergePairs  = @($AgreementPairs | Where-Object { $_.Similarity -ge $MergeThreshold })
+    $LoosePairs  = @($AgreementPairs | Where-Object { $_.Similarity -lt $MergeThreshold })
+
+    foreach ($Pair in $MergePairs) {
         if (-not $Parent.ContainsKey($Pair.IdA)) { $Parent[$Pair.IdA] = $Pair.IdA }
         if (-not $Parent.ContainsKey($Pair.IdB)) { $Parent[$Pair.IdB] = $Pair.IdB }
     }
-    foreach ($Pair in $AgreementPairs) {
+    foreach ($Pair in $MergePairs) {
         & $Union $Pair.IdA $Pair.IdB
     }
 
@@ -354,12 +363,30 @@ function Find-CrossCuttingCandidates {
 
     $AllScoredGroups = [System.Collections.Generic.List[PSObject]]::new()
 
-    # Score agreement clusters
+    # Score merged agreement clusters
     foreach ($G in $Groups.Values) {
         $Scored = & $ScoreGroup $G $AgreementPairs $null
         if ($Scored.PovsRepresented.Count -ge 2) {
             $AllScoredGroups.Add($Scored)
         }
+    }
+
+    # Add loose agreement pairs (below merge threshold) as standalone clusters
+    foreach ($Pair in $LoosePairs) {
+        $Members = @($Pair.IdA, $Pair.IdB)
+        $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
+        if ($PovsRepresented.Count -lt 2) { continue }
+        $NliLabel = if ($Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) { $Pair.NliLabel } else { 'entailment' }
+        $NliCounts = @{ entailment = 0; neutral = 0; contradiction = 0 }
+        $NliCounts[$NliLabel]++
+        $AllScoredGroups.Add([PSCustomObject]@{
+            Members         = $Members
+            MaxBoosted      = $Pair.Boosted
+            AvgSimilarity   = $Pair.Similarity
+            PovsRepresented = $PovsRepresented
+            NliCounts       = $NliCounts
+            DominantNli     = $NliLabel
+        })
     }
 
     # Build debate clusters from contradiction pairs (each pair is its own cluster)
@@ -377,14 +404,35 @@ function Find-CrossCuttingCandidates {
         })
     }
 
-    # Sort all groups by max boosted and take top N
-    $ScoredGroups = @($AllScoredGroups |
-        Sort-Object { $_.MaxBoosted } -Descending |
-        Select-Object -First $TopN)
+    # Reserve half the slots for shared concepts, half for debates, so
+    # high-similarity debates don't crowd out genuine cross-cutting concepts.
+    $SharedAll = @($AllScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' } |
+        Sort-Object { $_.MaxBoosted } -Descending)
+    $DebateAll = @($AllScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' } |
+        Sort-Object { $_.MaxBoosted } -Descending)
 
-    $AgreementCount = @($ScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' }).Count
-    $DebateCount    = @($ScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' }).Count
-    Write-OK "Formed $($Groups.Count) agreement groups + $($ContradictionPairs.Count) debate pairs; selected $AgreementCount shared + $DebateCount debate (top $TopN)"
+    $SharedSlots = [Math]::Ceiling($TopN / 2)
+    $DebateSlots = $TopN - $SharedSlots
+
+    # If one category has fewer results, give extra slots to the other
+    if ($SharedAll.Count -lt $SharedSlots) {
+        $DebateSlots += ($SharedSlots - $SharedAll.Count)
+        $SharedSlots = $SharedAll.Count
+    }
+    elseif ($DebateAll.Count -lt $DebateSlots) {
+        $SharedSlots += ($DebateSlots - $DebateAll.Count)
+        $DebateSlots = $DebateAll.Count
+    }
+
+    $PickedShared = @($SharedAll | Select-Object -First $SharedSlots)
+    $PickedDebate = @($DebateAll | Select-Object -First $DebateSlots)
+
+    # Combine: shared concepts first, then debates, each sorted by score
+    $ScoredGroups = @($PickedShared) + @($PickedDebate)
+
+    $AgreementCount = $PickedShared.Count
+    $DebateCount    = $PickedDebate.Count
+    Write-OK "Formed $($SharedAll.Count) agreement groups + $($DebateAll.Count) debate pairs; selected $AgreementCount shared + $DebateCount debate (top $TopN)"
 
     # ── Step 7: Optional AI labeling ──────────────────────────────────────────
     $AILabels = $null
