@@ -6,12 +6,14 @@ Return a JSON object mapping node IDs to their policy actions:
   "node_id_1": {
     "policy_actions": [
       {
-        "action": "Require pre-deployment safety evaluations for frontier AI models",
-        "framing": "The empirical evidence of misspecified objectives in this node directly supports mandatory testing before deployment. Without systematic evaluation, the failure modes described here would go undetected until real-world harm occurs."
+        "policy_id": "pol-028",
+        "action": "Fund AI safety research initiatives",
+        "framing": "The urgency to be the first to develop safe super-AI implies that dedicated research funding is essential to ensure AI development is beneficial."
       },
       {
+        "policy_id": null,
         "action": "Establish federal incident reporting requirements for AI system failures",
-        "framing": "The node's documentation of unintended harmful behaviors implies that a centralized reporting system would enable pattern detection across deployments, similar to the aviation safety reporting system."
+        "framing": "The node's documentation of unintended harmful behaviors implies that a centralized reporting system would enable pattern detection across deployments."
       }
     ]
   },
@@ -26,4 +28,5 @@ CONSTRAINTS:
   - The "policy_actions" array may be empty (0 items) or contain up to 3 items.
   - Each "action" must be specific and concrete (5-15 words). Name the mechanism, target, and scope.
   - Each "framing" must be 1-3 sentences grounded in the specific node content.
+  - "policy_id": If the EXISTING POLICY REGISTRY contains a matching policy, set this to its pol-NNN ID. If no match, set to null (a new ID will be assigned automatically).
   - Return ONLY the JSON object. No markdown, no commentary.

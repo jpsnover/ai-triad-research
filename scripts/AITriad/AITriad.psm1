@@ -119,7 +119,7 @@ foreach ($_name in @('DocConverters', 'AIEnrich')) {
 $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        if ($File.Name -in 'embeddings.json', 'edges.json') { continue }
+        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json') { continue }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             $PovName = $File.BaseName.ToLower()
@@ -134,6 +134,19 @@ if (Test-Path $TaxonomyDir) {
 
 if ($script:TaxonomyData.Count -eq 0) {
     Write-Warning "Taxonomy: no valid JSON files loaded from $TaxonomyDir — most commands will not work."
+}
+
+# Load policy registry
+$script:PolicyRegistry = $null
+$RegistryFile = Join-Path $TaxonomyDir 'policy_actions.json'
+if (Test-Path $RegistryFile) {
+    try {
+        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json
+        Write-Verbose "Policy registry: loaded $($script:PolicyRegistry.policy_count) policies"
+    }
+    catch {
+        Write-Warning "Policy registry: failed to load — $($_.Exception.Message)"
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -193,6 +206,8 @@ Export-ModuleMember -Function @(
     'Test-Dependencies'
     'Find-PossibleFallacy'
     'Find-PolicyAction'
+    'Get-Policy'
+    'Update-PolicyRegistry'
     'Show-FallacyInfo'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'

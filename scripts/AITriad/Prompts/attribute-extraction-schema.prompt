@@ -15,6 +15,7 @@ Return a JSON object mapping node IDs to their graph_attributes:
     "emotional_register": "measured",
     "policy_actions": [
       {
+        "policy_id": null,
         "action": "Require pre-deployment safety evaluations for frontier AI models",
         "framing": "The empirical evidence of misspecified objectives directly supports mandatory testing before deployment to catch harmful behaviors early."
       }
@@ -43,6 +44,7 @@ CONSTRAINTS:
   - All ten attribute fields are REQUIRED for every node.
   - The "policy_actions" array may be empty (0 items) or contain up to 3 items.
   - Each policy action "action" field must be specific and concrete (5-15 words).
+  - "policy_id" should be null — IDs are assigned by the pipeline after extraction.
   - The "possible_fallacies" array may be empty (0 items) or contain up to 3 items.
   - The "fallacy" value MUST be one of the exact keys from the KNOWN FALLACIES list in the prompt.
   - The "confidence" value MUST be one of: "likely", "possible", "borderline".

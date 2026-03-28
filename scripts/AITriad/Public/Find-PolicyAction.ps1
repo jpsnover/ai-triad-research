@@ -108,6 +108,22 @@ function Find-PolicyAction {
     $SystemPrompt = Get-Prompt -Name 'policy-actions'
     $SchemaPrompt = Get-Prompt -Name 'policy-actions-schema'
 
+    # ── Load policy registry ──
+    $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
+    $Registry = $null
+    $RegistrySummary = ''
+    if (Test-Path $RegistryPath) {
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
+        Write-OK "Policy registry loaded: $($Registry.policies.Count) policies"
+        # Build compact summary for prompt context (ID + action only, no vectors)
+        $RegistrySummary = ($Registry.policies | ForEach-Object {
+            "$($_.id): $($_.action)"
+        }) -join "`n"
+    }
+    else {
+        Write-Info 'No policy registry found — all actions will get new IDs'
+    }
+
     # ── Process each taxonomy file ──
     $TotalProcessed = 0
     $TotalSkipped   = 0
@@ -191,8 +207,20 @@ function Find-PolicyAction {
 
             $NodeJson = $NodeContext | ConvertTo-Json -Depth 10
 
+            $RegistryBlock = ''
+            if ($RegistrySummary) {
+                $RegistryBlock = @"
+
+--- EXISTING POLICY REGISTRY ---
+Reuse these pol-NNN IDs when the action matches. Set policy_id to null only for genuinely new policies.
+
+$RegistrySummary
+"@
+            }
+
             $FullPrompt = @"
 $SystemPrompt
+$RegistryBlock
 
 --- INPUT NODES ---
 $NodeJson
@@ -279,6 +307,35 @@ $SchemaPrompt
                     $Actions = @($NodeResult.policy_actions)
                 }
 
+                # Assign policy_ids for new actions (where policy_id is null or missing)
+                foreach ($Act in $Actions) {
+                    if (-not $Act.PSObject.Properties['policy_id'] -or $null -eq $Act.policy_id) {
+                        if ($Registry) {
+                            # Find next available ID
+                            $MaxId = ($Registry.policies | ForEach-Object {
+                                if ($_.id -match 'pol-(\d+)') { [int]$Matches[1] } else { 0 }
+                            } | Measure-Object -Maximum).Maximum
+                            $NextId = 'pol-{0:D3}' -f ($MaxId + 1)
+
+                            # Add to registry
+                            $NewEntry = [PSCustomObject]@{
+                                id           = $NextId
+                                action       = $Act.action
+                                source_povs  = @($PovKey)
+                                member_count = 1
+                            }
+                            $Registry.policies += $NewEntry
+                            $Registry.policy_count = $Registry.policies.Count
+
+                            $Act | Add-Member -NotePropertyName 'policy_id' -NotePropertyValue $NextId -Force
+                            Write-Info "  New policy $NextId`: $($Act.action.Substring(0, [Math]::Min(60, $Act.action.Length)))"
+                        }
+                    }
+                    else {
+                        Write-Info "  Reused $($Act.policy_id)"
+                    }
+                }
+
                 # Ensure the node has graph_attributes
                 $OrigNode = $FileData.nodes | Where-Object { $_.id -eq $NodeId }
                 if (-not $OrigNode) {
@@ -325,6 +382,15 @@ $SchemaPrompt
                     throw
                 }
             }
+        }
+    }
+
+    # ── Save updated policy registry ──
+    if ($Registry -and $TotalProcessed -gt 0 -and -not $DryRun) {
+        if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write updated policy registry')) {
+            $RegistryJson = $Registry | ConvertTo-Json -Depth 10
+            Set-Content -Path $RegistryPath -Value $RegistryJson -Encoding UTF8
+            Write-OK "Policy registry updated: $($Registry.policies.Count) policies"
         }
     }
 

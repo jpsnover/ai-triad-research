@@ -88,7 +88,7 @@ function Find-CrossCuttingCandidates {
 
     # ── Step 2: Load embeddings ───────────────────────────────────────────────
     Write-Step 'Loading embeddings'
-    $EmbeddingsFile = Get-TaxonomyDir 'embeddings.json'
+    $EmbeddingsFile = Join-Path (Get-TaxonomyDir) 'embeddings.json'
     $Embeddings     = @{}
 
     if (-not (Test-Path $EmbeddingsFile)) {
@@ -118,7 +118,8 @@ function Find-CrossCuttingCandidates {
     if (Test-Path $EdgesPath) {
         $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         foreach ($Edge in $EdgesData.edges) {
-            if ($Edge.status -ne 'approved') { continue }
+            $EdgeStatus = if ($Edge.PSObject.Properties['status']) { $Edge.status } else { '' }
+            if ($EdgeStatus -ne 'approved') { continue }
             $PairKey = if ($Edge.source -lt $Edge.target) { "$($Edge.source)|$($Edge.target)" } else { "$($Edge.target)|$($Edge.source)" }
             if (-not $EdgePairs.ContainsKey($PairKey)) {
                 $EdgePairs[$PairKey] = [System.Collections.Generic.List[string]]::new()
