@@ -79,6 +79,73 @@ export function clusterByEmbedding(
 }
 
 /**
+ * Partition a cluster into two opposing sides using NLI pairwise labels.
+ *
+ * Builds an undirected graph where contradiction edges connect opposing nodes.
+ * Attempts greedy 2-coloring: pick an uncolored node, color it A, then color
+ * its contradiction neighbors B, and so on (BFS). Entailment edges reinforce
+ * same-side assignment. If the graph has conflicts (odd cycles), returns null.
+ *
+ * @param nodeIds    IDs of nodes in the cluster
+ * @param pairLabels Array of { idA, idB, label } for each classified pair
+ * @returns [sideA, sideB] arrays, or null if not cleanly bipartite
+ */
+export function partitionBipartite(
+  nodeIds: string[],
+  pairLabels: Array<{ idA: string; idB: string; label: string }>,
+): [string[], string[]] | null {
+  if (nodeIds.length < 2) return null;
+
+  // Build adjacency: nodeId → [{neighbor, sameOrOpposite}]
+  const adj = new Map<string, Array<{ neighbor: string; same: boolean }>>();
+  for (const id of nodeIds) adj.set(id, []);
+
+  for (const p of pairLabels) {
+    if (!adj.has(p.idA) || !adj.has(p.idB)) continue;
+    const same = p.label === 'entailment' || p.label === 'neutral';
+    adj.get(p.idA)!.push({ neighbor: p.idB, same });
+    adj.get(p.idB)!.push({ neighbor: p.idA, same });
+  }
+
+  // BFS 2-coloring
+  const color = new Map<string, 0 | 1>();
+  let conflict = false;
+
+  for (const startId of nodeIds) {
+    if (color.has(startId)) continue;
+    color.set(startId, 0);
+    const queue = [startId];
+
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      const currColor = color.get(curr)!;
+
+      for (const edge of adj.get(curr) || []) {
+        const expectedColor: 0 | 1 = edge.same ? currColor : (1 - currColor) as 0 | 1;
+        if (color.has(edge.neighbor)) {
+          if (color.get(edge.neighbor) !== expectedColor) {
+            conflict = true;
+          }
+        } else {
+          color.set(edge.neighbor, expectedColor);
+          queue.push(edge.neighbor);
+        }
+      }
+    }
+  }
+
+  if (conflict) return null;
+
+  const sideA = nodeIds.filter(id => color.get(id) === 0);
+  const sideB = nodeIds.filter(id => color.get(id) === 1);
+
+  // Only meaningful if both sides are non-empty
+  if (sideA.length === 0 || sideB.length === 0) return null;
+
+  return [sideA, sideB];
+}
+
+/**
  * Builds the prompt for Gemini to label clusters.
  */
 export function buildClusterLabelPrompt(

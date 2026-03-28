@@ -622,6 +622,57 @@ function Find-CrossCuttingCandidates {
                 neutral       = $G.NliCounts.neutral
                 contradiction = $G.NliCounts.contradiction
             }
+
+            # Bipartite partition for contested clusters
+            if ($G.DominantNli -eq 'contradiction' -and $G.Members.Count -ge 2) {
+                # BFS 2-coloring using NLI pair labels
+                $Color = @{}
+                $Adj   = @{}
+                foreach ($M in $G.Members) { $Adj[$M] = [System.Collections.Generic.List[PSObject]]::new() }
+
+                # Gather all NLI-labeled pairs within this group
+                foreach ($Pair in $SimilarPairs) {
+                    if ($Pair.IdA -in $G.Members -and $Pair.IdB -in $G.Members -and
+                        $Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) {
+                        $Same = $Pair.NliLabel -ne 'contradiction'
+                        $Adj[$Pair.IdA].Add([PSCustomObject]@{ Neighbor = $Pair.IdB; Same = $Same })
+                        $Adj[$Pair.IdB].Add([PSCustomObject]@{ Neighbor = $Pair.IdA; Same = $Same })
+                    }
+                }
+
+                $Conflict = $false
+                foreach ($StartId in $G.Members) {
+                    if ($Color.ContainsKey($StartId)) { continue }
+                    $Color[$StartId] = 0
+                    $Queue = [System.Collections.Generic.Queue[string]]::new()
+                    $Queue.Enqueue($StartId)
+                    while ($Queue.Count -gt 0) {
+                        $Curr = $Queue.Dequeue()
+                        $CC   = $Color[$Curr]
+                        foreach ($Edge in $Adj[$Curr]) {
+                            $Expected = if ($Edge.Same) { $CC } else { 1 - $CC }
+                            if ($Color.ContainsKey($Edge.Neighbor)) {
+                                if ($Color[$Edge.Neighbor] -ne $Expected) { $Conflict = $true }
+                            }
+                            else {
+                                $Color[$Edge.Neighbor] = $Expected
+                                $Queue.Enqueue($Edge.Neighbor)
+                            }
+                        }
+                    }
+                }
+
+                if (-not $Conflict) {
+                    $SideA = @($G.Members | Where-Object { $Color[$_] -eq 0 })
+                    $SideB = @($G.Members | Where-Object { $Color[$_] -eq 1 })
+                    if ($SideA.Count -gt 0 -and $SideB.Count -gt 0) {
+                        $Entry['sides'] = @(
+                            @($SideA | ForEach-Object { [ordered]@{ id = $_; pov = $NodeIndex[$_].POV; label = $NodeIndex[$_].Label } })
+                            @($SideB | ForEach-Object { [ordered]@{ id = $_; pov = $NodeIndex[$_].POV; label = $NodeIndex[$_].Label } })
+                        )
+                    }
+                }
+            }
         }
 
         if ($AILabels) {
@@ -678,15 +729,26 @@ function Find-CrossCuttingCandidates {
             Write-Host " (shared=$($NC.entailment) unclear=$($NC.neutral) contested=$($NC.contradiction))" -ForegroundColor DarkGray
         }
 
-        foreach ($M in $C.members) {
-            $PovColor = switch ($M.pov) {
-                'accelerationist' { 'Blue' }
-                'safetyist'       { 'Green' }
-                'skeptic'         { 'Yellow' }
-                default           { 'Gray' }
+        if ($C.PSObject.Properties['sides'] -and $C.sides -and $C.sides.Count -eq 2) {
+            # Render with "vs." separator
+            foreach ($M in $C.sides[0]) {
+                $PovColor = switch ($M.pov) { 'accelerationist' { 'Blue' } 'safetyist' { 'Green' } 'skeptic' { 'Yellow' } default { 'Gray' } }
+                Write-Host "      [$($M.pov)]" -NoNewline -ForegroundColor $PovColor
+                Write-Host " $($M.id) — $($M.label)" -ForegroundColor DarkGray
             }
-            Write-Host "      [$($M.pov)]" -NoNewline -ForegroundColor $PovColor
-            Write-Host " $($M.id) — $($M.label)" -ForegroundColor DarkGray
+            Write-Host "        vs." -ForegroundColor DarkYellow
+            foreach ($M in $C.sides[1]) {
+                $PovColor = switch ($M.pov) { 'accelerationist' { 'Blue' } 'safetyist' { 'Green' } 'skeptic' { 'Yellow' } default { 'Gray' } }
+                Write-Host "      [$($M.pov)]" -NoNewline -ForegroundColor $PovColor
+                Write-Host " $($M.id) — $($M.label)" -ForegroundColor DarkGray
+            }
+        }
+        else {
+            foreach ($M in $C.members) {
+                $PovColor = switch ($M.pov) { 'accelerationist' { 'Blue' } 'safetyist' { 'Green' } 'skeptic' { 'Yellow' } default { 'Gray' } }
+                Write-Host "      [$($M.pov)]" -NoNewline -ForegroundColor $PovColor
+                Write-Host " $($M.id) — $($M.label)" -ForegroundColor DarkGray
+            }
         }
 
         if ($C.PSObject.Properties['proposed_description'] -and $C.proposed_description) {

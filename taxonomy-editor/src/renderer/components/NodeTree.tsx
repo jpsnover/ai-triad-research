@@ -10,6 +10,7 @@ export interface ClusterGroup {
   label: string;
   nodeIds: string[];
   nliLabel?: 'entailment' | 'neutral' | 'contradiction' | null;
+  sides?: [string[], string[]] | null;
 }
 
 interface NodeTreeProps {
@@ -121,14 +122,38 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                   </span>
                 )}
               </div>
-              {!isCollapsed && clusterNodes.map((node) => (
-                <NodeItem
-                  key={node.id}
-                  node={node}
-                  isSelected={selectedNodeId === node.id}
-                  onSelect={onSelect}
-                />
-              ))}
+              {!isCollapsed && (
+                cluster.nliLabel === 'contradiction' && cluster.sides ? (
+                  <>
+                    {cluster.sides[0].map(id => nodeMap.get(id)).filter(Boolean).map(node => (
+                      <NodeItem
+                        key={node!.id}
+                        node={node!}
+                        isSelected={selectedNodeId === node!.id}
+                        onSelect={onSelect}
+                      />
+                    ))}
+                    <div className="cluster-vs-separator">vs.</div>
+                    {cluster.sides[1].map(id => nodeMap.get(id)).filter(Boolean).map(node => (
+                      <NodeItem
+                        key={node!.id}
+                        node={node!}
+                        isSelected={selectedNodeId === node!.id}
+                        onSelect={onSelect}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  clusterNodes.map((node) => (
+                    <NodeItem
+                      key={node.id}
+                      node={node}
+                      isSelected={selectedNodeId === node.id}
+                      onSelect={onSelect}
+                    />
+                  ))
+                )
+              )}
             </div>
           );
         })}
