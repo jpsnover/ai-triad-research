@@ -415,6 +415,12 @@ export function PovTab({ pov }: PovTabProps) {
           {pinnedStack.length > 0 && !hasToolbarPane && <PinnedPanel />}
         </>
       )}
+      {showAnalysisPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={onPane3Resize} />
+          <AnalysisPanel width={pane3Width} />
+        </>
+      )}
       {showNewDialog && (
         <NewNodeDialog
           onConfirm={handleCreate}

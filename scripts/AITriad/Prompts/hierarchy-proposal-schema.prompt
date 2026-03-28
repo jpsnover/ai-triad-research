@@ -1,0 +1,58 @@
+OUTPUT FORMAT — return a single JSON object matching this schema exactly:
+
+{
+  "pov": "accelerationist",
+  "category": "Methods/Arguments",
+  "parents": [
+    {
+      "promoted_from": null,
+      "label": "Open-Source AI as a Safety Strategy",
+      "description": "A Methods/Arguments position within accelerationist discourse that advocates open-source development as both a safety mechanism and a democratization strategy. Encompasses: arguments that transparency improves safety, legal protections for open models, community-driven AI development. Excludes: closed-source safety testing, market competition arguments.",
+      "children": [
+        {
+          "node_id": "acc-methods-002",
+          "relationship": "is_a",
+          "rationale": "Argues open-source is specifically safer — a kind of open-source advocacy focused on the safety angle."
+        },
+        {
+          "node_id": "acc-methods-021",
+          "relationship": "specializes",
+          "rationale": "Proposes letting many AI variants flourish — a specific implementation of the open-source philosophy."
+        }
+      ]
+    },
+    {
+      "promoted_from": "acc-methods-012",
+      "label": null,
+      "description": null,
+      "children": [
+        {
+          "node_id": "acc-methods-031",
+          "relationship": "is_a",
+          "rationale": "New tech lowering prices is a specific instance of market-driven progress."
+        }
+      ]
+    }
+  ],
+  "outliers": [
+    {
+      "node_id": "acc-methods-028",
+      "reason": "Unique abstract concept (Ladder of Generality) with no thematic neighbors in this category."
+    }
+  ]
+}
+
+FIELD RULES:
+  - "promoted_from": set to a node ID if an existing node is being promoted to
+    parent. When set, "label" and "description" MUST be null (we keep the
+    existing node's label and description).
+  - "promoted_from": set to null when creating a new parent node. When null,
+    "label" and "description" are REQUIRED.
+  - "children": array of 2+ child assignments. A parent with only 1 child is
+    not useful — either merge the child into the parent or find more children.
+  - "relationship": one of "is_a", "part_of", "specializes".
+  - "rationale": 1-2 sentences explaining why this child belongs under this
+    parent with this relationship type.
+  - "outliers": array of nodes that don't fit any parent. May be empty.
+  - Each node_id from the input MUST appear exactly once — either as a child
+    under a parent, as a promoted parent (promoted_from), or in outliers.

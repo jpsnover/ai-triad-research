@@ -243,15 +243,15 @@ async function callGeminiBatchApi(
       body: JSON.stringify({ requests }),
     });
 
-    if (response.status === 429) {
+    if (response.status === 429 || response.status === 503) {
       if (attempt === MAX_RETRIES) {
+        const label = response.status === 503 ? 'temporarily unavailable' : 'rate limited';
         throw new Error(
-          'Gemini Embedding API rate limited after ' + MAX_RETRIES + ' attempts. ' +
-          'Please wait a minute and try again.',
+          `Gemini Embedding API ${label} after ${MAX_RETRIES} attempts. Please try again later.`,
         );
       }
       const backoff = Math.min(2 ** attempt, 30);
-      console.log(`[batchEmbed] Rate limited (429), retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      console.log(`[batchEmbed] ${response.status}, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
       await new Promise(resolve => setTimeout(resolve, backoff * 1000));
       continue;
     }
@@ -423,31 +423,64 @@ async function generateViaGemini(
         'Gemini API request',
       );
     } catch (err: unknown) {
-      console.error('[generateText] Fetch failed:', err);
-      throw err instanceof Error ? err : new Error(`Gemini API network error: ${err}`);
+      console.error(`[generateText] Fetch failed (attempt ${attempt}/${MAX_RETRIES}):`, err);
+      if (attempt === MAX_RETRIES) {
+        throw err instanceof Error ? err : new Error(`Gemini API network error: ${err}`);
+      }
+      const backoff = Math.min(2 ** attempt, 30);
+      onRetry?.({
+        attempt,
+        maxRetries: MAX_RETRIES,
+        backoffSeconds: backoff,
+        limitType: 'unknown',
+        limitMessage: 'Network error. Retrying automatically...',
+      });
+      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+      continue;
     }
 
     console.log('[generateText] Response status:', response.status);
 
-    if (response.status === 429) {
-      let rateLimitBody = '';
-      try { rateLimitBody = await response.text(); } catch { /* ignore */ }
-      const { limitType, limitMessage } = parseRateLimitType(rateLimitBody);
-      console.log(`[generateText] Rate limited (429) type=${limitType}: ${limitMessage}`);
+    if (response.status === 429 || response.status === 503) {
+      let retryBody = '';
+      try { retryBody = await response.text(); } catch { /* ignore */ }
 
+      if (response.status === 429) {
+        const { limitType, limitMessage } = parseRateLimitType(retryBody);
+        console.log(`[generateText] Rate limited (429) type=${limitType}: ${limitMessage}`);
+
+        if (attempt === MAX_RETRIES) {
+          const prefix = limitType === 'RPD'
+            ? 'Daily quota exhausted'
+            : `Gemini API rate limited (${limitType}) after ${MAX_RETRIES} attempts`;
+          throw new Error(
+            `${prefix}. ${limitMessage} Check your quota at https://aistudio.google.com/apikey`,
+          );
+        }
+        const backoff = limitType === 'RPD'
+          ? Math.min(2 ** (attempt + 2), 60)
+          : Math.min(2 ** attempt, 30);
+        console.log(`[generateText] Retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+        onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType, limitMessage });
+        await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+        continue;
+      }
+
+      // 503 — model temporarily unavailable
+      console.log(`[generateText] Service unavailable (503), attempt ${attempt}/${MAX_RETRIES}`);
       if (attempt === MAX_RETRIES) {
-        const prefix = limitType === 'RPD'
-          ? 'Daily quota exhausted'
-          : `Gemini API rate limited (${limitType}) after ${MAX_RETRIES} attempts`;
         throw new Error(
-          `${prefix}. ${limitMessage} Check your quota at https://aistudio.google.com/apikey`,
+          `Gemini model is temporarily unavailable (503) after ${MAX_RETRIES} attempts. Please try again later.`,
         );
       }
-      const backoff = limitType === 'RPD'
-        ? Math.min(2 ** (attempt + 2), 60)
-        : Math.min(2 ** attempt, 30);
-      console.log(`[generateText] Retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
-      onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType, limitMessage });
+      const backoff = Math.min(2 ** attempt, 30);
+      onRetry?.({
+        attempt,
+        maxRetries: MAX_RETRIES,
+        backoffSeconds: backoff,
+        limitType: 'unknown',
+        limitMessage: 'Model is experiencing high demand. Retrying automatically...',
+      });
       await new Promise(resolve => setTimeout(resolve, backoff * 1000));
       continue;
     }

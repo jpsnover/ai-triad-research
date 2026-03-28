@@ -58,6 +58,8 @@
         'Find-PossibleFallacy'
         'Find-PolicyAction'
         'Show-FallacyInfo'
+        'Invoke-HierarchyProposal'
+        'Set-TaxonomyHierarchy'
     )
 
     # Aliases exported from this module

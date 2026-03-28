@@ -192,6 +192,8 @@ Export-ModuleMember -Function @(
     'Find-PossibleFallacy'
     'Find-PolicyAction'
     'Show-FallacyInfo'
+    'Invoke-HierarchyProposal'
+    'Set-TaxonomyHierarchy'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

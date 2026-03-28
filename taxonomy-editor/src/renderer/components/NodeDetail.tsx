@@ -22,9 +22,10 @@ interface MoveTarget {
   isTransfer?: boolean;
 }
 
-function OverflowMenu({ moveTargets, onDelete }: {
+function OverflowMenu({ moveTargets, onDelete, onAIAnalysis }: {
   moveTargets: MoveTarget[];
   onDelete: () => void;
+  onAIAnalysis: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,10 @@ function OverflowMenu({ moveTargets, onDelete }: {
       <button className="btn btn-ghost btn-sm overflow-menu-trigger" onClick={() => setOpen(!open)} title="More actions">&hellip;</button>
       {open && (
         <div className="overflow-menu-dropdown">
+          <button className="overflow-menu-item" onClick={() => { onAIAnalysis(); setOpen(false); }}>
+            AI Analysis
+          </button>
+          <div className="overflow-menu-divider" />
           {categoryMoves.map(t => (
             <button key={t.label} className="overflow-menu-item" onClick={() => { t.action(); setOpen(false); }}>
               Move to {t.label}
@@ -237,6 +242,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           <OverflowMenu
             moveTargets={moveTargets}
             onDelete={() => setShowDelete(true)}
+            onAIAnalysis={() => useTaxonomyStore.getState().runNodeCritique(pov, node)}
           />
         )}
       </div>

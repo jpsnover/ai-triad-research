@@ -46,6 +46,58 @@ Logical Gap: If you claim they are different, define the specific scenario where
 Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
 }
 
+export interface NodeCritiqueContext {
+  edgesJson: string;
+  crossCuttingJson: string;
+  povJson: string;
+  nodeJson: string;
+  povName: string;
+}
+
+export function nodeCritiquePrompt(ctx: NodeCritiqueContext): string {
+  return `### SYSTEM ROLE
+You are a Senior Ontologist and AI Researcher. You are critiquing a node within a multi-perspective AI Knowledge Graph.
+
+### KNOWLEDGE GRAPH SCHEMA & GLOBAL CONTEXT
+1. RELATIONSHIP GRAMMAR:
+${ctx.edgesJson}
+
+2. UNIVERSAL CONCEPTS (Cross-Cutting):
+${ctx.crossCuttingJson}
+
+3. LOCAL HIERARCHY (The ${ctx.povName} POV this node belongs to):
+${ctx.povJson}
+
+### TARGET NODE FOR CRITIQUE
+${ctx.nodeJson}
+
+### CRITIQUE DIRECTIVE
+Critique this node with a focus on **Systemic Integration**:
+1. **Redundancy Check:** Does this node duplicate a concept already defined in the "Universal Concepts"? If so, recommend a MERGE or an INTERPRETS edge.
+2. **Relational Integrity:** Does the \`assumes\` list align with the "Relationship Grammar"?
+3. **Taxonomic Placement:** Is the \`parent_id\` logically sound given the other nodes in the Local Hierarchy?
+4. **Epistemic Drift:** Does the POV-specific description lean too far into rhetoric, losing its connection to the underlying universal concept?
+
+### OUTPUT FORMAT
+Respond in Markdown with the following sections in order:
+
+#### Critique Summary
+A brief overall assessment of this node's systemic integration quality.
+
+#### Structural Rationalization
+For **each** proposed change, write a separate subsection:
+
+##### [Field Name] Change
+- **What:** Describe the specific change
+- **Why:** Reference the relevant critique directive (Redundancy, Relational Integrity, Taxonomic Placement, or Epistemic Drift)
+- **Impact:** How this change improves the knowledge graph's consistency
+
+If no change is needed for a field, do not include a subsection for it.
+
+#### Refined Node JSON
+Finally, provide the complete refined node as a fenced JSON code block (\`\`\`json ... \`\`\`) so it can be copied and pasted directly into the taxonomy editor. Include ALL fields, not just the changed ones.`;
+}
+
 export function clusterLabelPrompt(
   clusters: { nodeIds: string[]; labels: string[] }[],
 ): string {

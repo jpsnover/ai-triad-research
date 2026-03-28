@@ -32,7 +32,8 @@ import {
   todayISO,
 } from '../utils/idGenerator';
 import { rankBySimilarity } from '../utils/similarity';
-import { distinctionAnalysisPrompt } from '../prompts/analysis';
+import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
+import type { NodeCritiqueContext } from '../prompts/analysis';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
@@ -290,6 +291,11 @@ interface TaxonomyState {
     forceRefresh?: boolean,
   ) => Promise<void>;
   clearAnalysis: () => void;
+  analysisTitle: string;
+  analysisCritiquePov: Pov | null;
+  analysisCritiqueNodeId: string | null;
+  analysisCritiqueOriginalNode: PovNode | null;
+  runNodeCritique: (pov: Pov, node: PovNode) => Promise<void>;
 
   clusterView: { clusters: { label: string; nodeIds: string[] }[] } | null;
   clusterLoading: boolean;
@@ -423,6 +429,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   analysisCached: false,
   analysisElementA: null,
   analysisElementB: null,
+  analysisTitle: 'Analysis',
+  analysisCritiquePov: null,
+  analysisCritiqueNodeId: null,
+  analysisCritiqueOriginalNode: null,
 
   clusterView: null,
   clusterLoading: false,
@@ -601,7 +611,81 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     analysisCached: false,
     analysisElementA: null,
     analysisElementB: null,
+    analysisTitle: 'Analysis',
+    analysisCritiquePov: null,
+    analysisCritiqueNodeId: null,
+    analysisCritiqueOriginalNode: null,
   }),
+
+  runNodeCritique: async (pov, node) => {
+    const model = get().geminiModel;
+    const state = get();
+    const POV_LABELS: Record<string, string> = {
+      accelerationist: 'Accelerationist',
+      safetyist: 'Safetyist',
+      skeptic: 'Skeptic',
+    };
+
+    set({
+      analysisLoading: true,
+      analysisError: null,
+      analysisResult: null,
+      analysisStep: 1,
+      analysisRetry: null,
+      analysisCached: false,
+      analysisElementA: { label: node.label, description: node.description, category: node.category },
+      analysisElementB: null,
+      analysisTitle: 'AI Analysis',
+      analysisCritiquePov: pov,
+      analysisCritiqueNodeId: node.id,
+      analysisCritiqueOriginalNode: { ...node },
+    });
+
+    // Step 2: Build prompt with full context
+    set({ analysisStep: 2 });
+
+    const edgesJson = state.edgesFile
+      ? JSON.stringify(state.edgesFile.edge_types, null, 2)
+      : '(edges not loaded)';
+
+    const crossCuttingJson = state.crossCutting
+      ? JSON.stringify(state.crossCutting.nodes.map(n => ({
+          id: n.id, label: n.label, description: n.description,
+        })), null, 2)
+      : '(cross-cutting not loaded)';
+
+    const povFile = state[pov];
+    const povJson = povFile
+      ? JSON.stringify(povFile.nodes.map(n => ({
+          id: n.id, label: n.label, category: n.category, parent_id: n.parent_id,
+        })), null, 2)
+      : '(POV file not loaded)';
+
+    const nodeJson = JSON.stringify(node, null, 2);
+
+    const prompt = nodeCritiquePrompt({
+      edgesJson,
+      crossCuttingJson,
+      povJson,
+      nodeJson,
+      povName: POV_LABELS[pov] || pov,
+    });
+
+    const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {
+      set({ analysisRetry: progress });
+    });
+
+    try {
+      set({ analysisStep: 3 });
+      const { text } = await window.electronAPI.generateText(prompt, model);
+      set({ analysisStep: 4, analysisRetry: null });
+      set({ analysisResult: text, analysisLoading: false, analysisStep: 0 });
+    } catch (err) {
+      set({ analysisLoading: false, analysisError: String(err), analysisStep: 0, analysisRetry: null });
+    } finally {
+      unsubscribe();
+    }
+  },
 
   checkApiKey: async () => {
     try {
