@@ -80,7 +80,6 @@ export interface GraphAttributes {
   falsifiability?: string;
   audience?: string;
   emotional_register?: string;
-  policy_actionability?: string;
   policy_actions?: PolicyAction[];
   intellectual_lineage?: string[];
   steelman_vulnerability?: string;

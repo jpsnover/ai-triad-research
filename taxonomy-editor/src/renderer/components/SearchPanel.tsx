@@ -14,7 +14,6 @@ type SearchPanelMode =
   | 'rhetorical_strategy'
   | 'audience'
   | 'emotional_register'
-  | 'policy_actionability'
   | 'possible_fallacy';
 
 const MODE_LABELS: Record<SearchPanelMode, string> = {
@@ -24,7 +23,6 @@ const MODE_LABELS: Record<SearchPanelMode, string> = {
   emotional_register: 'Emotional Register',
   epistemic_type: 'Epistemic Type',
   intellectual_lineage: 'Intellectual Lineage',
-  policy_actionability: 'Policy Actionability',
   possible_fallacy: 'Possible Fallacy',
   rhetorical_strategy: 'Rhetorical Strategy',
 };
@@ -61,7 +59,6 @@ const ATTRIBUTE_OPTIONS: Record<string, string[]> = {
     'alarmed', 'aspirational', 'cautionary', 'defiant', 'dismissive',
     'measured', 'optimistic', 'pragmatic', 'urgent',
   ],
-  policy_actionability: ['high', 'medium', 'low'],
 };
 
 function formatValue(val: string): string {

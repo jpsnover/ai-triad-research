@@ -17,7 +17,6 @@ export interface GraphAttributes {
   falsifiability?: string;
   audience?: string;
   emotional_register?: string;
-  policy_actionability?: string;  // legacy — kept for backward compat
   policy_actions?: { policy_id?: string; action: string; framing: string }[];
   intellectual_lineage?: string[];
   steelman_vulnerability?: string;

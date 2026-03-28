@@ -23,7 +23,6 @@ const LABEL_MAP: Record<string, string> = {
   falsifiability: 'Falsifiability',
   audience: 'Audience',
   emotional_register: 'Emotional Register',
-  policy_actionability: 'Policy Actionability',
   policy_actions: 'Policy Actions',
   intellectual_lineage: 'Intellectual Lineage',
   steelman_vulnerability: 'Steelman Vulnerability',
@@ -68,7 +67,7 @@ function formatValue(val: string): string {
   return val.replace(/_/g, ' ');
 }
 
-/** 5-point hardness meter for falsifiability and policy_actionability */
+/** 5-point hardness meter for falsifiability */
 function HardnessMeter({ field, value, onClick }: {
   field: string;
   value: string;
@@ -272,13 +271,11 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
           </div>
 
           <div className="ga-cell">
-            <div className="ga-label">Policy Actionability</div>
+            <div className="ga-label">Policy Actions</div>
             {attrs.policy_actions && attrs.policy_actions.length > 0 ? (
               <div className="ga-policy-actions-compact">
                 {attrs.policy_actions.length} action{attrs.policy_actions.length !== 1 ? 's' : ''}
               </div>
-            ) : attrs.policy_actionability ? (
-              <HardnessMeter field="policy_actionability" value={attrs.policy_actionability} onClick={onBadgeClick} />
             ) : <div className="ga-empty">&mdash;</div>}
           </div>
 

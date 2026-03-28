@@ -60,7 +60,6 @@ const GA_LABELS: Record<string, string> = {
   falsifiability: 'Falsifiability',
   audience: 'Audience',
   emotional_register: 'Emotional Register',
-  policy_actionability: 'Policy Actionability',
   intellectual_lineage: 'Intellectual Lineage',
   steelman_vulnerability: 'Steelman Vulnerability',
 };
@@ -116,12 +115,6 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
         <div className="ga-sv-row">
           <span className="ga-sv-label">{GA_LABELS.emotional_register}</span>
           <span className="ga-sv-val"><GaBadge value={attrs.emotional_register} /></span>
-        </div>
-      )}
-      {attrs.policy_actionability && (
-        <div className="ga-sv-row">
-          <span className="ga-sv-label">{GA_LABELS.policy_actionability}</span>
-          <span className="ga-sv-val"><GaBadge value={attrs.policy_actionability} /></span>
         </div>
       )}
       {attrs.assumes && attrs.assumes.length > 0 && (

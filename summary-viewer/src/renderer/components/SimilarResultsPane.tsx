@@ -380,12 +380,6 @@ function SimilarDetailPanel({ row }: { row: ResolvedRow | null }) {
               <span className="similar-detail-attr-value">{formatAttrValue(attrs.audience)}</span>
             </div>
           )}
-          {attrs.policy_actionability && (
-            <div className="similar-detail-attr">
-              <span className="similar-detail-attr-label">Policy Actionability</span>
-              <span className="similar-detail-attr-value">{formatAttrValue(attrs.policy_actionability)}</span>
-            </div>
-          )}
           {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
             <div className="similar-detail-attr">
               <span className="similar-detail-attr-label">Intellectual Lineage</span>

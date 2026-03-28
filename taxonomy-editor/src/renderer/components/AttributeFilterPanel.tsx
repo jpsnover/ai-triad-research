@@ -14,7 +14,6 @@ const LABEL_MAP: Record<string, string> = {
   falsifiability: 'Falsifiability',
   audience: 'Audience',
   emotional_register: 'Emotional Register',
-  policy_actionability: 'Policy Actionability',
   intellectual_lineage: 'Intellectual Lineage',
 };
 
@@ -39,7 +38,6 @@ const FIELD_OPTIONS: Record<string, string[]> = {
     'alarmed', 'aspirational', 'cautionary', 'defiant', 'dismissive',
     'measured', 'optimistic', 'pragmatic', 'urgent',
   ],
-  policy_actionability: ['high', 'low', 'medium'],
 };
 
 function formatValue(val: string): string {
