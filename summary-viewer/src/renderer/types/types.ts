@@ -60,6 +60,19 @@ export interface PipelineSummary {
   }>;
 }
 
+export interface PolicyAction {
+  policy_id?: string;
+  action: string;
+  framing: string;
+}
+
+export interface PolicyRegistryEntry {
+  id: string;
+  action: string;
+  source_povs: string[];
+  member_count: number;
+}
+
 export interface GraphAttributes {
   epistemic_type?: string;
   rhetorical_strategy?: string;
@@ -68,6 +81,7 @@ export interface GraphAttributes {
   audience?: string;
   emotional_register?: string;
   policy_actionability?: string;
+  policy_actions?: PolicyAction[];
   intellectual_lineage?: string[];
   steelman_vulnerability?: string;
 }

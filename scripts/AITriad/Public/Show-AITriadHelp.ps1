@@ -894,7 +894,7 @@ Get-IngestionPriority -POV safetyist -TopN 3
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-TopN</code></td><td>int</td><td>No</td><td>Number of top candidates to return (1&ndash;30). Default: 10</td></tr>
-      <tr><td><code>-MinSimilarity</code></td><td>double</td><td>No</td><td>Cosine similarity threshold (0.50&ndash;0.95). Default: 0.70</td></tr>
+      <tr><td><code>-MinSimilarity</code></td><td>double</td><td>No</td><td>Cosine similarity threshold (0.50&ndash;0.95). Default: 0.60</td></tr>
       <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write results as JSON</td></tr>
       <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM labeling; return raw clusters only</td></tr>
       <tr><td><code>-NoNLI</code></td><td>switch</td><td>No</td><td>Skip NLI cross-encoder verification (faster, but no contradiction detection)</td></tr>
@@ -1254,7 +1254,7 @@ Export-TaxonomyToGraph -Full
 Get-IngestionPriority -TopN 5
 
 # Discover candidate cross-cutting concepts across POVs
-Find-CrossCuttingCandidates -MinSimilarity 0.75
+Find-CrossCuttingCandidates -MinSimilarity 0.65
 
 # Run a structured three-agent debate
 Show-TriadDialogue "Should AI development be slowed?" -Rounds 3

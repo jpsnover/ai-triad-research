@@ -10,6 +10,7 @@ import {
   loadTaxonomy,
   readSnapshot,
   addTaxonomyNode,
+  readPolicyRegistry,
   getTaxonomyDirs,
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
@@ -49,6 +50,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-taxonomy', () => {
     return loadTaxonomy();
+  });
+
+  ipcMain.handle('load-policy-registry', () => {
+    return readPolicyRegistry();
   });
 
   ipcMain.handle('add-taxonomy-node', (_event, req: AddTaxonomyNodeRequest) => {

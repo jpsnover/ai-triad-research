@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
-import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge } from '../types/types';
+import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge, PolicyRegistryEntry } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
@@ -14,6 +14,7 @@ interface SummaryViewerState {
   sources: SourceInfo[];
   summaries: Record<string, PipelineSummary>;
   taxonomy: Record<string, TaxonomyNode>;
+  policyRegistry: PolicyRegistryEntry[];
   snapshots: Record<string, string>;
   loaded: boolean;
 
@@ -70,6 +71,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   sources: [],
   summaries: {},
   taxonomy: {},
+  policyRegistry: [],
   snapshots: {},
   loaded: false,
   selectedSourceIds: new Set<string>(),
@@ -119,8 +121,9 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       );
 
       const taxonomy = await window.electronAPI.loadTaxonomy() as Record<string, TaxonomyNode>;
+      const polReg = await window.electronAPI.loadPolicyRegistry() as { policies: PolicyRegistryEntry[] } | null;
 
-      set({ sources, summaries, taxonomy, loaded: true });
+      set({ sources, summaries, taxonomy, policyRegistry: polReg?.policies ?? [], loaded: true });
     } catch (err) {
       console.error('[SummaryViewer] Failed to load sources:', err);
       set({ loaded: true });

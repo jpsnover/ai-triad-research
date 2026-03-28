@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadTaxonomy: (): Promise<unknown> =>
     ipcRenderer.invoke('load-taxonomy'),
 
+  loadPolicyRegistry: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-policy-registry'),
+
   addTaxonomyNode: (req: { pov: string; category: string; label: string; description: string; interpretations?: { accelerationist: string; safetyist: string; skeptic: string }; docId?: string; conceptIndex?: number }): Promise<unknown> =>
     ipcRenderer.invoke('add-taxonomy-node', req),
 

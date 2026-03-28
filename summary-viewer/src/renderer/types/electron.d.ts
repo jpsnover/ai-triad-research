@@ -29,6 +29,7 @@ export interface ElectronAPI {
   loadSummary: (docId: string) => Promise<unknown>;
   loadSnapshot: (sourceId: string) => Promise<string>;
   loadTaxonomy: () => Promise<unknown>;
+  loadPolicyRegistry: () => Promise<unknown>;
   addTaxonomyNode: (req: AddTaxonomyNodeRequest) => Promise<AddTaxonomyNodeResult>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;

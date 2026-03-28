@@ -146,6 +146,20 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
           <div className="ga-sv-steelman">{attrs.steelman_vulnerability}</div>
         </div>
       )}
+      {attrs.policy_actions && attrs.policy_actions.length > 0 && (
+        <div className="ga-sv-row ga-sv-row-full">
+          <span className="ga-sv-label">Policy Actions ({attrs.policy_actions.length})</span>
+          <ul className="ga-sv-policy-list">
+            {attrs.policy_actions.map((pa, i) => (
+              <li key={i} className="ga-sv-policy-item">
+                {pa.policy_id && <span className="ga-sv-policy-id">{pa.policy_id}</span>}
+                <span className="ga-sv-policy-action">{pa.action}</span>
+                {pa.framing && <span className="ga-sv-policy-framing">{pa.framing}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -220,7 +220,7 @@ export function loadTaxonomy(): Record<string, TaxonomyNode> {
   if (!fs.existsSync(activeTaxonomyDir)) return result;
 
   const files = fs.readdirSync(activeTaxonomyDir)
-    .filter(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'Temp.json');
+    .filter(f => f.endsWith('.json') && !['embeddings.json', 'edges.json', 'policy_actions.json', 'Temp.json'].includes(f));
 
   for (const file of files) {
     try {
@@ -243,6 +243,16 @@ export function loadTaxonomy(): Record<string, TaxonomyNode> {
   }
 
   return result;
+}
+
+export function readPolicyRegistry(): unknown {
+  const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch {
+    return null;
+  }
 }
 
 const POV_FILE_MAP: Record<string, string> = {

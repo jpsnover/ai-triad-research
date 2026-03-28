@@ -19,7 +19,7 @@ function Find-CrossCuttingCandidates {
     .PARAMETER TopN
         Number of top candidates to return (1-30, default 10).
     .PARAMETER MinSimilarity
-        Cosine similarity threshold (0.50-0.95, default 0.70).
+        Cosine similarity threshold (0.50-0.95, default 0.60).
     .PARAMETER OutputFile
         Optional path to write results as JSON.
     .PARAMETER NoAI
@@ -45,7 +45,7 @@ function Find-CrossCuttingCandidates {
         [int]$TopN = 10,
 
         [ValidateRange(0.50, 0.95)]
-        [double]$MinSimilarity = 0.70,
+        [double]$MinSimilarity = 0.60,
 
         [string]$OutputFile,
 
@@ -259,9 +259,27 @@ function Find-CrossCuttingCandidates {
     }
 
     # ── Step 6: Merge overlapping pairs into groups ───────────────────────────
+    # Only entailment/neutral pairs are merged via union-find (shared concepts).
+    # Contradiction pairs are kept as separate debate clusters.
     Write-Step 'Merging overlapping pairs into clusters'
 
-    # Union-find for grouping
+    $HasNli = ($SimilarPairs.Count -gt 0 -and
+               $SimilarPairs[0].PSObject.Properties['NliLabel'] -and
+               $SimilarPairs[0].NliLabel)
+
+    # Partition pairs by NLI label
+    $AgreementPairs    = [System.Collections.Generic.List[PSObject]]::new()
+    $ContradictionPairs = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($Pair in $SimilarPairs) {
+        if ($HasNli -and $Pair.NliLabel -eq 'contradiction') {
+            $ContradictionPairs.Add($Pair)
+        }
+        else {
+            $AgreementPairs.Add($Pair)
+        }
+    }
+
+    # Union-find for agreement/neutral pairs only
     $Parent = @{}
     $Find = {
         param([string]$X)
@@ -278,18 +296,15 @@ function Find-CrossCuttingCandidates {
         if ($RootA -ne $RootB) { $Parent[$RootA] = $RootB }
     }
 
-    # Initialize all nodes
-    foreach ($Pair in $SimilarPairs) {
+    foreach ($Pair in $AgreementPairs) {
         if (-not $Parent.ContainsKey($Pair.IdA)) { $Parent[$Pair.IdA] = $Pair.IdA }
         if (-not $Parent.ContainsKey($Pair.IdB)) { $Parent[$Pair.IdB] = $Pair.IdB }
     }
-
-    # Union pairs
-    foreach ($Pair in $SimilarPairs) {
+    foreach ($Pair in $AgreementPairs) {
         & $Union $Pair.IdA $Pair.IdB
     }
 
-    # Group by root — snapshot keys to avoid modification during enumeration
+    # Group by root
     $Groups = @{}
     $AllParentKeys = @($Parent.Keys)
     foreach ($NodeId in $AllParentKeys) {
@@ -300,14 +315,14 @@ function Find-CrossCuttingCandidates {
         $Groups[$Root].Add($NodeId)
     }
 
-    # Score each group by max boosted similarity and determine dominant NLI label
-    $ScoredGroups = @($Groups.Values | ForEach-Object {
-        $Members = $_
+    # Build scored groups from agreement clusters
+    $ScoreGroup = {
+        param($Members, $Pairs, $DomLabel)
         $MaxBoosted = 0.0
         $AvgSim     = 0.0
         $SimCount   = 0
         $NliCounts  = @{ entailment = 0; neutral = 0; contradiction = 0 }
-        foreach ($Pair in $SimilarPairs) {
+        foreach ($Pair in $Pairs) {
             if ($Pair.IdA -in $Members -and $Pair.IdB -in $Members) {
                 if ($Pair.Boosted -gt $MaxBoosted) { $MaxBoosted = $Pair.Boosted }
                 $AvgSim += $Pair.Similarity
@@ -319,13 +334,12 @@ function Find-CrossCuttingCandidates {
         }
         if ($SimCount -gt 0) { $AvgSim = [Math]::Round($AvgSim / $SimCount, 4) }
 
-        # Dominant NLI label for this group
         $NliTotal = $NliCounts.Values | Measure-Object -Sum | Select-Object -ExpandProperty Sum
-        $DominantNli = if ($NliTotal -gt 0) {
-            ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
-        } else { $null }
+        $DominantNli = if ($DomLabel) { $DomLabel }
+                       elseif ($NliTotal -gt 0) {
+                           ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+                       } else { $null }
 
-        # Get POVs represented
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
 
         [PSCustomObject]@{
@@ -336,11 +350,41 @@ function Find-CrossCuttingCandidates {
             NliCounts       = $NliCounts
             DominantNli     = $DominantNli
         }
-    } | Where-Object { $_.PovsRepresented.Count -ge 2 } |
+    }
+
+    $AllScoredGroups = [System.Collections.Generic.List[PSObject]]::new()
+
+    # Score agreement clusters
+    foreach ($G in $Groups.Values) {
+        $Scored = & $ScoreGroup $G $AgreementPairs $null
+        if ($Scored.PovsRepresented.Count -ge 2) {
+            $AllScoredGroups.Add($Scored)
+        }
+    }
+
+    # Build debate clusters from contradiction pairs (each pair is its own cluster)
+    foreach ($Pair in $ContradictionPairs) {
+        $Members = @($Pair.IdA, $Pair.IdB)
+        $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
+        if ($PovsRepresented.Count -lt 2) { continue }
+        $AllScoredGroups.Add([PSCustomObject]@{
+            Members         = $Members
+            MaxBoosted      = $Pair.Boosted
+            AvgSimilarity   = $Pair.Similarity
+            PovsRepresented = $PovsRepresented
+            NliCounts       = @{ entailment = 0; neutral = 0; contradiction = 1 }
+            DominantNli     = 'contradiction'
+        })
+    }
+
+    # Sort all groups by max boosted and take top N
+    $ScoredGroups = @($AllScoredGroups |
         Sort-Object { $_.MaxBoosted } -Descending |
         Select-Object -First $TopN)
 
-    Write-OK "Formed $($Groups.Count) groups, $($ScoredGroups.Count) cross-POV candidates selected"
+    $AgreementCount = @($ScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' }).Count
+    $DebateCount    = @($ScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' }).Count
+    Write-OK "Formed $($Groups.Count) agreement groups + $($ContradictionPairs.Count) debate pairs; selected $AgreementCount shared + $DebateCount debate (top $TopN)"
 
     # ── Step 7: Optional AI labeling ──────────────────────────────────────────
     $AILabels = $null
