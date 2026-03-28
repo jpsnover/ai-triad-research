@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { ConflictFile } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -83,6 +83,35 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
 
   const raw = conflict.linked_taxonomy_nodes;
   const linkedNodes = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+  // Derive related policies from linked taxonomy nodes
+  const { policyRegistry } = useTaxonomyStore();
+  const relatedPolicies = useMemo(() => {
+    if (linkedNodes.length === 0) return [];
+    const state = useTaxonomyStore.getState();
+    const policyIdSet = new Set<string>();
+
+    for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'crossCutting'] as const) {
+      const file = povKey === 'crossCutting' ? state.crossCutting : state[povKey];
+      if (!file?.nodes) continue;
+      for (const node of file.nodes) {
+        if (!linkedNodes.includes(node.id)) continue;
+        const ga = (node as { graph_attributes?: { policy_actions?: { policy_id?: string }[] } }).graph_attributes;
+        if (ga?.policy_actions) {
+          for (const action of ga.policy_actions) {
+            if (action.policy_id) policyIdSet.add(action.policy_id);
+          }
+        }
+      }
+    }
+
+    const policies: { id: string; action: string }[] = [];
+    for (const id of policyIdSet) {
+      const pol = policyRegistry?.find(p => p.id === id);
+      policies.push({ id, action: pol?.action ?? id });
+    }
+    return policies.sort((a, b) => a.id.localeCompare(b.id));
+  }, [linkedNodes, policyRegistry]);
 
   const addLinked = (id: string) => {
     if (id && !linkedNodes.includes(id)) {
@@ -192,6 +221,21 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
             />
           )}
         </div>
+
+        {/* Related Policies (derived from linked nodes) */}
+        {relatedPolicies.length > 0 && (
+          <div className="form-group">
+            <label>Related Policies</label>
+            <div className="conflict-related-policies">
+              {relatedPolicies.map((pol) => (
+                <span key={pol.id} className="conflict-policy-badge" title={pol.action}>
+                  <span className="conflict-policy-badge-id">{pol.id}</span>
+                  <span className="conflict-policy-badge-action">{pol.action}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Instances */}
         <div className="form-group">

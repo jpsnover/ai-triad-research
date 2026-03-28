@@ -7560,3 +7560,241 @@ body {
   gap: 2px;
   margin-top: 4px;
 }
+
+/* ─── Policy Sources Panel ──────────────────────────── */
+.policy-sources-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.policy-sources-loading,
+.policy-sources-empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 8px 0;
+  font-style: italic;
+}
+
+.policy-sources-summary {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 4px 0 8px;
+}
+
+.policy-sources-doc {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.policy-sources-doc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.policy-sources-doc-header:hover {
+  background: var(--bg-hover);
+}
+
+.policy-sources-doc-expanded {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.policy-sources-doc-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.policy-sources-doc-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.policy-sources-doc-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--bg-panel);
+  border-radius: 8px;
+  padding: 1px 6px;
+  color: var(--text-secondary);
+}
+
+.policy-sources-doc-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+.policy-sources-doc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+}
+
+.policy-sources-ref {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  padding: 2px 0;
+}
+
+.policy-sources-stance {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+}
+
+.policy-sources-stance-strongly_aligned,
+.policy-sources-stance-aligned {
+  color: var(--success);
+}
+
+.policy-sources-stance-disputes {
+  color: var(--danger);
+}
+
+.policy-sources-pov {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.policy-sources-node-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Policy Dashboard: clickable rows ──────────────── */
+.policy-dashboard-row-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.policy-dashboard-row-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.policy-dashboard-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* ─── Policy Timeline ───────────────────────────────── */
+.policy-dashboard-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.policy-timeline-row {
+  display: grid;
+  grid-template-columns: 90px 70px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 3px;
+}
+
+.policy-timeline-row:hover {
+  background: var(--bg-hover);
+}
+
+.policy-timeline-date {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.policy-timeline-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--color-cc);
+  white-space: nowrap;
+}
+
+.policy-timeline-action {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.policy-timeline-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ─── Conflict Related Policies ─────────────────────── */
+.conflict-related-policies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.conflict-policy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-cc);
+  background: transparent;
+  font-size: 0.75rem;
+  cursor: default;
+  max-width: 280px;
+  overflow: hidden;
+}
+
+.conflict-policy-badge-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.68rem;
+  color: var(--color-cc);
+  flex-shrink: 0;
+}
+
+.conflict-policy-badge-action {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

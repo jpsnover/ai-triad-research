@@ -295,3 +295,98 @@ export function buildNodeSourceIndex(): NodeSourceIndex {
 
   return index;
 }
+
+// ── Policy ↔ Source reverse index ─────────────────────────────────────────────
+
+export interface PolicySourceReference {
+  docId: string;
+  title: string;
+  dateIngested: string;
+  sourceTime: string;
+  stance: string;
+  nodeId: string;
+  pov: string;
+}
+
+export type PolicySourceIndex = Record<string, PolicySourceReference[]>;
+
+/**
+ * For each policy in policy_actions.json, find all nodes that reference it
+ * (by scanning policy_actions in POV files), then use the node-source index
+ * to find which sources reference those nodes.
+ * Returns policyId → list of source references.
+ */
+export function buildPolicySourceIndex(): PolicySourceIndex {
+  const result: PolicySourceIndex = {};
+
+  // 1. Load policy registry to get all policy IDs
+  const regRaw = readPolicyRegistry() as { policies?: { id: string }[] } | null;
+  if (!regRaw?.policies) return result;
+  for (const pol of regRaw.policies) {
+    result[pol.id] = [];
+  }
+
+  // 2. Build node → policy mapping by scanning all POV files
+  const nodeToPolicies = new Map<string, string[]>();
+  for (const pov of Object.keys(POV_FILE_MAP)) {
+    if (pov === 'cross-cutting') continue;
+    try {
+      const file = readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
+      if (!file?.nodes) continue;
+      for (const node of file.nodes) {
+        const actions = node.graph_attributes?.policy_actions;
+        if (!actions) continue;
+        for (const action of actions) {
+          if (!action.policy_id) continue;
+          if (!nodeToPolicies.has(node.id)) nodeToPolicies.set(node.id, []);
+          nodeToPolicies.get(node.id)!.push(action.policy_id);
+        }
+      }
+    } catch { /* skip unavailable POV files */ }
+  }
+
+  // 3. Build or reuse the node-source index
+  const nodeSourceIdx = buildNodeSourceIndex();
+
+  // 4. Pre-load source metadata for dateIngested / sourceTime
+  const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
+  if (fs.existsSync(SOURCES_DIR)) {
+    for (const entry of fs.readdirSync(SOURCES_DIR, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(SOURCES_DIR, entry.name, 'metadata.json');
+      try {
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          metaCache[entry.name] = {
+            dateIngested: meta.date_ingested || meta.date_published || '',
+            sourceTime: meta.source_time || '',
+          };
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // 5. For each node that has sources, map those sources to the node's policies
+  for (const [nodeId, policyIds] of nodeToPolicies) {
+    const sourceRefs = nodeSourceIdx[nodeId];
+    if (!sourceRefs) continue;
+
+    for (const polId of policyIds) {
+      if (!result[polId]) result[polId] = [];
+      for (const ref of sourceRefs) {
+        const meta = metaCache[ref.docId] || { dateIngested: ref.datePublished, sourceTime: '' };
+        result[polId].push({
+          docId: ref.docId,
+          title: ref.title,
+          dateIngested: meta.dateIngested,
+          sourceTime: meta.sourceTime,
+          stance: ref.stance,
+          nodeId,
+          pov: ref.pov,
+        });
+      }
+    }
+  }
+
+  return result;
+}

@@ -110,6 +110,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   buildNodeSourceIndex: (): Promise<unknown> =>
     ipcRenderer.invoke('build-node-source-index'),
 
+  // Policy ↔ Source index
+  buildPolicySourceIndex: (): Promise<unknown> =>
+    ipcRenderer.invoke('build-policy-source-index'),
+
   // Edges
   loadEdges: (): Promise<unknown> =>
     ipcRenderer.invoke('load-edges'),

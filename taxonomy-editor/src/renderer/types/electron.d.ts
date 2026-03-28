@@ -34,6 +34,7 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
   buildNodeSourceIndex: () => Promise<unknown>;
+  buildPolicySourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;

@@ -17,6 +17,7 @@ import {
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
   buildNodeSourceIndex,
+  buildPolicySourceIndex,
   readPolicyRegistry,
 } from './fileIO';
 import {
@@ -164,6 +165,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('build-node-source-index', () => {
     return buildNodeSourceIndex();
+  });
+
+  ipcMain.handle('build-policy-source-index', () => {
+    return buildPolicySourceIndex();
   });
 
   ipcMain.handle('load-edges', () => {

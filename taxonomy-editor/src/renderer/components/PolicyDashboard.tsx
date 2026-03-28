@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { PolicySourcesPanel, getPolicySourceIndex } from './PolicySourcesPanel';
+import type { PolicySourceReference } from './PolicySourcesPanel';
 
 const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
@@ -11,8 +13,16 @@ const POV_COLORS: Record<string, string> = {
   'cross-cutting': 'var(--color-cc)',
 };
 
+type PolicySourceIndex = Record<string, PolicySourceReference[]>;
+
 export function PolicyDashboard() {
   const { policyRegistry, edgesFile, setToolbarPanel } = useTaxonomyStore();
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  const [policySourceIndex, setPolicySourceIndex] = useState<PolicySourceIndex | null>(null);
+
+  useEffect(() => {
+    getPolicySourceIndex().then(setPolicySourceIndex);
+  }, []);
 
   const stats = useMemo(() => {
     const policies = policyRegistry ?? [];
@@ -89,6 +99,24 @@ export function PolicyDashboard() {
     return { totalCount, crossPovCount, top10, tagEntries, maxTag, contradictHotspots };
   }, [policyRegistry, edgesFile]);
 
+  // Timeline: sort policies by earliest dateIngested from their sources
+  const timeline = useMemo(() => {
+    if (!policyRegistry || !policySourceIndex) return [];
+    return policyRegistry
+      .map((pol) => {
+        const refs = policySourceIndex[pol.id] || [];
+        const dates = refs
+          .map((r) => r.dateIngested)
+          .filter((d) => d && d.length > 0)
+          .sort();
+        const firstDate = dates.length > 0 ? dates[0] : '';
+        const firstTitle = refs.length > 0 ? refs[0].title : '';
+        return { id: pol.id, action: pol.action, firstDate, firstTitle };
+      })
+      .filter((item) => item.firstDate.length > 0)
+      .sort((a, b) => a.firstDate.localeCompare(b.firstDate));
+  }, [policyRegistry, policySourceIndex]);
+
   if (!policyRegistry || policyRegistry.length === 0) {
     return (
       <div className="policy-dashboard">
@@ -122,12 +150,23 @@ export function PolicyDashboard() {
           </div>
         </div>
 
+        {/* Selected policy detail */}
+        {selectedPolicyId && (
+          <div className="policy-dashboard-section">
+            <div className="policy-dashboard-detail-header">
+              <h3 className="policy-dashboard-section-title">Sources for {selectedPolicyId}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelectedPolicyId(null)}>Back</button>
+            </div>
+            <PolicySourcesPanel policyId={selectedPolicyId} />
+          </div>
+        )}
+
         {/* Top 10 most-referenced */}
         <div className="policy-dashboard-section">
           <h3 className="policy-dashboard-section-title">Top 10 Most-Referenced Policies</h3>
           <div className="policy-dashboard-list">
             {stats.top10.map((p, i) => (
-              <div key={p.id} className="policy-dashboard-row">
+              <div key={p.id} className="policy-dashboard-row policy-dashboard-row-clickable" onClick={() => setSelectedPolicyId(p.id)}>
                 <span className="policy-dashboard-rank">{i + 1}.</span>
                 <span className="policy-dashboard-id">{p.id}</span>
                 <span className="policy-dashboard-action" title={p.action}>{p.action}</span>
@@ -173,6 +212,29 @@ export function PolicyDashboard() {
                   <span className="policy-dashboard-id">{h.id}</span>
                   <span className="policy-dashboard-action" title={h.action}>{h.action}</span>
                   <span className="policy-dashboard-count policy-dashboard-count-hot">{h.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Timeline */}
+        <div className="policy-dashboard-section">
+          <h3 className="policy-dashboard-section-title">Timeline</h3>
+          {timeline.length === 0 ? (
+            <div className="policy-dashboard-empty-section">No source dates available</div>
+          ) : (
+            <div className="policy-dashboard-timeline">
+              {timeline.map((item) => (
+                <div
+                  key={item.id}
+                  className="policy-timeline-row"
+                  onClick={() => setSelectedPolicyId(item.id)}
+                >
+                  <span className="policy-timeline-date">{item.firstDate}</span>
+                  <span className="policy-timeline-id">{item.id}</span>
+                  <span className="policy-timeline-action" title={item.action}>{item.action}</span>
+                  <span className="policy-timeline-source" title={item.firstTitle}>{item.firstTitle}</span>
                 </div>
               ))}
             </div>
