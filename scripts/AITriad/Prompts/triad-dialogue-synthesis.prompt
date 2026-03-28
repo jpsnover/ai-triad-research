@@ -23,6 +23,13 @@ Produce a synthesis that identifies:
 3. `unresolved_questions` — open questions that emerged from the debate.
 4. `key_taxonomy_refs` — the most important taxonomy node IDs referenced across the debate.
 5. `summary` — a 2-3 paragraph narrative summary of the debate.
+6. `argument_map` — extract the key claims from the transcript and map their relationships:
+   - Each claim gets an ID (C1, C2, ...), near-verbatim text, and who said it
+   - `supported_by`: IDs of claims that provide evidence for this claim
+   - `attacked_by`: claims that challenge this one, with:
+     - `attack_type`: "rebut" (contradicts the conclusion), "undercut" (accepts evidence but denies inference), or "undermine" (attacks source credibility)
+     - `scheme`: which dialectical move was used (COUNTEREXAMPLE, DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE)
+   - Every claim must be traceable to something actually said in the transcript
 
 Respond in JSON format:
 ```json
@@ -38,6 +45,18 @@ Respond in JSON format:
   ],
   "unresolved_questions": ["..."],
   "key_taxonomy_refs": ["..."],
-  "summary": "..."
+  "summary": "...",
+  "argument_map": [
+    {
+      "claim_id": "C1",
+      "claim": "near-verbatim from transcript",
+      "claimant": "prometheus",
+      "type": "empirical or normative or definitional",
+      "supported_by": ["C3"],
+      "attacked_by": [
+        {"claim_id": "C2", "claim": "...", "claimant": "sentinel", "attack_type": "rebut", "scheme": "COUNTEREXAMPLE"}
+      ]
+    }
+  ]
 }
 ```

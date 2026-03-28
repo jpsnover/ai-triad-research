@@ -95,6 +95,16 @@ function Find-Conflict {
             assertion    = $claimText
             date_flagged = $today
         }
+        # AIF enrichment fields (dolce-phase-3) — optional, additive
+        if ($claim.Contains('attack_type') -and $claim['attack_type']) {
+            $newInstance['attack_type'] = $claim['attack_type']
+        }
+        if ($claim.Contains('target_claim') -and $claim['target_claim']) {
+            $newInstance['target_claim'] = $claim['target_claim']
+        }
+        if ($claim.Contains('counter_evidence') -and $claim['counter_evidence']) {
+            $newInstance['counter_evidence'] = $claim['counter_evidence']
+        }
 
         if ($hintId) {
             # --- Hint ID provided by the model ----------------------------------

@@ -159,7 +159,7 @@ async function generateText(prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.3, maxOutputTokens: 16384 },
     }),
   });
   if (!resp.ok) {
@@ -318,6 +318,10 @@ Identify:
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position
 5. Questions that remain unresolved
 6. Which taxonomy nodes were referenced and how they were used
+7. Build an argument map: extract key claims, show support and attack relationships
+   - Each claim: ID (C1, C2...), near-verbatim text from transcript, who said it
+   - attack_type: "rebut" (contradicts conclusion), "undercut" (accepts evidence, denies inference), "undermine" (attacks source)
+   - scheme: COUNTEREXAMPLE, DISTINGUISH, REDUCE, REFRAME, CONCEDE, or ESCALATE
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -327,7 +331,12 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"question": "...", "if_yes": "...", "if_no": "...", "type": "EMPIRICAL or VALUES"}
   ],
   "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]
+  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}],
+  "argument_map": [
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": ["C3"], "attacked_by": [
+      {"claim_id": "C2", "claim": "...", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
+    ]}
+  ]
 }`;
 }
 
@@ -427,6 +436,9 @@ async function runDebate(topicId, topicConfig, runNum) {
     const bdiLayers = (synthesis.areas_of_disagreement || []).map(d => d.bdi_layer).filter(Boolean);
     console.log(`    ✓ ${numDisagreements} disagreements, ${numCruxes} cruxes, ${numRefs} taxonomy refs`);
     console.log(`    BDI layers: ${bdiLayers.join(', ') || '(none)'}`);
+    const numClaims = synthesis.argument_map?.length || 0;
+    const numAttacks = (synthesis.argument_map || []).flatMap(c => c.attacked_by || []).length;
+    console.log(`    Argument map: ${numClaims} claims, ${numAttacks} attacks`);
   }
 
   return {
@@ -527,6 +539,26 @@ function computeAggregateStats(debates) {
     refs_by_bdi_section: refsBySection,
     total_cruxes: debates.reduce((sum, d) => sum + (d.synthesis?.cruxes?.length || 0), 0),
     mean_cruxes_per_debate: (debates.reduce((sum, d) => sum + (d.synthesis?.cruxes?.length || 0), 0) / debates.length).toFixed(1),
+    // AIF argument_map stats (Phase 3)
+    ...(() => {
+      const allClaims = debates.flatMap(d => d.synthesis?.argument_map || []);
+      const allAttacks = allClaims.flatMap(c => c.attacked_by || []);
+      const attackTypes = {};
+      const schemes = {};
+      for (const a of allAttacks) {
+        if (a.attack_type) attackTypes[a.attack_type] = (attackTypes[a.attack_type] || 0) + 1;
+        if (a.scheme) schemes[a.scheme] = (schemes[a.scheme] || 0) + 1;
+      }
+      return {
+        total_argument_map_claims: allClaims.length,
+        mean_claims_per_debate: debates.length > 0 ? (allClaims.length / debates.length).toFixed(1) : '0',
+        total_attacks: allAttacks.length,
+        mean_attacks_per_debate: debates.length > 0 ? (allAttacks.length / debates.length).toFixed(1) : '0',
+        attack_type_distribution: attackTypes,
+        scheme_distribution: schemes,
+        debates_with_argument_map: debates.filter(d => d.synthesis?.argument_map?.length > 0).length,
+      };
+    })(),
   };
 }
 

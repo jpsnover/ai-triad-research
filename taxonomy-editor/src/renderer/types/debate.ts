@@ -75,6 +75,25 @@ export interface FactCheckResult {
   checked_text: string;
 }
 
+/** AIF attack on a claim — added in dolce-phase-3. */
+export interface ArgumentAttack {
+  claim_id: string;
+  claim: string;
+  claimant: PoverId | string;
+  attack_type: 'rebut' | 'undercut' | 'undermine';
+  scheme?: 'CONCEDE' | 'DISTINGUISH' | 'REFRAME' | 'COUNTEREXAMPLE' | 'REDUCE' | 'ESCALATE';
+}
+
+/** AIF claim node — added in dolce-phase-3. */
+export interface ArgumentClaim {
+  claim_id: string;
+  claim: string;
+  claimant: PoverId | string;
+  type?: 'empirical' | 'normative' | 'definitional';
+  supported_by?: string[];
+  attacked_by?: ArgumentAttack[];
+}
+
 export interface SynthesisResult {
   areas_of_agreement: { point: string; povers: PoverId[] }[];
   areas_of_disagreement: {
@@ -87,6 +106,8 @@ export interface SynthesisResult {
   }[];
   unresolved_questions: string[];
   taxonomy_coverage: { node_id: string; how_used: string }[];
+  /** AIF argument map — added in dolce-phase-3. Absent in older debates. */
+  argument_map?: ArgumentClaim[];
 }
 
 /** POVer display metadata */

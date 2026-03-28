@@ -1109,6 +1109,24 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${dc.challenge_basis}` : ''}`);
         }
       }
+      if (synthesis.argument_map?.length > 0) {
+        lines.push('', '**Argument Map:**');
+        for (const claim of synthesis.argument_map) {
+          const claimantLabel = POVER_INFO[claim.claimant as Exclude<PoverId, 'user'>]?.label || claim.claimant;
+          const typeTag = claim.type ? ` [${claim.type}]` : '';
+          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${claim.claim}`);
+          if (claim.supported_by?.length > 0) {
+            lines.push(`  Supported by: ${claim.supported_by.join(', ')}`);
+          }
+          if (claim.attacked_by?.length > 0) {
+            for (const attack of claim.attacked_by) {
+              const attackerLabel = POVER_INFO[attack.claimant as Exclude<PoverId, 'user'>]?.label || attack.claimant;
+              const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
+              lines.push(`  ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${attack.claim}`);
+            }
+          }
+        }
+      }
       if (synthesis.unresolved_questions?.length > 0) {
         lines.push('', '**Unresolved Questions:**');
         for (const q of synthesis.unresolved_questions) {

@@ -355,7 +355,16 @@ Identify:
       - "requires_term_clarification" — debaters need to agree on definitions first (typical for conceptual disagreements)
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
 5. Questions that remain unresolved
-6. Which taxonomy nodes were referenced and how they were used${documentAnalysis}
+6. Which taxonomy nodes were referenced and how they were used
+7. Build an argument map: extract the key claims from the transcript and show how they relate
+   - Each claim gets an ID (C1, C2, ...), the verbatim or near-verbatim text, and who made it
+   - For each claim, list which other claims support it (supported_by) and which attack it
+   - For attacks, classify the attack_type:
+     "rebut" — directly contradicts the claim's conclusion (e.g., COUNTEREXAMPLE, REDUCE)
+     "undercut" — accepts the evidence but denies the inference (e.g., DISTINGUISH)
+     "undermine" — attacks the credibility or relevance of the claim's source
+   - For attacks, note which dialectical scheme was used: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
+   - Each claim must be traceable to something actually said in the transcript${documentAnalysis}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -365,7 +374,12 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],
   "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}]${documentSchema}
+  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}],
+  "argument_map": [
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": ["C3"], "attacked_by": [
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
+    ]}
+  ]${documentSchema}
 }`;
 }
 
