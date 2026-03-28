@@ -104,23 +104,18 @@ export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting
 
 export type EdgeStatus = 'proposed' | 'approved' | 'rejected';
 
-export type EdgeType =
+/** Canonical edge types (AIF-aligned, Phase 5). Legacy types still appear in pre-migration data. */
+export type CanonicalEdgeType =
   | 'SUPPORTS'
   | 'CONTRADICTS'
   | 'ASSUMES'
   | 'WEAKENS'
   | 'RESPONDS_TO'
   | 'TENSION_WITH'
-  | 'CITES'
-  | 'INTERPRETS'
-  | 'SUPPORTED_BY'
-  | 'REITERATES'
-  | 'HIGHLIGHTS_VULNERABILITY_TO'
-  | 'IS_A_POSITION_WITHIN'
-  | 'VALIDATES_ARGUMENT_WITHIN'
-  | 'COMPLEMENTS'
-  | 'DESCRIBES_SAME_CONCEPT_AS'
-  | 'INFLUENCES';
+  | 'INTERPRETS';
+
+/** Accept both canonical and legacy edge types — backward-compat handler (kept permanently). */
+export type EdgeType = CanonicalEdgeType | (string & {});
 
 export interface Edge {
   source: string;

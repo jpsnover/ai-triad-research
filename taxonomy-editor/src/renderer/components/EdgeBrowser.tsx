@@ -58,9 +58,11 @@ const EDGE_TYPES = [
   { value: 'WEAKENS', label: 'Weakens' },
   { value: 'RESPONDS_TO', label: 'Responds To' },
   { value: 'TENSION_WITH', label: 'Tension With' },
-  { value: 'CITES', label: 'Cites' },
   { value: 'INTERPRETS', label: 'Interprets' },
-  { value: 'SUPPORTED_BY', label: 'Supported By' },
+  // Legacy types — kept for backward compat with pre-Phase-5 data
+  { value: 'CITES', label: 'Cites (legacy)' },
+  { value: 'SUPPORTED_BY', label: 'Supported By (legacy)' },
+  { value: '_OTHER', label: 'Other (non-canonical)' },
 ];
 
 const STATUSES = [
@@ -93,7 +95,12 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
   return edges.filter((e) => {
     if (f.sourcePov && e.sourcePov !== f.sourcePov) return false;
     if (f.targetPov && e.targetPov !== f.targetPov) return false;
-    if (f.edgeType && e.type !== f.edgeType) return false;
+    if (f.edgeType) {
+      if (f.edgeType === '_OTHER') {
+        const canonical = new Set(['SUPPORTS','CONTRADICTS','ASSUMES','WEAKENS','RESPONDS_TO','TENSION_WITH','INTERPRETS']);
+        if (canonical.has(e.type)) return false;
+      } else if (e.type !== f.edgeType) return false;
+    }
     if (f.status && e.status !== f.status) return false;
     if (e.confidence < f.minConfidence) return false;
     if (f.crossPovOnly && e.sourcePov === e.targetPov) return false;

@@ -31,7 +31,8 @@ Return a JSON object mapping node IDs to their graph_attributes:
         "confidence": "possible",
         "explanation": "1-3 sentence explanation grounded in specific node content. Identify the specific reasoning gap and explain why it undermines the argument."
       }
-    ]
+    ],
+    "node_scope": "claim or scheme or bridging"
   },
   "node_id_2": {
     ...
@@ -41,7 +42,7 @@ Return a JSON object mapping node IDs to their graph_attributes:
 CONSTRAINTS:
   - The top-level keys MUST be the exact node IDs provided in the input.
   - Every node in the input MUST have a corresponding entry in the output.
-  - All ten attribute fields are REQUIRED for every node.
+  - All eleven attribute fields are REQUIRED for every node (including node_scope).
   - The "policy_actions" array may be empty (0 items) or contain up to 3 items.
   - Each policy action "action" field must be specific and concrete (5-15 words).
   - "policy_id" should be null — IDs are assigned by the pipeline after extraction.
