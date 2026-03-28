@@ -18,6 +18,7 @@ interface GraphAttributesPanelProps {
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',
+  node_scope: 'Node Scope',
   rhetorical_strategy: 'Rhetorical Strategy',
   assumes: 'Assumptions',
   falsifiability: 'Falsifiability',
@@ -36,6 +37,10 @@ const BADGE_COLORS: Record<string, string> = {
   strategic_recommendation: '#059669',
   predictive: '#d97706',
   interpretive_lens: '#be185d',
+  // node_scope
+  claim: '#16a34a',
+  scheme: '#2563eb',
+  bridging: '#d97706',
   // emotional_register
   urgent: '#dc2626',
   measured: '#2563eb',
@@ -228,6 +233,14 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
               <div className="ga-cell-sub">
                 <div className="ga-label">{LABEL_MAP.falsifiability}</div>
                 <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+              </div>
+            )}
+            {attrs.node_scope && (
+              <div className="ga-cell-sub">
+                <div className="ga-label">{LABEL_MAP.node_scope}</div>
+                <div className="ga-value">
+                  <Badge field="node_scope" value={attrs.node_scope} onClick={onBadgeClick} />
+                </div>
               </div>
             )}
           </div>

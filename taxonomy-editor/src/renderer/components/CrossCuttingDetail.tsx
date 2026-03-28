@@ -120,6 +120,27 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
         <span className="node-detail-title-sep"> : </span>
         <span className="node-detail-label-text">{node.label}</span>
       </div>
+      {node.disagreement_type && (
+        <div className="cc-detail-disagreement-type" style={{ marginTop: '4px' }}>
+          <span
+            className="ga-badge"
+            style={{
+              backgroundColor: {
+                definitional: '#0891b2',
+                interpretive: '#7c3aed',
+                structural: '#d97706',
+              }[node.disagreement_type] || '#64748b',
+              color: '#fff',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+            }}
+          >
+            {node.disagreement_type.replace(/_/g, ' ')}
+          </span>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="cc-detail-tabs">

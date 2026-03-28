@@ -21,6 +21,8 @@ export interface GraphAttributes {
   intellectual_lineage?: string[];
   steelman_vulnerability?: string;
   possible_fallacies?: PossibleFallacy[];
+  /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
+  node_scope?: 'claim' | 'scheme' | 'bridging';
 }
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
@@ -60,6 +62,8 @@ export interface CrossCuttingNode {
   linked_nodes: string[];
   conflict_ids: string[];
   graph_attributes?: GraphAttributes;
+  /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
+  disagreement_type?: 'definitional' | 'interpretive' | 'structural';
 }
 
 export interface CrossCuttingFile {

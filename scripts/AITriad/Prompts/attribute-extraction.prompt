@@ -117,6 +117,26 @@ ATTRIBUTE VOCABULARY:
         confirmation_bias, dunning_kruger, hindsight_bias, optimism_bias,
         status_quo_bias, survivorship_bias
 
+  node_scope (required, string — pick ONE):
+    Classifies what role this node plays in the argumentation structure:
+    "claim" — a specific, testable assertion about the world. Most Data/Facts nodes
+      are claims. A claim can be supported or attacked by other nodes.
+      Test: "Does this node assert something that could be true or false?"
+      Example: "AGI will arrive by 2030" — a specific prediction.
+    "scheme" — an argumentative strategy, framework, or reasoning pattern. Most
+      Methods/Arguments nodes are schemes. A scheme connects evidence to conclusions.
+      Test: "Does this node describe HOW to reason about something?"
+      Example: "Cost-benefit analysis of AI regulation" — a reasoning approach.
+    "bridging" — a node that connects claims to schemes or values, serving as an
+      intermediate step. Use sparingly — most nodes are clearly claims or schemes.
+      Test: "Does this node primarily exist to link other nodes together?"
+      Example: "AI safety research as a prerequisite for deployment" — links the
+      safety claim to the deployment scheme.
+    Category guidance (not a rule — override when the content doesn't match):
+      Data/Facts → usually "claim"
+      Methods/Arguments → usually "scheme"
+      Goals/Values → could be any; use the tests above
+
 CROSS-CUTTING NODES:
 For cross-cutting nodes (id starts with "cc-"), also consider the three POV
 interpretations when generating attributes. The epistemic_type and rhetorical_strategy

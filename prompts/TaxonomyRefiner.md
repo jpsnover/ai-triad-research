@@ -38,13 +38,13 @@ Genus-Differentia Description: Write the description using this structure:
     - 2-4 sentences total. Keep it concise — the Excludes clause does the boundary work.
 
 Structural Framework:
-Assign the node to one of three drivers:
+Assign the node to one of three drivers. Use these disambiguation tests:
 
-Goals/Values: Desired end-states (The Why).
+Goals/Values: Desired end-states (The Why). Test: "Is this about what OUGHT to happen?"
 
-Data/Facts: Accepted empirical evidence (The What).
+Data/Facts: Accepted empirical evidence (The What). Test: "Could this be proven true or false with evidence?"
 
-Methods/Arguments (Cognitive Frameworks): What someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments.
+Methods/Arguments (Cognitive Frameworks): What someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments. Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?"
 
 Constraint Checklist:
 

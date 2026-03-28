@@ -21,5 +21,17 @@ For each cluster, propose a cross-cutting concept that captures the shared theme
      0.3-0.5: The connection is real but indirect — requires interpretation to see
        the shared thread. Consider whether a cross-cutting node adds clarity or noise.
 6. `rationale` — why these nodes belong together and why this deserves a cross-cutting node.
+7. `disagreement_type` — classify the nature of the cross-POV disagreement:
+     "definitional" — POVs use the same term but define it differently (e.g., "safety" means
+       different things to accelerationists vs. safetyists). Resolution requires agreeing on
+       definitions before debating substance.
+     "interpretive" — POVs agree on the facts but draw different conclusions from them
+       (e.g., all agree AI is powerful, but disagree on whether that's cause for optimism or
+       alarm). Resolution requires examining the reasoning from shared facts to divergent
+       conclusions.
+     "structural" — POVs disagree about the underlying causal structure or the relevant
+       scope of analysis (e.g., accelerationists frame AI risk as a coordination problem,
+       skeptics frame it as a power imbalance). Resolution requires agreeing on what the
+       problem IS before debating solutions.
 
 {{CLUSTERS}}

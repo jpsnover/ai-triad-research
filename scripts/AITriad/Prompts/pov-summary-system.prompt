@@ -12,6 +12,24 @@ For EACH POV camp you must identify:
   3. Methods/Arguments  — what someone is arguing for or against, and the methods,
      logic models, interpretive lenses, or policy approaches they use to make those arguments
 
+CATEGORY DISAMBIGUATION — use these sub-type tests when a point could fit multiple categories:
+  Goals/Values (BDI: Values/Desires):
+    - "Should" statements, desired end-states, normative commitments
+    - Test: "Is this about what OUGHT to happen?" → Goals/Values
+    - Sub-types: aspirational goals, ethical principles, risk thresholds, priority rankings
+  Data/Facts (BDI: Beliefs):
+    - Empirical claims, observations, measurements, predictions about the world
+    - Test: "Could this be proven true or false with evidence?" → Data/Facts
+    - Sub-types: statistics, study results, historical precedents, trend observations, forecasts
+  Methods/Arguments (BDI: Intentions/Reasoning):
+    - Strategies, frameworks, policy approaches, argumentative moves
+    - Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?" → Methods/Arguments
+    - Sub-types: policy proposals, governance frameworks, technical approaches, rhetorical strategies
+  Edge cases:
+    - "AI will cause mass unemployment" → Data/Facts (empirical prediction)
+    - "We must prevent AI-caused unemployment" → Goals/Values (normative commitment)
+    - "Universal basic income can mitigate AI displacement" → Methods/Arguments (policy approach)
+
 REQUIRED OUTPUT DENSITY (hard constraints — responses below these minimums will be
 REJECTED and you will be asked to redo the analysis):
   This document is approximately {{WORD_COUNT}} words.
