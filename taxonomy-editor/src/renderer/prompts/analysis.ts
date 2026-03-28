@@ -52,6 +52,7 @@ export interface NodeCritiqueContext {
   povJson: string;
   nodeJson: string;
   povName: string;
+  policyRegistryJson: string;
 }
 
 export function nodeCritiquePrompt(ctx: NodeCritiqueContext): string {
@@ -68,6 +69,9 @@ ${ctx.crossCuttingJson}
 3. LOCAL HIERARCHY (The ${ctx.povName} POV this node belongs to):
 ${ctx.povJson}
 
+4. POLICY ACTION REGISTRY (canonical policies with IDs):
+${ctx.policyRegistryJson}
+
 ### TARGET NODE FOR CRITIQUE
 ${ctx.nodeJson}
 
@@ -77,6 +81,7 @@ Critique this node with a focus on **Systemic Integration**:
 2. **Relational Integrity:** Does the \`assumes\` list align with the "Relationship Grammar"?
 3. **Taxonomic Placement:** Is the \`parent_id\` logically sound given the other nodes in the Local Hierarchy?
 4. **Epistemic Drift:** Does the POV-specific description lean too far into rhetoric, losing its connection to the underlying universal concept?
+5. **Policy Action Alignment:** Do the node's \`policy_actions\` reference appropriate registry entries (pol-NNN IDs)? Should any be replaced with a better-matching existing policy? Are any missing policies that this node clearly implies? Every policy_action MUST have a valid \`policy_id\` — reuse existing registry entries when possible.
 
 ### OUTPUT FORMAT
 Respond in Markdown with the following sections in order:
@@ -89,7 +94,7 @@ For **each** proposed change, write a separate subsection:
 
 ##### [Field Name] Change
 - **What:** Describe the specific change
-- **Why:** Reference the relevant critique directive (Redundancy, Relational Integrity, Taxonomic Placement, or Epistemic Drift)
+- **Why:** Reference the relevant critique directive (Redundancy, Relational Integrity, Taxonomic Placement, Epistemic Drift, or Policy Action Alignment)
 - **Impact:** How this change improves the knowledge graph's consistency
 
 If no change is needed for a field, do not include a subsection for it.

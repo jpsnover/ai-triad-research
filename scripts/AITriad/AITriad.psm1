@@ -209,6 +209,7 @@ Export-ModuleMember -Function @(
     'Get-Policy'
     'Update-PolicyRegistry'
     'Show-FallacyInfo'
+    'Test-TaxonomyIntegrity'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
 ) -Alias @(

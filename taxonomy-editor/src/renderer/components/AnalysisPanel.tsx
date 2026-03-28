@@ -229,6 +229,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
     runNodeCritique,
     updatePovNode,
     save,
+    policyRegistry,
     geminiModel,
   } = useTaxonomyStore();
 
@@ -281,7 +282,33 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
 
   const handleAccept = async (diff: FieldDiff) => {
     if (!analysisCritiquePov || !analysisCritiqueNodeId) return;
-    updatePovNode(analysisCritiquePov, analysisCritiqueNodeId, { [diff.key]: diff.newValue } as Partial<PovNode>);
+
+    let value = diff.newValue;
+
+    // For graph_attributes changes containing policy_actions, validate policy_ids
+    if (diff.key === 'graph_attributes' && value && typeof value === 'object') {
+      const ga = value as Record<string, unknown>;
+      const pas = ga.policy_actions as Array<{ policy_id?: string; action: string; framing: string }> | undefined;
+      if (pas && policyRegistry) {
+        const registryIds = new Set(policyRegistry.map(p => p.id));
+        for (const pa of pas) {
+          if (pa.policy_id && !registryIds.has(pa.policy_id)) {
+            // AI proposed a non-existent policy_id — try to find a match by action text
+            const match = policyRegistry.find(p => p.action.toLowerCase() === pa.action.toLowerCase());
+            if (match) {
+              pa.policy_id = match.id;
+            } else {
+              // Clear invalid ID — will need manual assignment via Update-PolicyRegistry
+              pa.policy_id = undefined;
+            }
+          }
+        }
+        ga.policy_actions = pas;
+        value = ga;
+      }
+    }
+
+    updatePovNode(analysisCritiquePov, analysisCritiqueNodeId, { [diff.key]: value } as Partial<PovNode>);
     await save();
     setAcceptedFields(prev => new Set(prev).add(diff.key));
   };

@@ -60,6 +60,7 @@
         'Get-Policy'
         'Update-PolicyRegistry'
         'Show-FallacyInfo'
+        'Test-TaxonomyIntegrity'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
     )

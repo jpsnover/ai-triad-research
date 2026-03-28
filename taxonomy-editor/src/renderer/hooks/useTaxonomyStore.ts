@@ -670,6 +670,12 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         })), null, 2)
       : '(POV file not loaded)';
 
+    const policyRegistryJson = state.policyRegistry
+      ? JSON.stringify(state.policyRegistry.map(p => ({
+          id: p.id, action: p.action, source_povs: p.source_povs,
+        })), null, 2)
+      : '(policy registry not loaded)';
+
     const nodeJson = JSON.stringify(node, null, 2);
 
     const prompt = nodeCritiquePrompt({
@@ -678,6 +684,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       povJson,
       nodeJson,
       povName: POV_LABELS[pov] || pov,
+      policyRegistryJson,
     });
 
     const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {

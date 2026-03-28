@@ -49,7 +49,8 @@ ATTRIBUTE VOCABULARY:
 
   policy_actions (required, array of 0-3 objects):
     Concrete policy actions that this node's claim supports, implies, or could inform.
-    Each object has two fields:
+    Each object has three fields:
+      "policy_id" — set to null (IDs are assigned by the pipeline after extraction)
       "action" — a specific, concrete policy action in 5-15 words
         (e.g. "Require pre-deployment safety evaluations for frontier AI models")
       "framing" — 1-2 sentences explaining how this node's claim connects to
