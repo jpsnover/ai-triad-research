@@ -638,19 +638,19 @@ body {
   margin-left: 6px;
   vertical-align: middle;
 }
-.cluster-vs-separator {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-style: italic;
-  padding: 2px 0;
-  border-top: 1px dashed var(--border-color);
-  border-bottom: 1px dashed var(--border-color);
-  margin: 2px 16px;
+.node-item-misfit {
+  border-left: 3px solid #e6a855;
 }
-.nli-entailment { background: #2d5a2d; color: #a8e6a8; }  /* "shared" */
-.nli-neutral { background: #5a5a2d; color: #e6e6a8; }  /* "unclear" */
-.nli-contradiction { background: #5a2d2d; color: #e6a8a8; }  /* "contested" */
+.misfit-badge {
+  font-size: 0.6rem;
+  background: #5a4a2d;
+  color: #e6cf8a;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: help;
+}
 
 /* ─── Node list items ──────────────────────────────────── */
 

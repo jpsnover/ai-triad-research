@@ -79,6 +79,7 @@ export function PovTab({ pov }: PovTabProps) {
   }, [similarResults]);
 
   const clusterGroups = clusterView?.clusters ?? null;
+  const clusterMisfits = clusterView?.misfits ?? null;
 
   const orderedIds = useMemo(
     () => (file ? getOrderedNodeIds(file.nodes, sortMode, similarScoresMap, clusterGroups) : []),
@@ -353,6 +354,7 @@ export function PovTab({ pov }: PovTabProps) {
               similarScores={similarScoresMap}
               clusters={clusterGroups}
               clusterLoading={clusterLoading}
+              misfits={clusterMisfits}
             />
           </div>
         </div>

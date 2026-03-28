@@ -9,8 +9,6 @@ export type SortMode = 'id' | 'label' | 'similarity';
 export interface ClusterGroup {
   label: string;
   nodeIds: string[];
-  nliLabel?: 'entailment' | 'neutral' | 'contradiction' | null;
-  sides?: [string[], string[]] | null;
 }
 
 interface NodeTreeProps {
@@ -21,6 +19,7 @@ interface NodeTreeProps {
   similarScores?: Map<string, number> | null;
   clusters?: ClusterGroup[] | null;
   clusterLoading?: boolean;
+  misfits?: Set<string> | null;
 }
 
 const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Methods/Arguments', 'Data/Facts'];
@@ -81,7 +80,7 @@ function saveCollapsed(collapsed: Set<string>) {
   localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading }: NodeTreeProps) {
+export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
   const toggleGroup = useCallback((key: string) => {
@@ -116,44 +115,16 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
               >
                 <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
                 {cluster.label} <span className="category-count">({clusterNodes.length})</span>
-                {cluster.nliLabel && (
-                  <span className={`nli-badge nli-${cluster.nliLabel}`}>
-                    {cluster.nliLabel === 'entailment' ? 'shared' : cluster.nliLabel === 'contradiction' ? 'contested' : 'unclear'}
-                  </span>
-                )}
               </div>
-              {!isCollapsed && (
-                cluster.nliLabel === 'contradiction' && cluster.sides ? (
-                  <>
-                    {cluster.sides[0].map(id => nodeMap.get(id)).filter(Boolean).map(node => (
-                      <NodeItem
-                        key={node!.id}
-                        node={node!}
-                        isSelected={selectedNodeId === node!.id}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                    <div className="cluster-vs-separator">vs.</div>
-                    {cluster.sides[1].map(id => nodeMap.get(id)).filter(Boolean).map(node => (
-                      <NodeItem
-                        key={node!.id}
-                        node={node!}
-                        isSelected={selectedNodeId === node!.id}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                  </>
-                ) : (
-                  clusterNodes.map((node) => (
-                    <NodeItem
-                      key={node.id}
-                      node={node}
-                      isSelected={selectedNodeId === node.id}
-                      onSelect={onSelect}
-                    />
-                  ))
-                )
-              )}
+              {!isCollapsed && clusterNodes.map((node) => (
+                <NodeItem
+                  key={node.id}
+                  node={node}
+                  isSelected={selectedNodeId === node.id}
+                  onSelect={onSelect}
+                  isMisfit={misfits?.has(node.id)}
+                />
+              ))}
             </div>
           );
         })}
@@ -278,13 +249,14 @@ const REL_LABELS: Record<string, string> = {
   specializes: 'specializes',
 };
 
-function NodeItem({ node, isSelected, onSelect, score, indent, relationship }: {
+function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit }: {
   node: PovNode;
   isSelected: boolean;
   onSelect: (id: string) => void;
   score?: number;
   indent?: boolean;
   relationship?: string | null;
+  isMisfit?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -297,11 +269,14 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship }: {
   return (
     <div
       ref={ref}
-      className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}`}
+      className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}${isMisfit ? ' node-item-misfit' : ''}`}
       data-cat={node.category}
       onClick={() => onSelect(node.id)}
     >
-      <div>{node.label || '(untitled)'}</div>
+      <div>
+        {node.label || '(untitled)'}
+        {isMisfit && <span className="misfit-badge" title="This node contradicts most of its cluster — it may belong in a different POV">misfit?</span>}
+      </div>
       <div className="node-item-id">
         {node.id}
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}

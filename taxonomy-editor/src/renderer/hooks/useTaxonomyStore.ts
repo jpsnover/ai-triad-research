@@ -305,7 +305,7 @@ interface TaxonomyState {
   analysisCritiqueOriginalNode: PovNode | null;
   runNodeCritique: (pov: Pov, node: PovNode) => Promise<void>;
 
-  clusterView: { clusters: { label: string; nodeIds: string[]; nliLabel?: 'entailment' | 'neutral' | 'contradiction' | null; sides?: [string[], string[]] | null }[] } | null;
+  clusterView: { clusters: { label: string; nodeIds: string[] }[]; misfits?: Set<string> } | null;
   clusterLoading: boolean;
   clusterError: string | null;
   runClusterView: (pov: Pov) => Promise<void>;
@@ -531,12 +531,67 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         }
       }
 
-      // NLI classification is skipped for single-POV clustering (the editor
-      // always clusters within one POV tab). Within-POV nodes are inherently
-      // aligned in direction — NLI produces misleading contested/contradiction
-      // labels when comparing nodes that agree but address different topics.
-      // NLI is used in Find-CrossCuttingCandidates (PowerShell) where clusters
-      // span multiple POVs and opposition is meaningful.
+      // NLI misfit detection — flag nodes that contradict most of their
+      // cluster-mates, which may indicate wrong-POV placement.
+      const misfits = new Set<string>();
+      try {
+        const descMap = new Map(file.nodes.map(n => [n.id, n.description || n.label]));
+
+        // Build all pairs for clusters with 3+ nodes (2-node clusters can't have a misfit)
+        const nliPairs: Array<{ text_a: string; text_b: string; clusterIdx: number; idA: string; idB: string }> = [];
+        for (let ci = 0; ci < multiClusters.length; ci++) {
+          const ids = multiClusters[ci].nodeIds;
+          if (ids.length < 3) continue;
+          for (let i = 0; i < ids.length; i++) {
+            for (let j = i + 1; j < ids.length; j++) {
+              nliPairs.push({
+                text_a: descMap.get(ids[i]) || ids[i],
+                text_b: descMap.get(ids[j]) || ids[j],
+                clusterIdx: ci,
+                idA: ids[i],
+                idB: ids[j],
+              });
+            }
+          }
+        }
+
+        if (nliPairs.length > 0) {
+          const { results } = await window.electronAPI.nliClassify(nliPairs);
+
+          // Per-node contradiction counts within each cluster
+          // nodeId → { agrees: number, contradicts: number }
+          const nodeCounts = new Map<string, { agrees: number; contradicts: number }>();
+
+          for (let k = 0; k < results.length; k++) {
+            const { idA, idB } = nliPairs[k];
+            const label = results[k].nli_label;
+            for (const id of [idA, idB]) {
+              if (!nodeCounts.has(id)) nodeCounts.set(id, { agrees: 0, contradicts: 0 });
+            }
+            if (label === 'contradiction') {
+              nodeCounts.get(idA)!.contradicts++;
+              nodeCounts.get(idB)!.contradicts++;
+            } else {
+              nodeCounts.get(idA)!.agrees++;
+              nodeCounts.get(idB)!.agrees++;
+            }
+          }
+
+          // Flag nodes where contradictions outnumber agreements
+          for (const [nodeId, counts] of nodeCounts) {
+            if (counts.contradicts > counts.agrees) {
+              misfits.add(nodeId);
+            }
+          }
+
+          if (misfits.size > 0) {
+            console.log(`[clusterView] NLI flagged ${misfits.size} potential misfit nodes:`,
+              [...misfits].join(', '));
+          }
+        }
+      } catch (nliErr) {
+        console.warn('[clusterView] NLI misfit detection failed, continuing without:', nliErr);
+      }
 
       // Sort clusters by size descending
       multiClusters.sort((a, b) => b.nodeIds.length - a.nodeIds.length);
@@ -546,7 +601,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         multiClusters.push({ label: 'Other', nodeIds: singletonIds });
       }
 
-      set({ clusterView: { clusters: multiClusters }, clusterLoading: false });
+      set({ clusterView: { clusters: multiClusters, misfits: misfits.size > 0 ? misfits : undefined }, clusterLoading: false });
     } catch (err) {
       set({ clusterLoading: false, clusterError: String(err) });
     }
