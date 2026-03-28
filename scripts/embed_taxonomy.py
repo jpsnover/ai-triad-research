@@ -8,10 +8,17 @@ embed_taxonomy.py — Generate and query semantic embeddings for the AI Triad ta
 
 Subcommands
 -----------
-  generate   Rebuild taxonomy/embeddings.json from all POV JSON files.
-  query      Find taxonomy nodes most similar to a text query.
+  generate       Rebuild taxonomy/embeddings.json from all POV JSON files.
+  query          Find taxonomy nodes most similar to a text query.
+  find-overlaps  Find node pairs with high embedding similarity.
+  encode         Encode a single text to an embedding vector.
+  batch-encode   Encode multiple texts from stdin JSON.
+  nli-classify   Classify text pairs as entailment/neutral/contradiction.
 
-Uses the local all-MiniLM-L6-v2 model via sentence-transformers.
+Uses the local all-MiniLM-L6-v2 model for embeddings and
+cross-encoder/nli-deberta-v3-small for NLI classification (both via
+sentence-transformers, no API required).
+
 All informational/warning messages go to stderr; only machine-readable
 JSON output goes to stdout.
 """
@@ -27,6 +34,8 @@ import numpy as np
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _DEFAULT_TAXONOMY_DIR = _SCRIPT_DIR.parent / "taxonomy" / "Origin"
 MODEL_NAME = "all-MiniLM-L6-v2"
+NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
+NLI_LABELS = ["entailment", "neutral", "contradiction"]
 
 # Resolved at runtime via --taxonomy-dir or .aitriad.json
 TAXONOMY_DIR: Path = _DEFAULT_TAXONOMY_DIR
@@ -62,6 +71,38 @@ def _load_model():
 
     print(f"Loading model '{MODEL_NAME}'...", file=sys.stderr)
     return SentenceTransformer(MODEL_NAME)
+
+
+def _load_nli_model():
+    """Load the NLI cross-encoder model (downloads on first run)."""
+    from sentence_transformers import CrossEncoder
+
+    print(f"Loading NLI model '{NLI_MODEL_NAME}'...", file=sys.stderr)
+    return CrossEncoder(NLI_MODEL_NAME)
+
+
+def _classify_pairs_nli(nli_model, pairs):
+    """Classify a list of (text_a, text_b) pairs using the NLI cross-encoder.
+
+    Returns a list of dicts with 'label' (entailment|neutral|contradiction)
+    and individual scores for each class.
+    """
+    if not pairs:
+        return []
+
+    scores = nli_model.predict(pairs)
+
+    # scores shape: (N, 3) — columns are entailment, neutral, contradiction
+    results = []
+    for row in scores:
+        label_idx = int(np.argmax(row))
+        results.append({
+            "label": NLI_LABELS[label_idx],
+            "entailment": round(float(row[0]), 4),
+            "neutral": round(float(row[1]), 4),
+            "contradiction": round(float(row[2]), 4),
+        })
+    return results
 
 
 def _load_taxonomy_nodes():
@@ -227,7 +268,12 @@ def cmd_batch_encode(args):
 
 
 def cmd_find_overlaps(args):
-    """Find node pairs with high embedding similarity (potential merge candidates)."""
+    """Find node pairs with high embedding similarity (potential merge candidates).
+
+    Unless --no-nli is set, each pair is verified with an NLI cross-encoder to
+    classify the relationship as entailment (genuine overlap), neutral, or
+    contradiction (opposite statements on the same topic).
+    """
     if not EMBEDDINGS_FILE.exists():
         print(
             "Error: embeddings.json not found. Run 'generate' first.",
@@ -236,6 +282,12 @@ def cmd_find_overlaps(args):
         sys.exit(1)
 
     data = json.loads(EMBEDDINGS_FILE.read_text(encoding="utf-8"))
+
+    # Load taxonomy node texts for NLI
+    node_texts = {}
+    for pov, node in _load_taxonomy_nodes():
+        text = node.get("description", "") or node.get("label", "")
+        node_texts[node["id"]] = text
 
     # Build arrays
     node_ids = []
@@ -282,8 +334,64 @@ def cmd_find_overlaps(args):
     if args.top and args.top > 0:
         pairs = pairs[:args.top]
 
+    # NLI verification
+    if not args.no_nli and pairs:
+        nli_model = _load_nli_model()
+        nli_pairs = []
+        for p in pairs:
+            text_a = node_texts.get(p["node_a"], p["node_a"])
+            text_b = node_texts.get(p["node_b"], p["node_b"])
+            nli_pairs.append((text_a, text_b))
+
+        print(f"Running NLI classification on {len(nli_pairs)} pairs...", file=sys.stderr)
+        nli_results = _classify_pairs_nli(nli_model, nli_pairs)
+
+        for pair, nli in zip(pairs, nli_results):
+            pair["nli_label"] = nli["label"]
+            pair["nli_entailment"] = nli["entailment"]
+            pair["nli_neutral"] = nli["neutral"]
+            pair["nli_contradiction"] = nli["contradiction"]
+
+        contradictions = sum(1 for p in pairs if p["nli_label"] == "contradiction")
+        entailments = sum(1 for p in pairs if p["nli_label"] == "entailment")
+        neutrals = sum(1 for p in pairs if p["nli_label"] == "neutral")
+        print(
+            f"NLI results: {entailments} entailment, {neutrals} neutral, "
+            f"{contradictions} contradiction",
+            file=sys.stderr,
+        )
+
     print(f"Found {len(pairs)} pairs above threshold {args.threshold}", file=sys.stderr)
     json.dump(pairs, sys.stdout, indent=2)
+
+
+def cmd_nli_classify(args):
+    """Classify text pairs as entailment, neutral, or contradiction.
+
+    Reads JSON from stdin: [{"text_a": "...", "text_b": "...", ...}]
+    Extra fields are preserved and passed through to the output.
+    Outputs JSON: [{"text_a": "...", "text_b": "...", "nli_label": "...", ...}]
+    """
+    raw = sys.stdin.read()
+    items = json.loads(raw)
+    if not items:
+        json.dump([], sys.stdout)
+        return
+
+    nli_model = _load_nli_model()
+    nli_pairs = [(item["text_a"], item["text_b"]) for item in items]
+
+    print(f"Classifying {len(nli_pairs)} pairs...", file=sys.stderr)
+    results = _classify_pairs_nli(nli_model, nli_pairs)
+
+    # Merge NLI results back into input items (preserving extra fields)
+    for item, nli in zip(items, results):
+        item["nli_label"] = nli["label"]
+        item["nli_entailment"] = nli["entailment"]
+        item["nli_neutral"] = nli["neutral"]
+        item["nli_contradiction"] = nli["contradiction"]
+
+    json.dump(items, sys.stdout, indent=2)
 
 
 def main():
@@ -316,7 +424,10 @@ def main():
     )
 
     # find-overlaps
-    o = sub.add_parser("find-overlaps", help="Find node pairs with high embedding similarity")
+    o = sub.add_parser(
+        "find-overlaps",
+        help="Find node pairs with high embedding similarity (with NLI verification)",
+    )
     o.add_argument(
         "--threshold",
         type=float,
@@ -339,6 +450,11 @@ def main():
         default=0,
         help="Limit output to top N pairs (0 = all)",
     )
+    o.add_argument(
+        "--no-nli",
+        action="store_true",
+        help="Skip NLI cross-encoder verification (faster, but no contradiction detection)",
+    )
 
     # encode — output raw vector for a single text
     e = sub.add_parser("encode", help="Encode a single text to an embedding vector (JSON)")
@@ -346,6 +462,12 @@ def main():
 
     # batch-encode — encode multiple texts from stdin
     sub.add_parser("batch-encode", help="Encode multiple texts from stdin JSON [{id, text}] -> {id: vector}")
+
+    # nli-classify — classify text pairs via NLI cross-encoder
+    sub.add_parser(
+        "nli-classify",
+        help="Classify text pairs from stdin JSON [{text_a, text_b}] as entailment/neutral/contradiction",
+    )
 
     args = parser.parse_args()
     _resolve_taxonomy_dir(args.taxonomy_dir)
@@ -360,6 +482,8 @@ def main():
         cmd_encode(args)
     elif args.command == "batch-encode":
         cmd_batch_encode(args)
+    elif args.command == "nli-classify":
+        cmd_nli_classify(args)
 
 
 if __name__ == "__main__":

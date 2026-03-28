@@ -115,8 +115,27 @@ function Badge({ field, value, onClick, onContextMenu }: {
 }
 
 export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, defaultOpen }: GraphAttributesPanelProps) {
-  const { policyRegistry } = useTaxonomyStore();
+  const { policyRegistry, edgesFile } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
+  const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null);
+
+  // Build policy edge lookup
+  const policyEdges = useMemo(() => {
+    if (!edgesFile) return new Map<string, { type: string; target: string; targetAction: string }[]>();
+    const map = new Map<string, { type: string; target: string; targetAction: string }[]>();
+    for (const edge of edgesFile.edges) {
+      if (!edge.source.startsWith('pol-') && !edge.target.startsWith('pol-')) continue;
+      const addEdge = (polId: string, otherId: string, type: string) => {
+        const list = map.get(polId) || [];
+        const reg = policyRegistry?.find(p => p.id === otherId);
+        list.push({ type, target: otherId, targetAction: reg?.action || otherId });
+        map.set(polId, list);
+      };
+      if (edge.source.startsWith('pol-')) addEdge(edge.source, edge.target, edge.type);
+      if (edge.target.startsWith('pol-')) addEdge(edge.target, edge.source, edge.type);
+    }
+    return map;
+  }, [edgesFile, policyRegistry]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string; value: string } | null>(null);
 
   // Close context menu on Escape or outside click
@@ -235,6 +254,12 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
               <ul className="ga-policy-actions-list">
                 {attrs.policy_actions.map((pa, i) => {
                   const reg = policyRegistry?.find(p => p.id === pa.policy_id);
+                  const edges = pa.policy_id ? policyEdges.get(pa.policy_id) : undefined;
+                  const edgeCount = edges?.length || 0;
+                  const isExpanded = expandedPolicyId === pa.policy_id;
+                  const contradicts = edges?.filter(e => e.type === 'CONTRADICTS') || [];
+                  const complements = edges?.filter(e => e.type === 'COMPLEMENTS') || [];
+                  const tensions = edges?.filter(e => e.type === 'TENSION_WITH') || [];
                   return (
                     <li key={i} className="ga-policy-action-item">
                       {pa.policy_id && (
@@ -245,10 +270,53 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                               {reg.member_count} nodes &middot; {reg.source_povs.map(p => p.slice(0, 3)).join(', ')}
                             </span>
                           )}
+                          {edgeCount > 0 && (
+                            <button
+                              className="ga-policy-edges-toggle"
+                              onClick={() => setExpandedPolicyId(isExpanded ? null : pa.policy_id!)}
+                              title={`${edgeCount} policy relationships`}
+                            >
+                              {isExpanded ? '\u25BC' : '\u25B6'} {edgeCount} edge{edgeCount !== 1 ? 's' : ''}
+                            </button>
+                          )}
                         </div>
                       )}
                       <div className="ga-policy-action-text">{pa.action}</div>
                       <div className="ga-policy-action-framing">{pa.framing}</div>
+                      {isExpanded && edges && edges.length > 0 && (
+                        <div className="ga-policy-edges">
+                          {contradicts.length > 0 && (
+                            <div className="ga-policy-edge-group">
+                              <div className="ga-policy-edge-type ga-policy-edge-contradicts">Contradicts</div>
+                              {contradicts.map((e, ei) => (
+                                <div key={ei} className="ga-policy-edge-item">
+                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {complements.length > 0 && (
+                            <div className="ga-policy-edge-group">
+                              <div className="ga-policy-edge-type ga-policy-edge-complements">Complements</div>
+                              {complements.map((e, ei) => (
+                                <div key={ei} className="ga-policy-edge-item">
+                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {tensions.length > 0 && (
+                            <div className="ga-policy-edge-group">
+                              <div className="ga-policy-edge-type ga-policy-edge-tension">Tension With</div>
+                              {tensions.map((e, ei) => (
+                                <div key={ei} className="ga-policy-edge-item">
+                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </li>
                   );
                 })}

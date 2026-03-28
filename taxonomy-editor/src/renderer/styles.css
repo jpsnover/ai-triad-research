@@ -4223,6 +4223,48 @@ body {
   color: var(--color-acc, #27AE60);
   font-weight: 600;
 }
+.ga-policy-edges-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+  margin-left: auto;
+}
+.ga-policy-edges-toggle:hover {
+  color: var(--text-primary);
+}
+.ga-policy-edges {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+}
+.ga-policy-edge-group {
+  margin-bottom: 6px;
+}
+.ga-policy-edge-type {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 3px;
+}
+.ga-policy-edge-contradicts { color: #e74c3c; }
+.ga-policy-edge-complements { color: var(--color-acc, #27AE60); }
+.ga-policy-edge-tension { color: #f39c12; }
+.ga-policy-edge-item {
+  padding: 2px 0 2px 8px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.ga-policy-edge-id {
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
 .ga-policy-action-text {
   font-weight: 700;
   font-size: 0.85rem;
