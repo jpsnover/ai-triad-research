@@ -17,6 +17,7 @@ import {
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
   buildNodeSourceIndex,
+  readPolicyRegistry,
 } from './fileIO';
 import {
   listDebateSessions,
@@ -63,6 +64,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('save-taxonomy-file', (_event, pov: string, data: unknown) => {
     writeTaxonomyFile(pov, data);
+  });
+
+  ipcMain.handle('load-policy-registry', () => {
+    return readPolicyRegistry();
   });
 
   ipcMain.handle('load-conflict-files', () => {

@@ -144,6 +144,13 @@ export function writeTaxonomyFile(pov: string, data: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
+export function readPolicyRegistry(): unknown {
+  const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
+  if (!fs.existsSync(filePath)) return null;
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(raw);
+}
+
 export function readAllConflictFiles(): unknown[] {
   if (!fs.existsSync(CONFLICTS_DIR)) {
     return [];

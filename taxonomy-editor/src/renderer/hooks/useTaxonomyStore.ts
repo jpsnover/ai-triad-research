@@ -233,11 +233,19 @@ function applyTheme(scheme: ColorScheme) {
   try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch { /* ignore */ }
 }
 
+export interface PolicyRegistryEntry {
+  id: string;
+  action: string;
+  source_povs: string[];
+  member_count: number;
+}
+
 interface TaxonomyState {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
   skeptic: PovTaxonomyFile | null;
   crossCutting: CrossCuttingFile | null;
+  policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
 
   activeTab: TabId;
@@ -379,6 +387,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   safetyist: null,
   skeptic: null,
   crossCutting: null,
+  policyRegistry: null,
   conflicts: [],
 
   activeTab: 'accelerationist',
@@ -824,18 +833,21 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   loadAll: async () => {
     set({ loading: true });
     try {
-      const [acc, saf, skp, cc, conflicts] = await Promise.all([
+      const [acc, saf, skp, cc, conflicts, polReg] = await Promise.all([
         window.electronAPI.loadTaxonomyFile('accelerationist'),
         window.electronAPI.loadTaxonomyFile('safetyist'),
         window.electronAPI.loadTaxonomyFile('skeptic'),
         window.electronAPI.loadTaxonomyFile('cross-cutting'),
         window.electronAPI.loadConflictFiles(),
+        window.electronAPI.loadPolicyRegistry(),
       ]);
+      const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       set({
         accelerationist: acc as PovTaxonomyFile,
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
         crossCutting: cc as CrossCuttingFile,
+        policyRegistry: regData?.policies ?? null,
         conflicts: conflicts as ConflictFile[],
         loading: false,
         dirty: new Set(),

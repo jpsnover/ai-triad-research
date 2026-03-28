@@ -4203,6 +4203,26 @@ body {
   padding: 8px 12px;
 }
 
+.ga-policy-action-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ga-policy-action-id {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+.ga-policy-action-reuse {
+  font-size: 0.65rem;
+  color: var(--color-acc, #27AE60);
+  font-weight: 600;
+}
 .ga-policy-action-text {
   font-weight: 700;
   font-size: 0.85rem;

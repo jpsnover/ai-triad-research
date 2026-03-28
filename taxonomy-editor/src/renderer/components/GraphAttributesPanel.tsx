@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { GraphAttributes, PossibleFallacy } from '../types/taxonomy';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import type { PolicyRegistryEntry } from '../hooks/useTaxonomyStore';
 import { FALLACY_CATALOG } from '../data/fallacyInfo';
 
 interface GraphAttributesPanelProps {
@@ -113,6 +115,7 @@ function Badge({ field, value, onClick, onContextMenu }: {
 }
 
 export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, defaultOpen }: GraphAttributesPanelProps) {
+  const { policyRegistry } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string; value: string } | null>(null);
 
@@ -230,12 +233,25 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
             <div className="ga-cell ga-cell-full">
               <div className="ga-label">Policy Actions</div>
               <ul className="ga-policy-actions-list">
-                {attrs.policy_actions.map((pa, i) => (
-                  <li key={i} className="ga-policy-action-item">
-                    <div className="ga-policy-action-text">{pa.action}</div>
-                    <div className="ga-policy-action-framing">{pa.framing}</div>
-                  </li>
-                ))}
+                {attrs.policy_actions.map((pa, i) => {
+                  const reg = policyRegistry?.find(p => p.id === pa.policy_id);
+                  return (
+                    <li key={i} className="ga-policy-action-item">
+                      {pa.policy_id && (
+                        <div className="ga-policy-action-header">
+                          <span className="ga-policy-action-id">{pa.policy_id}</span>
+                          {reg && reg.member_count > 1 && (
+                            <span className="ga-policy-action-reuse" title={`Used by ${reg.member_count} nodes across ${reg.source_povs.join(', ')}`}>
+                              {reg.member_count} nodes &middot; {reg.source_povs.map(p => p.slice(0, 3)).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="ga-policy-action-text">{pa.action}</div>
+                      <div className="ga-policy-action-framing">{pa.framing}</div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

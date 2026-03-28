@@ -7,6 +7,7 @@ export interface ElectronAPI {
   setTaxonomyDir: (dirName: string) => Promise<void>;
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
+  loadPolicyRegistry: () => Promise<unknown>;
   loadConflictFiles: () => Promise<unknown[]>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;

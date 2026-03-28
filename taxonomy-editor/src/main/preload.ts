@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveTaxonomyFile: (pov: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('save-taxonomy-file', pov, data),
 
+  loadPolicyRegistry: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-policy-registry'),
+
   loadConflictFiles: (): Promise<unknown[]> =>
     ipcRenderer.invoke('load-conflict-files'),
 
