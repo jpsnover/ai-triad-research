@@ -729,11 +729,158 @@ This targeted change preserves the single-perspective approach for attributes wh
 
 ## Implementation Sequence
 
-These changes are independent and can be implemented in any order. However, for maximum compound benefit:
+Each phase below has two parts: (A) update the prompts so new AI runs produce BFO-aligned output, and (B) back-fill existing data so the entire dataset is consistent. Back-fill work targets the `ai-triad-data` repo (taxonomy JSON, summaries, conflicts, edges).
 
-1. **Start with #1 (genus-differentia)** -- this has the highest single impact and improves every downstream process.
-2. **Then #3 and #7 together** -- sub-category disambiguation and discourse/domain separation work synergistically to resolve classification ambiguity.
-3. **Then #4 (edge semantics)** -- formalized relations require the cleaner node definitions from #1 to be most effective.
-4. **Then #2, #5, #6, #8, #9, #10 in any order** -- these are lower-effort, high-value improvements that each target a specific weakness.
+### Phase 1 — Genus-Differentia Definitions (#1) + Discourse Framing (#7)
 
-No schema migration is required for any of these changes. All improvements operate at the prompt level, producing richer outputs within the existing JSON structure (with optional new fields that are backward-compatible).
+**Why first:** Every downstream phase benefits from sharper node descriptions and the discourse/domain distinction. Doing #7 alongside #1 means the rewritten descriptions already incorporate the ontological framing.
+
+**Prompt changes (code repo):**
+- `TaxonomyRefiner.md` — replace description instruction with genus-differentia template
+- `pov-summary-system.prompt` — add genus-differentia rule for `suggested_description` + add ONTOLOGICAL FRAMING block
+- `taxonomy-proposal.prompt` — add genus-differentia rule for NEW/RELABEL descriptions
+- `ai-triad-analysis-prompt.md` — add genus-differentia rule for Part 2 descriptions
+- `attribute-extraction.prompt` — reframe `falsifiability` to discourse-aware version
+
+**Data migration:**
+
+| Asset | Location | Change | Method |
+|-------|----------|--------|--------|
+| POV node descriptions | `taxonomy/Origin/{acc,saf,skp}.json` | Rewrite every `description` to genus-differentia form | Batch AI pass: feed each node + its siblings + parent to the updated prompt; human review before commit |
+| CC node descriptions | `taxonomy/Origin/cross-cutting.json` | Same rewrite (genus = "cross-cutting concept", differentia = what distinguishes it from neighboring CC nodes) | Same batch pass |
+| Existing `falsifiability` values | `graph_attributes` on all nodes | Re-evaluate under discourse-aware definition; values may shift (e.g., normative nodes currently rated "medium" should become "low") | Batch AI re-extraction of `falsifiability` only; diff review |
+
+**Estimated scope:** ~400-500 node descriptions across 4 taxonomy files. Run in batches of 20-30 with human spot-checks.
+
+**Validation:** For each rewritten description, assert: (a) first sentence matches "A [category] within [POV] discourse that [differentia]" pattern, (b) at least one sibling is named in the exclusion boundary, (c) no orphan references to nodes that don't exist.
+
+---
+
+### Phase 2 — Sub-Category Disambiguation (#3) + Universal/Particular (#2)
+
+**Why second:** With genus-differentia descriptions in place, the AI can now reliably distinguish sub-categories and ontological levels. These two changes are complementary: sub-categories clarify *what kind of claim* a node makes, while ontological level clarifies *how general* it is.
+
+**Prompt changes (code repo):**
+- `pov-summary-system.prompt` — add CATEGORY DISAMBIGUATION block with sub-category tests
+- `TaxonomyRefiner.md` — add same disambiguation section after Structural Framework
+- `attribute-extraction.prompt` — add `ontological_level` as required attribute (`universal` | `particular` | `bridging`)
+- `taxonomy-proposal.prompt` — add ontological level guidance for NEW nodes
+
+**Data migration:**
+
+| Asset | Location | Change | Method |
+|-------|----------|--------|--------|
+| Add `ontological_level` to all nodes | `graph_attributes` in all 4 taxonomy files | New field: `"ontological_level": "universal"\|"particular"\|"bridging"` | Batch AI classification pass; heuristic pre-seed: nodes with children → likely `universal`, leaf nodes with specific falsifiable claims → likely `particular` |
+| Audit existing `category` assignments | `key_points[].category` in 119 summary files | Flag inconsistencies where the same passage was categorized differently across runs | Script to detect same `taxonomy_node_id` mapped with different categories across summaries; AI-assisted resolution |
+
+**Schema update:** Add `ontological_level` to `pov-taxonomy.schema.json` as an optional field in `graph_attributes` (backward-compatible).
+
+**Validation:** Cross-check: nodes with `ontological_level: "particular"` should have `falsifiability: "high"` or `"medium"`; `universal` nodes should rarely be `"high"`.
+
+---
+
+### Phase 3 — Edge Semantics Overhaul (#4)
+
+**Why third:** This is the highest-effort data migration. It requires the cleaner node definitions from Phase 1 and the ontological levels from Phase 2 to apply domain/range constraints and the CONTRADICTS vs. TENSION_WITH distinction correctly.
+
+**Prompt changes (code repo):**
+- `edge-discovery.prompt` — replace edge type definitions with formally constrained versions (7 types: SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO, TENSION_WITH, INTERPRETS)
+- `edge-discovery-schema.prompt` — update to match reduced type vocabulary
+- `summary-viewer/src/renderer/prompts/potentialEdges.ts` — align edge types
+
+**Data migration:**
+
+| Asset | Location | Change | Method |
+|-------|----------|--------|--------|
+| Consolidate edge types | `edges.json` (~187K lines) | Map 40+ types down to 7 canonical types + archive removed types | Mapping table (see below); script-based bulk rename |
+| Remove CITES edges | `edges.json` | Delete all `type: "CITES"` edges (document-level, not semantic) | Filter script; count and log removed edges |
+| Remove SUPPORTED_BY edges | `edges.json` | Delete all `type: "SUPPORTED_BY"` edges (redundant inverse of SUPPORTS) | Filter script |
+| Reclassify CONTRADICTS → TENSION_WITH | `edges.json` | For edges between `universal`-level nodes, change `type` from `CONTRADICTS` to `TENSION_WITH` | Batch AI pass: for each CONTRADICTS edge, apply "possible world" test using both nodes' descriptions; flip to TENSION_WITH if test passes |
+| Add domain/range validation | `edges.json` | Flag edges that violate new constraints (e.g., Goals/Values SUPPORTS Data/Facts) | Validation script; flagged edges queued for AI re-evaluation |
+| Consolidate custom types | `edges.json` | Map LLM-proposed types to canonical 7 | See mapping table below |
+
+**Edge type consolidation mapping:**
+
+| Custom Type | → Canonical Type | Rationale |
+|-------------|-----------------|-----------|
+| REITERATES | SUPPORTS | Restating = supporting |
+| COMPLEMENTS | SUPPORTS | Complementary = mutually supporting |
+| VALIDATES_ARGUMENT_WITHIN | SUPPORTS | Validation is evidence |
+| HIGHLIGHTS_VULNERABILITY_TO | WEAKENS | Exposing vulnerability weakens |
+| POSES_PROBLEM_FOR | WEAKENS | Posing a problem reduces confidence |
+| EXACERBATES | WEAKENS | Making worse = weakening position |
+| IS_A_POSITION_WITHIN | ASSUMES | Being a position within implies dependence |
+| ENABLES | SUPPORTS | Enabling = providing basis for |
+| CAUSES | SUPPORTS | Causal link = evidentiary support |
+| EXPLAINS | SUPPORTS | Explanation = providing reasoning |
+| *(others)* | *(case-by-case AI triage)* | Review remaining custom types individually |
+
+**Validation:** After migration: (a) all edges have one of 7 canonical types, (b) no domain/range violations, (c) CONTRADICTS edges only connect nodes at the same ontological level, (d) INTERPRETS edges only target `cc-*` nodes.
+
+---
+
+### Phase 4 — Cross-Cutting Enrichment (#5) + Parent-Child Audit (#6)
+
+**Why fourth:** These are moderate-effort changes that build on the improved definitions and edge semantics.
+
+**Prompt changes (code repo):**
+- `cross-cutting-candidates.prompt` — add `disagreement_type` classification (definitional | interpretive | structural)
+- `cross-cutting-candidates-schema.prompt` — add field
+- `triad-dialogue-synthesis.prompt` — add dispute classification (definitional | empirical | evaluative | structural)
+- `taxonomy-proposal.prompt` — add relationship type guidance for SPLIT actions (already partially implemented via `parent_relationship`)
+
+**Data migration:**
+
+| Asset | Location | Change | Method |
+|-------|----------|--------|--------|
+| Add `disagreement_type` to CC nodes | `cross-cutting.json` | New field on each node: `"disagreement_type": "definitional"\|"interpretive"\|"structural"` | Batch AI classification using each node's `interpretations` object — if POV interpretations define the term differently → definitional; if they agree on referent but disagree on significance → interpretive; if the concept names an inherent trade-off → structural |
+| Audit `parent_relationship` values | All 4 taxonomy files | Verify correctness of existing `is_a`/`part_of`/`specializes` assignments; fill in any nulls on nodes that have a `parent_id` | Script to find nodes with `parent_id` but null `parent_relationship`; AI pass to classify using the tests from recommendation #6 |
+| Add `relationship_type` for SPLIT proposals | `taxonomy-proposal.prompt` output | Already implemented in schema — no data migration needed, just prompt update | N/A |
+
+**Validation:** Every CC node has a `disagreement_type`; every node with a `parent_id` has a non-null `parent_relationship`.
+
+---
+
+### Phase 5 — Temporal Qualifiers (#8) + Fallacy Structure (#9) + Perspectival Steelman (#10)
+
+**Why last:** These are low-effort, high-value additions that operate on specific fields without dependencies on earlier phases. They can be parallelized.
+
+**Prompt changes (code repo):**
+- `pov-summary-system.prompt` — add `temporal_scope` and `temporal_bound` to factual_claims output spec
+- `fallacy-analysis.prompt` + `attribute-extraction.prompt` — restructure fallacy vocabulary into 4 tiers (formal, informal-structural, informal-contextual, cognitive-bias)
+- `attribute-extraction.prompt` — change `steelman_vulnerability` from string to object with `from_accelerationist`, `from_safetyist`, `from_skeptic`
+
+**Data migration:**
+
+| Asset | Location | Change | Method |
+|-------|----------|--------|--------|
+| Add temporal fields to factual_claims | 119 summary files | Add `temporal_scope` and `temporal_bound` to each claim in `factual_claims[]` | Batch AI pass: read each claim's text, classify scope (current_state/historical/predictive/timeless), extract explicit time bounds |
+| Add fallacy type classification | `possible_fallacies` in all taxonomy node `graph_attributes` | Add `"type": "formal"\|"informal_structural"\|"informal_contextual"\|"cognitive_bias"` to each existing fallacy entry | Lookup table: map each `fallacy` key to its tier per the structured taxonomy in #9; no AI needed |
+| Convert `steelman_vulnerability` | `graph_attributes` in all POV taxonomy nodes | Convert from `string` to `{ "from_accelerationist": "...", "from_safetyist": "...", "from_skeptic": "..." }` (omitting the node's own POV) | Batch AI pass: for each node, generate 2 opposing-POV steelmans; migrate existing string as the "best match" POV steelman |
+
+**Schema update:** Update `pov-taxonomy.schema.json`: `steelman_vulnerability` type changes from `string` to `object`; `possible_fallacies[].type` added as required enum; `factual_claims` gets `temporal_scope` (required enum) and `temporal_bound` (optional string).
+
+**Validation:** (a) No summary file has a factual_claim without `temporal_scope`, (b) all `possible_fallacies` entries have a `type`, (c) `steelman_vulnerability` is an object on all POV nodes and a 3-key object on all CC nodes.
+
+---
+
+### Cross-Cutting Concerns for All Phases
+
+**Batch AI processing strategy:**
+- Use `Invoke-POVSummary`-style batch pipeline with the default model (`gemini-3.1-flash-lite-preview`) for classification tasks (ontological_level, disagreement_type, temporal_scope, fallacy_type)
+- Use a higher-capability model for generative tasks (description rewrites, steelman generation, edge reclassification) — recommend `gemini-2.5-flash` or `claude-sonnet-4-6`
+- All batch outputs go through a diff-review step before committing to `ai-triad-data`
+
+**Backward compatibility:**
+- All new fields are added as optional first, then made required after back-fill is complete
+- Schema versions bump: `1.0.0` → `1.1.0` after Phase 1-2, → `2.0.0` after Phase 3 (breaking edge type change), → `2.1.0` after Phase 4-5
+- `TAXONOMY_VERSION` file bump after Phase 3 triggers CI re-summarization with updated prompts
+
+**Rollback strategy:**
+- Each phase commits to `ai-triad-data` as a separate branch/PR
+- Pre-migration snapshots tagged (e.g., `pre-bfo-phase-1`)
+- Edge migration (Phase 3) gets an `_archived_edges.json` with original type and rationale for any deleted/reclassified edge
+
+**Progress tracking:**
+- Each phase produces a migration report: nodes/edges/summaries processed, changes made, validation failures, items flagged for human review
+- Dashboard or script to show BFO compliance percentage across the dataset
