@@ -51,6 +51,10 @@ EDGE TYPE VOCABULARY:
     The source node's claim is backed by evidence or authority found in the target.
     Inverse of SUPPORTS when the relationship direction matters.
 
+  PROPOSES (directional: source → target, where target is a pol-NNN policy)
+    The source taxonomy node proposes or implies the target policy action.
+    Only valid when the target is a policy entry (pol-NNN ID).
+
 You may propose NEW edge types if you discover a relationship that doesn't fit the
 vocabulary above. If you do, provide a clear definition following the same format.
 

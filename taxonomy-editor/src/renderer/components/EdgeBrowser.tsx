@@ -77,6 +77,7 @@ function povForId(id: string): string {
   if (id.startsWith('saf-')) return 'safetyist';
   if (id.startsWith('skp-')) return 'skeptic';
   if (id.startsWith('cc-')) return 'cross-cutting';
+  if (id.startsWith('pol-')) return 'policy';
   return 'unknown';
 }
 
@@ -85,6 +86,7 @@ const POV_COLOR: Record<string, string> = {
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
   'cross-cutting': 'var(--color-cc)',
+  policy: 'var(--color-cc)',
 };
 
 function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {

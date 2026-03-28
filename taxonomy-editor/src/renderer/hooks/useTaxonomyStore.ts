@@ -1440,6 +1440,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   getLabelForId: (id: string) => {
     const state = get();
+    if (id.startsWith('pol-')) {
+      const pol = state.policyRegistry?.find(p => p.id === id);
+      return pol?.action || '';
+    }
     if (id.startsWith('cc-')) {
       const node = state.crossCutting?.nodes.find(n => n.id === id);
       return node?.label || '';
