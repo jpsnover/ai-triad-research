@@ -531,66 +531,12 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         }
       }
 
-      // NLI classification — all-pairs within each cluster, then bipartite partition for contested
-      try {
-        const { partitionBipartite } = await import('../utils/clustering');
-        const descMap = new Map(file.nodes.map(n => [n.id, n.description || n.label]));
-
-        // Build all pairs for clusters with 2+ nodes
-        const nliPairs: Array<{ text_a: string; text_b: string; clusterIdx: number; idA: string; idB: string }> = [];
-        for (let ci = 0; ci < multiClusters.length; ci++) {
-          const ids = multiClusters[ci].nodeIds;
-          if (ids.length < 2) continue;
-          for (let i = 0; i < ids.length; i++) {
-            for (let j = i + 1; j < ids.length; j++) {
-              nliPairs.push({
-                text_a: descMap.get(ids[i]) || ids[i],
-                text_b: descMap.get(ids[j]) || ids[j],
-                clusterIdx: ci,
-                idA: ids[i],
-                idB: ids[j],
-              });
-            }
-          }
-        }
-
-        if (nliPairs.length > 0) {
-          const { results } = await window.electronAPI.nliClassify(nliPairs);
-
-          // Tally labels and collect pair labels per cluster
-          const clusterCounts = new Map<number, Record<string, number>>();
-          const clusterPairLabels = new Map<number, Array<{ idA: string; idB: string; label: string }>>();
-
-          for (let k = 0; k < results.length; k++) {
-            const ci = nliPairs[k].clusterIdx;
-            if (!clusterCounts.has(ci)) clusterCounts.set(ci, { entailment: 0, neutral: 0, contradiction: 0 });
-            const counts = clusterCounts.get(ci)!;
-            counts[results[k].nli_label] = (counts[results[k].nli_label] || 0) + 1;
-
-            if (!clusterPairLabels.has(ci)) clusterPairLabels.set(ci, []);
-            clusterPairLabels.get(ci)!.push({
-              idA: nliPairs[k].idA,
-              idB: nliPairs[k].idB,
-              label: results[k].nli_label,
-            });
-          }
-
-          for (const [ci, counts] of clusterCounts) {
-            const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-            const cluster = multiClusters[ci] as { nliLabel?: string; sides?: [string[], string[]] | null };
-            cluster.nliLabel = dominant[0];
-
-            // For contested clusters, try bipartite partition
-            if (dominant[0] === 'contradiction') {
-              const pairData = clusterPairLabels.get(ci) || [];
-              const sides = partitionBipartite(multiClusters[ci].nodeIds, pairData);
-              cluster.sides = sides;
-            }
-          }
-        }
-      } catch (nliErr) {
-        console.warn('[clusterView] NLI classification failed, continuing without labels:', nliErr);
-      }
+      // NLI classification is skipped for single-POV clustering (the editor
+      // always clusters within one POV tab). Within-POV nodes are inherently
+      // aligned in direction — NLI produces misleading contested/contradiction
+      // labels when comparing nodes that agree but address different topics.
+      // NLI is used in Find-CrossCuttingCandidates (PowerShell) where clusters
+      // span multiple POVs and opposition is meaningful.
 
       // Sort clusters by size descending
       multiClusters.sort((a, b) => b.nodeIds.length - a.nodeIds.length);
