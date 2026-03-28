@@ -139,7 +139,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
     );
   }
 
-  // Standard category view
+  // Standard category view — with parent/child hierarchy
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const grouped = new Map<Category, PovNode[]>();
   for (const cat of CATEGORY_ORDER) {
     grouped.set(cat, []);
@@ -156,6 +157,15 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
       {CATEGORY_ORDER.map((cat) => {
         const catNodes = sortNodes(grouped.get(cat) || [], sortMode, similarScores ?? null);
         const isCollapsed = collapsed.has(cat);
+
+        // Separate into parent nodes (have children), child nodes, and top-level leaves
+        const parentNodes = catNodes.filter(n => n.children && n.children.length > 0);
+        const childIds = new Set(catNodes.filter(n => n.parent_id).map(n => n.id));
+        const topLeaves = catNodes.filter(n => !n.parent_id && (!n.children || n.children.length === 0));
+
+        // If no hierarchy exists, render flat
+        const hasHierarchy = parentNodes.length > 0;
+
         return (
           <div key={cat} className="category-group">
             <div
@@ -167,7 +177,55 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
               <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
               {cat} <span className="category-count">({catNodes.length})</span>
             </div>
-            {!isCollapsed && catNodes.map((node) => (
+            {!isCollapsed && hasHierarchy && (
+              <>
+                {parentNodes.map((parent) => {
+                  const parentKey = `parent-${parent.id}`;
+                  const isParentCollapsed = collapsed.has(parentKey);
+                  const children = parent.children
+                    .map(id => nodeMap.get(id))
+                    .filter(Boolean) as PovNode[];
+
+                  return (
+                    <div key={parent.id} className="node-tree-parent-group">
+                      <div
+                        className={`node-tree-parent-header ${selectedNodeId === parent.id ? 'selected' : ''}`}
+                        data-cat={parent.category}
+                        onClick={() => onSelect(parent.id)}
+                      >
+                        <span
+                          className={`category-toggle ${isParentCollapsed ? 'collapsed' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleGroup(parentKey); }}
+                        >&#9660;</span>
+                        <span className="node-tree-parent-label">{parent.label || '(untitled)'}</span>
+                        <span className="node-tree-parent-count">{children.length}</span>
+                      </div>
+                      {!isParentCollapsed && children.map((child) => (
+                        <NodeItem
+                          key={child.id}
+                          node={child}
+                          isSelected={selectedNodeId === child.id}
+                          onSelect={onSelect}
+                          score={similarScores?.get(child.id)}
+                          indent
+                          relationship={child.parent_relationship}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                {topLeaves.map((node) => (
+                  <NodeItem
+                    key={node.id}
+                    node={node}
+                    isSelected={selectedNodeId === node.id}
+                    onSelect={onSelect}
+                    score={similarScores?.get(node.id)}
+                  />
+                ))}
+              </>
+            )}
+            {!isCollapsed && !hasHierarchy && catNodes.map((node) => (
               <NodeItem
                 key={node.id}
                 node={node}
@@ -183,7 +241,20 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
   );
 }
 
-function NodeItem({ node, isSelected, onSelect, score }: { node: PovNode; isSelected: boolean; onSelect: (id: string) => void; score?: number }) {
+const REL_LABELS: Record<string, string> = {
+  is_a: 'is a',
+  part_of: 'part of',
+  specializes: 'specializes',
+};
+
+function NodeItem({ node, isSelected, onSelect, score, indent, relationship }: {
+  node: PovNode;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  score?: number;
+  indent?: boolean;
+  relationship?: string | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -195,13 +266,14 @@ function NodeItem({ node, isSelected, onSelect, score }: { node: PovNode; isSele
   return (
     <div
       ref={ref}
-      className={`node-item ${isSelected ? 'selected' : ''}`}
+      className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}`}
       data-cat={node.category}
       onClick={() => onSelect(node.id)}
     >
       <div>{node.label || '(untitled)'}</div>
       <div className="node-item-id">
         {node.id}
+        {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
         {score !== undefined && <span className="node-item-score">{Math.round(score * 100)}%</span>}
       </div>
     </div>

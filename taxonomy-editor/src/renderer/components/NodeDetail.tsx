@@ -101,7 +101,7 @@ const POV_LABELS: Record<Pov, string> = {
 type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'sources' | 'research';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
   const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
@@ -321,6 +321,46 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               />
               {err('description') && <div className="error-text">{err('description')}</div>}
             </div>
+
+            {/* Hierarchy: parent and children */}
+            {(node.parent_id || (node.children && node.children.length > 0)) && (
+              <div className="form-group">
+                <label>Hierarchy</label>
+                <div className="hierarchy-section">
+                  {node.parent_id && (
+                    <span
+                      className="hierarchy-chip"
+                      onClick={() => setSelectedNodeId(node.parent_id)}
+                      title={`Navigate to parent: ${node.parent_id}`}
+                    >
+                      &#9650; {getLabelForId(node.parent_id) || node.parent_id}
+                      {node.parent_relationship && (
+                        <span className="hierarchy-chip-label">
+                          {node.parent_relationship === 'is_a' ? 'is a' :
+                           node.parent_relationship === 'part_of' ? 'part of' :
+                           node.parent_relationship}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {node.children && node.children.length > 0 && node.children.map(childId => (
+                    <span
+                      key={childId}
+                      className="hierarchy-chip"
+                      onClick={() => setSelectedNodeId(childId)}
+                      title={`Navigate to child: ${childId}`}
+                    >
+                      &#9660; {getLabelForId(childId) || childId}
+                    </span>
+                  ))}
+                </div>
+                {node.parent_rationale && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+                    {node.parent_rationale}
+                  </div>
+                )}
+              </div>
+            )}
 
             {node.graph_attributes?.steelman_vulnerability && (
               <div className="form-group">

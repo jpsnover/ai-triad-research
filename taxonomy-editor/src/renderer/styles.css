@@ -676,6 +676,97 @@ body {
   white-space: nowrap;
 }
 
+/* ── Tree hierarchy ────────────────────────────────── */
+
+.node-tree-parent-group {
+  margin-bottom: 2px;
+}
+
+.node-tree-parent-header {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+
+.node-tree-parent-header[data-cat="Goals/Values"]       { border-left-color: var(--cat-goals); }
+.node-tree-parent-header[data-cat="Data/Facts"]         { border-left-color: var(--cat-data); }
+.node-tree-parent-header[data-cat="Methods/Arguments"]  { border-left-color: var(--cat-methods); }
+
+.node-tree-parent-header:hover {
+  background: var(--bg-hover);
+}
+
+.node-tree-parent-header.selected {
+  background: var(--bg-panel);
+}
+
+.node-tree-parent-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-tree-parent-count {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  padding: 0 5px;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.node-item-child {
+  padding-left: 28px;
+}
+
+.node-item-rel {
+  font-size: 0.6rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* ── Hierarchy section in Content tab ──────────────── */
+
+.hierarchy-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.hierarchy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  background: var(--bg-panel);
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.hierarchy-chip:hover {
+  background: var(--bg-hover);
+}
+
+.hierarchy-chip-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ─── Detail category banner ───────────────────────────── */
 
 .detail-category-banner {

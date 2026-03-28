@@ -24,12 +24,16 @@ export interface GraphAttributes {
   possible_fallacies?: PossibleFallacy[];
 }
 
+export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
+
 export interface PovNode {
   id: string;
   category: Category;
   label: string;
   description: string;
   parent_id: string | null;
+  parent_relationship?: ParentRelationship | null;
+  parent_rationale?: string | null;
   children: string[];
   cross_cutting_refs: string[];
   conflict_ids?: string[];
