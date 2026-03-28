@@ -212,6 +212,8 @@ Export-ModuleMember -Function @(
     'Test-TaxonomyIntegrity'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
+    'Invoke-SchemaMigration'
+    'Invoke-PolicyRefinement'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

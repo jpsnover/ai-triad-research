@@ -435,6 +435,22 @@ function Invoke-BatchSummary {
     Write-Host "`n  Output: summaries/*.json  |  metadata updated in sources/*/metadata.json"
     Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
 
+    # -- STEP 9 — Post-batch policy registry consolidation ---------------------
+    # Strategy: parallel workers each write to different source/summary files so
+    # there is no write contention on those. However, taxonomy policy_actions may
+    # have stale member_count or source_povs after the batch. Rather than adding
+    # locking to each worker, we simply rebuild the registry once after all workers
+    # finish. This is safe because Update-PolicyRegistry -Fix re-scans the
+    # authoritative taxonomy JSON files and recomputes every derived field.
+    Write-Step 'Consolidating policy registry after batch'
+    try {
+        Update-PolicyRegistry -Fix -Confirm:$false
+        Write-OK 'Policy registry rebuilt successfully'
+    }
+    catch {
+        Write-Warn "Policy registry consolidation failed: $_ — run Update-PolicyRegistry -Fix manually"
+    }
+
     if ($Failed.Count -gt 0) {
         throw "$($Failed.Count) document(s) failed during batch summarization."
     }

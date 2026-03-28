@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
 import { SettingsDialog } from './SettingsDialog';
 
-type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment';
+type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard';
 
 export function Toolbar() {
   const {
@@ -180,6 +180,18 @@ export function Toolbar() {
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
+          </svg>
+        </button>
+        {/* Policy Dashboard */}
+        <button
+          className={`toolbar-icon${toolbarPanel === 'policyDashboard' ? ' toolbar-icon-active' : ''}`}
+          onClick={() => toggle('policyDashboard')}
+          data-tooltip="Policy Dashboard"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="12" width="4" height="9" rx="1" />
+            <rect x="10" y="7" width="4" height="14" rx="1" />
+            <rect x="17" y="3" width="4" height="18" rx="1" />
           </svg>
         </button>
         {/* Possible Fallacies */}

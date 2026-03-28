@@ -26,6 +26,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
+import { PolicyDashboard } from './PolicyDashboard';
 
 interface PovTabProps {
   pov: Pov;
@@ -288,6 +289,8 @@ export function PovTab({ pov }: PovTabProps) {
         return <TerminalPanel />;
       case 'policyAlignment':
         return <PolicyAlignmentPanel />;
+      case 'policyDashboard':
+        return <PolicyDashboard />;
       default:
         return null;
     }
@@ -308,7 +311,7 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="list-panel list-panel-full">
           <EdgeBrowser />
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment') ? (
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -354,7 +357,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -370,7 +373,7 @@ export function PovTab({ pov }: PovTabProps) {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment') ? null
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? null
       : toolbarPanel === 'prompts' ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />

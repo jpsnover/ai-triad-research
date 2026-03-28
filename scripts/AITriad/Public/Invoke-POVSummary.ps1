@@ -162,6 +162,27 @@ function Invoke-POVSummary {
 
     $taxonomyJson = $taxonomyContext | ConvertTo-Json -Depth 20 -Compress:$false
 
+    # -- STEP 2b — Load policy registry for prompt context ---------------------
+    $policyRegistryContext = ''
+    $policyRegistryPath = Join-Path $paths.TaxonomyDir 'policy_actions.json'
+    if (Test-Path $policyRegistryPath) {
+        $policyReg = Get-Content -Raw -Path $policyRegistryPath | ConvertFrom-Json
+        if ($policyReg.policies -and $policyReg.policies.Count -gt 0) {
+            # Build compact ID + action listing, one per line, cap at ~5KB
+            $policyLines = $policyReg.policies | ForEach-Object { "$($_.id): $($_.action)" }
+            $policyBlock = $policyLines -join "`n"
+            if ($policyBlock.Length -gt 5000) {
+                $policyBlock = $policyBlock.Substring(0, 5000) + "`n... (truncated)"
+            }
+            $policyRegistryContext = @"
+
+=== POLICY REGISTRY (use pol-NNN IDs when referencing policy actions) ===
+$policyBlock
+"@
+            Write-OK "Policy registry loaded: $($policyReg.policies.Count) policies for prompt context"
+        }
+    }
+
     # -- STEP 3 — Load the document snapshot ----------------------------------
     Write-Step "Loading document snapshot"
 
@@ -207,6 +228,7 @@ $systemPrompt
 
 === TAXONOMY (version $taxonomyVersion) ===
 $taxonomyJson
+$policyRegistryContext
 
 === OUTPUT SCHEMA (your response must match this structure) ===
 $outputSchema

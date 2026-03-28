@@ -174,6 +174,25 @@ function Show-TriadDialogue {
             }
         }
 
+        # Load top 20 policies for this POV from the policy registry
+        $PolicyRegistryPath = Join-Path $TaxDir 'policy_actions.json'
+        if (Test-Path $PolicyRegistryPath) {
+            $PolicyReg = Get-Content -Raw -Path $PolicyRegistryPath | ConvertFrom-Json
+            if ($PolicyReg.policies) {
+                $PovPolicies = @($PolicyReg.policies |
+                    Where-Object { $_.source_povs -contains $PovKey } |
+                    Sort-Object { $_.member_count } -Descending |
+                    Select-Object -First 20)
+
+                if ($PovPolicies.Count -gt 0) {
+                    [void]$ContextBuilder.AppendLine("`nPOLICY CONTEXT (use these pol-NNN IDs when referencing policy actions):")
+                    foreach ($Pol in $PovPolicies) {
+                        [void]$ContextBuilder.AppendLine("  - $($Pol.id): $($Pol.action)")
+                    }
+                }
+            }
+        }
+
         $AgentContexts[$Agent.Speaker] = $ContextBuilder.ToString()
     }
     Write-OK "Built context for $($Agents.Count) agents"
@@ -309,6 +328,7 @@ function Show-TriadDialogue {
                 speaker       = $Agent.Speaker
                 content       = $Content
                 taxonomy_refs = $TaxRefs
+                policy_refs   = @()
                 id            = [guid]::NewGuid().ToString()
                 timestamp     = (Get-Date -Format 'o')
             }
@@ -350,6 +370,7 @@ function Show-TriadDialogue {
                     speaker       = $Agent.Speaker
                     content       = $Content
                     taxonomy_refs = $TaxRefs
+                    policy_refs   = @()
                     id            = [guid]::NewGuid().ToString()
                     timestamp     = (Get-Date -Format 'o')
                     metadata      = @{ round = $Round }

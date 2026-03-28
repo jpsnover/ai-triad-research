@@ -87,6 +87,10 @@ RULES:
     EXACTLY from the document (word-for-word) that best capture the point being made.
     Use the minimum number of sentences needed to convey the core idea. Do NOT
     paraphrase, summarize, or alter the text in any way — copy it verbatim.
+  - When a source document supports or implies a policy action, reference the policy
+    by its pol-NNN ID from the registry if possible. Use the POLICY REGISTRY context
+    provided below the taxonomy to match actions. If no registry entry fits, omit the
+    policy reference rather than inventing an ID.
   - Return ONLY a valid JSON object. No markdown fences, no preamble, no explanation
     outside the JSON.
   - Be precise and specific. Every key_point must reference a real passage in the document.

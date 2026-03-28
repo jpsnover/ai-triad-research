@@ -304,6 +304,15 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           : entry.content}
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
+      {entry.policy_refs && entry.policy_refs.length > 0 && (
+        <div className="debate-policy-refs-section">
+          {entry.policy_refs.map((polId) => (
+            <span key={polId} className="debate-policy-pill" title={polId}>
+              {polId}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -452,6 +461,15 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           : entry.content}
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
+      {entry.policy_refs && entry.policy_refs.length > 0 && (
+        <div className="debate-policy-refs-section">
+          {entry.policy_refs.map((polId) => (
+            <span key={polId} className="debate-policy-pill" title={polId}>
+              {polId}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ export interface TranscriptEntry {
   speaker: PoverId | 'system';
   content: string;
   taxonomy_refs: TaxonomyRef[];
+  policy_refs?: string[];
   metadata?: Record<string, unknown>;
   addressing?: PoverId | 'all';
 }

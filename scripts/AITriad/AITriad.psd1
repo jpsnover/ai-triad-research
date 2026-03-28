@@ -63,6 +63,8 @@
         'Test-TaxonomyIntegrity'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
+        'Invoke-SchemaMigration'
+        'Invoke-PolicyRefinement'
     )
 
     # Aliases exported from this module
