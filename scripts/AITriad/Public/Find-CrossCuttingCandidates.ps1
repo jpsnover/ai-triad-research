@@ -7,9 +7,15 @@ function Find-CrossCuttingCandidates {
         Discovers candidate cross-cutting concepts by clustering similar nodes across POVs.
     .DESCRIPTION
         Computes cross-POV pairwise cosine similarity from taxonomy embeddings, filters to
-        pairs above threshold, merges overlapping pairs into groups, boosts scores for
-        pairs with TENSION_WITH/CONTRADICTS edges or shared attributes, then optionally
-        calls an LLM to propose cross-cutting node labels and interpretations.
+        pairs above threshold, classifies each pair using an NLI cross-encoder
+        (entailment/neutral/contradiction) to distinguish genuine shared concepts from
+        opposing positions on the same topic, merges overlapping pairs into groups, boosts
+        scores for pairs with TENSION_WITH/CONTRADICTS edges or shared attributes, then
+        optionally calls an LLM to propose cross-cutting node labels and interpretations.
+
+        The NLI classification uses cross-encoder/nli-deberta-v3-small (local, no API
+        required) and tags each candidate pair so the downstream LLM prompt can distinguish
+        agreement clusters from tension clusters.
     .PARAMETER TopN
         Number of top candidates to return (1-30, default 10).
     .PARAMETER MinSimilarity
@@ -18,6 +24,8 @@ function Find-CrossCuttingCandidates {
         Optional path to write results as JSON.
     .PARAMETER NoAI
         Skip LLM labeling; return raw clusters only.
+    .PARAMETER NoNLI
+        Skip NLI cross-encoder verification (faster, but no contradiction detection).
     .PARAMETER Model
         AI model override.
     .PARAMETER ApiKey
@@ -28,6 +36,8 @@ function Find-CrossCuttingCandidates {
         Find-CrossCuttingCandidates -NoAI
     .EXAMPLE
         Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
+    .EXAMPLE
+        Find-CrossCuttingCandidates -NoNLI
     #>
     [CmdletBinding()]
     param(
@@ -40,6 +50,8 @@ function Find-CrossCuttingCandidates {
         [string]$OutputFile,
 
         [switch]$NoAI,
+
+        [switch]$NoNLI,
 
         [string]$Model,
 
@@ -208,6 +220,43 @@ function Find-CrossCuttingCandidates {
 
     Write-OK "Checked $PairCount cross-POV pairs, found $($SimilarPairs.Count) above threshold"
 
+    # ── Step 5b: NLI cross-encoder classification ────────────────────────────
+    if (-not $NoNLI -and $SimilarPairs.Count -gt 0) {
+        Write-Step 'Running NLI cross-encoder classification'
+
+        $EmbedScript = Join-Path $RepoRoot 'scripts' 'embed_taxonomy.py'
+        $NliInput = @($SimilarPairs | ForEach-Object {
+            $DescA = $NodeIndex[$_.IdA].Description
+            $DescB = $NodeIndex[$_.IdB].Description
+            # Fall back to label if description is empty
+            if ([string]::IsNullOrWhiteSpace($DescA)) { $DescA = $NodeIndex[$_.IdA].Label }
+            if ([string]::IsNullOrWhiteSpace($DescB)) { $DescB = $NodeIndex[$_.IdB].Label }
+            @{ text_a = $DescA; text_b = $DescB }
+        })
+
+        $NliJson = $NliInput | ConvertTo-Json -Depth 5 -Compress
+        try {
+            $NliResult = $NliJson | python3 $EmbedScript nli-classify 2>$null
+            $NliParsed = $NliResult | ConvertFrom-Json
+
+            for ($i = 0; $i -lt $SimilarPairs.Count; $i++) {
+                if ($i -lt $NliParsed.Count) {
+                    $SimilarPairs[$i] | Add-Member -NotePropertyName 'NliLabel'         -NotePropertyValue $NliParsed[$i].nli_label         -Force
+                    $SimilarPairs[$i] | Add-Member -NotePropertyName 'NliEntailment'    -NotePropertyValue $NliParsed[$i].nli_entailment    -Force
+                    $SimilarPairs[$i] | Add-Member -NotePropertyName 'NliContradiction' -NotePropertyValue $NliParsed[$i].nli_contradiction -Force
+                }
+            }
+
+            $Entailments    = @($SimilarPairs | Where-Object { $_.NliLabel -eq 'entailment' }).Count
+            $Contradictions = @($SimilarPairs | Where-Object { $_.NliLabel -eq 'contradiction' }).Count
+            $Neutrals       = @($SimilarPairs | Where-Object { $_.NliLabel -eq 'neutral' }).Count
+            Write-OK "NLI: $Entailments entailment, $Neutrals neutral, $Contradictions contradiction"
+        }
+        catch {
+            Write-Warn "NLI classification failed: $_ — continuing without NLI labels"
+        }
+    }
+
     # ── Step 6: Merge overlapping pairs into groups ───────────────────────────
     Write-Step 'Merging overlapping pairs into clusters'
 
@@ -250,20 +299,30 @@ function Find-CrossCuttingCandidates {
         $Groups[$Root].Add($NodeId)
     }
 
-    # Score each group by max boosted similarity
+    # Score each group by max boosted similarity and determine dominant NLI label
     $ScoredGroups = @($Groups.Values | ForEach-Object {
         $Members = $_
         $MaxBoosted = 0.0
         $AvgSim     = 0.0
         $SimCount   = 0
+        $NliCounts  = @{ entailment = 0; neutral = 0; contradiction = 0 }
         foreach ($Pair in $SimilarPairs) {
             if ($Pair.IdA -in $Members -and $Pair.IdB -in $Members) {
                 if ($Pair.Boosted -gt $MaxBoosted) { $MaxBoosted = $Pair.Boosted }
                 $AvgSim += $Pair.Similarity
                 $SimCount++
+                if ($Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) {
+                    $NliCounts[$Pair.NliLabel]++
+                }
             }
         }
         if ($SimCount -gt 0) { $AvgSim = [Math]::Round($AvgSim / $SimCount, 4) }
+
+        # Dominant NLI label for this group
+        $NliTotal = $NliCounts.Values | Measure-Object -Sum | Select-Object -ExpandProperty Sum
+        $DominantNli = if ($NliTotal -gt 0) {
+            ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+        } else { $null }
 
         # Get POVs represented
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
@@ -273,6 +332,8 @@ function Find-CrossCuttingCandidates {
             MaxBoosted      = $MaxBoosted
             AvgSimilarity   = $AvgSim
             PovsRepresented = $PovsRepresented
+            NliCounts       = $NliCounts
+            DominantNli     = $DominantNli
         }
     } | Where-Object { $_.PovsRepresented.Count -ge 2 } |
         Sort-Object { $_.MaxBoosted } -Descending |
@@ -300,7 +361,12 @@ function Find-CrossCuttingCandidates {
                 $ClusterText = [System.Text.StringBuilder]::new()
                 for ($i = 0; $i -lt $ScoredGroups.Count; $i++) {
                     $G = $ScoredGroups[$i]
-                    [void]$ClusterText.AppendLine("--- cluster-$i (avg similarity: $($G.AvgSimilarity), POVs: $($G.PovsRepresented -join ', ')) ---")
+                    $NliTag = if ($G.DominantNli) { ", nli_relationship: $($G.DominantNli)" } else { '' }
+                    $NliDetail = if ($G.DominantNli) {
+                        $C = $G.NliCounts
+                        ", nli_breakdown: entailment=$($C.entailment) neutral=$($C.neutral) contradiction=$($C.contradiction)"
+                    } else { '' }
+                    [void]$ClusterText.AppendLine("--- cluster-$i (avg similarity: $($G.AvgSimilarity), POVs: $($G.PovsRepresented -join ', ')$NliTag$NliDetail) ---")
                     foreach ($MId in $G.Members) {
                         $NInfo = $NodeIndex[$MId]
                         [void]$ClusterText.AppendLine("  - $MId [$($NInfo.POV)]: $($NInfo.Label) — $($NInfo.Description)")
@@ -342,17 +408,25 @@ function Find-CrossCuttingCandidates {
     $ResultCandidates = @(for ($i = 0; $i -lt $ScoredGroups.Count; $i++) {
         $G = $ScoredGroups[$i]
         $Entry = [ordered]@{
-            cluster_id      = "cluster-$i"
-            members         = @($G.Members | ForEach-Object {
+            cluster_id       = "cluster-$i"
+            members          = @($G.Members | ForEach-Object {
                 [ordered]@{
                     id    = $_
                     pov   = $NodeIndex[$_].POV
                     label = $NodeIndex[$_].Label
                 }
             })
-            avg_similarity  = $G.AvgSimilarity
-            max_boosted     = $G.MaxBoosted
+            avg_similarity   = $G.AvgSimilarity
+            max_boosted      = $G.MaxBoosted
             povs_represented = $G.PovsRepresented
+        }
+        if ($G.DominantNli) {
+            $Entry['nli_relationship'] = $G.DominantNli
+            $Entry['nli_counts']       = [ordered]@{
+                entailment    = $G.NliCounts.entailment
+                neutral       = $G.NliCounts.neutral
+                contradiction = $G.NliCounts.contradiction
+            }
         }
 
         if ($AILabels) {
@@ -390,7 +464,25 @@ function Find-CrossCuttingCandidates {
     foreach ($C in $ResultCandidates) {
         $Label = if ($C.PSObject.Properties['proposed_label']) { $C.proposed_label } else { $C.cluster_id }
         Write-Host "`n  $($C.cluster_id): $Label" -ForegroundColor White
-        Write-Host "    Similarity: $($C.avg_similarity) | POVs: $($C.povs_represented -join ', ')" -ForegroundColor Gray
+        $NliStr = if ($C.PSObject.Properties['nli_relationship'] -and $C.nli_relationship) {
+            $NliColor = switch ($C.nli_relationship) {
+                'entailment'    { 'Green' }
+                'contradiction' { 'Red' }
+                default         { 'Yellow' }
+            }
+            " | NLI: $($C.nli_relationship)"
+        } else { '' }
+        Write-Host "    Similarity: $($C.avg_similarity) | POVs: $($C.povs_represented -join ', ')$NliStr" -ForegroundColor Gray
+        if ($C.PSObject.Properties['nli_relationship'] -and $C.nli_relationship) {
+            $NliColor = switch ($C.nli_relationship) {
+                'entailment'    { 'Green' }
+                'contradiction' { 'Red' }
+                default         { 'Yellow' }
+            }
+            Write-Host "    [$($C.nli_relationship)]" -ForegroundColor $NliColor -NoNewline
+            $NC = $C.nli_counts
+            Write-Host " (entail=$($NC.entailment) neutral=$($NC.neutral) contradict=$($NC.contradiction))" -ForegroundColor DarkGray
+        }
 
         foreach ($M in $C.members) {
             $PovColor = switch ($M.pov) {

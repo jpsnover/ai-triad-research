@@ -237,6 +237,24 @@ function Set-TaxonomyHierarchy {
                     $ChildNode | Add-Member -NotePropertyName 'parent_id' -NotePropertyValue $ParentId -Force
                 }
 
+                # Set parent_relationship (is_a, part_of, specializes)
+                $Relationship = if ($Child.PSObject.Properties['relationship']) { $Child.relationship } else { $null }
+                if ($ChildNode.PSObject.Properties['parent_relationship']) {
+                    $ChildNode.parent_relationship = $Relationship
+                }
+                else {
+                    $ChildNode | Add-Member -NotePropertyName 'parent_relationship' -NotePropertyValue $Relationship -Force
+                }
+
+                # Set parent_rationale
+                $Rationale = if ($Child.PSObject.Properties['rationale']) { $Child.rationale } else { $null }
+                if ($ChildNode.PSObject.Properties['parent_rationale']) {
+                    $ChildNode.parent_rationale = $Rationale
+                }
+                else {
+                    $ChildNode | Add-Member -NotePropertyName 'parent_rationale' -NotePropertyValue $Rationale -Force
+                }
+
                 $ChildIds.Add($Child.node_id)
                 $Stats.ChildAssignments++
             }

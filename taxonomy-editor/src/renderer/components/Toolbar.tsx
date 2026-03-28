@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
 import { SettingsDialog } from './SettingsDialog';
 
-type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges';
+type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment';
 
 export function Toolbar() {
   const {
@@ -168,6 +168,18 @@ export function Toolbar() {
             <circle cx="5" cy="12" r="3" />
             <circle cx="19" cy="12" r="3" />
             <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+        </button>
+        {/* Policy Alignment */}
+        <button
+          className={`toolbar-icon${toolbarPanel === 'policyAlignment' ? ' toolbar-icon-active' : ''}`}
+          onClick={() => toggle('policyAlignment')}
+          data-tooltip="Policy Alignment"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
           </svg>
         </button>
         {/* Possible Fallacies */}

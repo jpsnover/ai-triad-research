@@ -6,6 +6,7 @@ Respond in JSON format:
       "cluster_id": "cluster-0",
       "label": "...",
       "description": "...",
+      "relationship_type": "shared_concept | contested_topic | related_theme",
       "interpretations": {
         "accelerationist": "...",
         "safetyist": "...",

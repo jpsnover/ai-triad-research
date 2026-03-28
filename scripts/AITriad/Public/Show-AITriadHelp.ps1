@@ -883,20 +883,27 @@ Get-IngestionPriority -POV safetyist -TopN 3
     <h4>Find-CrossCuttingCandidates</h4>
     <div class="synopsis">Discovers candidate cross-cutting concepts by clustering similar nodes across POVs.</div>
     <p>Computes cross-POV pairwise cosine similarity from taxonomy embeddings, filters to
-    pairs above threshold, merges overlapping pairs into groups, boosts scores for pairs
-    with TENSION_WITH/CONTRADICTS edges or shared attributes, then optionally calls an LLM
-    to propose cross-cutting node labels and interpretations.</p>
+    pairs above threshold, then classifies each pair using an NLI cross-encoder
+    (<code>cross-encoder/nli-deberta-v3-small</code>, local, no API required) as
+    <strong>entailment</strong> (genuine shared concept), <strong>neutral</strong>, or
+    <strong>contradiction</strong> (opposing positions on the same topic). Merges overlapping
+    pairs into groups, boosts scores for pairs with TENSION_WITH/CONTRADICTS edges or shared
+    attributes, then optionally calls an LLM to propose cross-cutting node labels and
+    interpretations. The NLI classification is passed to the LLM so it can distinguish
+    agreement clusters from tension clusters.</p>
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-TopN</code></td><td>int</td><td>No</td><td>Number of top candidates to return (1&ndash;30). Default: 10</td></tr>
       <tr><td><code>-MinSimilarity</code></td><td>double</td><td>No</td><td>Cosine similarity threshold (0.50&ndash;0.95). Default: 0.70</td></tr>
       <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write results as JSON</td></tr>
       <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM labeling; return raw clusters only</td></tr>
+      <tr><td><code>-NoNLI</code></td><td>switch</td><td>No</td><td>Skip NLI cross-encoder verification (faster, but no contradiction detection)</td></tr>
       <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
     </table>
 <pre>
 Find-CrossCuttingCandidates -NoAI
 Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
+Find-CrossCuttingCandidates -NoNLI
 </pre>
   </div>
 

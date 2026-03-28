@@ -11,6 +11,8 @@ interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
   onBadgeClick?: (field: string, value: string) => void;
   onShowAttributeInfo?: (field: string, value: string) => void;
+  onUpdatePolicyActions?: (actions: GraphAttributes['policy_actions']) => void;
+  readOnly?: boolean;
   defaultOpen?: boolean;
 }
 
@@ -114,10 +116,43 @@ function Badge({ field, value, onClick, onContextMenu }: {
   );
 }
 
-export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, defaultOpen }: GraphAttributesPanelProps) {
+export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, readOnly, defaultOpen }: GraphAttributesPanelProps) {
   const { policyRegistry, edgesFile } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null);
+  const [policySearchQuery, setPolicySearchQuery] = useState('');
+  const [showPolicyPicker, setShowPolicyPicker] = useState(false);
+
+  // Filter registry for typeahead
+  const filteredPolicies = useMemo(() => {
+    if (!policyRegistry || !policySearchQuery.trim()) return [];
+    const q = policySearchQuery.toLowerCase();
+    const currentIds = new Set((attrs.policy_actions || []).map(pa => pa.policy_id).filter(Boolean));
+    return policyRegistry
+      .filter(p => !currentIds.has(p.id) && (p.id.toLowerCase().includes(q) || p.action.toLowerCase().includes(q)))
+      .slice(0, 20);
+  }, [policyRegistry, policySearchQuery, attrs.policy_actions]);
+
+  const handleAddPolicy = (pol: PolicyRegistryEntry) => {
+    if (!onUpdatePolicyActions) return;
+    const existing = attrs.policy_actions || [];
+    onUpdatePolicyActions([...existing, { policy_id: pol.id, action: pol.action, framing: '' }]);
+    setPolicySearchQuery('');
+    setShowPolicyPicker(false);
+  };
+
+  const handleRemovePolicy = (index: number) => {
+    if (!onUpdatePolicyActions) return;
+    const existing = attrs.policy_actions || [];
+    onUpdatePolicyActions(existing.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateFraming = (index: number, framing: string) => {
+    if (!onUpdatePolicyActions) return;
+    const existing = [...(attrs.policy_actions || [])];
+    existing[index] = { ...existing[index], framing };
+    onUpdatePolicyActions(existing);
+  };
 
   // Build policy edge lookup
   const policyEdges = useMemo(() => {
@@ -282,7 +317,20 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                         </div>
                       )}
                       <div className="ga-policy-action-text">{pa.action}</div>
-                      <div className="ga-policy-action-framing">{pa.framing}</div>
+                      {!readOnly && onUpdatePolicyActions ? (
+                        <textarea
+                          className="ga-policy-action-framing-input"
+                          value={pa.framing}
+                          onChange={(e) => handleUpdateFraming(i, e.target.value)}
+                          placeholder="POV-specific framing..."
+                          rows={2}
+                        />
+                      ) : (
+                        <div className="ga-policy-action-framing">{pa.framing}</div>
+                      )}
+                      {!readOnly && onUpdatePolicyActions && (
+                        <button className="ga-policy-action-remove" onClick={() => handleRemovePolicy(i)} title="Remove policy">&times;</button>
+                      )}
                       {isExpanded && edges && edges.length > 0 && (
                         <div className="ga-policy-edges">
                           {contradicts.length > 0 && (
@@ -321,6 +369,51 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                   );
                 })}
               </ul>
+            </div>
+          )}
+
+          {/* Policy Action Picker */}
+          {!readOnly && onUpdatePolicyActions && policyRegistry && (
+            <div className="ga-cell ga-cell-full">
+              {!showPolicyPicker ? (
+                <button className="btn btn-sm" onClick={() => setShowPolicyPicker(true)}>
+                  + Add Policy Action
+                </button>
+              ) : (
+                <div className="ga-policy-picker">
+                  <input
+                    className="ga-policy-picker-input"
+                    type="text"
+                    value={policySearchQuery}
+                    onChange={(e) => setPolicySearchQuery(e.target.value)}
+                    placeholder="Search policies by ID or text..."
+                    autoFocus
+                  />
+                  {filteredPolicies.length > 0 && (
+                    <div className="ga-policy-picker-results">
+                      {filteredPolicies.map(pol => (
+                        <button
+                          key={pol.id}
+                          className="ga-policy-picker-item"
+                          onClick={() => handleAddPolicy(pol)}
+                        >
+                          <span className="ga-policy-picker-id">{pol.id}</span>
+                          <span className="ga-policy-picker-text">{pol.action}</span>
+                          {pol.member_count > 1 && (
+                            <span className="ga-policy-picker-reuse">{pol.member_count} nodes</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {policySearchQuery && filteredPolicies.length === 0 && (
+                    <div className="ga-policy-picker-empty">No matching policies</div>
+                  )}
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setShowPolicyPicker(false); setPolicySearchQuery(''); }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

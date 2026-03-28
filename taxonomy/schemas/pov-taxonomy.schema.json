@@ -92,6 +92,17 @@
           "description": "ID of the parent node if this node is a sub-claim. Null for top-level nodes. Must reference another node ID within the same POV file.",
           "examples": ["acc-goals-001", null]
         },
+        "parent_relationship": {
+          "type": ["string", "null"],
+          "enum": ["is_a", "part_of", "specializes", null],
+          "description": "The ontological relationship between this node and its parent. is_a: this node is a more specific version of the parent. part_of: this node is a component or aspect of the parent. specializes: this node is a concrete implementation of the parent's general principle. Null when parent_id is null.",
+          "default": null
+        },
+        "parent_rationale": {
+          "type": ["string", "null"],
+          "description": "1-2 sentence explanation of why this node is placed under its parent with the specified relationship type. Null when parent_id is null.",
+          "default": null
+        },
         "children": {
           "type": "array",
           "description": "Ordered list of child node IDs. Must reference node IDs within the same POV file. Inverse of parent_id.",

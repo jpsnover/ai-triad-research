@@ -34,6 +34,8 @@ class TaxonomyNode {
     [string]$Description
     [string]$Category
     [string]$ParentId
+    [string]$ParentRelationship
+    [string]$ParentRationale
     [string[]]$Children
     [string[]]$CrossCuttingRefs
     [PSObject]$Interpretations

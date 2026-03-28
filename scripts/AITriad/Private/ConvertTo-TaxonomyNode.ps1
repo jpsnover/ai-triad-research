@@ -24,6 +24,13 @@ function ConvertTo-TaxonomyNode {
         $Obj.ParentId         = $Node.parent_id
         $Obj.Children         = @($Node.children)
         $Obj.CrossCuttingRefs = @($Node.cross_cutting_refs)
+
+        if ($null -ne $Node.PSObject.Properties['parent_relationship']) {
+            $Obj.ParentRelationship = $Node.parent_relationship
+        }
+        if ($null -ne $Node.PSObject.Properties['parent_rationale']) {
+            $Obj.ParentRationale = $Node.parent_rationale
+        }
     }
 
     # Cross-cutting file has interpretations and linked_nodes

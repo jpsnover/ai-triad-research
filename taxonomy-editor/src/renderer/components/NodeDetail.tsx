@@ -412,6 +412,8 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             attrs={node.graph_attributes!}
             onBadgeClick={runAttributeFilter}
             onShowAttributeInfo={showAttributeInfo}
+            onUpdatePolicyActions={readOnly ? undefined : (actions) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, policy_actions: actions } })}
+            readOnly={readOnly}
             defaultOpen
           />
         )}
