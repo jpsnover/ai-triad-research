@@ -116,7 +116,9 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                 <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
                 {cluster.label} <span className="category-count">({clusterNodes.length})</span>
                 {cluster.nliLabel && (
-                  <span className={`nli-badge nli-${cluster.nliLabel}`}>{cluster.nliLabel}</span>
+                  <span className={`nli-badge nli-${cluster.nliLabel}`}>
+                    {cluster.nliLabel === 'entailment' ? 'shared' : cluster.nliLabel === 'contradiction' ? 'contested' : 'unclear'}
+                  </span>
                 )}
               </div>
               {!isCollapsed && clusterNodes.map((node) => (

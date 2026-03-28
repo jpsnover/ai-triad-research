@@ -659,24 +659,23 @@ function Find-CrossCuttingCandidates {
     foreach ($C in $ResultCandidates) {
         $Label = if ($C.PSObject.Properties['proposed_label']) { $C.proposed_label } else { $C.cluster_id }
         Write-Host "`n  $($C.cluster_id): $Label" -ForegroundColor White
-        $NliStr = if ($C.PSObject.Properties['nli_relationship'] -and $C.nli_relationship) {
-            $NliColor = switch ($C.nli_relationship) {
-                'entailment'    { 'Green' }
-                'contradiction' { 'Red' }
-                default         { 'Yellow' }
-            }
-            " | NLI: $($C.nli_relationship)"
-        } else { '' }
+        $NliDisplayName = switch ($C.nli_relationship) {
+            'entailment'    { 'shared' }
+            'contradiction' { 'contested' }
+            'neutral'       { 'unclear' }
+            default         { $null }
+        }
+        $NliStr = if ($NliDisplayName) { " | $NliDisplayName" } else { '' }
         Write-Host "    Similarity: $($C.avg_similarity) | POVs: $($C.povs_represented -join ', ')$NliStr" -ForegroundColor Gray
-        if ($C.PSObject.Properties['nli_relationship'] -and $C.nli_relationship) {
+        if ($NliDisplayName) {
             $NliColor = switch ($C.nli_relationship) {
                 'entailment'    { 'Green' }
                 'contradiction' { 'Red' }
                 default         { 'Yellow' }
             }
-            Write-Host "    [$($C.nli_relationship)]" -ForegroundColor $NliColor -NoNewline
+            Write-Host "    [$NliDisplayName]" -ForegroundColor $NliColor -NoNewline
             $NC = $C.nli_counts
-            Write-Host " (entail=$($NC.entailment) neutral=$($NC.neutral) contradict=$($NC.contradiction))" -ForegroundColor DarkGray
+            Write-Host " (shared=$($NC.entailment) unclear=$($NC.neutral) contested=$($NC.contradiction))" -ForegroundColor DarkGray
         }
 
         foreach ($M in $C.members) {
