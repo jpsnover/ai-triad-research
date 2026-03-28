@@ -23,19 +23,29 @@ QUANTITY GUIDANCE FOR THIS SECTION:
   - factual_claims: extract EVERY specific empirical or factual assertion.
   - unmapped_concepts: include ALL concepts that do not map to existing taxonomy nodes.
     For each unmapped concept, provide:
-      • suggested_label: a concise 5-10 word label suitable as a taxonomy node name
-      • suggested_description: 2-5 sentences defining the concept for the taxonomy
+      • suggested_label: a concise 3-8 word label suitable as a taxonomy node name
+      • suggested_description: a genus-differentia description (see DESCRIPTION FORMAT below)
       • concept: 2-5 sentences grounding the concept in THIS specific document section
     The label and description must be DISTINCT — the label is a short name (like a title),
-    the description explains what the concept means in general terms.
+    the description defines the concept's boundaries.
 
-    STYLE — labels and descriptions must match the existing taxonomy's voice:
+    DESCRIPTION FORMAT — all descriptions must use genus-differentia structure:
+      For POV concepts: "A [Goals/Values | Data/Facts | Methods/Arguments] within
+        [accelerationist | safetyist | skeptic] discourse that [what makes this concept
+        distinct]. Encompasses: [concrete examples or sub-themes]. Excludes: [what
+        neighboring concepts cover instead]."
+      For cross-cutting concepts: "A cross-cutting concept that [differentia].
+        Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+      Rules:
+        - First sentence MUST follow the pattern above.
+        - 2-4 sentences total. The Excludes clause does the boundary work.
+        - Write at a grade-10 reading level. Short sentences, plain words.
+
+    STYLE — labels must match the existing taxonomy's voice:
       • Write at a grade-10 reading level. Use plain, everyday language.
       • Labels should read like newspaper headlines, not academic paper titles.
         GOOD: "New Tech Takes Time to Spread", "Attacks That Break AI Safety Rules"
         BAD:  "Innovation-Diffusion Lag", "Denial-of-Governance Attacks"
-      • Descriptions should explain concepts simply using short sentences and
-        concrete analogies. Avoid jargon, acronyms, and dense academic phrasing.
     For cross-cutting concepts (suggested_pov = "cross-cutting"), you MUST also provide
     three interpretation fields:
       • "Accelerationist Interpretation": 1-3 sentences

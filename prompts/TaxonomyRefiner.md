@@ -24,9 +24,18 @@ Too Specific? Abstract the concept slightly to encompass related ideas.
 
 Too General? Sharpen the definition until it is unique to this specific ideological camp.
 
-Label Refinement (3-6 Words): Create a "High-Resolution" label. It must be more than a topic; it must be a position. (e.g., Change "AI Safety" to "Preemptive Algorithmic Containment Strategies").
+Label Refinement (3-8 Words): Create a plain-language label that reads like a newspaper headline, not an academic paper title. It must be more than a topic; it must be a position.
+  GOOD: "Open-Source AI as a Safety Strategy"
+  BAD:  "Preemptive Algorithmic Containment Strategies"
 
-Boundary-Based Description (3-6 Sentences): Define the concept’s boundaries. Explicitly state what is included and what is excluded to prevent category bleed. Focus on the "internal logic" that connects the Data to the Methods and Goals.
+Genus-Differentia Description: Write the description using this structure:
+  For POV nodes: "A [Goals/Values | Data/Facts | Methods/Arguments] within [POV] discourse that [differentia — what makes this node distinct]. Encompasses: [child themes or concrete examples]. Excludes: [what neighboring nodes cover instead]."
+  For cross-cutting nodes: "A cross-cutting concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+  Rules:
+    - First sentence MUST follow the genus-differentia pattern above.
+    - Name at least one sibling node (by label, not ID) in the Excludes clause.
+    - Write at a grade-10 reading level. Short sentences, plain words.
+    - 2-4 sentences total. Keep it concise — the Excludes clause does the boundary work.
 
 Structural Framework:
 Assign the node to one of three drivers:

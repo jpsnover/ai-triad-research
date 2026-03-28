@@ -10,7 +10,16 @@ Full transcript:
 
 Produce a synthesis that identifies:
 1. `areas_of_agreement` — points where two or more speakers converge.
-2. `areas_of_disagreement` — core disputes that remain unresolved.
+2. `areas_of_disagreement` — core disputes that remain unresolved. For each, classify:
+   - `type`: EMPIRICAL, VALUES, or DEFINITIONAL
+   - `bdi_layer`: which layer of the debaters' worldview this lives in:
+     - "belief" — they disagree about what is empirically true
+     - "value" — they share the facts but prioritize differently
+     - "conceptual" — they define a key term or concept differently
+   - `resolvability`: how this could be resolved:
+     - "resolvable_by_evidence" — new data could settle this
+     - "negotiable_via_tradeoffs" — requires trade-off reasoning
+     - "requires_term_clarification" — debaters need to agree on definitions
 3. `unresolved_questions` — open questions that emerged from the debate.
 4. `key_taxonomy_refs` — the most important taxonomy node IDs referenced across the debate.
 5. `summary` — a 2-3 paragraph narrative summary of the debate.
@@ -19,7 +28,14 @@ Respond in JSON format:
 ```json
 {
   "areas_of_agreement": ["..."],
-  "areas_of_disagreement": ["..."],
+  "areas_of_disagreement": [
+    {
+      "point": "...",
+      "type": "EMPIRICAL or VALUES or DEFINITIONAL",
+      "bdi_layer": "belief or value or conceptual",
+      "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification"
+    }
+  ],
   "unresolved_questions": ["..."],
   "key_taxonomy_refs": ["..."],
   "summary": "..."

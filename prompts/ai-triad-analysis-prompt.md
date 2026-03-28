@@ -284,9 +284,11 @@ OUTPUT FORMAT FOR PART 2
 - **POV camp:** Accelerationist / Safetyist / Skeptic / Cross-Cutting
 - **Category:** Goals/Values / Data/Facts / Methods
 - **Proposed label:** [Short label, 3–6 words]
-- **Proposed description:** [1–2 sentences. What argument does
-  this node capture? Be precise enough to distinguish it from
-  adjacent nodes.]
+- **Proposed description:** [Use genus-differentia format:
+  "A [Category] within [POV] discourse that [differentia].
+  Encompasses: [examples]. Excludes: [what neighbors cover]."
+  For cross-cutting: "A cross-cutting concept that [differentia].
+  Encompasses: ... Excludes: ..." — 2-4 sentences total.]
 - **Evidence from this document:** [Quote or paraphrase the
   specific passage that required this new node]
 - **Why existing nodes don't cover it:** [Name the closest
@@ -304,8 +306,10 @@ OUTPUT FORMAT FOR PART 2
 - **Current description:** [existing description]
 - **Problem:** [Why is this too narrow? What did it fail to
   capture from this document?]
-- **Proposed new description:** [Revised description that
-  broadens coverage without losing precision]
+- **Proposed new description:** [Use genus-differentia format:
+  "A [Category] within [POV] discourse that [differentia].
+  Encompasses: [broadened scope]. Excludes: [boundaries]."
+  2-4 sentences total. Name at least one sibling in Excludes.]
 - **Risk of over-broadening:** [What would this revised node
   accidentally absorb that it shouldn't?]
 

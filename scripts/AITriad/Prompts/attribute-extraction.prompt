@@ -35,6 +35,16 @@ ATTRIBUTE VOCABULARY:
     NOT: "AI is important" (too vague)
 
   falsifiability (required, string — pick ONE):
+    Use the node's genus-differentia description to guide your assessment. The genus
+    (category) tells you the DISCOURSE TYPE, which constrains falsifiability:
+    - Data/Facts nodes make empirical claims → more likely "high" or "medium"
+    - Goals/Values nodes express normative commitments → more likely "low"
+    - Methods/Arguments nodes propose strategies → "medium" (testable in principle
+      but depends on context and implementation)
+    This is guidance, not a rule — a Data/Facts node CAN be "low" if it makes an
+    unfalsifiable claim, and a Goals/Values node CAN be "medium" if it rests on
+    an empirical assumption.
+
     "high" — could be clearly disproven by specific evidence or events.
       Example: "AGI will arrive by 2030" — a date-specific prediction with a clear pass/fail.
     "medium" — partially testable but involves value judgments or long time horizons.

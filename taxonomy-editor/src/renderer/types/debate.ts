@@ -56,6 +56,8 @@ export interface DebateSession {
   user_is_pover: boolean;
   transcript: TranscriptEntry[];
   context_summaries: ContextSummary[];
+  /** Tracks which prompt generation produced this session. Absent in pre-migration debates. */
+  generated_with_prompt_version?: string;
 }
 
 export interface DebateSessionSummary {
@@ -78,6 +80,10 @@ export interface SynthesisResult {
   areas_of_disagreement: {
     point: string;
     positions: { pover: PoverId; stance: string }[];
+    /** BDI layer classification — added in dolce-phase-1. Absent in older debates. */
+    bdi_layer?: 'belief' | 'value' | 'conceptual';
+    /** How this disagreement could be resolved — added in dolce-phase-1. Absent in older debates. */
+    resolvability?: 'resolvable_by_evidence' | 'negotiable_via_tradeoffs' | 'requires_term_clarification';
   }[];
   unresolved_questions: string[];
   taxonomy_coverage: { node_id: string; how_used: string }[];

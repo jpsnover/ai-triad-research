@@ -26,9 +26,19 @@ export function lengthInstruction(length: string): string {
 
 // ── Shared instruction blocks ───────────────────────────────
 
-const TAXONOMY_USAGE = `Your taxonomy positions inform your worldview. Reference them when relevant but express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
+const TAXONOMY_USAGE = `Your taxonomy context is organized into BDI sections — Beliefs, Values, and Reasoning Approach — that structure your worldview:
 
-Your taxonomy context includes assumptions your position depends on, known vulnerabilities in your reasoning, and fallacy tendencies to watch for. Use this self-knowledge: acknowledge where your position is weakest rather than ignoring it — this builds credibility and sharpens the debate.`;
+- BELIEFS (Data/Facts): Your empirical grounding. Draw on these when making factual claims or citing evidence.
+- VALUES (Goals/Values): Your normative commitments. Draw on these when arguing about what matters or what should happen.
+- REASONING APPROACH (Methods/Arguments): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
+
+Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect beliefs to values through reasoning.
+
+Express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
+
+Your KNOWN VULNERABILITIES section lists weaknesses in your positions and fallacy tendencies to watch for. Acknowledge a vulnerability when it is directly relevant — this builds credibility. But do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
+
+Your CROSS-CUTTING CONCERNS show where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 
 const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down. This is called steelmanning — it demonstrates intellectual honesty and ensures you are engaging with the real argument, not a caricature.`;
 
@@ -333,7 +343,16 @@ ${transcript}
 Identify:
 1. Areas where the debaters agree (and which debaters)
 2. Areas where they genuinely disagree (with each debater's specific stance)
-3. For each disagreement, classify whether it is EMPIRICAL (different beliefs about facts), VALUES (different priorities), or DEFINITIONAL (different meanings for key terms)
+3. For each disagreement, classify:
+   a. "type": EMPIRICAL, VALUES, or DEFINITIONAL (as before)
+   b. "bdi_layer": which layer of the debaters' worldview this disagreement lives in:
+      - "belief" — they disagree about what is empirically true (facts, evidence, predictions)
+      - "value" — they share the facts but prioritize differently (goals, principles, trade-offs)
+      - "conceptual" — they define a key term or concept differently (meaning, scope, framing)
+   c. "resolvability": how this disagreement could potentially be resolved:
+      - "resolvable_by_evidence" — new data or studies could settle this (typical for belief disagreements)
+      - "negotiable_via_tradeoffs" — requires explicit trade-off reasoning, not evidence (typical for value disagreements)
+      - "requires_term_clarification" — debaters need to agree on definitions first (typical for conceptual disagreements)
 4. Cruxes — the specific factual or value questions that, if resolved, would change a debater's position. A good crux is a question where one debater would say "if the answer turned out to be X, I would actually change my position."
 5. Questions that remain unresolved
 6. Which taxonomy nodes were referenced and how they were used${documentAnalysis}
@@ -341,7 +360,7 @@ Identify:
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
-  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or value or conceptual", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],

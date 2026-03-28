@@ -11,9 +11,11 @@ import type {
   TaxonomyRef,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PovNode, CrossCuttingNode, GraphAttributes } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
+import { formatTaxonomyContext } from '../utils/taxonomyContext';
+import type { TaxonomyContext } from '../utils/taxonomyContext';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -93,11 +95,6 @@ const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'c
 
 // ── Taxonomy grounding helpers ───────────────────────────
 
-interface TaxonomyContext {
-  povNodes: PovNode[];
-  crossCuttingNodes: CrossCuttingNode[];
-}
-
 /** Get taxonomy data from the taxonomy store for a given POV */
 function getTaxonomyContext(pov: string): TaxonomyContext {
   const state = useTaxonomyStore.getState();
@@ -107,51 +104,6 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   const crossCuttingNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
 
   return { povNodes, crossCuttingNodes };
-}
-
-/** Format a single node's graph attributes as compact context lines */
-function formatNodeAttributes(attrs: GraphAttributes | undefined): string[] {
-  if (!attrs) return [];
-  const lines: string[] = [];
-  if (attrs.assumes && attrs.assumes.length > 0) {
-    lines.push(`  Assumes: ${attrs.assumes.join('; ')}`);
-  }
-  if (attrs.steelman_vulnerability) {
-    lines.push(`  Key vulnerability: ${attrs.steelman_vulnerability}`);
-  }
-  if (attrs.possible_fallacies && attrs.possible_fallacies.length > 0) {
-    const fallacyList = attrs.possible_fallacies
-      .filter(f => f.confidence !== 'borderline')
-      .map(f => `${f.fallacy.replace(/_/g, ' ')} (${f.confidence})`)
-      .join(', ');
-    if (fallacyList) lines.push(`  Watch for: ${fallacyList}`);
-  }
-  if (attrs.epistemic_type) {
-    lines.push(`  Epistemic type: ${attrs.epistemic_type}`);
-  }
-  return lines;
-}
-
-/** Format taxonomy nodes into a rich context block for the LLM prompt */
-function formatTaxonomyContext(ctx: TaxonomyContext, maxNodes: number = 20): string {
-  // Include up to maxNodes POV nodes + all cross-cutting (usually ~15)
-  const povSlice = ctx.povNodes.slice(0, maxNodes);
-  const lines: string[] = ['=== YOUR TAXONOMY POSITIONS ==='];
-
-  for (const n of povSlice) {
-    lines.push(`[${n.id}] ${n.label}: ${n.description}`);
-    lines.push(...formatNodeAttributes(n.graph_attributes));
-  }
-
-  if (ctx.crossCuttingNodes.length > 0) {
-    lines.push('', '=== CROSS-CUTTING CONCERNS ===');
-    for (const n of ctx.crossCuttingNodes) {
-      lines.push(`[${n.id}] ${n.label}: ${n.description}`);
-      lines.push(...formatNodeAttributes(n.graph_attributes));
-    }
-  }
-
-  return lines.join('\n');
 }
 
 /** Format relevant edges between active debaters' nodes for the moderator */
@@ -494,6 +446,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       user_is_pover: userIsPover,
       transcript: [],
       context_summaries: [],
+      generated_with_prompt_version: 'dolce-phase-1',
     };
     await window.electronAPI.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session });
@@ -795,7 +748,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const info = POVER_INFO[poverId];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
 
       const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
 
@@ -916,7 +869,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const info = POVER_INFO[poverId];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
 
       // Use the most current transcript (includes responses from prior POVers in this round)
       const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
@@ -1042,7 +995,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const info = POVER_INFO[responderPover];
     const ctx = getTaxonomyContext(info.pov);
-    const taxonomyBlock = formatTaxonomyContext(ctx);
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
     const prompt = buildCrossRespondPrompt(
@@ -1120,7 +1073,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         lines.push('', '**Areas of Disagreement:**');
         for (const d of synthesis.areas_of_disagreement) {
           const typeTag = d.type ? ` [${d.type}]` : '';
-          lines.push(`- ${d.point}${typeTag}`);
+          const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
+          lines.push(`- ${d.point}${typeTag}${bdiTag}`);
+          if (d.resolvability) {
+            lines.push(`  *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
+          }
           if (Array.isArray(d.positions)) {
             for (const pos of d.positions) {
               const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label || pos.pover;

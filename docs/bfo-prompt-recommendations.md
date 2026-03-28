@@ -1,5 +1,7 @@
 # Prompt Improvements Through the Lens of Basic Formal Ontology
 
+> **Superseded by [`dolce-aif-bdi-implementation-plan.md`](dolce-aif-bdi-implementation-plan.md).** This document's problem analysis and baseline measurements remain valid reference material, but its BFO-framed implementation plan has been replaced by the DOLCE+AIF+BDI migration plan.
+
 **Author:** Ontology review, 2026-03-27
 **Revised:** 2026-03-28 (added baseline measurements, risk analysis, consumer audit, revised implementation plan)
 **Scope:** All prompt templates in `scripts/AITriad/Prompts/`, `prompts/`, and `taxonomy-editor/src/renderer/prompts/`
