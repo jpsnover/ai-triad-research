@@ -229,13 +229,17 @@ function Find-CrossCuttingCandidates {
         Write-Step 'Running NLI cross-encoder classification'
 
         $EmbedScript = Join-Path $RepoRoot 'scripts' 'embed_taxonomy.py'
+        # Frame each node as a POV-attributed proposition so the NLI model
+        # can distinguish agreement from opposition on the same topic.
         $NliInput = @($SimilarPairs | ForEach-Object {
-            $DescA = $NodeIndex[$_.IdA].Description
-            $DescB = $NodeIndex[$_.IdB].Description
-            # Fall back to label if description is empty
-            if ([string]::IsNullOrWhiteSpace($DescA)) { $DescA = $NodeIndex[$_.IdA].Label }
-            if ([string]::IsNullOrWhiteSpace($DescB)) { $DescB = $NodeIndex[$_.IdB].Label }
-            @{ text_a = $DescA; text_b = $DescB }
+            $InfoA = $NodeIndex[$_.IdA]
+            $InfoB = $NodeIndex[$_.IdB]
+            $DescA = if ([string]::IsNullOrWhiteSpace($InfoA.Description)) { $InfoA.Label } else { $InfoA.Description }
+            $DescB = if ([string]::IsNullOrWhiteSpace($InfoB.Description)) { $InfoB.Label } else { $InfoB.Description }
+            @{
+                text_a = "The $($InfoA.POV) position is: $($InfoA.Label) — $DescA"
+                text_b = "The $($InfoB.POV) position is: $($InfoB.Label) — $DescB"
+            }
         })
 
         $NliJson = $NliInput | ConvertTo-Json -Depth 5 -Compress

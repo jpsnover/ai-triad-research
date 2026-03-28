@@ -318,13 +318,18 @@ def cmd_find_overlaps(args):
 
     data = json.loads(EMBEDDINGS_FILE.read_text(encoding="utf-8"))
 
-    # Load taxonomy node and policy texts for NLI
-    node_texts = {}
+    # Load taxonomy node info for NLI (label, description, pov)
+    node_info = {}
     for pov, node in _load_taxonomy_nodes():
-        text = node.get("description", "") or node.get("label", "")
-        node_texts[node["id"]] = text
+        label = node.get("label", "")
+        desc = node.get("description", "") or label
+        node_info[node["id"]] = {"label": label, "description": desc, "pov": pov}
     for pol in _load_policy_registry():
-        node_texts[pol["id"]] = pol.get("action", "")
+        node_info[pol["id"]] = {
+            "label": pol.get("action", ""),
+            "description": pol.get("action", ""),
+            "pov": pol.get("pov", ""),
+        }
 
     # Build arrays
     node_ids = []
@@ -376,8 +381,18 @@ def cmd_find_overlaps(args):
         nli_model = _load_nli_model()
         nli_pairs = []
         for p in pairs:
-            text_a = node_texts.get(p["node_a"], p["node_a"])
-            text_b = node_texts.get(p["node_b"], p["node_b"])
+            info_a = node_info.get(p["node_a"])
+            info_b = node_info.get(p["node_b"])
+            text_a = (
+                f"The {info_a['pov']} position is: {info_a['label']} — {info_a['description']}"
+                if info_a
+                else p["node_a"]
+            )
+            text_b = (
+                f"The {info_b['pov']} position is: {info_b['label']} — {info_b['description']}"
+                if info_b
+                else p["node_b"]
+            )
             nli_pairs.append((text_a, text_b))
 
         print(f"Running NLI classification on {len(nli_pairs)} pairs...", file=sys.stderr)
