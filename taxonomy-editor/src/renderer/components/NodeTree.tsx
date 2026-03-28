@@ -9,6 +9,7 @@ export type SortMode = 'id' | 'label' | 'similarity';
 export interface ClusterGroup {
   label: string;
   nodeIds: string[];
+  nliLabel?: 'entailment' | 'neutral' | 'contradiction' | null;
 }
 
 interface NodeTreeProps {
@@ -114,6 +115,9 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
               >
                 <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
                 {cluster.label} <span className="category-count">({clusterNodes.length})</span>
+                {cluster.nliLabel && (
+                  <span className={`nli-badge nli-${cluster.nliLabel}`}>{cluster.nliLabel}</span>
+                )}
               </div>
               {!isCollapsed && clusterNodes.map((node) => (
                 <NodeItem

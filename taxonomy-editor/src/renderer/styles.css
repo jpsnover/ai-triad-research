@@ -630,6 +630,18 @@ body {
   padding-left: 9px;
 }
 
+.nli-badge {
+  font-size: 0.65rem;
+  font-style: normal;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.nli-entailment { background: #2d5a2d; color: #a8e6a8; }
+.nli-neutral { background: #5a5a2d; color: #e6e6a8; }
+.nli-contradiction { background: #5a2d2d; color: #e6a8a8; }
+
 /* ─── Node list items ──────────────────────────────────── */
 
 .node-item {

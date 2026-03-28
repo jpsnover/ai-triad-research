@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateText: (prompt: string, model?: string): Promise<{ text: string }> =>
     ipcRenderer.invoke('generate-text', prompt, model),
 
+  nliClassify: (pairs: Array<{ text_a: string; text_b: string }>): Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }> =>
+    ipcRenderer.invoke('nli-classify', pairs),
+
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => callback(progress);
     ipcRenderer.on('generate-text-progress', listener);

@@ -36,6 +36,9 @@ _DEFAULT_TAXONOMY_DIR = _SCRIPT_DIR.parent / "taxonomy" / "Origin"
 MODEL_NAME = "all-MiniLM-L6-v2"
 NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
 NLI_LABELS = ["entailment", "neutral", "contradiction"]
+# Minimum logit margin between the winning label and runner-up.
+# If the margin is below this, the classification is downgraded to "neutral".
+NLI_CONFIDENCE_MARGIN = 1.5
 
 # Resolved at runtime via --taxonomy-dir or .aitriad.json
 TAXONOMY_DIR: Path = _DEFAULT_TAXONOMY_DIR
@@ -85,7 +88,9 @@ def _classify_pairs_nli(nli_model, pairs):
     """Classify a list of (text_a, text_b) pairs using the NLI cross-encoder.
 
     Returns a list of dicts with 'label' (entailment|neutral|contradiction)
-    and individual scores for each class.
+    and individual scores for each class.  If the winning label's logit does
+    not exceed the runner-up by NLI_CONFIDENCE_MARGIN, the label is
+    downgraded to 'neutral' to avoid low-confidence misclassifications.
     """
     if not pairs:
         return []
@@ -95,12 +100,22 @@ def _classify_pairs_nli(nli_model, pairs):
     # scores shape: (N, 3) — columns are entailment, neutral, contradiction
     results = []
     for row in scores:
-        label_idx = int(np.argmax(row))
+        sorted_idx = np.argsort(row)[::-1]  # descending
+        best = float(row[sorted_idx[0]])
+        second = float(row[sorted_idx[1]])
+        margin = best - second
+
+        if margin >= NLI_CONFIDENCE_MARGIN:
+            label = NLI_LABELS[int(sorted_idx[0])]
+        else:
+            label = "neutral"
+
         results.append({
-            "label": NLI_LABELS[label_idx],
+            "label": label,
             "entailment": round(float(row[0]), 4),
             "neutral": round(float(row[1]), 4),
             "contradiction": round(float(row[2]), 4),
+            "margin": round(margin, 4),
         })
     return results
 
@@ -412,6 +427,16 @@ def cmd_find_overlaps(args):
             f"{contradictions} contradiction",
             file=sys.stderr,
         )
+
+    # Auto-label same-POV near-identical pairs as duplicates regardless of NLI
+    DUPLICATE_SIM_THRESHOLD = 0.99
+    duplicates = 0
+    for p in pairs:
+        if p["pov_a"] == p["pov_b"] and p["similarity"] >= DUPLICATE_SIM_THRESHOLD:
+            p["nli_label"] = "duplicate"
+            duplicates += 1
+    if duplicates:
+        print(f"Auto-labeled {duplicates} same-POV near-identical pairs as duplicate", file=sys.stderr)
 
     print(f"Found {len(pairs)} pairs above threshold {args.threshold}", file=sys.stderr)
     json.dump(pairs, sys.stdout, indent=2)

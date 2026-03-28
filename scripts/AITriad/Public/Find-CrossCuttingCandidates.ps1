@@ -26,6 +26,10 @@ function Find-CrossCuttingCandidates {
         Skip LLM labeling; return raw clusters only.
     .PARAMETER NoNLI
         Skip NLI cross-encoder verification (faster, but no contradiction detection).
+    .PARAMETER ShowSharedOnly
+        Only show shared-concept clusters (entailment/neutral). Mutually exclusive with -ShowDebatesOnly.
+    .PARAMETER ShowDebatesOnly
+        Only show debate clusters (contradiction). Mutually exclusive with -ShowSharedOnly.
     .PARAMETER Model
         AI model override.
     .PARAMETER ApiKey
@@ -38,6 +42,10 @@ function Find-CrossCuttingCandidates {
         Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
     .EXAMPLE
         Find-CrossCuttingCandidates -NoNLI
+    .EXAMPLE
+        Find-CrossCuttingCandidates -ShowSharedOnly -TopN 10
+    .EXAMPLE
+        Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
     #>
     [CmdletBinding()]
     param(
@@ -53,6 +61,10 @@ function Find-CrossCuttingCandidates {
 
         [switch]$NoNLI,
 
+        [switch]$ShowSharedOnly,
+
+        [switch]$ShowDebatesOnly,
+
         [string]$Model,
 
         [string]$ApiKey,
@@ -62,6 +74,10 @@ function Find-CrossCuttingCandidates {
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    if ($ShowSharedOnly -and $ShowDebatesOnly) {
+        throw '-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.'
+    }
 
     if (-not $Model) {
         $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
@@ -393,8 +409,80 @@ function Find-CrossCuttingCandidates {
         })
     }
 
-    # Build debate clusters from contradiction pairs (each pair is its own cluster)
-    foreach ($Pair in $ContradictionPairs) {
+    # Build debate clusters — merge contradiction pairs sharing a member node
+    $DebateParent = @{}
+    $DebateFind = {
+        param([string]$X)
+        while ($DebateParent.ContainsKey($X) -and $DebateParent[$X] -ne $X) {
+            $DebateParent[$X] = $DebateParent[$DebateParent[$X]]
+            $X = $DebateParent[$X]
+        }
+        return $X
+    }
+    $DebateUnion = {
+        param([string]$A, [string]$B)
+        $RA = & $DebateFind $A; $RB = & $DebateFind $B
+        if ($RA -ne $RB) { $DebateParent[$RA] = $RB }
+    }
+
+    # Same merge threshold as agreement — only merge high-similarity debate pairs
+    $DebateMerge = @($ContradictionPairs | Where-Object { $_.Similarity -ge $MergeThreshold })
+    $DebateLoose = @($ContradictionPairs | Where-Object { $_.Similarity -lt $MergeThreshold })
+
+    foreach ($Pair in $DebateMerge) {
+        if (-not $DebateParent.ContainsKey($Pair.IdA)) { $DebateParent[$Pair.IdA] = $Pair.IdA }
+        if (-not $DebateParent.ContainsKey($Pair.IdB)) { $DebateParent[$Pair.IdB] = $Pair.IdB }
+        & $DebateUnion $Pair.IdA $Pair.IdB
+    }
+
+    $DebateGroups = @{}
+    foreach ($NodeId in @($DebateParent.Keys)) {
+        $Root = & $DebateFind $NodeId
+        if (-not $DebateGroups.ContainsKey($Root)) {
+            $DebateGroups[$Root] = [System.Collections.Generic.List[string]]::new()
+        }
+        $DebateGroups[$Root].Add($NodeId)
+    }
+
+    # Add merged debate groups — discard oversized clusters (>10 nodes) and
+    # fall back to their constituent pairs, since mega-clusters aren't useful.
+    $MaxDebateSize = 10
+    $OversizedPairs = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($DG in $DebateGroups.Values) {
+        $Members = @($DG)
+        $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
+        if ($PovsRepresented.Count -lt 2) { continue }
+        if ($Members.Count -le $MaxDebateSize) {
+            $Scored = & $ScoreGroup $Members $ContradictionPairs 'contradiction'
+            $AllScoredGroups.Add($Scored)
+        }
+        else {
+            # Oversized — emit constituent pairs individually
+            foreach ($Pair in $DebateMerge) {
+                if ($Pair.IdA -in $Members -and $Pair.IdB -in $Members) {
+                    $OversizedPairs.Add($Pair)
+                }
+            }
+        }
+    }
+
+    # Add oversized-cluster pairs as standalone debate entries
+    foreach ($Pair in $OversizedPairs) {
+        $PairMembers = @($Pair.IdA, $Pair.IdB)
+        $PovsRepresented = @($PairMembers | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
+        if ($PovsRepresented.Count -lt 2) { continue }
+        $AllScoredGroups.Add([PSCustomObject]@{
+            Members         = $PairMembers
+            MaxBoosted      = $Pair.Boosted
+            AvgSimilarity   = $Pair.Similarity
+            PovsRepresented = $PovsRepresented
+            NliCounts       = @{ entailment = 0; neutral = 0; contradiction = 1 }
+            DominantNli     = 'contradiction'
+        })
+    }
+
+    # Add loose debate pairs as standalone clusters
+    foreach ($Pair in $DebateLoose) {
         $Members = @($Pair.IdA, $Pair.IdB)
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
         if ($PovsRepresented.Count -lt 2) { continue }
@@ -408,24 +496,34 @@ function Find-CrossCuttingCandidates {
         })
     }
 
-    # Reserve half the slots for shared concepts, half for debates, so
-    # high-similarity debates don't crowd out genuine cross-cutting concepts.
+    # Separate shared-concept and debate groups
     $SharedAll = @($AllScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' } |
         Sort-Object { $_.MaxBoosted } -Descending)
     $DebateAll = @($AllScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' } |
         Sort-Object { $_.MaxBoosted } -Descending)
 
-    $SharedSlots = [Math]::Ceiling($TopN / 2)
-    $DebateSlots = $TopN - $SharedSlots
-
-    # If one category has fewer results, give extra slots to the other
-    if ($SharedAll.Count -lt $SharedSlots) {
-        $DebateSlots += ($SharedSlots - $SharedAll.Count)
-        $SharedSlots = $SharedAll.Count
+    # Allocate slots based on filter switches
+    if ($ShowSharedOnly) {
+        $SharedSlots = $TopN
+        $DebateSlots = 0
     }
-    elseif ($DebateAll.Count -lt $DebateSlots) {
-        $SharedSlots += ($DebateSlots - $DebateAll.Count)
-        $DebateSlots = $DebateAll.Count
+    elseif ($ShowDebatesOnly) {
+        $SharedSlots = 0
+        $DebateSlots = $TopN
+    }
+    else {
+        # Default: reserve half for each, redistribute if one side is sparse
+        $SharedSlots = [Math]::Ceiling($TopN / 2)
+        $DebateSlots = $TopN - $SharedSlots
+
+        if ($SharedAll.Count -lt $SharedSlots) {
+            $DebateSlots += ($SharedSlots - $SharedAll.Count)
+            $SharedSlots = $SharedAll.Count
+        }
+        elseif ($DebateAll.Count -lt $DebateSlots) {
+            $SharedSlots += ($DebateSlots - $DebateAll.Count)
+            $DebateSlots = $DebateAll.Count
+        }
     }
 
     $PickedShared = @($SharedAll | Select-Object -First $SharedSlots)
@@ -436,7 +534,7 @@ function Find-CrossCuttingCandidates {
 
     $AgreementCount = $PickedShared.Count
     $DebateCount    = $PickedDebate.Count
-    Write-OK "Formed $($SharedAll.Count) agreement groups + $($DebateAll.Count) debate pairs; selected $AgreementCount shared + $DebateCount debate (top $TopN)"
+    Write-OK "Formed $($SharedAll.Count) agreement groups + $($DebateAll.Count) debate groups; selected $AgreementCount shared + $DebateCount debate (top $TopN)"
 
     # ── Step 7: Optional AI labeling ──────────────────────────────────────────
     $AILabels = $null

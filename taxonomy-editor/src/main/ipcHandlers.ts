@@ -28,10 +28,10 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { isDataAvailable, getDataRootPath } from './fileIO';
-import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings } from './embeddings';
+import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings, classifyNli } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
-import type { NodeEmbeddingInput } from './embeddings';
+import type { NodeEmbeddingInput, NliPair } from './embeddings';
 import path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
@@ -141,6 +141,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('update-node-embeddings', async (_event, nodes: NodeEmbeddingInput[]) => {
     await updateNodeEmbeddings(nodes);
+  });
+
+  ipcMain.handle('nli-classify', async (_event, pairs: NliPair[]) => {
+    return { results: await classifyNli(pairs) };
   });
 
   ipcMain.handle('generate-text', async (event, prompt: string, model?: string) => {

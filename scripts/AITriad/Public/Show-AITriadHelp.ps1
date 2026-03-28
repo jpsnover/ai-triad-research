@@ -898,12 +898,15 @@ Get-IngestionPriority -POV safetyist -TopN 3
       <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Optional path to write results as JSON</td></tr>
       <tr><td><code>-NoAI</code></td><td>switch</td><td>No</td><td>Skip LLM labeling; return raw clusters only</td></tr>
       <tr><td><code>-NoNLI</code></td><td>switch</td><td>No</td><td>Skip NLI cross-encoder verification (faster, but no contradiction detection)</td></tr>
+      <tr><td><code>-ShowSharedOnly</code></td><td>switch</td><td>No</td><td>Only show shared-concept clusters (entailment/neutral)</td></tr>
+      <tr><td><code>-ShowDebatesOnly</code></td><td>switch</td><td>No</td><td>Only show debate clusters (contradiction)</td></tr>
       <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model override</td></tr>
     </table>
 <pre>
 Find-CrossCuttingCandidates -NoAI
 Find-CrossCuttingCandidates -MinSimilarity 0.80 -OutputFile cc.json
-Find-CrossCuttingCandidates -NoNLI
+Find-CrossCuttingCandidates -ShowSharedOnly -TopN 10
+Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
 </pre>
   </div>
 

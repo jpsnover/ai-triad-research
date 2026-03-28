@@ -184,6 +184,57 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   embeddingsCachePath = null;
 }
 
+// ---------- NLI cross-encoder classification ----------
+
+export interface NliPair {
+  text_a: string;
+  text_b: string;
+  [key: string]: unknown; // extra fields are preserved
+}
+
+export interface NliResult {
+  text_a: string;
+  text_b: string;
+  nli_label: 'entailment' | 'neutral' | 'contradiction';
+  nli_entailment: number;
+  nli_neutral: number;
+  nli_contradiction: number;
+  margin: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Classify text pairs as entailment, neutral, or contradiction using the
+ * local NLI cross-encoder (cross-encoder/nli-deberta-v3-small).
+ * Calls embed_taxonomy.py nli-classify via stdin/stdout.
+ */
+export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
+  if (pairs.length === 0) return [];
+
+  const inputJson = JSON.stringify(pairs);
+
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'python3',
+      [EMBED_SCRIPT, 'nli-classify'],
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`NLI classification failed: ${err.message}\n${stderr}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout) as NliResult[]);
+        } catch (parseErr) {
+          reject(new Error(`Failed to parse NLI output: ${parseErr}`));
+        }
+      },
+    );
+    child.stdin!.write(inputJson);
+    child.stdin!.end();
+  });
+}
+
 // ---------- Local Python embedding ----------
 
 function computeQueryViaLocalPython(text: string): Promise<number[]> {

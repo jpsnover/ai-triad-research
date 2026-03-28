@@ -201,12 +201,31 @@ INSTRUCTIONS:
                 -Model     $Model `
                 -ApiKey    $ResolvedKey `
                 -Temperature 0.1 `
-                -MaxTokens 256 `
-                -JsonMode `
-                -TimeoutSec 60
+                -MaxTokens 512 `
+                -TimeoutSec 120
 
-            $ResponseText = $AIResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
-            $Parsed = $ResponseText | ConvertFrom-Json
+            $ResponseText = $AIResult.Text
+            if (-not $ResponseText) {
+                Write-Warn "$Pid`: empty API response"
+                $Failed++
+                continue
+            }
+
+            # Strip markdown fences and extract JSON
+            $ResponseText = $ResponseText -replace '(?s)^\s*```json\s*', '' -replace '(?s)\s*```\s*$', ''
+            # Find the first complete JSON object (handles multi-line values)
+            $JsonMatch = [regex]::Match($ResponseText, '(?s)\{[^{}]*"refined_action"\s*:\s*"[^"]*"[^{}]*\}')
+            if (-not $JsonMatch.Success) {
+                # Fallback: try to find any JSON object
+                $JsonMatch = [regex]::Match($ResponseText, '(?s)\{.*?\}')
+            }
+            if (-not $JsonMatch.Success) {
+                Write-Warn "$Pid`: no JSON object found in response: $($ResponseText.Substring(0, [Math]::Min(100, $ResponseText.Length)))"
+                $Failed++
+                continue
+            }
+
+            $Parsed = $JsonMatch.Value | ConvertFrom-Json
 
             if (-not $Parsed.PSObject.Properties['refined_action'] -or [string]::IsNullOrWhiteSpace($Parsed.refined_action)) {
                 Write-Warn "$Pid`: LLM returned empty or missing refined_action"

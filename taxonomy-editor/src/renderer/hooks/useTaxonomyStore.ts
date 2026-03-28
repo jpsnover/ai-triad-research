@@ -305,7 +305,7 @@ interface TaxonomyState {
   analysisCritiqueOriginalNode: PovNode | null;
   runNodeCritique: (pov: Pov, node: PovNode) => Promise<void>;
 
-  clusterView: { clusters: { label: string; nodeIds: string[] }[] } | null;
+  clusterView: { clusters: { label: string; nodeIds: string[]; nliLabel?: 'entailment' | 'neutral' | 'contradiction' | null }[] } | null;
   clusterLoading: boolean;
   clusterError: string | null;
   runClusterView: (pov: Pov) => Promise<void>;
@@ -529,6 +529,41 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
             nodeIds: rawClusters[i],
           });
         }
+      }
+
+      // NLI classification — classify relationships within each cluster
+      try {
+        const descMap = new Map(file.nodes.map(n => [n.id, n.description || n.label]));
+        const nliPairs: Array<{ text_a: string; text_b: string; clusterIdx: number }> = [];
+        for (let ci = 0; ci < multiClusters.length; ci++) {
+          const ids = multiClusters[ci].nodeIds;
+          if (ids.length < 2) continue;
+          // Compare first node against each other node in the cluster
+          for (let j = 1; j < ids.length; j++) {
+            nliPairs.push({
+              text_a: descMap.get(ids[0]) || ids[0],
+              text_b: descMap.get(ids[j]) || ids[j],
+              clusterIdx: ci,
+            });
+          }
+        }
+        if (nliPairs.length > 0) {
+          const { results } = await window.electronAPI.nliClassify(nliPairs);
+          // Tally labels per cluster
+          const clusterCounts = new Map<number, Record<string, number>>();
+          for (let k = 0; k < results.length; k++) {
+            const ci = nliPairs[k].clusterIdx;
+            if (!clusterCounts.has(ci)) clusterCounts.set(ci, { entailment: 0, neutral: 0, contradiction: 0 });
+            const counts = clusterCounts.get(ci)!;
+            counts[results[k].nli_label] = (counts[results[k].nli_label] || 0) + 1;
+          }
+          for (const [ci, counts] of clusterCounts) {
+            const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+            (multiClusters[ci] as { nliLabel?: string }).nliLabel = dominant[0];
+          }
+        }
+      } catch (nliErr) {
+        console.warn('[clusterView] NLI classification failed, continuing without labels:', nliErr);
       }
 
       // Sort clusters by size descending
