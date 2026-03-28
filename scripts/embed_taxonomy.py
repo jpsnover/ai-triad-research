@@ -105,11 +105,14 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json"}
+
+
 def _load_taxonomy_nodes():
     """Read all POV JSON files and return a flat list of (pov, node) tuples."""
     nodes = []
     for path in sorted(TAXONOMY_DIR.glob("*.json")):
-        if path.name == "embeddings.json":
+        if path.name in SKIP_FILES:
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -123,29 +126,54 @@ def _load_taxonomy_nodes():
     return nodes
 
 
+def _load_policy_registry():
+    """Read policy_actions.json and return list of policy dicts, or empty list."""
+    registry_path = TAXONOMY_DIR / "policy_actions.json"
+    if not registry_path.exists():
+        return []
+    try:
+        data = json.loads(registry_path.read_text(encoding="utf-8"))
+        return data.get("policies", [])
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: could not load policy registry: {exc}", file=sys.stderr)
+        return []
+
+
 def cmd_generate(args):
-    """Rebuild embeddings.json from all taxonomy JSON files."""
+    """Rebuild embeddings.json from all taxonomy JSON files and policy registry."""
     nodes = _load_taxonomy_nodes()
-    if not nodes:
-        print("Error: no taxonomy nodes found.", file=sys.stderr)
+    policies = _load_policy_registry()
+
+    if not nodes and not policies:
+        print("Error: no taxonomy nodes or policies found.", file=sys.stderr)
         sys.exit(1)
 
     model = _load_model()
 
-    # Build texts: description only per node
-    texts = [
-        node.get('description', '') for _, node in nodes
-    ]
+    # Embed taxonomy nodes
+    node_texts = [node.get('description', '') for _, node in nodes]
+    all_texts = list(node_texts)
 
-    print(f"Embedding {len(texts)} nodes...", file=sys.stderr)
-    vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=True)
+    # Embed policies
+    policy_texts = [p.get('action', '') for p in policies]
+    all_texts.extend(policy_texts)
+
+    print(f"Embedding {len(node_texts)} nodes + {len(policy_texts)} policies...", file=sys.stderr)
+    vectors = model.encode(all_texts, normalize_embeddings=True, show_progress_bar=True)
 
     # Build output structure
     nodes_dict = {}
-    for (pov, node), vec in zip(nodes, vectors):
+    for i, (pov, node) in enumerate(nodes):
         nodes_dict[node["id"]] = {
             "pov": pov,
-            "vector": vec.tolist(),
+            "vector": vectors[i].tolist(),
+        }
+
+    offset = len(nodes)
+    for i, pol in enumerate(policies):
+        nodes_dict[pol["id"]] = {
+            "pov": "policy",
+            "vector": vectors[offset + i].tolist(),
         }
 
     output = {
@@ -160,14 +188,14 @@ def cmd_generate(args):
         json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print(
-        f"Wrote {len(nodes_dict)} embeddings ({vectors.shape[1]}d) "
-        f"to {EMBEDDINGS_FILE}",
+        f"Wrote {len(nodes_dict)} embeddings ({len(node_texts)} nodes + "
+        f"{len(policy_texts)} policies, {vectors.shape[1]}d) to {EMBEDDINGS_FILE}",
         file=sys.stderr,
     )
 
 
 def cmd_query(args):
-    """Find the most similar taxonomy nodes to a text query."""
+    """Find the most similar taxonomy nodes/policies to a text query."""
     # Load embeddings
     if not EMBEDDINGS_FILE.exists():
         print(
@@ -180,20 +208,27 @@ def cmd_query(args):
 
     # Staleness check
     current_nodes = _load_taxonomy_nodes()
-    if len(current_nodes) != data.get("node_count", 0):
+    current_policies = _load_policy_registry()
+    expected = len(current_nodes) + len(current_policies)
+    if expected != data.get("node_count", 0):
         print(
-            f"Warning: taxonomy has {len(current_nodes)} nodes but "
-            f"embeddings.json has {data['node_count']}. "
+            f"Warning: taxonomy has {len(current_nodes)} nodes + {len(current_policies)} policies "
+            f"({expected} total) but embeddings.json has {data['node_count']}. "
             f"Consider running 'generate' to update.",
             file=sys.stderr,
         )
 
-    # Filter by POV if specified
+    # Filter by POV and/or type
     pov_filter = args.pov.lower() if args.pov else None
+    type_filter = getattr(args, 'type', None)
     node_ids = []
     vectors = []
     for nid, entry in data["nodes"].items():
         if pov_filter and entry["pov"] != pov_filter:
+            continue
+        if type_filter == "node" and entry["pov"] == "policy":
+            continue
+        if type_filter == "policy" and entry["pov"] != "policy":
             continue
         node_ids.append(nid)
         vectors.append(entry["vector"])
@@ -283,11 +318,13 @@ def cmd_find_overlaps(args):
 
     data = json.loads(EMBEDDINGS_FILE.read_text(encoding="utf-8"))
 
-    # Load taxonomy node texts for NLI
+    # Load taxonomy node and policy texts for NLI
     node_texts = {}
     for pov, node in _load_taxonomy_nodes():
         text = node.get("description", "") or node.get("label", "")
         node_texts[node["id"]] = text
+    for pol in _load_policy_registry():
+        node_texts[pol["id"]] = pol.get("action", "")
 
     # Build arrays
     node_ids = []
@@ -421,6 +458,12 @@ def main():
         "--pov",
         default=None,
         help="Filter to a specific POV (e.g. safetyist)",
+    )
+    q.add_argument(
+        "--type",
+        choices=["node", "policy"],
+        default=None,
+        help="Filter to nodes only or policies only",
     )
 
     # find-overlaps
