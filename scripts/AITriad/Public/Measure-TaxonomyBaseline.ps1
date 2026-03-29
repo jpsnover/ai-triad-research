@@ -45,7 +45,7 @@ function Measure-TaxonomyBaseline {
 
     # ── Load taxonomy ──────────────────────────────────────────────────────
     $AllNodes = @{}
-    foreach ($File in (Get-ChildItem $TaxDir -Filter '*.json' | Where-Object { $_.Name -notin 'embeddings.json','edges.json','policy_actions.json','Temp.json' })) {
+    foreach ($File in (Get-ChildItem $TaxDir -Filter '*.json' | Where-Object { $_.Name -notin 'embeddings.json','edges.json','policy_actions.json','Temp.json','_archived_edges.json' })) {
         $Data = Get-Content -Raw $File.FullName | ConvertFrom-Json -Depth 20
         foreach ($Node in $Data.nodes) {
             $AllNodes[$Node.id] = $Node

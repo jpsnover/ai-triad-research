@@ -119,7 +119,7 @@ foreach ($_name in @('DocConverters', 'AIEnrich')) {
 $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json') { continue }
+        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json') { continue }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
             $PovName = $File.BaseName.ToLower()

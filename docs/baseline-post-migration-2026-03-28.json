@@ -1,0 +1,230 @@
+{
+  "metadata": {
+    "generated_at": "2026-03-28T21:00:03Z",
+    "taxonomy_version": "unknown",
+    "node_count": 451,
+    "summary_count": 118,
+    "edge_count": 15802,
+    "conflict_count": 1145,
+    "sample_doc_ids": "all"
+  },
+  "node_mapping": {
+    "total_key_points": 2562,
+    "null_mapped": 62,
+    "null_mapped_pct": 2.4,
+    "invalid_node_refs": 8,
+    "category_inconsistencies": 14,
+    "category_inconsistent_ids": [
+      "saf-data-006",
+      "saf-goals-001",
+      "saf-goals-003",
+      "skp-goals-005",
+      "skp-goals-004",
+      "acc-goals-002",
+      "skp-goals-002",
+      "saf-goals-002",
+      "acc-goals-006",
+      "saf-goals-004",
+      "acc-methods-011",
+      "acc-goals-003",
+      "skp-goals-003",
+      "skp-goals-001"
+    ],
+    "unreferenced_node_count": 294,
+    "unreferenced_node_pct": 65.2
+  },
+  "density": {
+    "doc_count": 118,
+    "median_kp_per_1k": 1.95,
+    "p10_kp_per_1k": 0.19,
+    "p90_kp_per_1k": 2.48,
+    "zero_kp_camp_entries": 0,
+    "low_density_docs": [
+      {
+        "DocId": "please-dont-outsource-your-critical-thinking-2026",
+        "Camp": "accelerationist",
+        "WordCount": 8801,
+        "KPCount": 1,
+        "KPPer1K": 0.11
+      },
+      {
+        "DocId": "concrete-problems-ai-safety-2026",
+        "Camp": "skeptic",
+        "WordCount": 17355,
+        "KPCount": 2,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "skin-game-decision-making-via-multi-stakeholder-alignment-2026",
+        "Camp": "skeptic",
+        "WordCount": 16297,
+        "KPCount": 2,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "situational-awareness-decade-ahead-2026",
+        "Camp": "skeptic",
+        "WordCount": 49660,
+        "KPCount": 6,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "approach-technical-agi-safety-security-2026",
+        "Camp": "skeptic",
+        "WordCount": 80491,
+        "KPCount": 10,
+        "KPPer1K": 0.12
+      },
+      {
+        "DocId": "tell-me-about-yourself-llms-are-aware-their-learned-2026",
+        "Camp": "skeptic",
+        "WordCount": 30248,
+        "KPCount": 4,
+        "KPPer1K": 0.13
+      },
+      {
+        "DocId": "power-seekingaiexistentialrisk-2026",
+        "Camp": "skeptic",
+        "WordCount": 39472,
+        "KPCount": 5,
+        "KPPer1K": 0.13
+      },
+      {
+        "DocId": "philosophy-technology-stanford-encyclopedia-philosophy-2026",
+        "Camp": "accelerationist",
+        "WordCount": 21107,
+        "KPCount": 3,
+        "KPPer1K": 0.14
+      },
+      {
+        "DocId": "generative-ai-work-2026",
+        "Camp": "safetyist",
+        "WordCount": 19365,
+        "KPCount": 3,
+        "KPPer1K": 0.15
+      },
+      {
+        "DocId": "philosophy-technology-stanford-encyclopedia-philosophy-2026-2",
+        "Camp": "accelerationist",
+        "WordCount": 20479,
+        "KPCount": 3,
+        "KPPer1K": 0.15
+      }
+    ],
+    "high_density_docs": []
+  },
+  "edges": {
+    "total_edges": 15802,
+    "type_distribution": {
+      "SUPPORTS": 7201,
+      "TENSION_WITH": 3197,
+      "WEAKENS": 1643,
+      "RESPONDS_TO": 1473,
+      "CONTRADICTS": 939,
+      "ASSUMES": 899,
+      "INTERPRETS": 450
+    },
+    "canonical_type_count": 15802.0,
+    "non_canonical_type_count": 0.0,
+    "non_canonical_types": [],
+    "orphan_edges": 787,
+    "self_edges": 0,
+    "goals_supports_data": 139
+  },
+  "conflicts": {
+    "total_conflicts": 1145,
+    "single_instance": 1056,
+    "single_instance_pct": 92.2,
+    "multi_instance": 89,
+    "status_open": 1145,
+    "status_resolved": 0
+  },
+  "fallacies": {
+    "nodes_with_fallacies": 239,
+    "nodes_without_fallacies": 212,
+    "flagging_rate_pct": 53.0,
+    "total_flags": 395,
+    "avg_per_flagged_node": 1.7,
+    "confidence_likely": 137,
+    "confidence_possible": 202,
+    "confidence_borderline": 56,
+    "top_fallacy_types": [
+      {
+        "type": "Optimism_Bias",
+        "count": 53
+      },
+      {
+        "type": "Argument_From_Analogy",
+        "count": 49
+      },
+      {
+        "type": "False_Dilemma",
+        "count": 43
+      },
+      {
+        "type": "slippery_slope",
+        "count": 39
+      },
+      {
+        "type": "Hasty_Generalization",
+        "count": 36
+      },
+      {
+        "type": "nirvana_fallacy",
+        "count": 21
+      },
+      {
+        "type": "Reification",
+        "count": 19
+      },
+      {
+        "type": "Appeal_To_Fear",
+        "count": 19
+      },
+      {
+        "type": "Straw_Man",
+        "count": 15
+      },
+      {
+        "type": "Naturalistic_Fallacy",
+        "count": 10
+      },
+      {
+        "type": "False_Cause",
+        "count": 10
+      },
+      {
+        "type": "Ad_Hominem",
+        "count": 9
+      },
+      {
+        "type": "Genetic_Fallacy",
+        "count": 9
+      },
+      {
+        "type": "Argument_From_Ignorance",
+        "count": 9
+      },
+      {
+        "type": "Appeal_To_Consequences",
+        "count": 7
+      }
+    ]
+  },
+  "descriptions": {
+    "total_nodes": 451,
+    "median_desc_length": 534,
+    "p10_desc_length": 454,
+    "p90_desc_length": 642,
+    "short_descriptions": 0,
+    "stub_descriptions": 0,
+    "genus_differentia_pattern": 0,
+    "genus_differentia_pct": 0.0
+  },
+  "unmapped_concepts": {
+    "total_unmapped_concepts": 425,
+    "resolved": 52,
+    "unresolved": 373,
+    "resolved_pct": 12.2
+  }
+}
