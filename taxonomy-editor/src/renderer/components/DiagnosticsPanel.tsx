@@ -108,28 +108,28 @@ function EntryView({ entryId }: { entryId: string }) {
       {/* Taxonomy Context */}
       {diag?.taxonomy_context && (
         <CollapsibleSection title="Taxonomy Context (BDI)">
-          <pre className="diag-pre">{diag.taxonomy_context}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.taxonomy_context} />
         </CollapsibleSection>
       )}
 
       {/* Commitment Context */}
       {diag?.commitment_context && (
         <CollapsibleSection title="Commitments Injected">
-          <pre className="diag-pre">{diag.commitment_context}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.commitment_context} />
         </CollapsibleSection>
       )}
 
       {/* Edge Tensions (moderator only) */}
       {diag?.edge_tensions && (
         <CollapsibleSection title="Edge Tensions Considered">
-          <pre className="diag-pre">{diag.edge_tensions}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.edge_tensions} />
         </CollapsibleSection>
       )}
 
       {/* AN Context (moderator only) */}
       {diag?.argument_network_context && (
         <CollapsibleSection title="Argument Network State">
-          <pre className="diag-pre">{diag.argument_network_context}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.argument_network_context} />
         </CollapsibleSection>
       )}
 
@@ -148,14 +148,14 @@ function EntryView({ entryId }: { entryId: string }) {
       {/* Full Prompt */}
       {diag?.prompt && (
         <CollapsibleSection title="Full Prompt Sent to AI">
-          <pre className="diag-pre diag-pre-scroll">{diag.prompt}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.prompt} />
         </CollapsibleSection>
       )}
 
       {/* Raw Response */}
       {diag?.raw_response && (
         <CollapsibleSection title="Raw AI Response">
-          <pre className="diag-pre diag-pre-scroll">{diag.raw_response}</pre>
+          <textarea readOnly className="diag-textarea" value={diag.raw_response} />
         </CollapsibleSection>
       )}
 

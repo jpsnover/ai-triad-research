@@ -5549,6 +5549,21 @@ body {
   overflow: hidden;
 }
 .diag-pre-scroll { max-height: 200px; overflow-y: auto; }
+.diag-textarea {
+  width: 100%;
+  min-height: 150px;
+  max-height: 600px;
+  resize: vertical;
+  font-family: monospace;
+  font-size: 0.7rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .diag-ref { display: flex; gap: 6px; margin: 2px 0; font-size: 0.7rem; }
 .diag-ref-id { color: var(--accent); font-weight: 600; min-width: 100px; }
 .diag-ref-rel { color: var(--text-muted); }
