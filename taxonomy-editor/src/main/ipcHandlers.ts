@@ -28,7 +28,7 @@ import {
 } from './debateIO';
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { isDataAvailable, getDataRootPath } from './fileIO';
+import { isDataAvailable, getDataRootPath, loadDataConfig } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, updateNodeEmbeddings, classifyNli } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
@@ -192,6 +192,81 @@ export function registerIpcHandlers(): void {
       console.error('[IPC] generate-text-with-search failed:', msg);
       throw new Error(`AI grounded search failed: ${msg}`);
     }
+  });
+
+  // ── Harvest IPC handlers ──────────────────────────────────
+
+  ipcMain.handle('harvest-create-conflict', async (_event, conflict: Record<string, unknown>) => {
+    const conflictId = conflict.claim_id as string;
+    const conflictsDir = path.join(getDataRootPath(), 'conflicts');
+    if (!fs.existsSync(conflictsDir)) fs.mkdirSync(conflictsDir, { recursive: true });
+    const filePath = path.join(conflictsDir, `${conflictId}.json`);
+    const tmpPath = filePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(conflict, null, 2) + '\n', 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+    console.log(`[harvest] Created conflict: ${conflictId}`);
+    return { created: true, path: filePath };
+  });
+
+  ipcMain.handle('harvest-add-debate-ref', async (_event, nodeId: string, debateId: string) => {
+    const config = loadDataConfig();
+    const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
+    // Find which file contains this node
+    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json']) {
+      const filePath = path.join(taxonomyDir, fname);
+      if (!fs.existsSync(filePath)) continue;
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const node = data.nodes?.find((n: { id: string }) => n.id === nodeId);
+      if (!node) continue;
+      if (!node.debate_refs) node.debate_refs = [];
+      if (!node.debate_refs.includes(debateId)) {
+        node.debate_refs.push(debateId);
+        const tmpPath = filePath + '.tmp';
+        fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+        fs.renameSync(tmpPath, filePath);
+        console.log(`[harvest] Added debate_ref ${debateId} to ${nodeId}`);
+      }
+      return { updated: true };
+    }
+    return { updated: false, error: `Node ${nodeId} not found` };
+  });
+
+  ipcMain.handle('harvest-update-steelman', async (_event, nodeId: string, attackerPov: string, newText: string) => {
+    const config = loadDataConfig();
+    const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
+    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json']) {
+      const filePath = path.join(taxonomyDir, fname);
+      if (!fs.existsSync(filePath)) continue;
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const node = data.nodes?.find((n: { id: string }) => n.id === nodeId);
+      if (!node) continue;
+      if (!node.graph_attributes) node.graph_attributes = {};
+      const sv = node.graph_attributes.steelman_vulnerability;
+      if (typeof sv === 'string') {
+        // Migrate from string to object
+        node.graph_attributes.steelman_vulnerability = { [`from_${attackerPov}`]: newText };
+      } else if (typeof sv === 'object' && sv !== null) {
+        sv[`from_${attackerPov}`] = newText;
+      } else {
+        node.graph_attributes.steelman_vulnerability = { [`from_${attackerPov}`]: newText };
+      }
+      const tmpPath = filePath + '.tmp';
+      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+      fs.renameSync(tmpPath, filePath);
+      console.log(`[harvest] Updated steelman on ${nodeId} from_${attackerPov}`);
+      return { updated: true };
+    }
+    return { updated: false, error: `Node ${nodeId} not found` };
+  });
+
+  ipcMain.handle('harvest-save-manifest', async (_event, manifest: Record<string, unknown>) => {
+    const harvestsDir = path.join(getDataRootPath(), 'harvests');
+    if (!fs.existsSync(harvestsDir)) fs.mkdirSync(harvestsDir, { recursive: true });
+    const debateId = manifest.debate_id as string;
+    const filePath = path.join(harvestsDir, `${debateId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
+    console.log(`[harvest] Saved manifest: ${debateId}`);
+    return { saved: true };
   });
 
   ipcMain.handle('open-external', (_event, url: string) => {

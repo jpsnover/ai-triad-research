@@ -26,6 +26,10 @@ export interface ElectronAPI {
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string) => Promise<{ text: string }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{ text: string; searchQueries?: string[] }>;
+  harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;
+  harvestAddDebateRef: (nodeId: string, debateId: string) => Promise<{ updated: boolean }>;
+  harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string) => Promise<{ updated: boolean }>;
+  harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;

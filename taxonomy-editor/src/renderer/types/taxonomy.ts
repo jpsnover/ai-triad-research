@@ -44,6 +44,7 @@ export interface PovNode {
   cross_cutting_refs: string[];
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
+  debate_refs?: string[];
 }
 
 export interface PovTaxonomyFile {
@@ -69,6 +70,7 @@ export interface CrossCuttingNode {
   graph_attributes?: GraphAttributes;
   /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
   disagreement_type?: 'definitional' | 'interpretive' | 'structural';
+  debate_refs?: string[];
 }
 
 export interface CrossCuttingFile {

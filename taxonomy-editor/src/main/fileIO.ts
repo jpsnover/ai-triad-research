@@ -33,7 +33,7 @@ interface AiTriadConfig {
   version_file: string;
 }
 
-function loadDataConfig(): AiTriadConfig {
+export function loadDataConfig(): AiTriadConfig {
   const defaults: AiTriadConfig = {
     data_root: IS_PACKAGED ? getPlatformDataDir() : '.',
     taxonomy_dir: 'taxonomy/Origin',

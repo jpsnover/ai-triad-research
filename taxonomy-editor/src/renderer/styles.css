@@ -6645,6 +6645,129 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Harvest Dialog
+   ═══════════════════════════════════════════════════════════ */
+.harvest-dialog {
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.harvest-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.harvest-section {
+  margin-bottom: 16px;
+}
+.harvest-section h3 {
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.harvest-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+}
+.harvest-item-checked {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-primary));
+}
+.harvest-item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.harvest-item-header input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+.harvest-item-title { flex: 1; }
+.harvest-badge {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.harvest-item-body {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.harvest-position { margin: 2px 0; }
+.harvest-generated { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.harvest-generated label { display: flex; flex-direction: column; gap: 2px; font-weight: 600; font-size: 0.7rem; }
+.harvest-generated input, .harvest-generated textarea {
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.harvest-warnings { margin-top: 4px; }
+.harvest-warning {
+  font-size: 0.7rem;
+  color: #d97706;
+  padding: 2px 0;
+}
+.harvest-warning::before { content: "! "; font-weight: 700; }
+.harvest-steelman-current, .harvest-steelman-proposed, .harvest-steelman-source {
+  margin: 4px 0;
+  font-size: 0.75rem;
+}
+.harvest-steelman-proposed textarea {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+.harvest-refs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.harvest-ref-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.harvest-ref-count {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.harvest-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.harvest-result-summary {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.debate-harvest-btn {
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
+}
+
+/* ═══════════════════════════════════════════════════════════
    Related Edges Panel
    ═══════════════════════════════════════════════════════════ */
 

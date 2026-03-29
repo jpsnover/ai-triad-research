@@ -76,6 +76,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateTextWithSearch: (prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> =>
     ipcRenderer.invoke('generate-text-with-search', prompt, model),
 
+  // Harvest
+  harvestCreateConflict: (conflict: Record<string, unknown>): Promise<{ created: boolean }> =>
+    ipcRenderer.invoke('harvest-create-conflict', conflict),
+  harvestAddDebateRef: (nodeId: string, debateId: string): Promise<{ updated: boolean }> =>
+    ipcRenderer.invoke('harvest-add-debate-ref', nodeId, debateId),
+  harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string): Promise<{ updated: boolean }> =>
+    ipcRenderer.invoke('harvest-update-steelman', nodeId, attackerPov, newText),
+  harvestSaveManifest: (manifest: Record<string, unknown>): Promise<{ saved: boolean }> =>
+    ipcRenderer.invoke('harvest-save-manifest', manifest),
+
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>): Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }> =>
     ipcRenderer.invoke('nli-classify', pairs),
 

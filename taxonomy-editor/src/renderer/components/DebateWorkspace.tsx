@@ -8,6 +8,7 @@ import { POVER_INFO } from '../types/debate';
 import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
+import { HarvestDialog } from './HarvestDialog';
 import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -803,7 +804,9 @@ function DebateActions() {
   const [sending, setSending] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [showHarvest, setShowHarvest] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'synthesis') || false;
 
   if (!activeDebate) return null;
 
@@ -958,12 +961,21 @@ function DebateActions() {
         >
           Probe
         </button>
+        <button
+          className="btn debate-harvest-btn"
+          onClick={() => setShowHarvest(true)}
+          disabled={disabled || !hasSynthesis}
+          title="Harvest debate findings into the taxonomy"
+        >
+          Harvest
+        </button>
       </div>
       {isGenerating && (
         <div className="debate-action-hint">
           {speakerLabel(debateGenerating)} is responding...
         </div>
       )}
+      {showHarvest && <HarvestDialog onClose={() => setShowHarvest(false)} />}
     </div>
   );
 }
