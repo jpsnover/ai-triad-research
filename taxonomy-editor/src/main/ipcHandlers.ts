@@ -26,6 +26,12 @@ import {
   saveDebateSession,
   deleteDebateSession,
 } from './debateIO';
+import {
+  listChatSessions,
+  loadChatSession,
+  saveChatSession,
+  deleteChatSession,
+} from './chatIO';
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { isDataAvailable, getDataRootPath, loadDataConfig } from './fileIO';
@@ -259,6 +265,19 @@ export function registerIpcHandlers(): void {
     return { updated: false, error: `Node ${nodeId} not found` };
   });
 
+  ipcMain.handle('harvest-add-verdict', async (_event, conflictId: string, verdict: Record<string, unknown>) => {
+    const conflictsDir = path.join(getDataRootPath(), 'conflicts');
+    const filePath = path.join(conflictsDir, `${conflictId}.json`);
+    if (!fs.existsSync(filePath)) return { updated: false, error: `Conflict ${conflictId} not found` };
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    data.verdict = verdict;
+    const tmpPath = filePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+    console.log(`[harvest] Added verdict to conflict: ${conflictId}`);
+    return { updated: true };
+  });
+
   ipcMain.handle('harvest-save-manifest', async (_event, manifest: Record<string, unknown>) => {
     const harvestsDir = path.join(getDataRootPath(), 'harvests');
     if (!fs.existsSync(harvestsDir)) fs.mkdirSync(harvestsDir, { recursive: true });
@@ -328,6 +347,23 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-debate-session', (_event, id: string) => {
     deleteDebateSession(id);
+  });
+
+  // ── Chat session handlers ─���───────────────────────────
+  ipcMain.handle('list-chat-sessions', () => {
+    return listChatSessions();
+  });
+
+  ipcMain.handle('load-chat-session', (_event, id: string) => {
+    return loadChatSession(id);
+  });
+
+  ipcMain.handle('save-chat-session', (_event, session: unknown) => {
+    saveChatSession(session);
+  });
+
+  ipcMain.handle('delete-chat-session', (_event, id: string) => {
+    deleteChatSession(id);
   });
 
   ipcMain.handle('export-debate-to-file', async (event, session: unknown) => {

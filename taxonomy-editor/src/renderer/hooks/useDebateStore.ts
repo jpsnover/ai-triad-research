@@ -16,6 +16,8 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
+import { extractClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -96,6 +98,128 @@ function stripCodeFences(text: string): string {
 }
 
 const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
+
+/**
+ * Extract claims from a debater's statement and update the argument network.
+ * Runs in the background after each turn — does not block the debate flow.
+ */
+async function extractClaimsAndUpdateAN(
+  statement: string,
+  speaker: PoverId,
+  entryId: string,
+  taxonomyRefs: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get: () => any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: (partial: any) => void,
+): Promise<void> {
+  const debate = get().activeDebate as DebateSession | null;
+  if (!debate) return;
+
+  const model = getConfiguredModel();
+  const an = debate.argument_network || { nodes: [], edges: [] };
+  const priorClaims = an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker }));
+  const speakerLabel = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+
+  try {
+    const prompt = extractClaimsPrompt(statement, speakerLabel, priorClaims);
+    const { text } = await window.electronAPI.generateText(prompt, model);
+    let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+    const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
+    if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
+    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+
+    const parsed = JSON.parse(cleaned) as { claims?: { text: string; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] };
+    if (!parsed.claims || !Array.isArray(parsed.claims)) return;
+
+    const turnNumber = debate.transcript.length;
+    const newNodes: ArgumentNetworkNode[] = [];
+    const newEdges: ArgumentNetworkEdge[] = [];
+    const priorIds = new Set(an.nodes.map(n => n.id));
+    let nextId = an.nodes.length + 1;
+
+    // Commitments tracking
+    const commitments = debate.commitments || {};
+    const speakerCommits: CommitmentStore = commitments[speaker] || { asserted: [], conceded: [], challenged: [] };
+
+    for (const claim of parsed.claims.slice(0, 4)) {
+      if (!claim.text || claim.text.length < 10) continue;
+
+      // V1.4: Verify claim is grounded in statement (>40% word overlap)
+      const claimWords = new Set(claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+      const stmtWords = new Set(statement.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+      const overlap = [...claimWords].filter(w => stmtWords.has(w)).length / Math.max(claimWords.size, 1);
+      if (overlap < 0.3) {
+        console.warn(`[AN] Rejected claim — low overlap (${(overlap * 100).toFixed(0)}%): ${claim.text.slice(0, 60)}`);
+        continue;
+      }
+
+      const nodeId = `AN-${nextId++}`;
+      newNodes.push({
+        id: nodeId,
+        text: claim.text,
+        speaker,
+        source_entry_id: entryId,
+        taxonomy_refs: taxonomyRefs,
+        turn_number: turnNumber,
+      });
+
+      // Track as asserted
+      speakerCommits.asserted.push(claim.text);
+
+      for (const resp of claim.responds_to || []) {
+        // V1.4: Verify prior claim exists
+        if (!priorIds.has(resp.prior_claim_id)) {
+          console.warn(`[AN] Skipped reference to nonexistent ${resp.prior_claim_id}`);
+          continue;
+        }
+
+        const edgeId = `AE-${an.edges.length + newEdges.length + 1}`;
+        const edge: ArgumentNetworkEdge = {
+          id: edgeId,
+          source: nodeId,
+          target: resp.prior_claim_id,
+          type: resp.relationship === 'attacks' ? 'attacks' : 'supports',
+          warrant: resp.warrant || undefined,
+        };
+        if (resp.relationship === 'attacks') {
+          edge.attack_type = (resp.attack_type as 'rebut' | 'undercut' | 'undermine') || 'rebut';
+          edge.scheme = resp.scheme || undefined;
+          // Track as challenged
+          const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
+          if (targetNode) speakerCommits.challenged.push(targetNode.text);
+        }
+        if (resp.scheme === 'CONCEDE') {
+          // Track as conceded
+          const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
+          if (targetNode) speakerCommits.conceded.push(targetNode.text);
+        }
+        newEdges.push(edge);
+      }
+    }
+
+    if (newNodes.length === 0) return;
+
+    // Update debate session
+    const updated = {
+      ...get().activeDebate,
+      argument_network: {
+        nodes: [...an.nodes, ...newNodes],
+        edges: [...an.edges, ...newEdges],
+      },
+      commitments: {
+        ...commitments,
+        [speaker]: speakerCommits,
+      },
+    };
+    set({ activeDebate: updated });
+    await get().saveDebate();
+
+    console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
+  } catch (err) {
+    console.warn('[AN] Claim extraction failed (non-blocking):', err);
+  }
+}
 
 // ── Taxonomy grounding helpers ───────────────────────────
 
@@ -206,9 +330,16 @@ function buildDebateResponsePrompt(
 function buildCrossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
+  argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] },
 ): string {
   const edgeContext = formatEdgeContext(activePovers);
-  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext);
+  const anContext = argumentNetwork
+    ? formatArgumentNetworkContext(
+        argumentNetwork.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker })),
+        argumentNetwork.edges,
+      )
+    : '';
+  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext + anContext);
 }
 
 function buildCrossRespondPrompt(
@@ -788,7 +919,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const info = POVER_INFO[poverId];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+      const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
       const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
 
@@ -797,18 +929,25 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
-        addTranscriptEntry({
-          type: 'opening',
+        const entryForAN = {
+          type: 'opening' as const,
           speaker: poverId,
           content: statement,
           taxonomy_refs: taxonomyRefs,
           metadata: { ...meta },
-        });
+        };
+        addTranscriptEntry(entryForAN);
+        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
 
         priorStatements.push({ speaker: info.label, statement });
 
         // Save after each statement so progress persists
         await saveDebate();
+
+        // Extract claims in background (non-blocking)
+        if (lastEntry) {
+          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+        }
       } catch (err) {
         addTranscriptEntry({
           type: 'system',
@@ -909,7 +1048,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const info = POVER_INFO[poverId];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+      const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
       // Use the most current transcript (includes responses from prior POVers in this round)
       const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
@@ -938,6 +1078,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           addressing: 'user',
           metadata: { ...meta },
         });
+
+        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+        if (lastEntry) {
+          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+        }
       } catch (err) {
         addTranscriptEntry({
           type: 'system',
@@ -980,7 +1125,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Step 1: Ask the LLM which POVer should respond to whom
     set({ debateGenerating: aiPovers[0] }); // Show some activity
 
-    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels);
+    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels, activeDebate.argument_network);
 
     let responderPover: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = '';
@@ -1035,7 +1180,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const info = POVER_INFO[responderPover];
     const ctx = getTaxonomyContext(info.pov);
-    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+    const commitBlock = formatCommitments(activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] });
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
     const prompt = buildCrossRespondPrompt(
@@ -1062,6 +1208,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         addressing: 'all',
         metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, ...meta },
       });
+
+      const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+      if (lastEntry) {
+        extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+      }
     } catch (err) {
       addTranscriptEntry({
         type: 'system',
@@ -1164,6 +1315,21 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
               lines.push(`  ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${attack.claim}`);
             }
+          }
+        }
+      }
+      if (synthesis.preferences?.length > 0) {
+        lines.push('', '**Resolution Analysis:**');
+        for (const p of synthesis.preferences) {
+          if (p.prevails === 'undecidable') {
+            lines.push(`- **${p.conflict}** — Undecidable`);
+            lines.push(`  *${p.rationale}*`);
+          } else {
+            lines.push(`- **${p.conflict}** — Stronger: ${p.prevails} (${p.criterion?.replace(/_/g, ' ')})`);
+            lines.push(`  *${p.rationale}*`);
+          }
+          if (p.what_would_change_this) {
+            lines.push(`  Would change if: ${p.what_would_change_this}`);
           }
         }
       }

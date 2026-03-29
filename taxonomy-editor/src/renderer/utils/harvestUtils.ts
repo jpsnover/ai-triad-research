@@ -44,8 +44,22 @@ export interface HarvestDebateRefItem {
   checked: boolean;
 }
 
+export interface HarvestVerdictItem {
+  id: string;
+  conflict: string;
+  prevails: string;
+  criterion: string;
+  rationale: string;
+  whatWouldChange?: string;
+  claimIds?: string[];
+  /** ID of an existing conflict file to attach verdict to, or null to create new */
+  targetConflictId: string | null;
+  checked: boolean;
+  warnings: string[];
+}
+
 export interface HarvestManifestItem {
-  type: 'conflict' | 'steelman' | 'debate_ref';
+  type: 'conflict' | 'steelman' | 'debate_ref' | 'verdict';
   action: 'created' | 'updated' | 'added';
   id: string;
   status: 'applied' | 'rejected';
@@ -260,6 +274,58 @@ export function validateCondensedSteelman(
     warnings.push(`Low overlap with original (${(overlap * 100).toFixed(0)}%) — may have drifted`);
   }
 
+  return warnings;
+}
+
+// ── Preference/verdict extraction ─────────────────────────
+
+/** Extract preference verdicts from synthesis */
+export function extractVerdictCandidates(debate: DebateSession): HarvestVerdictItem[] {
+  const synthEntry = debate.transcript.find(e => e.type === 'synthesis');
+  if (!synthEntry?.metadata?.synthesis) return [];
+
+  const synthesis = synthEntry.metadata.synthesis as {
+    preferences?: {
+      conflict: string;
+      claim_ids?: string[];
+      prevails: string;
+      criterion: string;
+      rationale: string;
+      what_would_change_this?: string;
+    }[];
+  };
+
+  if (!synthesis.preferences) return [];
+
+  return synthesis.preferences.map((p, i) => ({
+    id: `hv-${i}`,
+    conflict: p.conflict,
+    prevails: p.prevails,
+    criterion: p.criterion,
+    rationale: p.rationale,
+    whatWouldChange: p.what_would_change_this,
+    claimIds: p.claim_ids,
+    targetConflictId: null, // User selects or creates during harvest
+    checked: false,
+    warnings: validateVerdict(p),
+  }));
+}
+
+/** Validate verdict quality (V-H5.2) */
+export function validateVerdict(
+  verdict: { prevails: string; criterion: string; rationale: string },
+): string[] {
+  const warnings: string[] = [];
+  const validCriteria = new Set(['empirical_evidence', 'logical_validity', 'source_authority', 'specificity', 'scope', 'undecidable']);
+  if (!validCriteria.has(verdict.criterion)) {
+    warnings.push(`Unknown criterion: ${verdict.criterion}`);
+  }
+  if (!verdict.rationale || verdict.rationale.length < 30) {
+    warnings.push('Rationale too short');
+  }
+  if (!verdict.prevails || verdict.prevails.length < 5) {
+    warnings.push('Prevails field too vague');
+  }
   return warnings;
 }
 

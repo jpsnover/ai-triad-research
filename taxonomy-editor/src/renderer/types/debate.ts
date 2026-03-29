@@ -60,6 +60,38 @@ export interface DebateSession {
   generated_with_prompt_version?: string;
   /** Debate-specific AI model override. If set, used instead of the global model for this debate only. */
   debate_model?: string;
+  /** Incremental argument network built during debate */
+  argument_network?: {
+    nodes: ArgumentNetworkNode[];
+    edges: ArgumentNetworkEdge[];
+  };
+  /** Per-debater commitment stores */
+  commitments?: Record<string, CommitmentStore>;
+}
+
+export interface ArgumentNetworkNode {
+  id: string;
+  text: string;
+  speaker: PoverId | 'system';
+  source_entry_id: string;
+  taxonomy_refs: string[];
+  turn_number: number;
+}
+
+export interface ArgumentNetworkEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: 'supports' | 'attacks';
+  attack_type?: 'rebut' | 'undercut' | 'undermine';
+  scheme?: string;
+  warrant?: string;
+}
+
+export interface CommitmentStore {
+  asserted: string[];
+  conceded: string[];
+  challenged: string[];
 }
 
 export interface DebateSessionSummary {
@@ -110,6 +142,17 @@ export interface SynthesisResult {
   taxonomy_coverage: { node_id: string; how_used: string }[];
   /** AIF argument map — added in dolce-phase-3. Absent in older debates. */
   argument_map?: ArgumentClaim[];
+  /** Preference resolution — which arguments prevail and why. Absent in older debates. */
+  preferences?: PreferenceEntry[];
+}
+
+export interface PreferenceEntry {
+  conflict: string;
+  claim_ids?: string[];
+  prevails: string;
+  criterion: string;
+  rationale: string;
+  what_would_change_this?: string;
 }
 
 /** POVer display metadata */

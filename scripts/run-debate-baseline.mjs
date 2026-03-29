@@ -337,6 +337,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": ["C3"], "attacked_by": [
       {"claim_id": "C2", "claim": "...", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
     ]}
+  ],
+  "preferences": [
+    {"conflict": "description", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "why", "what_would_change_this": "what evidence would flip it"}
   ]
 }`;
 }

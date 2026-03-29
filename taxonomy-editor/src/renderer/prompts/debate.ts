@@ -364,7 +364,16 @@ Identify:
      "undercut" — accepts the evidence but denies the inference (e.g., DISTINGUISH)
      "undermine" — attacks the credibility or relevance of the claim's source
    - For attacks, note which dialectical scheme was used: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
-   - Each claim must be traceable to something actually said in the transcript${documentAnalysis}
+   - Each claim must be traceable to something actually said in the transcript
+8. For each area of disagreement, evaluate which position is STRONGER and why.
+   Apply these preference criteria (in order of priority):
+   a. "empirical_evidence" — which position cites more or better evidence?
+   b. "logical_validity" — which position has fewer logical gaps or fallacies?
+   c. "source_authority" — which position draws on more authoritative sources?
+   d. "specificity" — which position is more concrete and testable?
+   e. "scope" — which position accounts for more of the relevant considerations?
+   A position can prevail on one criterion while losing on another.
+   If genuinely undecidable, say so and explain what evidence would tip the balance.${documentAnalysis}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -379,6 +388,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": ["C3"], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
     ]}
+  ],
+  "preferences": [
+    {"conflict": "description of the disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ]${documentSchema}
 }`;
 }

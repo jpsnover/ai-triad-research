@@ -29,6 +29,7 @@ export interface ElectronAPI {
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;
   harvestAddDebateRef: (nodeId: string, debateId: string) => Promise<{ updated: boolean }>;
   harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string) => Promise<{ updated: boolean }>;
+  harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>) => Promise<{ updated: boolean }>;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
@@ -43,6 +44,10 @@ export interface ElectronAPI {
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
+  listChatSessions: () => Promise<unknown[]>;
+  loadChatSession: (id: string) => Promise<unknown>;
+  saveChatSession: (session: unknown) => Promise<void>;
+  deleteChatSession: (id: string) => Promise<void>;
   listDebateSessions: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;

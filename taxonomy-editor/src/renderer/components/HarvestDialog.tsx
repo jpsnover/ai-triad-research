@@ -8,6 +8,7 @@ import {
   extractConflictCandidates,
   extractSteelmanCandidates,
   extractDebateRefCandidates,
+  extractVerdictCandidates,
   validateConflictDescription,
   validateCondensedSteelman,
   generateConflictSlug,
@@ -16,6 +17,7 @@ import type {
   HarvestConflictItem,
   HarvestSteelmanItem,
   HarvestDebateRefItem,
+  HarvestVerdictItem,
   HarvestManifestItem,
 } from '../utils/harvestUtils';
 
@@ -30,6 +32,7 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
   const [conflicts, setConflicts] = useState<HarvestConflictItem[]>([]);
   const [steelmans, setSteelmans] = useState<HarvestSteelmanItem[]>([]);
   const [debateRefs, setDebateRefs] = useState<HarvestDebateRefItem[]>([]);
+  const [verdicts, setVerdicts] = useState<HarvestVerdictItem[]>([]);
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ applied: number; failed: number } | null>(null);
   const [generatingConflicts, setGeneratingConflicts] = useState(false);
@@ -55,6 +58,7 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
     setConflicts(extractConflictCandidates(activeDebate));
     setSteelmans(extractSteelmanCandidates(activeDebate, getNodeLabel));
     setDebateRefs(extractDebateRefCandidates(activeDebate, getNodeLabel));
+    setVerdicts(extractVerdictCandidates(activeDebate));
   }, [activeDebate?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fill in current steelman text from taxonomy store
@@ -79,6 +83,8 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
     prev.map(s => s.id === id ? { ...s, checked: !s.checked } : s));
   const toggleDebateRef = (nodeId: string) => setDebateRefs(prev =>
     prev.map(r => r.nodeId === nodeId ? { ...r, checked: !r.checked } : r));
+  const toggleVerdict = (id: string) => setVerdicts(prev =>
+    prev.map(v => v.id === id ? { ...v, checked: !v.checked } : v));
 
   // AI-generate conflict descriptions for checked items
   const generateConflictDescriptions = async () => {
@@ -233,6 +239,31 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
       }
     }
 
+    // Apply verdicts — attach to existing conflicts or create with conflict
+    for (const item of verdicts) {
+      if (!item.checked) {
+        manifest.push({ type: 'verdict', action: 'updated', id: item.id, status: 'rejected' });
+        continue;
+      }
+      // If this verdict corresponds to a conflict we just created, attach to it
+      const conflictSlug = item.targetConflictId || generateConflictSlug(item.conflict, activeDebate.id);
+      try {
+        await window.electronAPI.harvestAddVerdict(conflictSlug, {
+          prevails: item.prevails,
+          criterion: item.criterion,
+          rationale: item.rationale,
+          what_would_change_this: item.whatWouldChange,
+          source_debate_id: activeDebate.id,
+          harvested_at: new Date().toISOString(),
+        });
+        manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'applied' });
+        applied++;
+      } catch {
+        manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'rejected' });
+        failed++;
+      }
+    }
+
     // Save manifest
     await window.electronAPI.harvestSaveManifest({
       debate_id: activeDebate.id,
@@ -247,7 +278,8 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
 
   const checkedCount = conflicts.filter(c => c.checked).length +
     steelmans.filter(s => s.checked).length +
-    debateRefs.filter(r => r.checked).length;
+    debateRefs.filter(r => r.checked).length +
+    verdicts.filter(v => v.checked).length;
 
   const needsGeneration = conflicts.some(c => c.checked && !c.generatedLabel) ||
     steelmans.some(s => s.checked && !s.proposedSteelman);
@@ -374,7 +406,37 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
               </div>
             )}
 
-            {conflicts.length === 0 && steelmans.length === 0 && debateRefs.length === 0 && (
+            {/* Section 4: Preference Verdicts */}
+            {verdicts.length > 0 && (
+              <div className="harvest-section">
+                <h3>Preference Verdicts ({verdicts.filter(v => v.checked).length}/{verdicts.length})</h3>
+                {verdicts.map(item => (
+                  <div key={item.id} className={`harvest-item ${item.checked ? 'harvest-item-checked' : ''}`}>
+                    <label className="harvest-item-header">
+                      <input type="checkbox" checked={item.checked} onChange={() => toggleVerdict(item.id)} />
+                      <span className="harvest-item-title">{item.conflict}</span>
+                      <span className="harvest-badge">{item.criterion?.replace(/_/g, ' ')}</span>
+                    </label>
+                    {item.checked && (
+                      <div className="harvest-item-body">
+                        <div><strong>Prevails:</strong> {item.prevails}</div>
+                        <div><strong>Rationale:</strong> {item.rationale}</div>
+                        {item.whatWouldChange && (
+                          <div><strong>Would change if:</strong> {item.whatWouldChange}</div>
+                        )}
+                        {item.warnings.length > 0 && (
+                          <div className="harvest-warnings">
+                            {item.warnings.map((w, i) => <div key={i} className="harvest-warning">{w}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {conflicts.length === 0 && steelmans.length === 0 && debateRefs.length === 0 && verdicts.length === 0 && (
               <div className="harvest-empty">No harvestable findings in this debate. Run a synthesis first.</div>
             )}
 

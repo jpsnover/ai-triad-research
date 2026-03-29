@@ -83,6 +83,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('harvest-add-debate-ref', nodeId, debateId),
   harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string): Promise<{ updated: boolean }> =>
     ipcRenderer.invoke('harvest-update-steelman', nodeId, attackerPov, newText),
+  harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>): Promise<{ updated: boolean }> =>
+    ipcRenderer.invoke('harvest-add-verdict', conflictId, verdict),
   harvestSaveManifest: (manifest: Record<string, unknown>): Promise<{ saved: boolean }> =>
     ipcRenderer.invoke('harvest-save-manifest', manifest),
 
@@ -136,6 +138,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   bulkUpdateEdges: (indices: number[], status: string): Promise<unknown> =>
     ipcRenderer.invoke('bulk-update-edges', indices, status),
+
+  // Chat sessions
+  listChatSessions: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-chat-sessions'),
+
+  loadChatSession: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('load-chat-session', id),
+
+  saveChatSession: (session: unknown): Promise<void> =>
+    ipcRenderer.invoke('save-chat-session', session),
+
+  deleteChatSession: (id: string): Promise<void> =>
+    ipcRenderer.invoke('delete-chat-session', id),
 
   // Debate sessions
   listDebateSessions: (): Promise<unknown[]> =>
