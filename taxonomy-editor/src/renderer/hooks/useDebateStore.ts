@@ -16,7 +16,7 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantCCNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import {
@@ -147,6 +147,7 @@ async function extractClaimsAndUpdateAN(
   get: () => any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set: (partial: any) => void,
+  debaterClaims?: { claim: string; targets: string[] }[],
 ): Promise<void> {
   const debate = get().activeDebate as DebateSession | null;
   if (!debate) return;
@@ -157,7 +158,11 @@ async function extractClaimsAndUpdateAN(
   const speakerLabel = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 
   try {
-    const prompt = extractClaimsPrompt(statement, speakerLabel, priorClaims);
+    // Hybrid approach: if debater supplied claims, use classifyClaimsPrompt (lighter).
+    // Otherwise fall back to full extractClaimsPrompt (backward compat with older models).
+    const prompt = debaterClaims && debaterClaims.length > 0
+      ? classifyClaimsPrompt(statement, speakerLabel, debaterClaims, priorClaims)
+      : extractClaimsPrompt(statement, speakerLabel, priorClaims);
     const { text } = await window.electronAPI.generateText(prompt, model);
     let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
     const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
@@ -517,22 +522,31 @@ function buildContextCompressionPrompt(
 }
 
 /** Parse @-mentions from user input. Returns { target, cleanedInput } */
-function parseAtMention(input: string): { target: PoverId | null; cleanedInput: string } {
+function parseAtMention(input: string): { targets: PoverId[]; cleanedInput: string } {
   const mentionMap: Record<string, PoverId> = {
     prometheus: 'prometheus',
     sentinel: 'sentinel',
     cassandra: 'cassandra',
   };
 
-  const match = input.match(/^@(\w+)[,:]?\s*/i);
-  if (match) {
+  const targets: PoverId[] = [];
+  let remaining = input;
+
+  // Extract all leading @mentions
+  while (true) {
+    const match = remaining.match(/^@(\w+)[,:]?\s*/i);
+    if (!match) break;
     const name = match[1].toLowerCase();
-    const target = mentionMap[name] ?? null;
-    if (target) {
-      return { target, cleanedInput: input.slice(match[0].length) };
+    const target = mentionMap[name];
+    if (target && !targets.includes(target)) {
+      targets.push(target);
+      remaining = remaining.slice(match[0].length);
+    } else {
+      break;
     }
   }
-  return { target: null, cleanedInput: input };
+
+  return { targets, cleanedInput: remaining };
 }
 
 /** Format recent transcript entries for inclusion in prompts.
@@ -569,6 +583,7 @@ interface PoverResponseMeta {
   move_types?: string[];
   disagreement_type?: string;
   key_assumptions?: { assumption: string; if_wrong: string }[];
+  my_claims?: { claim: string; targets: string[] }[];
 }
 
 /** Parse a POVer response JSON from the LLM */
@@ -593,6 +608,9 @@ function parsePoverResponse(text: string): { statement: string; taxonomyRefs: Ta
       move_types: Array.isArray(parsed.move_types) ? parsed.move_types : undefined,
       disagreement_type: typeof parsed.disagreement_type === 'string' ? parsed.disagreement_type : undefined,
       key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
+      my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims.filter(
+        (c: Record<string, unknown>) => typeof c.claim === 'string' && Array.isArray(c.targets),
+      ) : undefined,
     };
   } catch {
     statement = text.trim();
@@ -1160,7 +1178,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         // Extract claims in background (non-blocking)
         if (lastEntry) {
-          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
         addTranscriptEntry({
@@ -1220,14 +1238,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const isStillValid = createDebateGuard(get);
     set({ debateError: null });
 
-    // Parse @-mention to determine target
-    const { target, cleanedInput } = parseAtMention(input);
+    // Parse @-mentions to determine targets
+    const { targets, cleanedInput } = parseAtMention(input);
 
-    // Validate target is an active POVer
-    if (target && !activeDebate.active_povers.includes(target)) {
-      const label = target === 'user' ? 'You' : POVER_INFO[target as Exclude<PoverId, 'user'>]?.label || target;
-      set({ debateError: `${label} is not in this debate` });
-      return;
+    // Validate targets are active POVers
+    for (const t of targets) {
+      if (!activeDebate.active_povers.includes(t)) {
+        const label = t === 'user' ? 'You' : POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t;
+        set({ debateError: `${label} is not in this debate` });
+        return;
+      }
     }
 
     // Add user's question to transcript
@@ -1236,7 +1256,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       speaker: 'user',
       content: input,
       taxonomy_refs: [],
-      addressing: target || 'all',
+      addressing: targets.length === 1 ? targets[0] : 'all',
     });
 
     const model = getConfiguredModel();
@@ -1244,8 +1264,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     // Determine which AI POVers should respond
     const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
-    const respondingPovers = target
-      ? aiPovers.filter((p) => p === target) // Targeted: only the mentioned POVer
+    const respondingPovers = targets.length > 0
+      ? aiPovers.filter((p) => targets.includes(p)) // Targeted: only mentioned POVers
       : aiPovers; // All active AI POVers
 
     if (respondingPovers.length === 0) {
@@ -1275,7 +1295,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomyBlock,
         currentTranscript,
         cleanedInput,
-        target ? poverId : 'all',
+        targets.length > 0 ? poverId : 'all',
         activeDebate.source_content || undefined,
         get().responseLength,
       );
@@ -1296,7 +1316,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
-          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
         addTranscriptEntry({
@@ -1426,7 +1446,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
-        extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set);
+        extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
       }
     } catch (err) {
       addTranscriptEntry({

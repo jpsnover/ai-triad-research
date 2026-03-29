@@ -380,13 +380,12 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
 
   const handleAsk = async (q: { text: string; targets: string[] }) => {
     if (debateGenerating) return;
-    // If the question targets a specific debater, prepend @mention so askQuestion routes to them
-    if (q.targets?.length === 1) {
-      const targetLabel = POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.label;
-      if (targetLabel) {
-        await askQuestion(`@${targetLabel} ${q.text}`);
-        return;
-      }
+    // If the question targets specific debaters, prepend @mentions so askQuestion routes to them
+    const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<PoverId, 'user'>]);
+    if (validTargets.length > 0 && validTargets.length < 3) {
+      const mentions = validTargets.map(t => `@${POVER_INFO[t as Exclude<PoverId, 'user'>]?.label}`).join(' ');
+      await askQuestion(`${mentions} ${q.text}`);
+      return;
     }
     await askQuestion(q.text);
   };
@@ -399,12 +398,8 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
       </div>
       <div className="debate-probing-questions">
         {questions.map((q, i) => {
-          const targetLabel = q.targets?.length === 1
-            ? POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.label
-            : null;
-          const targetColor = q.targets?.length === 1
-            ? POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.color
-            : null;
+          const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<PoverId, 'user'>]);
+          const hasTargets = validTargets.length > 0 && validTargets.length < 3;
           return (
             <button
               key={i}
@@ -417,11 +412,14 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
                 q.type ? `Type: ${q.type}` : null,
               ].filter(Boolean).join('\n') || 'Ask this question to all debaters'}
             >
-              {targetLabel && (
-                <span className="debate-probing-target" style={targetColor ? { color: targetColor } : undefined}>
-                  @{targetLabel}
-                </span>
-              )}
+              {hasTargets && validTargets.map(t => {
+                const info = POVER_INFO[t as Exclude<PoverId, 'user'>];
+                return (
+                  <span key={t} className="debate-probing-target" style={info?.color ? { color: info.color } : undefined}>
+                    @{info?.label}
+                  </span>
+                );
+              })}
               {q.text}
             </button>
           );
