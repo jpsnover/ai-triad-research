@@ -19,7 +19,12 @@ export interface GraphAttributes {
   emotional_register?: string;
   policy_actions?: { policy_id?: string; action: string; framing: string }[];
   intellectual_lineage?: string[];
-  steelman_vulnerability?: string;
+  /** Pre-Phase-6c: string. Post-Phase-6c: per-POV object. Check typeof. */
+  steelman_vulnerability?: string | {
+    from_accelerationist?: string;
+    from_safetyist?: string;
+    from_skeptic?: string;
+  };
   possible_fallacies?: PossibleFallacy[];
   /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
   node_scope?: 'claim' | 'scheme' | 'bridging';

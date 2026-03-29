@@ -95,6 +95,19 @@ KEY POINT DEPTH:
   Do NOT write vague summaries like "The document supports X." Instead, explain
   WHAT the document says, HOW it argues the point, and WHY it matters.
 
+TEMPORAL CLASSIFICATION FOR FACTUAL CLAIMS:
+  Every factual_claim must include temporal_scope and temporal_bound:
+    temporal_scope — classify when this claim applies:
+      "current_state" — describes how things are now (e.g., "GPT-4 can pass the bar exam")
+      "predictive" — forecasts a future state (e.g., "AGI will arrive by 2030")
+      "historical" — references a past event (e.g., "The 2023 executive order established...")
+      "timeless" — a general principle not tied to a time period (e.g., "Larger models tend to be more capable")
+    temporal_bound — the specific date or range, or null:
+      For current_state: the document's publication date or "as of YYYY"
+      For predictive: the target date (e.g., "by 2030", "within 5 years")
+      For historical: the date of the event (e.g., "2023-10-30")
+      For timeless: null
+
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
     Use the exact node IDs (e.g. "acc-goals-001", "saf-data-002", "skp-methods-001").

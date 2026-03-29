@@ -395,7 +395,7 @@ function SimilarDetailPanel({ row }: { row: ResolvedRow | null }) {
           {attrs.steelman_vulnerability && (
             <div className="similar-detail-attr">
               <span className="similar-detail-attr-label">Steelman Vulnerability</span>
-              <span className="similar-detail-attr-value">{attrs.steelman_vulnerability}</span>
+              <span className="similar-detail-attr-value">{typeof attrs.steelman_vulnerability === 'string' ? attrs.steelman_vulnerability : Object.entries(attrs.steelman_vulnerability).filter(([,v]) => v).map(([k,v]) => `${k.replace('from_', '')}: ${v}`).join(' | ')}</span>
             </div>
           )}
         </div>

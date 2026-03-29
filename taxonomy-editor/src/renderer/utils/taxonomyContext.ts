@@ -37,7 +37,8 @@ export function formatNodeAttributes(attrs: GraphAttributes | undefined): string
     lines.push(`  Assumes: ${attrs.assumes.join('; ')}`);
   }
   if (attrs.steelman_vulnerability) {
-    lines.push(`  Key vulnerability: ${attrs.steelman_vulnerability}`);
+    const sv = attrs.steelman_vulnerability;
+    lines.push(`  Key vulnerability: ${typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ')}`);
   }
   if (attrs.possible_fallacies && attrs.possible_fallacies.length > 0) {
     const fallacyList = attrs.possible_fallacies
@@ -92,7 +93,9 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   const vulnLines: string[] = [];
   for (const n of povSlice) {
     if (n.graph_attributes?.steelman_vulnerability) {
-      vulnLines.push(`- [${n.id}] ${n.label}: ${n.graph_attributes.steelman_vulnerability}`);
+      const sv = n.graph_attributes.steelman_vulnerability;
+      const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
+      vulnLines.push(`- [${n.id}] ${n.label}: ${svText}`);
     }
     if (n.graph_attributes?.possible_fallacies && n.graph_attributes.possible_fallacies.length > 0) {
       const notable = n.graph_attributes.possible_fallacies.filter(f => f.confidence !== 'borderline');

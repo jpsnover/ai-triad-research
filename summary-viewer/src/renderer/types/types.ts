@@ -82,7 +82,11 @@ export interface GraphAttributes {
   emotional_register?: string;
   policy_actions?: PolicyAction[];
   intellectual_lineage?: string[];
-  steelman_vulnerability?: string;
+  steelman_vulnerability?: string | {
+    from_accelerationist?: string;
+    from_safetyist?: string;
+    from_skeptic?: string;
+  };
 }
 
 export interface TaxonomyNode {

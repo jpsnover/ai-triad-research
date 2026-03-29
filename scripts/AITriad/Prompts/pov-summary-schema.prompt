@@ -60,9 +60,11 @@
   },
   "factual_claims": [
     {
-      "claim": "<a specific empirical or factual claim made in the document . 2-5 sentences in plain language (grade-10 level)>",
+      "claim": "<a specific empirical or factual claim made in the document. 2-5 sentences in plain language (grade-10 level)>",
       "claim_label": "<5-10 word short title, e.g. 'AGI Timeline Estimates'>",
       "doc_position": "<supports | disputes | neutral | qualifies>",
+      "temporal_scope": "<current_state | predictive | historical | timeless>",
+      "temporal_bound": "<specific date, date range, or null if timeless. e.g. 'by 2030', '2023-2025', null>",
       "potential_conflict_id": "<existing conflict id if relevant, OR null>",
       "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"]
     },

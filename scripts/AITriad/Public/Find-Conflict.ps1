@@ -95,6 +95,13 @@ function Find-Conflict {
             assertion    = $claimText
             date_flagged = $today
         }
+        # Temporal fields (dolce-phase-6a) — optional, additive
+        if ($claim.Contains('temporal_scope') -and $claim['temporal_scope']) {
+            $newInstance['temporal_scope'] = $claim['temporal_scope']
+        }
+        if ($claim.Contains('temporal_bound') -and $claim['temporal_bound']) {
+            $newInstance['temporal_bound'] = $claim['temporal_bound']
+        }
         # AIF enrichment fields (dolce-phase-3) — optional, additive
         if ($claim.Contains('attack_type') -and $claim['attack_type']) {
             $newInstance['attack_type'] = $claim['attack_type']

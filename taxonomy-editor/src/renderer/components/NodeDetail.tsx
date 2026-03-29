@@ -365,7 +365,21 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             {node.graph_attributes?.steelman_vulnerability && (
               <div className="form-group">
                 <label>Steelman Vulnerability</label>
-                <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+                {typeof node.graph_attributes.steelman_vulnerability === 'string' ? (
+                  <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
+                ) : (
+                  <div className="ga-promoted-text">
+                    {node.graph_attributes.steelman_vulnerability.from_accelerationist && (
+                      <div><strong style={{ color: 'var(--color-acc)' }}>Accelerationist:</strong> {node.graph_attributes.steelman_vulnerability.from_accelerationist}</div>
+                    )}
+                    {node.graph_attributes.steelman_vulnerability.from_safetyist && (
+                      <div><strong style={{ color: 'var(--color-saf)' }}>Safetyist:</strong> {node.graph_attributes.steelman_vulnerability.from_safetyist}</div>
+                    )}
+                    {node.graph_attributes.steelman_vulnerability.from_skeptic && (
+                      <div><strong style={{ color: 'var(--color-skp)' }}>Skeptic:</strong> {node.graph_attributes.steelman_vulnerability.from_skeptic}</div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

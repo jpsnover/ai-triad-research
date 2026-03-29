@@ -97,6 +97,14 @@ ATTRIBUTE VOCABULARY:
     significant. In the explanation of the third, append: "Additional fallacies identified
     but omitted: [list their keys]." This preserves the signal without silent data loss.
 
+    Each fallacy entry must also include a "type" field classifying its tier:
+      "formal" — violation of deductive logic (affirming_the_consequent, etc.)
+      "informal_structural" — structurally flawed reasoning regardless of content
+        (straw_man, false_dilemma, circular_reasoning, etc.)
+      "informal_contextual" — reasoning error that depends on context
+        (appeal_to_authority, cherry_picking, ad_hominem, etc.)
+      "cognitive_bias" — systematic judgment error (confirmation_bias, etc.)
+
     Known fallacy keys:
       Informal: ad_hominem, appeal_to_authority, appeal_to_consequences,
         appeal_to_emotion, appeal_to_fear, appeal_to_nature, appeal_to_novelty,

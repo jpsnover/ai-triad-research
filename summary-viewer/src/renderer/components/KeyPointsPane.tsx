@@ -136,7 +136,11 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
       {attrs.steelman_vulnerability && (
         <div className="ga-sv-row ga-sv-row-full">
           <span className="ga-sv-label">{GA_LABELS.steelman_vulnerability}</span>
-          <div className="ga-sv-steelman">{attrs.steelman_vulnerability}</div>
+          <div className="ga-sv-steelman">{typeof attrs.steelman_vulnerability === 'string' ? attrs.steelman_vulnerability : (
+            <>{Object.entries(attrs.steelman_vulnerability).filter(([,v]) => v).map(([k,v]) => (
+              <div key={k}><strong>{k.replace('from_', '')}:</strong> {v as string}</div>
+            ))}</>
+          )}</div>
         </div>
       )}
       {attrs.policy_actions && attrs.policy_actions.length > 0 && (
