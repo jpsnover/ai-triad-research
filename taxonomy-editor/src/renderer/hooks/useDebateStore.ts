@@ -1597,7 +1597,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             lines.push(`- **${p.conflict}** — Undecidable`);
             lines.push(`  *${p.rationale}*`);
           } else {
-            lines.push(`- **${p.conflict}** — Stronger: ${p.prevails} (${p.criterion?.replace(/_/g, ' ')})`);
+            // Resolve claim ID to text
+            let prevailsText = p.prevails;
+            if (/^C\d+$/.test(p.prevails) && synthesis.argument_map) {
+              const claim = synthesis.argument_map.find((c: { claim_id: string; claim: string; claimant: string }) => c.claim_id === p.prevails);
+              if (claim) prevailsText = `${claim.claimant}: "${claim.claim}"`;
+            }
+            lines.push(`- **${p.conflict}** — Stronger: ${prevailsText} (${p.criterion?.replace(/_/g, ' ')})`);
             lines.push(`  *${p.rationale}*`);
           }
           if (p.what_would_change_this) {

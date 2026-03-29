@@ -427,7 +427,7 @@ Return ONLY JSON (no markdown):
                             <label>Description: <textarea
                               value={item.generatedDescription || ''}
                               onChange={e => setConflicts(prev => prev.map(c => c.id === item.id ? { ...c, generatedDescription: e.target.value } : c))}
-                              rows={2}
+                              rows={5}
                             /></label>
                           </div>
                         )}
@@ -516,7 +516,16 @@ Return ONLY JSON (no markdown):
                     </label>
                     {item.checked && (
                       <div className="harvest-item-body">
-                        <div><strong>Prevails:</strong> {item.prevails}</div>
+                        <div><strong>Prevails:</strong> {(() => {
+                          // Resolve claim ID to text from argument_map
+                          if (/^C\d+$/.test(item.prevails)) {
+                            const synthEntry = activeDebate?.transcript.find(e => e.type === 'synthesis');
+                            const argMap = (synthEntry?.metadata?.synthesis as { argument_map?: { claim_id: string; claim: string; claimant: string }[] })?.argument_map;
+                            const claim = argMap?.find(c => c.claim_id === item.prevails);
+                            if (claim) return `${claim.claimant}: "${claim.claim}"`;
+                          }
+                          return item.prevails;
+                        })()}</div>
                         <div><strong>Rationale:</strong> {item.rationale}</div>
                         {item.whatWouldChange && (
                           <div><strong>Would change if:</strong> {item.whatWouldChange}</div>
