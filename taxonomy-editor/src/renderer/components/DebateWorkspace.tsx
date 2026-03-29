@@ -376,11 +376,19 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
 /** Probing questions card — clicking a question inserts it as the user's next question */
 function ProbingCard({ entry }: { entry: TranscriptEntry }) {
   const { askQuestion, debateGenerating } = useDebateStore();
-  const questions = (entry.metadata?.probing_questions as { text: string; targets: string[] }[]) || [];
+  const questions = (entry.metadata?.probing_questions as { text: string; targets: string[]; threatens?: string; type?: string }[]) || [];
 
-  const handleAsk = async (text: string) => {
+  const handleAsk = async (q: { text: string; targets: string[] }) => {
     if (debateGenerating) return;
-    await askQuestion(text);
+    // If the question targets a specific debater, prepend @mention so askQuestion routes to them
+    if (q.targets?.length === 1) {
+      const targetLabel = POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.label;
+      if (targetLabel) {
+        await askQuestion(`@${targetLabel} ${q.text}`);
+        return;
+      }
+    }
+    await askQuestion(q.text);
   };
 
   return (
@@ -390,17 +398,34 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
         <span className="debate-statement-type">probing questions</span>
       </div>
       <div className="debate-probing-questions">
-        {questions.map((q, i) => (
-          <button
-            key={i}
-            className="debate-probing-question-btn"
-            onClick={() => handleAsk(q.text)}
-            disabled={!!debateGenerating}
-            title={q.targets?.length > 0 ? `Targets: ${q.targets.map((t) => POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t).join(', ')}` : 'Ask this question'}
-          >
-            {q.text}
-          </button>
-        ))}
+        {questions.map((q, i) => {
+          const targetLabel = q.targets?.length === 1
+            ? POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.label
+            : null;
+          const targetColor = q.targets?.length === 1
+            ? POVER_INFO[q.targets[0] as Exclude<PoverId, 'user'>]?.color
+            : null;
+          return (
+            <button
+              key={i}
+              className="debate-probing-question-btn"
+              onClick={() => handleAsk(q)}
+              disabled={!!debateGenerating}
+              title={[
+                q.targets?.length > 0 ? `Directed at: ${q.targets.map((t) => POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t).join(', ')}` : null,
+                q.threatens ? `Threatens: ${q.threatens}` : null,
+                q.type ? `Type: ${q.type}` : null,
+              ].filter(Boolean).join('\n') || 'Ask this question to all debaters'}
+            >
+              {targetLabel && (
+                <span className="debate-probing-target" style={targetColor ? { color: targetColor } : undefined}>
+                  @{targetLabel}
+                </span>
+              )}
+              {q.text}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

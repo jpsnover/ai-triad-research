@@ -6115,6 +6115,11 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.debate-probing-target {
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-right: 6px;
+}
 
 /* ─── Debate Synthesis Card ───────────────────────────── */
 
