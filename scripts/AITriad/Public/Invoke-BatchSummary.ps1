@@ -323,8 +323,8 @@ function Invoke-BatchSummary {
 
     # -- STEP 5 — Shared prompt components ------------------------------------
     $OutputSchema              = Get-Prompt -Name 'pov-summary-schema'
-    $SystemPromptTemplate      = Get-Prompt -Name 'pov-summary-system'
-    $ChunkSystemPromptTemplate = Get-Prompt -Name 'pov-summary-chunk-system'
+    $SystemPromptTemplate      = Get-Prompt -Name 'pov-summary-system' -AllowUnresolved
+    $ChunkSystemPromptTemplate = Get-Prompt -Name 'pov-summary-chunk-system' -AllowUnresolved
 
     # -- STEP 6 — Process documents -------------------------------------------
     Write-Step "Processing $($DocsToProcess.Count) document(s)"

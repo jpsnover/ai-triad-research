@@ -24,7 +24,9 @@ function Get-Prompt {
         [Parameter(Mandatory, Position = 0)]
         [string]$Name,
 
-        [hashtable]$Replacements = @{}
+        [hashtable]$Replacements = @{},
+
+        [switch]$AllowUnresolved
     )
 
     if (-not (Get-Variable -Name 'PromptCache' -Scope Script -ErrorAction SilentlyContinue)) {
@@ -45,8 +47,8 @@ function Get-Prompt {
         $Text = $Text -replace [regex]::Escape("{{$Key}}"), $Replacements[$Key]
     }
 
-    # Warn if any placeholders remain unresolved
-    if ($Text -match '\{\{[A-Z_]+\}\}') {
+    # Warn if any placeholders remain unresolved (unless caller expects to substitute later)
+    if (-not $AllowUnresolved -and $Text -match '\{\{[A-Z_]+\}\}') {
         $Remaining = [regex]::Matches($Text, '\{\{[A-Z_]+\}\}') | ForEach-Object { $_.Value } | Select-Object -Unique
         Write-Warning "Unresolved placeholders in prompt '$Name': $($Remaining -join ', '). These will appear as literal text in the AI prompt."
     }

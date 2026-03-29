@@ -466,7 +466,7 @@ async function generateViaGemini(
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 16384,
             },
           }),
         }),
@@ -748,7 +748,7 @@ export async function generateTextWithSearch(
         tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 16384,
         },
       }),
     }),

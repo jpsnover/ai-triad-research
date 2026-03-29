@@ -202,14 +202,18 @@ function Measure-TaxonomyBaseline {
 
         if ($E.source -eq $E.target) { $SelfEdges++ }
 
-        $SrcNode = $AllNodes[$E.source]
-        $TgtNode = $AllNodes[$E.target]
+        # Policy nodes (pol-*) are in the policy registry, not in $AllNodes — skip orphan check for them
+        $SrcIsPolicy = $E.source -match '^pol-'
+        $TgtIsPolicy = $E.target -match '^pol-'
+        $SrcNode = if ($SrcIsPolicy) { $true } else { $AllNodes[$E.source] }
+        $TgtNode = if ($TgtIsPolicy) { $true } else { $AllNodes[$E.target] }
         if (-not $SrcNode -or -not $TgtNode) {
             $OrphanEdges++
             continue
         }
 
-        # Check domain violation: Goals/Values SUPPORTS Data/Facts
+        # Check domain violation: Goals/Values SUPPORTS Data/Facts (skip policy nodes)
+        if ($SrcIsPolicy -or $TgtIsPolicy) { continue }
         $SrcCat = if ($SrcNode.PSObject.Properties['category']) { $SrcNode.category } else { $null }
         $TgtCat = if ($TgtNode.PSObject.Properties['category']) { $TgtNode.category } else { $null }
         if ($Type -eq 'SUPPORTS' -and $SrcCat -eq 'Goals/Values' -and $TgtCat -eq 'Data/Facts') {
@@ -317,7 +321,8 @@ function Measure-TaxonomyBaseline {
         $DescLengths += $Desc.Length
         if ($Desc.Length -lt 50) { $ShortDescs++ }
         if ($Desc -eq $Node.label) { $StubDescs++ }
-        if ($Desc -match '^A\s+(Goals?/Values?|Data/Facts?|Methods?/Arguments?)\s+(position|claim|approach)\s+within\s+') {
+        if ($Desc -match '^A\s+(Goals/Values|Data/Facts|Methods/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+' -or
+            $Desc -match '^A\s+cross-cutting\s+concept\s+that\s+') {
             $GenusPattern++
         }
     }
