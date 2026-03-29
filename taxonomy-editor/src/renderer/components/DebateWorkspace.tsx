@@ -798,6 +798,37 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
   { id: 'cassandra', label: 'Cassandra', color: POVER_INFO.cassandra.color },
 ];
 
+function DebaterToggles() {
+  const { activeDebate, togglePover, debateGenerating } = useDebateStore();
+  if (!activeDebate) return null;
+
+  const allPovers: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
+  const isActive = (p: PoverId) => activeDebate.active_povers.includes(p);
+  const disabled = !!debateGenerating;
+
+  return (
+    <div className="debate-debater-toggles">
+      <span className="debate-debater-toggles-label">Debaters:</span>
+      {allPovers.map(p => {
+        const info = POVER_INFO[p];
+        const active = isActive(p);
+        return (
+          <button
+            key={p}
+            className={`debate-debater-pill ${active ? 'debate-debater-pill-active' : 'debate-debater-pill-inactive'}`}
+            style={active ? { borderColor: info.color, color: info.color } : undefined}
+            onClick={() => togglePover(p)}
+            disabled={disabled}
+            title={active ? `Remove ${info.label} from debate` : `Add ${info.label} to debate`}
+          >
+            {info.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function DebateActions() {
   const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, responseLength, setResponseLength } = useDebateStore();
   const [input, setInput] = useState('');
@@ -1214,6 +1245,11 @@ export function DebateWorkspace() {
           </button>
         )}
       </div>
+
+      {/* Debater toggle pills */}
+      {(isDebatePhase || isOpeningPhase) && (
+        <DebaterToggles />
+      )}
 
       {/* Cross-cutting context dialog */}
       {showCCDetails && activeDebate.source_content && (

@@ -504,6 +504,7 @@ interface DebateStore {
   closeDebate: () => void;
   addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => void;
   deleteTranscriptEntries: (entryIds: string[]) => Promise<void>;
+  togglePover: (poverId: PoverId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
   saveDebate: () => Promise<void>;
@@ -717,6 +718,28 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       transcript: filtered,
     };
     set({ activeDebate: updated });
+    await saveDebate();
+  },
+
+  togglePover: async (poverId) => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate) return;
+    const current = activeDebate.active_povers;
+    let updated: PoverId[];
+    if (current.includes(poverId)) {
+      // Remove — but must keep at least 2
+      updated = current.filter(p => p !== poverId);
+      if (updated.filter(p => p !== 'user').length < 1) return; // Need at least 1 AI pover
+    } else {
+      // Add
+      updated = [...current, poverId];
+    }
+    const newDebate: DebateSession = {
+      ...activeDebate,
+      active_povers: updated,
+      updated_at: nowISO(),
+    };
+    set({ activeDebate: newDebate });
     await saveDebate();
   },
 
