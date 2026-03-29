@@ -60,6 +60,8 @@ export interface DebateSession {
   generated_with_prompt_version?: string;
   /** Debate-specific AI model override. If set, used instead of the global model for this debate only. */
   debate_model?: string;
+  /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
+  protocol_id?: string;
   /** Incremental argument network built during debate */
   argument_network?: {
     nodes: ArgumentNetworkNode[];
@@ -118,13 +120,22 @@ export interface ArgumentAttack {
   scheme?: 'CONCEDE' | 'DISTINGUISH' | 'REFRAME' | 'COUNTEREXAMPLE' | 'REDUCE' | 'ESCALATE';
 }
 
+/** AIF support link (S-node) with warrant and critical questions. */
+export interface SupportLink {
+  claim_id: string;
+  scheme?: string;
+  warrant?: string;
+  critical_questions?: { question: string; addressed: boolean }[];
+}
+
 /** AIF claim node — added in dolce-phase-3. */
 export interface ArgumentClaim {
   claim_id: string;
   claim: string;
   claimant: PoverId | string;
   type?: 'empirical' | 'normative' | 'definitional';
-  supported_by?: string[];
+  /** Pre-P4: string[]. Post-P4: SupportLink[]. Check typeof [0]. */
+  supported_by?: (string | SupportLink)[];
   attacked_by?: ArgumentAttack[];
 }
 

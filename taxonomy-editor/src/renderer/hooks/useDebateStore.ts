@@ -496,7 +496,7 @@ interface DebateStore {
   // Actions
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string) => Promise<string>;
   createCrossCuttingDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
@@ -564,7 +564,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel) => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId) => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -588,6 +588,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       context_summaries: [],
       generated_with_prompt_version: 'dolce-phase-1',
       debate_model: debateModel || undefined,
+      protocol_id: protocolId || 'structured',
     };
     await window.electronAPI.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null });
@@ -1330,7 +1331,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           const typeTag = claim.type ? ` [${claim.type}]` : '';
           lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${claim.claim}`);
           if (claim.supported_by?.length > 0) {
-            lines.push(`  Supported by: ${claim.supported_by.join(', ')}`);
+            for (const sup of claim.supported_by) {
+              if (typeof sup === 'string') {
+                lines.push(`  Supported by: ${sup}`);
+              } else {
+                const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
+                lines.push(`  Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${sup.warrant}` : ''}`);
+              }
+            }
           }
           if (claim.attacked_by?.length > 0) {
             for (const attack of claim.attacked_by) {

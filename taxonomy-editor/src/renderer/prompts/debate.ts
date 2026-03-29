@@ -385,7 +385,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "unresolved_questions": ["..."],
   "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}],
   "argument_map": [
-    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": ["C3"], "attacked_by": [
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
     ]}
   ],

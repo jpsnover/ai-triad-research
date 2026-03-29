@@ -5120,6 +5120,36 @@ body {
   color: var(--text-muted);
 }
 
+/* ─── New Debate Protocol Selector ────────────────────── */
+.new-debate-protocol-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.new-debate-protocol-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.new-debate-protocol-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+}
+.new-debate-protocol-option input[type="radio"] { margin-top: 2px; }
+.new-debate-protocol-name { font-weight: 600; }
+.new-debate-protocol-desc {
+  width: 100%;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 20px;
+}
+
 /* ─── Debate Empty State ──────────────────────────────── */
 
 .debate-workspace-container {

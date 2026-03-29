@@ -85,6 +85,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('harvest-update-steelman', nodeId, attackerPov, newText),
   harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>): Promise<{ updated: boolean }> =>
     ipcRenderer.invoke('harvest-add-verdict', conflictId, verdict),
+  harvestQueueConcept: (concept: Record<string, unknown>): Promise<{ queued: boolean }> =>
+    ipcRenderer.invoke('harvest-queue-concept', concept),
   harvestSaveManifest: (manifest: Record<string, unknown>): Promise<{ saved: boolean }> =>
     ipcRenderer.invoke('harvest-save-manifest', manifest),
 

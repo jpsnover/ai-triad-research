@@ -326,6 +326,33 @@ function Invoke-BatchSummary {
     $SystemPromptTemplate      = Get-Prompt -Name 'pov-summary-system' -AllowUnresolved
     $ChunkSystemPromptTemplate = Get-Prompt -Name 'pov-summary-chunk-system' -AllowUnresolved
 
+    # -- STEP 5b — Load debate context for contested nodes --------------------
+    $DebateContext = @{}
+    $HarvestsDir = Join-Path (Get-DataRoot) 'harvests'
+    if (Test-Path $HarvestsDir) {
+        foreach ($ManifestFile in (Get-ChildItem $HarvestsDir -Filter '*.json' -ErrorAction SilentlyContinue)) {
+            try {
+                $Manifest = Get-Content $ManifestFile.FullName -Raw | ConvertFrom-Json -Depth 10
+                $DebateTitle = $Manifest.debate_title
+                foreach ($Item in $Manifest.items) {
+                    if ($Item.type -eq 'debate_ref' -and $Item.status -eq 'applied') {
+                        $NodeId = $Item.id
+                        if (-not $DebateContext.ContainsKey($NodeId)) {
+                            $DebateContext[$NodeId] = @()
+                        }
+                        $DebateContext[$NodeId] += $DebateTitle
+                    }
+                }
+            }
+            catch {
+                Write-Verbose "Skipping harvest manifest $($ManifestFile.Name): $_"
+            }
+        }
+    }
+    if ($DebateContext.Count -gt 0) {
+        Write-Info "  Loaded debate context for $($DebateContext.Count) contested nodes"
+    }
+
     # -- STEP 6 — Process documents -------------------------------------------
     Write-Step "Processing $($DocsToProcess.Count) document(s)"
 
@@ -346,7 +373,18 @@ function Invoke-BatchSummary {
 
     if ($MaxConcurrent -le 1) {
         foreach ($Doc in $DocsToProcess) {
-            $Result = Invoke-DocumentSummary -Doc $Doc @SharedParams
+            # Inject debate context for contested nodes into the system prompt
+            $DocSharedParams = $SharedParams.Clone()
+            if ($DebateContext.Count -gt 0) {
+                $DebateNotes = @()
+                foreach ($NodeId in $DebateContext.Keys) {
+                    $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
+                }
+                if ($DebateNotes.Count -gt 0) {
+                    $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
+                }
+            }
+            $Result = Invoke-DocumentSummary -Doc $Doc @DocSharedParams
             $Results.Add($Result)
         }
     } else {

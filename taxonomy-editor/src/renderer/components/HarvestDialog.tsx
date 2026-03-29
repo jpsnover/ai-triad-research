@@ -9,8 +9,10 @@ import {
   extractSteelmanCandidates,
   extractDebateRefCandidates,
   extractVerdictCandidates,
+  extractConceptCandidates,
   validateConflictDescription,
   validateCondensedSteelman,
+  validateProposedConcept,
   generateConflictSlug,
 } from '../utils/harvestUtils';
 import type {
@@ -18,6 +20,7 @@ import type {
   HarvestSteelmanItem,
   HarvestDebateRefItem,
   HarvestVerdictItem,
+  HarvestConceptItem,
   HarvestManifestItem,
 } from '../utils/harvestUtils';
 
@@ -33,6 +36,7 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
   const [steelmans, setSteelmans] = useState<HarvestSteelmanItem[]>([]);
   const [debateRefs, setDebateRefs] = useState<HarvestDebateRefItem[]>([]);
   const [verdicts, setVerdicts] = useState<HarvestVerdictItem[]>([]);
+  const [concepts, setConcepts] = useState<HarvestConceptItem[]>([]);
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ applied: number; failed: number } | null>(null);
   const [generatingConflicts, setGeneratingConflicts] = useState(false);
@@ -59,6 +63,7 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
     setSteelmans(extractSteelmanCandidates(activeDebate, getNodeLabel));
     setDebateRefs(extractDebateRefCandidates(activeDebate, getNodeLabel));
     setVerdicts(extractVerdictCandidates(activeDebate));
+    setConcepts(extractConceptCandidates(activeDebate, allNodeIds));
   }, [activeDebate?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fill in current steelman text from taxonomy store
@@ -85,6 +90,14 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
     prev.map(r => r.nodeId === nodeId ? { ...r, checked: !r.checked } : r));
   const toggleVerdict = (id: string) => setVerdicts(prev =>
     prev.map(v => v.id === id ? { ...v, checked: !v.checked } : v));
+  const toggleConcept = (id: string) => setConcepts(prev =>
+    prev.map(c => c.id === id ? { ...c, checked: !c.checked } : c));
+
+  const existingLabels = new Set<string>();
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const n of taxState[pov]?.nodes || []) existingLabels.add(n.label.toLowerCase());
+  }
+  for (const n of taxState.crossCutting?.nodes || []) existingLabels.add(n.label.toLowerCase());
 
   // AI-generate conflict descriptions for checked items
   const generateConflictDescriptions = async () => {
@@ -179,6 +192,58 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
     setGeneratingSteelmans(false);
   };
 
+  // AI-generate concept proposals for checked items
+  const generateConceptProposals = async () => {
+    const checked = concepts.filter(c => c.checked && !c.suggestedLabel);
+    if (checked.length === 0) return;
+
+    const model = useDebateStore.getState().debateModel ||
+      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+
+    for (const item of checked) {
+      try {
+        const prompt = `Propose a taxonomy node for this concept from an AI policy debate.
+
+Concept: "${item.text}"
+Speaker POV: ${item.suggestedPov}
+
+Generate:
+1. A 3-8 word plain-language label (newspaper headline style)
+2. A genus-differentia description: "${item.suggestedPov === 'cross-cutting' ? 'A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ...' : `A [Goals/Values | Data/Facts | Methods/Arguments] within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
+3. The best category: Goals/Values, Data/Facts, or Methods/Arguments
+
+Return ONLY JSON (no markdown):
+{"label": "...", "description": "...", "category": "Goals/Values or Data/Facts or Methods/Arguments"}`;
+
+        const { text } = await window.electronAPI.generateText(prompt, model);
+        let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+        const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
+        if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
+        const parsed = JSON.parse(cleaned);
+
+        const warnings = validateProposedConcept(
+          { label: parsed.label, description: parsed.description, pov: item.suggestedPov, category: parsed.category || item.suggestedCategory },
+          existingLabels,
+        );
+
+        setConcepts(prev => prev.map(c => c.id === item.id ? {
+          ...c,
+          suggestedLabel: parsed.label || item.text.slice(0, 40),
+          suggestedDescription: parsed.description || item.text,
+          suggestedCategory: parsed.category || item.suggestedCategory,
+          warnings,
+        } : c));
+      } catch {
+        setConcepts(prev => prev.map(c => c.id === item.id ? {
+          ...c,
+          suggestedLabel: item.text.slice(0, 40),
+          suggestedDescription: item.text,
+          warnings: ['AI generation failed'],
+        } : c));
+      }
+    }
+  };
+
   // Apply all checked items
   const handleApply = async () => {
     if (!activeDebate) return;
@@ -271,6 +336,29 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
       }
     }
 
+    // Apply concepts — queue for taxonomy proposal
+    for (const item of concepts) {
+      if (!item.checked || !item.suggestedLabel) {
+        if (item.checked) manifest.push({ type: 'concept', action: 'queued', id: item.id, status: 'rejected' });
+        continue;
+      }
+      try {
+        await window.electronAPI.harvestQueueConcept({
+          label: item.suggestedLabel,
+          description: item.suggestedDescription,
+          suggested_pov: item.suggestedPov,
+          suggested_category: item.suggestedCategory,
+          source_debate_id: activeDebate.id,
+          evidence: item.text,
+        });
+        manifest.push({ type: 'concept', action: 'queued', id: item.suggestedLabel, status: 'applied' });
+        applied++;
+      } catch {
+        manifest.push({ type: 'concept', action: 'queued', id: item.id, status: 'rejected' });
+        failed++;
+      }
+    }
+
     // Save manifest
     await window.electronAPI.harvestSaveManifest({
       debate_id: activeDebate.id,
@@ -286,10 +374,12 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
   const checkedCount = conflicts.filter(c => c.checked).length +
     steelmans.filter(s => s.checked).length +
     debateRefs.filter(r => r.checked).length +
-    verdicts.filter(v => v.checked).length;
+    verdicts.filter(v => v.checked).length +
+    concepts.filter(c => c.checked).length;
 
   const needsGeneration = conflicts.some(c => c.checked && !c.generatedLabel) ||
-    steelmans.some(s => s.checked && !s.proposedSteelman);
+    steelmans.some(s => s.checked && !s.proposedSteelman) ||
+    concepts.some(c => c.checked && !c.suggestedLabel);
 
   if (!activeDebate) return null;
 
@@ -443,7 +533,62 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
               </div>
             )}
 
-            {conflicts.length === 0 && steelmans.length === 0 && debateRefs.length === 0 && verdicts.length === 0 && (
+            {/* Section 5: New Concepts */}
+            {concepts.length > 0 && (
+              <div className="harvest-section">
+                <h3>New Concepts ({concepts.filter(c => c.checked).length}/{concepts.length})</h3>
+                {concepts.map(item => (
+                  <div key={item.id} className={`harvest-item ${item.checked ? 'harvest-item-checked' : ''}`}>
+                    <label className="harvest-item-header">
+                      <input type="checkbox" checked={item.checked} onChange={() => toggleConcept(item.id)} />
+                      <span className="harvest-item-title">{item.text.slice(0, 100)}{item.text.length > 100 ? '...' : ''}</span>
+                      <span className="harvest-badge">{item.speaker}</span>
+                    </label>
+                    {item.checked && (
+                      <div className="harvest-item-body">
+                        {item.suggestedLabel ? (
+                          <div className="harvest-generated">
+                            <label>Label: <input
+                              value={item.suggestedLabel}
+                              onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedLabel: e.target.value } : c))}
+                            /></label>
+                            <label>POV:
+                              <select value={item.suggestedPov} onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedPov: e.target.value } : c))}>
+                                <option value="accelerationist">Accelerationist</option>
+                                <option value="safetyist">Safetyist</option>
+                                <option value="skeptic">Skeptic</option>
+                                <option value="cross-cutting">Cross-cutting</option>
+                              </select>
+                            </label>
+                            <label>Category:
+                              <select value={item.suggestedCategory} onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedCategory: e.target.value } : c))}>
+                                <option value="Goals/Values">Goals/Values</option>
+                                <option value="Data/Facts">Data/Facts</option>
+                                <option value="Methods/Arguments">Methods/Arguments</option>
+                              </select>
+                            </label>
+                            <label>Description: <textarea
+                              value={item.suggestedDescription}
+                              onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedDescription: e.target.value } : c))}
+                              rows={3}
+                            /></label>
+                          </div>
+                        ) : (
+                          <div className="harvest-steelman-source"><strong>Source claim:</strong> {item.text}</div>
+                        )}
+                        {item.warnings.length > 0 && (
+                          <div className="harvest-warnings">
+                            {item.warnings.map((w, i) => <div key={i} className="harvest-warning">{w}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {conflicts.length === 0 && steelmans.length === 0 && debateRefs.length === 0 && verdicts.length === 0 && concepts.length === 0 && (
               <div className="harvest-empty">No harvestable findings in this debate. Run a synthesis first.</div>
             )}
 
@@ -452,7 +597,7 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
               {needsGeneration && (
                 <button
                   className="btn"
-                  onClick={() => { generateConflictDescriptions(); generateSteelmanCondensations(); }}
+                  onClick={() => { generateConflictDescriptions(); generateSteelmanCondensations(); generateConceptProposals(); }}
                   disabled={generatingConflicts || generatingSteelmans}
                 >
                   {generatingConflicts || generatingSteelmans ? 'Generating...' : 'Generate Descriptions'}

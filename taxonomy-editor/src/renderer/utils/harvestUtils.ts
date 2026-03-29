@@ -44,6 +44,19 @@ export interface HarvestDebateRefItem {
   checked: boolean;
 }
 
+export interface HarvestConceptItem {
+  id: string;
+  text: string;
+  speaker: string;
+  sourceEntryId: string;
+  suggestedLabel: string;
+  suggestedDescription: string;
+  suggestedPov: string;
+  suggestedCategory: string;
+  checked: boolean;
+  warnings: string[];
+}
+
 export interface HarvestVerdictItem {
   id: string;
   conflict: string;
@@ -59,8 +72,8 @@ export interface HarvestVerdictItem {
 }
 
 export interface HarvestManifestItem {
-  type: 'conflict' | 'steelman' | 'debate_ref' | 'verdict';
-  action: 'created' | 'updated' | 'added';
+  type: 'conflict' | 'steelman' | 'debate_ref' | 'verdict' | 'concept';
+  action: 'created' | 'updated' | 'added' | 'queued';
   id: string;
   status: 'applied' | 'rejected';
 }
@@ -326,6 +339,78 @@ export function validateVerdict(
   if (!verdict.prevails || verdict.prevails.length < 5) {
     warnings.push('Prevails field too vague');
   }
+  return warnings;
+}
+
+// ── New concept extraction ────────────────────────────────
+
+/** Extract claims from the AN that don't map to existing taxonomy nodes */
+export function extractConceptCandidates(
+  debate: DebateSession,
+  allNodeIds: Set<string>,
+): HarvestConceptItem[] {
+  const an = debate.argument_network;
+  if (!an || an.nodes.length === 0) return [];
+
+  const candidates: HarvestConceptItem[] = [];
+  let idx = 0;
+
+  for (const node of an.nodes) {
+    // A concept candidate is an AN node with no taxonomy refs
+    if (node.taxonomy_refs.length > 0) continue;
+    // Skip very short claims
+    if (node.text.length < 30) continue;
+
+    const speakerLabel = POVER_INFO[node.speaker as Exclude<PoverId, 'user'>]?.label || node.speaker;
+    const speakerPov = POV_FOR_POVER[node.speaker] || 'cross-cutting';
+
+    candidates.push({
+      id: `hn-${idx++}`,
+      text: node.text,
+      speaker: speakerLabel,
+      sourceEntryId: node.source_entry_id,
+      suggestedLabel: '',
+      suggestedDescription: '',
+      suggestedPov: speakerPov,
+      suggestedCategory: 'Methods/Arguments',
+      checked: false,
+      warnings: [],
+    });
+  }
+
+  return candidates;
+}
+
+/** Validate a proposed new concept (V-H4.2) */
+export function validateProposedConcept(
+  concept: { label: string; description: string; pov: string; category: string },
+  existingLabels: Set<string>,
+): string[] {
+  const warnings: string[] = [];
+
+  if (existingLabels.has(concept.label.toLowerCase())) {
+    warnings.push(`Label "${concept.label}" already exists in taxonomy`);
+  }
+
+  const words = concept.label.split(/\s+/).length;
+  if (words < 3) warnings.push(`Label too short (${words} words, need 3+)`);
+  if (words > 8) warnings.push(`Label too long (${words} words, max 8)`);
+
+  const gdPov = /^A\s+(Goals\/Values|Data\/Facts|Methods\/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
+  const gdCC = /^A\s+cross-cutting\s+concept\s+that\s+/i;
+  const isCC = concept.pov === 'cross-cutting';
+  if (isCC ? !gdCC.test(concept.description) : !gdPov.test(concept.description)) {
+    warnings.push('Description does not follow genus-differentia pattern');
+  }
+
+  if (!['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'].includes(concept.pov)) {
+    warnings.push(`Invalid POV: ${concept.pov}`);
+  }
+
+  if (!isCC && !['Goals/Values', 'Data/Facts', 'Methods/Arguments'].includes(concept.category)) {
+    warnings.push(`Invalid category: ${concept.category}`);
+  }
+
   return warnings;
 }
 

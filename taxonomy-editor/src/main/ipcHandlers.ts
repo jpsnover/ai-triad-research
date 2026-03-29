@@ -278,6 +278,21 @@ export function registerIpcHandlers(): void {
     return { updated: true };
   });
 
+  ipcMain.handle('harvest-queue-concept', async (_event, concept: Record<string, unknown>) => {
+    const queuePath = path.join(getDataRootPath(), 'harvest-queue.json');
+    let queue: { queued_at: string; items: Record<string, unknown>[] } = { queued_at: new Date().toISOString(), items: [] };
+    if (fs.existsSync(queuePath)) {
+      try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf-8')); } catch { /* start fresh */ }
+    }
+    queue.items.push({ ...concept, status: 'queued', queued_at: new Date().toISOString() });
+    queue.queued_at = new Date().toISOString();
+    const tmpPath = queuePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(queue, null, 2) + '\n', 'utf-8');
+    fs.renameSync(tmpPath, queuePath);
+    console.log(`[harvest] Queued concept: ${concept.label}`);
+    return { queued: true };
+  });
+
   ipcMain.handle('harvest-save-manifest', async (_event, manifest: Record<string, unknown>) => {
     const harvestsDir = path.join(getDataRootPath(), 'harvests');
     if (!fs.existsSync(harvestsDir)) fs.mkdirSync(harvestsDir, { recursive: true });

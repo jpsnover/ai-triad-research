@@ -6,6 +6,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSourceType } from '../types/debate';
+import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 
 interface NewDebateDialogProps {
   onClose: () => void;
@@ -28,6 +29,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const availableModels = MODELS_BY_BACKEND[aiBackend] || [];
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [customModel, setCustomModel] = useState(globalModel);
+  const [protocolId, setProtocolId] = useState('structured');
 
   const toggle = (id: PoverId) => {
     const next = new Set(selected);
@@ -97,6 +99,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       sourceType === 'topic' ? '' : sourceRef.trim(),
       sourceType === 'topic' ? '' : finalContent,
       debateModelOverride,
+      protocolId,
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
@@ -184,6 +187,17 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             />
           </>
         )}
+
+        <label className="new-debate-label">Format</label>
+        <div className="new-debate-protocol-row">
+          {DEBATE_PROTOCOLS.map(p => (
+            <label key={p.id} className={`new-debate-protocol-option${protocolId === p.id ? ' active' : ''}`}>
+              <input type="radio" name="protocol" value={p.id} checked={protocolId === p.id} onChange={() => setProtocolId(p.id)} />
+              <span className="new-debate-protocol-name">{p.label}</span>
+              <span className="new-debate-protocol-desc">{p.description}</span>
+            </label>
+          ))}
+        </div>
 
         <label className="new-debate-label">AI Model</label>
         <div className="new-debate-model-row">

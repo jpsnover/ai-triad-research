@@ -47,6 +47,7 @@ function Invoke-TaxonomyProposal {
 
         [string]$RepoRoot    = $script:RepoRoot,
         [switch]$DryRun,
+        [switch]$IncludeHarvestQueue,
         [string]$OutputFile  = '',
         [hashtable]$HealthData = $null
     )
@@ -190,6 +191,28 @@ $CitationStatsJson
 --- COVERAGE BALANCE (nodes per POV per category) ---
 $CoverageBalanceJson
 "@
+
+    # Inject harvest queue if requested
+    if ($IncludeHarvestQueue) {
+        $HarvestQueuePath = Join-Path (Get-DataRoot) 'harvest-queue.json'
+        if (Test-Path $HarvestQueuePath) {
+            $QueueData = Get-Content $HarvestQueuePath -Raw | ConvertFrom-Json -Depth 10
+            $QueuedItems = @($QueueData.items | Where-Object { $_.status -eq 'queued' })
+            if ($QueuedItems.Count -gt 0) {
+                $QueueBlock = ($QueuedItems | ForEach-Object {
+                    "- $($_.label) ($($_.suggested_pov)/$($_.suggested_category)): $($_.description)"
+                }) -join "`n"
+                $FullPrompt += @"
+
+--- DEBATE-SOURCED CONCEPT CANDIDATES ---
+The following concepts were identified in structured debates and queued for consideration.
+Treat them as additional unmapped concept candidates alongside the health data above.
+$QueueBlock
+"@
+                Write-Info "  Included $($QueuedItems.Count) harvest queue items"
+            }
+        }
+    }
 
     $PromptLength = $FullPrompt.Length
     $EstTokens    = [int]($PromptLength / 4)
