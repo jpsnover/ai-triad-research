@@ -287,7 +287,7 @@ export function DiagnosticsWindow() {
                   return (
                     <div key={n.id} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
                       <div>
-                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
+                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
                         <strong style={{ color: 'var(--accent)' }}>{n.id}</strong>
                         <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(n.speaker)})</span>
                         {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
@@ -295,14 +295,14 @@ export function DiagnosticsWindow() {
                       <div style={{ paddingLeft: 8, marginTop: 2 }}>{n.text}</div>
                       {attacks.map(a => (
                         <div key={a.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
+                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
                           ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                           {a.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {a.warrant}</div>}
                         </div>
                       ))}
                       {supports.map(s => (
                         <div key={s.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
+                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
                           ← {s.source} <strong>supports</strong>
                           {s.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {s.warrant}</div>}
                         </div>
