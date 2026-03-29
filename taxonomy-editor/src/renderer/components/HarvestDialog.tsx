@@ -98,7 +98,7 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
     for (const item of checked) {
       try {
         const positionsText = item.positions.map(p => `${p.pover}: ${p.stance}`).join('\n');
-        const prompt = `Generate a conflict entry for a taxonomy database.
+        const prompt = `Generate a label and description for this conflict entry.
 
 Disagreement: "${item.point}"
 ${item.bdiLayer ? `BDI layer: ${item.bdiLayer}` : ''}
@@ -108,21 +108,28 @@ ${positionsText}
 Return ONLY JSON (no markdown):
 {
   "claim_label": "5-10 word label for this conflict",
-  "description": "1-2 sentence description of what is contested",
-  "linked_taxonomy_nodes": ${JSON.stringify(item.linkedNodes.slice(0, 6))}
-}`;
+  "description": "1-2 sentence description of what is contested"
+}
+
+IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxonomy_nodes or any node IDs.`;
         const { text } = await window.electronAPI.generateText(prompt, model);
         const cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
         const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
         const parsed = JSON.parse(fb >= 0 && lb > fb ? cleaned.slice(fb, lb + 1) : cleaned);
 
-        const warnings = validateConflictDescription(parsed, allNodeIds);
+        // Use the original linkedNodes from transcript refs — don't let AI override
+        const generated = {
+          claim_label: parsed.claim_label || item.point.slice(0, 60),
+          description: parsed.description || item.point,
+          linked_taxonomy_nodes: item.linkedNodes, // Always use real IDs, not AI-generated
+        };
+        const warnings = validateConflictDescription(generated, allNodeIds);
 
         setConflicts(prev => prev.map(c => c.id === item.id ? {
           ...c,
-          generatedLabel: parsed.claim_label || item.point.slice(0, 60),
-          generatedDescription: parsed.description || item.point,
-          linkedNodes: parsed.linked_taxonomy_nodes || item.linkedNodes,
+          generatedLabel: generated.claim_label,
+          generatedDescription: generated.description,
+          linkedNodes: generated.linked_taxonomy_nodes,
           warnings,
         } : c));
       } catch (err) {
