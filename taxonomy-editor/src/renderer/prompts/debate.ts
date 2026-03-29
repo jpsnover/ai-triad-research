@@ -40,21 +40,90 @@ Your KNOWN VULNERABILITIES section lists weaknesses in your positions and fallac
 
 Your CROSS-CUTTING CONCERNS show where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 
-const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down. This is called steelmanning — it demonstrates intellectual honesty and ensures you are engaging with the real argument, not a caricature.`;
+const ARGUMENT_STRATEGY = `HOW TO ARGUE WELL:
+
+1. STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
+   - Claim: what you're asserting
+   - Evidence: the specific facts, examples, or data that support it
+   - Warrant: WHY the evidence supports the claim (the reasoning link)
+   An argument without a warrant is just an assertion. An argument without evidence is speculation.
+
+2. EVALUATE EVIDENCE QUALITY. Not all evidence is equal:
+   - Strong: peer-reviewed studies, large-scale empirical data, historical precedent with clear parallels
+   - Moderate: expert consensus, case studies, logical deduction from established principles
+   - Weak: anecdotes, analogies without structural similarity, predictions without methodology
+   When citing evidence, acknowledge its strength level. When attacking evidence, target its weakest link.
+
+3. PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose based on:
+   - Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
+   - Prioritize CRUXES: points where, if resolved, someone would change their mind
+   - Ignore rhetorical flourishes and focus on substantive claims
+   - If multiple opponents made different arguments, address the one that most threatens your position
+
+4. KNOW WHEN TO CONCEDE. Conceding a point is not losing — it's intellectual honesty:
+   - Concede when the evidence clearly supports the opponent's claim
+   - Concede when a point is tangential to your core argument (don't defend everything)
+   - After conceding, explain why your overall position still holds despite this concession
+   Never silently drop a point you previously asserted — explicitly acknowledge the change.
+
+5. HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
+   - Acknowledge it directly: "You're right that I said X earlier. On reflection..."
+   - Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
+   - Never pretend the contradiction wasn't raised
+
+6. ATTACK POSITIONS, NOT PEOPLE. Focus on:
+   - The logical structure of the argument (does the conclusion follow from the premises?)
+   - The quality of the evidence (is it reliable, representative, relevant?)
+   - The assumptions being made (are they stated? are they justified?)
+   Never attribute bad faith, ignorance, or hidden motives to an opponent.`;
+
+const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down.
+
+A good steelman:
+- Captures the opponent's BEST reasoning, not just their conclusion
+- Uses language the opponent would endorse ("Yes, that's what I mean")
+- Identifies the genuine insight in their position even if you ultimately disagree
+
+A bad steelman:
+- Restates the conclusion without the reasoning ("They think X")
+- Uses dismissive framing ("They merely believe...")
+- Describes a position no one actually holds`;
 
 const DISAGREEMENT_TYPING = `When you disagree with another debater, classify your disagreement:
 - EMPIRICAL: You believe different facts are true (e.g., "AGI won't arrive that soon")
+  → These are resolvable by evidence. Identify what evidence would settle it.
 - VALUES: You share the facts but prioritize differently (e.g., "Even if AGI is near, speed matters more than caution")
+  → These require trade-off reasoning, not more data. Make the trade-off explicit.
 - DEFINITIONAL: You define a key term differently (e.g., "What counts as 'alignment' differs")
+  → These require agreeing on definitions before debating substance. Flag the term.
 Include a "disagreement_type" field in your response when you disagree.`;
 
-const DIALECTICAL_MOVES = `Your response should employ one or more of these dialectical moves:
-- CONCEDE: Acknowledge a valid point from the opponent
-- DISTINGUISH: Accept the opponent's evidence but show it doesn't apply here
-- REFRAME: Shift the framing to reveal what the current frame hides
-- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim
-- REDUCE: Show the opponent's logic leads to an absurd or unacceptable conclusion
-- ESCALATE: Raise the stakes by connecting to a broader principle
+const DIALECTICAL_MOVES = `Your response should employ one or more of these dialectical moves. Choose strategically:
+
+- CONCEDE: Acknowledge a valid point from the opponent.
+  USE WHEN: The evidence clearly supports their claim, OR the point is tangential to your core argument.
+  NEVER USE: As empty flattery before attacking ("Great point, but...").
+
+- DISTINGUISH: Accept the opponent's evidence but show it doesn't apply here.
+  USE WHEN: The evidence is real but the context, scope, or conditions differ from what's being claimed.
+  THE KEY: Explain precisely WHY the distinction matters — what's different about this case?
+
+- REFRAME: Shift the framing to reveal what the current frame hides.
+  USE WHEN: The opponent's framing excludes important considerations or presupposes their conclusion.
+  THE KEY: Show what becomes visible in your frame that was invisible in theirs.
+
+- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim.
+  USE WHEN: The opponent makes a general claim and you can identify a concrete exception.
+  THE KEY: The example must be genuinely analogous, not a superficial similarity.
+
+- REDUCE: Show the opponent's logic leads to an absurd or unacceptable conclusion.
+  USE WHEN: The opponent's principle, applied consistently, produces results they wouldn't endorse.
+  THE KEY: The reductio must follow from THEIR premises, not from a distortion of them.
+
+- ESCALATE: Raise the stakes by connecting to a broader principle.
+  USE WHEN: The specific disagreement reflects a deeper conflict worth surfacing.
+  THE KEY: The broader principle must actually be at stake, not just rhetorically invoked.
+
 Include a "move_types" array in your response listing which moves you used.`;
 
 /** Find the last markdown heading before a character position */
@@ -163,6 +232,8 @@ ${lengthInstruction(lengthKey)}
 
 ${TAXONOMY_USAGE}
 
+${ARGUMENT_STRATEGY}
+
 ${taxonomyContext}
 ${priorBlock}
 
@@ -208,6 +279,8 @@ ${READING_LEVEL}
 ${lengthInstruction(lengthKey)}
 
 ${TAXONOMY_USAGE}
+
+${ARGUMENT_STRATEGY}
 ${includeSteelman ? `\n${STEELMAN_INSTRUCTION}\n` : ''}
 ${DISAGREEMENT_TYPING}
 
@@ -289,6 +362,8 @@ ${READING_LEVEL}
 ${lengthInstruction(lengthKey)}
 
 ${TAXONOMY_USAGE}
+
+${ARGUMENT_STRATEGY}
 ${includeSteelman ? `\n${STEELMAN_INSTRUCTION}\n` : ''}
 ${DISAGREEMENT_TYPING}
 
