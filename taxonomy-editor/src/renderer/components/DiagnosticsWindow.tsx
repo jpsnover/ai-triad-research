@@ -10,6 +10,13 @@ import { useState, useEffect } from 'react';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
 
+const AIF_TOOLTIPS: Record<string, string> = {
+  'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
+  'CA-node': 'CA-node (Conflict Application) — an attack relationship. Three types: rebut (contradicts conclusion), undercut (denies the inference), undermine (attacks premise credibility).',
+  'RA-node': 'RA-node (Rule Application) — an inference scheme explaining WHY one claim supports another. The warrant is the reasoning pattern connecting evidence to conclusion.',
+  'PA-node': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
+};
+
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
@@ -119,6 +126,79 @@ function HelpContent() {
         Commitments are injected into each debater's prompt to enforce consistency.
       </p>
 
+      <h3 style={{ color: '#f59e0b' }}>Methodology: AIF-Informed, Not AIF-Formal</h3>
+      <p>
+        This tool adopts AIF <strong>vocabulary</strong> (I-nodes, CA-nodes, RA-nodes,
+        attack types, schemes, warrants) but deliberately does not implement the full
+        formal <strong>bipartite graph</strong> that AIF specifies. In a fully
+        AIF-compliant system, I-nodes never connect directly — every support and attack
+        relationship passes through an intermediate S-node (scheme node) that carries
+        the reasoning pattern. Our system stores scheme, warrant, and attack type as
+        properties on the edge connecting two I-nodes.
+      </p>
+
+      <h4 style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Why not the full bipartite graph?</h4>
+
+      <p><strong>LLM extraction reliability.</strong> Claims are extracted from debate
+        statements by a background AI call after each turn. Asking the LLM to produce
+        bipartite JSON (I-node &rarr; S-node &rarr; I-node triples) significantly increases
+        the structured-output complexity and error rate. The current flat format (I-node
+        &rarr; I-node with typed edges) is validated at 40% word-overlap against the
+        original statement text. Adding intermediate nodes would roughly triple the
+        output surface for hallucination and parse failures, without improving the
+        information captured.</p>
+
+      <p><strong>No consumer requires it.</strong> The moderator's cross-respond selection,
+        commitment tracking, synthesis argument maps, and harvest pipeline all work on
+        the flat I-node + typed-edge model. S-node content (scheme, warrant, critical
+        questions) is captured — it's just stored on the edge rather than as a separate
+        node. Every query the system needs to answer ("what claims has Prometheus
+        made?", "what attacks are unaddressed?", "which rebuts used COUNTEREXAMPLE?")
+        is answerable from the current structure.</p>
+
+      <p><strong>Visualization simplicity.</strong> Most argument visualization tools
+        (Argdown, Kialo, Dialectica) hide S-nodes from users because the bipartite
+        indirection makes graphs harder to read. Our diagnostics panel displays
+        I-nodes directly with their attack/support relationships — adding
+        intermediate S-nodes would double the visual elements without improving
+        comprehension.</p>
+
+      <p><strong>Extraction architecture.</strong> Claims are extracted by an independent
+        "analyst" AI call, separate from the debater that produced the statement.
+        This separation matters: the debater knows what it intended to argue, but
+        self-assessment is biased (debaters overclaim the strength of their own
+        attacks). The independent extractor provides a second opinion on relationship
+        types. A bipartite graph would not change this architecture but would make
+        the extractor's job harder.</p>
+
+      <h4 style={{ color: '#f59e0b', fontSize: '0.8rem' }}>What we preserve from AIF</h4>
+      <table style={{ fontSize: '0.75rem', borderCollapse: 'collapse', width: '100%', marginBottom: 12 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>AIF Concept</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>How We Implement It</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style={{ padding: '3px 8px' }}>I-nodes (claims)</td><td>AN-1, AN-2, ... in argument_network.nodes</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>CA-nodes (conflict)</td><td>attack_type (rebut/undercut/undermine) on edges</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>RA-nodes (inference)</td><td>warrant + scheme on support edges</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>PA-nodes (preference)</td><td>Synthesis preferences (prevails, criterion, rationale)</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>Schemes</td><td>COUNTEREXAMPLE, DISTINGUISH, etc. on edges</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>Commitment stores</td><td>Per-debater asserted/conceded/challenged</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>Locutions</td><td>Transcript entry types (statement, question, probing)</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        The guiding principle is <strong>vocabulary over formalism</strong>: use AIF's
+        analytical distinctions to improve debate quality and transparency, but keep
+        the data in simple JSON structures that LLMs can reliably produce and the UI
+        can directly render. If external AIF tool interoperability becomes a
+        requirement, a bipartite export layer can be added without changing the
+        internal representation.
+      </p>
+
       <h3 style={{ color: '#f59e0b' }}>Per-Entry Diagnostics</h3>
       <p>
         Click any transcript entry to see its internals: the full prompt sent to the AI,
@@ -207,7 +287,7 @@ export function DiagnosticsWindow() {
                   return (
                     <div key={n.id} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
                       <div>
-                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>I-node</span>
+                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
                         <strong style={{ color: 'var(--accent)' }}>{n.id}</strong>
                         <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(n.speaker)})</span>
                         {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
@@ -215,14 +295,14 @@ export function DiagnosticsWindow() {
                       <div style={{ paddingLeft: 8, marginTop: 2 }}>{n.text}</div>
                       {attacks.map(a => (
                         <div key={a.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>CA-node</span>
+                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
                           ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                           {a.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {a.warrant}</div>}
                         </div>
                       ))}
                       {supports.map(s => (
                         <div key={s.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>RA-node</span>
+                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'help' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
                           ← {s.source} <strong>supports</strong>
                           {s.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {s.warrant}</div>}
                         </div>
