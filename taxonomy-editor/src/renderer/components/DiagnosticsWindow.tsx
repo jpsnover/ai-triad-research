@@ -189,23 +189,45 @@ export function DiagnosticsWindow() {
           </p>
 
           {/* Argument Network */}
-          {an && an.nodes.length > 0 && (
-            <Section title={`Argument Network (${an.nodes.length} claims, ${an.edges.length} edges)`} defaultOpen>
-              {an.nodes.map(n => {
-                const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
-                return (
-                  <div key={n.id} style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
-                    <div><strong style={{ color: 'var(--accent)' }}>{n.id}</strong> <span style={{ color: 'var(--text-muted)' }}>({speakerLabel(n.speaker)})</span> {n.text}</div>
-                    {attacks.map(a => (
-                      <div key={a.id} style={{ paddingLeft: 16, color: '#ef4444', fontSize: '0.7rem' }}>
-                        ← {a.source} {a.attack_type}{a.scheme ? ` via ${a.scheme}` : ''}{a.warrant ? ` — ${a.warrant}` : ''}
+          {an && an.nodes.length > 0 && (() => {
+            const caCount = an.edges.filter(e => e.type === 'attacks').length;
+            const raCount = an.edges.filter(e => e.type === 'supports').length;
+            return (
+              <Section title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA-nodes (attacks), ${raCount} RA-nodes (supports)`} defaultOpen>
+                {an.nodes.map(n => {
+                  const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+                  const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+                  const responded = attacks.length > 0 || supports.length > 0;
+                  const isSource = an.edges.some(e => e.source === n.id);
+                  return (
+                    <div key={n.id} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>I-node</span>
+                        <strong style={{ color: 'var(--accent)' }}>{n.id}</strong>
+                        <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(n.speaker)})</span>
+                        {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
                       </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </Section>
-          )}
+                      <div style={{ paddingLeft: 8, marginTop: 2 }}>{n.text}</div>
+                      {attacks.map(a => (
+                        <div key={a.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
+                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>CA-node</span>
+                          ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
+                          {a.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {a.warrant}</div>}
+                        </div>
+                      ))}
+                      {supports.map(s => (
+                        <div key={s.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
+                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>RA-node</span>
+                          ← {s.source} <strong>supports</strong>
+                          {s.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {s.warrant}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </Section>
+            );
+          })()}
 
           {/* Commitments */}
           {commitments && Object.keys(commitments).length > 0 && (

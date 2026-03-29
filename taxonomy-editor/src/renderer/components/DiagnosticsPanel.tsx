@@ -177,33 +177,45 @@ function OverviewView() {
   return (
     <div className="diag-overview">
       {/* Argument Network */}
-      {an && an.nodes.length > 0 && (
-        <CollapsibleSection title={`Argument Network (${an.nodes.length} claims, ${an.edges.length} edges)`} defaultOpen>
+      {an && an.nodes.length > 0 && (() => {
+        const caCount = an.edges.filter(e => e.type === 'attacks').length;
+        const raCount = an.edges.filter(e => e.type === 'supports').length;
+        return (
+        <CollapsibleSection title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA-nodes, ${raCount} RA-nodes`} defaultOpen>
           {an.nodes.map(n => {
             const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
             const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+            const responded = attacks.length > 0 || supports.length > 0;
+            const isSource = an.edges.some(e => e.source === n.id);
             return (
               <div key={n.id} className="diag-an-node">
                 <div className="diag-an-claim">
+                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.55rem' }}>I-node</span>
                   <span className="diag-an-id">{n.id}</span>
                   <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
-                  <span className="diag-an-text">{n.text}</span>
+                  {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
                 </div>
+                <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>{n.text}</div>
                 {attacks.map(a => (
                   <div key={a.id} className="diag-an-edge diag-an-attack">
-                    ← {a.source} {a.attack_type}{a.scheme ? ` via ${a.scheme}` : ''}{a.warrant ? ` — ${a.warrant}` : ''}
+                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>CA</span>
+                    ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
+                    {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
                   </div>
                 ))}
                 {supports.map(s => (
                   <div key={s.id} className="diag-an-edge diag-an-support">
-                    ← {s.source} supports{s.warrant ? ` — ${s.warrant}` : ''}
+                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>RA</span>
+                    ← {s.source} supports
+                    {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {s.warrant}</div>}
                   </div>
                 ))}
               </div>
             );
           })}
         </CollapsibleSection>
-      )}
+        );
+      })()}
 
       {/* Commitment Stores */}
       {commitments && Object.keys(commitments).length > 0 && (
