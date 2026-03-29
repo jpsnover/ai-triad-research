@@ -507,7 +507,7 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
     ? `debate-fact-check-${factCheck.verdict}`
     : '';
 
-  const hasWebEvidence = factCheck?.web_search_used && factCheck?.web_search_evidence;
+  const hasWebEvidence = factCheck?.web_search_used || factCheck?.web_search_evidence;
 
   return (
     <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
@@ -531,11 +531,19 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown>{entry.content}</Markdown>}
       </div>
-      {showWebEvidence && factCheck?.web_search_evidence && (
+      {showWebEvidence && (
         <div className="debate-fact-check-web-evidence">
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
-            <Markdown>{factCheck.web_search_evidence}</Markdown>
+            {factCheck?.web_search_evidence ? (
+              <Markdown>{factCheck.web_search_evidence}</Markdown>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {factCheck?.web_search_used
+                  ? 'Web search was performed but the grounding response did not include extractable evidence text. The search results were still used to inform the verdict above.'
+                  : 'Web search was not available for this fact check. Verdict is based on internal taxonomy data and conflict database only.'}
+              </p>
+            )}
           </div>
         </div>
       )}
