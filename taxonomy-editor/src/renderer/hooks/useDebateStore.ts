@@ -17,7 +17,7 @@ import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -99,6 +99,36 @@ function stripCodeFences(text: string): string {
 
 const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
 
+/** Record diagnostic data for a transcript entry (only when diagnostics enabled) */
+function recordDiagnostic(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get: () => any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: (partial: any) => void,
+  entryId: string,
+  data: Partial<EntryDiagnostics>,
+): void {
+  if (!get().diagnosticsEnabled) return;
+  const debate = get().activeDebate as DebateSession | null;
+  if (!debate) return;
+
+  const diag: DebateDiagnostics = debate.diagnostics || {
+    enabled: true,
+    entries: {},
+    overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+  };
+
+  diag.entries[entryId] = { ...diag.entries[entryId], ...data };
+
+  // Update overview counters
+  if (data.response_time_ms) {
+    diag.overview.total_ai_calls++;
+    diag.overview.total_response_time_ms += data.response_time_ms;
+  }
+
+  set({ activeDebate: { ...debate, diagnostics: diag } });
+}
+
 /**
  * Extract claims from a debater's statement and update the argument network.
  * Runs in the background after each turn — does not block the debate flow.
@@ -137,6 +167,8 @@ async function extractClaimsAndUpdateAN(
     const newEdges: ArgumentNetworkEdge[] = [];
     const priorIds = new Set(an.nodes.map(n => n.id));
     let nextId = an.nodes.length + 1;
+    const diagAccepted: { text: string; id: string; overlap_pct: number }[] = [];
+    const diagRejected: { text: string; reason: string; overlap_pct: number }[] = [];
 
     // Commitments tracking
     const commitments = debate.commitments || {};
@@ -151,6 +183,7 @@ async function extractClaimsAndUpdateAN(
       const overlap = [...claimWords].filter(w => stmtWords.has(w)).length / Math.max(claimWords.size, 1);
       if (overlap < 0.3) {
         console.warn(`[AN] Rejected claim — low overlap (${(overlap * 100).toFixed(0)}%): ${claim.text.slice(0, 60)}`);
+        diagRejected.push({ text: claim.text, reason: `Low word overlap (${(overlap * 100).toFixed(0)}%)`, overlap_pct: Math.round(overlap * 100) });
         continue;
       }
 
@@ -166,6 +199,7 @@ async function extractClaimsAndUpdateAN(
 
       // Track as asserted
       speakerCommits.asserted.push(claim.text);
+      diagAccepted.push({ text: claim.text, id: nodeId, overlap_pct: Math.round(overlap * 100) });
 
       for (const resp of claim.responds_to || []) {
         // V1.4: Verify prior claim exists
@@ -216,6 +250,11 @@ async function extractClaimsAndUpdateAN(
     await get().saveDebate();
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
+
+    // Record claim extraction diagnostics
+    recordDiagnostic(get, set, entryId, {
+      extracted_claims: { accepted: diagAccepted, rejected: diagRejected },
+    });
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
   }
@@ -492,8 +531,12 @@ interface DebateStore {
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
   debateModel: string | null; // debate-specific model override (null = use global)
+  diagnosticsEnabled: boolean;
+  selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
 
   // Actions
+  toggleDiagnostics: () => void;
+  selectDiagEntry: (entryId: string | null) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string) => Promise<string>;
@@ -553,6 +596,27 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateActivity: null,
   inspectedNodeId: null,
   debateModel: null,
+  diagnosticsEnabled: false,
+  selectedDiagEntry: null,
+
+  toggleDiagnostics: () => {
+    const enabled = !get().diagnosticsEnabled;
+    set({ diagnosticsEnabled: enabled });
+    // Initialize diagnostics on the active debate if enabling
+    if (enabled && get().activeDebate && !get().activeDebate!.diagnostics) {
+      const updated = {
+        ...get().activeDebate!,
+        diagnostics: {
+          enabled: true,
+          entries: {},
+          overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+        },
+      };
+      set({ activeDebate: updated });
+    }
+  },
+
+  selectDiagEntry: (entryId) => set({ selectedDiagEntry: entryId }),
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -949,7 +1013,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
 
       try {
+        const t0 = Date.now();
         const { text } = await generateTextWithProgress(prompt, model, `${info.label} is preparing opening statement (${model})`, set);
+        const responseTime = Date.now() - t0;
         if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
@@ -962,6 +1028,26 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         };
         addTranscriptEntry(entryForAN);
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+
+        // Record diagnostics
+        if (lastEntry) {
+          recordDiagnostic(get, set, lastEntry.id, {
+            prompt: prompt.slice(0, 15000),
+            raw_response: text.slice(0, 5000),
+            model,
+            response_time_ms: responseTime,
+            taxonomy_context: taxonomyBlock.slice(0, 5000),
+            commitment_context: commitBlock || undefined,
+          });
+          // Record move types in overview
+          if (meta.move_types && get().diagnosticsEnabled) {
+            const diag = get().activeDebate?.diagnostics;
+            if (diag) {
+              for (const m of meta.move_types) diag.overview.move_type_counts[m] = (diag.overview.move_type_counts[m] || 0) + 1;
+              if (meta.disagreement_type) diag.overview.disagreement_type_counts[meta.disagreement_type] = (diag.overview.disagreement_type_counts[meta.disagreement_type] || 0) + 1;
+            }
+          }
+        }
 
         priorStatements.push({ speaker: info.label, statement });
 

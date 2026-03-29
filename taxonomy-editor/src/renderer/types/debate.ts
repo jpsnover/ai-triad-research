@@ -62,6 +62,8 @@ export interface DebateSession {
   debate_model?: string;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;
+  /** Diagnostic data captured when diagnostics mode is enabled. */
+  diagnostics?: DebateDiagnostics;
   /** Incremental argument network built during debate */
   argument_network?: {
     nodes: ArgumentNetworkNode[];
@@ -94,6 +96,39 @@ export interface CommitmentStore {
   asserted: string[];
   conceded: string[];
   challenged: string[];
+}
+
+// ── Diagnostics types ─────────────────────────────────
+
+export interface EntryDiagnostics {
+  prompt?: string;
+  raw_response?: string;
+  model?: string;
+  response_time_ms?: number;
+  taxonomy_context?: string;
+  commitment_context?: string;
+  extracted_claims?: {
+    accepted: { text: string; id: string; overlap_pct: number }[];
+    rejected: { text: string; reason: string; overlap_pct: number }[];
+  };
+  edge_tensions?: string;
+  argument_network_context?: string;
+  selection_reasoning?: string;
+}
+
+export interface DebateOverviewDiagnostics {
+  total_ai_calls: number;
+  total_response_time_ms: number;
+  claims_accepted: number;
+  claims_rejected: number;
+  move_type_counts: Record<string, number>;
+  disagreement_type_counts: Record<string, number>;
+}
+
+export interface DebateDiagnostics {
+  enabled: boolean;
+  entries: Record<string, EntryDiagnostics>;
+  overview: DebateOverviewDiagnostics;
 }
 
 export interface DebateSessionSummary {

@@ -1,0 +1,272 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useState } from 'react';
+import { useDebateStore } from '../hooks/useDebateStore';
+import { POVER_INFO } from '../types/debate';
+import type { PoverId, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
+
+function speakerLabel(speaker: PoverId | 'system'): string {
+  if (speaker === 'system') return 'Moderator';
+  if (speaker === 'user') return 'You';
+  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+}
+
+function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="diag-section">
+      <button className="diag-section-header" onClick={() => setOpen(!open)}>
+        <span>{open ? '▼' : '▶'}</span> {title}
+      </button>
+      {open && <div className="diag-section-body">{children}</div>}
+    </div>
+  );
+}
+
+function EntryView({ entryId }: { entryId: string }) {
+  const { activeDebate } = useDebateStore();
+  if (!activeDebate) return null;
+
+  const entry = activeDebate.transcript.find(e => e.id === entryId);
+  if (!entry) return <div className="diag-empty">Entry not found</div>;
+
+  const diag: EntryDiagnostics | undefined = activeDebate.diagnostics?.entries[entryId];
+  const meta = entry.metadata as Record<string, unknown> | undefined;
+
+  return (
+    <div className="diag-entry-view">
+      <div className="diag-entry-header">
+        <span className="diag-entry-speaker">{speakerLabel(entry.speaker)}</span>
+        <span className="diag-entry-type">{entry.type}</span>
+      </div>
+
+      {/* Model & Timing */}
+      {diag?.model && (
+        <CollapsibleSection title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen>
+          <div className="diag-kv">
+            <span className="diag-k">Model:</span> <span className="diag-v">{diag.model}</span>
+          </div>
+          {diag.response_time_ms && (
+            <div className="diag-kv">
+              <span className="diag-k">Response time:</span> <span className="diag-v">{(diag.response_time_ms / 1000).toFixed(1)}s</span>
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {/* Dialectical Moves */}
+      {meta?.move_types && (
+        <CollapsibleSection title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen>
+          <div className="diag-badges">
+            {(meta.move_types as string[]).map((m, i) => (
+              <span key={i} className="diag-badge diag-badge-move">{m}</span>
+            ))}
+          </div>
+          {meta.disagreement_type && (
+            <div className="diag-kv" style={{ marginTop: 4 }}>
+              <span className="diag-k">Disagreement type:</span>
+              <span className="diag-badge diag-badge-type">{meta.disagreement_type as string}</span>
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {/* Key Assumptions */}
+      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+        <CollapsibleSection title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`}>
+          {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+            <div key={i} className="diag-assumption">
+              <div><strong>Assumes:</strong> {a.assumption}</div>
+              <div className="diag-muted">If wrong: {a.if_wrong}</div>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Extracted Claims */}
+      {diag?.extracted_claims && (
+        <CollapsibleSection title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen>
+          {diag.extracted_claims.accepted.map((c, i) => (
+            <div key={i} className="diag-claim diag-claim-accepted">
+              <span className="diag-claim-status">✓ {c.id}</span>
+              <span className="diag-claim-overlap">{c.overlap_pct}%</span>
+              <span className="diag-claim-text">{c.text}</span>
+            </div>
+          ))}
+          {diag.extracted_claims.rejected.map((c, i) => (
+            <div key={i} className="diag-claim diag-claim-rejected">
+              <span className="diag-claim-status">✗</span>
+              <span className="diag-claim-overlap">{c.overlap_pct}%</span>
+              <span className="diag-claim-text">{c.text}</span>
+              <span className="diag-claim-reason">{c.reason}</span>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Taxonomy Context */}
+      {diag?.taxonomy_context && (
+        <CollapsibleSection title="Taxonomy Context (BDI)">
+          <pre className="diag-pre">{diag.taxonomy_context}</pre>
+        </CollapsibleSection>
+      )}
+
+      {/* Commitment Context */}
+      {diag?.commitment_context && (
+        <CollapsibleSection title="Commitments Injected">
+          <pre className="diag-pre">{diag.commitment_context}</pre>
+        </CollapsibleSection>
+      )}
+
+      {/* Edge Tensions (moderator only) */}
+      {diag?.edge_tensions && (
+        <CollapsibleSection title="Edge Tensions Considered">
+          <pre className="diag-pre">{diag.edge_tensions}</pre>
+        </CollapsibleSection>
+      )}
+
+      {/* AN Context (moderator only) */}
+      {diag?.argument_network_context && (
+        <CollapsibleSection title="Argument Network State">
+          <pre className="diag-pre">{diag.argument_network_context}</pre>
+        </CollapsibleSection>
+      )}
+
+      {/* Taxonomy Refs */}
+      {entry.taxonomy_refs.length > 0 && (
+        <CollapsibleSection title={`Taxonomy Refs (${entry.taxonomy_refs.length})`}>
+          {entry.taxonomy_refs.map((r, i) => (
+            <div key={i} className="diag-ref">
+              <span className="diag-ref-id">{r.node_id}</span>
+              <span className="diag-ref-rel">{r.relevance?.slice(0, 100)}</span>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Full Prompt */}
+      {diag?.prompt && (
+        <CollapsibleSection title="Full Prompt Sent to AI">
+          <pre className="diag-pre diag-pre-scroll">{diag.prompt}</pre>
+        </CollapsibleSection>
+      )}
+
+      {/* Raw Response */}
+      {diag?.raw_response && (
+        <CollapsibleSection title="Raw AI Response">
+          <pre className="diag-pre diag-pre-scroll">{diag.raw_response}</pre>
+        </CollapsibleSection>
+      )}
+
+      {!diag && !meta?.move_types && entry.taxonomy_refs.length === 0 && (
+        <div className="diag-empty">No diagnostic data captured for this entry. Enable diagnostics mode before running the debate.</div>
+      )}
+    </div>
+  );
+}
+
+function OverviewView() {
+  const { activeDebate } = useDebateStore();
+  if (!activeDebate) return null;
+
+  const an = activeDebate.argument_network;
+  const commitments = activeDebate.commitments;
+  const diag = activeDebate.diagnostics;
+
+  return (
+    <div className="diag-overview">
+      {/* Argument Network */}
+      {an && an.nodes.length > 0 && (
+        <CollapsibleSection title={`Argument Network (${an.nodes.length} claims, ${an.edges.length} edges)`} defaultOpen>
+          {an.nodes.map(n => {
+            const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+            const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+            return (
+              <div key={n.id} className="diag-an-node">
+                <div className="diag-an-claim">
+                  <span className="diag-an-id">{n.id}</span>
+                  <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
+                  <span className="diag-an-text">{n.text}</span>
+                </div>
+                {attacks.map(a => (
+                  <div key={a.id} className="diag-an-edge diag-an-attack">
+                    ← {a.source} {a.attack_type}{a.scheme ? ` via ${a.scheme}` : ''}{a.warrant ? ` — ${a.warrant}` : ''}
+                  </div>
+                ))}
+                {supports.map(s => (
+                  <div key={s.id} className="diag-an-edge diag-an-support">
+                    ← {s.source} supports{s.warrant ? ` — ${s.warrant}` : ''}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </CollapsibleSection>
+      )}
+
+      {/* Commitment Stores */}
+      {commitments && Object.keys(commitments).length > 0 && (
+        <CollapsibleSection title="Commitment Stores" defaultOpen>
+          {Object.entries(commitments).map(([poverId, store]) => (
+            <div key={poverId} className="diag-commit-store">
+              <strong>{speakerLabel(poverId as PoverId)}</strong>
+              <div className="diag-commit-counts">
+                Asserted: {store.asserted.length} | Conceded: {store.conceded.length} | Challenged: {store.challenged.length}
+              </div>
+              {store.conceded.length > 0 && (
+                <div className="diag-commit-list">
+                  <span className="diag-muted">Conceded:</span>
+                  {store.conceded.map((c, i) => <div key={i} className="diag-commit-item">• {c}</div>)}
+                </div>
+              )}
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Overview Stats */}
+      {diag && (
+        <CollapsibleSection title="Session Statistics" defaultOpen>
+          <div className="diag-kv"><span className="diag-k">AI calls:</span> <span className="diag-v">{diag.overview.total_ai_calls}</span></div>
+          <div className="diag-kv"><span className="diag-k">Total response time:</span> <span className="diag-v">{(diag.overview.total_response_time_ms / 1000).toFixed(1)}s</span></div>
+          <div className="diag-kv"><span className="diag-k">Claims accepted:</span> <span className="diag-v">{diag.overview.claims_accepted}</span></div>
+          <div className="diag-kv"><span className="diag-k">Claims rejected:</span> <span className="diag-v">{diag.overview.claims_rejected}</span></div>
+          {Object.keys(diag.overview.move_type_counts).length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <span className="diag-k">Move types:</span>
+              <div className="diag-badges">
+                {Object.entries(diag.overview.move_type_counts).sort((a, b) => b[1] - a[1]).map(([m, c]) => (
+                  <span key={m} className="diag-badge diag-badge-move">{m} ({c})</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {!an?.nodes.length && !commitments && !diag && (
+        <div className="diag-empty">No diagnostic data available. Enable diagnostics and run a debate to see the argument network, commitments, and statistics.</div>
+      )}
+    </div>
+  );
+}
+
+export function DiagnosticsPanel() {
+  const { selectedDiagEntry } = useDebateStore();
+
+  return (
+    <div className="diagnostics-panel">
+      <div className="diagnostics-panel-header">
+        <h3>Diagnostics</h3>
+      </div>
+      <div className="diagnostics-panel-body">
+        {selectedDiagEntry ? (
+          <EntryView entryId={selectedDiagEntry} />
+        ) : (
+          <OverviewView />
+        )}
+      </div>
+    </div>
+  );
+}

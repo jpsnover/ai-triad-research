@@ -5445,6 +5445,115 @@ body {
   white-space: nowrap;
 }
 
+/* ─── Diagnostics Panel ──────────────────────────────── */
+.debate-diag-btn.active {
+  background: color-mix(in srgb, #f59e0b 20%, var(--bg-secondary));
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+.diag-selected {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.diagnostics-panel {
+  border-top: 2px solid #f59e0b;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.diagnostics-panel-header {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.diagnostics-panel-header h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #f59e0b;
+}
+.diagnostics-panel-body {
+  padding: 8px 12px;
+  font-size: 0.75rem;
+}
+.diag-section { margin-bottom: 6px; }
+.diag-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 0;
+  width: 100%;
+  text-align: left;
+}
+.diag-section-body {
+  padding: 4px 0 4px 16px;
+}
+.diag-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.diag-entry-speaker { font-weight: 700; font-size: 0.8rem; }
+.diag-entry-type { font-size: 0.7rem; color: var(--text-muted); }
+.diag-kv { display: flex; gap: 6px; margin: 2px 0; }
+.diag-k { color: var(--text-muted); min-width: 80px; }
+.diag-v { color: var(--text-primary); }
+.diag-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.diag-badge {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.diag-badge-move { background: color-mix(in srgb, #3b82f6 20%, var(--bg-primary)); color: #3b82f6; }
+.diag-badge-type { background: color-mix(in srgb, #8b5cf6 20%, var(--bg-primary)); color: #8b5cf6; }
+.diag-assumption { margin: 4px 0; padding: 4px; border-left: 2px solid var(--border); padding-left: 8px; }
+.diag-muted { color: var(--text-muted); font-size: 0.7rem; }
+.diag-claim { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin: 3px 0; font-size: 0.7rem; }
+.diag-claim-accepted .diag-claim-status { color: #22c55e; }
+.diag-claim-rejected .diag-claim-status { color: #ef4444; }
+.diag-claim-overlap { color: var(--text-muted); font-size: 0.65rem; min-width: 30px; }
+.diag-claim-text { flex: 1; min-width: 200px; }
+.diag-claim-reason { color: #f59e0b; font-size: 0.65rem; width: 100%; margin-left: 40px; }
+.diag-pre {
+  font-size: 0.65rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+}
+.diag-pre-scroll { max-height: 200px; overflow-y: auto; }
+.diag-ref { display: flex; gap: 6px; margin: 2px 0; font-size: 0.7rem; }
+.diag-ref-id { color: var(--accent); font-weight: 600; min-width: 100px; }
+.diag-ref-rel { color: var(--text-muted); }
+.diag-empty { padding: 16px; text-align: center; color: var(--text-muted); }
+.diag-an-node { margin: 6px 0; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.diag-an-claim { display: flex; gap: 4px; flex-wrap: wrap; }
+.diag-an-id { color: var(--accent); font-weight: 600; font-size: 0.7rem; }
+.diag-an-speaker { color: var(--text-muted); font-size: 0.7rem; }
+.diag-an-text { font-size: 0.7rem; }
+.diag-an-edge { font-size: 0.65rem; padding-left: 16px; color: var(--text-muted); }
+.diag-an-attack { color: #ef4444; }
+.diag-an-support { color: #22c55e; }
+.diag-commit-store { margin: 6px 0; }
+.diag-commit-counts { font-size: 0.7rem; color: var(--text-muted); }
+.diag-commit-list { margin-top: 4px; }
+.diag-commit-item { font-size: 0.7rem; margin: 2px 0; }
+.diag-overview { }
+
 /* ─── Debater Toggles ────────────────────────────────── */
 .debate-debater-toggles {
   display: flex;

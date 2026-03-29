@@ -9,6 +9,7 @@ import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
+import { DiagnosticsPanel } from './DiagnosticsPanel';
 import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -1064,6 +1065,7 @@ export function DebateWorkspace() {
   const {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
+    diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
   } = useDebateStore();
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -1235,6 +1237,13 @@ export function DebateWorkspace() {
           {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
         </span>
         <span className="debate-topic-text">{activeDebate.topic.final}</span>
+        <button
+          className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
+          onClick={toggleDiagnostics}
+          title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
+        >
+          {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
+        </button>
         {isCrossCutting && (
           <button
             className="btn btn-sm debate-cc-details-btn"
@@ -1306,7 +1315,11 @@ export function DebateWorkspace() {
             ? <FactCheckCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
             : <StatementCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
           return (
-            <div key={entry.id} className="debate-entry-wrapper">
+            <div
+              key={entry.id}
+              className={`debate-entry-wrapper${diagnosticsEnabled && selectedDiagEntry === entry.id ? ' diag-selected' : ''}`}
+              onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
+            >
               {card}
               <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />
             </div>
@@ -1334,6 +1347,9 @@ export function DebateWorkspace() {
       {isOpeningPhase && <OpeningActions />}
 
       {isDebatePhase && <DebateActions />}
+
+      {/* Diagnostics panel */}
+      {diagnosticsEnabled && <DiagnosticsPanel />}
 
       {/* Phase 7: Context menu */}
       {contextMenu && (
