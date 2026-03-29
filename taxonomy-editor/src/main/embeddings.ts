@@ -711,3 +711,64 @@ export async function generateText(
       return generateViaGemini(prompt, resolvedModel, apiKey, onRetry);
   }
 }
+
+/**
+ * Generate text with Gemini Google Search grounding enabled.
+ * Used for fact-checking where external verification improves accuracy.
+ * Falls back to regular generateText for non-Gemini backends.
+ */
+export async function generateTextWithSearch(
+  prompt: string,
+  model?: string,
+): Promise<{ text: string; searchQueries?: string[] }> {
+  const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
+  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
+  const backend = resolveBackend(resolvedModel);
+
+  // Only Gemini supports built-in search grounding
+  if (backend !== 'gemini') {
+    const text = await generateText(prompt, resolvedModel);
+    return { text };
+  }
+
+  const apiKey = loadApiKey(backend);
+  if (!apiKey) throw new Error('No Gemini API key configured.');
+
+  const apiModel = getApiModelId(resolvedModel);
+  const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
+
+  console.log(`[AI] Grounded search: ${resolvedModel} with google_search tool`);
+
+  const response = await withTimeout(
+    net.fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+        },
+      }),
+    }),
+    60_000,
+    'Gemini grounded search request',
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Gemini search grounding error ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  const json = await response.json() as Record<string, unknown>;
+  const candidates = (json as { candidates?: { content: { parts: { text: string }[] }; groundingMetadata?: { searchEntryPoint?: { renderedContent?: string }; groundingChunks?: { web?: { uri: string; title: string } }[] } }[] }).candidates;
+  if (!candidates?.length) throw new Error('No candidates from Gemini grounded search');
+
+  const text = candidates[0].content.parts.map(p => p.text).join('');
+  const searchQueries = candidates[0].groundingMetadata?.groundingChunks
+    ?.map(c => c.web?.title)
+    .filter(Boolean) as string[] | undefined;
+
+  return { text, searchQueries };
+}

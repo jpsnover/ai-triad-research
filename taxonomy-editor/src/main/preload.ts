@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateText: (prompt: string, model?: string): Promise<{ text: string }> =>
     ipcRenderer.invoke('generate-text', prompt, model),
 
+  generateTextWithSearch: (prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> =>
+    ipcRenderer.invoke('generate-text-with-search', prompt, model),
+
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>): Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }> =>
     ipcRenderer.invoke('nli-classify', pairs),
 

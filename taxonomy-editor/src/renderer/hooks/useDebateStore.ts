@@ -1279,24 +1279,55 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     }
 
-    // Gather conflict data from the store
+    // Gather conflict data — filter by relevance to the statement's taxonomy refs
     const conflicts = useTaxonomyStore.getState().conflicts || [];
+    const refNodeIds = new Set((sourceEntry?.taxonomy_refs || []).map(r => r.node_id));
     const conflictLines: string[] = [];
-    for (const c of conflicts.slice(0, 10)) {
-      const conflict = c as { claim_id?: string; claim_label?: string; status?: string };
-      if (conflict.claim_label) {
-        conflictLines.push(`[${conflict.claim_id || 'unknown'}] ${conflict.claim_label} (${conflict.status || 'open'})`);
+    for (const c of conflicts as { claim_id?: string; claim_label?: string; description?: string; status?: string; linked_taxonomy_nodes?: string[] }[]) {
+      if (!c.claim_label) continue;
+      // Prioritize conflicts that share taxonomy nodes with the statement
+      const linked = c.linked_taxonomy_nodes || [];
+      const isRelevant = linked.some(n => refNodeIds.has(n));
+      if (isRelevant) {
+        conflictLines.unshift(`[${c.claim_id || 'unknown'}] ${c.claim_label}: ${c.description || ''} (${c.status || 'open'})`);
+      } else if (conflictLines.length < 10) {
+        // Text similarity fallback — check if conflict label overlaps with claim
+        const claimWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 4));
+        const labelWords = (c.claim_label || '').toLowerCase().split(/\s+/);
+        const overlap = labelWords.filter(w => claimWords.has(w)).length;
+        if (overlap >= 2) {
+          conflictLines.push(`[${c.claim_id || 'unknown'}] ${c.claim_label} (${c.status || 'open'})`);
+        }
       }
     }
 
+    // Step 1: Run grounded web search for external verification
+    set({ debateActivity: `Searching the web for evidence (${model})` });
+    let webContext = '';
+    let searchQueries: string[] = [];
+    try {
+      const searchResult = await window.electronAPI.generateTextWithSearch(
+        `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
+        model,
+      );
+      webContext = searchResult.text;
+      searchQueries = searchResult.searchQueries || [];
+    } catch (err) {
+      console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
+      webContext = '(Web search unavailable)';
+    }
+    if (!isStillValid()) return;
+
+    // Step 2: Run main fact-check with all evidence
     const prompt = buildFactCheckPrompt(
       selectedText,
       statementContext,
       allNodes.join('\n'),
-      conflictLines.join('\n'),
+      conflictLines.slice(0, 15).join('\n') + (webContext ? `\n\n=== WEB SEARCH RESULTS ===\n${webContext}` : ''),
     );
 
     try {
+      set({ debateActivity: `Analyzing evidence (${model})` });
       const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
       if (!isStillValid()) return;
 
@@ -1322,10 +1353,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           relevance: s.conflict_id ? `Conflict: ${s.conflict_id}` : '',
         }));
 
+      const webNote = searchQueries.length > 0
+        ? `\n\n*Web sources consulted: ${searchQueries.slice(0, 3).join(', ')}*`
+        : webContext && webContext !== '(Web search unavailable)'
+          ? '\n\n*Verified against web search results*'
+          : '';
+
       addTranscriptEntry({
         type: 'fact-check',
         speaker: 'system',
-        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText.length > 120 ? selectedText.slice(0, 117) + '...' : selectedText}"\n\n${result.explanation}`,
+        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText.length > 120 ? selectedText.slice(0, 117) + '...' : selectedText}"\n\n${result.explanation}${webNote}`,
         taxonomy_refs: sourceRefs,
         metadata: {
           fact_check: {
@@ -1333,6 +1370,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             explanation: result.explanation,
             sources: result.sources,
             checked_text: selectedText,
+            web_search_used: webContext !== '(Web search unavailable)',
+            web_search_queries: searchQueries,
           },
         },
       });

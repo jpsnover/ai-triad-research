@@ -29,7 +29,7 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { isDataAvailable, getDataRootPath } from './fileIO';
-import { computeEmbeddings, computeQueryEmbedding, generateText, updateNodeEmbeddings, classifyNli } from './embeddings';
+import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, updateNodeEmbeddings, classifyNli } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import { diagnosePythonEmbeddings } from './diagnosePython';
@@ -181,6 +181,16 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text failed:', msg);
       throw new Error(`AI generation failed: ${msg}`);
+    }
+  });
+
+  ipcMain.handle('generate-text-with-search', async (_event, prompt: string, model?: string) => {
+    try {
+      return await generateTextWithSearch(prompt, model);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] generate-text-with-search failed:', msg);
+      throw new Error(`AI grounded search failed: ${msg}`);
     }
   });
 

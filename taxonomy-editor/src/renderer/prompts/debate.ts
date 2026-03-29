@@ -444,19 +444,22 @@ ${statementContext}
 === RELEVANT TAXONOMY POSITIONS ===
 ${taxonomyNodes}
 
-=== KNOWN CONFLICTS IN THE RESEARCH DATABASE ===
-${conflictData || '(No relevant conflicts found)'}
+=== KNOWN CONFLICTS AND WEB EVIDENCE ===
+${conflictData || '(No relevant conflicts or web results found)'}
 
-Evaluate whether this claim is factually accurate. Consider:
-1. Is it consistent with the taxonomy data and known research?
-2. Is it internally consistent with other statements in the debate?
-3. Are there known conflicts or counter-evidence?
+Evaluate whether this claim is factually accurate using ALL available evidence:
+1. Internal evidence: Is it consistent with the taxonomy data and known research conflicts?
+2. External evidence: Do the web search results support or contradict it? Cite specific findings.
+3. Internal consistency: Does it align with other statements in the debate?
+4. Temporal accuracy: Is it current, or does it rely on outdated information?
 
 Rate the claim as one of:
-- "supported" — consistent with available evidence and taxonomy data
-- "disputed" — there is significant counter-evidence or active conflict
-- "unverifiable" — cannot be confirmed or denied with available data
-- "false" — directly contradicted by available evidence
+- "supported" — consistent with available evidence from both internal data and web sources
+- "disputed" — there is significant counter-evidence from research conflicts or web sources
+- "unverifiable" — cannot be confirmed or denied with available data (web search found nothing relevant)
+- "false" — directly contradicted by authoritative sources
+
+When web search results are available, cite them specifically in your explanation.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
