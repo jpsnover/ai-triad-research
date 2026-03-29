@@ -655,7 +655,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    set({ debateError: null, debateGenerating: 'prometheus' });
+    set({ debateError: null, debateGenerating: 'system' as PoverId });
 
     const clarifications: { speaker: string; questions: string[]; answers: string }[] = [];
     const clarEntries = get().activeDebate!.transcript.filter((e) => e.type === 'clarification');
@@ -1042,7 +1042,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'prometheus' });
+    set({ debateError: null, debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -1158,7 +1158,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'prometheus' });
+    set({ debateError: null, debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -1227,7 +1227,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'prometheus' });
+    set({ debateError: null, debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
 
@@ -1346,7 +1346,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (toCompress.length < 4) return; // Not enough to bother
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'prometheus' });
+    set({ debateError: null, debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const entriesText = toCompress.map((e) => {

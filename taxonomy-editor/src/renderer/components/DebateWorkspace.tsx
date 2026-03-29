@@ -27,7 +27,7 @@ const PHASE_TITLES: Record<string, string> = {
 };
 
 function speakerLabel(speaker: PoverId | 'system'): string {
-  if (speaker === 'system') return 'System';
+  if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info ? info.label : speaker;
