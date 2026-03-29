@@ -29,6 +29,13 @@ const PHASE_TITLES: Record<string, string> = {
   closed: 'Debate Closed',
 };
 
+function getPolicyAction(polId: string): string {
+  const registry = useTaxonomyStore.getState().policyRegistry;
+  if (!registry) return polId;
+  const entry = registry.find(p => p.id === polId);
+  return entry ? entry.action : polId;
+}
+
 function speakerLabel(speaker: PoverId | 'system'): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
@@ -363,8 +370,8 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       {entry.policy_refs && entry.policy_refs.length > 0 && (
         <div className="debate-policy-refs-section">
           {entry.policy_refs.map((polId) => (
-            <span key={polId} className="debate-policy-pill" title={polId}>
-              {polId}
+            <span key={polId} className="debate-policy-pill" title={getPolicyAction(polId)}>
+              {polId}: {getPolicyAction(polId)}
             </span>
           ))}
         </div>
@@ -574,8 +581,8 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       {entry.policy_refs && entry.policy_refs.length > 0 && (
         <div className="debate-policy-refs-section">
           {entry.policy_refs.map((polId) => (
-            <span key={polId} className="debate-policy-pill" title={polId}>
-              {polId}
+            <span key={polId} className="debate-policy-pill" title={getPolicyAction(polId)}>
+              {polId}: {getPolicyAction(polId)}
             </span>
           ))}
         </div>
