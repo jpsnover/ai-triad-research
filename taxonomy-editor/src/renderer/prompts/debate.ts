@@ -248,7 +248,7 @@ export function openingStatementPrompt(
   length: string = 'medium',
 ): string {
   const lengthKey = length || 'medium';
-  const includeAssumptions = lengthKey === 'detailed';
+  const includeAssumptions = lengthKey !== 'brief';
   const includeSteelman = lengthKey !== 'brief';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
@@ -281,11 +281,14 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "my_claims": [
     {"claim": "near-verbatim key assertion from your statement", "targets": []}
-  ]${includeAssumptions ? `,
+  ],
+  "policy_refs": ["pol-001"]${includeAssumptions ? `,
   "key_assumptions": [
     {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
   ]` : ''}
-}`;
+}
+
+"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if no policies are directly relevant to your statement.`;
 }
 
 export function debateResponsePrompt(
@@ -341,9 +344,12 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "move_types": ["DISTINGUISH", "COUNTEREXAMPLE"],
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
-  ]${includeDisagreementType ? `,
+  ],
+  "policy_refs": ["pol-001"]${includeDisagreementType ? `,
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"` : ''}
-}`;
+}
+
+"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if none are relevant.`;
 }
 
 export function crossRespondSelectionPrompt(
@@ -430,14 +436,18 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
+  "policy_refs": ["pol-001"],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
-}`;
+}
+
+"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if none are relevant.`;
 }
 
 export function debateSynthesisPrompt(
   topic: string,
   transcript: string,
   hasSourceDocument: boolean = false,
+  policyContext: string = '',
 ): string {
   const documentAnalysis = hasSourceDocument ? `
 7. Document vs. debater claims: Separate the claims that originate from the source document from arguments the debaters constructed independently. For each document claim that was contested, note which debaters accepted it and which challenged it.` : '';
@@ -490,6 +500,7 @@ Identify:
    e. "scope" — which position accounts for more of the relevant considerations?
    A position can prevail on one criterion while losing on another.
    If genuinely undecidable, say so and explain what evidence would tip the balance.${documentAnalysis}
+9. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails. Reference pol-NNN IDs from the policy registry when applicable.${policyContext}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -507,6 +518,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "preferences": [
     {"conflict": "description of the disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
+  ],
+  "policy_implications": [
+    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "prometheus", "stance": "supports/opposes/modifies and why"}], "implication": "how this disagreement affects what policy should be adopted"}
   ]${documentSchema}
 }`;
 }

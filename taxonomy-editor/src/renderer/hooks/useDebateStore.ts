@@ -63,13 +63,14 @@ async function generateTextWithProgress(
   activity: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set: (partial: any) => void,
+  timeoutMs?: number,
 ): Promise<{ text: string }> {
   set({ debateActivity: activity, debateProgress: null });
   const unsubscribe = window.electronAPI.onGenerateTextProgress((progress: Record<string, unknown>) => {
     set({ debateProgress: progress });
   });
   try {
-    const result = await window.electronAPI.generateText(prompt, model);
+    const result = await window.electronAPI.generateText(prompt, model, timeoutMs);
     return result;
   } finally {
     unsubscribe();
@@ -1325,7 +1326,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       );
 
       try {
+        const t0 = Date.now();
         const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is responding (${model})`, set);
+        const responseTime = Date.now() - t0;
         if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
@@ -1341,6 +1344,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
+          recordDiagnostic(get, set, lastEntry.id, {
+            prompt: prompt.slice(0, 15000),
+            raw_response: text.slice(0, 5000),
+            model,
+            response_time_ms: responseTime,
+            taxonomy_context: taxonomyBlock.slice(0, 5000),
+            commitment_context: commitBlock || undefined,
+          });
           extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
@@ -1460,7 +1471,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     );
 
     try {
+      const t0 = Date.now();
       const { text } = await generateTextWithProgress(prompt, model, `${info.label} is cross-responding (${model})`, set);
+      const responseTime = Date.now() - t0;
       if (!isStillValid()) return;
       const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
 
@@ -1476,6 +1489,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
+        recordDiagnostic(get, set, lastEntry.id, {
+          prompt: prompt.slice(0, 15000),
+          raw_response: text.slice(0, 5000),
+          model,
+          response_time_ms: responseTime,
+          taxonomy_context: taxonomyBlock.slice(0, 5000),
+          commitment_context: commitBlock || undefined,
+        });
         extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
       }
     } catch (err) {
@@ -1506,7 +1527,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc);
 
     try {
-      const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set);
+      const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set, 180_000);
       if (!isStillValid()) return;
 
       let synthesis;
