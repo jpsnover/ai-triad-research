@@ -36,42 +36,6 @@ function getPolicyAction(polId: string): string {
   return entry ? entry.action : polId;
 }
 
-/** Policy refs with "Show reasoning" toggle — mirrors TaxonomyRefsSection */
-function PolicyRefsSection({ policyRefs, metaPolicyRefs }: { policyRefs?: string[]; metaPolicyRefs?: string[] }) {
-  const [expanded, setExpanded] = useState(false);
-  const refs = metaPolicyRefs || policyRefs || [];
-  if (refs.length === 0) return null;
-
-  return (
-    <div className="debate-taxonomy-refs-section">
-      <div className="debate-taxonomy-refs">
-        {refs.map((polId) => (
-          <span
-            key={polId}
-            className="debate-taxonomy-pill"
-            style={{ borderColor: 'var(--color-cc)', color: 'var(--color-cc)' }}
-            title={getPolicyAction(polId)}
-          >
-            {polId}
-          </span>
-        ))}
-        <button className="debate-reasoning-toggle" onClick={() => setExpanded(e => !e)}>
-          {expanded ? 'Hide reasoning' : 'Show reasoning'}
-        </button>
-      </div>
-      {expanded && (
-        <div className="debate-reasoning-list">
-          {refs.map((polId) => (
-            <div key={polId} className="debate-reasoning-item">
-              <span className="debate-reasoning-node" style={{ color: 'var(--color-cc)' }}>{polId}</span>
-              <span className="debate-reasoning-label">{getPolicyAction(polId)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function speakerLabel(speaker: PoverId | 'system'): string {
   if (speaker === 'system') return 'Moderator';
@@ -136,12 +100,17 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
   );
 }
 
-/** Taxonomy refs with "Show reasoning" toggle */
-function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
+/** Combined taxonomy + policy refs with single "Show reasoning" toggle */
+function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
+  refs: TaxonomyRef[];
+  policyRefs?: string[];
+  metaPolicyRefs?: string[];
+}) {
   const [expanded, setExpanded] = useState(false);
   const inspectNode = useDebateStore((s) => s.inspectNode);
+  const polRefs = metaPolicyRefs || policyRefs || [];
 
-  if (refs.length === 0) return null;
+  if (refs.length === 0 && polRefs.length === 0) return null;
 
   return (
     <div className="debate-taxonomy-refs-section">
@@ -149,12 +118,25 @@ function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
         {refs.map((taxRef) => (
           <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
         ))}
-        <button
-          className="debate-reasoning-toggle"
-          onClick={() => setExpanded(e => !e)}
-        >
-          {expanded ? 'Hide reasoning' : 'Show reasoning'}
-        </button>
+        {polRefs.map((polId) => (
+          <span
+            key={polId}
+            className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
+            style={{ borderColor: 'var(--color-cc)', color: 'var(--color-cc)' }}
+            title={getPolicyAction(polId)}
+            onClick={(e) => { e.stopPropagation(); inspectNode(polId); }}
+          >
+            {polId}
+          </span>
+        ))}
+        {(refs.length > 0 || polRefs.length > 0) && (
+          <button
+            className="debate-reasoning-toggle"
+            onClick={() => setExpanded(e => !e)}
+          >
+            {expanded ? 'Hide reasoning' : 'Show reasoning'}
+          </button>
+        )}
       </div>
       {expanded && (
         <div className="debate-reasoning-list">
@@ -175,6 +157,19 @@ function TaxonomyRefsSection({ refs }: { refs: TaxonomyRef[] }) {
               </div>
             );
           })}
+          {polRefs.map((polId) => (
+            <div key={polId} className="debate-reasoning-item">
+              <button
+                className="debate-reasoning-node"
+                style={{ color: 'var(--color-cc)' }}
+                onClick={() => inspectNode(polId)}
+              >
+                {polId}
+              </button>
+              <span className="debate-reasoning-label">{getPolicyAction(polId)}</span>
+              <span className="debate-reasoning-text">Policy action referenced by this debater's argument</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -403,8 +398,8 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown>{entry.content}</Markdown>}
       </div>
-      <TaxonomyRefsSection refs={entry.taxonomy_refs} />
-      <PolicyRefsSection
+      <TaxonomyRefsSection
+        refs={entry.taxonomy_refs}
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
       />
@@ -609,8 +604,8 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           </div>
         </div>
       )}
-      <TaxonomyRefsSection refs={entry.taxonomy_refs} />
-      <PolicyRefsSection
+      <TaxonomyRefsSection
+        refs={entry.taxonomy_refs}
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
       />

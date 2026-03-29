@@ -42,6 +42,12 @@ function resolveNode(nodeId: string) {
     return node ? { kind: 'crossCutting' as const, node } : null;
   }
 
+  if (nodeId.startsWith('pol-')) {
+    const entry = state.policyRegistry?.find(p => p.id === nodeId);
+    if (entry) return { kind: 'policy' as const, node: { id: entry.id, label: entry.action, description: entry.action, source_povs: entry.source_povs, member_count: entry.member_count } };
+    return null;
+  }
+
   const povMap: Record<string, Pov> = { 'acc-': 'accelerationist', 'saf-': 'safetyist', 'skp-': 'skeptic' };
   for (const [prefix, pov] of Object.entries(povMap)) {
     if (nodeId.startsWith(prefix)) {
@@ -382,6 +388,21 @@ export function DebateTab() {
                   <div className="debate-inspect-body">
                     {resolved.kind === 'crossCutting' ? (
                       <CrossCuttingDetail node={resolved.node} readOnly />
+                    ) : resolved.kind === 'policy' ? (
+                      <div style={{ padding: 16, fontSize: '0.85rem' }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-cc)' }}>{resolved.node.id}</div>
+                        <div style={{ marginBottom: 12 }}>{resolved.node.label}</div>
+                        {resolved.node.source_povs?.length > 0 && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            Source POVs: {resolved.node.source_povs.join(', ')}
+                          </div>
+                        )}
+                        {resolved.node.member_count > 0 && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                            Referenced by {resolved.node.member_count} taxonomy node{resolved.node.member_count !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <NodeDetail pov={resolved.pov} node={resolved.node} readOnly />
                     )}
