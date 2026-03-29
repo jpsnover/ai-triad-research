@@ -944,3 +944,688 @@ Priority 5 is architecturally independent and can be done at any point.
 | Commitment stores | Missing | Moderate | Priority 2: per-agent tracking | V2.4: consistency checks |
 | Participants | Good | None | Well-supported via BDI + POVers | — |
 | Context | Good | None | Background theory via taxonomy | — |
+
+---
+
+## 8. Debate Harvest — Closing the Loop Between Debates and Taxonomy
+
+### The Problem
+
+Debates currently consume taxonomy data but never write back. When a debate produces a well-supported finding — a conflict between positions, a strong counterargument, evidence that one claim is stronger than another — that finding dies in the debate transcript. The taxonomy, edge graph, and conflict database don't learn from debates.
+
+This creates an asymmetry: the more debates you run, the richer the debate transcripts become, but the taxonomy stays static unless you manually update it. The AIF priorities above (incremental argument networks, commitment tracking, preferences) make debates produce increasingly structured output — but without a harvest mechanism, that structure has no downstream impact.
+
+### Design Principles
+
+1. **User-curated, never automatic.** Debates are exploratory — agents can be wrong, arguments can be weak, the AI can hallucinate. Nothing flows from debate to taxonomy without explicit user approval.
+2. **Review before apply.** The user sees exactly what will change, can edit it, and can reject individual items.
+3. **Audit trail.** Every harvest is recorded with what was applied, what was rejected, and when.
+4. **Existing data stores.** No new databases. Conflicts go to `conflicts/`, edges to `edges.json`, steelmans to taxonomy nodes. One new file: `harvest-queue.json` for proposed new concepts.
+
+### What's Promotable
+
+| Finding Type | Source in Debate | Destination | When Available |
+|---|---|---|---|
+| **Conflicts** | `areas_of_disagreement` with opposing claims | `conflicts/*.json` | Now (synthesis already produces these) |
+| **Edge reinforcement** | `argument_map` support/attack between taxonomy-linked claims | `edges.json` confidence adjustment or new edge | After Priority 1 (needs AN claim→taxonomy links) |
+| **Steelman refinement** | Strong POV-grounded attack on another POV's node | `steelman_vulnerability` on target node | Now (debate transcripts contain these) |
+| **New concepts** | Claims not mapped to any taxonomy node | `harvest-queue.json` for `Invoke-TaxonomyProposal` | After Priority 1 (needs claim extraction) |
+| **Debate refs** | Which nodes were contested in this debate | `debate_refs` field on taxonomy nodes | Now (taxonomy_refs on transcript entries) |
+| **Preference verdicts** | Which side of a disagreement the evidence favors | `conflicts/*.json` verdict field | After Priority 3 (needs preference resolution) |
+
+### User Experience
+
+After synthesis, a **"Harvest"** button appears in the debate workspace. Clicking it opens a dialog with findings grouped into sections. Each item has a checkbox, editable fields, and a preview of what will change.
+
+**Section 1: Conflicts**
+```
+☑ "Whether scaling compute alone produces AGI"
+    BDI layer: belief | Resolvability: resolvable by evidence
+    Prometheus (C1): "Scaling compute is sufficient for AGI"
+    Sentinel (C2): "Novel architectures may be needed"
+    → Creates: conflicts/conflict-scaling-compute-agi.json
+    [Edit label] [Edit description]
+
+☐ "Whether licensing regime helps or hinders innovation"
+    BDI layer: value | Resolvability: negotiable via tradeoffs
+    → Creates: conflicts/conflict-licensing-regime.json
+```
+
+**Section 2: Edge Updates** (available after Priority 1)
+```
+☑ acc-data-001 ↔ saf-methods-001: strengthen TENSION_WITH
+    Current confidence: 0.75 → Proposed: 0.85
+    Evidence: 3 direct attacks across 2 debate rounds
+    [Adjust confidence slider]
+
+☐ acc-goals-002 → skp-data-005: new SUPPORTS edge
+    Proposed confidence: 0.70
+    Evidence: Prometheus's argument in round 2 linked these
+```
+
+**Section 3: Steelman Refinements**
+```
+☑ saf-methods-001: Refine from_accelerationist steelman
+    Current: "Pausing cedes the field to less safety-conscious actors"
+    Proposed: "2024 scaling results show capabilities emerging without
+    architectural changes, undermining the pause premise"
+    Source: Prometheus cross-respond, round 2
+    [Edit proposed text]
+
+☐ acc-data-001: Refine from_skeptic steelman
+    [keep current — debate didn't produce a better one]
+```
+
+**Section 4: New Concepts** (available after Priority 1)
+```
+☐ "Architectural ceiling hypothesis"
+    Suggested POV: cross-cutting
+    Suggested category: Data/Facts
+    Evidence: Sentinel and Cassandra both referenced this concept
+    → Queues for Invoke-TaxonomyProposal
+    [Edit label] [Edit description]
+```
+
+**Section 5: Debate References**
+```
+☑ Mark as debated: acc-data-001, saf-methods-001, acc-goals-002
+    → Adds debate ID to each node's debate_refs field
+```
+
+The user checks what they want, edits where needed, clicks **"Apply N items"**. A summary shows what was created/updated. A harvest manifest is saved.
+
+### Data Storage
+
+All harvested data goes to existing stores:
+
+| Item | File | Format |
+|------|------|--------|
+| Conflicts | `ai-triad-data/conflicts/{generated-id}.json` | Same schema as `Find-Conflict` output |
+| Edge updates | `ai-triad-data/taxonomy/Origin/edges.json` | Confidence adjustment on existing edge, or new edge entry |
+| Steelman updates | `ai-triad-data/taxonomy/Origin/{pov}.json` | Updated `graph_attributes.steelman_vulnerability` object |
+| New concepts | `ai-triad-data/harvest-queue.json` | Array of `{ label, description, pov, category, source_debate_id, evidence }` |
+| Debate refs | `ai-triad-data/taxonomy/Origin/{pov}.json` | New optional `debate_refs: string[]` field on nodes |
+| Preference verdicts | `ai-triad-data/conflicts/{id}.json` | New optional `verdict` field on conflict |
+| Harvest manifest | `ai-triad-data/harvests/{debate-id}.json` | Record of what was applied/rejected |
+
+---
+
+## 9. Harvest Implementation — Phased Plan
+
+### Phase H1: Conflict Harvesting + Debate Refs
+
+**Goal:** The simplest, highest-value harvest items — conflicts and debate references. No dependency on Priorities 1-4.
+
+**Repos affected:** Code + Data (new fields, new IPC handlers, new UI component).
+
+#### Step H1.1: Add `debate_refs` to taxonomy types
+
+**File:** `taxonomy-editor/src/renderer/types/taxonomy.ts`
+
+Add `debate_refs?: string[]` to `PovNode` and `CrossCuttingNode`. Same pattern as `conflict_ids`.
+
+**File:** `taxonomy/schemas/pov-taxonomy.schema.json`
+
+Add `debate_refs` as optional string array.
+
+**Verification:** None — type definitions.
+
+#### Step H1.2: Add IPC handler for writing conflicts
+
+**File:** `taxonomy-editor/src/main/ipcHandlers.ts`
+
+Add `create-conflict` handler that writes a new conflict JSON file to the conflicts directory. Reuse the same schema as `Find-Conflict.ps1` output:
+```json
+{
+  "claim_id": "conflict-{slug}",
+  "claim_label": "...",
+  "description": "...",
+  "status": "open",
+  "linked_taxonomy_nodes": ["acc-data-001", "saf-methods-001"],
+  "instances": [
+    { "doc_id": "debate:{debate-id}", "stance": "supports", "assertion": "...", "date_flagged": "..." },
+    { "doc_id": "debate:{debate-id}", "stance": "disputes", "assertion": "...", "date_flagged": "..." }
+  ],
+  "source": "debate-harvest",
+  "source_debate_id": "debate-id"
+}
+```
+
+**Verification:** Write a conflict, read it back, verify it matches schema. Verify `Find-Conflict` can read and append to it (backward compat).
+
+#### Step H1.3: Add IPC handler for updating taxonomy nodes (debate_refs)
+
+**File:** `taxonomy-editor/src/main/fileIO.ts`
+
+Add `update-node-field` handler that loads a taxonomy file, finds a node by ID, adds a value to an array field (like `debate_refs`), and saves atomically.
+
+**Verification:** Add a debate_ref to a node, reload the file, verify the ref is present and no other data changed.
+
+#### Step H1.4: Build the HarvestDialog component
+
+**File:** `taxonomy-editor/src/renderer/components/HarvestDialog.tsx` (new)
+
+Takes the active debate's synthesis as input. Renders:
+- Section 1: Conflicts (from `areas_of_disagreement`)
+- Section 5: Debate refs (from all `taxonomy_refs` across transcript)
+
+Each item has a checkbox (default unchecked), editable fields, and a preview.
+
+"Apply" button calls the IPC handlers from H1.2 and H1.3.
+
+**Verification:** None — UI component, verified by user interaction.
+
+#### Step H1.5: AI-assisted conflict description generation
+
+When the user checks a conflict item, the tool generates a conflict description from the debate context. This is an AI step.
+
+**Prompt:** Given the disagreement point, the two opposing claims, and the relevant transcript excerpts, generate:
+- `claim_label`: 5-10 word label
+- `description`: 1-2 sentence description of what's contested
+- `linked_taxonomy_nodes`: which taxonomy nodes are involved
+
+**Verification — V-H1.5: Validate AI-generated conflict descriptions**
+
+```typescript
+function verifyConflictDescription(
+  generated: { claim_label: string; description: string; linked_taxonomy_nodes: string[] },
+  disagreement: DisagreementEntry,
+  allNodeIds: Set<string>,
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  // V1: claim_label must be 3-12 words
+  const wordCount = generated.claim_label.split(/\s+/).length;
+  if (wordCount < 3 || wordCount > 12) {
+    warnings.push(`claim_label has ${wordCount} words (expected 3-12)`);
+  }
+
+  // V2: description must be non-empty and not just repeat the label
+  if (!generated.description || generated.description.length < 20) {
+    warnings.push('description too short');
+  }
+  if (generated.description === generated.claim_label) {
+    warnings.push('description is identical to label');
+  }
+
+  // V3: all linked_taxonomy_nodes must exist
+  for (const nodeId of generated.linked_taxonomy_nodes) {
+    if (!allNodeIds.has(nodeId)) {
+      warnings.push(`linked node ${nodeId} does not exist`);
+    }
+  }
+
+  // V4: at least 2 linked nodes (a conflict needs at least two positions)
+  if (generated.linked_taxonomy_nodes.length < 2) {
+    warnings.push('conflict should link at least 2 taxonomy nodes');
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+```
+
+**What this catches:** Invalid node references, labels that are too short or too long, descriptions that are empty or tautological, conflicts with only one side.
+
+**Remediation:** Warnings are shown to the user in the harvest dialog next to the item. The user can edit the generated text before applying.
+
+#### Step H1.6: Save harvest manifest
+
+After applying, write `ai-triad-data/harvests/{debate-id}.json`:
+
+```json
+{
+  "debate_id": "...",
+  "debate_title": "...",
+  "harvested_at": "2026-03-29T...",
+  "items": [
+    { "type": "conflict", "action": "created", "id": "conflict-scaling-compute-agi", "status": "applied" },
+    { "type": "conflict", "action": "created", "id": "conflict-licensing-regime", "status": "rejected" },
+    { "type": "debate_ref", "action": "added", "node_id": "acc-data-001", "status": "applied" },
+    ...
+  ]
+}
+```
+
+**Verification:** Read the manifest back after saving, verify it matches what was applied.
+
+#### Phase H1 Validation Gate
+
+- [ ] Create a debate, run synthesis, click Harvest
+- [ ] Check 2 conflicts and 3 debate refs, click Apply
+- [ ] Verify conflict files exist in `conflicts/` with correct schema
+- [ ] Verify `Find-Conflict` in PowerShell can read the new files and append to them
+- [ ] Verify debate_refs appear on the taxonomy nodes
+- [ ] Verify NodeDetail and CrossCuttingDetail display debate_refs (or at least don't crash)
+- [ ] Verify harvest manifest was saved
+- [ ] Open the Harvest dialog again — previously applied items show as "already harvested"
+
+---
+
+### Phase H2: Steelman Refinement Harvesting
+
+**Goal:** Allow users to promote strong counterarguments from debates into node steelman_vulnerability fields.
+
+**Depends on:** Phase H1 (harvest dialog infrastructure).
+
+#### Step H2.1: Extract steelman candidates from debate transcript
+
+After synthesis, scan the transcript for statements where one debater attacks another POV's taxonomy node with a strong, specific argument. Candidates are identified by:
+- `move_types` includes COUNTEREXAMPLE, REDUCE, or DISTINGUISH
+- `taxonomy_refs` references a node from a DIFFERENT POV than the speaker
+- The statement is substantive (>50 chars)
+
+This extraction is deterministic — no AI needed.
+
+**Verification:** None — deterministic filtering.
+
+#### Step H2.2: AI-assisted steelman condensation
+
+The raw debate statement is too long for a steelman field (target: 1-3 sentences). The AI condenses it.
+
+**Prompt:** "Condense this counterargument into 1-2 sentences that capture the strongest version of the attack from the [POV] perspective. The steelman should be specific enough that an advocate of the target position would recognize it as a fair challenge."
+
+**Verification — V-H2.2: Validate condensed steelman quality**
+
+```typescript
+function verifyCondensedSteelman(
+  condensed: string,
+  originalStatement: string,
+  attackerPov: string,
+  targetNodeId: string,
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  // V1: Length check (50-200 chars)
+  if (condensed.length < 50) warnings.push(`Too short: ${condensed.length} chars (min 50)`);
+  if (condensed.length > 200) warnings.push(`Too long: ${condensed.length} chars (max 200)`);
+
+  // V2: Must contain POV-characteristic vocabulary
+  const povVocab: Record<string, string[]> = {
+    accelerationist: ['progress', 'innovation', 'speed', 'scaling', 'open-source', 'abundance', 'growth'],
+    safetyist: ['risk', 'alignment', 'control', 'oversight', 'catastroph', 'irreversibl', 'caution'],
+    skeptic: ['bias', 'displac', 'accountab', 'harm', 'evidence', 'power', 'concentrat'],
+  };
+  const vocab = povVocab[attackerPov] || [];
+  const matches = vocab.filter(v => condensed.toLowerCase().includes(v));
+  if (matches.length === 0) {
+    warnings.push(`No ${attackerPov} vocabulary found — may be too generic`);
+  }
+
+  // V3: Must not be a near-copy of the existing steelman
+  // (Checked at the UI level by comparing against current value)
+
+  // V4: Word overlap with original statement (should share key terms)
+  const origWords = new Set(originalStatement.toLowerCase().split(/\s+/).filter(w => w.length > 4));
+  const condWords = condensed.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+  const overlap = condWords.filter(w => origWords.has(w)).length / Math.max(condWords.length, 1);
+  if (overlap < 0.2) {
+    warnings.push(`Low overlap with original argument (${(overlap * 100).toFixed(0)}%) — may have drifted`);
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+```
+
+**What this catches:** Steelmans that are too generic (no POV vocabulary), too short/long, or that have drifted from the original argument.
+
+**Remediation:** Warnings shown in the harvest dialog. User can edit the condensed text.
+
+#### Step H2.3: Add steelman section to HarvestDialog
+
+Show each candidate with:
+- The target node label and current steelman
+- The proposed replacement (editable)
+- Which debate turn it came from (clickable link to scroll transcript)
+- Any validation warnings
+
+#### Step H2.4: Write steelman updates via IPC
+
+Reuse the `update-node-field` handler from H1.3, but for `graph_attributes.steelman_vulnerability`. Since this is a per-POV object, the handler updates the specific `from_{pov}` key.
+
+**Verification:** Update a steelman, reload the taxonomy file, verify only the target key changed and no other data was modified.
+
+#### Phase H2 Validation Gate
+
+- [ ] Run a debate where Sentinel strongly attacks an accelerationist node
+- [ ] Harvest dialog shows the steelman candidate with the current and proposed text
+- [ ] Validation warnings display correctly (too generic, too long, etc.)
+- [ ] User edits the text and applies
+- [ ] Verify the node's steelman_vulnerability was updated in the taxonomy file
+- [ ] Verify the NodeDetail Attributes tab shows the updated steelman
+- [ ] Verify the BDI context in the NEXT debate uses the updated steelman
+
+---
+
+### Phase H3: Edge Reinforcement Harvesting
+
+**Goal:** Allow users to strengthen/weaken edges or create new edges based on debate evidence.
+
+**Depends on:** Phase H1 + Priority 1 (needs argument network with taxonomy-linked claims).
+
+#### Step H3.1: Identify edge-relevant debate evidence
+
+After synthesis, cross-reference the argument_map claims against their `taxonomy_refs`. When two claims from different POVs reference taxonomy nodes that are connected by an edge, the debate provides evidence about that edge's strength.
+
+- If claim A (referencing node X) attacks claim B (referencing node Y), and X-Y has a TENSION_WITH edge, the edge is reinforced.
+- If claim A supports claim B across POVs, and no edge exists between X-Y, propose a new SUPPORTS edge.
+- If a debater concedes that a node's position is weak, that weakens outgoing SUPPORTS edges from that node.
+
+This analysis can be deterministic (matching taxonomy_refs to edges) or AI-assisted for ambiguous cases.
+
+**Verification:** None for deterministic matching.
+
+#### Step H3.2: AI-assisted edge proposal for new connections
+
+When the debate reveals a relationship not captured in `edges.json`, the AI proposes a new edge.
+
+**Prompt:** "Based on this debate exchange, propose an edge between [node X] and [node Y]. Classify the type (SUPPORTS, TENSION_WITH, WEAKENS, etc.), assess confidence (0-1), and provide a rationale."
+
+**Verification — V-H3.2: Validate proposed edges**
+
+```typescript
+function verifyProposedEdge(
+  edge: { source: string; target: string; type: string; confidence: number; rationale: string },
+  allNodeIds: Set<string>,
+  existingEdges: Edge[],
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  // V1: Source and target must exist
+  if (!allNodeIds.has(edge.source)) warnings.push(`Source ${edge.source} not found`);
+  if (!allNodeIds.has(edge.target)) warnings.push(`Target ${edge.target} not found`);
+
+  // V2: Type must be canonical
+  const canonical = new Set(['SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS', 'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS']);
+  if (!canonical.has(edge.type)) warnings.push(`Non-canonical type: ${edge.type}`);
+
+  // V3: No self-edges
+  if (edge.source === edge.target) warnings.push('Self-edge');
+
+  // V4: No duplicate edges
+  const exists = existingEdges.some(e => e.source === edge.source && e.target === edge.target && e.type === edge.type);
+  if (exists) warnings.push('Edge already exists');
+
+  // V5: Confidence must be 0-1
+  if (edge.confidence < 0 || edge.confidence > 1) warnings.push(`Invalid confidence: ${edge.confidence}`);
+
+  // V6: Rationale must be substantive
+  if (!edge.rationale || edge.rationale.length < 20) warnings.push('Rationale too short');
+
+  // V7: INTERPRETS edges must target cc- nodes
+  if (edge.type === 'INTERPRETS' && !edge.target.startsWith('cc-')) {
+    warnings.push('INTERPRETS target must be cross-cutting');
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+```
+
+**What this catches:** Orphan node references, non-canonical types, duplicates, self-edges, missing rationale, domain/range violations.
+
+#### Step H3.3: Add edge section to HarvestDialog
+
+Show proposed edge updates with:
+- Current vs. proposed confidence (slider for adjustment)
+- The debate evidence (which turns, which claims)
+- New edge proposals with type selector and confidence slider
+- Validation warnings
+
+#### Step H3.4: Write edge updates via IPC
+
+Add `update-edge` and `create-edge` IPC handlers that modify `edges.json` atomically.
+
+For confidence updates: find the existing edge, update its confidence, add a `last_modified` and `modified_by: "debate-harvest"` field.
+
+For new edges: append to the edges array with `status: "proposed"`, `discovered_at` set to today, and `model: "debate-harvest"`.
+
+**Verification:** Modify an edge, reload the file, verify only the target edge changed. Create a new edge, verify the Edge Browser displays it.
+
+#### Phase H3 Validation Gate
+
+- [ ] Run a debate that references nodes connected by edges
+- [ ] Harvest dialog shows edge reinforcement candidates with confidence sliders
+- [ ] Apply a confidence increase — verify `edges.json` was updated
+- [ ] Create a new edge — verify it appears in the Edge Browser with status "proposed"
+- [ ] Run `Measure-TaxonomyBaseline` — edge count increased by the number of new edges
+- [ ] Verify the moderator's `formatEdgeContext` picks up the updated confidence in the NEXT debate
+
+---
+
+### Phase H4: New Concept Harvesting + Ingestion Pipeline Integration
+
+**Goal:** Queue new concepts for taxonomy proposal. Connect the ingestion pipeline to debate knowledge.
+
+**Depends on:** Phase H1 + Priority 1 (needs claim extraction to identify unmapped concepts).
+
+#### Step H4.1: Build the harvest queue
+
+**File:** `ai-triad-data/harvest-queue.json` (new)
+
+```json
+{
+  "queued_at": "2026-03-29T...",
+  "items": [
+    {
+      "label": "Architectural Ceiling Hypothesis",
+      "description": "A cross-cutting concept that...",
+      "suggested_pov": "cross-cutting",
+      "suggested_category": "Data/Facts",
+      "source_debate_id": "debate-uuid",
+      "evidence": "Sentinel and Cassandra both referenced this concept across rounds 1-3",
+      "status": "queued"
+    }
+  ]
+}
+```
+
+#### Step H4.2: AI-assisted concept proposal
+
+When the user checks a new concept item, the AI generates a genus-differentia description following the project's conventions.
+
+**Prompt:** "Propose a taxonomy node for this concept observed in a debate. Follow genus-differentia format: 'A [Category] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' Use plain language, grade-10 reading level."
+
+**Verification — V-H4.2: Validate proposed concept**
+
+```typescript
+function verifyProposedConcept(
+  concept: { label: string; description: string; suggested_pov: string; suggested_category: string },
+  existingLabels: Set<string>,
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  // V1: Label uniqueness — must not duplicate an existing node label
+  if (existingLabels.has(concept.label.toLowerCase())) {
+    warnings.push(`Label "${concept.label}" already exists in taxonomy`);
+  }
+
+  // V2: Label length (3-8 words)
+  const words = concept.label.split(/\s+/).length;
+  if (words < 3 || words > 8) warnings.push(`Label has ${words} words (expected 3-8)`);
+
+  // V3: Description follows genus-differentia pattern
+  const gdPov = /^A\s+(Goals\/Values|Data\/Facts|Methods\/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
+  const gdCC = /^A\s+cross-cutting\s+concept\s+that\s+/i;
+  const isCC = concept.suggested_pov === 'cross-cutting';
+  if (isCC ? !gdCC.test(concept.description) : !gdPov.test(concept.description)) {
+    warnings.push('Description does not follow genus-differentia pattern');
+  }
+
+  // V4: Valid POV
+  if (!['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'].includes(concept.suggested_pov)) {
+    warnings.push(`Invalid POV: ${concept.suggested_pov}`);
+  }
+
+  // V5: Valid category (unless cross-cutting)
+  if (!isCC && !['Goals/Values', 'Data/Facts', 'Methods/Arguments'].includes(concept.suggested_category)) {
+    warnings.push(`Invalid category: ${concept.suggested_category}`);
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+```
+
+**What this catches:** Duplicate labels, wrong format, invalid POV/category.
+
+#### Step H4.3: Connect harvest queue to `Invoke-TaxonomyProposal`
+
+**File:** `scripts/AITriad/Public/Invoke-TaxonomyProposal.ps1`
+
+Add a `-IncludeHarvestQueue` switch. When set, the cmdlet reads `harvest-queue.json` and includes queued items as additional context for the AI, alongside the normal health data. The prompt says: "The following concepts were observed in debates and are candidates for new nodes. Consider them alongside the health data."
+
+After the proposal is generated, mark harvested items as `"status": "proposed"` in the queue.
+
+**Verification:** Run `Invoke-TaxonomyProposal -IncludeHarvestQueue`. Verify that debate-sourced concepts appear in the proposal output. Verify the queue status was updated.
+
+#### Step H4.4: Add debate context to document ingestion
+
+**File:** `scripts/AITriad/Prompts/pov-summary-system.prompt`
+
+Add to the RULES section:
+
+```
+DEBATE CONTEXT (if provided below):
+  Some taxonomy nodes have been the subject of structured debates. When mapping
+  this document's claims to those nodes, note whether the document provides new
+  evidence that could resolve an identified disagreement. Flag these in the
+  key_point's "point" field: "NOTE: This evidence is relevant to an unresolved
+  debate about [topic] — it [supports/challenges] the [POV] position."
+```
+
+The debate context is injected by `Invoke-BatchSummary` when it detects that the document's `pov_tags` overlap with debated nodes.
+
+**File:** `scripts/AITriad/Public/Invoke-BatchSummary.ps1`
+
+Before calling `Invoke-DocumentSummary`, check if any taxonomy nodes in the document's POV have `debate_refs`. If so, load the relevant harvest manifests and inject a brief context block into the system prompt.
+
+**Verification:** Ingest a document that touches a debated topic. Verify the summary flags the relevant claim with the debate context note. Verify the summary is otherwise unchanged for non-debated topics.
+
+#### Phase H4 Validation Gate
+
+- [ ] Harvest a new concept from a debate → appears in `harvest-queue.json`
+- [ ] Run `Invoke-TaxonomyProposal -IncludeHarvestQueue` → queued concepts appear in proposal
+- [ ] Ingest a document touching a debated node → summary mentions the debate context
+- [ ] Ingest a document NOT touching debated nodes → summary is unchanged
+- [ ] Verify `harvest-queue.json` items are marked "proposed" after taxonomy proposal runs
+
+---
+
+### Phase H5: Preference Verdict Harvesting
+
+**Goal:** When Priority 3 (preference resolution) is implemented, allow users to record which side of a conflict the evidence favors.
+
+**Depends on:** Phase H1 + Priority 3.
+
+#### Step H5.1: Add verdict to conflict schema
+
+Extend conflict JSON files with optional fields:
+
+```json
+{
+  "verdict": {
+    "prevails": "position described here",
+    "criterion": "empirical_evidence",
+    "rationale": "The evidence from 3 studies cited in the debate...",
+    "source_debate_id": "debate-uuid",
+    "harvested_at": "2026-03-29T..."
+  }
+}
+```
+
+**Verification:** `Find-Conflict` must still read and write conflicts with or without the verdict field (backward compat).
+
+#### Step H5.2: AI-assisted verdict summarization
+
+When the synthesis includes a preference, the AI condenses it into a verdict statement suitable for the conflict file.
+
+**Verification — V-H5.2: Validate verdict quality**
+
+```typescript
+function verifyVerdict(
+  verdict: { prevails: string; criterion: string; rationale: string },
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  const validCriteria = new Set(['empirical_evidence', 'logical_validity', 'source_authority',
+    'specificity', 'scope', 'undecidable']);
+  if (!validCriteria.has(verdict.criterion)) {
+    warnings.push(`Unknown criterion: ${verdict.criterion}`);
+  }
+
+  if (!verdict.rationale || verdict.rationale.length < 30) {
+    warnings.push('Rationale too short — should explain why this position prevails');
+  }
+
+  if (!verdict.prevails || verdict.prevails.length < 10) {
+    warnings.push('Prevails field too vague — should describe the winning position');
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+```
+
+#### Step H5.3: Add verdict section to HarvestDialog
+
+Show each preference with the conflict it resolves, the winning position, the criterion, and the rationale. User can edit before applying.
+
+#### Phase H5 Validation Gate
+
+- [ ] Run a debate with Priority 3 preferences enabled
+- [ ] Harvest dialog shows verdict candidates
+- [ ] Apply a verdict → conflict file updated with verdict field
+- [ ] Verify `Find-Conflict` still works with verdict-bearing conflict files
+- [ ] Verify conflict viewer (if one exists) displays the verdict
+
+---
+
+## 10. Full Dependency Graph
+
+```
+  AIF Priorities                    Harvest Phases
+  ──────────────                    ──────────────
+
+  Priority 1 ──────────────┐
+  (Incremental AN)         │
+       │                   ├──→ Phase H1 (Conflicts + Debate Refs) ← can start NOW
+       │                   │         │
+  Priority 2               │    Phase H2 (Steelman Refinement) ← can start NOW
+  (Commitments)            │         │
+       │                   │    Phase H3 (Edge Reinforcement) ← needs Priority 1
+       │                   │         │
+  Priority 3 ─────────────┼──→ Phase H4 (New Concepts + Ingestion) ← needs Priority 1
+  (Preferences)            │         │
+       │                   └──→ Phase H5 (Preference Verdicts) ← needs Priority 3
+  Priority 4
+  (S-nodes)
+
+  Priority 5
+  (Protocols) ← independent
+```
+
+**What can start immediately (no AIF Priority dependencies):**
+- Phase H1: Conflict harvesting + debate refs
+- Phase H2: Steelman refinement harvesting
+
+**What needs Priority 1 first:**
+- Phase H3: Edge reinforcement (needs taxonomy-linked claims from AN)
+- Phase H4: New concepts (needs claim extraction to identify unmapped ideas)
+
+**What needs Priority 3 first:**
+- Phase H5: Preference verdicts (needs preference resolution in synthesis)
+
+---
+
+## 11. Summary
+
+| AIF Concept | Current Support | Gap Severity | Recommended Action | Verification |
+|-------------|----------------|-------------|-------------------|-------------|
+| I-nodes (claims) | Partial (synthesis only) | Moderate | Priority 1: incremental extraction | V1.4: word overlap + reference checks |
+| RA-nodes (inference) | Flat `supported_by` | Moderate | Priority 4: S-node enrichment | V4.4: scheme vocabulary + warrant quality |
+| CA-nodes (conflict) | Good (attack_type) | Low | Already well-supported | — |
+| PA-nodes (preference) | Missing | Significant | Priority 3: preference resolution | V3.2: coverage + criterion + rationale checks |
+| Schemes | Labels only | Low-Moderate | Priority 4: critical questions | V4.4: known scheme validation |
+| Locutions | Partial (type field) | Low | Map `move_types` to AIF locutions | — |
+| Protocols | Implicit | Low | Priority 5: declarative protocols | V5.5: regression + variant smoke tests |
+| Commitment stores | Missing | Moderate | Priority 2: per-agent tracking | V2.4: consistency checks |
+| Participants | Good | None | Well-supported via BDI + POVers | — |
+| Context | Good | None | Background theory via taxonomy | — |
+| **Debate → Taxonomy** | **Missing** | **Significant** | **Harvest H1-H5** | **Per-phase validation gates** |
