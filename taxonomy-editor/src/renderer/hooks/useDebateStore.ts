@@ -372,6 +372,69 @@ async function getRelevantTaxonomyContext(
   }
 }
 
+/** Format cross-POV tensions for injection into a specific debater's prompt */
+function formatDebaterEdgeContext(debaterPov: string): string {
+  const edgesFile = useTaxonomyStore.getState().edgesFile;
+  if (!edgesFile?.edges) return '';
+
+  const povPrefixes: Record<string, string> = {
+    accelerationist: 'acc-', safetyist: 'saf-', skeptic: 'skp-',
+  };
+
+  const myPrefix = povPrefixes[debaterPov];
+  if (!myPrefix) return '';
+
+  const otherPrefixes = Object.entries(povPrefixes)
+    .filter(([pov]) => pov !== debaterPov)
+    .map(([, prefix]) => prefix);
+
+  const signalTypes = new Set(['CONTRADICTS', 'TENSION_WITH', 'WEAKENS']);
+
+  // Find edges connecting this debater's POV to other POVs
+  const relevantEdges = edgesFile.edges.filter(e => {
+    if (!signalTypes.has(e.type)) return false;
+    if (e.status !== 'approved' && e.confidence < 0.75) return false;
+    const srcIsMine = e.source.startsWith(myPrefix);
+    const tgtIsMine = e.target.startsWith(myPrefix);
+    const srcIsOther = otherPrefixes.some(p => e.source.startsWith(p));
+    const tgtIsOther = otherPrefixes.some(p => e.target.startsWith(p));
+    return (srcIsMine && tgtIsOther) || (tgtIsMine && srcIsOther);
+  });
+
+  if (relevantEdges.length === 0) return '';
+
+  // Take top 5-15 by confidence
+  const top = relevantEdges
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 15);
+
+  // Resolve node labels for readability
+  const getLabel = (id: string): string => {
+    const state = useTaxonomyStore.getState();
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const node = state[pov]?.nodes?.find(n => n.id === id);
+      if (node) return node.label;
+    }
+    return id;
+  };
+
+  const lines = [
+    '',
+    '=== KNOWN TENSIONS WITH OPPOSING POSITIONS ===',
+    'These are documented structural disagreements between your position and other perspectives.',
+    'Use these to target your arguments at real fault lines rather than talking past opponents.',
+  ];
+  for (const e of top) {
+    const srcLabel = getLabel(e.source);
+    const tgtLabel = getLabel(e.target);
+    lines.push(`${e.source} (${srcLabel}) ${e.type} ${e.target} (${tgtLabel})`);
+    if (e.rationale) {
+      lines.push(`  ${e.rationale.slice(0, 150)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 /** Format relevant edges between active debaters' nodes for the moderator */
 function formatEdgeContext(activePovers: string[]): string {
   const edgesFile = useTaxonomyStore.getState().edgesFile;
@@ -1150,7 +1213,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
         speakerClaims,
       );
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
+      const edgeBlock = formatDebaterEdgeContext(info.pov);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
 
       const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
 
@@ -1309,7 +1373,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
         speakerClaims,
       );
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
+      const edgeBlock = formatDebaterEdgeContext(info.pov);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
 
       // Use the most current transcript (includes responses from prior POVers in this round)
       const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
@@ -1457,7 +1522,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
       speakerClaims,
     );
-    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
+    const edgeBlock = formatDebaterEdgeContext(info.pov);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
 
     const prompt = buildCrossRespondPrompt(
       responderPover,
