@@ -52,7 +52,7 @@ function resolveNode(nodeId: string) {
 export function DebateTab() {
   const {
     sessions, sessionsLoading, loadSessions,
-    activeDebateId, activeDebate, loadDebate, deleteDebate,
+    activeDebateId, activeDebate, loadDebate, deleteDebate, renameDebate,
     inspectedNodeId, inspectNode,
   } = useDebateStore();
   const [exportStatus, setExportStatus] = useState<string | null>(null);
@@ -72,6 +72,8 @@ export function DebateTab() {
   });
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [sourceCollapsed, setSourceCollapsed] = useState(false);
@@ -163,7 +165,38 @@ export function DebateTab() {
                 className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}`}
                 onClick={() => handleSelect(s)}
               >
-                <div className="debate-session-item-title">{s.title}</div>
+                {renamingId === s.id ? (
+                  <input
+                    className="debate-session-item-rename"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && renameValue.trim()) {
+                        e.stopPropagation();
+                        renameDebate(s.id, renameValue.trim());
+                        setRenamingId(null);
+                      } else if (e.key === 'Escape') {
+                        setRenamingId(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (renameValue.trim() && renameValue.trim() !== s.title) {
+                        renameDebate(s.id, renameValue.trim());
+                      }
+                      setRenamingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="debate-session-item-title"
+                    onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
+                    title="Double-click to rename"
+                  >
+                    {s.title}
+                  </div>
+                )}
                 <div className="debate-session-item-meta">
                   <span className={`debate-phase-badge phase-${s.phase}`}>
                     {PHASE_LABELS[s.phase] || s.phase}

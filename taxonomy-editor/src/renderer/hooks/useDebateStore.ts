@@ -40,8 +40,12 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
-/** Read the model the user has configured in taxonomy-editor Settings */
+/** Read the model for the current debate context.
+ *  Priority: debate-specific override > global Settings model > default */
 function getConfiguredModel(): string {
+  // Check debate-specific model first
+  const debateModel = useDebateStore.getState().debateModel;
+  if (debateModel) return debateModel;
   try {
     return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
   } catch {
@@ -356,14 +360,16 @@ interface DebateStore {
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
+  debateModel: string | null; // debate-specific model override (null = use global)
 
   // Actions
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string) => Promise<string>;
   createCrossCuttingDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
+  renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
   addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => void;
   updatePhase: (phase: DebateSession['phase']) => void;
@@ -413,6 +419,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateProgress: null,
   debateActivity: null,
   inspectedNodeId: null,
+  debateModel: null,
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
@@ -424,7 +431,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '') => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel) => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -447,9 +454,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       transcript: [],
       context_summaries: [],
       generated_with_prompt_version: 'dolce-phase-1',
+      debate_model: debateModel || undefined,
     };
     await window.electronAPI.saveDebateSession(session);
-    set({ activeDebateId: id, activeDebate: session });
+    set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null });
     await get().loadSessions();
     return id;
   },
@@ -510,7 +518,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const raw = await window.electronAPI.loadDebateSession(id);
       const session = raw as DebateSession;
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null });
     } catch (err) {
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
@@ -521,7 +529,24 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       await window.electronAPI.deleteDebateSession(id);
       const { activeDebateId } = get();
       if (activeDebateId === id) {
-        set({ activeDebateId: null, activeDebate: null });
+        set({ activeDebateId: null, activeDebate: null, debateModel: null });
+      }
+      await get().loadSessions();
+    } catch (err) {
+      set({ debateError: mapErrorToUserMessage(err) });
+    }
+  },
+
+  renameDebate: async (id, newTitle) => {
+    try {
+      const raw = await window.electronAPI.loadDebateSession(id);
+      const session = raw as DebateSession;
+      session.title = newTitle;
+      session.updated_at = nowISO();
+      await window.electronAPI.saveDebateSession(session);
+      // Update active debate if it's the one being renamed
+      if (get().activeDebateId === id) {
+        set({ activeDebate: session });
       }
       await get().loadSessions();
     } catch (err) {
@@ -530,7 +555,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   closeDebate: () => {
-    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null });
+    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null });
   },
 
   addTranscriptEntry: (entry) => {

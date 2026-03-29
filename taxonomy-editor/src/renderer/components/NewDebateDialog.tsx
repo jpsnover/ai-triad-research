@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSourceType } from '../types/debate';
 
@@ -22,6 +23,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [selected, setSelected] = useState<Set<PoverId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [creating, setCreating] = useState(false);
+  const { aiBackend, geminiModel } = useTaxonomyStore();
+  const globalModel = geminiModel;
+  const availableModels = MODELS_BY_BACKEND[aiBackend] || [];
+  const [useCustomModel, setUseCustomModel] = useState(false);
+  const [customModel, setCustomModel] = useState(globalModel);
 
   const toggle = (id: PoverId) => {
     const next = new Set(selected);
@@ -82,6 +88,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
     const povers = Array.from(selected);
     if (userIsPover && !povers.includes('user')) povers.push('user');
+    const debateModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
     const id = await createDebate(
       finalTopic,
       povers,
@@ -89,6 +96,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       sourceType,
       sourceType === 'topic' ? '' : sourceRef.trim(),
       sourceType === 'topic' ? '' : finalContent,
+      debateModelOverride,
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
@@ -176,6 +184,32 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             />
           </>
         )}
+
+        <label className="new-debate-label">AI Model</label>
+        <div className="new-debate-model-row">
+          <label className="new-debate-model-toggle">
+            <input
+              type="checkbox"
+              checked={useCustomModel}
+              onChange={(e) => setUseCustomModel(e.target.checked)}
+            />
+            Use a different model for this debate
+          </label>
+          {useCustomModel && (
+            <select
+              className="new-debate-model-select"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+            >
+              {availableModels.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          )}
+          {!useCustomModel && (
+            <span className="new-debate-model-info">Using global: {globalModel}</span>
+          )}
+        </div>
 
         <label className="new-debate-label">Debaters</label>
         <div className="new-debate-povers">

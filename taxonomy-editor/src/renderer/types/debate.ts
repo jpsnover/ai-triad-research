@@ -58,6 +58,8 @@ export interface DebateSession {
   context_summaries: ContextSummary[];
   /** Tracks which prompt generation produced this session. Absent in pre-migration debates. */
   generated_with_prompt_version?: string;
+  /** Debate-specific AI model override. If set, used instead of the global model for this debate only. */
+  debate_model?: string;
 }
 
 export interface DebateSessionSummary {
