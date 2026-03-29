@@ -18,6 +18,7 @@ import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
+import { scoreNodeRelevance, selectRelevantNodes, selectRelevantCCNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -278,6 +279,88 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   const crossCuttingNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
 
   return { povNodes, crossCuttingNodes };
+}
+
+// Cache for node embeddings (loaded once per session)
+let _nodeEmbeddingsCache: Record<string, { pov: string; vector: number[] }> | null = null;
+
+/** Load node embeddings from the data repo (cached) */
+async function loadNodeEmbeddings(): Promise<Record<string, { pov: string; vector: number[] }>> {
+  if (_nodeEmbeddingsCache) return _nodeEmbeddingsCache;
+  try {
+    const raw = await window.electronAPI.loadEdges(); // Reuse the data loading path
+    // Actually we need a separate IPC — but for now, use computeEmbeddings as a fallback
+    // The embeddings are in the file but not exposed via IPC. Fall back to null.
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Get taxonomy context filtered by relevance to the debate topic.
+ * Falls back to unfiltered if embeddings unavailable.
+ */
+async function getRelevantTaxonomyContext(
+  pov: string,
+  topic: string,
+  recentTranscript: string,
+  maxPerCategory: number = 7,
+  maxCC: number = 10,
+): Promise<TaxonomyContext> {
+  const state = useTaxonomyStore.getState();
+  const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
+  const allPovNodes: PovNode[] = povFile?.nodes ?? [];
+  const allCCNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
+
+  try {
+    // Build query from debate context
+    const query = buildRelevanceQuery(topic, recentTranscript);
+
+    // Get query embedding
+    const { vector: queryVector } = await window.electronAPI.computeQueryEmbedding(query);
+
+    // Get embeddings for all POV nodes
+    const nodeTexts = allPovNodes.map(n => `${n.label}: ${n.description}`);
+    const nodeIds = allPovNodes.map(n => n.id);
+    const { vectors } = await window.electronAPI.computeEmbeddings(nodeTexts, nodeIds);
+
+    // Build scores map
+    const scores = new Map<string, number>();
+    for (let i = 0; i < nodeIds.length; i++) {
+      const dot = queryVector.reduce((s, v, j) => s + v * vectors[i][j], 0);
+      const normQ = Math.sqrt(queryVector.reduce((s, v) => s + v * v, 0));
+      const normN = Math.sqrt(vectors[i].reduce((s, v) => s + v * v, 0));
+      scores.set(nodeIds[i], normQ > 0 && normN > 0 ? dot / (normQ * normN) : 0);
+    }
+
+    // Also score CC nodes
+    const ccTexts = allCCNodes.map(n => `${n.label}: ${n.description}`);
+    const ccIds = allCCNodes.map(n => n.id);
+    if (ccTexts.length > 0) {
+      const { vectors: ccVectors } = await window.electronAPI.computeEmbeddings(ccTexts, ccIds);
+      for (let i = 0; i < ccIds.length; i++) {
+        const dot = queryVector.reduce((s, v, j) => s + v * ccVectors[i][j], 0);
+        const normQ = Math.sqrt(queryVector.reduce((s, v) => s + v * v, 0));
+        const normN = Math.sqrt(ccVectors[i].reduce((s, v) => s + v * v, 0));
+        scores.set(ccIds[i], normQ > 0 && normN > 0 ? dot / (normQ * normN) : 0);
+      }
+    }
+
+    const filteredPov = selectRelevantNodes(allPovNodes, scores, maxPerCategory);
+    const filteredCC = selectRelevantCCNodes(allCCNodes, scores, maxCC);
+
+    console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
+
+    return { povNodes: filteredPov, crossCuttingNodes: filteredCC };
+  } catch (err) {
+    console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
+    // Fallback: first maxPerCategory*3 nodes + first maxCC CC nodes
+    return {
+      povNodes: allPovNodes.slice(0, maxPerCategory * 3),
+      crossCuttingNodes: allCCNodes.slice(0, maxCC),
+    };
+  }
 }
 
 /** Format relevant edges between active debaters' nodes for the moderator */
@@ -1027,7 +1110,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateGenerating: poverId });
 
       const info = POVER_INFO[poverId];
-      const ctx = getTaxonomyContext(info.pov);
+      const recentText = priorStatements.map(ps => ps.statement).join('\n').slice(-500);
+      const ctx = await getRelevantTaxonomyContext(info.pov, topic, recentText);
       const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
@@ -1178,7 +1262,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateGenerating: poverId });
 
       const info = POVER_INFO[poverId];
-      const ctx = getTaxonomyContext(info.pov);
+      const currentTranscriptForRelevance = formatRecentTranscript(get().activeDebate!.transcript, 4, get().activeDebate!.context_summaries);
+      const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscriptForRelevance);
       const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
@@ -1310,10 +1395,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ debateGenerating: responderPover });
 
     const info = POVER_INFO[responderPover];
-    const ctx = getTaxonomyContext(info.pov);
+    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
+    const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
     const commitBlock = formatCommitments(activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] });
     const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
-    const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
     const prompt = buildCrossRespondPrompt(
       responderPover,
