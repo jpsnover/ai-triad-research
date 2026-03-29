@@ -36,6 +36,43 @@ function getPolicyAction(polId: string): string {
   return entry ? entry.action : polId;
 }
 
+/** Policy refs with "Show reasoning" toggle — mirrors TaxonomyRefsSection */
+function PolicyRefsSection({ policyRefs, metaPolicyRefs }: { policyRefs?: string[]; metaPolicyRefs?: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const refs = metaPolicyRefs || policyRefs || [];
+  if (refs.length === 0) return null;
+
+  return (
+    <div className="debate-taxonomy-refs-section">
+      <div className="debate-taxonomy-refs">
+        {refs.map((polId) => (
+          <span
+            key={polId}
+            className="debate-taxonomy-pill"
+            style={{ borderColor: 'var(--color-cc)', color: 'var(--color-cc)' }}
+            title={getPolicyAction(polId)}
+          >
+            {polId}
+          </span>
+        ))}
+        <button className="debate-reasoning-toggle" onClick={() => setExpanded(e => !e)}>
+          {expanded ? 'Hide reasoning' : 'Show reasoning'}
+        </button>
+      </div>
+      {expanded && (
+        <div className="debate-reasoning-list">
+          {refs.map((polId) => (
+            <div key={polId} className="debate-reasoning-item">
+              <span className="debate-reasoning-node" style={{ color: 'var(--color-cc)' }}>{polId}</span>
+              <span className="debate-reasoning-label">{getPolicyAction(polId)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function speakerLabel(speaker: PoverId | 'system'): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
@@ -367,15 +404,10 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           : <Markdown>{entry.content}</Markdown>}
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
-      {entry.policy_refs && entry.policy_refs.length > 0 && (
-        <div className="debate-policy-refs-section">
-          {entry.policy_refs.map((polId) => (
-            <span key={polId} className="debate-policy-pill" title={getPolicyAction(polId)}>
-              {polId}: {getPolicyAction(polId)}
-            </span>
-          ))}
-        </div>
-      )}
+      <PolicyRefsSection
+        policyRefs={entry.policy_refs}
+        metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+      />
     </div>
   );
 }
@@ -578,15 +610,10 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
         </div>
       )}
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
-      {entry.policy_refs && entry.policy_refs.length > 0 && (
-        <div className="debate-policy-refs-section">
-          {entry.policy_refs.map((polId) => (
-            <span key={polId} className="debate-policy-pill" title={getPolicyAction(polId)}>
-              {polId}: {getPolicyAction(polId)}
-            </span>
-          ))}
-        </div>
-      )}
+      <PolicyRefsSection
+        policyRefs={entry.policy_refs}
+        metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+      />
     </div>
   );
 }
