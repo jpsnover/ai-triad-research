@@ -373,7 +373,6 @@ Return ONLY JSON (no markdown):
 
   const checkedCount = conflicts.filter(c => c.checked).length +
     steelmans.filter(s => s.checked).length +
-    debateRefs.filter(r => r.checked).length +
     verdicts.filter(v => v.checked).length +
     concepts.filter(c => c.checked).length;
 
@@ -487,23 +486,7 @@ Return ONLY JSON (no markdown):
               </div>
             )}
 
-            {/* Section 3: Debate References */}
-            {debateRefs.length > 0 && (
-              <div className="harvest-section">
-                <h3>Debate References ({debateRefs.filter(r => r.checked).length}/{debateRefs.length})</h3>
-                <div className="harvest-refs-list">
-                  {debateRefs.map(item => (
-                    <label key={item.nodeId} className="harvest-ref-item">
-                      <input type="checkbox" checked={item.checked} onChange={() => toggleDebateRef(item.nodeId)} />
-                      <span className="harvest-ref-label">{item.nodeLabel}</span>
-                      <span className="harvest-ref-count">{item.refCount}x</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Section 4: Preference Verdicts */}
+            {/* Section 3: Preference Verdicts */}
             {verdicts.length > 0 && (
               <div className="harvest-section">
                 <h3>Preference Verdicts ({verdicts.filter(v => v.checked).length}/{verdicts.length})</h3>
@@ -597,7 +580,7 @@ Return ONLY JSON (no markdown):
               </div>
             )}
 
-            {conflicts.length === 0 && steelmans.length === 0 && debateRefs.length === 0 && verdicts.length === 0 && concepts.length === 0 && (
+            {conflicts.length === 0 && steelmans.length === 0 && verdicts.length === 0 && concepts.length === 0 && (
               <div className="harvest-empty">No harvestable findings in this debate. Run a synthesis first.</div>
             )}
 
