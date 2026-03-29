@@ -74,7 +74,7 @@ export function Toolbar() {
   return (
     <div className="toolbar">
       <div className="toolbar-top">
-        {previousView && toolbarPanel !== null && (
+        {previousView && toolbarPanel !== null && activeTab !== 'debate' && (
           <>
             <button
               className="toolbar-icon toolbar-back"
