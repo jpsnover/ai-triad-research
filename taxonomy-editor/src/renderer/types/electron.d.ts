@@ -31,6 +31,9 @@ export interface ElectronAPI {
   harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string) => Promise<{ updated: boolean }>;
   harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>) => Promise<{ updated: boolean }>;
   harvestQueueConcept: (concept: Record<string, unknown>) => Promise<{ queued: boolean }>;
+  openDiagnosticsWindow: () => Promise<void>;
+  sendDiagnosticsState: (state: unknown) => void;
+  onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;

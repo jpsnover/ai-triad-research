@@ -87,6 +87,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('harvest-add-verdict', conflictId, verdict),
   harvestQueueConcept: (concept: Record<string, unknown>): Promise<{ queued: boolean }> =>
     ipcRenderer.invoke('harvest-queue-concept', concept),
+
+  // Diagnostics window
+  openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
+  sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
+  onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
+    ipcRenderer.on('diagnostics-state-update', listener);
+    return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
+  },
   harvestSaveManifest: (manifest: Record<string, unknown>): Promise<{ saved: boolean }> =>
     ipcRenderer.invoke('harvest-save-manifest', manifest),
 

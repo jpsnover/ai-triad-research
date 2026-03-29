@@ -602,6 +602,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;
     set({ diagnosticsEnabled: enabled });
+    // Broadcast to popout
+    try { window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
     // Initialize diagnostics on the active debate if enabling
     if (enabled && get().activeDebate && !get().activeDebate!.diagnostics) {
       const updated = {
@@ -616,7 +618,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  selectDiagEntry: (entryId) => set({ selectedDiagEntry: entryId }),
+  selectDiagEntry: (entryId) => {
+    set({ selectedDiagEntry: entryId });
+    // Broadcast to popout diagnostics window
+    try {
+      const debate = get().activeDebate;
+      window.electronAPI.sendDiagnosticsState({ debate, selectedEntry: entryId });
+    } catch { /* popout may not exist */ }
+  },
 
   loadSessions: async () => {
     set({ sessionsLoading: true });

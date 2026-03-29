@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipcHandlers';
 import { registerTerminalHandlers, cleanupTerminal } from './terminal';
 
 let mainWindow: BrowserWindow | null = null;
+let diagWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
 const FOCUS_PORT = 17862;
@@ -185,6 +186,42 @@ app.whenReady().then(() => {
   registerWindowHandlers();
   startFocusServer();
   createWindow();
+
+  // Diagnostics popout window
+  ipcMain.handle('open-diagnostics-window', () => {
+    if (diagWindow && !diagWindow.isDestroyed()) {
+      diagWindow.focus();
+      return;
+    }
+    const preloadPath = path.join(__dirname, 'preload.js');
+    diagWindow = new BrowserWindow({
+      width: 700,
+      height: 600,
+      minWidth: 400,
+      minHeight: 300,
+      title: 'Debate Diagnostics',
+      alwaysOnTop: true,
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    const isDev = !app.isPackaged;
+    if (isDev) {
+      diagWindow.loadURL('http://localhost:5173#diagnostics-window');
+    } else {
+      diagWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'diagnostics-window' });
+    }
+    diagWindow.on('closed', () => { diagWindow = null; });
+  });
+
+  // Relay diagnostics state from main window to diag window
+  ipcMain.on('diagnostics-state-update', (_event, state) => {
+    if (diagWindow && !diagWindow.isDestroyed()) {
+      diagWindow.webContents.send('diagnostics-state-update', state);
+    }
+  });
 });
 
 app.on('window-all-closed', () => {

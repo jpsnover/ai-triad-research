@@ -289,11 +289,16 @@ export function DiagnosticsPanel() {
       <div className="diagnostics-panel" style={{ height }}>
         <div className="diagnostics-panel-header">
           <h3>Diagnostics</h3>
-          {selectedDiagEntry && (
-            <button className="btn btn-sm" onClick={() => selectDiagEntry(null)} style={{ marginLeft: 'auto', fontSize: '0.65rem' }}>
-              Show Overview
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            {selectedDiagEntry && (
+              <button className="btn btn-sm" onClick={() => selectDiagEntry(null)} style={{ fontSize: '0.65rem' }}>
+                Overview
+              </button>
+            )}
+            <button className="btn btn-sm" onClick={() => window.electronAPI.openDiagnosticsWindow()} style={{ fontSize: '0.65rem' }} title="Open in separate window">
+              Popout
             </button>
-          )}
+          </div>
         </div>
         <div className="diagnostics-panel-body">
           {selectedDiagEntry ? (

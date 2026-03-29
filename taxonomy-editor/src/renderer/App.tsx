@@ -10,7 +10,9 @@ import { PovTab } from './components/PovTab';
 import { CrossCuttingTab } from './components/CrossCuttingTab';
 import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
+import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
+import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 
 interface DataUpdateInfo {
   available: boolean;
@@ -19,6 +21,10 @@ interface DataUpdateInfo {
 }
 
 export function App() {
+  // If this window was opened as a diagnostics popout, render only that
+  if (window.location.hash === '#diagnostics-window') {
+    return <DiagnosticsWindow />;
+  }
   const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
@@ -192,7 +198,7 @@ export function App() {
         </div>
       )}
 
-      {toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate', 'chat'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
@@ -202,6 +208,7 @@ export function App() {
           {activeTab === 'cross-cutting' && <CrossCuttingTab />}
           {activeTab === 'conflicts' && <ConflictsTab />}
           {activeTab === 'debate' && <DebateTab />}
+          {activeTab === 'chat' && <ChatTab />}
         </div>
       </div>
       <SaveBar />
