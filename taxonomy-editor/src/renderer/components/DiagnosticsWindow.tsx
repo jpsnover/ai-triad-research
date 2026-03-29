@@ -480,6 +480,39 @@ export function DiagnosticsWindow() {
             </Section>
           )}
 
+          {/* Key Assumptions */}
+          {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+            <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`}>
+              {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+                <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
+                  <div><strong>Assumes:</strong> {a.assumption}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>If wrong: {a.if_wrong}</div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* My Claims (debater's self-identified claims) */}
+          {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+            <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`}>
+              {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
+                <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
+                  <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}
+                  {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Policy Refs */}
+          {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
+            <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`}>
+              {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
+                <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
+              ))}
+            </Section>
+          )}
+
           {diag?.prompt && (
             <Section title="Full Prompt Sent to AI">
               <ResizablePre tall text={diag.prompt} />

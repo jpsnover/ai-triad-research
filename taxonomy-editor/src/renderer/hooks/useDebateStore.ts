@@ -109,7 +109,7 @@ function recordDiagnostic(
   entryId: string,
   data: Partial<EntryDiagnostics>,
 ): void {
-  if (!get().diagnosticsEnabled) return;
+  // Always capture diagnostic data — the toggle only controls UI visibility
   const debate = get().activeDebate as DebateSession | null;
   if (!debate) return;
 
@@ -282,8 +282,9 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const povNodes: PovNode[] = povFile?.nodes ?? [];
   const crossCuttingNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
+  const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
 
-  return { povNodes, crossCuttingNodes };
+  return { povNodes, crossCuttingNodes, policyRegistry };
 }
 
 // Cache for node embeddings (loaded once per session)
@@ -356,13 +357,16 @@ async function getRelevantTaxonomyContext(
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
-    return { povNodes: filteredPov, crossCuttingNodes: filteredCC };
+    const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
+    return { povNodes: filteredPov, crossCuttingNodes: filteredCC, policyRegistry };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
+    const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     // Fallback: first 21 POV nodes + first 10 CC nodes
     return {
       povNodes: allPovNodes.slice(0, 21),
       crossCuttingNodes: allCCNodes.slice(0, 10),
+      policyRegistry,
     };
   }
 }
@@ -494,7 +498,14 @@ function buildDebateSynthesisPrompt(
   transcript: string,
   hasSourceDocument: boolean = false,
 ): string {
-  return debateSynthesisPrompt(topic, transcript, hasSourceDocument);
+  // Include policy registry context for synthesis analysis
+  const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
+  let policyContext = '';
+  if (policyRegistry.length > 0) {
+    const policyLines = policyRegistry.slice(0, 30).map(p => `${p.id}: ${p.action}`);
+    policyContext = `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${policyLines.join('\n')}`;
+  }
+  return debateSynthesisPrompt(topic, transcript, hasSourceDocument, policyContext);
 }
 
 function buildProbingQuestionsPrompt(
@@ -584,6 +595,7 @@ interface PoverResponseMeta {
   disagreement_type?: string;
   key_assumptions?: { assumption: string; if_wrong: string }[];
   my_claims?: { claim: string; targets: string[] }[];
+  policy_refs?: string[];
 }
 
 /** Parse a POVer response JSON from the LLM */
@@ -610,6 +622,9 @@ function parsePoverResponse(text: string): { statement: string; taxonomyRefs: Ta
       key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
       my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims.filter(
         (c: Record<string, unknown>) => typeof c.claim === 'string' && Array.isArray(c.targets),
+      ) : undefined,
+      policy_refs: Array.isArray(parsed.policy_refs) ? parsed.policy_refs.filter(
+        (r: unknown) => typeof r === 'string',
       ) : undefined,
     };
   } catch {
@@ -1150,6 +1165,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           speaker: poverId,
           content: statement,
           taxonomy_refs: taxonomyRefs,
+          policy_refs: meta.policy_refs,
           metadata: { ...meta },
         };
         addTranscriptEntry(entryForAN);
@@ -1166,7 +1182,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             commitment_context: commitBlock || undefined,
           });
           // Record move types in overview
-          if (meta.move_types && get().diagnosticsEnabled) {
+          if (meta.move_types) {
             const diag = get().activeDebate?.diagnostics;
             if (diag) {
               for (const m of meta.move_types) diag.overview.move_type_counts[m] = (diag.overview.move_type_counts[m] || 0) + 1;
@@ -1318,6 +1334,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           speaker: poverId,
           content: statement,
           taxonomy_refs: taxonomyRefs,
+          policy_refs: meta.policy_refs,
           addressing: 'user',
           metadata: { ...meta },
         });
@@ -1452,6 +1469,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         speaker: responderPover,
         content: statement,
         taxonomy_refs: taxonomyRefs,
+        policy_refs: meta.policy_refs,
         addressing: 'all',
         metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, ...meta },
       });

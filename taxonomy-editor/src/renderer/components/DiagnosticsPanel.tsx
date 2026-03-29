@@ -152,6 +152,41 @@ function EntryView({ entryId }: { entryId: string }) {
         </CollapsibleSection>
       )}
 
+      {/* Key Assumptions */}
+      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+        <CollapsibleSection title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`}>
+          {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+            <div key={i} className="diag-assumption">
+              <div><strong>Assumes:</strong> {a.assumption}</div>
+              <div className="diag-muted">If wrong: {a.if_wrong}</div>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Claim Sketches */}
+      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+        <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`}>
+          {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
+            <div key={i} style={{ margin: '2px 0', fontSize: '0.7rem' }}>
+              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}
+              {c.targets?.length > 0 && <span className="diag-muted" style={{ marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Policy Refs */}
+      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
+        <CollapsibleSection title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`}>
+          <div className="diag-badges">
+            {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
+              <span key={i} className="diag-badge" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>{p}</span>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
       {/* Full Prompt */}
       {diag?.prompt && (
         <CollapsibleSection title="Full Prompt Sent to AI">
