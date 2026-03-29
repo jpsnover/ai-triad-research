@@ -74,6 +74,7 @@ export function DebateTab() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [sourceCollapsed, setSourceCollapsed] = useState(false);
   const [inspectCollapsed, setInspectCollapsed] = useState(false);
   const [pane4Collapsed, setPane4Collapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
@@ -206,28 +207,37 @@ export function DebateTab() {
           {/* Pane 2 / 3: Debate workspace (layout depends on source type) */}
           {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'cross-cutting' ? (
             <>
-              {/* Pane 2: Document/URL content */}
-              <div className="detail-panel debate-source-panel">
-                <div className="debate-source-header">
-                  <span className="debate-source-title">
+              {/* Pane 2: Document/URL content (collapsible) */}
+              {sourceCollapsed ? (
+                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setSourceCollapsed(false)} title="Expand source document">
+                  <span className="pane-collapsed-label">
                     {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
                   </span>
-                  {activeDebate.source_ref && (
-                    <span className="debate-source-ref" title={activeDebate.source_ref}>
-                      {activeDebate.source_type === 'document'
-                        ? activeDebate.source_ref.split('/').pop()
-                        : activeDebate.source_ref}
+                </div>
+              ) : (
+                <div className="detail-panel debate-source-panel">
+                  <div className="debate-source-header">
+                    <span className="debate-source-title">
+                      {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
                     </span>
-                  )}
+                    {activeDebate.source_ref && (
+                      <span className="debate-source-ref" title={activeDebate.source_ref}>
+                        {activeDebate.source_type === 'document'
+                          ? activeDebate.source_ref.split('/').pop()
+                          : activeDebate.source_ref}
+                      </span>
+                    )}
+                    <button className="pane-collapse-btn" onClick={() => setSourceCollapsed(true)} title="Collapse source">&lsaquo;</button>
+                  </div>
+                  <div className="debate-source-body">
+                    <DebateSourceViewer
+                      content={activeDebate.source_content}
+                      sourceType={activeDebate.source_type as 'document' | 'url'}
+                      sourceRef={activeDebate.source_ref}
+                    />
+                  </div>
                 </div>
-                <div className="debate-source-body">
-                  <DebateSourceViewer
-                    content={activeDebate.source_content}
-                    sourceType={activeDebate.source_type as 'document' | 'url'}
-                    sourceRef={activeDebate.source_ref}
-                  />
-                </div>
-              </div>
+              )}
               <div className="resize-handle" onMouseDown={onPane3MouseDown} />
               {/* Pane 3: Debate workspace */}
               <div className="detail-panel debate-workspace-container" style={{ width: pane3Width, minWidth: pane3Width }}>
