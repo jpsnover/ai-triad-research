@@ -23,16 +23,41 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 }
 
-function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      style={{
+        background: 'none', border: '1px solid var(--border)', borderRadius: 3,
+        color: copied ? '#22c55e' : 'var(--text-muted)', cursor: 'pointer',
+        fontSize: '0.6rem', padding: '1px 6px', marginLeft: 6, flexShrink: 0,
+      }}
+      title="Copy section content to clipboard"
+    >
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
+}
+
+function Section({ title, children, defaultOpen = false, copyText }: { title: string; children: React.ReactNode; defaultOpen?: boolean; copyText?: string }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: 8 }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', padding: '4px 0', width: '100%', textAlign: 'left' }}
-      >
-        {open ? '▼' : '▶'} {title}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button
+          onClick={() => setOpen(!open)}
+          style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', padding: '4px 0', flex: 1, textAlign: 'left' }}
+        >
+          {open ? '▼' : '▶'} {title}
+        </button>
+        {copyText && open && <CopyButton text={copyText} />}
+      </div>
       {open && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}
     </div>
   );
@@ -420,7 +445,7 @@ export function DiagnosticsWindow() {
           {/* ── ALWAYS AVAILABLE (from metadata) ── */}
 
           {meta?.move_types && (
-            <Section title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen>
+            <Section title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as string[]).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
               {(meta.move_types as string[]).map((m, i) => (
                 <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{m}</span>
               ))}
@@ -429,7 +454,7 @@ export function DiagnosticsWindow() {
           )}
 
           {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
-            <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen>
+            <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
               {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
                 <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
                   <div><strong>Assumes:</strong> {a.assumption}</div>
@@ -440,7 +465,7 @@ export function DiagnosticsWindow() {
           )}
 
           {diag?.extracted_claims && (
-            <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen>
+            <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
               {diag.extracted_claims.accepted.map((c, i) => (
                 <div key={i} style={{ margin: '3px 0' }}>
                   <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> {c.text}
@@ -456,7 +481,7 @@ export function DiagnosticsWindow() {
           )}
 
           {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-            <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen>
+            <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
               {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
                 <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
                   <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}
@@ -467,7 +492,7 @@ export function DiagnosticsWindow() {
           )}
 
           {entry.taxonomy_refs.length > 0 && (
-            <Section title={`Taxonomy Refs (${entry.taxonomy_refs.length})`}>
+            <Section title={`Taxonomy Refs (${entry.taxonomy_refs.length})`} copyText={entry.taxonomy_refs.map(r => `${r.node_id}: ${r.relevance}`).join('\n')}>
               {entry.taxonomy_refs.map((r, i) => (
                 <div key={i} style={{ margin: '2px 0' }}><strong style={{ color: 'var(--accent)' }}>{r.node_id}</strong> {r.relevance?.slice(0, 100)}</div>
               ))}
@@ -475,7 +500,7 @@ export function DiagnosticsWindow() {
           )}
 
           {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
-            <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`}>
+            <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
               {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
                 <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
               ))}
@@ -485,44 +510,44 @@ export function DiagnosticsWindow() {
           {/* ── NEEDS NEW TURN (from diagnostics capture) ── */}
 
           {diag?.model && (
-            <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`}>
+            <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
               <div>Model: {diag.model}</div>
               {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
             </Section>
           )}
 
           {diag?.taxonomy_context && (
-            <Section title="Taxonomy Context (BDI)">
+            <Section title="Taxonomy Context (BDI)" copyText={diag.taxonomy_context}>
               <ResizablePre tall text={diag.taxonomy_context} />
             </Section>
           )}
 
           {diag?.commitment_context && (
-            <Section title="Commitments Injected">
+            <Section title="Commitments Injected" copyText={diag.commitment_context}>
               <ResizablePre tall text={diag.commitment_context} />
             </Section>
           )}
 
           {diag?.edge_tensions && (
-            <Section title="Edge Tensions">
+            <Section title="Edge Tensions" copyText={diag.edge_tensions}>
               <ResizablePre tall text={diag.edge_tensions} />
             </Section>
           )}
 
           {diag?.argument_network_context && (
-            <Section title="Argument Network Context">
+            <Section title="Argument Network Context" copyText={diag.argument_network_context}>
               <ResizablePre tall text={diag.argument_network_context} />
             </Section>
           )}
 
           {diag?.prompt && (
-            <Section title="Full Prompt Sent to AI">
+            <Section title="Full Prompt Sent to AI" copyText={diag.prompt}>
               <ResizablePre tall text={diag.prompt} />
             </Section>
           )}
 
           {diag?.raw_response && (
-            <Section title="Raw AI Response">
+            <Section title="Raw AI Response" copyText={diag.raw_response}>
               <ResizablePre tall text={diag.raw_response} />
             </Section>
           )}
