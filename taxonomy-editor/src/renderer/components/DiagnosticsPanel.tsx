@@ -295,7 +295,15 @@ export function DiagnosticsPanel() {
                 Overview
               </button>
             )}
-            <button className="btn btn-sm" onClick={() => window.electronAPI.openDiagnosticsWindow()} style={{ fontSize: '0.65rem' }} title="Open in separate window">
+            <button className="btn btn-sm" onClick={async () => {
+              await window.electronAPI.openDiagnosticsWindow();
+              // Send initial state after a short delay for the window to load
+              const debate = useDebateStore.getState().activeDebate;
+              const entry = useDebateStore.getState().selectedDiagEntry;
+              setTimeout(() => {
+                window.electronAPI.sendDiagnosticsState({ debate, selectedEntry: entry });
+              }, 1000);
+            }} style={{ fontSize: '0.65rem' }} title="Open in separate window">
               Popout
             </button>
           </div>

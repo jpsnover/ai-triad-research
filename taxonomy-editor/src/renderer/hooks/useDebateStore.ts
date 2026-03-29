@@ -126,7 +126,11 @@ function recordDiagnostic(
     diag.overview.total_response_time_ms += data.response_time_ms;
   }
 
-  set({ activeDebate: { ...debate, diagnostics: diag } });
+  const updatedDebate = { ...debate, diagnostics: diag };
+  set({ activeDebate: updatedDebate });
+
+  // Broadcast to popout window
+  try { window.electronAPI.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
 }
 
 /**
@@ -255,6 +259,9 @@ async function extractClaimsAndUpdateAN(
     recordDiagnostic(get, set, entryId, {
       extracted_claims: { accepted: diagAccepted, rejected: diagRejected },
     });
+
+    // Broadcast updated state to popout
+    try { window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
   }
