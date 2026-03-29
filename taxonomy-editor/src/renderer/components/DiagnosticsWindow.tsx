@@ -31,18 +31,111 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
   );
 }
 
-function ResizablePre({ text }: { text: string }) {
+function HelpContent() {
+  return (
+    <div style={{ fontSize: '0.8rem', lineHeight: 1.6, maxWidth: 650 }}>
+      <h3 style={{ color: '#f59e0b', marginTop: 0 }}>Argument Interchange Format (AIF)</h3>
+      <p>
+        The AIF is a formal ontology for representing argumentation, established by
+        Chesnevar et al. (2006). It provides a shared vocabulary for describing how
+        arguments are constructed, how they relate to each other, and how conflicts
+        between them are resolved.
+      </p>
+      <p>The core building blocks are:</p>
+      <ul>
+        <li><strong>I-nodes (Information nodes)</strong> — claims, propositions, or data points.
+          These are the passive content of arguments: "Scaling compute is sufficient for AGI"
+          or "Current AI systems exhibit bias." In this tool, each <strong>AN-</strong> entry
+          in the Argument Network is an I-node.</li>
+        <li><strong>RA-nodes (Rule Application)</strong> — inference schemes that explain WHY
+          one claim supports another. When you see a <span style={{ color: '#22c55e' }}>support</span> edge
+          with a <em>warrant</em>, that warrant is the RA-node: the reasoning pattern connecting
+          evidence to conclusion.</li>
+        <li><strong>CA-nodes (Conflict Application)</strong> — attack relationships between claims.
+          Three types:
+          <ul>
+            <li><strong style={{ color: '#ef4444' }}>Rebut</strong> — directly contradicts the conclusion
+              ("No, scaling is NOT sufficient")</li>
+            <li><strong style={{ color: '#ef4444' }}>Undercut</strong> — accepts the evidence but denies the
+              inference ("The evidence is real but doesn't prove what you claim")</li>
+            <li><strong style={{ color: '#ef4444' }}>Undermine</strong> — attacks the credibility of the
+              premise itself ("That study was flawed")</li>
+          </ul>
+        </li>
+        <li><strong>PA-nodes (Preference Application)</strong> — resolve conflicts by determining
+          which argument prevails. In this tool, these appear in the synthesis as
+          <em>Preference Verdicts</em> with criteria like empirical evidence strength or
+          logical validity.</li>
+      </ul>
+
+      <h3 style={{ color: '#f59e0b' }}>The Argument Network</h3>
+      <p>
+        The Argument Network is built incrementally during the debate. After each debater
+        speaks, the tool extracts 1-4 key claims from their statement and maps how those
+        claims relate to prior claims.
+      </p>
+      <p>Reading the network:</p>
+      <ul>
+        <li><strong>AN-1, AN-2, ...</strong> — claim identifiers, in order of appearance</li>
+        <li><strong>(Prometheus), (Sentinel), (Cassandra)</strong> — who made the claim</li>
+        <li><span style={{ color: '#ef4444' }}>← AN-6 rebut via REFRAME</span> — claim AN-6 attacks
+          this claim. "rebut" is the attack type; "REFRAME" is the dialectical scheme
+          (the argumentative strategy used)</li>
+        <li><span style={{ color: '#22c55e' }}>← AN-3 supports</span> — claim AN-3 provides evidence
+          or reasoning for this claim</li>
+        <li><strong>Warrant</strong> — the reasoning link explaining WHY the support or attack
+          relationship holds. This is the AIF S-node made visible.</li>
+      </ul>
+
+      <h3 style={{ color: '#f59e0b' }}>Dialectical Schemes</h3>
+      <table style={{ fontSize: '0.75rem', borderCollapse: 'collapse', width: '100%' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>Scheme</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>AIF Type</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px' }}>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style={{ padding: '3px 8px' }}>CONCEDE</td><td>Support (RA)</td><td>Accept opponent's point</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>DISTINGUISH</td><td>Undercut (CA)</td><td>Accept evidence, deny it applies here</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>REFRAME</td><td>Scheme shift</td><td>Shift the interpretive frame</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>COUNTEREXAMPLE</td><td>Rebut (CA)</td><td>Specific case contradicting the claim</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>REDUCE</td><td>Rebut (CA)</td><td>Show the logic leads to absurdity</td></tr>
+          <tr><td style={{ padding: '3px 8px' }}>ESCALATE</td><td>Scheme shift</td><td>Connect to a broader principle</td></tr>
+        </tbody>
+      </table>
+
+      <h3 style={{ color: '#f59e0b' }}>Commitment Stores</h3>
+      <p>
+        Each debater has a commitment store tracking what they've <strong>asserted</strong> (claimed
+        to be true), <strong>conceded</strong> (accepted from an opponent), and <strong>challenged</strong> (questioned
+        or attacked). Contradictions between assertions and concessions are flagged.
+        Commitments are injected into each debater's prompt to enforce consistency.
+      </p>
+
+      <h3 style={{ color: '#f59e0b' }}>Per-Entry Diagnostics</h3>
+      <p>
+        Click any transcript entry to see its internals: the full prompt sent to the AI,
+        the raw response, which claims were extracted (with validation scores), the taxonomy
+        context injected, and what commitments were active at that point.
+      </p>
+    </div>
+  );
+}
+
+function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) {
   return (
     <textarea
       readOnly
       value={text}
       style={{
         width: '100%',
-        minHeight: 60,
-        maxHeight: 400,
+        minHeight: tall ? 200 : 60,
+        maxHeight: 800,
         resize: 'vertical',
         fontFamily: 'monospace',
-        fontSize: '0.65rem',
+        fontSize: tall ? '0.75rem' : '0.65rem',
         background: 'var(--bg-primary)',
         color: 'var(--text-primary)',
         border: '1px solid var(--border)',
@@ -58,6 +151,7 @@ function ResizablePre({ text }: { text: string }) {
 export function DiagnosticsWindow() {
   const [debate, setDebate] = useState<DebateSession | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     const unsub = window.electronAPI.onDiagnosticsStateUpdate((state) => {
@@ -76,8 +170,17 @@ export function DiagnosticsWindow() {
 
   return (
     <div style={{ padding: 12, height: '100vh', overflow: 'auto', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-      <h2 style={{ margin: '0 0 8px', fontSize: '1rem', color: '#f59e0b' }}>Debate Diagnostics</h2>
-      {!debate && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', flex: 1 }}>Debate Diagnostics</h2>
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          {showHelp ? 'Close Help' : 'Help'}
+        </button>
+      </div>
+      {showHelp && <HelpContent />}
+      {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
 
       {debate && !selectedEntry && (
         <>
@@ -174,25 +277,25 @@ export function DiagnosticsWindow() {
 
           {diag?.taxonomy_context && (
             <Section title="Taxonomy Context (BDI)">
-              <ResizablePre text={diag.taxonomy_context} />
+              <ResizablePre tall text={diag.taxonomy_context} />
             </Section>
           )}
 
           {diag?.commitment_context && (
             <Section title="Commitments Injected">
-              <ResizablePre text={diag.commitment_context} />
+              <ResizablePre tall text={diag.commitment_context} />
             </Section>
           )}
 
           {diag?.edge_tensions && (
             <Section title="Edge Tensions">
-              <ResizablePre text={diag.edge_tensions} />
+              <ResizablePre tall text={diag.edge_tensions} />
             </Section>
           )}
 
           {diag?.argument_network_context && (
             <Section title="Argument Network Context">
-              <ResizablePre text={diag.argument_network_context} />
+              <ResizablePre tall text={diag.argument_network_context} />
             </Section>
           )}
 
@@ -206,13 +309,13 @@ export function DiagnosticsWindow() {
 
           {diag?.prompt && (
             <Section title="Full Prompt Sent to AI">
-              <ResizablePre text={diag.prompt} />
+              <ResizablePre tall text={diag.prompt} />
             </Section>
           )}
 
           {diag?.raw_response && (
             <Section title="Raw AI Response">
-              <ResizablePre text={diag.raw_response} />
+              <ResizablePre tall text={diag.raw_response} />
             </Section>
           )}
         </>
