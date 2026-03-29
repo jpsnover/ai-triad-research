@@ -1129,7 +1129,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const info = POVER_INFO[poverId];
       const recentText = priorStatements.map(ps => ps.statement).join('\n').slice(-500);
       const ctx = await getRelevantTaxonomyContext(info.pov, topic, recentText);
-      const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
+      const speakerClaims = (get().activeDebate?.argument_network?.nodes || []).filter(n => n.speaker === poverId);
+      const commitBlock = formatCommitments(
+        get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
+        speakerClaims,
+      );
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
       const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
@@ -1283,7 +1287,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const info = POVER_INFO[poverId];
       const currentTranscriptForRelevance = formatRecentTranscript(get().activeDebate!.transcript, 4, get().activeDebate!.context_summaries);
       const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscriptForRelevance);
-      const commitBlock = formatCommitments(get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] });
+      const speakerClaims = (get().activeDebate?.argument_network?.nodes || []).filter(n => n.speaker === poverId);
+      const commitBlock = formatCommitments(
+        get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
+        speakerClaims,
+      );
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
       // Use the most current transcript (includes responses from prior POVers in this round)
@@ -1416,7 +1424,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const info = POVER_INFO[responderPover];
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
     const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
-    const commitBlock = formatCommitments(activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] });
+    const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
+    const commitBlock = formatCommitments(
+      activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
+      speakerClaims,
+    );
     const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock;
 
     const prompt = buildCrossRespondPrompt(

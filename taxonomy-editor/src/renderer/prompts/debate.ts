@@ -75,7 +75,18 @@ const ARGUMENT_STRATEGY = `HOW TO ARGUE WELL:
    - The logical structure of the argument (does the conclusion follow from the premises?)
    - The quality of the evidence (is it reliable, representative, relevant?)
    - The assumptions being made (are they stated? are they justified?)
-   Never attribute bad faith, ignorance, or hidden motives to an opponent.`;
+   Never attribute bad faith, ignorance, or hidden motives to an opponent.
+
+7. ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
+   - New evidence the debate hasn't seen yet
+   - A new angle or framing on the issue
+   - A direct response to a point made SINCE your last turn
+   - An explicit concession or qualification of your prior position
+   If you find yourself about to restate something you already said, STOP. Ask yourself:
+   "What has changed since I last made this point? What new information can I add?"
+   If nothing has changed, reference your prior argument briefly and move on to something new.
+   Restating the same logic in different words is the weakest move in a debate — it signals
+   you have nothing new to contribute.`;
 
 const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down.
 
@@ -125,6 +136,21 @@ const DIALECTICAL_MOVES = `Your response should employ one or more of these dial
   THE KEY: The broader principle must actually be at stake, not just rhetorically invoked.
 
 Include a "move_types" array in your response listing which moves you used.`;
+
+const CLAIM_SKETCHING = `CLAIM SKETCHING: As you write your response, identify your 1-4 most important claims — the
+assertions that carry your argument. For each claim, extract a near-verbatim sentence from your
+statement text and note which prior claims it engages with (if any).
+
+This helps the system track the argument structure. You know what you're arguing better than a
+post-hoc analyzer, so your claim sketches are the primary input for the argument network.
+
+Include a "my_claims" array in your response:
+  "my_claims": [
+    {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3", "AN-7"]}
+  ]
+- "claim" must be a sentence that appears almost verbatim in your statement text.
+- "targets" lists the AN-IDs of prior claims this claim responds to (empty array if standalone).
+- Extract 1-4 claims. Focus on substantive assertions, not rhetorical flourishes.`;
 
 /** Find the last markdown heading before a character position */
 function findLastHeading(text: string, beforePos: number): string | null {
@@ -245,11 +271,16 @@ Deliver your opening statement. This is your chance to frame the issue from your
 ${debateSourceContent ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n` : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${includeSteelman ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
 ${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
+${CLAIM_SKETCHING}
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "taxonomy_refs": [
     {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
+  ],
+  "my_claims": [
+    {"claim": "near-verbatim key assertion from your statement", "targets": []}
   ]${includeAssumptions ? `,
   "key_assumptions": [
     {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
@@ -299,13 +330,18 @@ ${question}
 
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 
+${CLAIM_SKETCHING}
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
     {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["DISTINGUISH", "COUNTEREXAMPLE"]${includeDisagreementType ? `,
+  "move_types": ["DISTINGUISH", "COUNTEREXAMPLE"],
+  "my_claims": [
+    {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
+  ]${includeDisagreementType ? `,
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"` : ''}
 }`;
 }
@@ -382,6 +418,8 @@ Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${
 
 Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. If you agree on some points, say so (CONCEDE) and push further.
 
+${CLAIM_SKETCHING}
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
@@ -389,6 +427,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
   "move_types": ["CONCEDE", "DISTINGUISH"],
+  "my_claims": [
+    {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
+  ],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
 }`;
 }

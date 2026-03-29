@@ -57,6 +57,69 @@ Return ONLY JSON (no markdown):
 }`;
 }
 
+/**
+ * Hybrid approach: the debater supplies claim sketches (my_claims) with
+ * the claims it intended to make and which prior claims they target.
+ * This lighter prompt validates those claims and classifies the relationship
+ * types (supports/attacks, attack_type, scheme, warrant) — the debater
+ * identified WHAT it's arguing, and this analyst classifies HOW.
+ */
+export function classifyClaimsPrompt(
+  statement: string,
+  speaker: string,
+  debaterClaims: { claim: string; targets: string[] }[],
+  priorClaims: PriorClaim[],
+): string {
+  const priorBlock = priorClaims.length > 0
+    ? priorClaims.map(c => `  ${c.id} (${c.speaker}): ${c.text}`).join('\n')
+    : '  (none yet)';
+
+  const claimsBlock = debaterClaims
+    .map((c, i) => `  [${i + 1}] "${c.claim}"${c.targets.length > 0 ? ` → targets: ${c.targets.join(', ')}` : ' (standalone)'}`)
+    .join('\n');
+
+  return `The debater ${speaker} made the following statement and identified their key claims.
+Your job is to CLASSIFY the relationship between each claim and its targets. Do NOT invent
+new claims — work only with the claims the debater provided.
+
+STATEMENT by ${speaker}:
+"${statement}"
+
+CLAIMS IDENTIFIED BY THE DEBATER:
+${claimsBlock}
+
+PRIOR CLAIMS IN THIS DEBATE:
+${priorBlock}
+
+For each claim:
+1. Verify the claim text appears near-verbatim in the statement (if not, flag it)
+2. For each target, classify the relationship:
+   - "supports" with a warrant (WHY it supports — the reasoning pattern)
+   - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the
+     inference, "undermine" = attacks premise credibility) and scheme (COUNTEREXAMPLE,
+     DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE)
+3. If the debater listed no targets but you see an obvious relationship to a prior claim,
+   you may add it — but prefer the debater's own assessment.
+
+Return ONLY JSON (no markdown):
+{
+  "claims": [
+    {
+      "text": "the debater's claim text (unchanged)",
+      "responds_to": [
+        {
+          "prior_claim_id": "AN-1",
+          "relationship": "supports or attacks",
+          "attack_type": "rebut or undercut or undermine (only if attacks)",
+          "scheme": "COUNTEREXAMPLE etc (only if attacks)",
+          "warrant": "1 sentence: WHY this claim relates to the prior claim"
+        }
+      ]
+    }
+  ]
+}`;
+}
+
 /** Format the argument network for injection into moderator prompts */
 export function formatArgumentNetworkContext(
   nodes: { id: string; text: string; speaker: string }[],
@@ -99,26 +162,40 @@ export function formatArgumentNetworkContext(
   return lines.join('\n');
 }
 
-/** Format commitments for injection into debater prompts */
+/** Format commitments and prior claims for injection into debater prompts */
 export function formatCommitments(
   commitments: { asserted: string[]; conceded: string[]; challenged: string[] },
+  priorClaims?: { text: string }[],
 ): string {
   const lines: string[] = [];
 
-  if (commitments.asserted.length > 0) {
-    lines.push('You have asserted:');
-    for (const a of commitments.asserted.slice(-5)) lines.push(`- ${a}`);
+  if (commitments.asserted.length > 0 || (priorClaims && priorClaims.length > 0)) {
+    lines.push('POINTS YOU HAVE ALREADY MADE (do NOT repeat these — build on them or make NEW arguments):');
+    // Use AN claims if available (more precise), fall back to commitment assertions
+    const claims = priorClaims && priorClaims.length > 0
+      ? priorClaims.map(c => c.text)
+      : commitments.asserted;
+    for (const a of claims.slice(-8)) lines.push(`- ${a}`);
   }
   if (commitments.conceded.length > 0) {
-    lines.push('You have conceded:');
+    lines.push('Points you have CONCEDED (do not contradict these without acknowledging the change):');
     for (const c of commitments.conceded) lines.push(`- ${c}`);
   }
   if (commitments.challenged.length > 0) {
-    lines.push('You have challenged:');
+    lines.push('Points you have CHALLENGED:');
     for (const c of commitments.challenged) lines.push(`- ${c}`);
   }
 
   if (lines.length === 0) return '';
 
-  return `\n=== YOUR COMMITMENTS SO FAR ===\n${lines.join('\n')}\n\nCONSISTENCY RULE: Do not contradict your prior assertions without explicitly acknowledging the change. If you now believe differently, say "I previously argued X, but on reflection..." — do not silently flip.\n`;
+  return `\n=== YOUR PRIOR ARGUMENTS ===\n${lines.join('\n')}\n
+REPETITION RULE: Do NOT restate a point you have already made. The audience has heard it.
+If an opponent hasn't addressed your point, say "I note that no one has responded to my argument
+that [brief reference]" — then move to a NEW argument or develop a DIFFERENT angle.
+If you want to reinforce a prior point, add NEW evidence or a NEW example — do not restate
+the same logic with different words.
+
+CONSISTENCY RULE: Do not contradict your prior assertions without explicitly acknowledging
+the change. If you now believe differently, say "I previously argued X, but on reflection..."
+— do not silently flip.\n`;
 }
