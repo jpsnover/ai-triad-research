@@ -26,7 +26,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel } = useTaxonomyStore();
   const globalModel = geminiModel;
-  const availableModels = MODELS_BY_BACKEND[aiBackend] || [];
+  // Show models from ALL backends, grouped by provider
+  const availableModels = Object.entries(MODELS_BY_BACKEND)
+    .flatMap(([backend, models]) =>
+      models.map(m => ({ ...m, label: `${m.label} (${backend})` }))
+    );
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [customModel, setCustomModel] = useState(globalModel);
   const [protocolId, setProtocolId] = useState('structured');
