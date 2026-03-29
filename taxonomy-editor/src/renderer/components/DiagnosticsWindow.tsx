@@ -41,6 +41,11 @@ function HelpContent() {
         arguments are constructed, how they relate to each other, and how conflicts
         between them are resolved.
       </p>
+      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+        Reference: Chesnevar, C., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., & Willmott, S. (2006).
+        "Towards an Argument Interchange Format." <em>The Knowledge Engineering Review</em>, 21(4), 293-316.
+        [<a href="#" onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
+      </p>
       <p>The core building blocks are:</p>
       <ul>
         <li><strong>I-nodes (Information nodes)</strong> — claims, propositions, or data points.
