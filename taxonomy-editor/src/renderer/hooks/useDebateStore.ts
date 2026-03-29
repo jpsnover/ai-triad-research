@@ -1301,7 +1301,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     for (const c of conflicts as { claim_id?: string; claim_label?: string; description?: string; status?: string; linked_taxonomy_nodes?: string[] }[]) {
       if (!c.claim_label) continue;
       // Prioritize conflicts that share taxonomy nodes with the statement
-      const linked = c.linked_taxonomy_nodes || [];
+      const linked = Array.isArray(c.linked_taxonomy_nodes) ? c.linked_taxonomy_nodes : [];
       const isRelevant = linked.some(n => refNodeIds.has(n));
       if (isRelevant) {
         conflictLines.unshift(`[${c.claim_id || 'unknown'}] ${c.claim_label}: ${c.description || ''} (${c.status || 'open'})`);
