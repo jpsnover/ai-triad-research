@@ -5443,6 +5443,49 @@ body {
   user-select: text;
 }
 
+/* ─── Entry Delete Controls ──────────────────────────── */
+.debate-entry-wrapper {
+  position: relative;
+}
+.debate-entry-delete-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.debate-entry-wrapper:hover .debate-entry-delete-actions {
+  opacity: 1;
+}
+.debate-entry-delete-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 1px 5px;
+  line-height: 1;
+}
+.debate-entry-delete-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.debate-entry-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  color: var(--danger);
+  background: var(--bg-secondary);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
 .debate-statement-header {
   display: flex;
   align-items: center;
@@ -5467,6 +5510,36 @@ body {
   line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
+}
+
+.debate-statement-content.markdown-body {
+  white-space: normal;
+}
+
+.debate-statement-content.markdown-body p {
+  margin: 0.3em 0;
+}
+
+.debate-statement-content.markdown-body ul,
+.debate-statement-content.markdown-body ol {
+  margin: 0.3em 0;
+  padding-left: 1.5em;
+}
+
+.debate-statement-content.markdown-body li {
+  margin: 0.15em 0;
+}
+
+.debate-statement-content.markdown-body strong {
+  color: var(--text-primary);
+}
+
+.debate-statement-content.markdown-body h1,
+.debate-statement-content.markdown-body h2,
+.debate-statement-content.markdown-body h3,
+.debate-statement-content.markdown-body h4 {
+  margin: 0.5em 0 0.3em;
+  font-size: 0.9rem;
 }
 
 .debate-generating {
@@ -5846,7 +5919,6 @@ body {
 }
 
 .debate-type-synthesis .debate-statement-content {
-  white-space: pre-wrap;
   font-size: 0.85rem;
   line-height: 1.5;
 }

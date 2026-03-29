@@ -8,6 +8,7 @@ import { POVER_INFO } from '../types/debate';
 import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
+import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -281,6 +282,59 @@ function FindBar({ query, onQueryChange, current, total, onPrev, onNext, onClose
 
 // ─────────────────────────────────────────────────────────
 
+/** Wrapper that adds delete controls to any transcript entry */
+function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
+  entry: TranscriptEntry; totalEntries: number; entryIndex: number;
+}) {
+  const { deleteTranscriptEntries, activeDebate } = useDebateStore();
+  const [confirmMode, setConfirmMode] = useState<'single' | 'after' | null>(null);
+
+  const handleDeleteSingle = async () => {
+    await deleteTranscriptEntries([entry.id]);
+    setConfirmMode(null);
+  };
+
+  const handleDeleteThisAndAfter = async () => {
+    if (!activeDebate) return;
+    const idx = activeDebate.transcript.findIndex(e => e.id === entry.id);
+    if (idx < 0) return;
+    const idsToRemove = activeDebate.transcript.slice(idx).map(e => e.id);
+    await deleteTranscriptEntries(idsToRemove);
+    setConfirmMode(null);
+  };
+
+  if (confirmMode) {
+    return (
+      <div className="debate-entry-delete-confirm">
+        <span>{confirmMode === 'single' ? 'Delete this entry?' : `Delete this and ${totalEntries - entryIndex - 1} entries after it?`}</span>
+        <button className="btn btn-sm btn-danger" onClick={confirmMode === 'single' ? handleDeleteSingle : handleDeleteThisAndAfter}>Yes</button>
+        <button className="btn btn-sm" onClick={() => setConfirmMode(null)}>No</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="debate-entry-delete-actions">
+      <button
+        className="debate-entry-delete-btn"
+        onClick={() => setConfirmMode('single')}
+        title="Delete this entry"
+      >
+        &times;
+      </button>
+      {entryIndex < totalEntries - 1 && (
+        <button
+          className="debate-entry-delete-btn debate-entry-delete-after"
+          onClick={() => setConfirmMode('after')}
+          title="Delete this and all entries after it"
+        >
+          &times;&darr;
+        </button>
+      )}
+    </div>
+  );
+}
+
 function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
   entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
@@ -298,10 +352,10 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
         </span>
         <span className="debate-statement-type">{entry.type}</span>
       </div>
-      <div className="debate-statement-content">
+      <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : entry.content}
+          : <Markdown>{entry.content}</Markdown>}
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
       {entry.policy_refs && entry.policy_refs.length > 0 && (
@@ -455,10 +509,10 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           {factCheck?.verdict || 'unknown'}
         </span>
       </div>
-      <div className="debate-statement-content">
+      <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : entry.content}
+          : <Markdown>{entry.content}</Markdown>}
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
       {entry.policy_refs && entry.policy_refs.length > 0 && (
@@ -1173,13 +1227,19 @@ export function DebateWorkspace() {
             The debate is ready to begin. Clarification questions will appear here.
           </div>
         )}
-        {activeDebate.transcript.map((entry) => {
+        {activeDebate.transcript.map((entry, idx) => {
           const matchOffset = findOffsets.get(entry.id) ?? 0;
-          return entry.type === 'probing'
+          const card = entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} />
             : entry.type === 'fact-check'
             ? <FactCheckCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
             : <StatementCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
+          return (
+            <div key={entry.id} className="debate-entry-wrapper">
+              {card}
+              <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />
+            </div>
+          );
         })}
         {debateGenerating && (
           <div className="debate-statement debate-generating">

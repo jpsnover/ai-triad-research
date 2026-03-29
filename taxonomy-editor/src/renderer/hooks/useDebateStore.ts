@@ -372,6 +372,7 @@ interface DebateStore {
   renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
   addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => void;
+  deleteTranscriptEntries: (entryIds: string[]) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
   saveDebate: () => Promise<void>;
@@ -572,6 +573,20 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       transcript: [...activeDebate.transcript, full],
     };
     set({ activeDebate: updated });
+  },
+
+  deleteTranscriptEntries: async (entryIds) => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate) return;
+    const idsToRemove = new Set(entryIds);
+    const filtered = activeDebate.transcript.filter(e => !idsToRemove.has(e.id));
+    const updated: DebateSession = {
+      ...activeDebate,
+      updated_at: nowISO(),
+      transcript: filtered,
+    };
+    set({ activeDebate: updated });
+    await saveDebate();
   },
 
   updatePhase: (phase) => {
