@@ -1239,11 +1239,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         // Record diagnostics
         if (lastEntry) {
           recordDiagnostic(get, set, lastEntry.id, {
-            prompt: prompt.slice(0, 15000),
-            raw_response: text.slice(0, 5000),
+            prompt,
+            raw_response: text,
             model,
             response_time_ms: responseTime,
-            taxonomy_context: taxonomyBlock.slice(0, 5000),
+            taxonomy_context: taxonomyBlock,
             commitment_context: commitBlock || undefined,
           });
           // Record move types in overview
@@ -1410,11 +1410,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
           recordDiagnostic(get, set, lastEntry.id, {
-            prompt: prompt.slice(0, 15000),
-            raw_response: text.slice(0, 5000),
+            prompt,
+            raw_response: text,
             model,
             response_time_ms: responseTime,
-            taxonomy_context: taxonomyBlock.slice(0, 5000),
+            taxonomy_context: taxonomyBlock,
             commitment_context: commitBlock || undefined,
           });
           extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
@@ -1556,11 +1556,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
         recordDiagnostic(get, set, lastEntry.id, {
-          prompt: prompt.slice(0, 15000),
-          raw_response: text.slice(0, 5000),
+          prompt,
+          raw_response: text,
           model,
           response_time_ms: responseTime,
-          taxonomy_context: taxonomyBlock.slice(0, 5000),
+          taxonomy_context: taxonomyBlock,
           commitment_context: commitBlock || undefined,
         });
         extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
