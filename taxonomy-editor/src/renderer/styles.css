@@ -5120,6 +5120,66 @@ body {
   color: var(--text-muted);
 }
 
+/* ─── New Debate Potential Topics ─────────────────────── */
+.new-debate-topics-picker {
+  margin-top: 6px;
+}
+.new-debate-topics-summary {
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+}
+.new-debate-topics-summary:hover {
+  text-decoration: underline;
+}
+.new-debate-topics-list {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.new-debate-topic-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.75rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.new-debate-topic-item:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-primary));
+}
+.new-debate-topic-item.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-primary));
+}
+.new-debate-topic-type {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.new-debate-topic-theme {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+.new-debate-topic-prop {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 /* ─── New Debate Protocol Selector ────────────────────── */
 .new-debate-protocol-row {
   display: flex;

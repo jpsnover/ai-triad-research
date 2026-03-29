@@ -7,6 +7,7 @@ import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSourceType } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
+import { DEBATE_TOPICS } from '../data/debateTopics';
 
 interface NewDebateDialogProps {
   onClose: () => void;
@@ -139,12 +140,28 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             <label className="new-debate-label">Topic</label>
             <textarea
               className="new-debate-topic"
-              placeholder="What should we debate?"
+              placeholder="What should we debate? Type your own or pick from Potential Topics below."
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               rows={3}
               autoFocus
             />
+            <details className="new-debate-topics-picker">
+              <summary className="new-debate-topics-summary">Potential Topics ({DEBATE_TOPICS.length})</summary>
+              <div className="new-debate-topics-list">
+                {DEBATE_TOPICS.map(t => (
+                  <button
+                    key={t.id}
+                    className={`new-debate-topic-item${topic === t.proposition ? ' selected' : ''}`}
+                    onClick={() => setTopic(t.proposition)}
+                  >
+                    <span className="new-debate-topic-type">{t.type}</span>
+                    <span className="new-debate-topic-theme">{t.theme}</span>
+                    <span className="new-debate-topic-prop">{t.proposition}</span>
+                  </button>
+                ))}
+              </div>
+            </details>
           </>
         )}
 
