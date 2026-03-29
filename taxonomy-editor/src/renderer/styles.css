@@ -6161,8 +6161,21 @@ body {
 }
 
 .debate-source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.debate-source-header .debate-source-ref {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.debate-source-header .pane-collapse-btn {
   flex-shrink: 0;
 }
 
