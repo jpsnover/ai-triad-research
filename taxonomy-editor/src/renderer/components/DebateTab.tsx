@@ -13,6 +13,10 @@ import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { SearchPanel } from './SearchPanel';
+import { PromptsPanel } from './PromptsPanel';
+import { FallacyPanel } from './FallacyPanel';
+import { EdgeBrowser } from './EdgeBrowser';
+import { TerminalPanel } from './TerminalPanel';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 
@@ -126,12 +130,17 @@ export function DebateTab() {
 
   return (
     <div className="two-column">
-      {/* Left pane: Session list OR toolbar panel (e.g. Search) */}
-      {toolbarPanel === 'search' ? (
+      {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
+      {toolbarPanel ? (
         <div className="list-panel" style={{ width }}>
-          <SearchPanel
-            onSelectResult={(id) => setSearchPreviewId(id)}
-          />
+          {toolbarPanel === 'search' && <SearchPanel onSelectResult={(id) => setSearchPreviewId(id)} />}
+          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={() => {}} />}
+          {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
+          {toolbarPanel === 'edges' && <EdgeBrowser />}
+          {toolbarPanel === 'console' && <TerminalPanel />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console'].includes(toolbarPanel) && (
+            <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
+          )}
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
@@ -233,7 +242,7 @@ export function DebateTab() {
         </>
       )}
 
-      {toolbarPanel !== 'search' && (
+      {!toolbarPanel && (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
 
