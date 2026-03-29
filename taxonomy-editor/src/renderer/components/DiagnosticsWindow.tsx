@@ -233,6 +233,88 @@ function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) 
   );
 }
 
+/** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
+function INodeRow({ node, attacks, supports, allNodes, isSource }: {
+  node: ArgumentNetworkNode;
+  attacks: ArgumentNetworkEdge[];
+  supports: ArgumentNetworkEdge[];
+  allNodes: ArgumentNetworkNode[];
+  isSource: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const responded = attacks.length > 0 || supports.length > 0;
+  const hasChildren = attacks.length > 0 || supports.length > 0;
+
+  return (
+    <div style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+        {hasChildren ? (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+          >
+            {expanded ? '\u25BC' : '\u25B6'}
+          </button>
+        ) : (
+          <span style={{ width: 10, flexShrink: 0 }} />
+        )}
+        <div style={{ flex: 1 }}>
+          <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
+          <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
+          <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
+          {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
+          {hasChildren && <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem', marginLeft: 6 }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
+        </div>
+      </div>
+      <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
+
+      {/* Edges — ALWAYS visible (badge + source ID + type + scheme + warrant) */}
+      {hasChildren && (
+        <div style={{ paddingLeft: 18, marginTop: 4 }}>
+          {attacks.map(a => {
+            const sourceNode = allNodes.find(n => n.id === a.source);
+            return (
+              <div key={a.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
+                <div>
+                  <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
+                  {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
+                </div>
+                {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {a.warrant}</div>}
+                {/* Expanded: show debater attribution + full claim text */}
+                {expanded && sourceNode && (
+                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(239,68,68,0.05)', borderRadius: 3 }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{sourceNode.text}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {supports.map(s => {
+            const sourceNode = allNodes.find(n => n.id === s.source);
+            return (
+              <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
+                <div>
+                  <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
+                  {'\u2190'} {s.source} <strong>supports</strong>
+                </div>
+                {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
+                {/* Expanded: show debater attribution + full claim text */}
+                {expanded && sourceNode && (
+                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(34,197,94,0.05)', borderRadius: 3 }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{sourceNode.text}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DiagnosticsWindow() {
   const [debate, setDebate] = useState<DebateSession | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
@@ -282,32 +364,16 @@ export function DiagnosticsWindow() {
                 {an.nodes.map(n => {
                   const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
                   const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
-                  const responded = attacks.length > 0 || supports.length > 0;
                   const isSource = an.edges.some(e => e.source === n.id);
                   return (
-                    <div key={n.id} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
-                      <div>
-                        <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
-                        <strong style={{ color: 'var(--accent)' }}>{n.id}</strong>
-                        <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(n.speaker)})</span>
-                        {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
-                      </div>
-                      <div style={{ paddingLeft: 8, marginTop: 2 }}>{n.text}</div>
-                      {attacks.map(a => (
-                        <div key={a.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
-                          ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
-                          {a.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {a.warrant}</div>}
-                        </div>
-                      ))}
-                      {supports.map(s => (
-                        <div key={s.id} style={{ paddingLeft: 16, marginTop: 2, fontSize: '0.7rem' }}>
-                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
-                          ← {s.source} <strong>supports</strong>
-                          {s.warrant && <div style={{ paddingLeft: 20, color: 'var(--text-muted)', fontStyle: 'italic' }}>Warrant: {s.warrant}</div>}
-                        </div>
-                      ))}
-                    </div>
+                    <INodeRow
+                      key={n.id}
+                      node={n}
+                      attacks={attacks}
+                      supports={supports}
+                      allNodes={an.nodes}
+                      isSource={isSource}
+                    />
                   );
                 })}
               </Section>
