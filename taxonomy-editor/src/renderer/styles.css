@@ -6612,6 +6612,38 @@ body {
   color: #ef4444;
 }
 
+.debate-fact-check-web-toggle {
+  margin-left: auto;
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+.debate-fact-check-web-toggle:hover {
+  opacity: 1;
+}
+.debate-fact-check-web-evidence {
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.debate-fact-check-web-evidence-header {
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.debate-fact-check-web-evidence-body {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+}
+
 /* ═══════════════════════════════════════════════════════════
    Related Edges Panel
    ═══════════════════════════════════════════════════════════ */

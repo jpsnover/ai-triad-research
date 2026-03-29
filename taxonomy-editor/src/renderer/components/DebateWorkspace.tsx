@@ -491,15 +491,21 @@ function DebateContextMenu({
 function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
   entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
+  const [showWebEvidence, setShowWebEvidence] = useState(false);
   const factCheck = entry.metadata?.fact_check as {
     verdict: string;
     explanation: string;
     checked_text: string;
+    web_search_used?: boolean;
+    web_search_queries?: string[];
+    web_search_evidence?: string;
   } | undefined;
 
   const verdictClass = factCheck?.verdict
     ? `debate-fact-check-${factCheck.verdict}`
     : '';
+
+  const hasWebEvidence = factCheck?.web_search_used && factCheck?.web_search_evidence;
 
   return (
     <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
@@ -508,12 +514,29 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
         <span className={`debate-fact-check-verdict ${verdictClass}`}>
           {factCheck?.verdict || 'unknown'}
         </span>
+        {hasWebEvidence && (
+          <button
+            className="btn btn-sm debate-fact-check-web-toggle"
+            onClick={() => setShowWebEvidence(!showWebEvidence)}
+            title={showWebEvidence ? 'Hide web evidence' : 'Show web search evidence'}
+          >
+            {showWebEvidence ? 'Hide Web Evidence' : 'Show Web Evidence'}
+          </button>
+        )}
       </div>
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown>{entry.content}</Markdown>}
       </div>
+      {showWebEvidence && factCheck?.web_search_evidence && (
+        <div className="debate-fact-check-web-evidence">
+          <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
+          <div className="debate-fact-check-web-evidence-body markdown-body">
+            <Markdown>{factCheck.web_search_evidence}</Markdown>
+          </div>
+        </div>
+      )}
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
       {entry.policy_refs && entry.policy_refs.length > 0 && (
         <div className="debate-policy-refs-section">

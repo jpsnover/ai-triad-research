@@ -1387,6 +1387,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             checked_text: selectedText,
             web_search_used: webContext !== '(Web search unavailable)',
             web_search_queries: searchQueries,
+            web_search_evidence: webContext !== '(Web search unavailable)' ? webContext : undefined,
           },
         },
       });
