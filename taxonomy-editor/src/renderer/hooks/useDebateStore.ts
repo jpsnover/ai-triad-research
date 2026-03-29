@@ -305,8 +305,7 @@ async function getRelevantTaxonomyContext(
   pov: string,
   topic: string,
   recentTranscript: string,
-  maxPerCategory: number = 7,
-  maxCC: number = 10,
+  threshold: number = 0.3,
 ): Promise<TaxonomyContext> {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
@@ -347,18 +346,18 @@ async function getRelevantTaxonomyContext(
       }
     }
 
-    const filteredPov = selectRelevantNodes(allPovNodes, scores, maxPerCategory);
-    const filteredCC = selectRelevantCCNodes(allCCNodes, scores, maxCC);
+    const filteredPov = selectRelevantNodes(allPovNodes, scores, threshold);
+    const filteredCC = selectRelevantCCNodes(allCCNodes, scores, threshold);
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
     return { povNodes: filteredPov, crossCuttingNodes: filteredCC };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
-    // Fallback: first maxPerCategory*3 nodes + first maxCC CC nodes
+    // Fallback: first 21 POV nodes + first 10 CC nodes
     return {
-      povNodes: allPovNodes.slice(0, maxPerCategory * 3),
-      crossCuttingNodes: allCCNodes.slice(0, maxCC),
+      povNodes: allPovNodes.slice(0, 21),
+      crossCuttingNodes: allCCNodes.slice(0, 10),
     };
   }
 }

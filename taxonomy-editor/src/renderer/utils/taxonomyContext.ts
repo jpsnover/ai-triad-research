@@ -54,7 +54,7 @@ export function formatNodeAttributes(attrs: GraphAttributes | undefined): string
 }
 
 /** Format taxonomy nodes into a BDI-structured context block for the LLM prompt */
-export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes: number = 20): string {
+export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes: number = 50): string {
   const povSlice = ctx.povNodes.slice(0, maxNodes);
 
   // Group POV nodes by category → BDI section

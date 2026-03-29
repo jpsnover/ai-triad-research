@@ -44,13 +44,15 @@ export function scoreNodeRelevance(
 }
 
 /**
- * Select the most relevant POV nodes for a debate, sorted by relevance.
- * Returns up to maxPerCategory nodes per BDI category.
+ * Select relevant POV nodes for a debate based on similarity threshold.
+ * Includes all nodes above the threshold, sorted by relevance.
+ * A minimum of 3 per category is guaranteed even if below threshold.
  */
 export function selectRelevantNodes(
   povNodes: PovNode[],
   scores: Map<string, number>,
-  maxPerCategory: number = 7,
+  threshold: number = 0.3,
+  minPerCategory: number = 3,
 ): PovNode[] {
   // Group by category
   const groups: Record<string, { node: PovNode; score: number }[]> = {
@@ -65,29 +67,40 @@ export function selectRelevantNodes(
     (groups[cat] ?? groups['Methods/Arguments']).push({ node, score });
   }
 
-  // Sort each category by relevance and take top N
+  // For each category: include all above threshold, guarantee minimum
   const result: PovNode[] = [];
   for (const cat of ['Data/Facts', 'Goals/Values', 'Methods/Arguments']) {
     const sorted = groups[cat].sort((a, b) => b.score - a.score);
-    result.push(...sorted.slice(0, maxPerCategory).map(s => s.node));
+    const aboveThreshold = sorted.filter(s => s.score >= threshold);
+    // Take at least minPerCategory, even if below threshold
+    const selected = aboveThreshold.length >= minPerCategory
+      ? aboveThreshold
+      : sorted.slice(0, Math.max(minPerCategory, aboveThreshold.length));
+    result.push(...selected.map(s => s.node));
   }
 
   return result;
 }
 
 /**
- * Select the most relevant cross-cutting nodes.
+ * Select relevant cross-cutting nodes based on similarity threshold.
  */
 export function selectRelevantCCNodes(
   ccNodes: CrossCuttingNode[],
   scores: Map<string, number>,
-  max: number = 10,
+  threshold: number = 0.3,
+  min: number = 3,
 ): CrossCuttingNode[] {
-  return ccNodes
+  const scored = ccNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, max)
-    .map(s => s.node);
+    .sort((a, b) => b.score - a.score);
+
+  const aboveThreshold = scored.filter(s => s.score >= threshold);
+  const selected = aboveThreshold.length >= min
+    ? aboveThreshold
+    : scored.slice(0, Math.max(min, aboveThreshold.length));
+
+  return selected.map(s => s.node);
 }
 
 /**
