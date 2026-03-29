@@ -297,7 +297,7 @@ export function DiagnosticsPanel() {
             )}
             <button className="btn btn-sm" onClick={async () => {
               await window.electronAPI.openDiagnosticsWindow();
-              // Send initial state after a short delay for the window to load
+              useDebateStore.getState().setDiagPopoutOpen(true);
               const debate = useDebateStore.getState().activeDebate;
               const entry = useDebateStore.getState().selectedDiagEntry;
               setTimeout(() => {

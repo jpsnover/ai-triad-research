@@ -1066,10 +1066,19 @@ export function DebateWorkspace() {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
+    diagPopoutOpen, setDiagPopoutOpen,
   } = useDebateStore();
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredClarification = useRef(false);
+
+  // Listen for diagnostics popout window closing
+  useEffect(() => {
+    const unsub = window.electronAPI.onDiagnosticsPopoutClosed(() => {
+      setDiagPopoutOpen(false);
+    });
+    return unsub;
+  }, [setDiagPopoutOpen]);
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
@@ -1348,8 +1357,8 @@ export function DebateWorkspace() {
 
       {isDebatePhase && <DebateActions />}
 
-      {/* Diagnostics panel */}
-      {diagnosticsEnabled && <DiagnosticsPanel />}
+      {/* Diagnostics panel — hidden when popout is open */}
+      {diagnosticsEnabled && !diagPopoutOpen && <DiagnosticsPanel />}
 
       {/* Phase 7: Context menu */}
       {contextMenu && (

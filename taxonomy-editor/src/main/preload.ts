@@ -96,6 +96,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('diagnostics-state-update', listener);
     return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
   },
+  onDiagnosticsPopoutClosed: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('diagnostics-popout-closed', listener);
+    return () => { ipcRenderer.removeListener('diagnostics-popout-closed', listener); };
+  },
   harvestSaveManifest: (manifest: Record<string, unknown>): Promise<{ saved: boolean }> =>
     ipcRenderer.invoke('harvest-save-manifest', manifest),
 

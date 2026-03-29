@@ -213,7 +213,13 @@ app.whenReady().then(() => {
     } else {
       diagWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'diagnostics-window' });
     }
-    diagWindow.on('closed', () => { diagWindow = null; });
+    diagWindow.on('closed', () => {
+      diagWindow = null;
+      // Notify main window that popout closed
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('diagnostics-popout-closed');
+      }
+    });
   });
 
   // Relay diagnostics state from main window to diag window

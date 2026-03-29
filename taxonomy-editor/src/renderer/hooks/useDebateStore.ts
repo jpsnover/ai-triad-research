@@ -540,10 +540,12 @@ interface DebateStore {
   debateModel: string | null; // debate-specific model override (null = use global)
   diagnosticsEnabled: boolean;
   selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
+  diagPopoutOpen: boolean;
 
   // Actions
   toggleDiagnostics: () => void;
   selectDiagEntry: (entryId: string | null) => void;
+  setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string) => Promise<string>;
@@ -605,6 +607,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateModel: null,
   diagnosticsEnabled: false,
   selectedDiagEntry: null,
+  diagPopoutOpen: false,
 
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;
@@ -633,6 +636,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       window.electronAPI.sendDiagnosticsState({ debate, selectedEntry: entryId });
     } catch { /* popout may not exist */ }
   },
+
+  setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
 
   loadSessions: async () => {
     set({ sessionsLoading: true });
