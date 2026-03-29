@@ -193,6 +193,8 @@ async function generateViaGroq(
 
 // ── Main entry point ──
 
+let _lastLoggedModel: string | null = null;
+
 export async function generateContent(
   systemPrompt: string,
   userPrompt: string,
@@ -203,12 +205,21 @@ export async function generateContent(
   const backend = resolveBackend(resolvedModel);
 
   const apiKey = loadApiKey(backend);
+  const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
-  console.log(`[generateContent] Backend: ${backend}, model: ${resolvedModel}`);
+  // Log on first call or model change
+  if (_lastLoggedModel !== resolvedModel) {
+    if (_lastLoggedModel) {
+      console.log(`[AI] Model changed: ${_lastLoggedModel} → ${resolvedModel} | Backend: ${backend} | Key source: ${keySource}`);
+    } else {
+      console.log(`[AI] Backend: ${backend} | Model: ${resolvedModel} | Key source: ${keySource}`);
+    }
+    _lastLoggedModel = resolvedModel;
+  }
 
   switch (backend) {
     case 'claude':

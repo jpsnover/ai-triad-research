@@ -21,6 +21,7 @@ const MANIFEST_DIR = path.join(DATA_ROOT, 'migrations');
 const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) { console.error('GEMINI_API_KEY not set'); process.exit(1); }
 const MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+console.log(`[AI] Backend: gemini | Model: ${MODEL}${process.env.AI_MODEL ? ' ($AI_MODEL)' : ' (default)'} | Key source: $GEMINI_API_KEY`);
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DRY_RUN = process.argv.includes('--dry-run');
 const ONLY_POV = (() => { const i = process.argv.indexOf('--pov'); return i >= 0 ? process.argv[i+1] : null; })();

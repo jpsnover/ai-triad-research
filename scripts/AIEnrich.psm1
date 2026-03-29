@@ -17,6 +17,9 @@
 # Falls back to hardcoded defaults if the file is missing.
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
+$script:LastApiKeySource = ''
+$script:AIApiLoggedThisSession = $false
+$script:AIApiLastModel = ''
 
 $_aiModelsPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ai-models.json'
 if (-not (Test-Path $_aiModelsPath)) {
@@ -71,6 +74,7 @@ function Resolve-AIApiKey {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($ExplicitKey)) {
+        $script:LastApiKeySource = 'explicit parameter'
         return $ExplicitKey
     }
 
@@ -84,15 +88,18 @@ function Resolve-AIApiKey {
     if ($BackendEnvVar) {
         $BackendKey = [System.Environment]::GetEnvironmentVariable($BackendEnvVar)
         if (-not [string]::IsNullOrWhiteSpace($BackendKey)) {
+            $script:LastApiKeySource = "`$env:$BackendEnvVar"
             return $BackendKey
         }
     }
 
     $Fallback = $env:AI_API_KEY
     if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
+        $script:LastApiKeySource = '$env:AI_API_KEY (fallback)'
         return $Fallback
     }
 
+    $script:LastApiKeySource = '(none found)'
     return $null
 }
 
@@ -138,6 +145,19 @@ function Invoke-AIApi {
         Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
         return $null
     }
+
+    # -- Log AI configuration --------------------------------------------------
+    Write-Verbose "[AI] Backend: $Backend | Model: $Model (API: $ApiModelId) | Key source: $($script:LastApiKeySource)"
+    $modelChanged = $script:AIApiLastModel -and ($script:AIApiLastModel -ne $Model)
+    if (-not $script:AIApiLoggedThisSession -or $modelChanged) {
+        if ($modelChanged) {
+            Write-Host "[AI] Model changed: $($script:AIApiLastModel) → $Model | Backend: $Backend | Key source: $($script:LastApiKeySource)" -ForegroundColor Yellow
+        } else {
+            Write-Host "[AI] Backend: $Backend | Model: $Model | Key source: $($script:LastApiKeySource)" -ForegroundColor DarkCyan
+        }
+        $script:AIApiLoggedThisSession = $true
+    }
+    $script:AIApiLastModel = $Model
 
     # -- Build backend-specific request ---------------------------------------
     $Uri         = ''

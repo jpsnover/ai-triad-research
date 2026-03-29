@@ -9,6 +9,7 @@ const DATA_ROOT = path.resolve(__dirname, '..', '..', 'ai-triad-data');
 const TAXONOMY_DIR = path.join(DATA_ROOT, 'taxonomy', 'Origin');
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+console.log(`[AI] Backend: gemini | Model: ${MODEL}${process.env.AI_MODEL ? ' ($AI_MODEL)' : ' (default)'} | Key source: $GEMINI_API_KEY`);
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 async function generateText(prompt) {

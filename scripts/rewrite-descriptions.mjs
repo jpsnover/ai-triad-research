@@ -33,6 +33,8 @@ const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) { console.error('GEMINI_API_KEY not set'); process.exit(1); }
 
 const MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+const KEY_SOURCE = process.env.AI_MODEL ? '$AI_MODEL' : 'default';
+console.log(`[AI] Backend: gemini | Model: ${MODEL} (${KEY_SOURCE}) | Key source: $GEMINI_API_KEY`);
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const args = process.argv.slice(2);
