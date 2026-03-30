@@ -1,4 +1,4 @@
-# Design Spec: Invoke-TriadDebate PowerShell Cmdlet
+# Design Spec: Invoke-AITDebate PowerShell Cmdlet
 
 **Date:** 2026-03-30
 **Status:** Draft — awaiting approval
@@ -54,7 +54,7 @@ taxonomy-editor/src/renderer/
 └── hooks/useDebateStore.ts          ← uses debateEngine + Zustand for UI state
 
 scripts/AITriad/Public/
-└── Invoke-TriadDebate.ps1           ← cmdlet that calls node lib/debate/cli.mjs
+└── Invoke-AITDebate.ps1           ← cmdlet that calls node lib/debate/cli.mjs
 ```
 
 ### What Gets Extracted vs. What Stays
@@ -93,12 +93,12 @@ interface AIAdapter {
 
 ---
 
-## 3. Cmdlet Design: Invoke-TriadDebate
+## 3. Cmdlet Design: Invoke-AITDebate
 
 ### Synopsis
 
 ```powershell
-Invoke-TriadDebate
+Invoke-AITDebate
     [-Topic] <string>
     [-DocumentPath <string>]
     [-Url <string>]
@@ -349,10 +349,10 @@ The standalone tool:
 
 ### Phase L3: Build PowerShell Cmdlet
 
-**Goal:** `Invoke-TriadDebate` cmdlet that wraps the CLI runner.
+**Goal:** `Invoke-AITDebate` cmdlet that wraps the CLI runner.
 
 **Steps:**
-1. Create `Invoke-TriadDebate.ps1` in `Public/`
+1. Create `Invoke-AITDebate.ps1` in `Public/`
 2. Parameter validation and help documentation
 3. Call `node lib/debate/cli.mjs` with JSON-serialized parameters
 4. Parse output and return PSCustomObject
@@ -384,13 +384,13 @@ The standalone tool:
 ### Basic debate
 
 ```powershell
-Invoke-TriadDebate -Topic "Should the US impose AI licensing?" -Turns 3
+Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Turns 3
 ```
 
 ### Full-featured debate
 
 ```powershell
-$result = Invoke-TriadDebate `
+$result = Invoke-AITDebate `
     -Topic "The burden of proof rests on those claiming current architectures will scale to AGI" `
     -Debaters Prometheus,Sentinel,Cassandra `
     -Protocol structured `
@@ -417,7 +417,7 @@ Show-DebateHarvest -Path $result.HarvestFile
 ### Document-grounded debate
 
 ```powershell
-Invoke-TriadDebate `
+Invoke-AITDebate `
     -DocumentPath '../ai-triad-data/sources/ai-safety-is-category-error-2026/snapshot.md' `
     -Turns 4 `
     -OutputFormat pdf `
@@ -430,7 +430,7 @@ Invoke-TriadDebate `
 # Run all 20 curated topics
 $topics = node -e "const t = require('./lib/debate/topics.mjs'); t.DEBATE_TOPICS.forEach(t => console.log(t.proposition))"
 $topics | ForEach-Object {
-    Invoke-TriadDebate -Topic $_ -Turns 3 -OutputFormat pdf -OutputPath "./debates/batch-$($_.GetHashCode())"
+    Invoke-AITDebate -Topic $_ -Turns 3 -OutputFormat pdf -OutputPath "./debates/batch-$($_.GetHashCode())"
 }
 ```
 
