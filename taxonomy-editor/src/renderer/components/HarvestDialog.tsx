@@ -26,9 +26,10 @@ import type {
 
 interface HarvestDialogProps {
   onClose: () => void;
+  fileData?: Record<string, unknown>;
 }
 
-export function HarvestDialog({ onClose }: HarvestDialogProps) {
+export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   const { activeDebate } = useDebateStore();
   const taxState = useTaxonomyStore.getState();
 
@@ -58,13 +59,20 @@ export function HarvestDialog({ onClose }: HarvestDialogProps) {
   for (const n of taxState.crossCutting?.nodes || []) allNodeIds.add(n.id);
 
   useEffect(() => {
+    if (fileData) {
+      // File mode — use pre-computed harvest data directly
+      setConflicts((fileData.conflicts as HarvestConflictItem[]) || []);
+      setSteelmans((fileData.steelmans as HarvestSteelmanItem[]) || []);
+      setVerdicts((fileData.verdicts as HarvestVerdictItem[]) || []);
+      setConcepts((fileData.concepts as HarvestConceptItem[]) || []);
+      return;
+    }
     if (!activeDebate) return;
     setConflicts(extractConflictCandidates(activeDebate));
     setSteelmans(extractSteelmanCandidates(activeDebate, getNodeLabel));
-    setDebateRefs(extractDebateRefCandidates(activeDebate, getNodeLabel));
     setVerdicts(extractVerdictCandidates(activeDebate));
     setConcepts(extractConceptCandidates(activeDebate, allNodeIds));
-  }, [activeDebate?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeDebate?.id, fileData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fill in current steelman text from taxonomy store
   useEffect(() => {
