@@ -30,6 +30,16 @@ function Show-DebateHarvest {
 
     # Launch the taxonomy editor in harvest-file mode
     $TaxEditorDir = Join-Path $script:ModuleRoot '..' '..' 'taxonomy-editor'
+
+    # Ensure production build exists
+    $RendererIndex = Join-Path $TaxEditorDir 'dist' 'renderer' 'index.html'
+    if (-not (Test-Path $RendererIndex)) {
+        Write-Host "[harvest] Building taxonomy editor (first time only)..." -ForegroundColor Yellow
+        Push-Location $TaxEditorDir
+        npm run build 2>&1 | ForEach-Object { Write-Verbose $_ }
+        Pop-Location
+    }
+
     $Electron = Join-Path $TaxEditorDir 'node_modules' '.bin' 'electron'
 
     if (-not (Test-Path $Electron)) {

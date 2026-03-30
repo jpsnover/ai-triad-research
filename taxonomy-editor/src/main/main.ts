@@ -108,13 +108,15 @@ function createWindow(): void {
     },
   });
 
-  const isDev = !app.isPackaged;
+  // Use production build if launched with CLI file args (viewer mode) or if packaged
+  const hasFileArg = process.argv.some(a => a.startsWith('--diagnostics-file=') || a.startsWith('--harvest-file='));
+  const isDev = !app.isPackaged && !hasFileArg;
   if (isDev) {
     console.log('[main] Loading dev URL: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
   } else {
     const filePath = path.join(__dirname, '../renderer/index.html');
-    console.log('[main] Loading file:', filePath);
+    console.log('[main] Loading production build:', filePath);
     mainWindow.loadFile(filePath);
   }
 
