@@ -26,11 +26,18 @@ function FileViewerApp() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[FileViewer] Requesting CLI file arg...');
     window.electronAPI.getCliFileArg().then((arg) => {
+      console.log('[FileViewer] Got CLI arg:', arg ? { type: arg.type, path: arg.path, hasData: !!arg.data, dataKeys: arg.data ? Object.keys(arg.data as Record<string, unknown>) : [] } : null);
       setFileArg(arg as { type: string; path: string; data?: unknown; error?: string } | null);
+      setLoading(false);
+    }).catch(err => {
+      console.error('[FileViewer] getCliFileArg failed:', err);
       setLoading(false);
     });
   }, []);
+
+  console.log('[FileViewer] Render — loading:', loading, 'fileArg:', fileArg?.type, 'hasData:', !!fileArg?.data);
 
   if (loading) return <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading file...</div>;
 
@@ -43,16 +50,32 @@ function FileViewerApp() {
   }
 
   if (fileArg?.type === 'harvest' && fileArg.data) {
+    const harvestData = fileArg.data as Record<string, unknown>;
+    console.log('[FileViewer] Rendering harvest with data:', {
+      conflicts: (harvestData.conflicts as unknown[])?.length ?? 0,
+      steelmans: (harvestData.steelmans as unknown[])?.length ?? 0,
+      verdicts: (harvestData.verdicts as unknown[])?.length ?? 0,
+      concepts: (harvestData.concepts as unknown[])?.length ?? 0,
+    });
     return (
       <div style={{ padding: 20 }}>
         <h2 style={{ color: '#f59e0b' }}>Harvest Review</h2>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>File: {fileArg.path}</p>
-        <HarvestDialog onClose={() => window.close()} fileData={fileArg.data as Record<string, unknown>} />
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Items: {(harvestData.conflicts as unknown[])?.length ?? 0} conflicts,
+          {' '}{(harvestData.steelmans as unknown[])?.length ?? 0} steelmans,
+          {' '}{(harvestData.verdicts as unknown[])?.length ?? 0} verdicts,
+          {' '}{(harvestData.concepts as unknown[])?.length ?? 0} concepts
+        </p>
+        <HarvestDialog onClose={() => window.close()} fileData={harvestData} />
       </div>
     );
   }
 
-  return <div style={{ padding: 20, color: 'var(--text-muted)' }}>No file data found.</div>;
+  return <div style={{ padding: 20, color: 'var(--text-muted)' }}>
+    No file data found.
+    <pre style={{ fontSize: '0.7rem', marginTop: 8 }}>{JSON.stringify(fileArg, null, 2)}</pre>
+  </div>;
 }
 
 export function App() {

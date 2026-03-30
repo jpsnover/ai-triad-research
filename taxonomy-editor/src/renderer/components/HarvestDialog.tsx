@@ -58,13 +58,22 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   }
   for (const n of taxState.crossCutting?.nodes || []) allNodeIds.add(n.id);
 
+  console.log('[HarvestDialog] Render — fileData:', !!fileData, 'activeDebate:', !!activeDebate,
+    'conflicts:', conflicts.length, 'steelmans:', steelmans.length, 'verdicts:', verdicts.length, 'concepts:', concepts.length);
+
   useEffect(() => {
+    console.log('[HarvestDialog] useEffect — fileData:', !!fileData, 'activeDebate id:', activeDebate?.id);
     if (fileData) {
       // File mode — use pre-computed harvest data directly
-      setConflicts((fileData.conflicts as HarvestConflictItem[]) || []);
-      setSteelmans((fileData.steelmans as HarvestSteelmanItem[]) || []);
-      setVerdicts((fileData.verdicts as HarvestVerdictItem[]) || []);
-      setConcepts((fileData.concepts as HarvestConceptItem[]) || []);
+      const fc = (fileData.conflicts as HarvestConflictItem[]) || [];
+      const fs = (fileData.steelmans as HarvestSteelmanItem[]) || [];
+      const fv = (fileData.verdicts as HarvestVerdictItem[]) || [];
+      const fn = (fileData.concepts as HarvestConceptItem[]) || [];
+      console.log('[HarvestDialog] File mode — setting:', fc.length, 'conflicts,', fs.length, 'steelmans,', fv.length, 'verdicts,', fn.length, 'concepts');
+      setConflicts(fc);
+      setSteelmans(fs);
+      setVerdicts(fv);
+      setConcepts(fn);
       return;
     }
     if (!activeDebate) return;
@@ -388,11 +397,14 @@ Return ONLY JSON (no markdown):
     steelmans.some(s => s.checked && !s.proposedSteelman) ||
     concepts.some(c => c.checked && !c.suggestedLabel);
 
-  if (!activeDebate) return null;
+  if (!activeDebate && !fileData) return null;
+
+  // In file mode, render without the overlay
+  const isFileMode = !!fileData;
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog harvest-dialog" onClick={e => e.stopPropagation()}>
+    <div className={isFileMode ? '' : 'dialog-overlay'} onClick={isFileMode ? undefined : onClose}>
+      <div className={isFileMode ? 'harvest-dialog' : 'dialog harvest-dialog'} onClick={e => e.stopPropagation()}>
         <h2>Harvest Debate Findings</h2>
         <p className="harvest-subtitle">Select findings to promote into the taxonomy. Review and edit before applying.</p>
 
