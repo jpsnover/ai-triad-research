@@ -139,6 +139,7 @@ function Convert-MD2PDF {
                     }
                     else {
                         # Direct pandoc → PDF via engine
+                        $TexHeader = $null
                         $PandocArgs = @(
                             $SourcePath
                             '-o', $PdfPath
@@ -176,7 +177,7 @@ function Convert-MD2PDF {
                             if ($_ -is [System.Management.Automation.ErrorRecord]) { Write-Warning "pandoc: $_" }
                         }
                         # Clean up temp header file
-                        if ($TexHeader -and (Test-Path $TexHeader)) { Remove-Item $TexHeader -ErrorAction SilentlyContinue }
+                        if ($null -ne $TexHeader -and (Test-Path $TexHeader)) { Remove-Item $TexHeader -ErrorAction SilentlyContinue }
                     }
 
                     if (Test-Path $PdfPath) {
