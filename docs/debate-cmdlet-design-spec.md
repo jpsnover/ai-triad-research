@@ -103,19 +103,18 @@ Invoke-TriadDebate
     [-DocumentPath <string>]
     [-Url <string>]
     [-CrossCuttingNodeId <string>]
-    [-Debaters <string[]>]         # Default: @('Prometheus','Sentinel','Cassandra')
-    [-Protocol <string>]           # Default: 'structured'
+    [-Debaters <string[]>]         # Default: @('Prometheus','Sentinel','Cassandra'). Min 2.
+    [-Protocol <string>]           # Default: 'structured'. Options: 'structured', 'socratic', 'deliberation'
     [-Model <string>]              # Default: $env:AI_MODEL or 'gemini-2.5-flash'
     [-ApiKey <string>]
     [-Turns <int>]                 # Default: 3 (cross-respond rounds after openings)
     [-ProbeEvery <int>]            # Default: 0 (disabled). E.g., 2 = probe after every 2 turns
     [-ResponseLength <string>]     # 'brief', 'medium', 'detailed'. Default: 'medium'
-    [-OutputFormat <string[]>]     # Default: @('json'). Options: 'json', 'markdown', 'pdf'
+    [-OutputFormat <string>]       # Default: 'pdf'. Options: 'json', 'markdown', 'pdf'
     [-OutputPath <string>]         # Default: './debates/'
     [-DiagnosticsPath <string>]    # Default: null (no diagnostics file). Path for diagnostics JSON.
     [-HarvestPath <string>]        # Default: null (no harvest file). Path for harvest output JSON.
-    [-ClarificationAnswers <string>]  # Pre-supplied answers to clarification questions (skip interactive)
-    [-SkipClarification]           # Skip clarification phase entirely
+    [-Clarify]                     # If specified, run clarification phase (automated, not interactive)
     [-Temperature <double>]        # Default: 0.3
     [-Verbose]
 ```
@@ -135,12 +134,11 @@ Invoke-TriadDebate
 
 **Flow Control:**
 - `-Turns 5` — 5 cross-respond rounds after opening statements
-- `-ProbeEvery 2` — moderator generates probing questions after every 2 cross-respond rounds. The top probing question (highest-threat) is automatically injected as the next question, directed at the targeted debater.
-- `-SkipClarification` — jump straight to opening statements
-- `-ClarificationAnswers "Focus on the economic impact"` — provide answers upfront instead of interactively
+- `-ProbeEvery 2` — moderator generates probing questions after every 2 cross-respond rounds. The top probing question (highest-threat) is automatically injected as the next question, directed at the targeted debater(s). Those debaters respond before the next cross-respond round.
+- `-Clarify` — run the clarification phase. Moderator generates questions and the AI auto-generates answers based on the topic context (no user interaction). If omitted, skip straight to openings.
 
 **Output:**
-- `-OutputFormat json,markdown` — produce both formats
+- `-OutputFormat pdf` — default. Options: `json`, `markdown`, `pdf`
 - `-OutputPath ./debates/my-debate` — base path for output files (adds extensions)
 - `-DiagnosticsPath ./debates/my-debate-diag.json` — full diagnostics capture
 - `-HarvestPath ./debates/my-debate-harvest.json` — harvest candidates for visual review
@@ -151,11 +149,10 @@ Invoke-TriadDebate
 1. Load taxonomy (all 4 POV files + edges + policy registry)
 2. If -DocumentPath or -Url: load/fetch source content
 3. If -CrossCuttingNodeId: load CC node + linked nodes + conflicts
-4. CLARIFICATION PHASE (unless -SkipClarification):
+4. CLARIFICATION PHASE (only if -Clarify specified):
    a. Moderator generates 1-3 clarifying questions
-   b. If -ClarificationAnswers provided: use them
-   c. Else: print questions, prompt user for input (Read-Host)
-   d. Synthesize refined topic from answers
+   b. AI auto-generates contextual answers (no user interaction)
+   c. Synthesize refined topic from answers
 5. OPENING STATEMENTS:
    a. For each debater (in order):
       - Compute relevance-filtered taxonomy context
@@ -310,7 +307,13 @@ The harvest file contains the same structure as the HarvestDialog's state:
 }
 ```
 
-`Show-DebateHarvest` opens the Taxonomy Editor with the harvest file pre-loaded into the HarvestDialog, allowing the user to review, edit, and apply harvest items to the taxonomy.
+`Show-DebateHarvest` opens a standalone harvest review tool. The tool's core (harvest extraction, validation, conflict creation, steelman update, verdict application) is shared with the Taxonomy Editor via the `lib/debate/` common library. The UI components (HarvestDialog rendering, IPC handlers) are shared via a common component library that both the standalone tool and the Taxonomy Editor import.
+
+The standalone tool:
+- Reads the harvest JSON file
+- Displays the same HarvestDialog UI (conflicts, steelmans, verdicts, concepts)
+- Allows review, editing, and application to taxonomy data
+- Does NOT require the full Taxonomy Editor to be running
 
 ---
 
@@ -362,11 +365,15 @@ The harvest file contains the same structure as the HarvestDialog's state:
 **Goal:** `Show-DebateDiagnostics` and `Show-DebateHarvest` cmdlets.
 
 **Steps:**
-1. `Show-DebateDiagnostics` launches Electron with `#diagnostics-file?path=...`
-2. `Show-DebateHarvest` launches Electron with `#harvest-file?path=...`
-3. Add hash-based routing in `App.tsx` for these modes
-4. DiagnosticsWindow reads from file instead of IPC when in file mode
-5. HarvestDialog reads from file instead of active debate when in file mode
+1. `Show-DebateDiagnostics` launches the Taxonomy Editor's diagnostics popout with `#diagnostics-file?path=...` — reuses existing DiagnosticsWindow component in file-read mode
+2. `Show-DebateHarvest` launches a **standalone Electron app** for harvest review:
+   - Shares core harvest logic via `lib/debate/harvestUtils`
+   - Shares UI components (HarvestDialog) via a common component library imported by both taxonomy-editor and the standalone tool
+   - Reads the harvest JSON file
+   - Connects to the taxonomy data repo for applying changes
+   - Does NOT require the full Taxonomy Editor
+3. Add hash-based routing in taxonomy-editor `App.tsx` for diagnostics file mode
+4. DiagnosticsWindow detects file path in hash and reads from disk instead of IPC
 
 **Validation:** Run a debate via cmdlet, then view diagnostics and harvest via the viewer cmdlets.
 
@@ -391,11 +398,11 @@ $result = Invoke-TriadDebate `
     -Turns 5 `
     -ProbeEvery 2 `
     -ResponseLength medium `
-    -OutputFormat json,markdown `
+    -Clarify `
+    -OutputFormat json `
     -OutputPath './debates/burden-of-proof' `
     -DiagnosticsPath './debates/burden-of-proof-diag.json' `
-    -HarvestPath './debates/burden-of-proof-harvest.json' `
-    -SkipClarification
+    -HarvestPath './debates/burden-of-proof-harvest.json'
 
 # Review results
 $result | Format-List
@@ -413,7 +420,7 @@ Show-DebateHarvest -Path $result.HarvestFile
 Invoke-TriadDebate `
     -DocumentPath '../ai-triad-data/sources/ai-safety-is-category-error-2026/snapshot.md' `
     -Turns 4 `
-    -OutputFormat markdown `
+    -OutputFormat pdf `
     -OutputPath './debates/category-error'
 ```
 
@@ -423,15 +430,28 @@ Invoke-TriadDebate `
 # Run all 20 curated topics
 $topics = node -e "const t = require('./lib/debate/topics.mjs'); t.DEBATE_TOPICS.forEach(t => console.log(t.proposition))"
 $topics | ForEach-Object {
-    Invoke-TriadDebate -Topic $_ -Turns 3 -OutputFormat json -OutputPath "./debates/batch-$($_.GetHashCode())"
+    Invoke-TriadDebate -Topic $_ -Turns 3 -OutputFormat pdf -OutputPath "./debates/batch-$($_.GetHashCode())"
 }
 ```
 
 ---
 
-## 6. Open Questions
+## 6. Design Decisions (Resolved)
+
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Architecture | Extract shared logic into `lib/debate/` common library |
+| 2 | Topic source types | All 4: topic string, document path, URL, cross-cutting node ID |
+| 3 | AI model selection | Default to `$env:AI_MODEL`, allow `-Model` override |
+| 4 | Debater selection | `-Debaters` parameter specifies which POVers participate (min 2) |
+| 5 | Diagnostics format | JSON structure; reuse existing diagnostics viewer tool |
+| 6 | Harvest tool | New standalone tool whose core is shared with taxonomy editor (common codebase) |
+| 7 | Output format | Default to PDF; specifiable via `-OutputFormat` (json, markdown, pdf) |
+| 8 | Clarification | `-Clarify` switch. If specified, moderator asks clarifying questions (automated — AI generates answers based on topic context). If not specified, skip clarification. |
+| 9 | Probing questions | Injected into the debate — targeted debaters respond to them |
+| 10 | User intervention | Fully automated — no interactive prompts |
+
+## 7. Open Questions
 
 1. **PDF generation:** Should we use a Node.js library (e.g., `md-to-pdf`) or shell out to `pandoc`?
 2. **Embedding computation for relevance scoring:** The CLI needs Python's `sentence_transformers` or the Gemini embedding API. Which should the CLI adapter use?
-3. **Interactive clarification:** Should `Read-Host` be the fallback, or should the cmdlet always require `-ClarificationAnswers` or `-SkipClarification`?
-4. **Concurrent debates:** Should the cmdlet support `-MaxConcurrent` for batch runs?
