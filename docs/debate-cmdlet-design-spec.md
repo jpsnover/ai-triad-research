@@ -451,7 +451,9 @@ $topics | ForEach-Object {
 | 9 | Probing questions | Injected into the debate — targeted debaters respond to them |
 | 10 | User intervention | Fully automated — no interactive prompts |
 
-## 7. Open Questions
+## 7. Resolved Technical Choices
 
-1. **PDF generation:** Should we use a Node.js library (e.g., `md-to-pdf`) or shell out to `pandoc`?
-2. **Embedding computation for relevance scoring:** The CLI needs Python's `sentence_transformers` or the Gemini embedding API. Which should the CLI adapter use?
+| Choice | Decision | Rationale |
+|--------|----------|-----------|
+| PDF generation | **pandoc** (with LaTeX) | Professional typesetting, ToC, headers/footers. Requires `brew install pandoc` + LaTeX. |
+| Embedding computation | **Python sentence_transformers** | Produces vectors identical to `embeddings.json` (same `all-MiniLM-L6-v2` model). Direct comparison with stored node embeddings. Already a project dependency. |
