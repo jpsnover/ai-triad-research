@@ -185,6 +185,24 @@ app.whenReady().then(() => {
   registerTerminalHandlers(() => mainWindow);
   registerWindowHandlers();
   startFocusServer();
+
+  // Check for file-viewer command line args
+  const diagFileArg = process.argv.find(a => a.startsWith('--diagnostics-file='));
+  const harvestFileArg = process.argv.find(a => a.startsWith('--harvest-file='));
+
+  if (diagFileArg) {
+    const filePath = diagFileArg.split('=')[1];
+    console.log('[main] Opening diagnostics file:', filePath);
+    // Store for the renderer to read via IPC
+    ipcMain.handle('get-cli-file-arg', () => ({ type: 'diagnostics', path: filePath }));
+  } else if (harvestFileArg) {
+    const filePath = harvestFileArg.split('=')[1];
+    console.log('[main] Opening harvest file:', filePath);
+    ipcMain.handle('get-cli-file-arg', () => ({ type: 'harvest', path: filePath }));
+  } else {
+    ipcMain.handle('get-cli-file-arg', () => null);
+  }
+
   createWindow();
 
   // Diagnostics popout window

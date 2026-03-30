@@ -13,6 +13,7 @@ import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
+import { HarvestDialog } from './components/HarvestDialog';
 
 interface DataUpdateInfo {
   available: boolean;
@@ -20,11 +21,61 @@ interface DataUpdateInfo {
   error?: string;
 }
 
+function FileViewerApp() {
+  const [fileArg, setFileArg] = useState<{ type: string; path: string } | null>(null);
+  const [fileData, setFileData] = useState<unknown>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.electronAPI.getCliFileArg().then(async (arg) => {
+      if (!arg) { setLoading(false); return; }
+      setFileArg(arg);
+      try {
+        // Read the file via Node.js fs (exposed through a simple IPC or fetch)
+        const response = await fetch(`file://${arg.path}`);
+        const data = await response.json();
+        setFileData(data);
+      } catch (err) {
+        console.error('Failed to load file:', err);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading file...</div>;
+
+  if (fileArg?.type === 'diagnostics' && fileData) {
+    // Pass the file data as a debate session to DiagnosticsWindow
+    return <DiagnosticsWindow initialData={fileData as Record<string, unknown>} />;
+  }
+
+  if (fileArg?.type === 'harvest' && fileData) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h2 style={{ color: '#f59e0b' }}>Harvest Review</h2>
+        <p>Harvest file loaded: {fileArg.path}</p>
+        <HarvestDialog onClose={() => window.close()} fileData={fileData as Record<string, unknown>} />
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export function App() {
   // If this window was opened as a diagnostics popout, render only that
   if (window.location.hash === '#diagnostics-window') {
     return <DiagnosticsWindow />;
   }
+
+  // If launched with --diagnostics-file or --harvest-file, render file viewer
+  const [cliMode, setCliMode] = useState<boolean | null>(null);
+  useEffect(() => {
+    window.electronAPI.getCliFileArg().then(arg => setCliMode(!!arg));
+  }, []);
+  if (cliMode === null) return null; // loading
+  if (cliMode) return <FileViewerApp />;
+
   const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);

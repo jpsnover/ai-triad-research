@@ -70,8 +70,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateText: (prompt: string, model?: string): Promise<{ text: string }> =>
-    ipcRenderer.invoke('generate-text', prompt, model),
+  generateText: (prompt: string, model?: string, timeoutMs?: number): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs),
 
   generateTextWithSearch: (prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> =>
     ipcRenderer.invoke('generate-text-with-search', prompt, model),
@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('diagnostics-state-update', listener);
     return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
   },
+  getCliFileArg: (): Promise<{ type: string; path: string } | null> =>
+    ipcRenderer.invoke('get-cli-file-arg'),
   onDiagnosticsPopoutClosed: (callback: () => void) => {
     const listener = () => callback();
     ipcRenderer.on('diagnostics-popout-closed', listener);

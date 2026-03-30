@@ -215,6 +215,10 @@ Export-ModuleMember -Function @(
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'
     'Invoke-PolicyRefinement'
+    'Repair-UnmappedConcepts'
+    'Invoke-AITDebate'
+    'Show-DebateDiagnostics'
+    'Show-DebateHarvest'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
