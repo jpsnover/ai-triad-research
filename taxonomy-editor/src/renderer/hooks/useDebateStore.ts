@@ -34,23 +34,29 @@ import {
   factCheckPrompt,
   contextCompressionPrompt,
 } from '../prompts/debate';
-
-function generateId(): string {
-  return crypto.randomUUID();
-}
-
-function nowISO(): string {
-  return new Date().toISOString();
-}
+import {
+  generateId,
+  nowISO,
+  stripCodeFences,
+  parseAtMention,
+  formatRecentTranscript,
+  parsePoverResponse,
+} from '@lib/debate/helpers';
+import type { PoverResponseMeta } from '@lib/debate/helpers';
 
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
 function getConfiguredModel(): string {
   // Check debate-specific model first
   const debateModel = useDebateStore.getState().debateModel;
-  if (debateModel) return debateModel;
+  if (debateModel) {
+    console.log(`[model] Using debate-specific model: ${debateModel}`);
+    return debateModel;
+  }
   try {
-    return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+    const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+    console.log(`[model] Using global model: ${globalModel}`);
+    return globalModel;
   } catch {
     return 'gemini-3.1-flash-lite-preview';
   }
@@ -92,11 +98,6 @@ function createDebateGuard(get: () => { activeDebateId: string | null }): () => 
     }
     return true;
   };
-}
-
-/** Strip markdown code fences from LLM responses */
-function stripCodeFences(text: string): string {
-  return text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
 }
 
 const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
@@ -594,108 +595,6 @@ function buildContextCompressionPrompt(
   entries: string,
 ): string {
   return contextCompressionPrompt(entries);
-}
-
-/** Parse @-mentions from user input. Returns { target, cleanedInput } */
-function parseAtMention(input: string): { targets: PoverId[]; cleanedInput: string } {
-  const mentionMap: Record<string, PoverId> = {
-    prometheus: 'prometheus',
-    sentinel: 'sentinel',
-    cassandra: 'cassandra',
-  };
-
-  const targets: PoverId[] = [];
-  let remaining = input;
-
-  // Extract all leading @mentions
-  while (true) {
-    const match = remaining.match(/^@(\w+)[,:]?\s*/i);
-    if (!match) break;
-    const name = match[1].toLowerCase();
-    const target = mentionMap[name];
-    if (target && !targets.includes(target)) {
-      targets.push(target);
-      remaining = remaining.slice(match[0].length);
-    } else {
-      break;
-    }
-  }
-
-  return { targets, cleanedInput: remaining };
-}
-
-/** Format recent transcript entries for inclusion in prompts.
- *  When context summaries exist, prepends the latest summary for compressed history. */
-function formatRecentTranscript(
-  transcript: TranscriptEntry[],
-  maxEntries: number = 8,
-  contextSummaries?: { up_to_entry_id: string; summary: string }[],
-): string {
-  const recent = transcript.filter((e) => e.type !== 'system').slice(-maxEntries);
-  if (recent.length === 0) return '(No prior exchanges)';
-
-  const parts: string[] = [];
-
-  // Prepend the latest context summary if available
-  if (contextSummaries && contextSummaries.length > 0) {
-    const latest = contextSummaries[contextSummaries.length - 1];
-    parts.push(`[Earlier debate summary]: ${latest.summary}`);
-  }
-
-  for (const e of recent) {
-    const label = e.speaker === 'user' ? 'Moderator'
-      : e.speaker === 'system' ? 'System'
-      : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
-    const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
-    parts.push(`${label}${typeTag}: ${e.content}`);
-  }
-
-  return parts.join('\n\n');
-}
-
-/** Extended metadata from enriched debate prompts */
-interface PoverResponseMeta {
-  move_types?: string[];
-  disagreement_type?: string;
-  key_assumptions?: { assumption: string; if_wrong: string }[];
-  my_claims?: { claim: string; targets: string[] }[];
-  policy_refs?: string[];
-}
-
-/** Parse a POVer response JSON from the LLM */
-function parsePoverResponse(text: string): { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta } {
-  let statement: string;
-  let taxonomyRefs: TaxonomyRef[] = [];
-  let meta: PoverResponseMeta = {};
-
-  try {
-    const parsed = JSON.parse(stripCodeFences(text));
-    statement = parsed.statement || text.trim();
-    if (Array.isArray(parsed.taxonomy_refs)) {
-      taxonomyRefs = parsed.taxonomy_refs
-        .filter((r: Record<string, unknown>) => r.node_id && typeof r.node_id === 'string')
-        .map((r: Record<string, unknown>) => ({
-          node_id: r.node_id as string,
-          relevance: (r.relevance as string) || '',
-        }));
-    }
-    // Capture enriched debate metadata
-    meta = {
-      move_types: Array.isArray(parsed.move_types) ? parsed.move_types : undefined,
-      disagreement_type: typeof parsed.disagreement_type === 'string' ? parsed.disagreement_type : undefined,
-      key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
-      my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims.filter(
-        (c: Record<string, unknown>) => typeof c.claim === 'string' && Array.isArray(c.targets),
-      ) : undefined,
-      policy_refs: Array.isArray(parsed.policy_refs) ? parsed.policy_refs.filter(
-        (r: unknown) => typeof r === 'string',
-      ) : undefined,
-    };
-  } catch {
-    statement = text.trim();
-  }
-
-  return { statement, taxonomyRefs, meta };
 }
 
 // ── Store interface ──────────────────────────────────────

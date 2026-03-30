@@ -95,7 +95,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
     const povers = Array.from(selected);
     if (userIsPover && !povers.includes('user')) povers.push('user');
-    const debateModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
+    const debateModelOverride = useCustomModel ? customModel : undefined;
     const id = await createDebate(
       finalTopic,
       povers,
