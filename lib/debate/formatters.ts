@@ -121,7 +121,8 @@ export function formatDebateMarkdown(session: DebateSession): string {
       }
 
       if (focusPoint) {
-        lines.push(`*Focus:* ${focusPoint}`);
+        lines.push(`\\textcolor{NavyBlue}{\\textit{Focus: ${focusPoint.replace(/[\\{}]/g, '\\$&')}}}`);
+        lines.push('');
       }
       lines.push('');
       lines.push(entry.content);
@@ -169,10 +170,10 @@ export function formatDebateMarkdown(session: DebateSession): string {
           lines.push(`- **${d.point}**${typeTag}${bdiTag}`);
           for (const pos of d.positions ?? []) {
             const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label ?? pos.pover;
-            lines.push(`    - **${label}:** ${pos.stance}`);
+            lines.push(`  - **${label}:** ${pos.stance}`);
           }
           if (d.resolvability) {
-            lines.push(`    - *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
+            lines.push(`  - *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
           }
         }
         lines.push('');
@@ -185,8 +186,8 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('');
         for (const c of cruxes) {
           lines.push(`- ${c.question}${c.type ? ` [${c.type}]` : ''}`);
-          if (c.if_yes) lines.push(`    - If yes: ${c.if_yes}`);
-          if (c.if_no) lines.push(`    - If no: ${c.if_no}`);
+          if (c.if_yes) lines.push(`  - If yes: ${c.if_yes}`);
+          if (c.if_no) lines.push(`  - If no: ${c.if_no}`);
         }
         lines.push('');
       }
@@ -211,9 +212,9 @@ export function formatDebateMarkdown(session: DebateSession): string {
           } else {
             lines.push(`- **${p.conflict}** — Stronger: ${p.prevails} (${p.criterion?.replace(/_/g, ' ')})`);
           }
-          lines.push(`    - *${p.rationale}*`);
+          lines.push(`  - *${p.rationale}*`);
           if (p.what_would_change_this) {
-            lines.push(`    - Would change if: ${p.what_would_change_this}`);
+            lines.push(`  - Would change if: ${p.what_would_change_this}`);
           }
         }
         lines.push('');
