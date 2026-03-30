@@ -38,7 +38,10 @@ function Convert-MD2PDF {
         [string]$Margin = '0.75in',
 
         [Parameter()]
-        [switch]$TableOfContents
+        [switch]$TableOfContents,
+
+        [Parameter()]
+        [switch]$Show
     )
 
     begin {
@@ -185,6 +188,11 @@ function Convert-MD2PDF {
                         }
                         $Converted.Add($Result)
                         Write-Verbose "Created: $PdfPath ($([math]::Round($PdfItem.Length / 1024))KB)"
+                        if ($Show) {
+                            if ($IsMacOS)       { & open $PdfPath }
+                            elseif ($IsWindows) { & start $PdfPath }
+                            else                { & xdg-open $PdfPath }
+                        }
                         $Result
                     }
                     else {
