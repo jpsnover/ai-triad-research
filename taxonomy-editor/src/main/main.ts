@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
@@ -193,12 +194,27 @@ app.whenReady().then(() => {
   if (diagFileArg) {
     const filePath = diagFileArg.split('=')[1];
     console.log('[main] Opening diagnostics file:', filePath);
-    // Store for the renderer to read via IPC
-    ipcMain.handle('get-cli-file-arg', () => ({ type: 'diagnostics', path: filePath }));
+    ipcMain.handle('get-cli-file-arg', () => {
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return { type: 'diagnostics', path: filePath, data: JSON.parse(content) };
+      } catch (err) {
+        console.error('[main] Failed to read diagnostics file:', err);
+        return { type: 'diagnostics', path: filePath, data: null, error: String(err) };
+      }
+    });
   } else if (harvestFileArg) {
     const filePath = harvestFileArg.split('=')[1];
     console.log('[main] Opening harvest file:', filePath);
-    ipcMain.handle('get-cli-file-arg', () => ({ type: 'harvest', path: filePath }));
+    ipcMain.handle('get-cli-file-arg', () => {
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return { type: 'harvest', path: filePath, data: JSON.parse(content) };
+      } catch (err) {
+        console.error('[main] Failed to read harvest file:', err);
+        return { type: 'harvest', path: filePath, data: null, error: String(err) };
+      }
+    });
   } else {
     ipcMain.handle('get-cli-file-arg', () => null);
   }

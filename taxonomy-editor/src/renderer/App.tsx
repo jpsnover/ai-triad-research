@@ -22,44 +22,37 @@ interface DataUpdateInfo {
 }
 
 function FileViewerApp() {
-  const [fileArg, setFileArg] = useState<{ type: string; path: string } | null>(null);
-  const [fileData, setFileData] = useState<unknown>(null);
+  const [fileArg, setFileArg] = useState<{ type: string; path: string; data?: unknown; error?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    window.electronAPI.getCliFileArg().then(async (arg) => {
-      if (!arg) { setLoading(false); return; }
-      setFileArg(arg);
-      try {
-        // Read the file via Node.js fs (exposed through a simple IPC or fetch)
-        const response = await fetch(`file://${arg.path}`);
-        const data = await response.json();
-        setFileData(data);
-      } catch (err) {
-        console.error('Failed to load file:', err);
-      }
+    window.electronAPI.getCliFileArg().then((arg) => {
+      setFileArg(arg as { type: string; path: string; data?: unknown; error?: string } | null);
       setLoading(false);
     });
   }, []);
 
   if (loading) return <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading file...</div>;
 
-  if (fileArg?.type === 'diagnostics' && fileData) {
-    // Pass the file data as a debate session to DiagnosticsWindow
-    return <DiagnosticsWindow initialData={fileData as Record<string, unknown>} />;
+  if (fileArg?.error) {
+    return <div style={{ padding: 20, color: '#ef4444' }}>Error loading file: {fileArg.error}<br/>Path: {fileArg.path}</div>;
   }
 
-  if (fileArg?.type === 'harvest' && fileData) {
+  if (fileArg?.type === 'diagnostics' && fileArg.data) {
+    return <DiagnosticsWindow initialData={fileArg.data as Record<string, unknown>} />;
+  }
+
+  if (fileArg?.type === 'harvest' && fileArg.data) {
     return (
       <div style={{ padding: 20 }}>
         <h2 style={{ color: '#f59e0b' }}>Harvest Review</h2>
-        <p>Harvest file loaded: {fileArg.path}</p>
-        <HarvestDialog onClose={() => window.close()} fileData={fileData as Record<string, unknown>} />
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>File: {fileArg.path}</p>
+        <HarvestDialog onClose={() => window.close()} fileData={fileArg.data as Record<string, unknown>} />
       </div>
     );
   }
 
-  return null;
+  return <div style={{ padding: 20, color: 'var(--text-muted)' }}>No file data found.</div>;
 }
 
 export function App() {

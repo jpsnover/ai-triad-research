@@ -34,7 +34,7 @@ export interface ElectronAPI {
   openDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
-  getCliFileArg: () => Promise<{ type: string; path: string } | null>;
+  getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
