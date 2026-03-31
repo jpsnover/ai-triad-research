@@ -5642,6 +5642,21 @@ body {
 .diag-commit-item { font-size: 0.7rem; margin: 2px 0; }
 .diag-overview { }
 
+.debate-turns-select {
+  padding: 5px 4px;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.debate-turns-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ─── Debater Toggles ────────────────────────────────── */
 .debate-debater-toggles {
   display: flex;

@@ -897,6 +897,7 @@ function DebateActions() {
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showHarvest, setShowHarvest] = useState(false);
+  const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'synthesis') || false;
 
@@ -978,7 +979,11 @@ function DebateActions() {
   const handleCrossRespond = async () => {
     if (disabled) return;
     setSending(true);
-    await crossRespond();
+    for (let i = 0; i < crossRespondTurns; i++) {
+      await crossRespond();
+      // Check if debate is still active (user might have closed it)
+      if (!useDebateStore.getState().activeDebate) break;
+    }
     setSending(false);
   };
 
@@ -1029,14 +1034,28 @@ function DebateActions() {
         >
           Send
         </button>
-        <button
-          className="btn debate-cross-btn"
-          onClick={handleCrossRespond}
-          disabled={disabled}
-          title="Have the debaters respond to each other"
-        >
-          Cross-Respond
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          <button
+            className="btn debate-cross-btn"
+            onClick={handleCrossRespond}
+            disabled={disabled}
+            title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
+            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          >
+            Cross-Respond
+          </button>
+          <select
+            className="debate-turns-select"
+            value={crossRespondTurns}
+            onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
+            disabled={disabled}
+            title="Number of cross-respond rounds"
+          >
+            {[1, 2, 3, 4, 5].map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
         <button
           className="btn debate-synthesis-btn"
           onClick={() => requestSynthesis()}
