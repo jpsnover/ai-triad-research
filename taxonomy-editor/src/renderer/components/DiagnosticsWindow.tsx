@@ -17,6 +17,38 @@ const AIF_TOOLTIPS: Record<string, string> = {
   'PA-node': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
 
+function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-node' | 'PA-node'; label?: string }) {
+  const [showTip, setShowTip] = useState(false);
+  const colors: Record<string, { bg: string; fg: string }> = {
+    'I-node': { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' },
+    'CA-node': { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' },
+    'RA-node': { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e' },
+    'PA-node': { bg: 'rgba(139,92,246,0.15)', fg: '#8b5cf6' },
+  };
+  const c = colors[type] || colors['I-node'];
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+    >
+      <span style={{ background: c.bg, color: c.fg, padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }}>
+        {label || type}
+      </span>
+      {showTip && (
+        <span style={{
+          position: 'absolute', left: 0, top: '100%', marginTop: 4, zIndex: 1000,
+          background: '#1a1a2e', color: '#e0e0e0', padding: '6px 10px', borderRadius: 6,
+          fontSize: '0.7rem', lineHeight: 1.4, width: 320, whiteSpace: 'normal',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid #333',
+        }}>
+          {AIF_TOOLTIPS[type]}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
@@ -284,7 +316,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
           <span style={{ width: 10, flexShrink: 0 }} />
         )}
         <div style={{ flex: 1 }}>
-          <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
+          <AifBadge type="I-node" />
           <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
           {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
@@ -301,7 +333,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
             return (
               <div key={a.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
                 <div>
-                  <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['CA-node']}>CA-node</span>
+                  <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                 </div>
                 {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {a.warrant}</div>}
@@ -320,7 +352,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
             return (
               <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
                 <div>
-                  <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }} title={AIF_TOOLTIPS['RA-node']}>RA-node</span>
+                  <AifBadge type="RA-node" />
                   {'\u2190'} {s.source} <strong>supports</strong>
                 </div>
                 {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
