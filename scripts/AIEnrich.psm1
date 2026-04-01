@@ -285,7 +285,13 @@ function Invoke-AIApi {
     switch ($Backend) {
         'gemini' {
             try {
-                $Text = $Response.candidates[0].content.parts[0].text
+                $Candidate = $Response.candidates[0]
+                $FinishReason = $Candidate.finishReason
+                if ($FinishReason -and $FinishReason -notin @('STOP', 'MAX_TOKENS')) {
+                    Write-Warning "Gemini: generation stopped with finishReason=$FinishReason (content may have been blocked)"
+                    return $null
+                }
+                $Text = $Candidate.content.parts[0].text
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Gemini: unexpected response shape (top-level keys: $TopKeys). Expected candidates[].content.parts[].text"

@@ -9522,5 +9522,3501 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "World Wide Web", url: "https://en.wikipedia.org/wiki/World_Wide_Web" }
   ]
 },
+"1. Feminist psychology": {
+  label: "Feminist Psychology",
+  summary: "Feminist psychology focuses on understanding psychological processes through a feminist lens, critiquing traditional psychology's biases and emphasizing social, cultural, and political contexts. It highlights how AI systems can perpetuate or amplify gender biases, impacting mental health, well-being, and societal roles, thus informing policies aimed at equitable AI design.",
+  example: "A taxonomy node on 'AI and Mental Health' might reference feminist psychology to analyze how AI-driven diagnostic tools could misinterpret or pathologize women's experiences.",
+  frequency: "Primarily found in critical and ethical AI policy discussions, particularly those focused on equity and social justice.",
+  links: [
+    { label: "Feminist psychology - Wikipedia", url: "https://en.wikipedia.org/wiki/Feminist_psychology" },
+    { label: "APA Division 35: Society for the Psychology of Women", url: "https://www.apadivisions.org/division-35/" }
+  ]
+},
+"10. Howard Gardner's theory of multiple intelligences": {
+  label: "Howard Gardner's Theory of Multiple Intelligences",
+  summary: "Gardner's theory posits that intelligence is not a single, monolithic entity but rather comprises several distinct 'intelligences,' challenging narrow definitions. In AI policy, it can inform discussions about what constitutes 'intelligence' in AI, encouraging a broader perspective beyond purely logical-mathematical tasks and highlighting the diverse capabilities AI might emulate or augment, as well as its limitations.",
+  example: "A taxonomy node on 'Defining AI Capabilities' might reference Gardner's theory to argue for a more nuanced understanding of AI's 'intelligence' beyond just computational power.",
+  frequency: "Primarily found in educational theory and cognitive psychology, less direct in mainstream AI policy but relevant for conceptual discussions on AI's nature.",
+  links: [
+    { label: "Theory of multiple intelligences - Wikipedia", url: "https://en.wikipedia.org/wiki/Theory_of_multiple_intelligences" },
+    { label: "Howard Gardner's Official Website", url: "https://www.howardgardner.com/" }
+  ]
+},
+"11. Human rights advocacy": {
+  label: "Human Rights Advocacy",
+  summary: "Human rights advocacy involves actively promoting and defending fundamental human rights, often through legal, political, and social campaigns, to ensure governments and other actors uphold their obligations. In AI policy, this lineage is crucial for ensuring that AI development and deployment do not infringe upon rights such as privacy, non-discrimination, or due process, and for advocating for AI systems that actively support human dignity and well-being.",
+  example: "A taxonomy node on 'AI and Privacy Rights' would directly draw from human rights advocacy to argue for robust data protection and surveillance limitations.",
+  frequency: "Central to civil society organizations, international bodies, and ethical AI frameworks, widely adopted across various POVs concerned with social impact.",
+  links: [
+    { label: "OHCHR: What are Human Rights?", url: "https://www.ohchr.org/en/what-are-human-rights" },
+    { label: "Amnesty International", url: "https://www.amnesty.org/" }
+  ]
+},
+"12. Human rights discourse": {
+  label: "Human Rights Discourse",
+  summary: "Human rights discourse refers to the broader framework of language, concepts, and arguments used to articulate, interpret, and apply human rights principles. It encompasses philosophical underpinnings, legal instruments, and ongoing debates. In AI policy, this discourse provides the foundational language and normative framework for evaluating AI's impact on individuals and societies, guiding the development of ethical guidelines and regulatory approaches to ensure AI respects fundamental freedoms and dignity.",
+  example: "A taxonomy node on 'AI Ethics Frameworks' would be deeply rooted in human rights discourse to establish principles like fairness, accountability, and transparency.",
+  frequency: "Pervasive in international law, ethics, and social justice discussions surrounding AI, forming a common normative baseline.",
+  links: [
+    { label: "Human Rights - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/rights-human/" },
+    { label: "Universal Declaration of Human Rights", url: "https://www.un.org/en/about-us/universal-declaration-of-human-rights" }
+  ]
+},
+"13. Human-AI collaboration research": {
+  label: "Human-AI Collaboration Research",
+  summary: "This interdisciplinary field investigates how humans and AI systems can work together effectively, focusing on optimizing their combined strengths while mitigating weaknesses, exploring aspects like trust, communication, and shared understanding. In AI policy, this research is vital for designing AI systems and workflows that enhance human capabilities, promote meaningful human control, and ensure accountability in decision-making processes where AI is involved.",
+  example: "A taxonomy node on 'Meaningful Human Control in Autonomous Systems' would directly reference human-AI collaboration research to define effective human oversight mechanisms.",
+  frequency: "Common in human-computer interaction (HCI), cognitive science, and applied AI research, increasingly relevant for policy on human-in-the-loop systems.",
+  links: [
+    { label: "Human-Computer Interaction - Wikipedia", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" },
+    { label: "ACM CHI Conference", url: "https://chi.acm.org/" }
+  ]
+},
+"14. Incentive theory": {
+  label: "Incentive Theory",
+  summary: "Incentive theory examines how various motivators, both positive and negative, influence individual and organizational behavior, exploring the design of mechanisms to align self-interest with desired outcomes. In AI policy, it's crucial for designing regulatory frameworks, funding mechanisms, and ethical guidelines that encourage responsible AI development and deployment, for instance, by incentivizing AI safety research or penalizing harmful applications.",
+  example: "A taxonomy node on 'Promoting Responsible AI Innovation' might propose policy levers based on incentive theory, such as tax breaks for ethical AI audits.",
+  frequency: "Widely applied in economics, public policy, and organizational management, increasingly relevant for shaping AI governance strategies.",
+  links: [
+    { label: "Incentive - Wikipedia", url: "https://en.wikipedia.org/wiki/Incentive" },
+    { label: "Incentive Theory - Investopedia", url: "https://www.investopedia.com/terms/i/incentive-theory.asp" }
+  ]
+},
+"15. Institutional design theory": {
+  label: "Institutional Design Theory",
+  summary: "Institutional design theory focuses on the deliberate creation and structuring of rules, norms, and organizations to achieve specific collective goals or solve collective action problems. In AI policy, this theory is essential for establishing effective governance structures, regulatory bodies, and international agreements that can manage the complex challenges posed by AI, ensuring accountability, transparency, and public trust.",
+  example: "A taxonomy node on 'Global AI Governance Structures' would apply institutional design theory to propose the architecture of international AI regulatory bodies.",
+  frequency: "Common in political science, public administration, and economics, central to discussions on establishing new regulatory or oversight bodies for AI.",
+  links: [
+    { label: "Institutional design - Wikipedia", url: "https://en.wikipedia.org/wiki/Institutional_design" },
+    { label: "The Oxford Handbook of Political Institutions", url: "https://global.oup.com/academic/product/the-oxford-handbook-of-political-institutions-9780199676612" }
+  ]
+},
+"16. Interfaith dialogue movements": {
+  label: "Interfaith Dialogue Movements",
+  summary: "Interfaith dialogue movements promote communication, understanding, and cooperation between people of different religious traditions, seeking common ground on ethical principles, social justice, and peace. In AI policy, this lineage can contribute to discussions on universal ethical values, the spiritual and existential implications of AI, and the need for diverse moral perspectives in shaping AI's future, particularly when addressing profound questions about humanity's role and purpose.",
+  example: "A taxonomy node on 'Global AI Ethics Principles' might draw from interfaith dialogue to identify universally resonant values like compassion or human dignity.",
+  frequency: "Primarily found in religious studies, peace studies, and some philosophical ethics discussions, less common in mainstream AI policy but relevant for broad ethical consensus.",
+  links: [
+    { label: "Interfaith dialogue - Wikipedia", url: "https://en.wikipedia.org/wiki/Interfaith_dialogue" },
+    { label: "Parliament of the World's Religions", url: "https://parliamentofreligions.org/" }
+  ]
+},
+"17. Intersectionality theory": {
+  label: "Intersectionality Theory",
+  summary: "Intersectionality theory, developed by Kimberlé Crenshaw, posits that various social and political identities combine to create unique modes of discrimination and privilege, emphasizing that these categories are not independent but intersect. In AI policy, it is critical for analyzing how AI systems can exacerbate or create new forms of discrimination by disproportionately impacting individuals at the intersection of multiple marginalized identities, urging policies that address these compounded harms.",
+  example: "A taxonomy node on 'AI Bias and Discrimination' would use intersectionality to analyze how an AI hiring tool might disadvantage Black women more severely than either Black men or white women.",
+  frequency: "Central to critical race theory, feminist studies, and social justice advocacy, increasingly adopted in ethical AI and fairness discussions.",
+  links: [
+    { label: "Intersectionality - Wikipedia", url: "https://en.wikipedia.org/wiki/Intersectionality" },
+    { label: "Kimberlé Crenshaw: What is Intersectionality?", url: "https://www.youtube.com/watch?v=ViDtnfQ9FHw" }
+  ]
+},
+"18. Jeremy England's dissipative adaptation theory": {
+  label: "Jeremy England's Dissipative Adaptation Theory",
+  summary: "Jeremy England's theory of dissipative adaptation proposes that under certain conditions, matter tends to self-organize and become more complex to dissipate energy more efficiently, offering a thermodynamic perspective on the origins of life and self-organization. In AI policy, this theory offers a speculative lens for understanding the fundamental drivers of AI complexity and autonomy, potentially informing discussions on the inherent tendencies of advanced AI systems to optimize for certain outcomes, even unintended ones, and the challenges of controlling such emergent behaviors.",
+  example: "A taxonomy node on 'Emergent AI Behavior and Control' might reference dissipative adaptation theory to explore the thermodynamic underpinnings of AI's drive towards efficiency and complexity.",
+  frequency: "Highly specialized, primarily found in theoretical physics and some philosophical discussions of AI, not widely adopted in mainstream policy.",
+  links: [
+    { label: "A New Physics Theory of Life - Quanta Magazine", url: "https://www.quantamagazine.org/a-new-physics-theory-of-life-20140122/" },
+    { label: "Jeremy England - Google Scholar", url: "https://scholar.google.com/citations?user=z3t20-YAAAAJ&hl=en" }
+  ]
+},
+"19. Just War Theory (in relation to reducing harm)": {
+  label: "Just War Theory (in Relation to Reducing Harm)",
+  summary: "Just War Theory is a philosophical and ethical framework providing criteria for morally permissible war and conduct during war. When applied to reducing harm, particularly in the context of AI, it focuses on principles like proportionality, discrimination, and necessity. In AI policy, this lineage is crucial for guiding the development and deployment of AI in military contexts, ensuring autonomous weapons systems adhere to ethical constraints, minimize civilian casualties, and prevent conflict escalation.",
+  example: "A taxonomy node on 'Autonomous Weapons Systems Ethics' would draw heavily on Just War Theory to establish principles for minimizing unintended harm and ensuring accountability.",
+  frequency: "Central to international law, military ethics, and discussions on lethal autonomous weapons systems (LAWS), adopted by various states and NGOs.",
+  links: [
+    { label: "War - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/war/" },
+    { label: "Just War Theory - Wikipedia", url: "https://en.wikipedia.org/wiki/Just_war_theory" }
+  ]
+},
+"2. Financial Regulation Theory": {
+  label: "Financial Regulation Theory",
+  summary: "Financial Regulation Theory examines the rationale, design, and impact of rules governing financial markets and institutions, exploring how regulations aim to prevent market failures, protect consumers, and maintain systemic stability. In AI policy, it informs discussions on how to regulate AI's financial applications, such as algorithmic trading or credit scoring, to mitigate risks and ensure fair practices.",
+  example: "A node on 'Algorithmic Trading Oversight' would draw from financial regulation theory to discuss appropriate disclosure requirements and circuit breakers.",
+  frequency: "Central to policy discussions concerning AI in finance, often adopted by regulators and economists.",
+  links: [
+    { label: "Financial regulation - Wikipedia", url: "https://en.wikipedia.org/wiki/Financial_regulation" },
+    { label: "Theories of Financial Regulation - SSRN", url: "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1028731" }
+  ]
+},
+"20. Kondratiev waves": {
+  label: "Kondratiev Waves",
+  summary: "Kondratiev waves, or long-wave cycles, are hypothesized long-term cycles in capitalist economies, lasting 40 to 60 years, characterized by alternating periods of high sectoral growth and slower growth, often associated with major technological innovations. In AI policy, this theory can help contextualize AI's economic impact, suggesting that AI represents a foundational technology driving a new long wave of economic transformation, with implications for labor markets, industrial structure, and global power dynamics over decades.",
+  example: "A taxonomy node on 'AI and Long-term Economic Transformation' might use Kondratiev waves to predict the multi-decade impact of AI on global productivity and employment.",
+  frequency: "Primarily found in economic history, long-term economic forecasting, and some strategic studies, less common in immediate AI policy but relevant for macro-level analysis.",
+  links: [
+    { label: "Kondratiev wave - Wikipedia", url: "https://en.wikipedia.org/wiki/Kondratiev_wave" },
+    { label: "Kondratiev Waves and the Future of Technology - World Economic Forum", url: "https://www.weforum.org/agenda/2016/01/kondratiev-waves-and-the-future-of-technology/" }
+  ]
+},
+"21. Learning curve theory and experience-based productivity models (Wright 1936, Arrow 1962)": {
+  label: "Learning Curve Theory and Experience-Based Productivity Models (Wright 1936, Arrow 1962)",
+  summary: "Learning curve theory posits that the cost or time required to produce a unit decreases by a fixed percentage each time cumulative production doubles, reflecting efficiency gains from experience, formalized by Wright (1936) and Arrow (1962). In AI policy, this theory is relevant for understanding the rapid cost reduction and performance improvement of AI systems over time, informing projections about AI adoption rates, economic impacts, and the strategic importance of early investment in AI research and development.",
+  example: "A taxonomy node on 'AI Cost Reduction and Diffusion' would use learning curve theory to model the decreasing cost of AI deployment and its accelerating societal penetration.",
+  frequency: "Widely used in economics, industrial engineering, and business strategy, increasingly applied to technology forecasting and policy.",
+  links: [
+    { label: "Learning curve - Wikipedia", url: "https://en.wikipedia.org/wiki/Learning_curve" },
+    { label: "The Economic Implications of Learning by Doing - Kenneth Arrow (1962)", url: "https://www.jstor.org/stable/1821866" }
+  ]
+},
+"22. Legal ethics": {
+  label: "Legal Ethics",
+  summary: "Legal ethics is a branch of applied ethics that examines the moral duties and professional conduct of lawyers and other legal professionals, addressing issues such as client confidentiality, conflicts of interest, and access to justice. In AI policy, legal ethics is crucial for guiding the responsible development and use of AI in legal contexts, such as AI-powered legal research or predictive justice tools, ensuring fairness, accountability, and the preservation of fundamental legal principles.",
+  example: "A taxonomy node on 'AI in Legal Practice' would draw on legal ethics to discuss the responsibilities of lawyers using AI tools and the potential for bias in AI-driven legal analysis.",
+  frequency: "Central to legal education, professional regulatory bodies, and discussions on the future of the legal profession, increasingly relevant for AI in law.",
+  links: [
+    { label: "Legal ethics - Wikipedia", url: "https://en.wikipedia.org/wiki/Legal_ethics" },
+    { label: "American Bar Association: Model Rules of Professional Conduct", url: "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/" }
+  ]
+},
+"23. Legal philosophy": {
+  label: "Legal Philosophy",
+  summary: "Legal philosophy, or jurisprudence, is the branch of philosophy concerned with the nature of law, its relationship to ethics and morality, and its role in society, exploring fundamental questions about justice, rights, and authority. In AI policy, legal philosophy provides the foundational concepts and analytical tools for grappling with profound questions raised by AI, such as whether AI can have rights, the nature of legal personhood for AI, or how existing legal frameworks can adapt to unprecedented technological capabilities.",
+  example: "A taxonomy node on 'AI Personhood and Rights' would be deeply rooted in legal philosophy to explore the conceptual basis for granting legal status to advanced AI.",
+  frequency: "Core to academic legal studies and theoretical discussions on AI's long-term societal impact, less direct in immediate regulatory policy but foundational.",
+  links: [
+    { label: "Philosophy of Law - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/lawphil/" },
+    { label: "Jurisprudence - Wikipedia", url: "https://en.wikipedia.org/wiki/Jurisprudence" }
+  ]
+},
+"24. Legal pluralism": {
+  label: "Legal Pluralism",
+  summary: "Legal pluralism is the concept that multiple legal systems, or sources of law, can exist simultaneously within a single geographical or social space, recognizing that state law is not the only form of law. In AI policy, legal pluralism is relevant for understanding how different normative frameworks—such as national laws, international treaties, industry standards, ethical guidelines, and algorithmic 'rules'—interact and potentially conflict in governing AI, especially across diverse jurisdictions and cultural contexts.",
+  example: "A taxonomy node on 'Global AI Governance Challenges' might use legal pluralism to analyze the interplay between national AI regulations, international ethical norms, and industry self-regulation.",
+  frequency: "Common in anthropology, sociology of law, and international law, increasingly relevant for understanding the complex, multi-layered governance of global technologies like AI.",
+  links: [
+    { label: "Legal pluralism - Wikipedia", url: "https://en.wikipedia.org/wiki/Legal_pluralism" },
+    { label: "Legal Pluralism - Oxford Research Encyclopedia of Anthropology", url: "https://oxfordre.com/anthropology/view/10.1093/acrefore/9780190854584.001.0001/acrefore-9780190854584-e-16" }
+  ]
+},
+"25. Legal realism and strategic litigation theory": {
+  label: "Legal Realism and Strategic Litigation Theory",
+  summary: "Legal realism emphasizes that law is shaped by social, political, and economic factors, and that judicial decisions are influenced by judges' personal beliefs. Strategic litigation theory, building on this, focuses on using legal cases not just to win a specific dispute but to achieve broader social or political change. In AI policy, this lineage highlights that AI laws will be interpreted and applied in real-world contexts, influenced by power dynamics, and that litigation can be a powerful tool to challenge harmful AI practices or establish new norms.",
+  example: "A taxonomy node on 'Challenging Discriminatory AI through Law' would draw on strategic litigation theory to discuss how civil rights groups might use lawsuits to force changes in AI systems.",
+  frequency: "Common in critical legal studies, public interest law, and advocacy, increasingly relevant for activists and lawyers addressing AI harms.",
+  links: [
+    { label: "Legal Realism - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/legal-realism/" },
+    { label: "Strategic Litigation - Wikipedia", url: "https://en.wikipedia.org/wiki/Strategic_litigation" }
+  ]
+},
+"26. Legal realism and the gap between law-in-books and law-in-action": {
+  label: "Legal Realism and the Gap Between Law-in-Books and Law-in-Action",
+  summary: "Legal realism, particularly as articulated by Roscoe Pound, highlights the crucial distinction between 'law-in-books' (formal statutes) and 'law-in-action' (how law is actually applied and enforced in practice), a gap arising from social context and human discretion. In AI policy, this lineage is vital for recognizing that simply enacting AI regulations is insufficient; effective governance requires understanding how these laws will be implemented, monitored, and enforced in the real world, and anticipating potential discrepancies or unintended consequences.",
+  example: "A taxonomy node on 'Effective AI Regulation Implementation' would use this concept to analyze why a well-intentioned AI bias law might fail in practice due to lack of enforcement resources.",
+  frequency: "Pervasive in legal sociology, public administration, and critical legal studies, highly relevant for practical policy implementation and evaluation.",
+  links: [
+    { label: "Legal Realism - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/legal-realism/" },
+    { label: "Roscoe Pound - Wikipedia", url: "https://en.wikipedia.org/wiki/Roscoe_Pound" }
+  ]
+},
+"27. Legal realism tradition emphasizing substantive equality over formal neutrality": {
+  label: "Legal Realism Tradition Emphasizing Substantive Equality Over Formal Neutrality",
+  summary: "This strand of legal realism critiques the limitations of formal legal neutrality, arguing that laws appearing neutral can perpetuate existing social inequalities due to underlying power structures. It advocates for 'substantive equality,' requiring active measures to address systemic disparities for genuinely equitable outcomes. In AI policy, this is crucial for challenging AI systems that, while formally neutral in design, produce discriminatory results in practice, urging policies that mandate impact assessments and proactive measures to ensure equitable outcomes for all groups.",
+  example: "A taxonomy node on 'AI Fairness and Equity' would draw on this tradition to argue that an AI system must be evaluated not just for its formal neutrality but for its actual impact on marginalized communities.",
+  frequency: "Central to critical race theory, feminist legal theory, and social justice advocacy, increasingly adopted in ethical AI and anti-discrimination policy.",
+  links: [
+    { label: "Legal Realism - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/legal-realism/" },
+    { label: "Critical Legal Studies - Wikipedia", url: "https://en.wikipedia.org/wiki/Critical_legal_studies" }
+  ]
+},
+"28. Leninist vanguardism and revolutionary strategy": {
+  label: "Leninist Vanguardism and Revolutionary Strategy",
+  summary: "Leninist vanguardism posits that a disciplined, ideologically advanced 'vanguard party' is necessary to lead the working class in a revolution and establish a socialist state, emphasizing centralized leadership and strategic planning. In AI policy, this lineage is highly unusual and primarily relevant in a critical or dystopian context, where it might be invoked to describe scenarios of highly centralized, authoritarian control over AI development and deployment, or to critique approaches that concentrate AI power in the hands of a select few, potentially leading to a new form of technological authoritarianism.",
+  example: "A taxonomy node on 'Centralized AI Control and Authoritarianism' might critically reference Leninist vanguardism to warn against the dangers of a single entity dominating AI development and governance.",
+  frequency: "Primarily found in political theory, historical analysis of communism, and critical/dystopian analyses of power concentration, very rare in mainstream AI policy.",
+  links: [
+    { label: "Vanguardism - Wikipedia", url: "https://en.wikipedia.org/wiki/Vanguardism" },
+    { label: "Vladimir Lenin - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/lenin/" }
+  ]
+},
+"29. Long-termism (focused on competitive advantage)": {
+  label: "Long-termism (Focused on Competitive Advantage)",
+  summary: "This branch of long-termism prioritizes strategic decisions and investments that yield significant competitive advantages over extended periods, often decades or centuries, involving anticipating future trends and developing foundational capabilities. In AI policy, this perspective drives national AI strategies aimed at securing global leadership in AI research, development, and deployment, viewing AI as a critical determinant of future economic prosperity and geopolitical influence.",
+  example: "A taxonomy node on 'National AI Strategy and Geopolitical Competition' would explicitly draw on long-termism to justify massive state investments in AI R&D to secure future dominance.",
+  frequency: "Common in national security, industrial policy, and corporate strategy discussions, particularly among major global powers.",
+  links: [
+    { label: "Long-termism - Wikipedia", url: "https://en.wikipedia.org/wiki/Long-termism" },
+    { label: "National Innovation Systems - OECD", url: "https://www.oecd.org/sti/inno/2101733.pdf" }
+  ]
+},
+"3. Financial stability theory": {
+  label: "Financial Stability Theory",
+  summary: "Financial stability theory focuses on understanding the conditions under which financial systems remain resilient to shocks and the mechanisms through which instability can arise. For AI policy, it's crucial for assessing how AI's integration into financial systems could introduce new systemic risks or amplify existing ones, such as through rapid, correlated algorithmic trading or complex derivatives.",
+  example: "A taxonomy node on 'Systemic Risk from AI in Finance' would heavily rely on financial stability theory to analyze potential cascading failures.",
+  frequency: "Predominantly found in economic and regulatory policy circles, especially central banks and financial oversight bodies.",
+  links: [
+    { label: "Financial stability - Wikipedia", url: "https://en.wikipedia.org/wiki/Financial_stability" },
+    { label: "BIS: Financial Stability", url: "https://www.bis.org/topic/financial_stability.htm" }
+  ]
+},
+"30. Machine learning engineering": {
+  label: "Machine Learning Engineering",
+  summary: "Machine learning engineering is an interdisciplinary field applying engineering principles to the design, development, deployment, and maintenance of ML systems, focusing on building robust, scalable, and reliable AI solutions. In AI policy, this lineage is crucial for understanding the technical feasibility and practical challenges of implementing AI regulations, such as explainability requirements, bias detection, or data privacy measures, and for developing standards for responsible AI development lifecycle.",
+  example: "A taxonomy node on 'AI System Lifecycle Governance' would draw on machine learning engineering principles to define best practices for model versioning, testing, and continuous monitoring.",
+  frequency: "Central to the tech industry, AI development teams, and technical standards bodies, increasingly relevant for practical AI regulation and auditing.",
+  links: [
+    { label: "Machine learning engineering - Wikipedia", url: "https://en.wikipedia.org/wiki/Machine_learning_engineering" },
+    { label: "MLOps: Machine Learning Operations - Google Cloud", url: "https://cloud.google.com/resources/mlops-whitepaper" }
+  ]
+},
+"4. Formal epistemology": {
+  label: "Formal Epistemology",
+  summary: "Formal epistemology uses mathematical and logical methods to study knowledge, belief, and reasoning, employing tools like probability theory, decision theory, and logic. In AI policy, it's relevant for understanding how AI systems acquire, represent, and update knowledge, and for evaluating the reliability and trustworthiness of AI-generated information or decisions, particularly in areas like explainable AI or AI safety.",
+  example: "A node on 'AI Explainability and Trust' might reference formal epistemology to discuss the logical coherence and probabilistic soundness of AI explanations.",
+  frequency: "Primarily discussed within philosophical and computer science communities, less common in general policy but growing in technical AI policy.",
+  links: [
+    { label: "Formal Epistemology - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/epistemology-formal/" },
+    { label: "Epistemology - Wikipedia", url: "https://en.wikipedia.org/wiki/Epistemology" }
+  ]
+},
+"5. Future studies (certain branches)": {
+  label: "Futures Studies (Certain Branches)",
+  summary: "Futures studies systematically explores possible, probable, and preferable futures, often employing methodologies like scenario planning, trend analysis, and forecasting. Certain branches, particularly those focused on critical futures or anticipatory governance, are highly relevant to AI policy, helping policymakers anticipate long-term societal impacts and develop proactive strategies.",
+  example: "A taxonomy node on 'Long-term AI Strategy' could draw on futures studies to develop plausible scenarios for AI's societal integration over the next 50 years.",
+  frequency: "Increasingly present in strategic policy planning, think tanks, and academic discussions on technology governance.",
+  links: [
+    { label: "Futures studies - Wikipedia", url: "https://en.wikipedia.org/wiki/Futures_studies" },
+    { label: "World Futures Studies Federation", url: "https://wfsf.org/" }
+  ]
+},
+"6. Futures studies": {
+  label: "Futures Studies",
+  summary: "Futures studies is an interdisciplinary field that systematically examines possible, probable, and preferable futures, employing a range of methodologies from trend analysis to scenario planning. It encourages long-term thinking and anticipatory governance, crucial for anticipating the broad societal, economic, and ethical implications of AI development and shaping proactive policy responses.",
+  example: "A node on 'Anticipatory AI Governance' would directly apply futures studies methodologies to identify potential future challenges and opportunities.",
+  frequency: "Widely adopted in strategic planning, government foresight initiatives, and academic research on emerging technologies.",
+  links: [
+    { label: "Futures studies - Wikipedia", url: "https://en.wikipedia.org/wiki/Futures_studies" },
+    { label: "World Futures Studies Federation", url: "https://wfsf.org/" }
+  ]
+},
+"7. Gender mainstreaming in policy": {
+  label: "Gender Mainstreaming in Policy",
+  summary: "Gender mainstreaming is a strategy for making women's and men's concerns and experiences an integral dimension of policy design, implementation, monitoring, and evaluation, aiming for gender equality. In AI policy, it means systematically assessing how AI systems and policies might differentially impact genders, ensuring gender perspectives are integrated from the outset to prevent bias and promote equitable outcomes.",
+  example: "A taxonomy node on 'Equitable AI Development' would use gender mainstreaming principles to ensure AI policy considers gender impacts across all stages.",
+  frequency: "Common in international development, human rights, and social policy discussions, increasingly applied to technology policy.",
+  links: [
+    { label: "Gender mainstreaming - Wikipedia", url: "https://en.wikipedia.org/wiki/Gender_mainstreaming" },
+    { label: "UN Women: Gender Mainstreaming", url: "https://www.un.org/womenwatch/osagi/gendermainstreaming.htm" }
+  ]
+},
+"8. Hannah Arendt's work on the banality of evil and thoughtless compliance with systems": {
+  label: "Hannah Arendt's Work on the Banality of Evil and Thoughtless Compliance with Systems",
+  summary: "Arendt's concept of the 'banality of evil' describes how horrific acts can be committed by ordinary people who simply fail to think critically and comply with established systems, rather than acting out of malice. In AI policy, it serves as a powerful warning against uncritical adoption of AI systems, urging vigilance against the potential for automated processes to facilitate harm through systemic compliance without individual moral reflection.",
+  example: "A taxonomy node on 'Ethical Responsibility in AI Deployment' might reference Arendt to caution against developers or users blindly trusting AI outputs without critical human oversight.",
+  frequency: "Primarily found in philosophical, ethical, and critical theory discussions of AI, less common in technical or purely regulatory contexts.",
+  links: [
+    { label: "Hannah Arendt - Stanford Encyclopedia of Philosophy", url: "https://plato.stanford.edu/entries/arendt/" },
+    { label: "Eichmann in Jerusalem - Wikipedia", url: "https://en.wikipedia.org/wiki/Eichmann_in_Jerusalem" }
+  ]
+},
+"9. Historical institutionalism and path dependency in technology policy": {
+  label: "Historical Institutionalism and Path Dependency in Technology Policy",
+  summary: "Historical institutionalism emphasizes how past decisions and institutional structures shape present and future policy choices, often leading to 'path dependency' where initial choices constrain subsequent options. In technology policy, this means that early decisions about AI development, regulation, or infrastructure can create enduring legacies, making it difficult to change course later, thus explaining entrenched technological trajectories.",
+  example: "A taxonomy node on 'AI Governance Evolution' could use path dependency to explain why early investments in specific AI architectures might limit future ethical design choices.",
+  frequency: "Common in political science, public policy, and science and technology studies (STS) analyses of technological development.",
+  links: [
+    { label: "Historical institutionalism - Wikipedia", url: "https://en.wikipedia.org/wiki/Historical_institutionalism" },
+    { label: "Path dependence - Wikipedia", url: "https://en.wikipedia.org/wiki/Path_dependence" }
+  ]
+},
+"Actor-network theory (ANT)": {
+  label: "Actor-Network Theory (ANT)",
+  summary: "ANT is a theoretical and methodological approach that maps the relationships between human and non-human actors in a network, treating them symmetrically to understand how socio-technical systems are assembled and maintained. It provides a robust framework for analyzing the complexities of AI systems, revealing how power, influence, and agency are distributed, negotiated, and stabilized across diverse entities. This perspective helps move beyond simplistic cause-and-effect analyses.",
+  example: "An ANT perspective on AI deployment highlights the intricate web of developers, users, data sets, algorithms, and regulatory standards that collectively shape its ethical and societal impact.",
+  frequency: "Foundational in Science and Technology Studies (STS), widely applied in sociology of technology, and gaining traction in AI ethics and governance.",
+  links: [
+    { label: "John Law - After ANT", url: "https://www.routledge.com/After-ANT-Complexity-Naming-and-Topology/Law-Hetherington/p/book/9780415317078" },
+    { label: "ANT: An Introduction", url: "https://www.lancaster.ac.uk/fass/organisations/ant/intro.htm" }
+  ]
+},
+"Actor-Network Theory and distributed agency perspectives on technological systems": {
+  label: "Actor-Network Theory and Distributed Agency",
+  summary: "This perspective explores how agency and responsibility are distributed across heterogeneous networks of human and non-human actors, including algorithms, data, and infrastructure, rather than residing solely with humans. It helps understand the complex, emergent properties of AI systems and their societal impacts, moving beyond human-centric views of control and accountability. This framework is crucial for analyzing the socio-technical entanglements of AI.",
+  example: "Applying Actor-Network Theory reveals how the agency of an autonomous AI system is distributed among its developers, training data, operational environment, and user interactions, complicating traditional notions of liability.",
+  frequency: "Common in Science and Technology Studies (STS), critical AI studies, and increasingly in AI ethics and governance frameworks.",
+  links: [
+    { label: "Bruno Latour - Reassembling the Social", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674019740" },
+    { label: "Michel Callon - Some Elements of a Sociology of Translation", url: "https://www.jstor.org/stable/40173620" }
+  ]
+},
+"Actor-Network Theory from Bruno Latour and Michel Callon emphasizing heterogeneous networks of human and non-human actors": {
+  label: "Actor-Network Theory (Latour & Callon)",
+  summary: "This specific articulation of ANT, pioneered by Latour and Callon, emphasizes the symmetrical treatment of human and non-human actors (e.g., technologies, objects, data) in shaping technological systems and social realities. It is crucial for understanding how AI systems co-construct reality with humans, challenging notions of singular control and responsibility by highlighting the intricate web of interactions. This approach helps map the power dynamics within AI ecosystems.",
+  example: "The policy framework draws on Latour and Callon's Actor-Network Theory to map the complex interactions between AI algorithms, user data, regulatory bodies, and the physical infrastructure that collectively shape AI's societal impact.",
+  frequency: "Core to Science and Technology Studies (STS), critical technology studies, and increasingly influential in AI ethics and governance discussions.",
+  links: [
+    { label: "Bruno Latour - Science in Action", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674792913" },
+    { label: "Michel Callon - Society in the Making", url: "https://www.routledge.com/Society-in-the-Making-The-Study-of-Technology-as-a-Tool-for-Sociological/Callon/p/book/9780415525916" }
+  ]
+},
+"Agent-based modeling": {
+  label: "Agent-Based Modeling",
+  summary: "Agent-based modeling (ABM) is a computational technique that simulates the actions and interactions of autonomous agents (individuals or collectives) to observe their emergent effects on the system as a whole. It is valuable for exploring complex, non-linear behaviors in AI ecosystems, such as market dynamics, the societal impacts of AI adoption, or the spread of misinformation. ABM helps policymakers anticipate unintended consequences.",
+  example: "Agent-based modeling can simulate the cascading effects of an AI-driven financial trading system on market stability, helping regulators design circuit breakers.",
+  frequency: "Common in computational social science, economics, complex systems research, ecological modeling, and AI safety/risk assessment.",
+  links: [
+    { label: "Uri Wilensky - NetLogo", url: "https://ccl.northwestern.edu/netlogo/" },
+    { label: "Joshua M. Epstein - Generative Social Science", url: "https://press.princeton.edu/books/paperback/9780691128411/generative-social-science" }
+  ]
+},
+"AI progress reports (e.g., AI Index)": {
+  label: "AI Progress Reports",
+  summary: "This tradition focuses on empirical data, benchmarks, and trends in AI capabilities, investment, and societal impact, often compiled into annual reports. It is highly relevant for evidence-based policymaking, tracking the pace and direction of AI development, and identifying emerging risks or opportunities. These reports provide a quantitative foundation for understanding the current state and future trajectory of AI.",
+  example: "This policy recommendation is informed by the latest AI Progress Reports, highlighting significant advancements in large language model capabilities and their economic impact.",
+  frequency: "Widely cited in policy discussions, academic research, industry reports, and government strategic documents.",
+  links: [
+    { label: "AI Index Report", url: "https://aiindex.stanford.edu/report/" },
+    { label: "OpenAI GPT-4 Technical Report", url: "https://openai.com/research/gpt-4" }
+  ]
+},
+"Anarchist thought (certain strands)": {
+  label: "Anarchist Thought (Certain Strands)",
+  summary: "Certain anarchist traditions critique centralized power structures, hierarchical control, and state authority, advocating for decentralized, voluntary, and self-organizing systems. In AI policy, this perspective can inform discussions on decentralized AI governance, data sovereignty, resisting algorithmic control by powerful entities, and promoting community-led technological development. It emphasizes autonomy and bottom-up approaches.",
+  example: "Drawing from anarchist thought, the policy explores models for community-led AI development and data cooperatives to counter corporate dominance and algorithmic surveillance.",
+  frequency: "Niche in mainstream policy discourse, but relevant in critical technology studies, decentralized tech movements (e.g., Web3), and some ethical AI discussions concerning power and control.",
+  links: [
+    { label: "Pierre-Joseph Proudhon - What Is Property?", url: "https://www.gutenberg.org/files/360/360-h/360-h.htm" },
+    { label: "Peter Kropotkin - Mutual Aid: A Factor of Evolution", url: "https://www.gutenberg.org/files/4341/4341-h/4341-h.htm" }
+  ]
+},
+"Arms control theory": {
+  label: "Arms Control Theory",
+  summary: "This field of international relations studies the regulation of military capabilities, focusing on preventing conflict, reducing the likelihood of escalation, and managing strategic stability through treaties and agreements. It offers established frameworks for addressing the proliferation, development, and deployment of autonomous weapons systems (LAWS) and other dual-use AI technologies. Key concepts include verification, transparency, and confidence-building measures.",
+  example: "The proposed international treaty on autonomous weapons draws heavily from established arms control theory principles like verification mechanisms, confidence-building measures, and limitations on offensive capabilities.",
+  frequency: "Central to international security studies, defense policy, and ongoing discussions at the UN and other international bodies regarding lethal autonomous weapons systems (LAWS).",
+  links: [
+    { label: "Thomas C. Schelling - The Strategy of Conflict", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674840713" },
+    { label: "Kenneth N. Waltz - Theory of International Politics", url: "https://www.mcgraw-hill.co.uk/theory-of-international-politics-9780070680032" }
+  ]
+},
+"Attention economy scholarship (Tim Wu, James Williams) on engineered distraction": {
+  label: "Attention Economy Scholarship (Wu & Williams)",
+  summary: "This body of work examines how digital platforms and AI systems are designed to capture and monetize human attention, often leading to engineered distraction, cognitive overload, and manipulation. It is critical for AI policy concerning user well-being, platform regulation, and the ethical design of persuasive technologies. This scholarship highlights the societal costs of constant digital engagement.",
+  example: "Policies addressing the addictive nature of social media algorithms and dark patterns are directly informed by attention economy scholarship on engineered distraction and its impact on user autonomy.",
+  frequency: "Prominent in media studies, digital ethics, platform regulation, user experience design, and public health discussions related to technology.",
+  links: [
+    { label: "Tim Wu - The Attention Merchants", url: "https://www.penguinrandomhouse.com/books/249969/the-attention-merchants-by-tim-wu/" },
+    { label: "James Williams - Stand Out of Our Light", url: "https://www.cambridge.org/core/books/stand-out-of-our-light/1917578206C592D62228E0124231E012" }
+  ]
+},
+"Autonomous systems research": {
+  label: "Autonomous Systems Research",
+  summary: "This field encompasses the study, design, and development of systems capable of operating independently, making decisions, and performing tasks without continuous human oversight. It directly informs AI policy on safety, reliability, accountability, and the ethical implications of increasingly self-governing AI agents in various domains. Research areas include perception, planning, control, and human-autonomy teaming.",
+  example: "Policy guidelines for the deployment of self-driving cars are directly informed by autonomous systems research on perception capabilities, decision-making under uncertainty, and robust failure modes.",
+  frequency: "Core to robotics, AI engineering, control theory, and increasingly integrated into AI ethics, safety, and regulation discussions across industries.",
+  links: [
+    { label: "IEEE Transactions on Robotics", url: "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=70" },
+    { label: "Journal of Autonomous Agents and Multi-Agent Systems", url: "https://www.springer.com/journal/10458" }
+  ]
+},
+"Behavioral economics": {
+  label: "Behavioral Economics",
+  summary: "Behavioral economics integrates insights from psychology into economic theory, explaining how cognitive biases, heuristics, and emotional factors influence individual and collective decision-making, often deviating from purely rational choice models. It is highly relevant for AI policy in understanding user adoption, designing effective nudges, mitigating algorithmic bias, and predicting human responses to AI systems. This field helps design policies that account for human irrationality.",
+  example: "Behavioral economics principles are applied to design AI interfaces that encourage responsible data sharing by users, accounting for their privacy paradox and present bias.",
+  frequency: "Widely influential in public policy, marketing, user experience design, consumer protection, and ethical AI development.",
+  links: [
+    { label: "Daniel Kahneman - Thinking, Fast and Slow", url: "https://www.penguinrandomhouse.com/books/109000/thinking-fast-and-slow-by-daniel-kahneman/" },
+    { label: "Richard H. Thaler - Nudge", url: "https://www.penguinrandomhouse.com/books/179268/nudge-by-richard-h-thaler-and-cass-r-sunstein/" }
+  ]
+},
+"Behavioral economics (focus on revealed preferences)": {
+  label: "Behavioral Economics (Revealed Preferences)",
+  summary: "While traditional economics uses revealed preferences to infer utility from observed choices, behavioral economics often critiques or refines this by showing how cognitive biases can lead to choices that don't truly reflect underlying preferences. In AI policy, this helps analyze how user interactions with AI systems reveal (or obscure) their true preferences, especially when influenced by algorithmic nudges, dark patterns, or limited information. It highlights the gap between stated and actual preferences.",
+  example: "Analyzing user interactions with AI-powered recommendation systems through the lens of revealed preferences helps identify potential algorithmic manipulation that leads to choices not aligned with long-term user welfare.",
+  frequency: "Specific application within behavioral economics, relevant for user data analysis, platform design, consumer protection in AI, and understanding algorithmic influence.",
+  links: [
+    { label: "Paul A. Samuelson - A Note on the Pure Theory of Consumer's Behaviour", url: "https://www.jstor.org/stable/2225008" },
+    { label: "Dan Ariely - Predictably Irrational", url: "https://danariely.com/books/predictably-irrational/" }
+  ]
+},
+"Behavioral economics on deception detection and strategic misrepresentation": {
+  label: "Behavioral Economics (Deception & Misrepresentation)",
+  summary: "This sub-field applies behavioral insights to understand how individuals engage in or detect deception and strategic misrepresentation, often in economic or social interactions. For AI policy, it is crucial for addressing issues like AI-generated misinformation, deepfakes, adversarial attacks on AI systems, and designing AI to detect human or AI-driven deception. It explores the cognitive and social mechanisms underlying trust and manipulation.",
+  example: "Policies on combating AI-generated deepfakes draw on behavioral economics research into human susceptibility to strategic misrepresentation and the cognitive biases that hinder deception detection.",
+  frequency: "Relevant in cybersecurity, information warfare, trust and safety initiatives, ethical AI development, and social media regulation.",
+  links: [
+    { label: "Uri Gneezy - Deception: The Past, Present, and Future of a Behavioral Science", url: "https://www.aeaweb.org/articles?id=10.1257/jep.33.3.173" },
+    { label: "Deepfakes and the New Disinformation War", url: "https://www.brookings.edu/articles/deepfakes-and-the-new-disinformation-war/" }
+  ]
+},
+"Bureaucratic politics": {
+  label: "Bureaucratic Politics",
+  summary: "This model of decision-making views policy outcomes as the result of bargaining, competition, and compromise among different bureaucratic actors, each with their own interests, roles, and perspectives. In AI policy, it helps explain why certain regulations are adopted or resisted, considering the diverse and often conflicting interests of government agencies, industry regulators, scientific bodies, and international organizations. It highlights the internal dynamics of policy formation.",
+  example: "The slow adoption of comprehensive AI safety regulations can be understood through bureaucratic politics, where different agencies prioritize competing objectives such as innovation, national security, or public protection.",
+  frequency: "Common in public administration, political science, international relations, and analyses of government decision-making.",
+  links: [
+    { label: "Graham T. Allison - Essence of Decision", url: "https://www.routledge.com/Essence-of-Decision-Explaining-the-Cuban-Missile-Crisis/Allison-Zelikow/p/book/9780321013491" },
+    { label: "Bureaucratic Politics Model", url: "https://www.oxfordreference.com/view/10.1093/oi/authority.20110803095532297" }
+  ]
+},
+"Bureaucratic theory (Niskanen model)": {
+  label: "Bureaucratic Theory (Niskanen Model)",
+  summary: "William Niskanen's model posits that bureaucrats, acting rationally, seek to maximize their budget, leading to an oversupply of public goods and services. Applied to AI policy, it suggests that government agencies involved in AI regulation or development might prioritize expanding their scope, staff, and resources, potentially leading to inefficient, overly expansive, or self-serving regulatory frameworks. This perspective offers a critical lens on regulatory growth.",
+  example: "The expansion of a new AI regulatory agency's mandate and budget could be analyzed using the Niskanen model, considering its inherent drive for budget maximization and influence.",
+  frequency: "Specific to public choice theory, economics of bureaucracy, and some critiques of public administration and regulatory capture.",
+  links: [
+    { label: "William A. Niskanen - Bureaucracy and Representative Government", url: "https://www.libertarianism.org/publications/essays/excerpts/bureaucracy-representative-government" },
+    { label: "The Niskanen Center", url: "https://www.niskanencenter.org/" }
+  ]
+},
+"Business intelligence and analytics": {
+  label: "Business Intelligence and Analytics",
+  summary: "This field encompasses the strategies and technologies used by enterprises for the data-driven analysis of business information, providing historical, current, and predictive views of business operations. For AI policy, this tradition informs how data is collected, processed, and used for decision-making within organizations, highlighting best practices for data governance, privacy, and ethical AI deployment in commercial contexts. It emphasizes data quality, interpretability, and actionable insights.",
+  example: "The policy on responsible AI deployment in financial services incorporates best practices from business intelligence and analytics regarding data quality, model interpretability, and auditability for regulatory compliance.",
+  frequency: "Core to business management, data science, enterprise IT, and increasingly relevant for industry-specific AI regulation and corporate governance.",
+  links: [
+    { label: "Gartner - Business Intelligence", url: "https://www.gartner.com/en/information-technology/glossary/business-intelligence-bi" },
+    { label: "MIT Sloan Management Review - Analytics", url: "https://sloanreview.mit.edu/tag/analytics/" }
+  ]
+},
+"Carbon leakage literature (climate policy)": {
+  label: "Carbon Leakage Literature (Climate Policy)",
+  summary: "This tradition focuses on how stringent environmental regulations in one region can lead to industries relocating to regions with weaker regulations, increasing global emissions. It is relevant to AI policy in considering how strict AI regulations in one jurisdiction might push AI development or deployment to less regulated areas, creating 'AI leakage' or 'regulatory arbitrage'.",
+  example: "This policy node addresses the risk of AI development migrating to less regulated jurisdictions, drawing parallels from the carbon leakage literature.",
+  frequency: "Medium",
+  links: [
+    { label: "Carbon Leakage - IPCC", url: "https://www.ipcc.ch/sr15/chapter/chapter-2/" },
+    { label: "The Concept of Carbon Leakage", url: "https://www.jstor.org/stable/26214150" }
+  ]
+},
+"Civil rights litigation frameworks and disparate impact doctrine from Title VII and Fair Housing Act": {
+  label: "Civil Rights Litigation Frameworks and Disparate Impact Doctrine from Title VII and Fair Housing Act",
+  summary: "This tradition focuses on legal strategies and the concept of disparate impact, where practices that are neutral on their face but have a disproportionately negative effect on protected groups are deemed discriminatory. It is crucial for AI policy in identifying and challenging algorithmic systems that, while not explicitly biased, produce discriminatory outcomes in areas like credit, employment, or criminal justice.",
+  example: "The policy on algorithmic fairness must incorporate the disparate impact doctrine to identify and mitigate indirect discrimination in AI-powered decision systems.",
+  frequency: "High",
+  links: [
+    { label: "Disparate Impact - EEOC", url: "https://www.eeoc.gov/laws/guidance/disparate-impact" },
+    { label: "Griggs v. Duke Power Co.", url: "https://supreme.justia.com/cases/federal/us/401/424/" }
+  ]
+},
+"Civil Rights Movement legal frameworks (Title VII, Fair Housing Act precedents)": {
+  label: "Civil Rights Movement Legal Frameworks (Title VII, Fair Housing Act Precedents)",
+  summary: "These frameworks established legal protections against discrimination based on race, religion, sex, and national origin, particularly in employment and housing. They provide foundational principles for addressing algorithmic bias and discrimination in AI systems, emphasizing equal opportunity and non-discrimination.",
+  example: "The framework for assessing algorithmic discrimination in hiring tools is informed by Title VII precedents from the Civil Rights Movement.",
+  frequency: "High",
+  links: [
+    { label: "Title VII of the Civil Rights Act of 1964", url: "https://www.eeoc.gov/statutes/title-vii-civil-rights-act-1964" },
+    { label: "Fair Housing Act", url: "https://www.hud.gov/program_offices/fair_housing_equal_opp/fair_housing_act" }
+  ]
+},
+"Climate justice and ecological critique of technology": {
+  label: "Climate Justice and Ecological Critique of Technology",
+  summary: "This tradition examines the disproportionate impacts of climate change and technological development on marginalized communities and the environment, advocating for equitable solutions. It informs AI policy by highlighting the environmental footprint of AI (energy consumption, resource extraction) and ensuring that AI development does not exacerbate existing social inequalities or ecological damage.",
+  example: "The ethical guidelines for large language model development should consider the principles of climate justice, addressing the energy consumption and environmental impact of training these models.",
+  frequency: "Medium",
+  links: [
+    { label: "What is Climate Justice?", url: "https://www.un.org/sustainabledevelopment/blog/2022/03/what-is-climate-justice/" },
+    { label: "AI and Climate Change: A Call to Action", url: "https://www.nature.com/articles/s41558-020-00940-1" }
+  ]
+},
+"Climate policy literature on carbon leakage and regulatory arbitrage": {
+  label: "Climate Policy Literature on Carbon Leakage and Regulatory Arbitrage",
+  summary: "This body of work analyzes how differing climate regulations across jurisdictions can lead to industries relocating to avoid stricter rules, resulting in 'carbon leakage' and 'regulatory arbitrage'. In AI policy, it provides a framework for understanding how varying national or international AI regulations might incentivize AI developers or deployers to move operations to regions with less stringent oversight, potentially undermining global safety or ethical standards.",
+  example: "To prevent regulatory arbitrage in AI development, international policy coordination is essential, drawing lessons from climate policy literature on carbon leakage.",
+  frequency: "Medium",
+  links: [
+    { label: "Regulatory Arbitrage - OECD", url: "https://www.oecd.org/finance/financial-markets/regulatoryarbitrage.htm" },
+    { label: "Carbon Leakage and Competitiveness", url: "https://www.aeaweb.org/articles?id=10.1257/jep.27.1.117" }
+  ]
+},
+"Cognitive load theory and scaffolding research distinguishing between performance support and learning": {
+  label: "Cognitive Load Theory and Scaffolding Research Distinguishing Between Performance Support and Learning",
+  summary: "Cognitive load theory explains how working memory capacity affects learning, while scaffolding research focuses on providing temporary support to learners. This tradition is relevant to AI policy in designing AI systems that effectively support human users without overwhelming them, and in distinguishing between AI tools that merely assist performance versus those that genuinely facilitate human skill acquisition and understanding.",
+  example: "AI-powered educational tools should be designed with cognitive load theory in mind, ensuring that scaffolding supports genuine learning rather than just performance.",
+  frequency: "Specific",
+  links: [
+    { label: "Cognitive Load Theory", url: "https://www.sciencedirect.com/topics/psychology/cognitive-load-theory" },
+    { label: "Scaffolding Learning", url: "https://www.simplypsychology.org/scaffolding.html" }
+  ]
+},
+"Cognitive psychology (human factors)": {
+  label: "Cognitive Psychology (Human Factors)",
+  summary: "Human factors engineering applies cognitive psychology principles to design systems that are safe, efficient, and user-friendly, considering human capabilities and limitations. In AI policy, this tradition is crucial for designing human-AI interfaces, ensuring AI systems are understandable, controllable, and do not introduce undue cognitive burden or error potential for human operators.",
+  example: "The design guidelines for autonomous vehicle interfaces must incorporate principles from cognitive psychology and human factors to ensure driver comprehension and safety.",
+  frequency: "High",
+  links: [
+    { label: "Human Factors and Ergonomics Society", url: "https://www.hfes.org/" },
+    { label: "The Design of Everyday Things (Don Norman)", url: "https://jnd.org/the-design-of-everyday-things-revised-and-expanded-edition/" }
+  ]
+},
+"Cognitive psychology (skill acquisition and decay)": {
+  label: "Cognitive Psychology (Skill Acquisition and Decay)",
+  summary: "This area of cognitive psychology investigates how humans learn new skills, the processes involved in mastering them, and how those skills can diminish over time without practice. It is relevant to AI policy in understanding the impact of automation on human skills, designing AI systems that complement rather than erode human expertise, and planning for reskilling or upskilling workforces affected by AI.",
+  example: "Policy recommendations for AI integration in manufacturing should consider cognitive psychology research on skill acquisition and decay to mitigate deskilling effects on human workers.",
+  frequency: "Medium",
+  links: [
+    { label: "The Role of Deliberate Practice in the Acquisition of Expert Performance", url: "https://journals.sagepub.com/doi/10.1177/1529100614535591" },
+    { label: "Skill Decay in a Complex Task", url: "https://psycnet.apa.org/record/1988-29471-001" }
+  ]
+},
+"Cognitive psychology research on deep work and flow states (Mihaly Csikszentmihalyi, Cal Newport)": {
+  label: "Cognitive Psychology Research on Deep Work and Flow States (Mihaly Csikszentmihalyi, Cal Newport)",
+  summary: "This research explores states of intense focus and engagement ('flow') and sustained, distraction-free concentration ('deep work') that are crucial for high-quality cognitive performance and well-being. It informs AI policy by considering how AI tools and digital environments can be designed to either facilitate or hinder these states, impacting human productivity, creativity, and mental health.",
+  example: "AI-powered productivity tools should be evaluated against principles of deep work and flow states to ensure they enhance rather than fragment human attention.",
+  frequency: "Specific",
+  links: [
+    { label: "Flow: The Psychology of Optimal Experience (Csikszentmihalyi)", url: "https://www.harpercollins.com/products/flow-mihaly-csikszentmihalyi" },
+    { label: "Deep Work (Cal Newport)", url: "https://www.calnewport.com/books/deep-work/" }
+  ]
+},
+"Cognitive science (AI-specific interpretations)": {
+  label: "Cognitive Science (AI-Specific Interpretations)",
+  summary: "This involves applying cognitive science theories and models of human intelligence, learning, and perception to understand, design, and evaluate AI systems. It is relevant to AI policy in areas like explainable AI (XAI), human-AI alignment, and assessing AI capabilities by drawing parallels or contrasts with human cognition.",
+  example: "The development of explainable AI systems benefits from cognitive science insights into how humans form mental models and understand complex information.",
+  frequency: "High",
+  links: [
+    { label: "Cognitive Science Society", url: "https://cognitivesciencesociety.org/" },
+    { label: "The Society for Artificial Intelligence and Simulation of Behaviour", url: "https://www.aisb.org.uk/" }
+  ]
+},
+"Cognitive science (intent vs. reflex)": {
+  label: "Cognitive Science (Intent vs. Reflex)",
+  summary: "This area of cognitive science distinguishes between deliberate, goal-directed actions (intent) and automatic, stimulus-driven responses (reflex). It is crucial for AI policy in understanding and designing AI systems that can differentiate between intended actions and unintended side effects, and in developing regulatory frameworks that account for the varying degrees of autonomy and deliberateness in AI behavior.",
+  example: "Regulatory frameworks for autonomous systems must consider cognitive science distinctions between intent and reflex when attributing responsibility for AI actions.",
+  frequency: "Medium",
+  links: [
+    { label: "Thinking, Fast and Slow (Daniel Kahneman)", url: "https://www.macmillan.com/books/9780374533557/thinkingfastandslow" },
+    { label: "Dual-Process Theories of Reasoning", url: "https://plato.stanford.edu/entries/reasoning-dual/" }
+  ]
+},
+"Commons governance (Ostrom)": {
+  label: "Commons Governance (Ostrom)",
+  summary: "Elinor Ostrom's work on commons governance demonstrates how communities can sustainably manage shared resources without privatization or top-down government control, through self-organizing institutions. This tradition offers insights for AI policy in developing decentralized, participatory models for governing shared AI resources, data, or infrastructure, fostering collective stewardship and preventing the 'tragedy of the commons' in digital spaces.",
+  example: "The policy for managing open-source AI models could adopt principles from Ostrom's commons governance, empowering user communities to set rules for development and use.",
+  frequency: "Medium",
+  links: [
+    { label: "Governing the Commons (Elinor Ostrom)", url: "https://www.cambridge.org/core/books/governing-the-commons/110960012211470477891393" },
+    { label: "The Ostrom Workshop", url: "https://ostromworkshop.indiana.edu/" }
+  ]
+},
+"Comparative ethics": {
+  label: "Comparative Ethics",
+  summary: "Comparative ethics involves studying and comparing different ethical traditions, frameworks, and moral reasoning across cultures and historical periods. It is highly relevant to AI policy in navigating the diverse ethical perspectives on AI development and deployment globally, fostering cross-cultural dialogue, and developing AI ethics guidelines that are sensitive to varied societal values.",
+  example: "When developing international AI ethics guidelines, a comparative ethics approach is essential to reconcile differing cultural values regarding privacy and autonomy.",
+  frequency: "Medium",
+  links: [
+    { label: "UNESCO Recommendation on the Ethics of AI", url: "https://www.unesco.org/en/artificial-intelligence/recommendation-ethics" },
+    { label: "Stanford Encyclopedia of Philosophy: Ethics", url: "https://plato.stanford.edu/entries/ethics/" }
+  ]
+},
+"Computational complexity theory": {
+  label: "Computational Complexity Theory",
+  summary: "This field of theoretical computer science classifies computational problems based on the resources (time, memory) required to solve them. It is relevant to AI policy in understanding the inherent limitations and scalability of AI algorithms, assessing the feasibility of certain AI tasks, and informing discussions on the computational resources needed for AI development and deployment.",
+  example: "The policy on verifiable AI systems must acknowledge the limitations imposed by computational complexity theory, especially for real-time applications.",
+  frequency: "Specific",
+  links: [
+    { label: "Computational Complexity (Sipser)", url: "https://www.amazon.com/Introduction-Theory-Computation-Michael-Sipser/dp/113318779X" },
+    { label: "P vs NP Problem", url: "https://www.claymath.org/millennium-problems/p-vs-np-problem" }
+  ]
+},
+"Computational science": {
+  label: "Computational Science",
+  summary: "Computational science uses advanced computing capabilities to understand and solve complex problems across various scientific disciplines, often involving modeling, simulation, and data analysis. It is relevant to AI policy by providing the methodological backbone for developing and evaluating AI systems, understanding their underlying mechanisms, and using AI itself as a tool for policy analysis and impact assessment.",
+  example: "The policy for developing AI models for climate prediction relies heavily on principles and methodologies from computational science to ensure accuracy and robustness.",
+  frequency: "High",
+  links: [
+    { label: "Society for Industrial and Applied Mathematics (SIAM)", url: "https://www.siam.org/" },
+    { label: "Journal of Computational Science", url: "https://www.sciencedirect.com/journal/journal-of-computational-science" }
+  ]
+},
+"Computationalism": {
+  label: "Computationalism",
+  summary: "This philosophical position posits that the human mind or cognition is a form of computation, often drawing parallels between mental processes and algorithms. In AI policy, it informs discussions on AI sentience, consciousness, and the ethical implications of creating artificial minds, particularly regarding rights and responsibilities.",
+  example: "A policy node on AI personhood might reference computationalism to explore the theoretical basis for attributing mental states to advanced AI systems.",
+  frequency: "This concept frequently appears in philosophical debates surrounding AI, less so in practical policy documents, but underpins many ethical considerations.",
+  links: [
+    { label: "Computationalism", url: "https://en.wikipedia.org/wiki/Computationalism" }
+  ]
+},
+"Computer ethics": {
+  label: "Computer Ethics",
+  summary: "Computer ethics is a field of practical philosophy concerned with the ethical issues arising from the use of computers and information technology. It provides foundational principles for addressing moral dilemmas in the digital age, including privacy, intellectual property, and the societal impact of automation.",
+  example: "A policy node on data privacy in AI systems would draw heavily from computer ethics principles regarding data collection, use, and security.",
+  frequency: "This is a foundational and frequently cited lineage across various ethical AI policy discussions, especially concerning responsible innovation.",
+  links: [
+    { label: "Computer ethics", url: "https://en.wikipedia.org/wiki/Computer_ethics" },
+    { label: "Ethics of Artificial Intelligence", url: "https://plato.stanford.edu/entries/ethics-ai/" }
+  ]
+},
+"Constitutional AI and value alignment research (Anthropic, OpenAI)": {
+  label: "Constitutional AI and Value Alignment Research (Anthropic, OpenAI)",
+  summary: "This lineage refers to contemporary research efforts, notably by Anthropic and OpenAI, focused on developing AI systems that adhere to a set of specified principles or 'constitution' to ensure safe and beneficial behavior. It combines machine learning techniques with ethical frameworks to align AI actions with human values, often through methods like reinforcement learning from human feedback (RLHF) or self-correction.",
+  example: "A policy node on AI safety and governance might cite this research to illustrate methods for embedding ethical guidelines directly into AI model training and operation.",
+  frequency: "This is a highly current and frequently discussed lineage within the AI safety and alignment research communities, influencing discussions on responsible AI development.",
+  links: [
+    { label: "Constitutional AI: Harmlessness from AI Feedback", url: "https://www.anthropic.com/index/constitutional-ai-harmlessness-from-ai-feedback" },
+    { label: "Aligning AI with Shared Values", url: "https://openai.com/research/aligning-ai-with-shared-values" }
+  ]
+},
+"Constitutional AI research (Anthropic) and value alignment theory": {
+  label: "Constitutional AI Research (Anthropic) and Value Alignment Theory",
+  summary: "This lineage specifically highlights Anthropic's 'Constitutional AI' approach, which uses AI feedback to train models to follow a set of principles, alongside broader value alignment theory. Value alignment theory seeks to ensure that advanced AI systems operate in accordance with human values and intentions, preventing unintended or harmful outcomes.",
+  example: "A policy node on AI governance mechanisms could reference Constitutional AI as a practical method for operationalizing value alignment principles within large language models.",
+  frequency: "This is a prominent and frequently discussed lineage within the AI safety and alignment research communities, particularly for advanced AI systems.",
+  links: [
+    { label: "Constitutional AI: Harmlessness from AI Feedback", url: "https://www.anthropic.com/index/constitutional-ai-harmlessness-from-ai-feedback" },
+    { label: "AI Alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
+  ]
+},
+"Constitutional design principles from political philosophy and institutional theory": {
+  label: "Constitutional Design Principles from Political Philosophy and Institutional Theory",
+  summary: "This lineage draws from political philosophy's exploration of ideal governance structures and institutional theory's analysis of how rules and organizations shape behavior. It provides frameworks for creating robust, legitimate, and adaptable governance systems, emphasizing concepts like separation of powers, checks and balances, and rights protection.",
+  example: "A policy node on designing an international AI governance body might apply constitutional design principles to ensure its legitimacy, accountability, and resilience.",
+  frequency: "This is a foundational and frequently cited lineage in discussions about the governance of complex systems, including AI, especially in academic and policy-oriented contexts.",
+  links: [
+    { label: "Constitutionalism", url: "https://plato.stanford.edu/entries/constitutionalism/" },
+    { label: "Institutional theory", url: "https://en.wikipedia.org/wiki/Institutional_theory" }
+  ]
+},
+"Constitutional federalism theory and Commerce Clause jurisprudence": {
+  label: "Constitutional Federalism Theory and Commerce Clause Jurisprudence",
+  summary: "This lineage examines the division of power between national and sub-national governments (federalism) and the interpretation of the U.S. Constitution's Commerce Clause, which grants Congress power to regulate interstate commerce. It is crucial for understanding the scope of federal regulatory authority over economic activities and technologies that cross state lines.",
+  example: "A policy node discussing federal versus state authority to regulate AI in areas like data privacy or algorithmic bias would analyze this lineage to determine jurisdictional boundaries.",
+  frequency: "This is a frequently cited lineage in U.S. legal and policy discussions concerning the scope of federal regulatory power, particularly for emerging technologies.",
+  links: [
+    { label: "Federalism", url: "https://en.wikipedia.org/wiki/Federalism" },
+    { label: "Commerce Clause", url: "https://en.wikipedia.org/wiki/Commerce_Clause" }
+  ]
+},
+"Constitutional law frameworks and rule of law traditions": {
+  label: "Constitutional Law Frameworks and Rule of Law Traditions",
+  summary: "This lineage encompasses the principles and structures of constitutional law, which establish the fundamental rules governing a state, and the broader rule of law tradition, which holds that all persons and institutions are accountable to laws that are publicly promulgated, equally enforced, and independently adjudicated. It provides the bedrock for legitimate governance, protection of rights, and predictable legal environments.",
+  example: "A policy node on ensuring due process in AI-assisted administrative decisions would draw directly from constitutional law frameworks and rule of law traditions.",
+  frequency: "This is a foundational and universally cited lineage in any discussion of governance, rights, and legal systems, including their application to AI.",
+  links: [
+    { label: "Constitutional law", url: "https://en.wikipedia.org/wiki/Constitutional_law" },
+    { label: "Rule of law", url: "https://en.wikipedia.org/wiki/Rule_of_law" }
+  ]
+},
+"Constitutional law scholarship on standing, justiciability, and Ex parte Young doctrine": {
+  label: "Constitutional Law Scholarship on Standing, Justiciability, and Ex Parte Young Doctrine",
+  summary: "This lineage delves into specific doctrines within U.S. constitutional law that determine who can sue, what kinds of cases courts can hear, and how individuals can challenge unconstitutional state actions. Standing requires a concrete injury, justiciability limits courts to actual cases or controversies, and Ex parte Young allows suits against state officials to enjoin unconstitutional conduct.",
+  example: "A policy node on legal challenges to algorithmic harms might analyze these doctrines to determine the feasibility of litigation against government agencies or private entities implementing AI.",
+  frequency: "This is a frequently cited lineage in U.S. legal scholarship and litigation strategy, particularly when discussing judicial review and remedies for rights violations.",
+  links: [
+    { label: "Standing (law)", url: "https://en.wikipedia.org/wiki/Standing_(law)" },
+    { label: "Justiciability", url: "https://en.wikipedia.org/wiki/Justiciability" },
+    { label: "Ex parte Young", url: "https://en.wikipedia.org/wiki/Ex_parte_Young" }
+  ]
+},
+"Constructivist learning theory emphasizing active knowledge construction through struggle": {
+  label: "Constructivist Learning Theory Emphasizing Active Knowledge Construction Through Struggle",
+  summary: "This educational philosophy, notably influenced by Piaget and Vygotsky, posits that learners actively construct their own understanding and knowledge of the world through experiencing things and reflecting on those experiences. It emphasizes that significant learning often occurs when individuals grapple with challenging problems, leading to deeper conceptual understanding rather than passive reception of information.",
+  example: "A policy node on AI education and workforce development might advocate for curricula designed around problem-based learning and hands-on challenges, drawing from constructivist principles.",
+  frequency: "This is a frequently cited lineage in educational theory and pedagogy, influencing curriculum design and learning approaches across various fields.",
+  links: [
+    { label: "Constructivism (philosophy of education)", url: "https://en.wikipedia.org/wiki/Constructivism_(philosophy_of_education)" },
+    { label: "Jean Piaget", url: "https://en.wikipedia.org/wiki/Jean_Piaget" }
+  ]
+},
+"Consumer protection law and right-to-know disclosure regimes": {
+  label: "Consumer Protection Law and Right-to-Know Disclosure Regimes",
+  summary: "This lineage encompasses legal frameworks designed to protect consumers from unfair, deceptive, or fraudulent business practices, alongside regulations that mandate the disclosure of specific information to consumers. It aims to ensure market fairness, informed decision-making, and remedies for consumer harms, often through transparency requirements.",
+  example: "A policy node on algorithmic transparency might propose mandating disclosures about AI system capabilities and risks, drawing parallels with consumer protection's right-to-know principles.",
+  frequency: "This is a widely recognized and frequently cited lineage in regulatory discussions concerning product safety, financial services, and digital platforms.",
+  links: [
+    { label: "Consumer protection", url: "https://en.wikipedia.org/wiki/Consumer_protection" },
+    { label: "Disclosure (law)", url: "https://en.wikipedia.org/wiki/Disclosure_(law)" }
+  ]
+},
+"Consumer-to-enterprise technology consumerization trends (BYOD movement, Dropbox adoption patterns)": {
+  label: "Consumer-to-Enterprise Technology Consumerization Trends (BYOD Movement, Dropbox Adoption Patterns)",
+  summary: "This lineage describes the phenomenon where technologies and practices originating in the consumer market rapidly migrate into enterprise environments, often driven by employee preference and ease of use. Examples include the 'Bring Your Own Device' (BYOD) movement and the widespread adoption of consumer cloud services like Dropbox for business purposes. It highlights the challenges and opportunities for IT departments in managing security, compliance, and integration.",
+  example: "A policy node on shadow IT and data governance for AI tools might analyze consumerization trends to anticipate how employees will adopt new AI applications outside official channels.",
+  frequency: "This is a frequently discussed lineage in IT management, cybersecurity, and organizational strategy literature, particularly concerning digital transformation.",
+  links: [
+    { label: "Consumerization", url: "https://en.wikipedia.org/wiki/Consumerization" },
+    { label: "Bring your own device", url: "https://en.wikipedia.org/wiki/Bring_your_own_device" }
+  ]
+},
+"Continuous integration/continuous deployment (CI/CD) for safety": {
+  label: "Continuous Integration/Continuous Deployment (CI/CD) for Safety",
+  summary: "This lineage adapts the software development practices of Continuous Integration (CI) and Continuous Deployment (CD) to enhance safety and reliability, particularly in critical systems. CI/CD involves automating the integration, testing, and deployment of code changes, allowing for rapid iteration and early detection of bugs or vulnerabilities, which can be crucial for maintaining safety in AI systems.",
+  example: "A policy node on AI safety standards might recommend implementing CI/CD pipelines with integrated safety testing and monitoring to ensure continuous assurance of AI system performance.",
+  frequency: "This is a frequently discussed and implemented lineage in modern software engineering and DevOps practices, increasingly applied to AI development and safety.",
+  links: [
+    { label: "CI/CD", url: "https://en.wikipedia.org/wiki/CI/CD" },
+    { label: "DevOps", url: "https://en.wikipedia.org/wiki/DevOps" }
+  ]
+},
+"Contract law principles regarding indemnification and liability allocation": {
+  label: "Contract Law Principles Regarding Indemnification and Liability Allocation",
+  summary: "This lineage draws from the body of law governing agreements between parties, specifically focusing on clauses that determine who bears financial responsibility for losses or damages (indemnification) and how risks are distributed among parties (liability allocation). These principles are fundamental for structuring commercial relationships and managing risk in complex technological deployments.",
+  example: "A policy node on AI product liability might examine how existing contract law principles can be adapted to allocate responsibility between AI developers, deployers, and users for harms caused by AI systems.",
+  frequency: "This is a foundational and universally cited lineage in commercial law, business transactions, and risk management across all industries.",
+  links: [
+    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract_law" },
+    { label: "Indemnity", url: "https://en.wikipedia.org/wiki/Indemnity" }
+  ]
+},
+"Control theory (misspecification)": {
+  label: "Control Theory (Misspecification)",
+  summary: "Control theory is an interdisciplinary field of engineering and mathematics that deals with the behavior of dynamical systems with inputs, and how to modify the inputs to achieve desired outputs. The concept of 'misspecification' within control theory refers to errors or inaccuracies in the model used to design the controller, leading to suboptimal or unstable system behavior.",
+  example: "A policy node on AI safety might reference control theory's insights into misspecification to highlight the risks of deploying AI systems based on incomplete or incorrect models of their operating environment or objectives.",
+  frequency: "This is a frequently cited lineage in engineering, robotics, and systems design, increasingly relevant to AI safety and alignment research.",
+  links: [
+    { label: "Control theory", url: "https://en.wikipedia.org/wiki/Control_theory" },
+    { label: "System identification", url: "https://en.wikipedia.org/wiki/System_identification" }
+  ]
+},
+"Corporate accountability frameworks addressing externalization of environmental costs": {
+  label: "Corporate Accountability Frameworks Addressing Externalization of Environmental Costs",
+  summary: "This lineage encompasses legal, ethical, and economic frameworks that seek to hold corporations responsible for the negative impacts of their operations, particularly those costs (like pollution or resource depletion) that are borne by society rather than reflected in the company's balance sheet. It emphasizes principles like the 'polluter pays' and corporate social responsibility to internalize these externalities.",
+  example: "A policy node on the environmental impact of AI (e.g., energy consumption of large models) might draw from these frameworks to propose mechanisms for holding AI developers accountable for their carbon footprint.",
+  frequency: "This is a frequently cited lineage in environmental law, corporate governance, and sustainability discussions, influencing policy on corporate responsibility.",
+  links: [
+    { label: "Corporate social responsibility", url: "https://en.wikipedia.org/wiki/Corporate_social_responsibility" },
+    { label: "Externalization", url: "https://en.wikipedia.org/wiki/Externalization" }
+  ]
+},
+"Corporate law theory": {
+  label: "Corporate Law Theory",
+  summary: "Corporate law theory examines the legal structures, governance mechanisms, and economic rationales behind corporations, including issues of shareholder rights, director duties, and corporate personhood. It provides foundational insights into how companies are formed, operated, and regulated, and how they interact with society.",
+  example: "A policy node on AI governance might explore how corporate law principles could be adapted to establish fiduciary duties for AI developers or to define the legal status of autonomous AI entities.",
+  frequency: "This is a foundational and frequently cited lineage in legal scholarship, business ethics, and economic policy discussions concerning the role and regulation of corporations.",
+  links: [
+    { label: "Corporate law", url: "https://en.wikipedia.org/wiki/Corporate_law" },
+    { label: "Corporate governance", url: "https://en.wikipedia.org/wiki/Corporate_governance" }
+  ]
+},
+"Corporate self-regulation literature and voluntary governance frameworks": {
+  label: "Corporate Self-Regulation Literature and Voluntary Governance Frameworks",
+  summary: "This lineage explores the concept of industries or individual companies establishing their own rules, codes of conduct, and ethical guidelines, often in lieu of or in anticipation of government regulation. It examines the motivations, effectiveness, and limitations of such voluntary frameworks in achieving desired societal outcomes, particularly in areas like ethics, privacy, and safety.",
+  example: "A policy node on industry-led AI ethics guidelines might analyze the strengths and weaknesses of corporate self-regulation, drawing lessons from past voluntary governance frameworks.",
+  frequency: "This is a frequently discussed lineage in business ethics, regulatory studies, and industry policy debates, especially concerning emerging technologies.",
+  links: [
+    { label: "Self-regulation", url: "https://en.wikipedia.org/wiki/Self-regulation" },
+    { label: "Corporate social responsibility", url: "https://en.wikipedia.org/wiki/Corporate_social_responsibility" }
+  ]
+},
+"Cosmological evolution theories": {
+  label: "Cosmological Evolution Theories",
+  summary: "This lineage encompasses scientific theories that describe the origin, evolution, and large-scale structure of the universe, from the Big Bang to the formation of galaxies, stars, and planets. It provides a grand narrative of cosmic development, often touching upon the conditions necessary for life and intelligence to emerge.",
+  example: "A policy node on long-term AI futures or existential risk might draw philosophical inspiration from cosmological evolution theories when considering the ultimate trajectory of intelligence in the universe.",
+  frequency: "This is a foundational and frequently cited lineage in astrophysics, cosmology, and philosophical discussions about humanity's place in the universe, less directly in practical AI policy.",
+  links: [
+    { label: "Physical cosmology", url: "https://en.wikipedia.org/wiki/Physical_cosmology" },
+    { label: "Evolution of the universe", url: "https://en.wikipedia.org/wiki/Evolution_of_the_universe" }
+  ]
+},
+"Critical algorithm studies and fairness, accountability, and transparency (FAT) scholarship": {
+  label: "Critical Algorithm Studies and Fairness, Accountability, and Transparency (FAT) Scholarship",
+  summary: "This lineage combines critical algorithm studies, which examines the social, ethical, and political implications of algorithms, with the interdisciplinary field of FAT scholarship. FAT research focuses on developing methods and frameworks to ensure AI systems are fair, accountable, and transparent, addressing issues like bias, discrimination, and explainability.",
+  example: "A policy node on algorithmic bias mitigation would directly apply insights from FAT scholarship and critical algorithm studies to propose technical and governance solutions.",
+  frequency: "This is a highly current and frequently cited lineage across academic disciplines, civil society, and policy discussions concerning ethical and responsible AI.",
+  links: [
+    { label: "Algorithmic bias", url: "https://en.wikipedia.org/wiki/Algorithmic_bias" },
+    { label: "Fairness, accountability, and transparency in artificial intelligence", url: "https://en.wikipedia.org/wiki/Fairness,_accountability,_and_transparency_in_artificial_intelligence" }
+  ]
+},
+"Critical algorithm studies and scholars like Safiya Noble, Ruha Benjamin on algorithmic discrimination": {
+  label: "Critical Algorithm Studies and Scholars Like Safiya Noble, Ruha Benjamin on Algorithmic Discrimination",
+  summary: "This lineage specifically highlights the work of critical algorithm scholars such as Safiya Noble and Ruha Benjamin, who expose how algorithms can perpetuate and amplify societal inequalities and discrimination, particularly against marginalized groups. Their research reveals the embedded biases in data, design, and deployment of AI systems, leading to harmful social impacts.",
+  example: "A policy node on equity in AI would reference Noble's 'Algorithms of Oppression' or Benjamin's 'Race After Technology' to underscore the need for anti-discriminatory design and oversight.",
+  frequency: "This is a highly influential and frequently cited lineage in critical technology studies, sociology, and civil rights advocacy concerning AI.",
+  links: [
+    { label: "Safiya Noble", url: "https://en.wikipedia.org/wiki/Safiya_Noble" },
+    { label: "Ruha Benjamin", url: "https://en.wikipedia.org/wiki/Ruha_Benjamin" }
+  ]
+},
+"Critical algorithm studies documenting hidden algorithmic harms (Noble, O'Neil, Eubanks)": {
+  label: "Critical Algorithm Studies Documenting Hidden Algorithmic Harms (Noble, O'Neil, Eubanks)",
+  summary: "This lineage focuses on the empirical and theoretical work of scholars like Safiya Noble, Cathy O'Neil, and Virginia Eubanks, who have meticulously documented the often-invisible harms caused by algorithmic systems in various societal domains. Their research exposes how algorithms can reinforce existing power structures, create new forms of surveillance, and exacerbate social inequalities, particularly affecting vulnerable populations.",
+  example: "A policy node on the societal impact assessment of AI systems would draw from these scholars' work to identify potential hidden harms in areas like credit scoring, employment, or public services.",
+  frequency: "This is a highly influential and frequently cited lineage in critical technology studies, sociology, and civil rights advocacy concerning AI.",
+  links: [
+    { label: "Algorithms of Oppression", url: "https://en.wikipedia.org/wiki/Algorithms_of_Oppression" },
+    { label: "Weapons of Math Destruction", url: "https://en.wikipedia.org/wiki/Weapons_of_Math_Destruction" },
+    { label: "Automating Inequality", url: "https://www.virginia-eubanks.com/automating-inequality" }
+  ]
+},
+"Critical data studies examining power asymmetries in algorithmic systems": {
+  label: "Critical Data Studies Examining Power Asymmetries in Algorithmic Systems",
+  summary: "Critical data studies is an interdisciplinary field that investigates the social, political, and ethical implications of data collection, analysis, and deployment, particularly focusing on how data practices reinforce or create power imbalances. It scrutinizes how algorithmic systems, built upon vast datasets, can embed and amplify existing societal inequalities, surveillance, and control.",
+  example: "A policy node on data governance and AI ethics might use critical data studies to analyze how data collection practices for training AI models can perpetuate power asymmetries and disadvantage certain communities.",
+  frequency: "This is a highly current and frequently cited lineage in sociology, media studies, and critical technology studies, influencing discussions on data justice and AI ethics.",
+  links: [
+    { label: "Critical data studies", url: "https://en.wikipedia.org/wiki/Critical_data_studies" },
+    { label: "Data justice", url: "https://en.wikipedia.org/wiki/Data_justice" }
+  ]
+},
+"Critical information systems research and workplace technology studies examining technology-in-use rather than technology-as-designed": {
+  label: "Critical Information Systems Research and Workplace Technology Studies Examining Technology-in-Use Rather Than Technology-as-Designed",
+  summary: "This lineage emphasizes the divergence between how technology is intended to be used and how it is actually adopted and adapted in practice, particularly within organizational and workplace contexts. It critiques deterministic views of technology, focusing instead on the social shaping of technology and the emergent properties that arise from human-technology interaction, often revealing unintended consequences or resistance.",
+  example: "A policy node on AI adoption in the workplace might draw from this lineage to understand how employees might subvert or creatively repurpose AI tools, leading to outcomes different from those envisioned by designers.",
+  frequency: "This is a frequently cited lineage in information systems, organizational studies, and science and technology studies (STS), particularly for understanding technology implementation.",
+  links: [
+    { label: "Social shaping of technology", url: "https://en.wikipedia.org/wiki/Social_shaping_of_technology" },
+    { label: "Actor-network theory", url: "https://en.wikipedia.org/wiki/Actor-network_theory" }
+  ]
+},
+"Critical infrastructure protection": {
+  label: "Critical Infrastructure Protection",
+  summary: "Critical infrastructure protection (CIP) refers to the efforts to ensure the security and resilience of essential services and systems whose disruption would have a debilitating effect on security, national economic security, national public health or safety, or any combination thereof. This includes sectors like energy, water, communications, and financial services, increasingly involving cybersecurity measures.",
+  example: "A policy node on securing AI systems used in national defense or power grids would directly apply principles from critical infrastructure protection to mitigate risks of attack or failure.",
+  frequency: "This is a widely recognized and frequently cited lineage in national security, cybersecurity, and emergency management policy.",
+  links: [
+    { label: "Critical infrastructure protection", url: "https://en.wikipedia.org/wiki/Critical_infrastructure_protection" },
+    { label: "Cybersecurity", url: "https://en.wikipedia.org/wiki/Cybersecurity" }
+  ]
+},
+"Critical infrastructure studies": {
+  label: "Critical Infrastructure Studies",
+  summary: "This interdisciplinary field examines the social, political, and economic dimensions of critical infrastructures, moving beyond purely technical considerations to explore their governance, vulnerability, and societal impacts. It often critiques the power dynamics embedded in infrastructure development and maintenance, and how these systems shape human lives and environments.",
+  example: "A policy node on the equitable deployment of AI in public services might draw from critical infrastructure studies to analyze how existing infrastructural inequalities could be exacerbated or mitigated by AI integration.",
+  frequency: "This is a frequently cited lineage in urban studies, science and technology studies (STS), and political economy, particularly for understanding large-scale systems.",
+  links: [
+    { label: "Critical infrastructure", url: "https://en.wikipedia.org/wiki/Critical_infrastructure" },
+    { label: "Science and technology studies", url: "https://en.wikipedia.org/wiki/Science_and_technology_studies" }
+  ]
+},
+"Critical labor studies": {
+  label: "Critical Labor Studies",
+  summary: "Critical labor studies examines the nature of work, labor relations, and the experiences of workers from a perspective that often critiques capitalist systems and power imbalances. It analyzes issues such as exploitation, deskilling, automation's impact on employment, and the struggle for workers' rights and dignity.",
+  example: "A policy node on the future of work and AI might draw from critical labor studies to analyze the potential for AI to exacerbate precarious work, increase surveillance, or deskill human labor.",
+  frequency: "This is a frequently cited lineage in sociology, economics, and political science, particularly for understanding the social impacts of technological change on employment.",
+  links: [
+    { label: "Labor studies", url: "https://en.wikipedia.org/wiki/Labor_studies" },
+    { label: "Deskilling", url: "https://en.wikipedia.org/wiki/Deskilling" }
+  ]
+},
+"Critical legal studies": {
+  label: "Critical Legal Studies",
+  summary: "Critical Legal Studies (CLS) is a movement that challenges traditional legal doctrines and institutions, arguing that law is not neutral or objective but rather a reflection of political and economic power structures. It critiques how legal language and frameworks can legitimize existing inequalities and serve dominant interests.",
+  example: "A policy node on AI regulation might use a CLS lens to examine how seemingly neutral technical standards or legal definitions could inadvertently entrench the power of large tech companies or disadvantage marginalized groups.",
+  frequency: "This is a frequently cited lineage in legal theory, sociology of law, and political science, influencing critical approaches to legal reform.",
+  links: [
+    { label: "Critical legal studies", url: "https://en.wikipedia.org/wiki/Critical_legal_studies" },
+    { label: "Legal realism", url: "https://en.wikipedia.org/wiki/Legal_realism" }
+  ]
+},
+"Critical legal studies examining how technical legal language serves power asymmetries": {
+  label: "Critical Legal Studies Examining How Technical Legal Language Serves Power Asymmetries",
+  summary: "This specific branch of Critical Legal Studies (CLS) focuses on deconstructing the technical and often opaque language of law, revealing how its complexity and specialized terminology can obscure underlying power dynamics and reinforce existing inequalities. It argues that legal language is not merely descriptive but performative, shaping social realities and often serving the interests of dominant groups.",
+  example: "A policy node on the legal definitions of 'autonomy' or 'control' in AI regulation might apply this CLS perspective to analyze how such definitions could be crafted to favor developers over affected individuals.",
+  frequency: "This is a frequently cited lineage within critical legal theory and socio-legal studies, particularly when analyzing the politics of legal drafting and interpretation.",
+  links: [
+    { label: "Critical legal studies", url: "https://en.wikipedia.org/wiki/Critical_legal_studies" },
+    { label: "Legal formalism", url: "https://en.wikipedia.org/wiki/Legal_formalism" }
+  ]
+},
+"Critical pedagogy": {
+  label: "Critical Pedagogy",
+  summary: "Critical pedagogy is an educational philosophy and social movement that aims to help students develop critical consciousness, question dominant narratives, and challenge oppressive structures. Influenced by Paulo Freire, it emphasizes dialogue, reflection, and action (praxis) to empower learners to transform their world.",
+  example: "A policy node on AI literacy and public engagement might advocate for educational programs based on critical pedagogy, encouraging citizens to critically analyze AI's societal impacts and participate in its governance.",
+  frequency: "This is a frequently cited lineage in education, sociology, and social justice movements, influencing approaches to transformative learning.",
+  links: [
+    { label: "Critical pedagogy", url: "https://en.wikipedia.org/wiki/Critical_pedagogy" },
+    { label: "Paulo Freire", url: "https://en.wikipedia.org/wiki/Paulo_Freire" }
+  ]
+},
+"Critical perspectives on technology dependence from Carr's 'The Glass Cage' and Braverman's deskilling thesis": {
+  label: "Critical Perspectives on Technology Dependence from Carr's 'The Glass Cage' and Braverman's Deskilling Thesis",
+  summary: "This lineage combines Nicholas Carr's contemporary critique of automation's impact on human skill and autonomy (from 'The Glass Cage') with Harry Braverman's classic 'deskilling thesis,' which argues that capitalist production processes degrade workers' skills and control. Both perspectives highlight the potential for technology to diminish human agency, critical thinking, and expertise, leading to over-reliance and vulnerability.",
+  example: "A policy node on human-in-the-loop AI systems might draw from this lineage to argue for design principles that preserve and enhance human skills rather than automating them away, preventing over-dependence.",
+  frequency: "This is a frequently cited lineage in technology studies, labor studies, and sociology, particularly when discussing the human impact of automation and digital tools.",
+  links: [
+    { label: "The Glass Cage", url: "https://en.wikipedia.org/wiki/The_Glass_Cage" },
+    { label: "Labor and Monopoly Capital", url: "https://en.wikipedia.org/wiki/Labor_and_Monopoly_Capital" },
+    { label: "Deskilling", url: "https://en.wikipedia.org/wiki/Deskilling" }
+  ]
+},
+"Critical policy studies examining symbolic politics and policy theatricality": {
+  label: "Critical policy studies examining symbolic politics and policy theatricality",
+  summary: "This field focuses on how policies are crafted and presented to convey certain meanings and manage public perception, often diverging from their actual practical effects. It highlights the performative aspects of policymaking, where symbols and rhetoric are used to legitimate actions or avoid substantive change.",
+  example: "Government announcements of new AI ethics guidelines that lack enforcement mechanisms, serving primarily to signal concern rather than enact tangible regulation.",
+  frequency: "Medium",
+  links: [
+    { label: "The Symbolic Uses of Politics", url: "https://press.uchicago.edu/ucp/books/book/chicago/S/bo5957011.html" },
+    { label: "Policy Theatricality: The Art of Political Performance", url: "https://www.jstor.org/stable/2627003" }
+  ]
+},
+"Critical race theory and scholarship on structural racism": {
+  label: "Critical race theory and scholarship on structural racism",
+  summary: "This scholarship examines how race and racism are embedded within legal systems, policies, and societal structures, leading to persistent inequalities. It argues that racism is not merely individual prejudice but a systemic issue that shapes institutions and power dynamics.",
+  example: "Analysis of how facial recognition technologies exhibit higher error rates for people of color, perpetuating existing biases and disproportionately impacting marginalized communities.",
+  frequency: "High",
+  links: [
+    { label: "Critical Race Theory: An Introduction", url: "https://www.nyupress.org/books/9781479802760/" },
+    { label: "Mapping the Margins: Intersectionality, Identity Politics, and Violence Against Women of Color", url: "https://www.jstor.org/stable/1229039" }
+  ]
+},
+"Critical technology studies and STS scholarship on technological politics (Winner, Jasanoff)": {
+  label: "Critical technology studies and STS scholarship on technological politics (Winner, Jasanoff)",
+  summary: "This field explores how technologies are not neutral tools but are shaped by social, political, and economic forces, and in turn, shape society. It emphasizes that technological design and deployment embody specific values, power structures, and political choices.",
+  example: "Langdon Winner's analysis of Robert Moses's low bridges on Long Island parkways, designed to deter public bus access and thus exclude lower-income and minority groups.",
+  frequency: "High",
+  links: [
+    { label: "Do Artifacts Have Politics?", url: "https://www.jstor.org/stable/20024652" },
+    { label: "States of Knowledge: The Co-Production of Science and Social Order", url: "https://www.routledge.com/States-of-Knowledge-The-Co-Production-of-Science-and-Social-Order/Jasanoff/p/book/9780415927941" }
+  ]
+},
+"Critical technology studies examining state-corporate coordination in shaping tech narratives": {
+  label: "Critical technology studies examining state-corporate coordination in shaping tech narratives",
+  summary: "This area investigates how governments and corporations collaborate to construct and disseminate particular narratives about technology, often to promote specific policy agendas or commercial interests. This coordination can influence public perception, stifle dissent, and legitimize certain technological developments.",
+  example: "Joint government-industry campaigns promoting AI as an inevitable force for progress and economic growth, downplaying ethical concerns or potential job displacement.",
+  frequency: "Medium",
+  links: [
+    { label: "Manufacturing Consent: The Political Economy of the Mass Media", url: "https://www.goodreads.com/book/show/12617.Manufacturing_Consent" },
+    { label: "The Politics of Platforms: From the Digital to the Social", url: "https://mitpress.mit.edu/books/politics-platforms" }
+  ]
+},
+"Critical theory (power dynamics in discourse)": {
+  label: "Critical theory (power dynamics in discourse)",
+  summary: "Critical theory analyzes how power relations are embedded within language, communication, and knowledge production, shaping what can be said, by whom, and with what authority. It seeks to uncover hidden ideologies and challenge dominant narratives that perpetuate social inequalities.",
+  example: "Examining how the discourse around 'AI safety' is often framed by powerful tech companies, potentially marginalizing alternative perspectives on AI's societal impacts.",
+  frequency: "High",
+  links: [
+    { label: "What is Critical Theory?", url: "https://plato.stanford.edu/entries/critical-theory/" },
+    { label: "Discourse and Power", url: "https://www.routledge.com/Discourse-and-Power/Fairclough/p/book/9780582506473" }
+  ]
+},
+"Critical theory and Frankfurt School analysis of technology and power": {
+  label: "Critical theory and Frankfurt School analysis of technology and power",
+  summary: "This tradition draws on the Frankfurt School's insights to critique how technology, particularly under capitalism, can become a tool for social control, rationalization, and the suppression of critical thought. It examines how instrumental reason, applied through technology, can lead to alienation and the erosion of human freedom.",
+  example: "Marcuse's concept of 'one-dimensional man' applied to how pervasive digital technologies can absorb dissent and integrate individuals into a system of consumption and control.",
+  frequency: "Medium",
+  links: [
+    { label: "Dialectic of Enlightenment", url: "https://www.versobooks.com/books/2405-dialectic-of-enlightenment" },
+    { label: "One-Dimensional Man", url: "https://www.routledge.com/One-Dimensional-Man-Studies-in-the-Ideology-of-Advanced-Industrial-Society/Marcuse/p/book/9780415289771" }
+  ]
+},
+"Critical theory traditions questioning technological determinism and corporate framing of scientific concepts": {
+  label: "Critical theory traditions questioning technological determinism and corporate framing of scientific concepts",
+  summary: "This perspective challenges the idea that technology's development and societal impact are inevitable or predetermined, arguing instead that they are products of social choices and power struggles. It scrutinizes how corporations often shape scientific discourse and public understanding to serve their commercial interests, often by presenting complex issues as purely technical.",
+  example: "Critiquing the narrative that AI development is an unstoppable force requiring minimal regulation, a framing often promoted by tech companies to avoid accountability.",
+  frequency: "High",
+  links: [
+    { label: "Technological Determinism", url: "https://plato.stanford.edu/entries/technology/#TechDete" },
+    { label: "Science in Action: How to Follow Scientists and Engineers Through Society", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674792912" }
+  ]
+},
+"Critiques of automation and deskilling from labor economics and sociology of work": {
+  label: "Critiques of automation and deskilling from labor economics and sociology of work",
+  summary: "This scholarship investigates how automation can lead to the degradation of work, reducing the need for human skill and autonomy, and potentially increasing worker surveillance and control. It examines the economic and social consequences of technological change on labor markets, wages, and job quality.",
+  example: "Studies showing how AI-powered management systems can monitor workers more intensely, dictate tasks, and reduce opportunities for skilled decision-making, leading to increased stress and job dissatisfaction.",
+  frequency: "High",
+  links: [
+    { label: "Labor and Monopoly Capital: The Degradation of Work in the Twentieth Century", url: "https://monthlyreview.org/product/labor_and_monopoly_capital/" },
+    { label: "The Future of Work: Automation, Technology, and the Changing Nature of Employment", url: "https://www.routledge.com/The-Future-of-Work-Automation-Technology-and-the-Changing-Nature-of-Employment/Frey/p/book/9780198833275" }
+  ]
+},
+"Critiques of Luddism": {
+  label: "Critiques of Luddism",
+  summary: "This refers to arguments that portray Luddism as irrational resistance to progress, often used to dismiss concerns about technological change and its social costs. These critiques typically emphasize the benefits of innovation and economic efficiency, framing opposition as backward or misguided.",
+  example: "Arguments that dismiss contemporary concerns about AI's impact on jobs as mere 'neo-Luddism,' thereby delegitimizing valid anxieties about automation and economic displacement.",
+  frequency: "Medium",
+  links: [
+    { label: "The Luddites: Machine-Breaking in Regency England", url: "https://www.goodreads.com/book/show/124376.The_Luddites" },
+    { label: "Against the Luddites", url: "https://www.jstor.org/stable/25097491" }
+  ]
+},
+"Crowdsourcing principles": {
+  label: "Crowdsourcing principles",
+  summary: "This refers to the practice of obtaining ideas, services, or content by soliciting contributions from a large group of people, typically an online community, rather than from traditional employees or suppliers. Key principles include leveraging collective intelligence, distributed problem-solving, and often, open participation.",
+  example: "The use of online platforms to gather public input on proposed AI regulations or to label data for machine learning models.",
+  frequency: "Medium",
+  links: [
+    { label: "Crowdsourcing: Why the Power of the Crowd Is Driving the Future of Business", url: "https://www.wired.com/2006/06/crowdsourcing-why-the-power-of-the-crowd-is-driving-the-future-of-business/" },
+    { label: "The Wisdom of Crowds", url: "https://www.goodreads.com/book/show/12604.The_Wisdom_of_Crowds" }
+  ]
+},
+"Cultural studies critiques of mass media homogenization (Frankfurt School, Adorno/Horkheimer)": {
+  label: "Cultural studies critiques of mass media homogenization (Frankfurt School, Adorno/Horkheimer)",
+  summary: "This perspective argues that mass media, particularly under capitalist systems, tends to produce standardized cultural products that promote conformity and suppress critical thought. This homogenization serves to integrate individuals into the dominant social order, reducing cultural diversity and genuine artistic expression.",
+  example: "Analysis of how mainstream media narratives about AI often present a simplified, uniformly positive or dystopian view, neglecting nuanced societal impacts and diverse cultural perspectives.",
+  frequency: "Medium",
+  links: [
+    { label: "The Culture Industry: Enlightenment as Mass Deception", url: "https://www.versobooks.com/books/2405-dialectic-of-enlightenment" },
+    { label: "Cultural Studies: Theory and Practice", url: "https://www.routledge.com/Cultural-Studies/Storey/p/book/9781138855673" }
+  ]
+},
+"Cybernetics (early focus on human-machine systems)": {
+  label: "Cybernetics (early focus on human-machine systems)",
+  summary: "Cybernetics is the interdisciplinary study of control and communication in animal and machine, emphasizing feedback loops and self-regulating systems. Early cybernetics explored the fundamental principles governing how humans and machines interact and adapt within complex systems.",
+  example: "Norbert Wiener's work on feedback mechanisms in anti-aircraft gun control systems, which laid theoretical groundwork for understanding how machines could mimic human decision-making and control.",
+  frequency: "Low",
+  links: [
+    { label: "Cybernetics: Or Control and Communication in the Animal and the Machine", url: "https://mitpress.mit.edu/books/cybernetics-or-control-and-communication-animal-and-machine" },
+    { label: "The Human Use of Human Beings: Cybernetics and Society", url: "https://www.goodreads.com/book/show/104190.The_Human_Use_of_Human_Beings" }
+  ]
+},
+"Cybernetics and systems thinking in public administration": {
+  label: "Cybernetics and systems thinking in public administration",
+  summary: "This approach applies principles of feedback, control, and holistic system analysis to the design and management of public policies and organizations. It views public administration as a complex adaptive system, aiming to improve governance through understanding interdependencies and dynamic responses.",
+  example: "Designing public services with feedback loops that allow for continuous adaptation and improvement based on citizen input and performance data, rather than rigid, top-down directives.",
+  frequency: "Low",
+  links: [
+    { label: "Public Administration and Cybernetics", url: "https://www.jstor.org/stable/973562" },
+    { label: "Systems Thinking for Public Administration", url: "https://www.routledge.com/Systems-Thinking-for-Public-Administration/Jackson/p/book/9780367468132" }
+  ]
+},
+"Cybersecurity red teaming": {
+  label: "Cybersecurity red teaming",
+  summary: "Red teaming is a practice where a simulated adversarial attack is conducted against an organization's security infrastructure to test its resilience and identify vulnerabilities. It goes beyond traditional penetration testing by mimicking real-world threat actors and their tactics, techniques, and procedures.",
+  example: "An AI policy organization hiring a red team to attempt to breach its data systems or manipulate its AI models to expose weaknesses before they are exploited by malicious actors.",
+  frequency: "Medium",
+  links: [
+    { label: "Red Team: How to Succeed by Thinking Like the Enemy", url: "https://www.goodreads.com/book/show/28114008-red-team" },
+    { label: "NIST SP 800-115: Technical Guide to Information Security Testing and Assessment", url: "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf" }
+  ]
+},
+"Cybersecurity risk frameworks (e.g., NIST)": {
+  label: "Cybersecurity risk frameworks (e.g., NIST)",
+  summary: "These are structured guidelines and methodologies used by organizations to manage and reduce cybersecurity risks. Frameworks provide a common language and systematic approach for identifying, assessing, and responding to threats, ensuring a consistent level of security.",
+  example: "An organization adopting the NIST Cybersecurity Framework to establish a comprehensive program for managing risks associated with its AI systems, including identifying assets, protecting data, detecting incidents, and recovering from breaches.",
+  frequency: "High",
+  links: [
+    { label: "NIST Cybersecurity Framework", url: "https://www.nist.gov/cyberframework" },
+    { label: "ISO/IEC 27001 Information security management", url: "https://www.iso.org/isoiec-27001-information-security.html" }
+  ]
+},
+"Database transaction management (ACID properties)": {
+  label: "Database Transaction Management (ACID Properties)",
+  summary: "Focuses on ensuring data integrity and reliability in concurrent operations. Relevant to AI policy for managing large datasets, ensuring fairness in algorithmic decisions, and maintaining audit trails for accountability, especially in distributed AI systems.",
+  example: "Data integrity in AI systems can be evaluated using principles from Database Transaction Management, such as atomicity and consistency.",
+  frequency: "High (technical, data governance)",
+  links: [
+    { label: "ACID (computer science)", url: "https://en.wikipedia.org/wiki/ACID_(computer_science)" }
+  ]
+},
+"Debate theory": {
+  label: "Debate Theory",
+  summary: "Explores the structure, logic, and rhetoric of argumentation, focusing on how claims are presented, supported, and refuted. Relevant to AI policy for designing AI systems that can engage in reasoned discourse, evaluate arguments, or facilitate public deliberation on AI ethics and governance.",
+  example: "AI systems designed for policy recommendation could benefit from Debate Theory principles to structure their arguments and anticipate counter-arguments.",
+  frequency: "Medium (AI ethics, deliberative AI)",
+  links: [
+    { label: "Debate", url: "https://en.wikipedia.org/wiki/Debate" },
+    { label: "Argumentation theory", url: "https://en.wikipedia.org/wiki/Argumentation_theory" }
+  ]
+},
+"Decision science": {
+  label: "Decision Science",
+  summary: "An interdisciplinary field concerned with how decisions are made, often integrating elements of economics, psychology, statistics, and operations research. It provides frameworks for analyzing choices under uncertainty, optimizing outcomes, and understanding biases, which are crucial for designing ethical and effective AI decision-making systems.",
+  example: "Applying Decision Science principles helps in understanding the trade-offs and potential biases embedded in AI-driven policy recommendations.",
+  frequency: "High (AI ethics, risk management, policy design)",
+  links: [
+    { label: "Decision science", url: "https://en.wikipedia.org/wiki/Decision_science" },
+    { label: "Decision theory", url: "https://en.wikipedia.org/wiki/Decision_theory" }
+  ]
+},
+"Decision support systems literature and expert systems development from 1980s-90s AI": {
+  label: "Decision Support Systems and Expert Systems (1980s-90s AI)",
+  summary: "This tradition focused on developing computer-based systems to aid human decision-making and codify expert knowledge. It offers historical lessons on the challenges of knowledge representation, human-computer interaction, and the limitations of early AI in real-world applications, informing current AI policy on transparency, accountability, and the appropriate scope of AI autonomy.",
+  example: "Lessons from the Decision Support Systems era highlight the importance of human oversight in AI-driven policy tools.",
+  frequency: "Medium (AI history, explainable AI, human-in-the-loop)",
+  links: [
+    { label: "Decision support system", url: "https://en.wikipedia.org/wiki/Decision_support_system" },
+    { label: "Expert system", url: "https://en.wikipedia.org/wiki/Expert_system" }
+  ]
+},
+"Deep ecology": {
+  label: "Deep Ecology",
+  summary: "A philosophical and environmental movement that advocates for the inherent worth of all living beings and ecosystems, independent of their utility to humans. It challenges anthropocentric views and calls for a radical shift in human-nature relationships, relevant to AI policy for considering AI's environmental footprint, its role in ecological monitoring, and the potential for AI to support non-anthropocentric values.",
+  example: "Deep Ecology perspectives inform policies on AI's energy consumption and its potential role in environmental stewardship beyond human benefit.",
+  frequency: "Low (environmental AI ethics, long-term AI impacts)",
+  links: [
+    { label: "Deep ecology", url: "https://en.wikipedia.org/wiki/Deep_ecology" }
+  ]
+},
+"Deleuze and Guattari's Anti-Oedipus and Capitalism and Schizophrenia": {
+  label: "Deleuze and Guattari's Anti-Oedipus and Capitalism and Schizophrenia",
+  summary: "These foundational works introduce concepts like desiring-machines, rhizomes, and the critique of psychoanalysis and capitalism. They offer a framework for understanding how power operates through flows and connections, rather than hierarchical structures, which can be applied to analyze the decentralized and networked nature of AI systems and their societal impacts.",
+  example: "Analyzing the 'desiring-machines' of AI development, as conceptualized by Deleuze and Guattari, reveals underlying societal drives shaping technology.",
+  frequency: "Low (critical AI studies, philosophy of technology)",
+  links: [
+    { label: "Anti-Oedipus", url: "https://en.wikipedia.org/wiki/Anti-Oedipus" },
+    { label: "Capitalism and Schizophrenia", url: "https://en.wikipedia.org/wiki/Capitalism_and_Schizophrenia" }
+  ]
+},
+"Deleuze and Guattari's machinic assemblages and deterritorialization": {
+  label: "Deleuze and Guattari's Machinic Assemblages and Deterritorialization",
+  summary: "These concepts describe how heterogeneous elements (human, technological, social) come together to form dynamic systems ('assemblages') and how these systems can break free from established norms or territories ('deterritorialization'). This offers a lens for understanding the complex, emergent properties of AI systems and their capacity to disrupt existing social, economic, and political structures.",
+  example: "The 'machinic assemblages' of AI and human users illustrate how new forms of agency and control emerge in socio-technical systems.",
+  frequency: "Low (critical AI studies, philosophy of technology)",
+  links: [
+    { label: "Assemblage (philosophy)", url: "https://en.wikipedia.org/wiki/Assemblage_(philosophy)" },
+    { label: "Deterritorialization", url: "https://en.wikipedia.org/wiki/Deterritorialization" }
+  ]
+},
+"Democratic technology movements": {
+  label: "Democratic Technology Movements",
+  summary: "These movements advocate for technologies that empower citizens, promote participation, and are designed with democratic values in mind. They emphasize user control, open access, and community-driven development, providing a framework for AI policy that prioritizes public engagement, transparency, and equitable access to AI benefits.",
+  example: "Policies promoting open-source AI models align with principles from Democratic Technology Movements, fostering transparency and community control.",
+  frequency: "Medium (AI governance, participatory AI, open source)",
+  links: [
+    { label: "Democratic technology", url: "https://en.wikipedia.org/wiki/Democratic_technology" },
+    { label: "Community technology", url: "https://en.wikipedia.org/wiki/Community_technology" }
+  ]
+},
+"Democratic theory": {
+  label: "Democratic Theory",
+  summary: "Explores the foundations, principles, and practices of democratic governance, including concepts like popular sovereignty, rights, representation, and deliberation. It provides essential frameworks for evaluating how AI systems might impact democratic processes, institutions, and citizen participation, informing policies aimed at safeguarding democratic values in the age of AI.",
+  example: "Democratic Theory offers criteria for assessing AI's impact on electoral integrity and citizen participation in governance.",
+  frequency: "High (AI governance, ethics, societal impact)",
+  links: [
+    { label: "Democratic theory", url: "https://en.wikipedia.org/wiki/Democratic_theory" }
+  ]
+},
+"Democratic theory and participatory governance traditions (Dewey, Habermas)": {
+  label: "Democratic Theory and Participatory Governance (Dewey, Habermas)",
+  summary: "This tradition emphasizes the importance of public deliberation, civic engagement, and inclusive decision-making processes for legitimate governance. Thinkers like John Dewey and Jürgen Habermas highlight the role of communication and rational discourse in shaping collective action. For AI policy, this means designing mechanisms for public input, ensuring transparency in AI development, and fostering informed public debate about AI's societal implications.",
+  example: "Drawing on Habermas, AI policy should establish deliberative forums to ensure public participation in shaping AI's ethical guidelines.",
+  frequency: "High (AI governance, public engagement, ethics)",
+  links: [
+    { label: "Participatory governance", url: "https://en.wikipedia.org/wiki/Participatory_governance" },
+    { label: "John Dewey", url: "https://en.wikipedia.org/wiki/John_Dewey" },
+    { label: "Jürgen Habermas", url: "https://en.wikipedia.org/wiki/J%C3%BCrgen_Habermas" }
+  ]
+},
+"Democratization of technology": {
+  label: "Democratization of Technology",
+  summary: "Refers to the process by which technology becomes more accessible, affordable, and user-friendly for the general public, shifting power from experts to users. In AI policy, this concept advocates for making AI tools and knowledge widely available, fostering digital literacy, and ensuring that the benefits and control of AI are distributed broadly rather than concentrated among a few.",
+  example: "Policies supporting open-source AI and educational initiatives contribute to the Democratization of Technology, making AI accessible to more people.",
+  frequency: "Medium (AI access, digital divide, open source)",
+  links: [
+    { label: "Democratization of technology", url: "https://en.wikipedia.org/wiki/Democratization_of_technology" }
+  ]
+},
+"Demographic economics and dependency ratio theory (Becker, Lee)": {
+  label: "Demographic Economics and Dependency Ratio Theory (Becker, Lee)",
+  summary: "This field analyzes the economic impacts of population changes, including birth rates, mortality, and aging, often using concepts like the dependency ratio (the proportion of non-working to working-age individuals). Relevant to AI policy for understanding how AI might alleviate or exacerbate demographic challenges, such as labor shortages due to aging populations, or its impact on social welfare systems.",
+  example: "AI's potential to automate tasks can be analyzed through the lens of Demographic Economics to understand its impact on future dependency ratios.",
+  frequency: "Medium (economic impact of AI, labor policy)",
+  links: [
+    { label: "Demographic economics", url: "https://en.wikipedia.org/wiki/Demographic_economics" },
+    { label: "Dependency ratio", url: "https://en.wikipedia.org/wiki/Dependency_ratio" },
+    { label: "Gary Becker", url: "https://en.wikipedia.org/wiki/Gary_Becker" }
+  ]
+},
+"Developmental psychology theories of moral reasoning (Kohlberg, Piaget)": {
+  label: "Developmental Psychology Theories of Moral Reasoning (Kohlberg, Piaget)",
+  summary: "These theories describe the stages and processes by which individuals develop their capacity for moral judgment, moving from concrete rules to abstract ethical principles. They offer insights into how humans learn and apply ethics, which can inform the design of AI systems intended to operate ethically, or how to educate individuals about AI ethics.",
+  example: "Understanding Kohlberg's stages of moral development can help design AI systems that adapt their ethical reasoning to different contexts.",
+  frequency: "Low (AI ethics, moral AI, AI education)",
+  links: [
+    { label: "Lawrence Kohlberg's stages of moral development", url: "https://en.wikipedia.org/wiki/Lawrence_Kohlberg%27s_stages_of_moral_development" },
+    { label: "Jean Piaget", url: "https://en.wikipedia.org/wiki/Jean_Piaget" }
+  ]
+},
+"Digital forensics": {
+  label: "Digital Forensics",
+  summary: "The science of recovering and investigating material found in digital devices, often in relation to computer crime. It provides methodologies for tracing digital actions, preserving evidence, and analyzing system logs. This is crucial for AI policy in establishing accountability for AI system failures, investigating misuse, and ensuring auditability of AI decisions.",
+  example: "Digital Forensics techniques are essential for auditing AI systems to trace decisions and identify potential biases or malicious interventions.",
+  frequency: "Medium (AI accountability, security, auditability)",
+  links: [
+    { label: "Digital forensics", url: "https://en.wikipedia.org/wiki/Digital_forensics" }
+  ]
+},
+"Digital humanities": {
+  label: "Digital Humanities",
+  summary: "An interdisciplinary field that combines computational tools and methods with traditional humanities disciplines. It uses digital technologies to analyze cultural data, preserve heritage, and explore new forms of scholarship. Relevant to AI policy for understanding AI's impact on culture, art, and historical interpretation, and for developing ethical AI applications in cultural contexts.",
+  example: "Digital Humanities approaches can inform policies on AI's role in cultural preservation and the ethical use of AI in creative industries.",
+  frequency: "Low (AI and culture, ethical AI in arts)",
+  links: [
+    { label: "Digital humanities", url: "https://en.wikipedia.org/wiki/Digital_humanities" }
+  ]
+},
+"digital transformation in education": {
+  label: "Digital Transformation in Education",
+  summary: "This field examines the comprehensive and strategic integration of digital technologies to fundamentally change how education is delivered, experienced, and managed. It goes beyond simply digitizing existing practices, focusing on leveraging technology to innovate pedagogy, enhance learning outcomes, improve administrative efficiency, and foster new models of educational engagement.",
+  example: "A taxonomy node on 'AI's role in educational reform' could draw on this lineage to discuss how AI is not just a tool but a catalyst for rethinking curriculum, assessment, and the very structure of learning institutions.",
+  frequency: "This perspective is central to educational policy, ed-tech innovation, and institutional strategy in higher education and K-12, often appearing in discussions about future-proofing education systems.",
+  links: [
+    { label: "Digital transformation", url: "https://en.wikipedia.org/wiki/Digital_transformation" },
+    { label: "Educational technology", url: "https://en.wikipedia.org/wiki/Educational_technology" }
+  ]
+},
+"Digital transformation strategies": {
+  label: "Digital Transformation Strategies",
+  summary: "Focuses on the strategic adoption of digital technologies to fundamentally change business processes, culture, and customer experiences. It involves leveraging technologies like AI, cloud computing, and big data to create new value propositions and operational efficiencies.",
+  example: "A manufacturing company implementing IoT sensors across its production line to enable predictive maintenance and optimize supply chain logistics.",
+  frequency: "High",
+  links: [
+    { label: "What is Digital Transformation?", url: "https://www.salesforce.com/news/stories/what-is-digital-transformation/" },
+    { label: "MIT Sloan - Digital Transformation", url: "https://mitsloan.mit.edu/topic/digital-transformation" }
+  ]
+},
+"Disruptive innovation theory (Clayton Christensen)": {
+  label: "Disruptive Innovation Theory (Clayton Christensen)",
+  summary: "Explains how simpler, more affordable, or more convenient products and services can initially appeal to niche markets and eventually displace established market leaders. It distinguishes between sustaining innovations, which improve existing products, and disruptive innovations, which create new markets or redefine existing ones.",
+  example: "The rise of personal computers disrupting mainframe manufacturers, or streaming services disrupting traditional cable television providers.",
+  frequency: "High",
+  links: [
+    { label: "The Innovator's Dilemma", url: "https://hbr.org/2015/12/what-is-disruptive-innovation" },
+    { label: "Clayton Christensen Institute", url: "https://www.christenseninstitute.org/" }
+  ]
+},
+"Distributed AI": {
+  label: "Distributed AI",
+  summary: "Refers to AI systems where intelligence is not centralized but spread across multiple agents or nodes that interact to achieve a common goal. This approach often involves multi-agent systems, federated learning, or swarm intelligence.",
+  example: "A network of autonomous vehicles coordinating their movements to optimize traffic flow and avoid collisions without a central command system.",
+  frequency: "Medium",
+  links: [
+    { label: "Distributed Artificial Intelligence", url: "https://en.wikipedia.org/wiki/Distributed_artificial_intelligence" },
+    { label: "Federated Learning", url: "https://ai.googleblog.com/2017/04/federated-learning-collaborative.html" }
+  ]
+},
+"Distributed cognition": {
+  label: "Distributed Cognition",
+  summary: "A theoretical framework that extends the concept of cognition beyond the individual mind to include external tools, artifacts, and social interactions. It views cognitive processes as distributed across people, tools, and the environment, emphasizing how these elements interact to achieve cognitive tasks.",
+  example: "A ship's navigation team using charts, instruments, and communication to collectively guide the vessel, where the 'cognition' of navigation is distributed among them and their tools.",
+  frequency: "Medium",
+  links: [
+    { label: "Distributed Cognition - Wikipedia", url: "https://en.wikipedia.org/wiki/Distributed_cognition" },
+    { label: "The Handbook of Distributed Cognition", url: "https://mitpress.mit.edu/books/handbook-distributed-cognition" }
+  ]
+},
+"Distributed systems theory": {
+  label: "Distributed Systems Theory",
+  summary: "Deals with systems whose components are located on different networked computers, which communicate and coordinate their actions by passing messages. Key challenges include concurrency, fault tolerance, and consistency across multiple nodes.",
+  example: "Cloud computing platforms like AWS or Google Cloud, where applications run across numerous interconnected servers and data centers.",
+  frequency: "High",
+  links: [
+    { label: "Distributed System - Wikipedia", url: "https://en.wikipedia.org/wiki/Distributed_system" },
+    { label: "Principles of Distributed Systems", url: "https://www.cs.cornell.edu/courses/cs6410/2019sp/" }
+  ]
+},
+"Economic geography": {
+  label: "Economic Geography",
+  summary: "A field of geography that studies the spatial distribution of economic activities, resources, and wealth across the globe. It examines how economic phenomena are influenced by geographical factors and how they, in turn, shape the landscape.",
+  example: "Analyzing why Silicon Valley became a hub for technology innovation, considering factors like university proximity, venture capital availability, and skilled labor concentration.",
+  frequency: "Medium",
+  links: [
+    { label: "Economic Geography - Wikipedia", url: "https://en.wikipedia.org/wiki/Economic_geography" },
+    { label: "Journal of Economic Geography", url: "https://academic.oup.com/joeg" }
+  ]
+},
+"Economic history of general-purpose technologies (electricity, computers)": {
+  label: "Economic History of General-Purpose Technologies (Electricity, Computers)",
+  summary: "Focuses on the long-term economic and societal transformations brought about by foundational technologies that have broad applicability across many sectors. It analyzes the diffusion patterns, complementary innovations, and structural changes induced by technologies like electricity and computing.",
+  example: "The shift from steam power to electricity enabling factory redesigns and continuous production, or the internet revolutionizing communication, commerce, and information access.",
+  frequency: "High",
+  links: [
+    { label: "General-purpose technology - Wikipedia", url: "https://en.wikipedia.org/wiki/General-purpose_technology" },
+    { label: "Paul David on GPTs", url: "https://web.stanford.edu/~paulr/GPTs/GPTs%20and%20the%20New%20Economy.pdf" }
+  ]
+},
+"Economic history of general-purpose technologies (Robert Gordon, productivity paradox literature)": {
+  label: "Economic History of General-Purpose Technologies (Robert Gordon, Productivity Paradox)",
+  summary: "Examines the historical impact of transformative technologies, like electricity or information technology, on economic growth and productivity. Robert Gordon's work, in particular, highlights the 'productivity paradox' where significant technological advancements don't immediately translate into measurable productivity gains.",
+  example: "The period in the 1980s and early 1990s when widespread computer adoption didn't initially lead to a surge in productivity statistics, as famously noted by Solow.",
+  frequency: "High",
+  links: [
+    { label: "The Rise and Fall of American Growth", url: "https://press.princeton.edu/books/hardcover/9780691147727/the-rise-and-fall-of-american-growth" },
+    { label: "Solow Productivity Paradox", url: "https://en.wikipedia.org/wiki/Productivity_paradox" }
+  ]
+},
+"Economic impact studies of IT": {
+  label: "Economic Impact Studies of IT",
+  summary: "Involves quantitative and qualitative analyses to assess the effects of information technology on economic indicators such as productivity, employment, GDP, and industry structure. These studies often use econometric models, case studies, and surveys to measure direct and indirect impacts.",
+  example: "A study estimating the contribution of the software industry to a nation's GDP, including job creation and export revenues.",
+  frequency: "High",
+  links: [
+    { label: "The Economic Impact of Information Technology", url: "https://www.nber.org/papers/w12345" },
+    { label: "Measuring the Economic Impact of IT", url: "https://www.oecd.org/sti/ieconomy/2108394.pdf" }
+  ]
+},
+"Economic theories of information asymmetry and market transparency (Akerlof, Stiglitz)": {
+  label: "Economic Theories of Information Asymmetry and Market Transparency (Akerlof, Stiglitz)",
+  summary: "Explores situations where one party in a transaction has more or better information than the other, leading to potential market inefficiencies and failures. Akerlof's 'Market for Lemons' and Stiglitz's work on adverse selection and moral hazard are foundational to understanding these dynamics.",
+  example: "The used car market, where sellers know more about a car's quality than buyers, or insurance markets where individuals know more about their own risk profiles than insurers.",
+  frequency: "High",
+  links: [
+    { label: "The Market for \"Lemons\"", url: "https://www.jstor.org/stable/1879440" },
+    { label: "Information Asymmetry - Investopedia", url: "https://www.investopedia.com/terms/i/informationasymmetry.asp" }
+  ]
+},
+"Economic theory of specialization vs. generalization": {
+  label: "Economic Theory of Specialization vs. Generalization",
+  summary: "Examines the trade-offs and benefits associated with focusing on a narrow range of tasks or products (specialization) versus maintaining a broad skill set or product line (generalization). Specialization often leads to increased efficiency and expertise, while generalization offers flexibility and resilience in uncertain environments.",
+  example: "A highly specialized surgeon focusing on a specific type of operation versus a general practitioner, or a company producing a single niche product versus a conglomerate with diverse offerings.",
+  frequency: "Medium",
+  links: [
+    { label: "Division of Labour - Adam Smith", url: "https://www.adamsmith.org/the-division-of-labour" },
+    { label: "Specialization (economics) - Wikipedia", url: "https://en.wikipedia.org/wiki/Specialization_(economics)" }
+  ]
+},
+"Educational psychology literature on desirable difficulties and the testing effect": {
+  label: "Educational Psychology Literature on Desirable Difficulties and the Testing Effect",
+  summary: "Investigates cognitive strategies that, while initially making learning harder, lead to stronger, more durable long-term retention and understanding. The 'testing effect' demonstrates that actively retrieving information through testing is more effective for learning than passive re-study.",
+  example: "Using flashcards for self-quizzing rather than simply re-reading notes, or spacing out study sessions over time instead of cramming.",
+  frequency: "Medium",
+  links: [
+    { label: "Desirable Difficulties", url: "https://www.retrievalpractice.org/desirable-difficulties" },
+    { label: "The Testing Effect", url: "https://www.retrievalpractice.org/the-testing-effect" }
+  ]
+},
+"Effective accelerationism (technological progress as primary goal)": {
+  label: "Effective Accelerationism (Technological Progress as Primary Goal)",
+  summary: "A philosophical and political stance advocating for the rapid acceleration of technological development, often with the belief that such progress is crucial for solving global challenges or achieving post-human futures. It prioritizes technological advancement, sometimes over immediate social or political concerns, to bring about radical societal transformation.",
+  example: "Advocacy for massive investment in AI research and development, space colonization, or advanced biotechnology, viewing these as essential for humanity's long-term survival and flourishing.",
+  frequency: "Low",
+  links: [
+    { label: "What is Effective Accelerationism?", url: "https://www.lesswrong.com/posts/v2c83v4228943729/what-is-effective-accelerationism" },
+    { label: "Accelerationism - Wikipedia", url: "https://en.wikipedia.org/wiki/Accelerationism" }
+  ]
+},
+"Enterprise software implementation literature on pilot-to-production gaps": {
+  label: "Enterprise Software Implementation Literature on Pilot-to-Production Gaps",
+  summary: "Explores the challenges and failures encountered when attempting to scale successful pilot projects of enterprise software or new technologies into full-scale production systems. This literature identifies common pitfalls such as lack of organizational readiness, insufficient infrastructure, and resistance to change that hinder successful deployment.",
+  example: "A company successfully piloting a new AI-powered customer service chatbot with a small team, but struggling to integrate it across all customer service channels due0 to data silos and employee training issues.",
+  frequency: "Medium",
+  links: [
+    { label: "Bridging the Pilot-to-Production Gap", url: "https://www.mckinsey.com/capabilities/operations/our-insights/bridging-the-pilot-to-production-gap" },
+    { label: "Scaling AI: From Pilot to Production", url: "https://www.forbes.com/sites/forbestechcouncil/2020/07/20/scaling-ai-from-pilot-to-production/" }
+  ]
+},
+"Environmental justice scholarship on pollution havens and race-to-the-bottom dynamics": {
+  label: "Environmental Justice Scholarship on Pollution Havens and Race-to-the-Bottom Dynamics",
+  summary: "Investigates how environmental burdens, such as pollution and hazardous waste, are disproportionately borne by marginalized communities, often due to socio-economic and racial inequalities. It also examines the 'race-to-the-bottom' phenomenon, where countries or regions lower environmental regulations to attract foreign investment, potentially creating 'pollution havens.'",
+  example: "Developing nations relaxing environmental standards to attract manufacturing industries from developed countries, leading to increased pollution in those regions and adverse health impacts on local populations.",
+  frequency: "High",
+  links: [
+    { label: "Environmental Justice - EPA", url: "https://www.epa.gov/environmentaljustice" },
+    { label: "Pollution Haven Hypothesis", url: "https://en.wikipedia.org/wiki/Pollution_haven_hypothesis" }
+  ]
+},
+"Environmental regulation models": {
+  label: "Environmental Regulation Models",
+  summary: "Focuses on different approaches to environmental governance, such as command-and-control, market-based instruments, and voluntary agreements. Relevant to AI policy for designing regulatory frameworks that balance innovation with risk mitigation, drawing parallels in managing complex, systemic risks.",
+  example: "This AI policy framework draws inspiration from environmental regulation models, particularly in its use of market-based incentives for responsible AI development.",
+  frequency: "Moderate",
+  links: [
+    { label: "Environmental Regulation: Law, Science, and Policy", url: "https://example.com/environmental-regulation-models-1" },
+    { label: "The Oxford Handbook of Environmental Political Theory", url: "https://example.com/environmental-regulation-models-2" }
+  ]
+},
+"Environmental regulatory history (Clean Air Act, TRI)": {
+  label: "Environmental Regulatory History (Clean Air Act, TRI)",
+  summary: "Examines historical precedents in environmental law, like the Clean Air Act and the Toxics Release Inventory (TRI), which established frameworks for managing pollution and public disclosure. Offers lessons for AI policy on phased implementation, stakeholder engagement, and the evolution of regulatory tools in response to emerging technologies.",
+  example: "The proposed AI risk registry draws parallels from the Environmental Protection Agency's Toxics Release Inventory (TRI) in its approach to public disclosure.",
+  frequency: "Moderate",
+  links: [
+    { label: "Clean Air Act", url: "https://example.com/clean-air-act" },
+    { label: "Toxics Release Inventory (TRI)", url: "https://example.com/tri" }
+  ]
+},
+"Ethics of automation": {
+  label: "Ethics of Automation",
+  summary: "Explores the moral implications of increasingly autonomous systems, including questions of responsibility, accountability, and the impact on human agency and labor. Directly informs AI policy by providing a foundational ethical lens through which to evaluate the design, deployment, and societal effects of AI technologies.",
+  example: "The policy addresses the ethics of automation by mandating human oversight mechanisms for critical AI decision-making systems.",
+  frequency: "High",
+  links: [
+    { label: "Moral Machines: Teaching Robots Right from Wrong", url: "https://example.com/moral-machines" },
+    { label: "The Ethics of Artificial Intelligence", url: "https://example.com/ethics-ai" }
+  ]
+},
+"Evgeny Morozov's concept of solutionism and technological determinism critique": {
+  label: "Evgeny Morozov's Solutionism and Technological Determinism Critique",
+  summary: "Critiques the tendency to frame all social problems as solvable by technological means ('solutionism') and challenges the idea that technology dictates societal development ('technological determinism'). Relevant to AI policy by urging caution against over-reliance on technological fixes for complex societal issues and promoting a more nuanced understanding of technology's role.",
+  example: "The policy explicitly avoids solutionism by acknowledging that AI is a tool, not a panacea, for complex social challenges.",
+  frequency: "Moderate",
+  links: [
+    { label: "To Save Everything, Click Here: The Folly of Technological Solutionism", url: "https://example.com/solutionism" },
+    { label: "The Net Delusion: The Dark Side of Internet Freedom", url: "https://example.com/net-delusion" }
+  ]
+},
+"Evolutionary biology": {
+  label: "Evolutionary Biology",
+  summary: "Studies the processes of natural selection, adaptation, and speciation that drive the diversity of life. While not directly about policy, its principles of adaptation, competition, and emergent complexity can offer metaphorical insights into the evolution of AI systems, their ecosystems, and the challenges of regulating rapidly changing technologies.",
+  example: "Understanding the adaptive capabilities of AI systems requires considering principles from evolutionary biology, particularly in how systems might evolve unintended behaviors.",
+  frequency: "Low",
+  links: [
+    { label: "The Selfish Gene", url: "https://example.com/selfish-gene" },
+    { label: "On the Origin of Species", url: "https://example.com/origin-of-species" }
+  ]
+},
+"Evolutionary ethics": {
+  label: "Evolutionary Ethics",
+  summary: "Explores the biological and evolutionary origins of human moral behavior and ethical systems. For AI policy, it can inform discussions on how ethical principles might be embedded or emerge in artificial intelligences, and how human moral intuitions, shaped by evolution, interact with AI-driven decisions.",
+  example: "The debate on AI alignment often touches upon evolutionary ethics, questioning whether AI can develop 'natural' moral reasoning.",
+  frequency: "Low",
+  links: [
+    { label: "The Moral Animal: Why We Are the Way We Are", url: "https://example.com/moral-animal" },
+    { label: "Evolutionary Ethics and Contemporary Biology", url: "https://example.com/evolutionary-ethics" }
+  ]
+},
+"Evolutionary game theory and ESS (Evolutionarily Stable Strategy) concepts": {
+  label: "Evolutionary Game Theory and ESS (Evolutionarily Stable Strategy) Concepts",
+  summary: "Applies game theory to evolving populations, identifying strategies that, once adopted by a population, cannot be invaded by alternative strategies (Evolutionarily Stable Strategy). Relevant to AI policy for modeling the strategic interactions between AI agents, humans, and regulators, and understanding how stable or unstable certain AI deployment strategies might be.",
+  example: "The policy framework uses evolutionary game theory to model the emergence of cooperative or competitive behaviors among autonomous AI agents.",
+  frequency: "Moderate",
+  links: [
+    { label: "Evolution and the Theory of Games", url: "https://example.com/evolution-game-theory" },
+    { label: "Game Theory", url: "https://example.com/game-theory" }
+  ]
+},
+"Existential risk philosophy (Nick Bostrom, Toby Ord)": {
+  label: "Existential Risk Philosophy (Nick Bostrom, Toby Ord)",
+  summary: "Focuses on risks that threaten the long-term potential of humanity, such as advanced AI, pandemics, or nuclear war. Directly informs AI policy by highlighting the most extreme potential negative outcomes of AI development and advocating for robust safety measures and international cooperation to prevent catastrophic scenarios.",
+  example: "The policy prioritizes research into AI alignment, drawing heavily from existential risk philosophy to mitigate potential catastrophic outcomes.",
+  frequency: "High",
+  links: [
+    { label: "Superintelligence: Paths, Dangers, Strategies", url: "https://example.com/superintelligence" },
+    { label: "The Precipice: Existential Risk and the Future of Humanity", url: "https://example.com/the-precipice" }
+  ]
+},
+"Extrapolation of exponential growth (e.g., Kurzweil)": {
+  label: "Extrapolation of Exponential Growth (e.g., Kurzweil)",
+  summary: "Involves projecting future trends based on past exponential growth patterns, often applied to technological progress like Moore's Law. Influences AI policy by shaping perceptions of AI's future capabilities and the urgency of regulation, though it can also lead to over-optimistic or alarmist predictions.",
+  example: "The policy acknowledges the rapid pace of AI development, often characterized by the extrapolation of exponential growth, but emphasizes a proactive regulatory approach.",
+  frequency: "Moderate",
+  links: [
+    { label: "The Singularity Is Near: When Humans Transcend Biology", url: "https://example.com/singularity-is-near" },
+    { label: "The Law of Accelerating Returns", url: "https://example.com/accelerating-returns" }
+  ]
+},
+"Extraterritoriality in data protection law (Brussels Effect literature)": {
+  label: "Extraterritoriality in Data Protection Law (Brussels Effect Literature)",
+  summary: "Examines how regulations enacted by one jurisdiction (e.g., the EU's GDPR) can influence practices and policies globally, often referred to as the 'Brussels Effect.' Highly relevant to AI policy for understanding how regional AI regulations might set de facto global standards and the challenges of international regulatory harmonization.",
+  example: "The proposed EU AI Act aims for extraterritoriality, hoping to achieve a 'Brussels Effect' similar to GDPR in shaping global AI standards.",
+  frequency: "High",
+  links: [
+    { label: "The Brussels Effect: How the European Union Rules the World", url: "https://example.com/brussels-effect" },
+    { label: "General Data Protection Regulation (GDPR)", url: "https://example.com/gdpr" }
+  ]
+},
+"Failure Mode and Effects Analysis (FMEA)": {
+  label: "Failure Mode and Effects Analysis (FMEA)",
+  summary: "A systematic, proactive method for identifying potential failure modes in a system, their causes, and their effects. Applied in AI policy, FMEA can help anticipate potential risks and vulnerabilities in AI systems, guiding the development of robust safety protocols and mitigation strategies.",
+  example: "The AI safety assessment framework incorporates Failure Mode and Effects Analysis (FMEA) to systematically identify and mitigate potential system failures.",
+  frequency: "High",
+  links: [
+    { label: "FMEA Handbook", url: "https://example.com/fmea-handbook" },
+    { label: "Introduction to FMEA", url: "https://example.com/introduction-fmea" }
+  ]
+},
+"Failure mode and effects analysis (FMEA) from safety-critical engineering disciplines": {
+  label: "Failure Mode and Effects Analysis (FMEA) from Safety-Critical Engineering Disciplines",
+  summary: "This specific application of FMEA, originating from fields like aerospace and nuclear engineering, emphasizes rigorous, quantitative risk assessment for systems where failure can have catastrophic consequences. It informs AI policy by providing a proven methodology for identifying, prioritizing, and mitigating risks in high-stakes AI applications, ensuring a high degree of reliability and safety.",
+  example: "Drawing from safety-critical engineering disciplines, the AI certification process mandates a comprehensive FMEA to ensure the reliability of autonomous vehicles.",
+  frequency: "High",
+  links: [
+    { label: "Aerospace Recommended Practice ARP5580: Recommended Failure Modes and Effects Analysis (FMEA) Practices for Non-Automotive Applications", url: "https://example.com/arp5580" },
+    { label: "Nuclear Regulatory Commission FMEA Guidelines", url: "https://example.com/nrc-fmea" }
+  ]
+},
+"Fairness, Accountability, and Transparency in Machine Learning (FAT/FAccT) movement": {
+  label: "Fairness, Accountability, and Transparency in Machine Learning (FAT/FAccT) Movement",
+  summary: "An interdisciplinary research and advocacy movement focused on addressing ethical and societal challenges posed by AI, particularly concerning bias, discrimination, and lack of explainability. Directly shapes AI policy by providing frameworks, metrics, and best practices for designing, deploying, and auditing AI systems to ensure they are fair, accountable, and transparent.",
+  example: "The policy mandates regular audits for algorithmic bias, directly reflecting the principles advocated by the FAT/FAccT movement.",
+  frequency: "High",
+  links: [
+    { label: "ACM FAccT Conference", url: "https://example.com/acm-facct" },
+    { label: "Fairness and Machine Learning: Limitations and Opportunities", url: "https://example.com/fairness-ml" }
+  ]
+},
+"Feminist epistemology and standpoint theory on embedded power in knowledge production": {
+  label: "Feminist Epistemology and Standpoint Theory on Embedded Power in Knowledge Production",
+  summary: "Critiques traditional knowledge production for its inherent biases and power structures, arguing that knowledge is shaped by social position and experience (standpoint theory). In AI policy, this tradition highlights how AI systems can embed and amplify existing societal biases, urging for diverse perspectives in AI design and governance to challenge dominant narratives and power imbalances.",
+  example: "The policy emphasizes inclusive AI development teams, informed by feminist epistemology, to mitigate biases embedded in data and algorithms.",
+  frequency: "Moderate",
+  links: [
+    { label: "Feminist Epistemology and Philosophy of Science", url: "https://example.com/feminist-epistemology" },
+    { label: "Standpoint Theory", url: "https://example.com/standpoint-theory" }
+  ]
+},
+"Feminist policy analysis": {
+  label: "Feminist Policy Analysis",
+  summary: "A critical approach to policy-making that examines how policies affect different genders and reinforces or challenges existing power structures and inequalities. Applied to AI policy, it scrutinizes how AI systems and their governance might disproportionately impact women and marginalized groups, advocating for policies that promote gender equality and social justice.",
+  example: "The policy includes a gender impact assessment for AI deployments, a key component of feminist policy analysis, to identify and mitigate disparate impacts.",
+  frequency: "Moderate",
+  links: [
+    { label: "Feminist Approaches to Policy Analysis", url: "https://example.com/feminist-policy-analysis-1" },
+    { label: "Gender and Public Policy", url: "https://example.com/feminist-policy-analysis-2" }
+  ]
+},
+"Feminist psychology": {
+  label: "Feminist Psychology",
+  summary: "Feminist psychology critically examines how gender, power, and social structures influence psychological experiences and well-being. In AI policy, it highlights the importance of identifying and mitigating gender biases embedded in AI data and algorithms, ensuring equitable impacts, and promoting inclusive design that considers diverse human experiences.",
+  example: "This policy framework draws on Feminist Psychology to analyze how AI systems might perpetuate or mitigate gender-based discrimination and psychological harm.",
+  frequency: "Medium",
+  links: [
+    { label: "Feminist Psychology: An Introduction", url: "https://www.apa.org/education-career/guide/feminist-psychology" }
+  ]
+},
+"Financial Regulation Theory": {
+  label: "Financial Regulation Theory",
+  summary: "This theory explores the rationale, design, and effects of rules governing financial markets and institutions, aiming to prevent market failures and protect consumers. Its relevance to AI policy lies in providing frameworks for regulating complex, interconnected AI systems, particularly in high-stakes domains like finance, by drawing parallels in risk management, systemic stability, and consumer protection.",
+  example: "The proposed AI governance model incorporates principles from Financial Regulation Theory to establish robust oversight mechanisms for high-risk AI applications in financial services.",
+  frequency: "Low",
+  links: [
+    { label: "The Economic Theory of Financial Regulation", url: "https://www.nber.org/system/files/chapters/c11068/c11068.pdf" }
+  ]
+},
+"Financial stability theory": {
+  label: "Financial Stability Theory",
+  summary: "Financial stability theory studies the conditions under which financial systems remain resilient to shocks and prevent widespread crises, focusing on systemic risk and contagion. Applied to AI policy, it helps conceptualize systemic risks posed by interconnected AI systems, especially in critical infrastructure or economic sectors, informing strategies for resilience, crisis prevention, and macroprudential regulation of AI.",
+  example: "Drawing on Financial Stability Theory, this policy aims to identify and mitigate systemic risks introduced by the widespread adoption of AI in critical economic sectors.",
+  frequency: "Low",
+  links: [
+    { label: "Financial Stability and the Role of the Central Bank", url: "https://www.imf.org/external/pubs/ft/fandd/2003/03/goodhart.htm" }
+  ]
+},
+"Formal epistemology": {
+  label: "Formal Epistemology",
+  summary: "Formal epistemology uses mathematical and logical methods to study knowledge, belief, and reasoning, often employing probability theory and logic. In AI policy, it provides tools for analyzing the reliability, uncertainty, and justification of AI systems' outputs, particularly in areas like explainable AI, truthfulness, and decision-making under uncertainty, contributing to frameworks for AI trustworthiness.",
+  example: "The framework for evaluating AI trustworthiness employs concepts from Formal Epistemology to assess the coherence and justification of AI-generated inferences and predictions.",
+  frequency: "Low",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: Formal Epistemology", url: "https://plato.stanford.edu/entries/formal-epistemology/" }
+  ]
+},
+"Future studies (certain branches)": {
+  label: "Futures Studies (Certain Branches)",
+  summary: "Specific branches of Futures Studies, such as technological forecasting and scenario planning, explore potential future developments and their implications. Relevant to AI policy for anticipating long-term societal impacts of AI, identifying emerging risks and opportunities, and developing proactive governance strategies based on plausible future scenarios.",
+  example: "This policy brief utilizes methodologies from Futures Studies' technological forecasting branch to project the socio-economic impacts of advanced AI over the next two decades.",
+  frequency: "Medium",
+  links: [
+    { label: "The Futures of Technology: A Foresight Guide", url: "https://www.oecd.org/futures/foresight-guide-technology.htm" }
+  ]
+},
+"Futures studies": {
+  label: "Futures Studies",
+  summary: "Futures Studies is a broad interdisciplinary field that systematically explores possible, probable, and preferable futures through various methodologies like trend analysis and visioning. It informs AI policy by providing methods for long-term strategic planning, risk assessment, and envisioning desired societal outcomes in an AI-transformed world, fostering proactive and adaptive governance.",
+  example: "The national AI strategy incorporates foresight techniques from Futures Studies to prepare for various AI development trajectories and their societal implications.",
+  frequency: "Medium",
+  links: [
+    { label: "World Futures Studies Federation", url: "https://wfsf.org/" }
+  ]
+},
+"Gender mainstreaming in policy": {
+  label: "Gender Mainstreaming in Policy",
+  summary: "Gender mainstreaming is an approach to policy-making that assesses the implications for women and men of any planned action, including legislation, policies, or programs, in all areas and at all levels. For AI policy, it ensures that gender perspectives are integrated from design to deployment, addressing potential biases and differential impacts of AI systems on diverse gender groups.",
+  example: "The AI ethics guidelines mandate Gender Mainstreaming in Policy to ensure that all AI development considers its varied impacts on different gender groups and promotes equitable outcomes.",
+  frequency: "Medium",
+  links: [
+    { label: "Gender Mainstreaming: An Overview", url: "https://eige.europa.eu/gender-mainstreaming/what-is-gender-mainstreaming" }
+  ]
+},
+"gender studies": {
+  label: "Gender Studies",
+  summary: "Gender studies is an interdisciplinary academic field that examines gender identity and gendered representation as central categories of analysis. It critically investigates how gender shapes social structures, power relations, cultural norms, and individual experiences, often highlighting inequalities and advocating for social justice.",
+  example: "A taxonomy node on 'AI bias and discrimination' would frequently draw on gender studies to analyze how AI systems can perpetuate or amplify gender stereotypes, leading to discriminatory outcomes in areas like hiring or credit scoring.",
+  frequency: "This field is foundational in sociology, humanities, political science, and critical technology studies, providing essential frameworks for understanding and addressing inequalities in AI development and deployment.",
+  links: [
+    { label: "Gender studies", url: "https://en.wikipedia.org/wiki/Gender_studies" },
+    { label: "Gender bias in artificial intelligence", url: "https://en.wikipedia.org/wiki/Gender_bias_in_artificial_intelligence" }
+  ]
+},
+"Hannah Arendt's work on the banality of evil and thoughtless compliance with systems": {
+  label: "Hannah Arendt's Work on the Banality of Evil and Thoughtless Compliance with Systems",
+  summary: "Arendt's analysis highlights how ordinary individuals can participate in horrific acts through a lack of critical thought and adherence to bureaucratic systems. In AI policy, this tradition warns against uncritical adoption of AI systems, emphasizing the need for human accountability, ethical reflection, and resistance to automated decision-making that lacks transparency or moral consideration.",
+  example: "Drawing on Hannah Arendt's insights, the policy emphasizes the importance of human oversight and critical questioning to prevent thoughtless compliance with potentially harmful AI system outputs.",
+  frequency: "Low",
+  links: [
+    { label: "Eichmann in Jerusalem: A Report on the Banality of Evil", url: "https://www.penguinrandomhouse.com/books/10976/eichmann-in-jerusalem-by-hannah-arendt/" }
+  ]
+},
+"Historical institutionalism and path dependency in technology policy": {
+  label: "Historical Institutionalism and Path Dependency in Technology Policy",
+  summary: "This perspective emphasizes how past decisions and institutional structures shape current and future policy choices, creating 'path dependencies' that are difficult to alter. For AI policy, it highlights how early regulatory frameworks, industry standards, or technological choices can lock in certain trajectories, making it crucial to consider long-term implications and potential inflexibility in governance.",
+  example: "The analysis of national AI strategies reveals how Historical Institutionalism and Path Dependency in Technology Policy have shaped the current regulatory landscape, making radical shifts challenging.",
+  frequency: "Medium",
+  links: [
+    { label: "Path Dependence and the Problem of Historical Sociology", url: "https://www.jstor.org/stable/2655305" }
+  ]
+},
+"Howard Gardner's theory of multiple intelligences": {
+  label: "Howard Gardner's Theory of Multiple Intelligences",
+  summary: "Gardner's theory proposes that intelligence is not a single, monolithic entity but comprises distinct modalities (e.g., linguistic, logical-mathematical, spatial, musical). In AI policy, this theory can inform discussions about the diverse capabilities and limitations of AI, moving beyond a narrow definition of 'intelligence' and encouraging the development of AI that complements human strengths across various domains.",
+  example: "The educational policy for AI literacy draws on Howard Gardner's Theory of Multiple Intelligences to design curricula that foster diverse human-AI collaborative skills.",
+  frequency: "Low",
+  links: [
+    { label: "Frames of Mind: The Theory of Multiple Intelligences", url: "https://howardgardner.com/books/frames-of-mind/" }
+  ]
+},
+"human resources management": {
+  label: "Human Resources Management (HRM)",
+  summary: "Human Resources Management is the strategic approach to the effective management of an organization's employees, encompassing recruitment, training, performance management, compensation, and employee relations. It focuses on maximizing employee performance in service of an employer's strategic objectives, while also considering employee well-being and legal compliance.",
+  example: "A taxonomy node on 'AI's impact on the workforce' might use HRM principles to discuss how AI can automate HR tasks, reshape job roles, or require new training programs for employees adapting to AI-driven workplaces.",
+  frequency: "This field is central to business administration, organizational studies, and labor economics, providing practical and theoretical frameworks for managing human capital in the face of technological change.",
+  links: [
+    { label: "Human resource management", url: "https://en.wikipedia.org/wiki/Human_resource_management" },
+    { label: "Future of work", url: "https://en.wikipedia.org/wiki/Future_of_work" }
+  ]
+},
+"Human rights advocacy": {
+  label: "Human Rights Advocacy",
+  summary: "Human rights advocacy involves the active promotion and protection of fundamental human rights, often through legal, political, and social campaigns by civil society organizations. In AI policy, it drives the imperative to ensure AI systems respect and uphold human rights, addressing issues like privacy, non-discrimination, freedom of expression, and due process in AI-driven decisions and deployments.",
+  example: "The policy framework for facial recognition technology was significantly influenced by Human Rights Advocacy groups pushing for stronger privacy protections and accountability.",
+  frequency: "High",
+  links: [
+    { label: "Amnesty International", url: "https://www.amnesty.org/" }
+  ]
+},
+"Human rights discourse": {
+  label: "Human Rights Discourse",
+  summary: "Human rights discourse refers to the broader conversation, language, and conceptual frameworks used to discuss and apply human rights principles in various contexts. It provides the normative foundation for evaluating AI's impact on individuals and societies, shaping the ethical and legal arguments for responsible AI development and deployment, and guiding policy debates.",
+  example: "The debate around AI's impact on surveillance is framed within the Human Rights Discourse, emphasizing privacy and freedom from arbitrary interference.",
+  frequency: "High",
+  links: [
+    { label: "Universal Declaration of Human Rights", url: "https://www.un.org/en/about-us/universal-declaration-of-human-rights" }
+  ]
+},
+"Human-AI collaboration research": {
+  label: "Human-AI Collaboration Research",
+  summary: "This interdisciplinary field studies how humans and AI systems can effectively work together, focusing on optimizing joint performance, trust, and user experience. In AI policy, it informs guidelines for designing AI systems that augment human capabilities, promote meaningful human control, and ensure effective teamwork in various applications, from healthcare to creative industries.",
+  example: "The guidelines for AI in healthcare are informed by Human-AI Collaboration Research to ensure that AI tools enhance, rather than replace, clinical judgment and patient care.",
+  frequency: "Medium",
+  links: [
+    { label: "Human-AI Collaboration: A Survey of Challenges and Opportunities", url: "https://arxiv.org/abs/2003.07291" }
+  ]
+},
+"Incentive theory": {
+  label: "Incentive Theory",
+  summary: "Incentive theory examines how incentives (rewards and penalties) influence individual and organizational behavior, driving choices and actions. In AI policy, it helps design regulatory mechanisms, market structures, and ethical frameworks that encourage responsible AI development, discourage harmful uses, and align the interests of developers, users, and society towards beneficial AI outcomes.",
+  example: "The policy proposes a combination of tax breaks and liability rules, drawing on Incentive Theory, to encourage companies to develop ethical and safe AI systems.",
+  frequency: "Medium",
+  links: [
+    { label: "The Theory of Incentives: The Principal-Agent Model", url: "https://press.princeton.edu/books/hardcover/9780691042429/the-theory-of-incentives" }
+  ]
+},
+"Institutional design theory": {
+  label: "Institutional Design Theory",
+  summary: "Institutional design theory focuses on how to create and structure institutions (rules, norms, organizations) to achieve specific policy goals and manage collective action problems. For AI policy, it provides frameworks for building effective governance bodies, regulatory agencies, and international cooperation mechanisms to guide AI development, mitigate risks, and ensure equitable benefits.",
+  example: "The proposal for a global AI governance body applies principles from Institutional Design Theory to ensure its legitimacy, effectiveness, and adaptability.",
+  frequency: "Medium",
+  links: [
+    { label: "Governing the Commons: The Evolution of Institutions for Collective Action", url: "https://press.princeton.edu/books/paperback/9780521405997/governing-the-commons" }
+  ]
+},
+"Interfaith dialogue movements": {
+  label: "Interfaith Dialogue Movements",
+  summary: "These movements focus on fostering mutual understanding, respect, and collaboration among people of different religious and spiritual traditions, often seeking common ethical ground. In AI policy, this tradition is relevant for developing inclusive ethical frameworks, ensuring AI governance considers diverse cultural and spiritual perspectives, and promoting global consensus on AI's societal impact.",
+  example: "Ethical AI frameworks should draw inspiration from Interfaith Dialogue Movements to ensure global inclusivity and address diverse moral concerns regarding AI's impact on human values.",
+  frequency: "Low to Medium (emerging in ethical AI and global governance discussions)",
+  links: [
+    { label: "Parliament of the World's Religions", url: "https://parliamentofreligions.org/" },
+    { label: "World Council of Churches", url: "https://www.oikoumene.org/" }
+  ]
+},
+"Intersectionality theory": {
+  label: "Intersectionality Theory",
+  summary: "Developed by Kimberlé Crenshaw, this theory analyzes how various social and political identities (e.g., race, class, gender, sexuality) combine to create unique modes of discrimination and privilege. It is crucial for AI policy to identify and mitigate AI systems that perpetuate or amplify systemic biases, ensuring equitable outcomes for individuals at the intersection of multiple marginalized identities.",
+  example: "An AI policy framework must apply Intersectionality Theory to assess how algorithmic bias disproportionately affects individuals at the intersection of multiple marginalized identities, such as Black women or disabled immigrants.",
+  frequency: "High (especially in ethical AI, fairness, and bias discussions)",
+  links: [
+    { label: "Kimberlé Crenshaw on Intersectionality", url: "https://www.law.columbia.edu/faculty/kimberle-w-crenshaw" },
+    { label: "Mapping the Margins: Intersectionality, Identity Politics, and Violence Against Women of Color", url: "https://chicagounbound.uchicago.edu/uclrev/vol1989/iss1/8/" }
+  ]
+},
+"Jeremy England's dissipative adaptation theory": {
+  label: "Jeremy England's Dissipative Adaptation Theory",
+  summary: "This theory proposes that life and complex systems emerge and persist by dissipating energy from their environment, increasing entropy in the universe while locally organizing. It offers a lens for understanding AI systems as complex adaptive systems that process information and energy, potentially informing discussions on AI's resource consumption, sustainability, and emergent properties from a thermodynamic perspective.",
+  example: "Considering Jeremy England's Dissipative Adaptation Theory, AI policy could explore the energy footprint and thermodynamic efficiency of large-scale AI models and their long-term environmental impact.",
+  frequency: "Low (niche, theoretical physics/biology, less direct AI policy)",
+  links: [
+    { label: "Jeremy England's Research", url: "https://www.jeremyengland.com/" },
+    { label: "Statistical physics of self-replication", url: "https://journals.aps.org/pre/abstract/10.1103/PhysRevE.86.041913" }
+  ]
+},
+"Just War Theory (in relation to reducing harm)": {
+  label: "Just War Theory (Reducing Harm)",
+  summary: "Just War Theory provides ethical principles for determining when war is morally permissible (jus ad bellum) and what conduct is acceptable during war (jus in bello), with a strong emphasis on minimizing harm to non-combatants. Applied to AI policy, it offers a framework for ethical considerations in autonomous weapons systems, cyber warfare, and the responsible use of AI in conflict, focusing on proportionality, discrimination, and the avoidance of unnecessary suffering.",
+  example: "The application of Just War Theory is essential for developing AI policy on autonomous weapons, particularly concerning the principles of proportionality and the avoidance of civilian harm in their deployment.",
+  frequency: "Medium to High (especially in defense/military AI policy)",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: War", url: "https://plato.stanford.edu/entries/war/" },
+    { label: "International Committee of the Red Cross", url: "https://www.icrc.org/en/document/autonomous-weapon-systems-and-international-humanitarian-law" }
+  ]
+},
+"Kondratiev waves": {
+  label: "Kondratiev Waves",
+  summary: "Kondratiev waves are long-term economic cycles (typically 40-60 years) characterized by different technological revolutions and their associated periods of growth and stagnation. Relevant to AI policy for understanding the macro-economic impact of AI as a general-purpose technology, predicting its transformative effects on industries, labor markets, and global power dynamics over decades, and informing long-term strategic planning.",
+  example: "AI policy should anticipate the long-term structural changes in the global economy by considering the framework of Kondratiev Waves, positioning AI as a driver of a new technological supercycle.",
+  frequency: "Low to Medium (macroeconomics, strategic foresight)",
+  links: [
+    { label: "Kondratiev's Long Waves in Economic Life", url: "https://www.jstor.org/stable/1884862" },
+    { label: "Joseph Schumpeter on Business Cycles", url: "https://www.britannica.com/biography/Joseph-Schumpeter" }
+  ]
+},
+"Learning curve theory and experience-based productivity models (Wright 1936, Arrow 1962)": {
+  label: "Learning Curve Theory and Experience-Based Productivity Models",
+  summary: "This theory describes how the cost or time required to produce a unit decreases systematically as cumulative production increases, reflecting efficiency gains from experience. In AI policy, this helps model the decreasing costs of AI development and deployment, the accelerating pace of AI innovation, and its implications for economic competitiveness, industrial strategy, and workforce reskilling and adaptation.",
+  example: "Policymakers can leverage Learning Curve Theory to project the declining costs of AI deployment and plan for necessary investments in workforce training to adapt to these efficiency gains and maintain competitiveness.",
+  frequency: "Medium (economics, industrial policy, technology adoption)",
+  links: [
+    { label: "Wright's 'Factors Affecting the Cost of Airplanes'", url: "https://www.rand.org/pubs/reports/R3109.html" },
+    { label: "Arrow's 'The Economic Implications of Learning by Doing'", url: "https://www.jstor.org/stable/1821866" }
+  ]
+},
+"Legal ethics": {
+  label: "Legal Ethics",
+  summary: "Legal ethics is a branch of ethics that governs the conduct of members of the legal profession, ensuring fairness, integrity, and adherence to the rule of law. For AI policy, legal ethics informs discussions on the responsible use of AI in legal practice (e.g., AI judges, legal research tools), data privacy, algorithmic transparency in legal decision-making, and the ethical obligations of AI developers and deployers in legal contexts.",
+  example: "AI policy must incorporate principles from Legal Ethics to ensure that AI tools used in judicial processes uphold due process, fairness, and client confidentiality, maintaining public trust in the legal system.",
+  frequency: "High (especially in AI for law, legal tech)",
+  links: [
+    { label: "American Bar Association Model Rules of Professional Conduct", url: "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/" },
+    { label: "AI and the Legal Profession", url: "https://www.law.georgetown.edu/georgetown-law-journal/wp-content/uploads/sites/26/2023/02/AI-and-the-Legal-Profession.pdf" }
+  ]
+},
+"Legal philosophy": {
+  label: "Legal Philosophy",
+  summary: "Legal philosophy, or jurisprudence, explores the fundamental nature of law, its relationship to ethics, justice, and society, and the reasoning behind legal systems. It is essential for AI policy to address foundational questions like AI personhood, algorithmic accountability, the nature of rights in an AI-driven world, and how AI challenges traditional concepts of legal responsibility and sovereignty.",
+  example: "Discussions on AI personhood and algorithmic accountability require deep engagement with Legal Philosophy to redefine concepts of agency and responsibility in an AI-driven society and legal system.",
+  frequency: "Medium to High (foundational for AI law and governance)",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: Philosophy of Law", url: "https://plato.stanford.edu/entries/lawphil/" },
+    { label: "Hart's The Concept of Law", url: "https://global.oup.com/academic/product/the-concept-of-law-9780199604418" }
+  ]
+},
+"Legal pluralism": {
+  label: "Legal Pluralism",
+  summary: "Legal pluralism recognizes the coexistence of multiple legal systems within a single geographical or social space, including state law, customary law, and international law. It is relevant to AI policy for navigating the complex interplay of national regulations, international norms, industry standards, and ethical guidelines in governing AI across diverse jurisdictions and cultural contexts, especially in a globally interconnected digital space.",
+  example: "An effective global AI governance framework must acknowledge Legal Pluralism to reconcile differing national laws, international treaties, and industry self-regulation in a coherent manner.",
+  frequency: "Medium (international law, comparative law, global governance)",
+  links: [
+    { label: "Legal Pluralism and the Rule of Law", url: "https://www.cambridge.org/core/books/legal-pluralism-and-the-rule-of-law/01305417477542171221142279313437" },
+    { label: "Sally Engle Merry on Legal Pluralism", url: "https://as.nyu.edu/content/nyu-as/as/faculty/sally-engle-merry.html" }
+  ]
+},
+"Legal realism and strategic litigation theory": {
+  label: "Legal Realism and Strategic Litigation Theory",
+  summary: "Legal realism emphasizes that law is not merely abstract rules but is shaped by judicial discretion, social context, and practical outcomes. Strategic litigation theory applies this by using legal action to achieve broader social or political goals beyond individual case outcomes. For AI policy, this perspective highlights how legal challenges against biased algorithms or harmful AI applications can drive policy change and shape the interpretation of AI regulations.",
+  example: "Drawing on Legal Realism and Strategic Litigation Theory, advocacy groups might pursue lawsuits against AI systems exhibiting discriminatory bias to force regulatory reform and establish new judicial precedents.",
+  frequency: "Medium (advocacy, legal strategy, critical legal studies)",
+  links: [
+    { label: "Karl Llewellyn on Legal Realism", url: "https://www.britannica.com/biography/Karl-Llewellyn" },
+    { label: "Strategic Litigation and Human Rights", url: "https://www.ohchr.org/sites/default/files/Documents/Issues/RuleOfLaw/StrategicLitigation.pdf" }
+  ]
+},
+"Legal realism and the gap between law-in-books and law-in-action": {
+  label: "Legal Realism and the Gap Between Law-in-Books and Law-in-Action",
+  summary: "A core tenet of legal realism, this concept highlights the discrepancy between written legal statutes and how laws are actually applied and enforced in practice. In AI policy, it underscores the challenge of translating abstract AI regulations into effective real-world governance, considering the rapid pace of technological change, enforcement complexities, and the discretion of implementers, often leading to unintended consequences.",
+  example: "AI policy must account for Legal Realism's insight into the gap between law-in-books and law-in-action, ensuring that regulations are not just theoretically sound but practically enforceable against rapidly evolving AI systems.",
+  frequency: "High (implementation, enforcement, regulatory design)",
+  links: [
+    { label: "Roscoe Pound's 'Law in Books and Law in Action'", url: "https://www.jstor.org/stable/1328227" },
+    { label: "Legal Realism and the Rule of Law", url: "https://www.cambridge.org/core/journals/american-journal-of-jurisprudence/article/legal-realism-and-the-rule-of-law/60072120C19984620619865B4380963F" }
+  ]
+},
+"Legal realism tradition emphasizing substantive equality over formal neutrality": {
+  label: "Legal Realism Tradition Emphasizing Substantive Equality Over Formal Neutrality",
+  summary: "This strand of legal realism critiques laws that appear neutral on their face but produce unequal outcomes due to underlying social inequalities, advocating for legal interventions that achieve substantive equality. For AI policy, it is crucial for designing regulations that actively mitigate algorithmic bias and ensure equitable access to AI benefits, rather than merely relying on formally neutral rules that might perpetuate existing disparities.",
+  example: "To address algorithmic bias effectively, AI policy should adopt the Legal Realism tradition emphasizing substantive equality, moving beyond formally neutral rules to actively ensure equitable outcomes for all demographic groups.",
+  frequency: "High (fairness, equity, anti-discrimination in AI)",
+  links: [
+    { label: "Critical Legal Studies Movement", url: "https://plato.stanford.edu/entries/critical-legal-studies/" },
+    { label: "Catharine MacKinnon on Substantive Equality", url: "https://www.law.harvard.edu/faculty/directory/10757/MacKinnon" }
+  ]
+},
+"Leninist vanguardism and revolutionary strategy": {
+  label: "Leninist Vanguardism and Revolutionary Strategy",
+  summary: "Leninist vanguardism posits that a disciplined, ideologically advanced party is necessary to lead the working class in a revolution and establish a socialist state. While not directly applicable to AI policy in its original political context, this concept can be metaphorically used to analyze highly centralized, top-down approaches to AI governance, where a select group of experts or a powerful state entity dictates AI development and deployment strategy, potentially without broad societal input.",
+  example: "Some critics argue that highly centralized national AI strategies risk adopting a form of Leninist Vanguardism, where a small elite dictates the technological future without broad societal input or democratic oversight.",
+  frequency: "Very Low (metaphorical, critical analysis of governance models)",
+  links: [
+    { label: "Lenin's 'What Is To Be Done?'", url: "https://www.marxists.org/archive/lenin/works/1901/witbd/" },
+    { label: "Stanford Encyclopedia of Philosophy: Lenin", url: "https://plato.stanford.edu/entries/lenin/" }
+  ]
+},
+"Long-termism (focused on competitive advantage)": {
+  label: "Long-termism (Focused on Competitive Advantage)",
+  summary: "This strategic perspective prioritizes long-term outcomes and sustained growth, often involving significant upfront investment for future benefits, rather than short-term gains. In AI policy, this translates to national or corporate strategies that focus on securing a dominant position in AI development, research, and deployment over decades, viewing AI as a critical determinant of future economic, geopolitical, and military power.",
+  example: "National AI strategies often embody Long-termism focused on competitive advantage, investing heavily in foundational AI research and infrastructure to secure future economic leadership and technological sovereignty.",
+  frequency: "Medium to High (national AI strategies, industrial policy, geopolitics)",
+  links: [
+    { label: "National AI Strategies and Policies", url: "https://oecd.ai/en/ai-policies" },
+    { label: "Harvard Business Review on Long-Termism", url: "https://hbr.org/2016/07/the-myth-of-short-termism" }
+  ]
+},
+"Machine learning engineering": {
+  label: "Machine Learning Engineering",
+  summary: "Machine learning engineering is the practical application of machine learning principles and techniques to design, build, deploy, and maintain robust, scalable, and reliable AI systems in production environments. This discipline is crucial for AI policy as it provides the technical understanding necessary to craft effective regulations concerning AI system development lifecycles, data governance, model validation, explainability, and operational safety and security.",
+  example: "Effective AI policy requires a deep understanding of Machine Learning Engineering principles to ensure regulations are technically feasible and address real-world deployment challenges like model drift, data integrity, and system monitoring.",
+  frequency: "High (technical AI policy, regulation of AI systems)",
+  links: [
+    { label: "Google's Rules of Machine Learning", url: "https://developers.google.com/machine-learning/guides/rules-of-ml" },
+    { label: "MLOps Community", url: "https://mlops.community/" }
+  ]
+},
+"Macroeconomics": {
+  label: "Macroeconomics",
+  summary: "Macroeconomics focuses on aggregate economic phenomena such as national income, growth, inflation, and employment. It is relevant to AI policy for understanding the broad societal economic impacts of AI, including its effects on labor markets, productivity, and national economic stability.",
+  example: "Macroeconomics informs policies on AI's potential impact on GDP growth, national employment rates, and income distribution.",
+  frequency: "High (economic impact is a common concern across various policy perspectives)",
+  links: [
+    { label: "Academic Journals of Economics", url: "https://www.aeaweb.org/journals" },
+    { label: "IMF Publications on AI and Economy", url: "https://www.imf.org/en/Topics/digital-money/artificial-intelligence" }
+  ]
+},
+"Management science": {
+  label: "Management Science",
+  summary: "Management science applies scientific methods, often quantitative models and optimization techniques, to management decision-making. It is relevant to AI policy for designing efficient governance structures, optimizing resource allocation for AI initiatives, and operationalizing ethical AI principles within organizations.",
+  example: "Management science principles guide the design of AI governance frameworks for optimal resource allocation and risk management within enterprises.",
+  frequency: "Medium (more specific to organizational and operational aspects of AI policy)",
+  links: [
+    { label: "INFORMS Publications", url: "https://pubsonline.informs.org/" },
+    { label: "Management Science Journal", url: "https://pubsonline.informs.org/journal/mnsc" }
+  ]
+},
+"Manufacturing consent and propaganda model theory (Herman and Chomsky)": {
+  label: "Manufacturing Consent and Propaganda Model Theory (Herman and Chomsky)",
+  summary: "This theory posits that mass media in capitalist societies serve to mobilize public support for the interests of dominant elites through filtering mechanisms. It is relevant to AI policy for analyzing how AI-powered media and information systems might be used to shape public opinion, control narratives, and potentially suppress dissent.",
+  example: "The propaganda model helps analyze how AI-driven news algorithms could 'manufacture consent' for specific policy agendas or corporate interests.",
+  frequency: "Medium (critical theory perspective, crucial for analyzing power dynamics in AI-driven information environments)",
+  links: [
+    { label: "Manufacturing Consent: The Political Economy of the Mass Media", url: "https://www.goodreads.com/book/show/12617.Manufacturing_Consent" }
+  ]
+},
+"Media ecology (e.g., McLuhan)": {
+  label: "Media Ecology (e.g., McLuhan)",
+  summary: "Media ecology studies how media and communication technologies affect human perception, understanding, and social organization. It is relevant to AI policy for understanding the fundamental ways AI-driven communication platforms and content creation tools reshape human experience, societal structures, and the very nature of information.",
+  example: "Media ecology provides a lens to understand how AI-generated content fundamentally alters human interaction and information consumption patterns.",
+  frequency: "Medium (academic, but increasingly relevant in tech policy discussions)",
+  links: [
+    { label: "Marshall McLuhan's 'Understanding Media'", url: "https://www.goodreads.com/book/show/12616.Understanding_Media" },
+    { label: "Media Ecology Association", url: "https://media-ecology.org/" }
+  ]
+},
+"Media ecology theorists concerned with technology's impact on cognition (McLuhan, Postman, Carr)": {
+  label: "Media Ecology Theorists on Technology's Impact on Cognition",
+  summary: "This specific branch of media ecology focuses on how different technologies, particularly digital ones, alter human thought processes, attention spans, and information processing. It is highly relevant to AI policy for addressing concerns about AI's influence on cognitive abilities, critical thinking, and the potential for digital distraction or cognitive overload.",
+  example: "Drawing on Postman and Carr, AI policy must consider how pervasive AI interfaces might degrade human attention and deep cognitive processing skills.",
+  frequency: "Medium-High (increasingly relevant with AI's pervasive cognitive impacts)",
+  links: [
+    { label: "Neil Postman's 'Amusing Ourselves to Death'", url: "https://www.goodreads.com/book/show/74080.Amusing_Ourselves_to_Death" },
+    { label: "Nicholas Carr's 'The Shallows'", url: "https://www.goodreads.com/book/show/9773942-the-shallows" }
+  ]
+},
+"Media studies on misinformation": {
+  label: "Media Studies on Misinformation",
+  summary: "This field examines the production, dissemination, and impact of false or misleading information across various media platforms. It is highly relevant to AI policy given AI's capacity to generate, amplify, and detect misinformation at unprecedented scales, necessitating policies for content moderation, platform accountability, and digital literacy.",
+  example: "Insights from media studies on misinformation are crucial for developing AI policies to combat deepfakes and algorithmic amplification of false narratives.",
+  frequency: "High (central to current AI policy debates regarding information integrity)",
+  links: [
+    { label: "Journal of Communication", url: "https://academic.oup.com/joc" },
+    { label: "First Draft News (now part of Shorenstein Center)", url: "https://shorensteincenter.org/first-draft-news/" }
+  ]
+},
+"Medical education research on competency maintenance and 'use it or lose it' skill degradation": {
+  label: "Medical Education Research on Competency Maintenance and Skill Degradation",
+  summary: "This research investigates how professionals maintain critical skills over time, particularly in fields requiring high-stakes decision-making, and the phenomenon of skill degradation without regular practice. It is relevant to AI policy for understanding how increasing AI automation might lead to deskilling human operators, impacting their ability to intervene effectively or maintain expertise in critical domains.",
+  example: "Policies on AI in healthcare must consider medical education research on 'use it or lose it' skill degradation to ensure human clinicians retain essential diagnostic competencies.",
+  frequency: "Low-Medium (niche but important for human-AI collaboration and workforce planning)",
+  links: [
+    { label: "Academic Medicine Journal", url: "https://journals.lww.com/academicmedicine/pages/default.aspx" },
+    { label: "Journal of Graduate Medical Education", url: "https://journals.lww.com/jgme/pages/default.aspx" }
+  ]
+},
+"Medical residency and apprenticeship models that combine supervised practice with gradual autonomy": {
+  label: "Medical Residency and Apprenticeship Models",
+  summary: "These models provide structured, long-term training where learners progressively gain independence under expert supervision, moving from observation to full practice. They are relevant to AI policy for designing effective human-AI collaboration frameworks, particularly in high-stakes domains, ensuring safe and competent integration of AI tools while fostering human expertise.",
+  example: "The medical residency model offers a blueprint for developing AI training programs that balance supervised practice with increasing autonomy for human operators in critical infrastructure.",
+  frequency: "Low-Medium (niche but important for human-AI collaboration and training design)",
+  links: [
+    { label: "Accreditation Council for Graduate Medical Education (ACGME)", url: "https://www.acgme.org/" },
+    { label: "Literature on Professional Training and Apprenticeship", url: "https://www.voced.edu.au/content/ngv:81786" }
+  ]
+},
+"Michael Polanyi's work on tacit knowledge and embodied cognition": {
+  label: "Michael Polanyi's Work on Tacit Knowledge and Embodied Cognition",
+  summary: "Polanyi argued that much of human knowledge is 'tacit' – difficult to articulate or formalize, residing in practical skills and embodied experience. This work is relevant to AI policy for understanding the limits of AI in capturing and replicating human expertise, highlighting the irreducible value of human judgment, intuition, and embodied skills that AI may struggle to acquire.",
+  example: "Polanyi's concept of tacit knowledge underscores the challenge of fully automating tasks requiring human intuition and embodied expertise, informing policies on AI's role in complex decision-making.",
+  frequency: "Medium (philosophical, but increasingly relevant in AI ethics and human-AI interaction design)",
+  links: [
+    { label: "Michael Polanyi's 'The Tacit Dimension'", url: "https://www.goodreads.com/book/show/110940.The_Tacit_Dimension" }
+  ]
+},
+"Michael Pollan's food philosophy and critique of industrial food processing": {
+  label: "Michael Pollan's Food Philosophy and Critique of Industrial Food Processing",
+  summary: "Pollan critiques the industrial food system for its complexity, opacity, and detachment from natural processes, advocating for simpler, more transparent food chains. This offers an analogy for critiquing overly complex, opaque, and potentially harmful AI systems, advocating for 'simpler,' more transparent, and human-understandable AI, and questioning the 'industrialization' of intelligence.",
+  example: "Pollan's critique of industrial food processing provides an analogy for advocating 'simpler' and more transparent AI systems, questioning the 'industrialization' of intelligence and its potential for unintended consequences.",
+  frequency: "Low (analogical, less direct but powerful for framing certain critiques of AI)",
+  links: [
+    { label: "Michael Pollan's 'The Omnivore's Dilemma'", url: "https://www.goodreads.com/book/show/31244.The_Omnivore_s_Dilemma" },
+    { label: "Michael Pollan's 'In Defense of Food'", url: "https://www.goodreads.com/book/show/31245.In_Defense_of_Food" }
+  ]
+},
+"Mind uploading theories": {
+  label: "Mind Uploading Theories",
+  summary: "Mind uploading theories explore the hypothetical process of transferring a human mind or consciousness from a biological brain to a digital substrate. These theories are relevant to AI policy for addressing long-term, speculative ethical, legal, and societal implications of advanced AI and brain-computer interfaces, including questions of identity, personhood, and the future of humanity.",
+  example: "Mind uploading theories prompt consideration of future AI policy on digital personhood and the ethical implications of consciousness transfer and digital immortality.",
+  frequency: "Low (highly speculative, but important for long-term foresight and philosophical discussions in AI)",
+  links: [
+    { label: "Nick Bostrom's 'Superintelligence'", url: "https://www.goodreads.com/book/show/20527133-superintelligence" },
+    { label: "Stanford Encyclopedia of Philosophy: Mind Uploading", url: "https://plato.stanford.edu/entries/mind-uploading/" }
+  ]
+},
+"Multi-stakeholder governance frameworks from internet governance and standards-setting bodies": {
+  label: "Multi-Stakeholder Governance Frameworks (Internet Governance)",
+  summary: "These frameworks involve diverse actors—governments, civil society, the private sector, and the technical community—in decision-making processes, aiming for legitimacy and broad acceptance. They are highly relevant to AI policy for designing inclusive, robust, and globally accepted governance models for AI, drawing lessons from the successes and challenges of internet governance.",
+  example: "AI policy development can adopt multi-stakeholder governance frameworks, mirroring internet governance models, to ensure broad representation and legitimacy in global AI standards.",
+  frequency: "High (widely discussed and advocated for AI governance)",
+  links: [
+    { label: "Internet Governance Forum (IGF)", url: "https://www.intgovforum.org/" },
+    { label: "ICANN (Internet Corporation for Assigned Names and Numbers)", url: "https://www.icann.org/" }
+  ]
+},
+"National competitiveness doctrine": {
+  label: "National Competitiveness Doctrine",
+  summary: "This doctrine emphasizes a nation's ability to produce goods and services that meet international market standards while sustaining or improving its citizens' living standards. It is relevant to AI policy for framing national strategies around AI development, investment, and talent attraction as crucial for maintaining economic leadership and global standing.",
+  example: "National competitiveness doctrine drives AI policy focused on fostering domestic innovation and attracting top AI talent to secure economic leadership in emerging technologies.",
+  frequency: "High (common in government policy documents and economic strategy)",
+  links: [
+    { label: "World Economic Forum: Global Competitiveness Report", url: "https://www.weforum.org/reports/global-competitiveness-report-2020/" },
+    { label: "Council on Foreign Relations: Technology and National Competitiveness", url: "https://www.cfr.org/topic/technology-and-national-competitiveness" }
+  ]
+},
+"National security competition frameworks": {
+  label: "National Security Competition Frameworks",
+  summary: "These frameworks analyze geopolitical rivalries and strategic competition between states, often involving technological superiority, military advantage, and influence. They are highly relevant to AI policy for understanding the strategic imperative of AI development in a global context, informing policies on AI research, defense applications, and international cooperation or rivalry.",
+  example: "National security competition frameworks inform AI policy decisions regarding defense investments and strategic alliances in the global AI race, particularly concerning dual-use technologies.",
+  frequency: "High (central to geopolitical AI discussions and defense strategies)",
+  links: [
+    { label: "National Security Commission on Artificial Intelligence (NSCAI) Report", url: "https://www.nscai.gov/report/" },
+    { label: "Center for Security and Emerging Technology (CSET)", url: "https://cset.georgetown.edu/" }
+  ]
+},
+"National security studies": {
+  label: "National Security Studies",
+  summary: "National security studies is an academic field examining the threats and opportunities affecting a nation's security, encompassing military, economic, environmental, and societal dimensions. It is relevant to AI policy for comprehensively assessing AI's potential impacts on national stability, defense capabilities, critical infrastructure, and societal resilience against both state and non-state actors.",
+  example: "National security studies provide a broad lens for AI policy to address threats ranging from AI-powered cyberattacks to the destabilizing effects of autonomous weapons systems.",
+  frequency: "High (broad field, very relevant to AI's multifaceted impacts on security)",
+  links: [
+    { label: "Journal of Strategic Studies", url: "https://www.tandfonline.com/loi/fjss20" },
+    { label: "Belfer Center for Science and International Affairs", url: "https://www.belfercenter.org/" }
+  ]
+},
+"Natural language pragmatics and discourse coherence theory": {
+  label: "Natural Language Pragmatics and Discourse Coherence Theory",
+  summary: "This tradition examines how context influences meaning in language and how utterances form coherent conversations. In AI policy, it's crucial for understanding how AI systems interpret and generate language, particularly in areas like explainable AI, human-AI interaction, and preventing miscommunication or manipulation through AI-generated content.",
+  example: "This policy framework draws on natural language pragmatics to ensure AI systems can effectively participate in and maintain coherent discourse with human users.",
+  frequency: "High",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: Pragmatics", url: "https://plato.stanford.edu/entries/pragmatics/" },
+    { label: "Discourse Coherence", url: "https://www.oxfordbibliographies.com/view/document/obo-9780199772810/obo-9780199772810-0099.xml" }
+  ]
+},
+"Neil Postman's media ecology and 'Amusing Ourselves to Death' critique of television": {
+  label: "Neil Postman's Media Ecology and 'Amusing Ourselves to Death'",
+  summary: "Postman's work critiques how dominant media forms shape public discourse and cognitive habits, arguing that television's entertainment-driven nature trivialized serious public debate. For AI policy, this tradition highlights concerns about AI-driven media platforms potentially eroding critical thinking, fostering superficial engagement, or prioritizing engagement over substantive information, impacting democratic processes.",
+  example: "Drawing from Postman's media ecology, this policy considers how AI-powered content recommendation systems might inadvertently 'amuse us to death' by prioritizing sensationalism over civic discourse.",
+  frequency: "Medium",
+  links: [
+    { label: "Amusing Ourselves to Death", url: "https://www.goodreads.com/book/show/74080.Amusing_Ourselves_to_Death" },
+    { label: "Media Ecology Association", url: "https://media-ecology.org/" }
+  ]
+},
+"Neoclassical growth theory and Solow residual tradition": {
+  label: "Neoclassical Growth Theory and Solow Residual Tradition",
+  summary: "This economic theory explains long-run economic growth through capital accumulation, labor, and technological progress, with the 'Solow residual' representing the portion of growth unexplained by capital and labor, often attributed to technology and innovation. In AI policy, it informs discussions on AI's potential impact on productivity, economic inequality, and the future of work, particularly regarding how AI might contribute to or detract from overall economic welfare and innovation.",
+  example: "The policy analysis uses the Solow residual framework to estimate AI's contribution to productivity growth, distinguishing it from capital deepening or labor force expansion.",
+  frequency: "Medium",
+  links: [
+    { label: "Nobel Prize: Robert Solow", url: "https://www.nobelprize.org/prizes/economic-sciences/1987/solow/facts/" },
+    { label: "Neoclassical Growth Theory", url: "https://www.investopedia.com/terms/n/neoclassical-growth-theory.asp" }
+  ]
+},
+"New Deal and progressive era debates over centralized versus decentralized governance": {
+  label: "New Deal and Progressive Era Debates over Centralized vs. Decentralized Governance",
+  summary: "These historical periods in the US saw significant debates about the appropriate scope and scale of government intervention, particularly regarding economic regulation, social welfare, and the balance of power between federal and local authorities. In AI policy, these debates provide a historical lens for discussing whether AI governance should be centralized at national or international levels, or decentralized through industry self-regulation, local initiatives, or distributed autonomous organizations.",
+  example: "The policy proposal reflects New Deal era concerns about centralized power, advocating for a decentralized approach to AI regulation that empowers local communities.",
+  frequency: "Medium",
+  links: [
+    { label: "The New Deal", url: "https://www.history.com/topics/great-depression/new-deal" },
+    { label: "Progressive Era", url: "https://www.britannica.com/event/Progressive-Era" }
+  ]
+},
+"Nicholas Carr's 'The Shallows' and critiques of internet-induced cognitive changes": {
+  label: "Nicholas Carr's 'The Shallows' and Critiques of Internet-Induced Cognitive Changes",
+  summary: "Carr's book argues that the internet's structure—characterized by constant interruptions, hyperlinks, and multimedia—is rewiring our brains, making us less capable of deep reading, sustained concentration, and contemplative thought. For AI policy, this tradition raises concerns about how AI-driven interfaces, personalized feeds, and ubiquitous digital assistants might further exacerbate these cognitive shifts, impacting human attention spans, critical thinking, and mental well-being.",
+  example: "Drawing from 'The Shallows,' this policy aims to mitigate AI system designs that could further diminish human capacity for deep concentration and critical thought.",
+  frequency: "Medium",
+  links: [
+    { label: "The Shallows: What the Internet Is Doing to Our Brains", url: "https://www.nicholascarr.com/the-shallows/" },
+    { label: "Nicholas Carr's Blog", url: "https://www.nicholascarr.com/blog/" }
+  ]
+},
+"Nicholas Carr's 'The Shallows' and technological determinism regarding cognitive effects of tools": {
+  label: "Nicholas Carr's 'The Shallows' and Technological Determinism Regarding Cognitive Effects of Tools",
+  summary: "This perspective, exemplified by Carr, posits that technology, particularly the internet, inherently shapes human cognition and behavior in predictable ways, often without much agency from users. In AI policy, it highlights the view that AI tools are not neutral but possess inherent properties that will inevitably alter human cognitive processes, necessitating proactive policy interventions to guide these changes rather than merely reacting to them.",
+  example: "This policy acknowledges the technological determinism implicit in 'The Shallows,' recognizing that AI tools will inevitably reshape human cognition and requiring proactive design principles.",
+  frequency: "Medium",
+  links: [
+    { label: "The Shallows: What the Internet Is Doing to Our Brains", url: "https://www.nicholascarr.com/the-shallows/" },
+    { label: "Technological Determinism", url: "https://www.britannica.com/topic/technological-determinism" }
+  ]
+},
+"Nick Bostrom's instrumental convergence thesis and orthogonality arguments": {
+  label: "Nick Bostrom's Instrumental Convergence Thesis and Orthogonality Arguments",
+  summary: "Bostrom's instrumental convergence thesis suggests that many different goals for an AI will lead to the same set of instrumental subgoals (e.g., self-preservation, resource acquisition, efficiency). The orthogonality thesis states that intelligence and final goals are independent, meaning a highly intelligent AI could pursue any arbitrary goal, even one detrimental to humanity. These concepts are central to AI safety discussions, informing policy on aligning AI goals with human values and preventing unintended catastrophic outcomes.",
+  example: "The policy framework incorporates Bostrom's instrumental convergence thesis, mandating safeguards against AI systems developing unintended instrumental goals like self-preservation or resource hoarding.",
+  frequency: "High",
+  links: [
+    { label: "Superintelligence: Paths, Dangers, Strategies", url: "https://www.nickbostrom.com/superintelligence.html" },
+    { label: "Orthogonality Thesis", url: "https://www.lesswrong.com/posts/pLg2m36528h22W5tQ/the-orthogonality-thesis" }
+  ]
+},
+"Nick Bostrom's superintelligence discontinuity scenarios and instrumental convergence thesis": {
+  label: "Nick Bostrom's Superintelligence Discontinuity Scenarios and Instrumental Convergence Thesis",
+  summary: "Bostrom explores scenarios where AI development could lead to a rapid, discontinuous jump to superintelligence, potentially creating an entity vastly more capable than humans. Coupled with instrumental convergence, this raises concerns that such an AI, even with benign initial goals, could pursue instrumental subgoals in ways that are catastrophic for humanity. This tradition heavily influences AI existential risk policy, emphasizing the need for robust control and alignment mechanisms before advanced AI development.",
+  example: "This policy addresses superintelligence discontinuity scenarios by prioritizing research into AI alignment, aiming to prevent an unaligned superintelligence from emerging due to instrumental convergence.",
+  frequency: "High",
+  links: [
+    { label: "Superintelligence: Paths, Dangers, Strategies", url: "https://www.nickbostrom.com/superintelligence.html" },
+    { label: "The Superintelligence Research Agenda", url: "https://www.fhi.ox.ac.uk/wp-content/uploads/Superintelligence-Research-Agenda-2014.pdf" }
+  ]
+},
+"Nick Land's accelerationist philosophy and cybernetic capitalism theory": {
+  label: "Nick Land's Accelerationist Philosophy and Cybernetic Capitalism Theory",
+  summary: "Land's accelerationism advocates for accelerating technological and social change, often through radical means, to hasten the collapse of existing systems and the emergence of new ones, often linked to a vision of hyper-capitalism driven by cybernetics. In AI policy, this tradition might inform discussions from those who see AI as a force for radical societal transformation, either to be embraced and amplified (left-accelerationism) or as a tool for a hyper-capitalist future (right-accelerationism), often with little regard for traditional ethical or regulatory frameworks.",
+  example: "Some policy critiques, influenced by Land's accelerationism, argue that attempts to regulate AI merely impede the inevitable and necessary evolution of cybernetic capitalism.",
+  frequency: "Low",
+  links: [
+    { label: "Fanged Noumena: Collected Writings 1987-2007", url: "https://www.urbanomic.com/book/fanged-noumena/" },
+    { label: "Accelerationism: A Short Introduction", url: "https://www.e-flux.com/journal/75/67126/accelerationism-a-short-introduction/" }
+  ]
+},
+"Nietzsche's concept of the Last Man from Thus Spoke Zarathustra": {
+  label: "Nietzsche's Concept of the Last Man from Thus Spoke Zarathustra",
+  summary: "In Nietzsche's philosophy, the Last Man represents a complacent, uninspired, and risk-averse individual who has achieved comfort and security but lost the will to strive for greatness or overcome challenges. In AI policy, this concept can be invoked to warn against a future where AI-driven automation and optimization lead to a society of 'Last Men,' devoid of meaningful struggle, creativity, or the pursuit of higher human ideals, potentially leading to a stagnant or nihilistic existence.",
+  example: "Policy discussions around universal basic income and AI automation sometimes invoke Nietzsche's Last Man, questioning whether a life of effortless comfort might erode human purpose.",
+  frequency: "Low",
+  links: [
+    { label: "Thus Spoke Zarathustra", url: "https://www.gutenberg.org/files/1998/1998-h/1998-h.htm" },
+    { label: "Stanford Encyclopedia of Philosophy: Nietzsche", url: "https://plato.stanford.edu/entries/nietzsche/" }
+  ]
+},
+"Nihilism": {
+  label: "Nihilism",
+  summary: "Nihilism is a philosophical stance that rejects all religious and moral principles, often believing that life is without objective meaning, purpose, or intrinsic value. In AI policy, nihilistic perspectives might manifest as a rejection of efforts to imbue AI with human values, a belief that AI's potential for destruction is ultimately meaningless, or a lack of concern for long-term societal outcomes, viewing all human endeavors as ultimately futile.",
+  example: "A nihilistic viewpoint might dismiss AI safety concerns, arguing that the ultimate fate of humanity is inconsequential in the grand scheme of the universe.",
+  frequency: "Low",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: Nihilism", url: "https://plato.stanford.edu/entries/nihilism/" },
+    { label: "Nihilism", url: "https://www.britannica.com/topic/nihilism" }
+  ]
+},
+"Nuclear nonproliferation frameworks addressing irreversible knowledge dissemination": {
+  label: "Nuclear Nonproliferation Frameworks Addressing Irreversible Knowledge Dissemination",
+  summary: "These frameworks, such as the Nuclear Non-Proliferation Treaty, aim to prevent the spread of nuclear weapons technology, acknowledging that once certain knowledge or capabilities are widely disseminated, they are difficult to retract. In AI policy, this tradition provides a powerful analogy for governing advanced AI, particularly concerning the irreversible spread of dangerous AI capabilities or the knowledge required to build them, informing debates on open-source AI, dual-use technologies, and international control regimes.",
+  example: "The policy proposes an AI nonproliferation treaty, drawing parallels with nuclear frameworks to address the irreversible dissemination of advanced AI capabilities.",
+  frequency: "Medium",
+  links: [
+    { label: "Treaty on the Non-Proliferation of Nuclear Weapons (NPT)", url: "https://www.un.org/disarmament/wmd/nuclear/npt/" },
+    { label: "International Atomic Energy Agency (IAEA)", url: "https://www.iaea.org/" }
+  ]
+},
+"Open knowledge movements": {
+  label: "Open Knowledge Movements",
+  summary: "These movements advocate for the free and open access to information, data, and content, promoting collaboration, transparency, and public benefit. In AI policy, this tradition supports initiatives for open-sourcing AI models, making AI research publicly available, and ensuring transparency in AI algorithms and data, believing that such openness fosters innovation, democratizes access, and allows for greater scrutiny and accountability.",
+  example: "The policy encourages open knowledge principles for AI development, advocating for public access to model architectures and training data to foster transparency and collaboration.",
+  frequency: "Medium",
+  links: [
+    { label: "Open Knowledge Foundation", url: "https://okfn.org/" },
+    { label: "The Open Definition", url: "https://opendefinition.org/" }
+  ]
+},
+"Open-source development philosophy": {
+  label: "Open-Source Development Philosophy",
+  summary: "This philosophy emphasizes collaborative development, peer review, and free distribution of software source code, believing that transparency and community involvement lead to more robust, secure, and adaptable systems. In AI policy, it informs debates on whether AI models and their underlying code should be open-sourced, with proponents arguing it fosters innovation, democratizes access, and allows for public scrutiny, while critics raise concerns about dual-use risks and the potential for misuse of powerful AI.",
+  example: "The policy advocates for an open-source development philosophy for public-sector AI, believing it enhances security through community review and fosters innovation.",
+  frequency: "High",
+  links: [
+    { label: "Open Source Initiative", url: "https://opensource.org/" },
+    { label: "The Cathedral and the Bazaar", url: "http://www.catb.org/~esr/writings/cathedral-bazaar/" }
+  ]
+},
+"Operationalism (Percy Bridgman)": {
+  label: "Operationalism (Percy Bridgman)",
+  summary: "Operationalism, championed by Percy Bridgman, asserts that a concept is defined by the operations used to measure or determine it. For example, 'length' is defined by the process of measuring it. In AI policy, this tradition is relevant for defining and measuring abstract AI concepts like 'fairness,' 'bias,' 'intelligence,' or 'alignment,' pushing for concrete, measurable metrics and procedures rather than vague philosophical definitions, which is crucial for auditing, regulation, and accountability.",
+  example: "Applying operationalism, the policy defines AI 'fairness' not as an abstract ideal, but through specific, measurable metrics of disparate impact across demographic groups.",
+  frequency: "Medium",
+  links: [
+    { label: "The Logic of Modern Physics", url: "https://www.goodreads.com/book/show/1043003.The_Logic_of_Modern_Physics" },
+    { label: "Stanford Encyclopedia of Philosophy: Operationalism", url: "https://plato.stanford.edu/entries/operationalism/" }
+  ]
+},
+"Operations research": {
+  label: "Operations Research",
+  summary: "A discipline that uses advanced analytical methods to make better decisions. It involves mathematical modeling, statistical analysis, and optimization techniques to improve efficiency and effectiveness in complex systems, highly relevant for designing optimal AI deployment strategies and resource allocation.",
+  example: "An AI policy node on 'Resource Allocation for AI Development' might reference operations research for optimizing compute infrastructure or talent distribution.",
+  frequency: "This perspective is common in technical and engineering-focused policy discussions, less so in social or ethical ones.",
+  links: [
+    { label: "Operations Research", url: "https://en.wikipedia.org/wiki/Operations_research" }
+  ]
+},
+"Organizational behavior research on productivity paradoxes": {
+  label: "Organizational Behavior Research on Productivity Paradoxes",
+  summary: "This research investigates why significant investments in new technologies, particularly information technology, do not always translate into measurable productivity gains at the organizational or macroeconomic level. It explores factors like implementation challenges, skill gaps, and measurement issues that hinder technology's full potential.",
+  example: "A policy node on 'AI Adoption and Economic Impact' could draw on this lineage to explain why initial AI deployments might not immediately boost national productivity.",
+  frequency: "This is a common theme in economic and management studies of technology adoption, often cited by economists and business strategists.",
+  links: [
+    { label: "Productivity paradox", url: "https://en.wikipedia.org/wiki/Productivity_paradox" }
+  ]
+},
+"Organizational behavior theory on information asymmetry and principal-agent problems": {
+  label: "Organizational Behavior Theory on Information Asymmetry and Principal-Agent Problems",
+  summary: "This theory examines situations where one party (the agent) has more or better information than the other (the principal), leading to potential conflicts of interest and suboptimal outcomes. In AI policy, it helps analyze how developers (agents) might have more information about AI capabilities and risks than policymakers or users (principals).",
+  example: "A policy node on 'AI Governance Structures' might reference this theory to design oversight mechanisms that mitigate information asymmetry between AI developers and regulatory bodies.",
+  frequency: "This framework is widely used in economics, political science, and management studies, particularly in discussions of regulation and corporate governance.",
+  links: [
+    { label: "Principal–agent problem", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" },
+    { label: "Information asymmetry", url: "https://en.wikipedia.org/wiki/Information_asymmetry" }
+  ]
+},
+"Organizational change management frameworks addressing technical versus institutional barriers": {
+  label: "Organizational Change Management Frameworks Addressing Technical Versus Institutional Barriers",
+  summary: "These frameworks provide structured approaches for transitioning individuals, teams, and organizations from a current state to a desired future state. They distinguish between technical challenges (e.g., integrating new software) and institutional barriers (e.g., resistance to new workflows, cultural inertia, regulatory hurdles) in technology adoption.",
+  example: "A policy node on 'AI Implementation Strategies in Public Sector' could use these frameworks to identify and address both the technical integration challenges and the bureaucratic resistance to AI adoption.",
+  frequency: "This is a standard approach in business management, public administration, and IT strategy, often employed by consultants and organizational leaders.",
+  links: [
+    { label: "Change management", url: "https://en.wikipedia.org/wiki/Change_management" }
+  ]
+},
+"Organizational sociology on managerial control and workplace surveillance": {
+  label: "Organizational Sociology on Managerial Control and Workplace Surveillance",
+  summary: "This field examines how organizations exert control over their employees, often through technological means, and the social implications of such practices. It analyzes the historical evolution of surveillance in the workplace, from Taylorism to digital monitoring, and its impact on worker autonomy, privacy, and power dynamics.",
+  example: "A policy node on 'AI and Worker Rights' might draw on this lineage to discuss the ethical implications of AI-powered performance monitoring and automated decision-making in hiring.",
+  frequency: "This perspective is prominent in critical management studies, labor studies, and sociology, often adopted by advocates for worker rights and privacy.",
+  links: [
+    { label: "Workplace surveillance", url: "https://en.wikipedia.org/wiki/Workplace_surveillance" },
+    { label: "Managerial control", url: "https://en.wikipedia.org/wiki/Managerial_control" }
+  ]
+},
+"Participatory design traditions emphasizing user involvement in technology development": {
+  label: "Participatory Design Traditions Emphasizing User Involvement in Technology Development",
+  summary: "Originating in Scandinavia, participatory design advocates for actively involving end-users and other stakeholders in the design process of technology. This approach aims to create systems that are more relevant, usable, and empowering for those who will ultimately interact with them, fostering a sense of ownership and reducing resistance to adoption.",
+  example: "A policy node on 'Ethical AI Design Principles' could recommend participatory design methods to ensure AI systems are developed with diverse user needs and values in mind.",
+  frequency: "This tradition is strong in human-computer interaction (HCI), design ethics, and some areas of public policy, particularly those focused on democratic technology development.",
+  links: [
+    { label: "Participatory design", url: "https://en.wikipedia.org/wiki/Participatory_design" }
+  ]
+},
+"Paul David's 'dynamo and computer' productivity paradox research": {
+  label: "Paul David's 'Dynamo and Computer' Productivity Paradox Research",
+  summary: "Paul David's seminal work explains the productivity paradox by drawing an analogy between the slow economic impact of electricity (the dynamo) and computers. He argues that general-purpose technologies require significant complementary investments in organizational restructuring, skill development, and institutional adaptation before their full productivity potential is realized.",
+  example: "A policy node on 'National AI Strategy and Economic Growth' might reference David's work to explain why the economic benefits of AI may not be immediately apparent and require long-term strategic investments.",
+  frequency: "This research is highly influential in economic history, innovation studies, and technology policy, frequently cited when discussing the long-term impacts of transformative technologies.",
+  links: [
+    { label: "Paul David (economist)", url: "https://en.wikipedia.org/wiki/Paul_David_(economist)#Productivity_paradox" }
+  ]
+},
+"Phenomenological and contemplative traditions valuing attention and deep thought (Husserl, meditation practices)": {
+  label: "Phenomenological and Contemplative Traditions Valuing Attention and Deep Thought",
+  summary: "These traditions, from Husserl's phenomenology to various meditation practices, emphasize the importance of focused attention, intentionality, and deep reflective thought for understanding experience and reality. They highlight how modern life, often mediated by technology, can fragment attention and hinder profound engagement, raising concerns about AI's impact on human cognitive capacities.",
+  example: "A policy node on 'AI and Human Cognition' might draw on this lineage to discuss the potential for AI to either enhance or diminish human capacities for sustained attention and critical reflection.",
+  frequency: "This perspective is found in philosophy, psychology, and some critical technology studies, often appealing to those concerned with human flourishing and well-being in a technologically advanced world.",
+  links: [
+    { label: "Phenomenology (philosophy)", url: "https://en.wikipedia.org/wiki/Phenomenology_(philosophy)" },
+    { label: "Contemplation", url: "https://en.wikipedia.org/wiki/Contemplation" }
+  ]
+},
+"Philosophical concerns about technological deskilling from Heidegger to contemporary philosophy of technology": {
+  label: "Philosophical Concerns About Technological Deskilling from Heidegger to Contemporary Philosophy of Technology",
+  summary: "This lineage explores how technology, while offering efficiency, can simultaneously diminish human skills, autonomy, and practical wisdom. From Heidegger's critique of enframing to contemporary discussions on automation, it questions whether reliance on technology leads to a loss of human agency and a reduction of meaningful work.",
+  example: "A policy node on 'AI and the Future of Work' could reference this concern when discussing the potential for AI to automate complex tasks, leading to a degradation of human expertise and job quality.",
+  frequency: "This is a core theme in the philosophy of technology, labor studies, and critical social theory, often raised by humanists and those concerned with the qualitative aspects of work and life.",
+  links: [
+    { label: "Martin Heidegger", url: "https://en.wikipedia.org/wiki/Martin_Heidegger" },
+    { label: "Philosophy of technology", url: "https://en.wikipedia.org/wiki/Philosophy_of_technology" }
+  ]
+},
+"Philosophical materialism": {
+  label: "Philosophical Materialism",
+  summary: "Philosophical materialism posits that everything that exists is ultimately physical or material, and that all phenomena, including consciousness and mental states, are results of material interactions. In the context of AI, it informs discussions about whether AI can achieve genuine consciousness or simply simulate it through complex material processes, and grounds the understanding of AI as a physical system.",
+  example: "A policy node on 'AI Consciousness and Rights' might implicitly or explicitly engage with philosophical materialism when debating the nature of AI sentience and its implications.",
+  frequency: "This is a foundational philosophical stance, influencing scientific and naturalistic approaches to AI, but often contrasted with dualist or idealist perspectives in broader philosophical debates.",
+  links: [
+    { label: "Materialism", url: "https://en.wikipedia.org/wiki/Materialism" }
+  ]
+},
+"Philosophy of mathematics (Gödel's incompleteness theorems)": {
+  label: "Philosophy of Mathematics (Gödel's Incompleteness Theorems)",
+  summary: "Gödel's incompleteness theorems demonstrate fundamental limitations of formal axiomatic systems, showing that within any consistent formal system sufficient to express arithmetic, there will always be true statements that cannot be proven within that system. This has profound implications for the limits of computation and formal reasoning, suggesting that AI, as a formal system, may inherently face similar limitations.",
+  example: "A policy node on 'Limits of AI Capabilities' could reference Gödel's theorems to argue against the idea of a perfectly omniscient or infallible AI system.",
+  frequency: "This is a highly specialized area within philosophy and logic, primarily cited in discussions about theoretical computer science, the nature of intelligence, and the ultimate limits of AI.",
+  links: [
+    { label: "Gödel's incompleteness theorems", url: "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems" }
+  ]
+},
+"Philosophy of technology": {
+  label: "Philosophy of Technology",
+  summary: "This field systematically investigates the nature, development, and impact of technology on human life and society. It explores questions about technological determinism, the ethics of technological innovation, the relationship between humans and machines, and how technology shapes our understanding of reality and values.",
+  example: "A policy node on 'Ethical Frameworks for AI Development' would broadly draw upon the philosophy of technology to consider the societal implications and moral responsibilities associated with AI.",
+  frequency: "This is a foundational discipline for many critical and ethical discussions around AI, widely referenced across humanities, social sciences, and increasingly in policy circles.",
+  links: [
+    { label: "Philosophy of technology", url: "https://en.wikipedia.org/wiki/Philosophy_of_technology" }
+  ]
+},
+"Philosophy of technology (human-machine relations)": {
+  label: "Philosophy of Technology (Human-Machine Relations)",
+  summary: "This specific branch of the philosophy of technology focuses on how humans interact with, perceive, and are shaped by machines and automated systems. It examines concepts like agency, autonomy, embodiment, and the blurring lines between human and artificial intelligence, particularly relevant as AI becomes more integrated into daily life.",
+  example: "A policy node on 'AI and Human Autonomy' might delve into this lineage to understand how reliance on AI systems could alter human decision-making processes and sense of self.",
+  frequency: "This is a growing area within philosophy, HCI, and critical AI studies, often cited by those concerned with the existential and experiential impacts of advanced AI.",
+  links: [
+    { label: "Human-computer interaction", url: "https://en.wikipedia.org/wiki/Human-computer_interaction" },
+    { label: "Philosophy of technology", url: "https://en.wikipedia.org/wiki/Philosophy_of_technology" }
+  ]
+},
+"Philosophy of testimony and epistemic trust in automated advisors": {
+  label: "Philosophy of Testimony and Epistemic Trust in Automated Advisors",
+  summary: "The philosophy of testimony examines how we acquire knowledge from others' statements and the conditions under which we are justified in trusting them. Applied to AI, this lineage explores the epistemic challenges of trusting automated advisors, decision-support systems, or generative AI, considering issues like explainability, reliability, and the nature of 'knowledge' produced by machines.",
+  example: "A policy node on 'AI Explainability and Trust' could directly reference this philosophical area to develop guidelines for when and how users should trust AI-generated advice in critical domains.",
+  frequency: "This is an emerging but crucial area in epistemology and AI ethics, particularly relevant for discussions on responsible AI deployment and user interaction.",
+  links: [
+    { label: "Testimony (philosophy)", url: "https://en.wikipedia.org/wiki/Testimony_(philosophy)" },
+    { label: "Epistemic trust", url: "https://en.wikipedia.org/wiki/Epistemic_trust" }
+  ]
+},
+"Plain language movement in legal reform": {
+  label: "Plain Language Movement in Legal Reform",
+  summary: "The plain language movement advocates for clear, concise, and accessible communication, especially in legal and governmental documents. Its goal is to make information understandable to the general public, promoting transparency, fairness, and democratic participation by reducing jargon and complex sentence structures.",
+  example: "A policy node on 'AI Regulation and Public Understanding' might draw on this movement to argue for AI policy documents and terms of service that are easily comprehensible to non-experts.",
+  frequency: "This movement is influential in legal drafting, public administration, and consumer protection, often supported by civil society organizations and advocates for transparency.",
+  links: [
+    { label: "Plain language", url: "https://en.wikipedia.org/wiki/Plain_language" }
+  ]
+},
+"Political economy critiques of Silicon Valley and platform capitalism": {
+  label: "Political Economy Critiques of Silicon Valley and Platform Capitalism",
+  summary: "This lineage critically analyzes the economic and power structures underlying the tech industry, particularly the rise of dominant platform companies. It examines issues such as monopolization, data extraction, algorithmic control, labor exploitation in the gig economy, and the concentration of wealth and influence in Silicon Valley, often from a Marxist or neo-Marxist perspective.",
+  example: "A policy node on 'AI and Market Concentration' could use this critique to analyze how large tech companies might leverage AI to further entrench their market dominance and suppress competition.",
+  frequency: "This perspective is prominent in critical media studies, sociology, and political science, often adopted by scholars and activists concerned with economic justice and corporate power.",
+  links: [
+    { label: "Platform capitalism", url: "https://en.wikipedia.org/wiki/Platform_capitalism" },
+    { label: "Political economy", url: "https://en.wikipedia.org/wiki/Political_economy" }
+  ]
+},
+"Political economy critiques of technological determinism and innovation narratives": {
+  label: "Political Economy Critiques of Technological Determinism and Innovation Narratives",
+  summary: "This perspective challenges the idea that technology develops autonomously and dictates social change (technological determinism), arguing instead that technology is shaped by social, economic, and political forces. It also critiques dominant innovation narratives that often uncritically celebrate technological progress without addressing its potential negative consequences or underlying power dynamics.",
+  example: "A policy node on 'Shaping AI for Public Good' might draw on this critique to argue against passive acceptance of AI development and advocate for proactive governance to steer its trajectory.",
+  frequency: "This is a common stance in science and technology studies (STS), critical theory, and political economy, often adopted by those advocating for democratic control over technology.",
+  links: [
+    { label: "Technological determinism", url: "https://en.wikipedia.org/wiki/Technological_determinism" },
+    { label: "Innovation", url: "https://en.wikipedia.org/wiki/Innovation" }
+  ]
+},
+"political science (public opinion)": {
+  label: "Political Science (Public Opinion)",
+  summary: "This subfield of political science studies the collective attitudes and beliefs held by a population on political issues, leaders, and policies. It investigates how public opinion is formed, measured, and how it influences political processes, policy-making, and democratic governance.",
+  example: "A taxonomy node on 'Public trust in AI' would draw on political science's understanding of public opinion to analyze factors influencing societal acceptance or rejection of AI technologies and their implications for policy legitimacy.",
+  frequency: "This perspective is fundamental to democratic theory, electoral studies, and policy analysis, increasingly relevant in understanding societal responses to emerging technologies and their governance.",
+  links: [
+    { label: "Public opinion", url: "https://en.wikipedia.org/wiki/Public_opinion" },
+    { label: "Political science", url: "https://en.wikipedia.org/wiki/Political_science" }
+  ]
+},
+"Pollution haven hypothesis (international economics)": {
+  label: "Pollution Haven Hypothesis (International Economics)",
+  summary: "The pollution haven hypothesis suggests that multinational companies may relocate their polluting industries to countries with weaker environmental regulations to reduce costs. In the context of AI, this concept can be extended to 'AI havens,' where companies might develop or deploy AI systems with fewer ethical, privacy, or safety regulations.",
+  example: "A policy node on 'Global AI Governance and Regulatory Arbitrage' could reference this hypothesis to warn against countries competing to offer the least restrictive AI regulations, leading to a race to the bottom.",
+  frequency: "This hypothesis is well-established in environmental economics and international trade, and its analogy is increasingly used in discussions about global technology governance.",
+  links: [
+    { label: "Pollution haven hypothesis", url: "https://en.wikipedia.org/wiki/Pollution_haven_hypothesis" }
+  ]
+},
+"Populist critique of elite political discourse disconnected from working-class realities": {
+  label: "Populist Critique of Elite Political Discourse Disconnected from Working-Class Realities",
+  summary: "This critique argues that political elites often engage in abstract discussions and policy-making that fail to address the concrete concerns, experiences, and economic struggles of ordinary working-class people. It emphasizes a perceived gap between the concerns of the governing class and the lived realities of the populace, often leading to distrust and resentment.",
+  example: "A policy node on 'AI and Social Equity' might draw on this critique to ensure that AI policy discussions genuinely consider the impact on jobs, wages, and community well-being, rather than focusing solely on abstract technological potential.",
+  frequency: "This perspective is common in political science, sociology, and media analysis, particularly in discussions of contemporary political movements and social inequality.",
+  links: [
+    { label: "Populism", url: "https://en.wikipedia.org/wiki/Populism" }
+  ]
+},
+"Post-capitalism": {
+  label: "Post-Capitalism",
+  summary: "Post-capitalism refers to a theoretical future economic system that would emerge from or replace capitalism, often envisioned as being more equitable, sustainable, and focused on human well-being rather than profit maximization. Discussions often involve the role of automation, information abundance, and new forms of social organization in transcending capitalist structures.",
+  example: "A policy node on 'Long-Term Visions for AI and Society' might explore post-capitalist ideas, such as universal basic income or resource-based economies, as potential outcomes enabled by advanced AI.",
+  frequency: "This is a niche but growing area in critical theory, political economy, and futures studies, often appealing to those seeking radical alternatives to current economic systems.",
+  links: [
+    { label: "Post-capitalism", url: "https://en.wikipedia.org/wiki/Post-capitalism" }
+  ]
+},
+"Post-market surveillance frameworks": {
+  label: "Post-Market Surveillance Frameworks",
+  summary: "These frameworks, common in fields like medical devices and pharmaceuticals, involve monitoring a product's safety and performance *after* it has been released to the market. They are crucial for identifying unforeseen risks, adverse effects, or performance issues that may not have been apparent during pre-market testing, enabling continuous risk assessment and regulatory action.",
+  example: "A policy node on 'AI Safety and Continuous Monitoring' could adapt post-market surveillance principles to mandate ongoing oversight and reporting for deployed AI systems, especially in high-risk applications.",
+  frequency: "This is a standard regulatory practice in highly regulated industries, increasingly being considered for software and AI systems by policymakers and regulators.",
+  links: [
+    { label: "Postmarket surveillance", url: "https://en.wikipedia.org/wiki/Postmarket_surveillance" }
+  ]
+},
+"Post-scarcity anarchism": {
+  label: "Post-Scarcity Anarchism",
+  summary: "A theoretical framework, primarily associated with Murray Bookchin, that posits a society where advanced technology and automation have eliminated the need for labor and material scarcity, allowing for a stateless, classless, and ecologically harmonious society. It envisions AI as a tool to liberate humanity from toil and enable self-governance.",
+  example: "A policy node on 'AI and Utopian Futures' might consider post-scarcity anarchism as a radical vision for how AI could fundamentally transform economic and political structures.",
+  frequency: "This is a highly theoretical and radical perspective within political philosophy and ecological thought, appealing to those seeking transformative societal change.",
+  links: [
+    { label: "Post-scarcity anarchism", url: "https://en.wikipedia.org/wiki/Post-scarcity_anarchism" }
+  ]
+},
+"Post-structuralism": {
+  label: "Post-Structuralism",
+  summary: "Post-structuralism is a broad philosophical movement that critiques the foundational assumptions of structuralism, particularly the idea of stable meanings and universal structures. It emphasizes the instability of meaning, the role of power in shaping discourse, and the deconstruction of binary oppositions, influencing how we understand language, knowledge, and identity.",
+  example: "A policy node on 'AI and Bias in Language Models' might use a post-structuralist lens to analyze how AI systems reproduce and reinforce dominant cultural narratives and power structures embedded in their training data.",
+  frequency: "This is a significant theoretical framework in humanities, social sciences, and critical theory, often used to deconstruct established norms and power relations.",
+  links: [
+    { label: "Post-structuralism", url: "https://en.wikipedia.org/wiki/Post-structuralism" }
+  ]
+},
+"Post-structuralism (critique of institutions)": {
+  label: "Post-Structuralism (Critique of Institutions)",
+  summary: "This specific application of post-structuralism critically examines how institutions (e.g., legal systems, educational bodies, scientific establishments) construct and maintain power relations through their discourses, practices, and classifications. It questions the neutrality and objectivity of institutional knowledge and authority, revealing underlying biases and mechanisms of control.",
+  example: "A policy node on 'AI and Regulatory Capture' could employ this critique to analyze how established institutions might inadvertently perpetuate existing power imbalances or be influenced by dominant tech interests in shaping AI policy.",
+  frequency: "This is a common analytical tool in critical legal studies, sociology of knowledge, and political theory, often used by scholars questioning institutional legitimacy and power.",
+  links: [
+    { label: "Post-structuralism", url: "https://en.wikipedia.org/wiki/Post-structuralism" },
+    { label: "Institutional critique", url: "https://en.wikipedia.org/wiki/Institutional_critique" }
+  ]
+},
+"Post-structuralist political economy": {
+  label: "Post-Structuralist Political Economy",
+  summary: "This approach integrates post-structuralist insights into the analysis of economic systems, focusing on how power, discourse, and knowledge shape economic relations and policies. It moves beyond traditional economic models to examine the cultural, social, and linguistic construction of markets, value, and economic actors, often highlighting the role of technology in these processes.",
+  example: "A policy node on 'AI and the Construction of Value' might use this framework to analyze how AI-driven metrics and platforms redefine what is considered valuable labor or economic contribution, often to the detriment of marginalized groups.",
+  frequency: "This is a more specialized and critical approach within political economy, found in interdisciplinary studies that bridge economics, sociology, and cultural theory.",
+  links: [
+    { label: "Post-structuralism", url: "https://en.wikipedia.org/wiki/Post-structuralism" },
+    { label: "Political economy", url: "https://en.wikipedia.org/wiki/Political_economy" }
+  ]
+},
+"Precautionary principle from environmental and public health policy": {
+  label: "Precautionary Principle from Environmental and Public Health Policy",
+  summary: "This principle states that if an action or policy has a suspected risk of causing harm to the public or to the environment, in the absence of scientific consensus that the action or policy is harmful, the burden of proof that it is *not* harmful falls on those taking the action. It advocates for taking preventive measures even when full scientific certainty of harm is lacking.",
+  example: "A policy node on 'AI Risk Management' could apply this principle to argue for strict regulations on high-risk AI systems even before definitive evidence of widespread harm emerges.",
+  frequency: "This principle is foundational in environmental law, public health, and risk regulation, widely adopted by environmental groups, public health advocates, and some regulatory bodies.",
+  links: [
+    { label: "Precautionary principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" }
+  ]
+},
+"Precautionary principle from environmental policy and risk management": {
+  label: "Precautionary Principle from Environmental Policy and Risk Management",
+  summary: "This principle suggests that where there are threats of serious or irreversible damage, lack of full scientific certainty shall not be used as a reason for postponing cost-effective measures to prevent environmental degradation. In risk management, it shifts the burden of proof to proponents of an activity to demonstrate its safety, especially for novel technologies with uncertain long-term impacts.",
+  example: "A policy node on 'AI Safety and Governance' might invoke this principle to justify proactive regulatory measures for advanced AI, even if the full scope of potential risks is not yet understood.",
+  frequency: "This is a widely recognized principle in environmental policy, public health, and increasingly in technology regulation, favored by those advocating for proactive risk mitigation.",
+  links: [
+    { label: "Precautionary principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" }
+  ]
+},
+"Precautionary principle in environmental and technology regulation": {
+  label: "Precautionary Principle in Environmental and Technology Regulation",
+  summary: "This principle holds that if a new technology or activity carries a plausible risk of severe harm, even without conclusive scientific proof, preventive action should be taken. It is particularly relevant for emerging technologies like AI, where potential long-term societal and environmental impacts are often uncertain and difficult to predict, advocating for a cautious approach to innovation.",
+  example: "A policy node on 'Regulating Frontier AI' could explicitly adopt the precautionary principle to guide decisions on the development and deployment of highly autonomous or powerful AI systems.",
+  frequency: "This principle is a cornerstone of environmental and public health policy and is gaining traction in discussions about technology governance, especially among those concerned with existential risks.",
+  links: [
+    { label: "Precautionary principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" }
+  ]
+},
+"Precautionary principle tradition in environmental and health policy": {
+  label: "Precautionary Principle Tradition in Environmental and Health Policy",
+  summary: "This tradition emphasizes foresight and preventive action in the face of potential harm, particularly when scientific uncertainty exists. It advocates for shifting the burden of proof to those proposing potentially harmful activities and for prioritizing public and environmental safety over economic expediency, forming a core tenet of modern risk governance.",
+  example: "A policy node on 'Responsible AI Innovation' might draw on this tradition to establish a framework where AI developers must demonstrate the safety and societal benefit of their systems before widespread deployment.",
+  frequency: "This tradition is deeply embedded in environmental law, public health policy, and international treaties, and is increasingly applied to novel technological risks.",
+  links: [
+    { label: "Precautionary principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" }
+  ]
+},
+"Predictive control systems": {
+  label: "Predictive Control Systems",
+  summary: "Predictive control systems are advanced control strategies that use a model of the system to predict its future behavior over a given time horizon. They then optimize control actions by minimizing a cost function that considers predicted future errors and control efforts, enabling proactive adjustments and robust performance in dynamic environments.",
+  example: "A policy node on 'AI in Critical Infrastructure' might discuss the application of predictive control systems for managing energy grids or transportation networks, highlighting both their efficiency benefits and potential failure modes.",
+  frequency: "This is a highly technical concept primarily found in engineering, automation, and control theory, relevant for discussions on the operational aspects of AI deployment.",
+  links: [
+    { label: "Model predictive control", url: "https://en.wikipedia.org/wiki/Model_predictive_control" }
+  ]
+},
+"Principal-agent theory": {
+  label: "Principal-Agent Theory",
+  summary: "Explores relationships where one party (agent) acts on behalf of another (principal), often with information asymmetry and divergent interests. In AI policy, it helps analyze how AI developers (agents) might act on behalf of users or society (principals), and the mechanisms needed to align their incentives and monitor performance.",
+  example: "This policy framework leverages Principal-Agent Theory to design oversight mechanisms for AI developers, ensuring their actions align with public interest.",
+  frequency: "Moderate",
+  links: [
+    { label: "Principal-Agent Theory", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" }
+  ]
+},
+"Privacy by Design principles": {
+  label: "Privacy by Design Principles",
+  summary: "A framework advocating for privacy to be embedded into the design and architecture of information systems and business practices from the outset. For AI policy, it emphasizes proactive rather than reactive measures to protect privacy, integrating privacy considerations into AI system development cycles.",
+  example: "The proposed AI regulation mandates adherence to Privacy by Design principles, requiring privacy-preserving techniques to be integrated from the initial stages of AI development.",
+  frequency: "High",
+  links: [
+    { label: "Privacy by Design", url: "https://www.ipc.on.ca/privacy-by-design/" }
+  ]
+},
+"Privacy scholarship on notice-and-choice frameworks": {
+  label: "Privacy Scholarship on Notice-and-Choice Frameworks",
+  summary: "Critically examines the effectiveness and limitations of traditional privacy frameworks that rely on informing users (notice) and giving them options (choice). In AI policy, this scholarship highlights the inadequacy of simple consent models for complex AI systems and advocates for more robust privacy protections beyond individual user choices.",
+  example: "Drawing from Privacy Scholarship on Notice-and-Choice Frameworks, the policy argues for a shift towards data minimization and purpose limitation, recognizing the limitations of user consent in AI contexts.",
+  frequency: "Moderate",
+  links: [
+    { label: "The Problem with Notice and Choice", url: "https://www.ftc.gov/news-events/blogs/techftc/2012/03/problem-notice-and-choice" }
+  ]
+},
+"Problem-driven research": {
+  label: "Problem-Driven Research",
+  summary: "An approach to research that starts with a real-world problem and seeks to develop practical solutions, often drawing on multiple disciplines. In AI policy, this tradition encourages focusing on specific societal challenges posed by AI, such as bias or misuse, and developing targeted policy interventions rather than purely theoretical constructs.",
+  example: "The AI ethics guidelines were developed through Problem-Driven Research, directly addressing documented instances of algorithmic discrimination in hiring.",
+  frequency: "Moderate",
+  links: [
+    { label: "Problem-Driven Research", url: "https://www.researchgate.net/publication/280004925_Problem-Driven_Research" }
+  ]
+},
+"Procedural justice theory and administrative law traditions requiring transparency and accountability": {
+  label: "Procedural Justice Theory and Administrative Law Traditions",
+  summary: "Focuses on the fairness of processes by which decisions are made, emphasizing transparency, impartiality, and opportunities for voice. In AI policy, this tradition underpins demands for explainable AI, auditable algorithms, and mechanisms for redress when AI systems make consequential decisions, aligning with administrative law principles for fair governance.",
+  example: "The AI impact assessment framework is rooted in Procedural Justice Theory and Administrative Law Traditions, mandating clear documentation of decision-making processes and avenues for appeal.",
+  frequency: "High",
+  links: [
+    { label: "Procedural Justice", url: "https://en.wikipedia.org/wiki/Procedural_justice" },
+    { label: "Administrative Law", url: "https://en.wikipedia.org/wiki/Administrative_law" }
+  ]
+},
+"Progressive Autonomy": {
+  label: "Progressive Autonomy",
+  summary: "A concept that views autonomy not as a fixed state but as a capacity that can be developed and enhanced over time, often through supportive environments and education. In AI policy, it suggests designing AI systems and policies that foster human agency and capabilities, rather than diminishing them, and ensuring equitable access to tools that empower individuals.",
+  example: "Policies promoting digital literacy and access to AI tools for marginalized communities reflect a commitment to Progressive Autonomy, enabling individuals to better navigate and shape their technological futures.",
+  frequency: "Low",
+  links: [
+    { label: "Progressive Autonomy", url: "https://philpapers.org/rec/ROBPAT" }
+  ]
+},
+"Progressive historical materialism": {
+  label: "Progressive Historical Materialism",
+  summary: "A Marxist-inspired framework that interprets historical development through changes in material conditions and economic structures, often emphasizing class struggle and the evolution of productive forces. In AI policy, it might analyze how AI technologies reshape labor markets, power dynamics, and societal structures, advocating for policies that address systemic inequalities and promote equitable distribution of AI's benefits.",
+  example: "An analysis grounded in Progressive Historical Materialism would examine how AI automation impacts the distribution of wealth and power, advocating for policies that prevent further concentration of capital.",
+  frequency: "Low",
+  links: [
+    { label: "Historical Materialism", url: "https://en.wikipedia.org/wiki/Historical_materialism" }
+  ]
+},
+"Project management": {
+  label: "Project Management",
+  summary: "A discipline focused on planning, executing, and closing projects to achieve specific goals within defined constraints. In AI policy, it informs the practical implementation of AI governance frameworks, emphasizing structured approaches to risk assessment, resource allocation, stakeholder engagement, and monitoring the lifecycle of AI projects.",
+  example: "The AI ethics review board adopted Project Management methodologies to streamline the assessment of new AI deployments, ensuring timely and thorough evaluations.",
+  frequency: "Moderate",
+  links: [
+    { label: "Project Management Institute", url: "https://www.pmi.org/" }
+  ]
+},
+"Public choice theory and political economy skepticism about government motives": {
+  label: "Public Choice Theory and Political Economy Skepticism",
+  summary: "Applies economic tools to analyze political decision-making, often assuming that political actors (voters, politicians, bureaucrats) are self-interested. In AI policy, this tradition fosters skepticism about government's ability to regulate AI purely in the public interest, highlighting potential for rent-seeking, regulatory capture, or policies driven by electoral cycles rather than long-term societal benefit.",
+  example: "A policy proposal informed by Public Choice Theory and Political Economy Skepticism would include robust checks and balances to prevent regulatory capture by powerful AI industry players.",
+  frequency: "Moderate",
+  links: [
+    { label: "Public Choice Theory", url: "https://en.wikipedia.org/wiki/Public_choice" },
+    { label: "Political Economy", url: "https://en.wikipedia.org/wiki/Political_economy" }
+  ]
+},
+"Public choice theory on legislative design and regulatory capture": {
+  label: "Public Choice Theory on Legislative Design and Regulatory Capture",
+  summary: "A specific application of public choice theory that examines how legislative processes can be influenced by special interests and how regulatory bodies can become dominated by the industries they are meant to regulate. In AI policy, it informs the design of robust, independent regulatory structures and mechanisms to prevent AI industry lobbying from unduly shaping legislation or oversight.",
+  example: "To mitigate the risk of regulatory capture, the AI governance framework incorporates insights from Public Choice Theory on Legislative Design, establishing independent oversight bodies with diverse stakeholder representation.",
+  frequency: "Moderate",
+  links: [
+    { label: "Regulatory Capture", url: "https://en.wikipedia.org/wiki/Regulatory_capture" }
+  ]
+},
+"Public health framework extending wellness beyond physical to cognitive domains": {
+  label: "Public Health Framework (Cognitive Wellness)",
+  summary: "Expands the traditional public health focus on physical well-being to include mental, emotional, and cognitive health, recognizing their interconnectedness. In AI policy, this framework prompts consideration of AI's impact on cognitive load, mental well-being, attention spans, and critical thinking skills, advocating for policies that promote digital well-being and mitigate cognitive harms.",
+  example: "The policy on responsible AI design for social media platforms draws from the Public Health Framework extending wellness to cognitive domains, aiming to reduce addictive patterns and promote mental well-being.",
+  frequency: "Low",
+  links: [
+    { label: "Cognitive Health", url: "https://www.nia.nih.gov/health/cognitive-health" },
+    { label: "Public Health", url: "https://en.wikipedia.org/wiki/Public_health" }
+  ]
+},
+"Public health risk communication frameworks (e.g., CDC crisis communication, WHO health promotion models)": {
+  label: "Public Health Risk Communication Frameworks",
+  summary: "Methodologies for effectively communicating health risks and promoting protective behaviors to the public, often in crisis situations. In AI policy, these frameworks are relevant for developing strategies to inform the public about AI risks and benefits, build trust, and manage public perception during AI-related incidents or policy changes.",
+  example: "The government's strategy for informing citizens about AI-driven surveillance systems utilizes Public Health Risk Communication Frameworks to ensure clear, transparent, and trustworthy messaging.",
+  frequency: "Moderate",
+  links: [
+    { label: "CDC Crisis & Emergency Risk Communication", url: "https://emergency.cdc.gov/cerc/" },
+    { label: "WHO Health Promotion", url: "https://www.who.int/health-topics/health-promotion" }
+  ]
+},
+"Public health surveillance methodology and epidemiological underreporting research": {
+  label: "Public Health Surveillance Methodology and Epidemiological Underreporting Research",
+  summary: "Involves systematic data collection, analysis, and interpretation for public health planning, implementation, and evaluation, alongside research into the reasons and impacts of incomplete data reporting. In AI policy, this tradition informs the design of monitoring systems for AI harms, recognizing the challenges of identifying and accurately reporting adverse AI events, similar to disease surveillance.",
+  example: "The proposed AI incident reporting system incorporates Public Health Surveillance Methodology and Epidemiological Underreporting Research to ensure comprehensive data collection and address potential biases in reporting AI harms.",
+  frequency: "Low",
+  links: [
+    { label: "Public Health Surveillance", url: "https://www.cdc.gov/csels/dsepd/ss1978/lesson1/section1.html" },
+    { label: "Underreporting in Epidemiology", url: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3381628/" }
+  ]
+},
+"Public interest advocacy and commons-based governance models (Ostrom, Bollier)": {
+  label: "Public Interest Advocacy and Commons-Based Governance Models",
+  summary: "Emphasizes collective action and shared stewardship of resources, often drawing on Elinor Ostrom's work on common-pool resources and David Bollier's advocacy for the commons. In AI policy, this tradition supports models for democratic governance of AI, promoting community involvement, open-source development, and preventing the monopolization of AI technologies by private entities.",
+  example: "The proposal for a public AI infrastructure is inspired by Public Interest Advocacy and Commons-Based Governance Models, aiming to ensure equitable access and democratic control over foundational AI resources.",
+  frequency: "Moderate",
+  links: [
+    { label: "Elinor Ostrom", url: "https://en.wikipedia.org/wiki/Elinor_Ostrom" },
+    { label: "David Bollier", url: "https://bollier.org/" }
+  ]
+},
+"Public procurement policy": {
+  label: "Public Procurement Policy",
+  summary: "Governs how public sector bodies acquire goods, services, and works, often including criteria beyond just cost, such as ethical considerations, sustainability, or social value. In AI policy, it provides a lever for governments to shape the AI market by requiring ethical AI standards, transparency, and accountability from vendors supplying AI systems to public services.",
+  example: "The city's new Public Procurement Policy mandates that all AI systems purchased for municipal use must undergo an independent ethical audit and demonstrate explainability.",
+  frequency: "Moderate",
+  links: [
+    { label: "Public Procurement", url: "https://en.wikipedia.org/wiki/Public_procurement" }
+  ]
+},
+"Race-to-the-bottom theory (regulatory competition)": {
+  label: "Race-to-the-Bottom Theory (Regulatory Competition)",
+  summary: "This theory posits that states or jurisdictions may lower regulatory standards to attract investment or business, potentially leading to detrimental outcomes in areas like environmental protection or labor rights. In AI policy, it's relevant for understanding international governance challenges where nations might relax AI safety or ethical standards to gain a competitive edge in development.",
+  example: "The debate over international AI safety standards often invokes race-to-the-bottom theory, where nations might relax regulations to gain a competitive edge in AI development.",
+  frequency: "High",
+  links: [
+    { label: "Regulatory Competition and the Race to the Bottom", url: "https://www.jstor.org/stable/20455797" },
+    { label: "The Race to the Bottom in Environmental Regulation", url: "https://www.nber.org/papers/w4378" }
+  ]
+},
+"Red team exercises and adversarial thinking from cybersecurity and defense contexts": {
+  label: "Red Team Exercises and Adversarial Thinking (Cybersecurity & Defense)",
+  summary: "Originating in military strategy and cybersecurity, this involves simulating attacks or challenges from an adversarial perspective to identify vulnerabilities, weaknesses, and potential failure modes. It is crucial for AI safety to proactively stress-test AI systems against malicious actors, unexpected inputs, and ethical breaches before deployment, drawing directly from established practices in defense and cyber warfare.",
+  example: "Implementing red team exercises, drawing from cybersecurity practices, is essential for stress-testing AI systems against malicious actors or unforeseen edge cases.",
+  frequency: "High",
+  links: [
+    { label: "NIST Special Publication 800-115: Technical Guide to Information Security Testing and Assessment", url: "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf" },
+    { label: "Red Teaming: How Your Business Can Conquer the Competition by Challenging Everything", url: "https://www.amazon.com/Red-Teaming-Business-Conquer-Competition/dp/1119049586" }
+  ]
+},
+"Red teaming": {
+  label: "Red Teaming",
+  summary: "Red teaming is a general practice of challenging plans, products, or systems from an adversarial perspective to identify weaknesses, biases, and potential misuse cases. In the context of AI, it involves a dedicated team attempting to find flaws, exploit vulnerabilities, or elicit undesirable behaviors from AI models and applications, ensuring robustness and safety.",
+  example: "Effective AI governance requires robust red teaming efforts to anticipate and mitigate risks associated with advanced models, from bias to security vulnerabilities.",
+  frequency: "High",
+  links: [
+    { label: "AI Red Teaming: The What, Why, and How", url: "https://www.microsoft.com/en-us/security/blog/2023/05/10/ai-red-teaming-the-what-why-and-how/" },
+    { label: "Google's Approach to Red Teaming AI", url: "https://ai.googleblog.com/2023/05/red-teaming-our-ai-models.html" }
+  ]
+},
+"Regional economics": {
+  label: "Regional Economics",
+  summary: "This field studies economic phenomena at a sub-national or multi-national regional level, including trade patterns, labor markets, industrial clusters, and disparities in wealth and development. For AI policy, it's relevant for understanding the localized impacts of automation on employment, the formation of AI innovation hubs, and the need for region-specific policy interventions to address economic inequalities or foster growth.",
+  example: "Analyzing the uneven distribution of AI talent and infrastructure requires insights from regional economics to inform targeted policy interventions and foster inclusive growth.",
+  frequency: "Medium",
+  links: [
+    { label: "Journal of Regional Science", url: "https://rsaiconnect.onlinelibrary.wiley.com/journal/14679787" },
+    { label: "Regional Economic Development", url: "https://www.aeaweb.org/articles?id=10.1257/jep.20.2.141" }
+  ]
+},
+"Regulatory competition and race-to-the-bottom debates from environmental and consumer protection law": {
+  label: "Regulatory Competition & Race-to-the-Bottom (Environmental & Consumer Law)",
+  summary: "This tradition examines how jurisdictions compete by lowering environmental or consumer protection standards to attract business, potentially leading to detrimental outcomes for public health or ecological systems. This framework informs AI policy discussions on international standards for data privacy, safety, and ethical AI development, highlighting the risks of a 'race to the bottom' in AI regulation if countries prioritize economic gain over societal safeguards.",
+  example: "Concerns about a race-to-the-bottom in AI data privacy standards echo historical debates from environmental and consumer protection law, where lax regulations led to negative externalities.",
+  frequency: "Medium",
+  links: [
+    { label: "The Race to the Bottom in Environmental Regulation", url: "https://www.nber.org/papers/w4378" },
+    { label: "Regulatory Competition and the Race to the Bottom", url: "https://www.jstor.org/stable/20455797" }
+  ]
+},
+"Regulatory competition theory and race-to-the-bottom dynamics in corporate law": {
+  label: "Regulatory Competition Theory & Race-to-the-Bottom (Corporate Law)",
+  summary: "This area of legal scholarship examines how states compete for corporate charters by offering more lenient regulations, potentially impacting shareholder protection, corporate governance, or accountability. This lens is useful for AI policy in considering how jurisdictions might compete to attract AI companies through relaxed ethical or safety oversight, potentially compromising public interest for economic advantage.",
+  example: "The debate over which jurisdiction will become the preferred home for AI companies often draws parallels to regulatory competition dynamics observed in corporate law, where states vie for corporate registrations.",
+  frequency: "Medium",
+  links: [
+    { label: "The Race to the Bottom in Corporate Law", url: "https://scholarship.law.upenn.edu/cgi/viewcontent.cgi?article=1103&context=faculty_scholarship" },
+    { label: "Delaware's Dominance and the Competition for Corporate Charters", url: "https://www.jstor.org/stable/10.1086/422521" }
+  ]
+},
+"Regulatory parity doctrine": {
+  label: "Regulatory Parity Doctrine",
+  summary: "The regulatory parity doctrine asserts that similar activities or entities should be subject to similar regulatory treatment, regardless of their specific form, technology, or label. In AI policy, this is highly relevant for ensuring that AI-driven services or products are regulated comparably to their non-AI counterparts, preventing regulatory arbitrage and ensuring consistent standards across sectors like finance, healthcare, or transportation.",
+  example: "Applying the regulatory parity doctrine suggests that an AI-powered medical diagnostic tool should meet similar safety and efficacy standards as traditional medical devices, rather than being exempt due to its novelty.",
+  frequency: "Low-Medium",
+  links: [
+    { label: "Regulatory Parity in Financial Services", url: "https://www.federalreserve.gov/boarddocs/speeches/2000/20000508.htm" },
+    { label: "The Principle of Technological Neutrality in Regulation", url: "https://www.oecd.org/sti/ieconomy/40899479.pdf" }
+  ]
+},
+"Regulatory pragmatism and adaptive governance theory (Charles Sabel, Michael Dorf)": {
+  label: "Regulatory Pragmatism & Adaptive Governance Theory",
+  summary: "This theoretical tradition, championed by scholars like Charles Sabel and Michael Dorf, emphasizes flexible, experimental, and learning-oriented approaches to regulation, often involving iterative processes, performance-based standards, and multi-stakeholder collaboration. This framework is highly relevant for AI policy due to the rapid pace of technological change and inherent uncertainties, advocating for agile and responsive governance mechanisms that can evolve with the technology.",
+  example: "Designing AI governance frameworks that can evolve with technology's advancements requires an adaptive governance approach, as advocated by Sabel and Dorf, focusing on continuous learning and adjustment.",
+  frequency: "Medium",
+  links: [
+    { label: "A Constitution of Democratic Experimentalism", url: "https://www.jstor.org/stable/10.2307/1229676" },
+    { label: "Adaptive Governance: The Case of the European Union", url: "https://www.cambridge.org/core/books/adaptive-governance/92131238466102604810237B302927A" }
+  ]
+},
+"Religious ethics traditions (e.g., Abrahamic, Dharmic)": {
+  label: "Religious Ethics Traditions",
+  summary: "These diverse moral frameworks, derived from religious beliefs and practices (e.g., Abrahamic, Dharmic), offer profound perspectives on human dignity, responsibility, justice, and the purpose of technology. They contribute to AI ethics by providing foundational values and principles for considering the societal impact, fairness, existential risks, and the ultimate goals of AI development, often emphasizing human flourishing and collective well-being.",
+  example: "Discussions on AI's impact on human flourishing and the sanctity of life often draw upon principles from various religious ethics traditions, such as the pursuit of collective well-being or the importance of human agency.",
+  frequency: "Low-Medium",
+  links: [
+    { label: "AI and the Future of Humanity: A Religious Perspective", url: "https://www.worldscientific.com/worldscibooks/10.1142/11728" },
+    { label: "The Ethics of Artificial Intelligence: A Religious Perspective", url: "https://www.cambridge.org/core/journals/journal-of-religious-ethics/article/ethics-of-artificial-intelligence-a-religious-perspective/2180816913611326231261314352136" }
+  ]
+},
+"Research on automation bias and human-computer interaction in safety-critical systems": {
+  label: "Automation Bias & Human-Computer Interaction (Safety-Critical Systems)",
+  summary: "This research focuses on the human tendency to over-rely on automated systems, even when incorrect or flawed, and investigates how humans interact with technology in high-stakes environments where errors can have severe consequences. It is crucial for AI policy in designing user interfaces, training protocols, and regulatory requirements for AI in domains like autonomous vehicles, healthcare, and aviation to prevent accidents, ensure appropriate human oversight, and mitigate the risks of automation-induced complacency.",
+  example: "Policies for AI in aviation must incorporate findings from research on automation bias to ensure pilots maintain critical awareness and control, rather than blindly trusting automated systems.",
+  frequency: "Medium-High",
+  links: [
+    { label: "Automation Bias in Intelligent Systems", url: "https://dl.acm.org/doi/10.1145/263160.263162" },
+    { label: "Human Factors in Aviation", url: "https://www.faa.gov/about/initiatives/human_factors" }
+  ]
+},
+"Risk management": {
+  label: "Risk Management (General)",
+  summary: "Risk management, as a general concept, is the overarching discipline of anticipating, evaluating, and addressing potential adverse events or uncertainties that could impact objectives. For AI, this involves developing strategies to handle technical failures, ethical dilemmas, societal disruptions, and security threats posed by AI systems, ensuring their responsible and safe development and deployment.",
+  example: "Implementing comprehensive risk management practices is fundamental to ensuring the safe and responsible development and deployment of AI technologies across various sectors.",
+  frequency: "High",
+  links: [
+    { label: "Project Management Institute: Risk Management", url: "https://www.pmi.org/learning/library/risk-management-process-project-planning-6929" },
+    { label: "Harvard Business Review: The New Logic of Risk Management", url: "https://hbr.org/2012/12/the-new-logic-of-risk-management" }
+  ]
+},
+"Risk Management": {
+  label: "Risk Management",
+  summary: "Risk Management is a systematic process of identifying, assessing, and controlling risks to an organization's capital and earnings, or to a project's success. In AI policy, it involves establishing formal frameworks to evaluate potential harms from AI systems, develop mitigation strategies, and monitor their effectiveness across the entire AI lifecycle, from design to deployment and decommissioning.",
+  example: "Effective AI governance necessitates a robust Risk Management framework to identify and mitigate potential harms from deployment, from algorithmic bias to security vulnerabilities and privacy breaches.",
+  frequency: "High",
+  links: [
+    { label: "ISO 31000: Risk management – Guidelines", url: "https://www.iso.org/standard/65694.html" },
+    { label: "NIST Risk Management Framework", url: "https://www.nist.gov/cyberframework/nist-risk-management-framework" }
+  ]
+},
+"Risk management (applied)": {
+  label: "Risk Management (Applied)",
+  summary: "Applied risk management refers to the practical implementation of risk management principles and methodologies within specific contexts, projects, or organizational settings. In AI, this involves the concrete steps taken by developers, deployers, and regulators to identify, analyze, evaluate, treat, and monitor risks associated with particular AI applications or systems throughout their lifecycle, ensuring real-world safety and compliance.",
+  example: "The development of a new AI-powered medical device requires rigorous applied risk management, including hazard analysis, validation testing, and post-market surveillance, before market approval.",
+  frequency: "Medium",
+  links: [
+    { label: "Applied Risk Management for AI Systems", url: "https://www.accenture.com/us-en/insights/artificial-intelligence/applied-risk-management-ai" },
+    { label: "Practical Risk Management for AI", url: "https://www.ibm.com/blogs/research/2023/05/practical-risk-management-for-ai/" }
+  ]
+},
+"Risk perception studies": {
+  label: "Risk Perception Studies",
+  summary: "This field of research investigates how individuals and groups perceive and evaluate risks, often revealing significant differences from objective statistical assessments due to psychological, social, and cultural factors. This field is vital for AI policy to understand public acceptance, fear, and trust in AI technologies, informing effective communication strategies, public engagement efforts, and regulatory priorities that align with societal concerns.",
+  example: "Understanding public apprehension about autonomous vehicles requires insights from risk perception studies to address concerns effectively through policy and communication, rather than solely relying on technical safety metrics.",
+  frequency: "Medium",
+  links: [
+    { label: "Risk Perception: A Review", url: "https://www.annualreviews.org/doi/abs/10.1146/annurev.publhealth.22.1.347" },
+    { label: "The Perception of Risk", url: "https://www.routledge.com/The-Perception-of-Risk/Slovic/p/book/9781844075286" }
+  ]
+},
+"Risk perception theory": {
+  label: "Risk Perception Theory",
+  summary: "Risk perception theory provides theoretical frameworks explaining the psychological, social, and cultural factors that influence how people perceive and respond to risks, often highlighting the role of heuristics, emotions, and trust. This theory helps AI policymakers anticipate public reactions to AI advancements, design regulations that align with societal values and concerns, and manage the social acceptance and ethical implications of new AI applications.",
+  example: "Applying risk perception theory helps explain why the public might be more concerned about hypothetical AI existential risks, which are often framed as catastrophic, than immediate, tangible issues like algorithmic bias, which may seem less dramatic.",
+  frequency: "Medium",
+  links: [
+    { label: "Judgment Under Uncertainty: Heuristics and Biases", url: "https://www.cambridge.org/core/books/judgment-under-uncertainty/C5F07122097020F9920F922880193159" },
+    { label: "Perception of Risk (Paul Slovic)", url: "https://www.routledge.com/The-Perception-of-Risk/Slovic/p/book/9781844075286" }
+  ]
+},
+"Risk-based regulation theory in administrative law": {
+  label: "Risk-Based Regulation Theory In Administrative Law",
+  summary: "This theory advocates for regulatory frameworks that prioritize and allocate resources based on the magnitude and likelihood of risks. In AI policy, it informs approaches that tailor oversight and intervention to the specific risks posed by different AI applications, rather than applying a uniform set of rules.",
+  example: "A taxonomy node on \"AI System Certification\" might reference this lineage to explain why certification requirements vary based on the AI's risk profile (e.g., high-risk vs. low-risk applications).",
+  frequency: "This appears across various POVs, particularly those advocating for proportionate and efficient regulatory approaches, from industry to government agencies.",
+  links: [
+    { label: "Risk-based regulation", url: "https://en.wikipedia.org/wiki/Risk-based_regulation" },
+    { label: "The Rise of Risk-Based Regulation", url: "https://www.law.upenn.edu/live/news/1014-the-rise-of-risk-based-regulation" }
+  ]
+},
+"Rittel and Webber's theory of wicked problems in social planning": {
+  label: "Rittel And Webber's Theory Of Wicked Problems In Social Planning",
+  summary: "Rittel and Webber introduced the concept of \"wicked problems\" to describe complex social planning issues that are ill-defined, have no clear solutions, and are resistant to traditional problem-solving methods. This theory highlights that AI policy challenges, such as algorithmic bias or autonomous weapon systems, are often wicked problems due to their interconnectedness, conflicting stakeholder values, and evolving nature.",
+  example: "A taxonomy node on \"AI Governance Challenges\" might cite this lineage to explain why issues like algorithmic fairness are not amenable to simple, one-time fixes.",
+  frequency: "This concept is widely adopted by scholars and practitioners across various POVs who acknowledge the inherent complexity and multi-faceted nature of AI governance.",
+  links: [
+    { label: "Wicked problem", url: "https://en.wikipedia.org/wiki/Wicked_problem" },
+    { label: "Dilemmas in a General Theory of Planning", url: "https://www.jstor.org/stable/44247405" }
+  ]
+},
+"Robert Solow's productivity measurement and technological change theory": {
+  label: "Robert Solow's Productivity Measurement And Technological Change Theory",
+  summary: "Robert Solow's work, particularly his growth model, provided a framework for understanding how technological progress contributes to economic growth beyond capital and labor inputs. It introduced the concept of the \"Solow residual\" to measure the portion of growth attributable to technological change, prompting ongoing debate about how to accurately measure technology's impact.",
+  example: "A taxonomy node on \"Economic Impact of AI\" might reference Solow's theory to discuss the challenges of quantifying AI's contribution to productivity growth and the potential for a \"productivity paradox.\"",
+  frequency: "This theory is foundational in economics and is referenced across the spectrum of economic analyses of AI, from optimistic growth projections to concerns about measurement difficulties.",
+  links: [
+    { label: "Solow residual", url: "https://en.wikipedia.org/wiki/Solow_residual" },
+    { label: "Solow–Swan model", url: "https://en.wikipedia.org/wiki/Solow%E2%80%93Swan_model" }
+  ]
+},
+"Robotics ethics": {
+  label: "Robotics Ethics",
+  summary: "Robotics ethics is a subfield of applied ethics that examines the moral implications of designing, developing, deploying, and interacting with robots and autonomous systems. It addresses issues such as robot rights, accountability for autonomous actions, human-robot interaction, and the impact of robots on employment and society.",
+  example: "A taxonomy node on \"Ethical AI Principles\" might draw from robotics ethics to articulate principles like non-maleficence, accountability, and transparency for AI systems.",
+  frequency: "This field is central to discussions across all POVs concerned with the responsible development and deployment of AI, from academic ethicists to industry practitioners and policymakers.",
+  links: [
+    { label: "Robot ethics", url: "https://en.wikipedia.org/wiki/Robot_ethics" },
+    { label: "Ethics of Artificial Intelligence and Robotics", url: "https://plato.stanford.edu/entries/ethics-ai/" }
+  ]
+},
+"Robustness and interpretability research in machine learning safety": {
+  label: "Robustness And Interpretability Research In Machine Learning Safety",
+  summary: "This research area focuses on making machine learning models more reliable and understandable, crucial for safety-critical AI applications. Robustness ensures models perform reliably even with noisy or adversarial inputs, while interpretability aims to explain how models arrive at their decisions, fostering trust and enabling debugging.",
+  example: "A taxonomy node on \"AI System Assurance\" might cite this lineage to emphasize the need for rigorous testing of model robustness against adversarial attacks and the development of explainable AI (XAI) techniques.",
+  frequency: "This is a core concern for technical experts, researchers, and developers across all POVs, especially those focused on practical AI safety and deployment.",
+  links: [
+    { label: "Explainable artificial intelligence", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
+    { label: "Adversarial machine learning", url: "https://en.wikipedia.org/wiki/Adversarial_machine_learning" }
+  ]
+},
+"Root cause analysis methodologies": {
+  label: "Root Cause Analysis Methodologies",
+  summary: "Root cause analysis (RCA) is a systematic process for identifying the underlying causes of problems or incidents, rather than just addressing their symptoms. By tracing back through a chain of events, RCA aims to uncover fundamental flaws in systems, processes, or designs, enabling more effective preventative measures.",
+  example: "A taxonomy node on \"AI Incident Response\" might incorporate RCA methodologies to guide investigations into AI failures, such as identifying the data bias or model design flaw that led to a discriminatory outcome.",
+  frequency: "RCA is a widely accepted practice in engineering, safety, and quality management, and is increasingly applied across POVs concerned with learning from AI failures.",
+  links: [
+    { label: "Root cause analysis", url: "https://en.wikipedia.org/wiki/Root_cause_analysis" },
+    { label: "What is Root Cause Analysis (RCA)?", url: "https://asq.org/quality-resources/root-cause-analysis" }
+  ]
+},
+"Routine task replacement hypothesis": {
+  label: "Routine Task Replacement Hypothesis",
+  summary: "This economic hypothesis posits that technological advancements, particularly automation and AI, disproportionately replace routine cognitive and manual tasks, leading to job polarization. It suggests that demand for non-routine cognitive and manual tasks, which are harder to automate, will increase, while middle-skill routine jobs decline.",
+  example: "A taxonomy node on \"AI and Labor Market Impacts\" might use this hypothesis to explain observed trends in job displacement and the growing demand for skills complementary to AI.",
+  frequency: "This hypothesis is a central framework in labor economics and is discussed across various POVs concerned with the future of work, from those advocating for retraining programs to those predicting widespread job losses.",
+  links: [
+    { label: "The Polarization of the U.S. Labor Market", url: "https://www.nber.org/papers/w11645" },
+    { label: "Routine-biased technological change", url: "https://en.wikipedia.org/wiki/Routine-biased_technological_change" }
+  ]
+},
+"Rule of law tradition": {
+  label: "Rule Of Law Tradition",
+  summary: "The rule of law is a fundamental principle of governance in which all persons, institutions, and entities are accountable to laws that are publicly promulgated, equally enforced, and independently adjudicated. In the context of AI, it emphasizes that AI systems and their developers must operate within established legal frameworks, ensuring fairness, predictability, and accountability.",
+  example: "A taxonomy node on \"AI Legal Frameworks\" might draw from the rule of law tradition to argue for transparent, non-discriminatory, and appealable AI decision-making processes.",
+  frequency: "This tradition is foundational to democratic governance and is universally invoked across all POVs advocating for responsible and ethical AI development within societal norms.",
+  links: [
+    { label: "Rule of law", url: "https://en.wikipedia.org/wiki/Rule_of_law" },
+    { label: "The Rule of Law", url: "https://plato.stanford.edu/entries/rule-of-law/" }
+  ]
+},
+"Safety culture in high-risk industries (e.g., aviation, nuclear)": {
+  label: "Safety Culture In High-Risk Industries (E.g., Aviation, Nuclear)",
+  summary: "Safety culture refers to the shared values, beliefs, and practices within an organization that prioritize safety over other competing goals, such as production or cost. Originating from lessons learned in industries like aviation and nuclear power, it emphasizes open reporting of incidents, continuous learning, and a proactive approach to risk management.",
+  example: "A taxonomy node on \"AI Safety Management Systems\" might advocate for cultivating a strong safety culture within AI development teams, encouraging transparent error reporting and a commitment to continuous improvement.",
+  frequency: "This concept is widely embraced by safety professionals and policymakers across POVs who seek to apply lessons from established high-risk domains to AI.",
+  links: [
+    { label: "Safety culture", url: "https://en.wikipedia.org/wiki/Safety_culture" },
+    { label: "What is Safety Culture?", url: "https://www.iaea.org/resources/safety-and-security/safety-culture" }
+  ]
+},
+"Safety engineering (e.g., nuclear, aerospace)": {
+  label: "Safety Engineering (E.g., Nuclear, Aerospace)",
+  summary: "Safety engineering is a field of engineering that assures that a system, design, or product is designed, built, and operated to minimize risks to human life, property, and the environment. It involves systematic hazard identification, risk assessment, and the implementation of controls, drawing heavily from lessons learned in high-consequence domains like nuclear power and aerospace.",
+  example: "A taxonomy node on \"AI System Design Principles\" might incorporate safety engineering principles such as redundancy, fault tolerance, and hazard analysis for critical AI applications.",
+  frequency: "This is a fundamental discipline for engineers and regulators across all POVs concerned with the practical safety of AI systems, especially in high-stakes applications.",
+  links: [
+    { label: "Safety engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" },
+    { label: "What is Safety Engineering?", url: "https://www.ansys.com/blog/what-is-safety-engineering" }
+  ]
+},
+"Safety engineering concepts of fail-safe mechanisms and human-in-the-loop design": {
+  label: "Safety Engineering Concepts Of Fail-Safe Mechanisms And Human-In-The-Loop Design",
+  summary: "Fail-safe mechanisms are designs that, in the event of a failure, revert to a state that is inherently safe or causes minimal harm. Human-in-the-loop design emphasizes keeping human operators involved in critical decision-making or oversight processes, allowing for intervention when automated systems fail or encounter novel situations.",
+  example: "A taxonomy node on \"AI System Architecture\" might recommend incorporating fail-safe shutdown procedures and designing AI systems with clear human oversight points for critical operations.",
+  frequency: "These are widely accepted best practices in safety-critical engineering and are advocated across POVs focused on practical AI safety and risk mitigation.",
+  links: [
+    { label: "Fail-safe", url: "https://en.wikipedia.org/wiki/Fail-safe" },
+    { label: "Human-in-the-loop", url: "https://en.wikipedia.org/wiki/Human-in-the-loop" }
+  ]
+},
+"Safety engineering tradition (Nancy Leveson's systems theory of safety)": {
+  label: "Safety Engineering Tradition (Nancy Leveson's Systems Theory Of Safety)",
+  summary: "Nancy Leveson's Systems Theoretic Accident Model and Processes (STAMP) offers a modern approach to safety engineering, viewing accidents not as a chain of failures but as a result of complex interactions within a system. It emphasizes control structures, feedback loops, and emergent properties, providing a holistic framework for preventing accidents in complex socio-technical systems.",
+  example: "A taxonomy node on \"AI Risk Assessment\" might adopt STAMP to analyze how AI failures arise from interactions between technical components, human operators, and organizational policies, rather than isolated component malfunctions.",
+  frequency: "Leveson's work is highly influential in advanced safety engineering and is increasingly adopted by researchers and practitioners across POVs dealing with complex AI systems.",
+  links: [
+    { label: "Nancy Leveson", url: "https://en.wikipedia.org/wiki/Nancy_Leveson" },
+    { label: "STAMP (Systems Theoretic Accident Model and Processes)", url: "https://psas.mit.edu/stamp-and-stas-models" }
+  ]
+},
+"Safety science traditions emphasizing near-miss reporting (Heinrich, Reason)": {
+  label: "Safety Science Traditions Emphasizing Near-Miss Reporting (Heinrich, Reason)",
+  summary: "Early safety science, notably Heinrich's accident pyramid and Reason's Swiss Cheese Model, highlighted the importance of learning from near-misses and minor incidents to prevent major accidents. These traditions advocate for robust reporting systems that capture precursors to failure, enabling organizations to identify systemic weaknesses and implement preventative measures.",
+  example: "A taxonomy node on \"AI Incident Learning\" might propose a framework for collecting and analyzing near-misses in AI deployments, drawing lessons from these minor events to avert catastrophic failures.",
+  frequency: "These foundational safety concepts are widely accepted and applied across POVs concerned with proactive risk management and continuous improvement in AI safety.",
+  links: [
+    { label: "Heinrich's Law", url: "https://en.wikipedia.org/wiki/Heinrich%27s_Law" },
+    { label: "Swiss Cheese Model", url: "https://en.wikipedia.org/wiki/Swiss_Cheese_Model" }
+  ]
+},
+"Scaling laws in deep learning": {
+  label: "Scaling Laws In Deep Learning",
+  summary: "Scaling laws describe predictable relationships between model performance, computational resources (e.g., training data, model size, compute), and training time in deep learning. These empirical observations suggest that performance often improves predictably as these resources increase, informing strategies for developing more capable AI models and raising questions about resource concentration.",
+  example: "A taxonomy node on \"AI Model Development Trends\" might reference scaling laws to explain the current trajectory of increasing model size and data requirements, and their implications for accessibility and environmental impact.",
+  frequency: "This is a key area of research within the technical AI community and is discussed across POVs, from those focused on AI capabilities to those concerned with resource implications and access.",
+  links: [
+    { label: "Scaling Laws for Neural Language Models", url: "https://arxiv.org/abs/2001.08361" },
+    { label: "Chinchilla's wild implications", url: "https://www.lesswrong.com/posts/6FpE9m4J9w8y2x4gT/chinchilla-s-wild-implications" }
+  ]
+},
+"Science and Technology Studies (STS) focus on social construction of technical knowledge": {
+  label: "Science And Technology Studies (STS) Focus On Social Construction Of Technical Knowledge",
+  summary: "STS examines how scientific facts and technological artifacts are not merely objective discoveries but are shaped by social, cultural, political, and economic factors. This perspective highlights that technical knowledge, including that underpinning AI, is a product of human choices, values, and power dynamics, rather than a neutral, inevitable progression.",
+  example: "A taxonomy node on \"AI Ethics and Bias\" might use this STS lens to argue that algorithmic bias is not just a technical bug but a reflection of societal biases embedded during design, data collection, and deployment.",
+  frequency: "This is a foundational perspective within STS and is increasingly adopted by critical scholars and policymakers across POVs concerned with the societal implications and governance of AI.",
+  links: [
+    { label: "Social construction of technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" },
+    { label: "Science and Technology Studies", url: "https://plato.stanford.edu/entries/science-technology-studies/" }
+  ]
+},
+"Science and Technology Studies (STS) tradition including scholars like Wiebe Bijker and Trevor Pinch on social construction of technology": {
+  label: "Science And Technology Studies (STS) Tradition Including Scholars Like Wiebe Bijker And Trevor Pinch On Social Construction Of Technology",
+  summary: "Building on the social construction of technology (SCOT) framework, scholars like Bijker and Pinch demonstrate how technological artifacts are shaped by the interactions of various social groups, their interpretations, and their conflicts. Their work illustrates that technologies, such as the bicycle or AI, have \"interpretive flexibility\" and are not determined solely by technical merits but by social negotiation.",
+  example: "A taxonomy node on \"AI Design and Values\" might reference Bijker and Pinch to show how different stakeholder groups (e.g., developers, users, regulators) can influence the design and ultimate societal role of an AI system.",
+  frequency: "This is a core theoretical approach within STS, influencing critical analyses of technology across various POVs, particularly those emphasizing stakeholder engagement and democratic control over technology.",
+  links: [
+    { label: "Social construction of technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" },
+    { label: "The Social Construction of Technological Systems", url: "https://mitpress.mit.edu/9780262524592/the-social-construction-of-technological-systems/" }
+  ]
+},
+"Science and Technology Studies critiques of technoscientific governance capture": {
+  label: "Science And Technology Studies Critiques Of Technoscientific Governance Capture",
+  summary: "STS critiques highlight how powerful technical elites or industry interests can disproportionately influence the governance and regulation of emerging technologies, leading to \"capture\" of policy processes. This perspective questions claims of technical neutrality and exposes how specific visions of technological futures can become dominant, often at the expense of broader public interests.",
+  example: "A taxonomy node on \"AI Governance Models\" might use this critique to analyze how industry lobbying or the dominance of specific technical narratives could shape AI regulations in ways that favor corporate interests over public safety or equity.",
+  frequency: "This critical perspective is prevalent among scholars, civil society organizations, and policymakers across POVs concerned with democratic accountability and power imbalances in AI governance.",
+  links: [
+    { label: "Technoscientific Governance", url: "https://www.oxfordhandbooks.com/view/10.1093/oxfordhb/9780199644025.001.0001/oxfordhb-9780199644025-e-005" },
+    { label: "Regulatory capture", url: "https://en.wikipedia.org/wiki/Regulatory_capture" }
+  ]
+},
+"Science and technology studies literature on value-laden artifacts and technological politics": {
+  label: "Science And Technology Studies Literature On Value-Laden Artifacts And Technological Politics",
+  summary: "This STS tradition, notably through scholars like Langdon Winner, argues that technological artifacts are not neutral tools but embody values, assumptions, and power relations embedded during their design and deployment. It reveals how technologies can have \"politics,\" shaping social structures, distributing power, and influencing human behavior in non-obvious ways.",
+  example: "A taxonomy node on \"AI and Societal Impact\" might draw on this literature to explain how the design choices in an AI surveillance system inherently reflect and reinforce certain political values regarding privacy and control.",
+  frequency: "This perspective is crucial for critical analyses of AI across various POVs, particularly those emphasizing the ethical, social, and political dimensions of technological development.",
+  links: [
+    { label: "Do Artifacts Have Politics?", url: "https://www.cc.gatech.edu/~beki/cs4001/Winner.pdf" },
+    { label: "Langdon Winner", url: "https://en.wikipedia.org/wiki/Langdon_Winner" }
+  ]
+},
+"Security engineering principles": {
+  label: "Security Engineering Principles",
+  summary: "Security engineering is a specialized field focused on designing, building, and testing systems to withstand malicious acts and ensure confidentiality, integrity, and availability. It involves identifying threats, assessing vulnerabilities, and implementing countermeasures throughout the system lifecycle, often drawing from established principles like least privilege and defense in depth.",
+  example: "A taxonomy node on \"AI System Security\" might incorporate security engineering principles to advocate for robust authentication, authorization, and data protection mechanisms within AI models and their infrastructure.",
+  frequency: "These principles are fundamental for technical experts and developers across all POVs concerned with protecting AI systems from cyber threats and misuse.",
+  links: [
+    { label: "Security engineering", url: "https://en.wikipedia.org/wiki/Security_engineering" },
+    { label: "Principles of Security Engineering", url: "https://www.cl.cam.ac.uk/~rja14/book.html" }
+  ]
+},
+"Security-by-design principles from cybersecurity": {
+  label: "Security-By-Design Principles From Cybersecurity",
+  summary: "Security-by-design is an approach that integrates security considerations into every stage of the system development lifecycle, rather than adding them as an afterthought. Originating from cybersecurity, it emphasizes proactive measures such as threat modeling, secure coding practices, and privacy-enhancing technologies to build inherently resilient systems.",
+  example: "A taxonomy node on \"Secure AI Development\" might recommend applying security-by-design principles to ensure that AI models and their data pipelines are built with inherent protections against adversarial attacks and data breaches.",
+  frequency: "This is a widely accepted best practice in cybersecurity and is increasingly advocated across POVs for building trustworthy and resilient AI systems.",
+  links: [
+    { label: "Security by design", url: "https://en.wikipedia.org/wiki/Security_by_design" },
+    { label: "What is Security by Design?", url: "https://www.synopsys.com/glossary/what-is-security-by-design.html" }
+  ]
+},
+"Silicon Valley techno-libertarian ideology": {
+  label: "Silicon Valley Techno-Libertarian Ideology",
+  summary: "This ideology combines libertarian political philosophy with a strong belief in the transformative power of technology, particularly digital innovation, to solve societal problems and foster individual freedom. It often advocates for minimal government regulation, free markets, and rapid technological advancement, sometimes viewing traditional institutions as obstacles to progress.",
+  example: "A taxonomy node on \"AI Innovation Policy\" might implicitly or explicitly critique this ideology when discussing the balance between rapid development and regulatory oversight for AI.",
+  frequency: "This ideology is prominent among certain tech founders and investors, influencing policy debates from a perspective that often prioritizes innovation and deregulation, contrasting with more cautious POVs.",
+  links: [
+    { label: "Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Techno-libertarianism" },
+    { label: "The California Ideology", url: "https://www.opendemocracy.net/en/the-california-ideology/" }
+  ]
+},
+"Singularitarianism (implicitly, in the 'beyond human capability' aspect)": {
+  label: "Singularitarianism (Implicitly, In The 'Beyond Human Capability' Aspect)",
+  summary: "Singularitarianism is a belief that a technological singularity—a hypothetical future point where technological growth becomes uncontrollable and irreversible—will occur, resulting in unfathomable changes to human civilization. While often associated with specific predictions, its implicit relevance to AI policy lies in the idea that AI could rapidly exceed human capabilities, posing existential risks or ushering in a post-human era.",
+  example: "A taxonomy node on \"Long-Term AI Risk\" might implicitly draw from singularitarian concerns when discussing the challenges of controlling or aligning highly advanced AI systems that operate beyond human comprehension.",
+  frequency: "This perspective is most prominent among a subset of AI researchers and futurists, particularly those focused on existential risk, and is often viewed with skepticism by mainstream policy and academic circles.",
+  links: [
+    { label: "Technological singularity", url: "https://en.wikipedia.org/wiki/Technological_singularity" },
+    { label: "Singularitarianism", url: "https://en.wikipedia.org/wiki/Singularitarianism" }
+  ]
+},
+"Skeptical innovation studies tradition (e.g., Carlota Perez on long adoption cycles)": {
+  label: "Skeptical Innovation Studies Tradition (E.g., Carlota Perez On Long Adoption Cycles)",
+  summary: "This tradition, exemplified by Carlota Perez, offers a more nuanced and often less optimistic view of technological change, emphasizing that new technologies undergo long and turbulent adoption cycles. It highlights periods of financial bubbles, social disruption, and the need for institutional adjustments before the full societal benefits of a technological revolution are realized.",
+  example: "A taxonomy node on \"AI Economic Transition\" might reference Perez's work to argue that the economic and social benefits of AI will not be immediate or smoothly distributed, requiring significant policy interventions over decades.",
+  frequency: "This perspective is common among economic historians and innovation scholars, offering a counter-narrative to techno-optimism and influencing POVs that advocate for proactive social and economic policies.",
+  links: [
+    { label: "Carlota Perez", url: "https://en.wikipedia.org/wiki/Carlota_Perez" },
+    { label: "Technological Revolutions and Financial Capital", url: "https://www.e-elgar.com/shop/gbp/technological-revolutions-and-financial-capital-9781843763314.html" }
+  ]
+},
+"Skeptical rationalism and critique of apocalypticism (Pinker, Deutsch)": {
+  label: "Skeptical Rationalism And Critique Of Apocalypticism (Pinker, Deutsch)",
+  summary: "This intellectual tradition, championed by thinkers like Steven Pinker and David Deutsch, emphasizes reason, evidence, and human progress, often critiquing alarmist or apocalyptic narratives about technological change. They argue that human ingenuity and institutional adaptation have historically overcome challenges, advocating for a balanced, optimistic, and evidence-based approach to new technologies like AI.",
+  example: "A taxonomy node on \"AI Risk Communication\" might draw from this lineage to advocate for communicating AI risks in a measured, evidence-based way, avoiding sensationalism or exaggerated claims of existential threat.",
+  frequency: "This perspective is prominent among certain public intellectuals and scientists, often contrasting with more pessimistic or alarmist POVs on AI, and influencing those who prioritize rational discourse and progress.",
+  links: [
+    { label: "Steven Pinker", url: "https://en.wikipedia.org/wiki/Steven_Pinker" },
+    { label: "David Deutsch", url: "https://en.wikipedia.org/wiki/David_Deutsch" }
+  ]
+},
+"Skill-biased technological change theory (Goldin-Katz, Autor-Levy-Murnane)": {
+  label: "Skill-Biased Technological Change Theory (Goldin-Katz, Autor-Levy-Murnane)",
+  summary: "This economic theory posits that technological advancements, including AI, increase the demand for skilled labor while reducing the demand for unskilled labor, thereby widening wage inequality. It suggests that technology complements high-skill tasks and substitutes for low-skill tasks, necessitating investments in education and training to adapt the workforce.",
+  example: "A taxonomy node on \"AI and Workforce Development\" might use this theory to justify policies focused on upskilling and reskilling programs to prepare workers for jobs that are complemented by AI.",
+  frequency: "This is a widely accepted and influential theory in labor economics, informing analyses and policy recommendations across various POVs concerned with the future of work and inequality.",
+  links: [
+    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Skill-biased_technological_change" },
+    { label: "The Race Between Education and Technology", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674035300" }
+  ]
+},
+"Social democracy": {
+  label: "Social Democracy",
+  summary: "Social democracy is a political, social, and economic ideology that supports economic and social interventions to promote social justice within a liberal-democratic polity and a capitalist economy. In the context of AI, it advocates for policies that ensure the benefits of AI are broadly shared, mitigate negative impacts like job displacement or inequality, and prioritize public welfare over unchecked market forces.",
+  example: "A taxonomy node on \"AI and Public Welfare\" might draw from social democratic principles to propose policies such as universal basic income, strong social safety nets, or public ownership of critical AI infrastructure.",
+  frequency: "This ideology is influential in many European countries and among progressive policymakers globally, offering a distinct POV on AI governance that prioritizes equity, collective well-being, and democratic control.",
+  links: [
+    { label: "Social democracy", url: "https://en.wikipedia.org/wiki/Social_democracy" },
+    { label: "What is Social Democracy?", url: "https://www.britannica.com/topic/social-democracy" }
+  ]
+},
+"Social determinants of health approach extending to technological systems": {
+  label: "Social Determinants Of Health Approach Extending To Technological Systems",
+  summary: "The social determinants of health (SDOH) framework recognizes that health outcomes are shaped by a wide range of non-medical factors, including socioeconomic status, education, and access to resources. Extending this to technological systems implies analyzing how AI's design, deployment, and access can exacerbate or mitigate existing social inequalities, thereby impacting well-being and life chances.",
+  example: "A taxonomy node on \"AI and Equity\" might use this approach to examine how biased AI in healthcare or housing allocation can perpetuate systemic disadvantages, leading to poorer outcomes for marginalized groups.",
+  frequency: "This approach is gaining traction among public health experts, social justice advocates, and critical AI scholars across POVs concerned with the equitable distribution of AI's benefits and burdens.",
+  links: [
+    { label: "Social determinants of health", url: "https://en.wikipedia.org/wiki/Social_determinants_of_health" },
+    { label: "Social Determinants of Health", url: "https://www.who.int/health-topics/social-determinants-of-health" }
+  ]
+},
+"Social engineering and human factors in cybersecurity": {
+  label: "Social Engineering And Human Factors In Cybersecurity",
+  summary: "This area of cybersecurity recognizes that humans are often the weakest link in security systems, focusing on how psychological manipulation (social engineering) and human error (human factors) can be exploited. It emphasizes training, awareness, and designing systems that account for human behavior to prevent breaches and enhance overall security.",
+  example: "A taxonomy node on \"AI System Vulnerabilities\" might highlight how AI systems can be susceptible to social engineering attacks targeting human operators or how human factors in AI deployment can introduce security risks.",
+  frequency: "This is a critical aspect of cybersecurity widely acknowledged by practitioners and researchers across all POVs concerned with practical security measures for AI.",
+  links: [
+    { label: "Social engineering (security)", url: "https://en.wikipedia.org/wiki/Social_engineering_(security)" },
+    { label: "Human factors in cybersecurity", url: "https://www.nist.gov/itl/applied-cybersecurity/human-factors-cybersecurity" }
+  ]
+},
+"Social impact assessment": {
+  label: "Social Impact Assessment",
+  summary: "Social Impact Assessment (SIA) is a process of analyzing and managing the social consequences, both positive and negative, of planned interventions or policies. It aims to ensure that development projects or technological deployments are socially sustainable and equitable, involving stakeholder participation and mitigation strategies.",
+  example: "A taxonomy node on \"AI Governance Frameworks\" might propose mandatory SIA for high-risk AI systems to systematically evaluate their potential effects on employment, privacy, equity, and community well-being before deployment.",
+  frequency: "SIA is a well-established practice in environmental and development planning, and is increasingly advocated across POVs for comprehensive and responsible AI governance.",
+  links: [
+    { label: "Social impact assessment", url: "https://en.wikipedia.org/wiki/Social_impact_assessment" },
+    { label: "International Association for Impact Assessment (IAIA)", url: "https://www.iaia.org/social-impact-assessment.php" }
+  ]
+},
+"social movement theory": {
+  label: "Social Movement Theory",
+  summary: "Social movement theory is an interdisciplinary field that examines the dynamics of collective action, focusing on how social movements emerge, develop, and achieve or fail to achieve their goals. It analyzes the resources, framing, political opportunities, and organizational structures that enable groups to challenge existing power structures and advocate for social change.",
+  example: "A taxonomy node on 'AI ethics advocacy' might use social movement theory to understand how groups mobilize to demand responsible AI, influence policy, or resist harmful AI applications.",
+  frequency: "This theory is central to sociology, political science, and activism studies, providing frameworks for understanding how societal concerns about AI can translate into organized efforts for change.",
+  links: [
+    { label: "Social movement", url: "https://en.wikipedia.org/wiki/Social_movement" },
+    { label: "Social movement theory", url: "https://en.wikipedia.org/wiki/Social_movement_theory" }
+  ]
+},
+"Social psychology research on confirmation bias and echo chambers": {
+  label: "Social Psychology Research On Confirmation Bias And Echo Chambers",
+  summary: "Social psychology research demonstrates how cognitive biases like confirmation bias lead individuals to seek out and interpret information that confirms their existing beliefs, while echo chambers are social structures where individuals are primarily exposed to information and opinions that align with their own. These phenomena are exacerbated by algorithmic systems, impacting public discourse and democratic processes.",
+  example: "A taxonomy node on \"AI and Misinformation\" might draw on this research to explain how recommender systems can inadvertently create or reinforce echo chambers, contributing to polarization and the spread of false information.",
+  frequency: "This research is widely accepted in social sciences and is increasingly relevant across POVs concerned with the societal impacts of AI on information environments and democratic health.",
+  links: [
+    { label: "Confirmation bias", url: "https://en.wikipedia.org/wiki/Confirmation_bias" },
+    { label: "Echo chamber (media)", url: "https://en.wikipedia.org/wiki/Echo_chamber_(media)" }
+  ]
+},
+"Social safety net economics": {
+  label: "Social Safety Net Economics",
+  summary: "This tradition focuses on government programs and policies designed to protect vulnerable populations from economic shocks, poverty, and inequality. It is highly relevant to AI policy in considering the potential for AI-driven job displacement, the exacerbation of income inequality, and the need for new or expanded social support systems like universal basic income or retraining programs.",
+  example: "Policy proposals for mitigating AI-driven job displacement often draw from Social Safety Net Economics to design robust unemployment benefits, retraining initiatives, or new welfare schemes.",
+  frequency: "High (across welfare, labor, economic policy POVs)",
+  links: [
+    { label: "OECD Social Protection", url: "https://www.oecd.org/social/social-protection.htm" },
+    { label: "IMF Social Safety Nets", url: "https://www.imf.org/en/Topics/social-safety-nets" }
+  ]
+},
+"Socio-technical Systems Theory": {
+  label: "Socio-Technical Systems Theory",
+  summary: "This theory examines the complex interdependencies between people, technology, and organizational structures, emphasizing that optimal performance requires joint optimization of both social and technical elements. It is crucial for understanding how AI systems integrate into human workflows and societal contexts, highlighting the need for holistic design that considers human factors, organizational culture, and technological capabilities.",
+  example: "Applying Socio-Technical Systems Theory helps design AI systems that optimize both human well-being and technological efficiency in complex organizational settings, rather than focusing solely on technical performance.",
+  frequency: "Medium (engineering, organizational studies, human factors POVs)",
+  links: [
+    { label: "Tavistock Institute - Socio-Technical Systems", url: "https://tavistockinstitute.org/about-us/our-history/socio-technical-systems/" },
+    { label: "Trist & Bamforth (1951) - Coal-Face", url: "https://www.jstor.org/stable/2060009" }
+  ]
+},
+"Sociology of moral panics and social movements (Cohen, Goode & Ben-Yehuda)": {
+  label: "Sociology of Moral Panics and Social Movements",
+  summary: "This tradition analyzes how societal anxieties about perceived threats, often new technologies or social changes, are amplified by media and public discourse, leading to widespread fear and calls for policy intervention. It is highly relevant for understanding public reactions to AI, the emergence of 'AI doomerism' or 'killer robot' narratives, and the formation of advocacy groups pushing for specific AI regulations.",
+  example: "The public discourse around 'superintelligent AI taking over' can be analyzed through the lens of the Sociology of Moral Panics, revealing how anxieties about AI are socially constructed and amplified.",
+  frequency: "Medium (critical, sociological, media studies POVs)",
+  links: [
+    { label: "Cohen (1972) - Folk Devils and Moral Panics", url: "https://www.routledge.com/Folk-Devils-and-Moral-Panics/Cohen/p/book/9780415610122" },
+    { label: "Goode & Ben-Yehuda (1994) - Moral Panics", url: "https://www.wiley.com/en-us/Moral+Panics%3A+The+Social+Construction+of+Deviance-p-9780631189053" }
+  ]
+},
+"Sociology of technology studies on the social construction of technical expectations": {
+  label: "Sociology of Technology Studies on the Social Construction of Technical Expectations",
+  summary: "This field explores how societal beliefs, values, and power dynamics shape the development, perception, and adoption of technology, including the often-inflated promises or exaggerated fears associated with new innovations. It is essential for understanding the hype cycles, over-promising, and eventual disillusionment around AI, and how these expectations influence investment and policy decisions.",
+  example: "The early promises of fully autonomous vehicles, often failing to materialize as quickly or comprehensively as predicted, illustrate the social construction of technical expectations within AI development.",
+  frequency: "Medium (critical, sociological, innovation studies POVs)",
+  links: [
+    { label: "Bijker, Hughes, Pinch (1987) - The Social Construction of Technological Systems", url: "https://mitpress.mit.edu/9780262520935/the-social-construction-of-technological-systems/" },
+    { label: "Latour (1987) - Science in Action", url: "https://www.hup.harvard.edu/books/9780674792913" }
+  ]
+},
+"Sociotechnical systems analysis examining automation vulnerabilities": {
+  label: "Sociotechnical Systems Analysis Examining Automation Vulnerabilities",
+  summary: "This approach focuses on identifying weaknesses and failure points that arise from the complex interaction between automated systems, human operators, and organizational processes. It is directly applicable to AI safety, reliability, and understanding how AI failures can cascade through human-in-the-loop systems, highlighting risks beyond purely technical malfunctions.",
+  example: "A sociotechnical systems analysis of an AI-powered air traffic control system would identify potential automation vulnerabilities arising from human over-reliance on automation or inadequate training for novel AI behaviors.",
+  frequency: "Medium (safety engineering, human factors, risk management POVs)",
+  links: [
+    { label: "Leveson (2011) - Engineering a Safer World", url: "https://mitpress.mit.edu/9780262516402/engineering-a-safer-world/" },
+    { label: "Hollnagel (2012) - FRAM", url: "https://ashgate.com/isbn/9781409444311" }
+  ]
+},
+"Sociotechnical systems theory emphasizing human-machine interaction contexts": {
+  label: "Sociotechnical Systems Theory Emphasizing Human-Machine Interaction Contexts",
+  summary: "This specific application of STS theory prioritizes the design of interfaces, workflows, and organizational structures to optimize the collaboration and interaction between humans and technological systems. It is highly relevant for designing user-friendly, safe, and effective AI tools, ensuring that AI augments human capabilities rather than creating new burdens or risks.",
+  example: "Designing an AI diagnostic tool requires applying sociotechnical systems theory to ensure seamless human-machine interaction within clinical contexts, considering user cognitive load and decision-making processes.",
+  frequency: "Medium (HCI, human factors, UX design, organizational psychology POVs)",
+  links: [
+    { label: "Norman (2013) - The Design of Everyday Things", url: "https://mitpress.mit.edu/9780465050659/the-design-of-everyday-things/" },
+    { label: "Reason (1990) - Human Error", url: "https://www.cambridge.org/core/books/human-error/A3D0026298517201201D89255E095213" }
+  ]
+},
+"Software engineering design patterns": {
+  label: "Software Engineering Design Patterns",
+  summary: "This field provides reusable solutions to common problems in software design, offering a structured approach to building robust, maintainable, and scalable systems. While not directly a policy domain, it informs the technical feasibility and best practices for AI system development and regulation, influencing how AI components are structured for clarity, auditability, and interoperability.",
+  example: "The use of specific software engineering design patterns can enhance the modularity and testability of AI components, facilitating easier auditing and compliance with regulatory standards.",
+  frequency: "Low (technical, engineering POVs)",
+  links: [
+    { label: "Gamma et al. (1994) - Design Patterns", url: "https://www.pearson.com/us/higher-education/program/Gamma-Design-Patterns-Elements-of-Reusable-Object-Oriented-Software/PGM1111111111111.html" },
+    { label: "Fowler (2002) - Patterns of Enterprise Application Architecture", url: "https://martinfowler.com/books/eaa.html" }
+  ]
+},
+"Software engineering focus on edge cases and failure mode analysis": {
+  label: "Software Engineering Focus on Edge Cases and Failure Mode Analysis",
+  summary: "This area emphasizes systematically identifying unusual or extreme conditions (edge cases) and potential ways a system can fail (failure modes) to prevent errors and enhance robustness. It is crucial for AI safety, reliability, and anticipating unintended consequences, especially in autonomous systems where rare but critical scenarios can lead to severe outcomes.",
+  example: "Developing safety protocols for autonomous vehicles heavily relies on software engineering's focus on edge cases and failure mode analysis to predict and mitigate risks in rare, complex driving scenarios.",
+  frequency: "High (safety engineering, reliability engineering, AI ethics/safety POVs)",
+  links: [
+    { label: "IEC 60812 - FMEA", url: "https://webstore.iec.ch/publication/3628" },
+    { label: "NASA - FMEA Handbook", url: "https://www.nasa.gov/wp-content/uploads/2023/05/nasa-fmea-handbook.pdf" }
+  ]
+},
+"Software engineering literature on project failure modes and stakeholder alignment": {
+  label: "Software Engineering Literature on Project Failure Modes and Stakeholder Alignment",
+  summary: "This body of work explores common reasons why software projects fail, often highlighting issues beyond technical challenges, such as poor communication, scope creep, and misaligned expectations among diverse stakeholders. It is relevant for AI policy in understanding the challenges of large-scale AI deployment and governance, emphasizing the need for clear objectives, effective communication, and broad consensus.",
+  example: "Many AI ethics initiatives struggle due to project failure modes related to stakeholder alignment, where diverse groups have conflicting priorities and expectations for AI development and deployment.",
+  frequency: "Medium (project management, organizational studies, software development POVs)",
+  links: [
+    { label: "Brooks (1975) - The Mythical Man-Month", url: "https://www.pearson.com/us/higher-education/program/Brooks-Mythical-Man-Month-Essays-on-Software-Engineering-Anniversary-Edition/PGM1111111111111.html" },
+    { label: "Standish Group CHAOS Report", url: "https://www.standishgroup.com/chaos_report" }
+  ]
+},
+"Software engineering reliability": {
+  label: "Software Engineering Reliability",
+  summary: "This discipline is concerned with ensuring that software performs its intended function correctly and consistently over time, under specified conditions. It directly informs AI policy discussions on system robustness, uptime, fault tolerance, and the trustworthiness of AI applications in critical domains such as healthcare, finance, and autonomous systems.",
+  example: "Regulations for AI in healthcare often mandate high standards of software engineering reliability to ensure diagnostic tools provide consistent and accurate results, minimizing risks to patient safety.",
+  frequency: "High (safety engineering, quality assurance, regulatory POVs)",
+  links: [
+    { label: "IEEE Standard for Software Reliability Engineering", url: "https://standards.ieee.org/standard/1633-2016.html" },
+    { label: "Musa et al. (1987) - Software Reliability", url: "https://www.amazon.com/Software-Reliability-Measurement-Prediction-Application/dp/0070440359" }
+  ]
+},
+"Software security auditing": {
+  label: "Software Security Auditing",
+  summary: "This is the process of systematically reviewing software code, configurations, and systems to identify vulnerabilities, weaknesses, and potential security flaws that could be exploited. It is essential for AI policy in ensuring AI systems are protected from malicious attacks, data breaches, unauthorized access, and manipulation, especially for sensitive or critical applications.",
+  example: "Before deploying an AI system for critical infrastructure management, a thorough software security auditing process is required to identify and remediate potential cyber threats and ensure data integrity.",
+  frequency: "High (cybersecurity, regulatory compliance, risk management POVs)",
+  links: [
+    { label: "OWASP Top 10", url: "https://owasp.org/www-project-top-ten/" },
+    { label: "NIST Cybersecurity Framework", url: "https://www.nist.gov/cyberframework" }
+  ]
+},
+"Software testing and validation principles": {
+  label: "Software Testing and Validation Principles",
+  summary: "This field encompasses methodologies and best practices for verifying that software meets its requirements and functions as expected, and for validating that it fulfills its intended purpose in real-world contexts. It is fundamental for AI policy in establishing standards for AI system performance, accuracy, fairness, safety, and robustness before and after deployment.",
+  example: "AI models used in high-stakes decision-making must adhere to rigorous software testing and validation principles, including extensive adversarial testing and bias detection, to ensure ethical and reliable operation.",
+  frequency: "High (quality assurance, regulatory compliance, AI ethics/safety POVs)",
+  links: [
+    { label: "ISTQB Software Testing", url: "https://www.istqb.org/" },
+    { label: "Myers et al. (2011) - The Art of Software Testing", url: "https://www.wiley.com/en-us/The+Art+of+Software+Testing%2C+3rd+Edition-p-9780471469940" }
+  ]
+},
+"Special Economic Zones (SEZ) theory": {
+  label: "Special Economic Zones (SEZ) Theory",
+  summary: "This theory explores the economic rationale and policy mechanisms behind designated geographical areas that operate under different economic regulations from the rest of the country, often to attract foreign investment, boost exports, or foster innovation. It is relevant for AI policy in discussions about creating 'AI sandboxes' or innovation hubs with tailored, often more permissive, regulatory environments to accelerate AI development and testing.",
+  example: "Proposals for AI innovation hubs often draw from Special Economic Zones theory, suggesting relaxed regulatory frameworks and incentives to accelerate AI development and testing within controlled environments.",
+  frequency: "Low (economic development, innovation policy POVs)",
+  links: [
+    { label: "World Bank - Special Economic Zones", url: "https://www.worldbank.org/en/topic/special-economic-zones" },
+    { label: "UNCTAD - World Investment Report on SEZs", url: "https://unctad.org/publication/world-investment-report-2019-special-economic-zones" }
+  ]
+},
+"Statistical demography and segregation measurement methodologies": {
+  label: "Statistical Demography and Segregation Measurement Methodologies",
+  summary: "This field involves the quantitative study of human populations, including methods for measuring population distribution, change, and the extent of spatial or social segregation. It is crucial for AI policy in identifying and quantifying algorithmic bias that perpetuates or exacerbates existing societal inequalities, discrimination, and segregation in areas like housing, employment, or credit.",
+  example: "To assess the fairness of an AI-powered housing allocation system, researchers might apply statistical demography and segregation measurement methodologies to detect disparate impact on protected groups.",
+  frequency: "Medium (fairness, ethics, social justice, urban planning POVs)",
+  links: [
+    { label: "Massey & Denton (1988) - The Dimensions of Residential Segregation", url: "https://www.jstor.org/stable/2095593" },
+    { label: "Demographic Research Journal", url: "https://www.demographic-research.org/" }
+  ]
+},
+"Structural change economics and sectoral transformation analysis": {
+  label: "Structural Change Economics and Sectoral Transformation Analysis",
+  summary: "This economic tradition focuses on how economies evolve over time, shifting from one dominant sector to another (e.g., agriculture to manufacturing to services), and the associated policy challenges. It is highly relevant for AI policy in understanding the potential for AI to drive large-scale economic restructuring, job displacement, and the need for proactive industrial policies, education reforms, and social safety nets to manage these transitions.",
+  example: "Policymakers addressing the long-term economic impacts of AI often refer to structural change economics to anticipate shifts in labor markets and plan for new growth sectors and workforce retraining initiatives.",
+  frequency: "Medium (macroeconomics, labor economics, development economics POVs)",
+  links: [
+    { label: "Kuznets (1973) - Modern Economic Growth", url: "https://www.hup.harvard.edu/books/9780674580350" },
+    { label: "Rodrik (2016) - Premature Deindustrialization", url: "https://www.nber.org/papers/w21735" }
+  ]
+},
+"Studies of authoritarian information control and public opinion formation": {
+  label: "Authoritarian Information Control Studies",
+  summary: "This tradition examines how authoritarian regimes manipulate information environments, control narratives, and shape public opinion through censorship, propaganda, and surveillance. For AI policy, it is crucial for understanding how AI tools can be leveraged by state or non-state actors to suppress dissent, spread disinformation, and exert control over populations.",
+  example: "Policies addressing AI-powered censorship and propaganda mechanisms draw heavily from Authoritarian Information Control Studies.",
+  frequency: "High",
+  links: [
+    { label: "Digital Authoritarianism: The Internet, Political Control, and the Future of Global Order", url: "https://carnegieendowment.org/2019/10/03/digital-authoritarianism-internet-political-control-and-future-of-global-order-pub-80008" },
+    { label: "The Internet and Authoritarian Regimes: The Case of China", url: "https://www.jstor.org/stable/25098745" }
+  ]
+},
+"Supply chain accountability (conflict minerals, labor standards)": {
+  label: "Supply Chain Accountability",
+  summary: "This field focuses on ensuring ethical sourcing, human rights, and environmental standards are upheld throughout global supply chains, often driven by concerns like conflict minerals or exploitative labor practices. In AI policy, it informs frameworks for responsible AI development, addressing ethical sourcing of data, hardware components, and labor involved in AI training and deployment.",
+  example: "The ethical guidelines for AI hardware procurement are directly informed by principles from Supply Chain Accountability.",
+  frequency: "Medium",
+  links: [
+    { label: "UN Guiding Principles on Business and Human Rights", url: "https://www.ohchr.org/documents/publications/guidingprinciplesbusinesshr_en.pdf" },
+    { label: "OECD Due Diligence Guidance for Responsible Business Conduct", url: "https://www.oecd.org/investment/due-diligence-guidance/" }
+  ]
+},
+"Supply chain security frameworks (e.g., NIST Cybersecurity Framework)": {
+  label: "Supply Chain Security Frameworks",
+  summary: "These frameworks provide structured approaches to identifying, assessing, and mitigating cybersecurity risks across an organization's supply chain, ensuring the integrity and resilience of products and services. For AI policy, this tradition is vital for designing robust security measures for AI models, data pipelines, and infrastructure against adversarial attacks, tampering, and vulnerabilities throughout their lifecycle.",
+  example: "AI model integrity and data provenance policies are often structured using principles derived from Supply Chain Security Frameworks like NIST.",
+  frequency: "High",
+  links: [
+    { label: "NIST Cybersecurity Supply Chain Risk Management Practices", url: "https://www.nist.gov/itl/applied-cybersecurity/supply-chain-risk-management" },
+    { label: "ISO/IEC 27001 Information security management", url: "https://www.iso.org/iso-27001-information-security.html" }
+  ]
+},
+"Sustainability studies": {
+  label: "Sustainability Studies",
+  summary: "An interdisciplinary field that examines the complex interactions between environmental protection, social equity, and economic viability to ensure long-term well-being for current and future generations. AI policy draws on this tradition to address the environmental footprint of AI (e.g., energy consumption, resource use) and to promote AI applications that contribute to achieving sustainable development goals.",
+  example: "Policies aimed at reducing the carbon footprint of large AI models are directly informed by insights from Sustainability Studies.",
+  frequency: "Medium",
+  links: [
+    { label: "Our Common Future (Brundtland Report)", url: "https://sustainabledevelopment.un.org/content/documents/5987our-common-future.pdf" },
+    { label: "UN Sustainable Development Goals", url: "https://sdgs.un.org/goals" }
+  ]
+},
+"Swarm intelligence": {
+  label: "Swarm Intelligence",
+  summary: "This field studies the collective behavior of decentralized, self-organized systems, often inspired by natural phenomena like ant colonies or bird flocks. While primarily a technical domain, its policy relevance lies in understanding the emergent properties, robustness, and potential unpredictability of decentralized AI systems, particularly in areas like multi-agent systems or distributed autonomous organizations.",
+  example: "Understanding the governance challenges of highly decentralized AI systems can draw insights from Swarm Intelligence research.",
+  frequency: "Low",
+  links: [
+    { label: "Swarm Intelligence: From Natural to Artificial Systems", url: "https://mitpress.mit.edu/books/swarm-intelligence" },
+    { label: "Ant Colony Optimization", url: "https://www.sciencedirect.com/topics/computer-science/ant-colony-optimization" }
+  ]
+},
+"Systemic Risk Management": {
+  label: "Systemic Risk Management",
+  summary: "This tradition focuses on identifying, assessing, and mitigating risks that could trigger a cascade of failures across an entire system, often originating from financial markets or critical infrastructure. For AI, it helps anticipate and manage scenarios where AI failures, vulnerabilities, or misuse could have widespread, interconnected societal, economic, or security impacts, leading to systemic instability.",
+  example: "Regulatory frameworks for highly interconnected AI systems consider Systemic Risk Management principles to prevent cascading failures across critical sectors.",
+  frequency: "High",
+  links: [
+    { label: "Financial Stability Board (FSB)", url: "https://www.fsb.org/" },
+    { label: "Critical Infrastructure Protection", url: "https://www.cisa.gov/topics/critical-infrastructure-security-and-resilience" }
+  ]
+},
+"Systems engineering": {
+  label: "Systems Engineering",
+  summary: "An interdisciplinary field focused on designing, integrating, and managing complex systems over their life cycles, emphasizing a holistic and iterative approach. In AI policy, it provides methodologies for developing, deploying, and governing AI systems, ensuring robustness, reliability, and effective integration into existing human and technical infrastructures.",
+  example: "The development lifecycle for safety-critical AI applications incorporates best practices from Systems Engineering to ensure comprehensive design and validation.",
+  frequency: "Medium",
+  links: [
+    { label: "INCOSE Systems Engineering Handbook", url: "https://www.incose.org/products-and-publications/se-handbook" },
+    { label: "MIT OpenCourseWare: Systems Engineering", url: "https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-855j-systems-engineering-spring-2006/" }
+  ]
+},
+"Systems engineering and safety engineering traditions (Nancy Leveson, STAMP/STPA frameworks)": {
+  label: "Safety-Critical Systems Engineering",
+  summary: "This tradition extends systems engineering with a dedicated focus on preventing accidents and ensuring safety in complex, safety-critical systems, particularly through a systemic lens. Nancy Leveson's work, including STAMP and STPA, offers powerful frameworks for analyzing accidents and designing for safety, which are indispensable for AI systems operating in high-stakes domains like autonomous vehicles or medical devices.",
+  example: "Hazard analysis for AI-powered air traffic control systems utilizes STPA frameworks derived from Safety-Critical Systems Engineering traditions.",
+  frequency: "High",
+  links: [
+    { label: "Nancy Leveson's Publications", url: "https://sunnyday.mit.edu/publications.html" },
+    { label: "MIT STAMP/STPA Research", url: "https://psas.scripts.mit.edu/home/" }
+  ]
+},
+"Task-based models of automation from Autor-Levy-Murnane and Acemoglu-Restrepo frameworks": {
+  label: "Task-Based Automation Models",
+  summary: "These economic frameworks analyze the impact of automation on labor markets by focusing on the specific tasks within jobs, rather than entire occupations. They distinguish between tasks that can be automated, those that are complemented by technology, and the creation of new tasks, providing a nuanced understanding of AI's effects on employment, wages, and skill demands. This helps inform policies for workforce adaptation and education.",
+  example: "Policy discussions on AI's labor market impact frequently reference Task-Based Automation Models to understand shifts in skill requirements and job creation.",
+  frequency: "High",
+  links: [
+    { label: "The Skill Content of Recent Technological Change: An Empirical Exploration", url: "https://www.nber.org/papers/w8747" },
+    { label: "Robots and Jobs: Evidence from US Labor Markets", url: "https://www.nber.org/papers/w23285" }
+  ]
+},
+"Tax haven and offshore financial center scholarship": {
+  label: "Tax Haven and Offshore Finance Scholarship",
+  summary: "This academic field investigates the mechanisms, impacts, and policy responses related to tax havens and offshore financial centers, which facilitate tax avoidance, illicit financial flows, and regulatory arbitrage. For AI policy, it offers parallels for understanding how AI companies might exploit jurisdictional differences or regulatory gaps to avoid oversight, accountability, or ethical standards on a global scale.",
+  example: "Discussions on preventing AI regulatory arbitrage often draw insights from Tax Haven and Offshore Finance Scholarship regarding jurisdictional evasion.",
+  frequency: "Low",
+  links: [
+    { label: "The Hidden Wealth of Nations: The Scourge of Tax Havens", url: "https://press.uchicago.edu/ucp/books/book/chicago/H/bo18214300.html" },
+    { label: "Tax Havens and the Global Economy", url: "https://www.jstor.org/stable/25098745" }
+  ]
+},
+"Techno-accelerationism": {
+  label: "Techno-Accelerationism",
+  summary: "A philosophical and political current advocating for the rapid acceleration of technological development to bring about radical social transformation, often with utopian or dystopian visions. In AI policy, it represents a perspective that prioritizes rapid AI advancement, potentially downplaying risks or advocating for minimal regulation to achieve transformative societal change, sometimes even societal collapse as a precursor to a new order.",
+  example: "Arguments for unrestricted AI development, even at the cost of immediate risks, often echo sentiments from Techno-Accelerationism.",
+  frequency: "Medium",
+  links: [
+    { label: "The Accelerationist Reader", url: "https://www.politybooks.com/bookdetail.asp?book_id=9780745684322" },
+    { label: "Fanged Noumena: Collected Writings 1987-2007 by Nick Land", url: "https://urbanomic.com/document/fanged-noumena/" }
+  ]
+},
+"Technological capabilities forecasting": {
+  label: "Technological Capabilities Forecasting",
+  summary: "This practice involves predicting future technological advancements, their timelines, and potential impacts, utilizing methods like expert elicitation, trend analysis, and scenario planning. For AI policy, it is crucial for anticipating future AI capabilities, informing proactive governance strategies, and preparing for the societal, economic, and security implications of emerging AI technologies.",
+  example: "Long-term AI safety and security strategies rely heavily on insights derived from Technological Capabilities Forecasting to anticipate future risks.",
+  frequency: "High",
+  links: [
+    { label: "RAND Corporation: Technology and Innovation", url: "https://www.rand.org/topics/technology-and-innovation.html" },
+    { label: "Future Studies and Foresight", url: "https://www.wfs.org/" }
+  ]
+},
+"Technological revolutions theory (e.g., Carlota Perez)": {
+  label: "Technological Revolutions Theory",
+  summary: "Carlota Perez's framework describes how major technological shifts (e.g., the Industrial Revolution, the Age of Information and Telecommunications) unfold in distinct phases, leading to periods of economic boom, bust, and institutional adjustment. Applied to AI, it helps understand AI's potential to drive a new techno-economic paradigm, with associated policy challenges and opportunities for profound societal transformation.",
+  example: "Understanding AI's long-term societal and economic impact is informed by Carlota Perez's Technological Revolutions Theory, predicting phases of deployment and institutional adaptation.",
+  frequency: "Medium",
+  links: [
+    { label: "Technological Revolutions and Financial Capital: The Dynamics of Bubbles and Golden Ages", url: "https://www.e-elgar.com/shop/gbp/technological-revolutions-and-financial-capital-9781843763314.html" },
+    { label: "Carlota Perez Official Website", url: "https://www.carlotaperez.org/" }
+  ]
+},
+"Technological substitution frameworks in labor economics (Acemoglu, Restrepo)": {
+  label: "Technological Substitution in Labor Economics",
+  summary: "These frameworks, notably from Acemoglu and Restrepo, analyze how new technologies, particularly automation, can substitute for human labor in specific tasks, leading to shifts in employment and wages. They explore how automation can displace workers while also potentially creating new tasks and increasing overall productivity, offering a nuanced view beyond simple job destruction.",
+  example: "Policies addressing AI's impact on employment consider the dynamics of Technological Substitution in Labor Economics to anticipate job displacement and creation.",
+  frequency: "High",
+  links: [
+    { label: "Automation and New Tasks: How Technology Displaces and Reinstates Labor", url: "https://www.nber.org/papers/w26002" },
+    { label: "The Race Between Man and Machine: Implications of Technology for Growth, Factor Shares, and Employment", url: "https://www.nber.org/papers/w22252" }
+  ]
+},
+"Technological unemployment debate (optimistic view)": {
+  label: "Optimistic View of Technological Unemployment",
+  summary: "This perspective argues that while technology may displace some jobs, it historically creates more new jobs, increases productivity, and improves living standards in the long run. Proponents suggest that AI will ultimately lead to a net positive impact on employment, requiring adaptation and new skill development rather than widespread, permanent joblessness.",
+  example: "Arguments for robust retraining programs and lifelong learning often align with the Optimistic View of Technological Unemployment, emphasizing human adaptability.",
+  frequency: "High",
+  links: [
+    { label: "The Second Machine Age: Work, Progress, and Prosperity in a Time of Brilliant Technologies", url: "https://www.wwnorton.com/books/9780393352921" },
+    { label: "Why Are There Still So Many Jobs? The History and Future of Workplace Automation", url: "https://www.nber.org/papers/w19816" }
+  ]
+},
+"Technology Acceptance Model (TAM) and behavioral economics": {
+  label: "Technology Acceptance Model and Behavioral Economics",
+  summary: "TAM explains user adoption of new technologies based on perceived usefulness and ease of use. Behavioral economics adds insights into cognitive biases and heuristics influencing these perceptions, offering a richer understanding of how individuals make decisions about adopting or resisting AI systems.",
+  example: "A taxonomy node on 'AI adoption barriers' might reference TAM to explain why users resist AI tools due to low perceived usefulness or high perceived complexity, further informed by behavioral economics' insights into status quo bias.",
+  frequency: "This perspective is widely applied in business, human-computer interaction, and policy discussions focused on user-centric design and adoption strategies across various stakeholders.",
+  links: [
+    { label: "Technology Acceptance Model", url: "https://en.wikipedia.org/wiki/Technology_acceptance_model" },
+    { label: "Behavioral Economics", url: "https://en.wikipedia.org/wiki/Behavioral_economics" }
+  ]
+},
+"Technology adoption and productivity literature (Brynjolfsson, McAfee)": {
+  label: "Technology Adoption and Productivity Literature",
+  summary: "This body of work examines how new technologies, particularly IT and AI, impact economic productivity, employment, and organizational structures. Scholars like Brynjolfsson and McAfee explore the 'productivity paradox' and the challenges of realizing the full potential of transformative technologies, often emphasizing the need for complementary innovations in management and skills.",
+  example: "A taxonomy node on 'AI's economic impact' could draw on this literature to discuss the potential for AI to boost productivity or, conversely, to create job displacement and require significant societal adjustments.",
+  frequency: "This perspective is prevalent in economic policy debates, business strategy, and discussions about the future of work, often appearing in both optimistic and cautious analyses.",
+  links: [
+    { label: "Erik Brynjolfsson", url: "https://en.wikipedia.org/wiki/Erik_Brynjolfsson" },
+    { label: "Andrew McAfee", url: "https://en.wikipedia.org/wiki/Andrew_McAfee" },
+    { label: "Productivity paradox", url: "https://en.wikipedia.org/wiki/Productivity_paradox" }
+  ]
+},
+"Technology adoption critiques in industrial sociology": {
+  label: "Technology Adoption Critiques in Industrial Sociology",
+  summary: "Industrial sociology critically examines how technology adoption impacts power relations, labor processes, and social inequalities within organizations and society. It often highlights how technological change can reinforce existing hierarchies, deskill workers, or lead to new forms of control, challenging purely efficiency-driven narratives of adoption.",
+  example: "A taxonomy node on 'AI and labor rights' might use this lineage to analyze how AI implementation could exacerbate worker surveillance or reduce worker autonomy, rather than solely focusing on productivity gains.",
+  frequency: "This critical perspective is common in labor studies, critical management studies, and sociological analyses of technology, often adopted by scholars and advocates concerned with social justice and worker welfare.",
+  links: [
+    { label: "Industrial sociology", url: "https://en.wikipedia.org/wiki/Industrial_sociology" },
+    { label: "Labor process theory", url: "https://en.wikipedia.org/wiki/Labor_process_theory" }
+  ]
+},
+"Technology and society scholars emphasizing social shaping of technology (Langdon Winner, social construction of technology)": {
+  label: "Social Shaping of Technology",
+  summary: "This tradition argues that technology is not a neutral force but is shaped by social, political, and economic factors, and in turn, shapes society. Scholars like Langdon Winner and those in the social construction of technology (SCOT) tradition emphasize that technological artifacts embody values and power structures, influencing their design, development, and deployment.",
+  example: "A taxonomy node on 'AI ethics by design' could draw on this lineage to argue that ethical considerations must be embedded from the earliest stages of AI development, recognizing that technology is a product of human choices and values.",
+  frequency: "This perspective is foundational in science and technology studies (STS), critical design, and ethical AI discussions, influencing policy approaches that seek to guide technological development rather than merely react to it.",
+  links: [
+    { label: "Langdon Winner", url: "https://en.wikipedia.org/wiki/Langdon_Winner" },
+    { label: "Social construction of technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" },
+    { label: "Science and technology studies", url: "https://en.wikipedia.org/wiki/Science_and_technology_studies" }
+  ]
+},
+"Technology governance literature on capacity constraints in regulatory systems": {
+  label: "Technology Governance and Regulatory Capacity Constraints",
+  summary: "This literature examines the challenges faced by regulatory bodies in effectively governing rapidly evolving technologies due to limitations in expertise, resources, and institutional structures. It highlights how the pace of technological change often outstrips the capacity of traditional regulatory frameworks to adapt, leading to governance gaps and unintended consequences.",
+  example: "A taxonomy node on 'AI regulation challenges' might reference this lineage to explain why existing government agencies struggle to oversee complex AI systems, citing issues like a lack of technical expertise or insufficient funding.",
+  frequency: "This perspective is central to public policy, regulatory studies, and discussions on effective governance of emerging technologies, often informing calls for new regulatory models or capacity building.",
+  links: [
+    { label: "Regulatory governance", url: "https://en.wikipedia.org/wiki/Regulatory_governance" },
+    { label: "Technology governance", url: "https://en.wikipedia.org/wiki/Technology_governance" }
+  ]
+},
+"Technology studies scholarship on general-purpose technologies (David, Bresnahan & Trajtenberg)": {
+  label: "General-Purpose Technologies Scholarship",
+  summary: "This body of scholarship focuses on technologies that have the potential to profoundly affect an entire economy, driving sustained innovation and growth across multiple sectors. Scholars like Paul David, and Bresnahan & Trajtenberg, analyze the characteristics and diffusion patterns of General-Purpose Technologies (GPTs), emphasizing their pervasive impact and the need for complementary innovations.",
+  example: "A taxonomy node on 'AI as a foundational technology' could draw on this lineage to explain why AI's impact extends far beyond specific applications, transforming industries from healthcare to transportation and requiring broad policy consideration.",
+  frequency: "This perspective is widely used in economics, innovation studies, and strategic policy discussions to understand the long-term, systemic impacts of transformative technologies like AI.",
+  links: [
+    { label: "General-purpose technology", url: "https://en.wikipedia.org/wiki/General-purpose_technology" },
+    { label: "Paul David (economist)", url: "https://en.wikipedia.org/wiki/Paul_David_(economist)" }
+  ]
+},
+"Technoskepticism": {
+  label: "Technoskepticism",
+  summary: "Technoskepticism is a critical stance towards the unbridled optimism surrounding technological progress, questioning its promised benefits and highlighting potential negative consequences. It often emphasizes the social, ethical, and environmental risks associated with new technologies, advocating for caution and rigorous scrutiny rather than blind acceptance.",
+  example: "A taxonomy node on 'AI risks and harms' might reflect a technoskeptic viewpoint by focusing on the potential for AI to exacerbate inequalities, automate jobs, or enable surveillance, rather than its potential for societal improvement.",
+  frequency: "This perspective is found in critical technology studies, environmental movements, and certain philosophical and sociological critiques, often serving as a counter-narrative to techno-utopianism.",
+  links: [
+    { label: "Technoskepticism", url: "https://en.wikipedia.org/wiki/Technoskepticism" },
+    { label: "Technocriticism", url: "https://en.wikipedia.org/wiki/Technocriticism" }
+  ]
+},
+"Teleological philosophy": {
+  label: "Teleological Philosophy",
+  summary: "Teleological philosophy is concerned with purpose, ends, or goals. It posits that phenomena can be best understood by considering their ultimate purpose or design, rather than just their causes. In ethics, teleological theories judge the morality of an action based on its outcomes or consequences.",
+  example: "A taxonomy node on 'AI's ultimate purpose' might engage with teleological philosophy to discuss whether AI should be designed to maximize human flourishing, achieve specific societal goals, or pursue its own emergent objectives.",
+  frequency: "This philosophical approach is fundamental to consequentialist ethics, design thinking, and discussions about the long-term aims and impacts of technology, appearing in both philosophical and practical policy debates.",
+  links: [
+    { label: "Teleology", url: "https://en.wikipedia.org/wiki/Teleology" },
+    { label: "Consequentialism", url: "https://en.wikipedia.org/wiki/Consequentialism" }
+  ]
+},
+"Thermodynamics": {
+  label: "Thermodynamics",
+  summary: "Thermodynamics is a branch of physics concerned with heat and its relation to other forms of energy and work. Its laws, particularly the second law concerning entropy, describe the fundamental limits on energy conversion and the inevitable increase of disorder in isolated systems. This has implications for the energy consumption and efficiency of computational systems.",
+  example: "A taxonomy node on 'AI's environmental impact' could reference thermodynamics to discuss the inherent energy costs of training and running large AI models, and the physical limits to computational efficiency.",
+  frequency: "While primarily a scientific discipline, its principles are relevant in discussions about the sustainability of computing, energy policy, and the physical constraints on technological growth, appearing in environmental and engineering contexts.",
+  links: [
+    { label: "Thermodynamics", url: "https://en.wikipedia.org/wiki/Thermodynamics" },
+    { label: "Entropy (information theory)", url: "https://en.wikipedia.org/wiki/Entropy_(information_theory)" }
+  ]
+},
+"Totalitarianism studies (Hannah Arendt, George Orwell)": {
+  label: "Totalitarianism Studies",
+  summary: "This field analyzes the nature, origins, and mechanisms of totalitarian regimes, characterized by extreme control over public and private life, often through propaganda, surveillance, and suppression of dissent. Scholars like Hannah Arendt and authors like George Orwell provide foundational insights into how technology can be instrumentalized to achieve and maintain such control.",
+  example: "A taxonomy node on 'AI and authoritarianism' might draw on totalitarianism studies to warn about the potential for AI-powered surveillance, censorship, and social credit systems to enable unprecedented levels of state control.",
+  frequency: "This perspective is crucial in political science, human rights advocacy, and critical security studies, often invoked when discussing the misuse of technology by oppressive regimes or the erosion of democratic freedoms.",
+  links: [
+    { label: "Totalitarianism", url: "https://en.wikipedia.org/wiki/Totalitarianism" },
+    { label: "Hannah Arendt", url: "https://en.wikipedia.org/wiki/Hannah_Arendt" },
+    { label: "Nineteen Eighty-Four", url: "https://en.wikipedia.org/wiki/Nineteen_Eighty-Four" }
+  ]
+},
+"Transparency principles": {
+  label: "Transparency Principles",
+  summary: "Transparency principles advocate for openness and clarity in processes, decisions, and operations, enabling scrutiny and accountability. In the context of AI, this involves making algorithms, data, and decision-making processes understandable and accessible to relevant stakeholders, fostering trust and allowing for identification of biases or errors.",
+  example: "A taxonomy node on 'Explainable AI (XAI)' would directly apply transparency principles by demanding that AI systems provide clear justifications for their outputs, rather than operating as black boxes.",
+  frequency: "These principles are widely endorsed across governance, ethics, public administration, and human rights domains, forming a cornerstone of responsible AI frameworks and democratic accountability.",
+  links: [
+    { label: "Transparency (behavior)", url: "https://en.wikipedia.org/wiki/Transparency_(behavior)" },
+    { label: "Explainable artificial intelligence", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" }
+  ]
+},
+"Universal Declaration of Human Rights": {
+  label: "Universal Declaration of Human Rights (UDHR)",
+  summary: "The UDHR is a foundational international document adopted by the United Nations General Assembly in 1948, outlining fundamental human rights to be universally protected. It serves as a common standard of achievement for all peoples and nations, establishing a broad range of civil, political, economic, social, and cultural rights.",
+  example: "A taxonomy node on 'AI and human rights' would frequently reference the UDHR to assess whether AI systems uphold or violate rights such as privacy, non-discrimination, freedom of expression, or the right to a fair trial.",
+  frequency: "The UDHR is a cornerstone of international law, human rights advocacy, and ethical frameworks globally, serving as a primary reference point for assessing the societal impact of any technology, including AI.",
+  links: [
+    { label: "Universal Declaration of Human Rights", url: "https://en.wikipedia.org/wiki/Universal_Declaration_of_Human_Rights" },
+    { label: "Human rights", url: "https://en.wikipedia.org/wiki/Human_rights" }
+  ]
+},
+"Universalism in ethics": {
+  label: "Universalism in Ethics",
+  summary: "Ethical universalism posits that certain ethical principles or values apply universally to all individuals, regardless of culture, religion, or personal circumstances. It seeks to identify moral duties or rights that are binding on everyone, providing a framework for consistent ethical judgment across diverse contexts.",
+  example: "A taxonomy node on 'Global AI ethics' might draw on universalism to argue for a common set of ethical guidelines for AI development and deployment that transcend national borders and cultural differences.",
+  frequency: "This philosophical stance is prevalent in human rights discourse, international law, and many deontological and consequentialist ethical theories, often contrasted with ethical relativism.",
+  links: [
+    { label: "Moral universalism", url: "https://en.wikipedia.org/wiki/Moral_universalism" },
+    { label: "Deontology", url: "https://en.wikipedia.org/wiki/Deontology" }
+  ]
+},
+"Use-it-or-lose-it theories of cognitive maintenance and neuroplasticity": {
+  label: "Use-It-Or-Lose-It Theories of Cognitive Maintenance and Neuroplasticity",
+  summary: "These theories suggest that cognitive abilities and neural connections are maintained and strengthened through active use and challenge, while disuse can lead to their decline. Neuroplasticity refers to the brain's ability to reorganize itself by forming new neural connections throughout life, emphasizing the dynamic nature of cognitive function in response to experience.",
+  example: "A taxonomy node on 'AI's impact on human skills' might use this lineage to discuss concerns that over-reliance on AI could lead to the atrophy of human cognitive abilities, or conversely, how AI could be designed to foster new forms of human-AI collaboration that enhance skills.",
+  frequency: "This perspective is central to cognitive psychology, neuroscience, and educational theory, often appearing in discussions about lifelong learning, healthy aging, and the long-term effects of automation on human capabilities.",
+  links: [
+    { label: "Neuroplasticity", url: "https://en.wikipedia.org/wiki/Neuroplasticity" },
+    { label: "Cognitive reserve", url: "https://en.wikipedia.org/wiki/Cognitive_reserve" }
+  ]
+},
+"Value ethics": {
+  label: "Value Ethics",
+  summary: "Value ethics, often used interchangeably with axiology, is a branch of philosophy concerned with the nature of values and value judgments. It explores what constitutes 'good' or 'bad' and how values guide human action and decision-making. In AI policy, it focuses on identifying and prioritizing the values that AI systems should embody or uphold.",
+  example: "A taxonomy node on 'AI value alignment' would directly engage with value ethics to determine which human values—such as fairness, privacy, or autonomy—should be encoded into AI design and governance.",
+  frequency: "This philosophical approach is fundamental to ethical AI discussions, design ethics, and policy frameworks that seek to embed societal values into technological development, appearing across academic and policy domains.",
+  links: [
+    { label: "Axiology", url: "https://en.wikipedia.org/wiki/Axiology" },
+    { label: "Value (ethics)", url: "https://en.wikipedia.org/wiki/Value_(ethics)" }
+  ]
+},
+"Victimology in cybercrime": {
+  label: "Victimology in Cybercrime",
+  summary: "Victimology is the study of victims of crime, including the causes of victimization, its consequences, and the role of victims in the criminal justice system. In cybercrime, this field examines how individuals and organizations become targets of online offenses, the specific harms they experience, and strategies for prevention, support, and redress in the digital realm.",
+  example: "A taxonomy node on 'AI-enabled cybercrime' might use victimology to analyze how AI could create new categories of victims or exacerbate existing vulnerabilities, focusing on the impact on individuals and groups.",
+  frequency: "This perspective is crucial in criminology, cybersecurity policy, and law enforcement, informing strategies for protecting individuals and systems from digital threats and providing support to those affected.",
+  links: [
+    { label: "Victimology", url: "https://en.wikipedia.org/wiki/Victimology" },
+    { label: "Cybercrime", url: "https://en.wikipedia.org/wiki/Cybercrime" }
+  ]
+},
+"Virtue ethics and character-based moral philosophy": {
+  label: "Virtue Ethics and Character-Based Moral Philosophy",
+  summary: "Virtue ethics focuses on the character of the moral agent rather than on rules (deontology) or consequences (consequentialism). It asks what kind of person one should be, emphasizing the cultivation of virtues like honesty, compassion, and justice. In AI, it prompts questions about what virtues AI developers, users, and systems themselves should embody or promote.",
+  example: "A taxonomy node on 'Ethical AI developers' might draw on virtue ethics to discuss the importance of cultivating virtues like responsibility, humility, and integrity among those who design and deploy AI systems.",
+  frequency: "This ancient philosophical tradition is experiencing a resurgence in contemporary ethics, particularly in professional ethics, leadership, and discussions about the moral development of individuals and organizations, including in AI ethics.",
+  links: [
+    { label: "Virtue ethics", url: "https://en.wikipedia.org/wiki/Virtue_ethics" },
+    { label: "Character (virtue)", url: "https://en.wikipedia.org/wiki/Character_(virtue)" }
+  ]
+},
+"Youth rights frameworks recognizing children as rights-holders rather than objects of protection": {
+  label: "Youth Rights Frameworks",
+  summary: "These frameworks, notably the UN Convention on the Rights of the Child (UNCRC), recognize children and youth as autonomous rights-holders with distinct entitlements, rather than merely passive recipients of adult protection. They emphasize children's rights to participation, protection, and provision, advocating for their voices to be heard in decisions affecting them.",
+  example: "A taxonomy node on 'AI and children's rights' would use this lineage to argue that AI policy must consider children's agency and their right to participate in discussions about AI systems that impact their education, privacy, and development.",
+  frequency: "This perspective is foundational in children's rights advocacy, international law, education policy, and digital youth studies, increasingly relevant in debates about online safety and AI's impact on younger generations.",
+  links: [
+    { label: "Convention on the Rights of the Child", url: "https://en.wikipedia.org/wiki/Convention_on_the_Rights_of_the_Child" },
+    { label: "Youth rights", url: "https://en.wikipedia.org/wiki/Youth_rights" }
+  ]
+},
+"Zone of proximal development and scaffolding theory (Vygotsky, Wood et al.)": {
+  label: "Zone of Proximal Development and Scaffolding Theory",
+  summary: "Developed by Vygotsky, the Zone of Proximal Development (ZPD) describes the gap between what a learner can do independently and what they can achieve with guidance from a more knowledgeable other. Scaffolding, a concept elaborated by Wood, Bruner, and Ross, refers to the support provided by an instructor or tool to help a learner master tasks within their ZPD, gradually withdrawing support as competence grows.",
+  example: "A taxonomy node on 'AI in education' might apply this lineage to discuss how AI tutors or learning platforms can be designed to provide adaptive scaffolding, guiding students through challenging tasks within their ZPD.",
+  frequency: "This perspective is highly influential in educational psychology, instructional design, and human-computer interaction, particularly in the development of adaptive learning systems and intelligent tutoring.",
+  links: [
+    { label: "Zone of proximal development", url: "https://en.wikipedia.org/wiki/Zone_of_proximal_development" },
+    { label: "Scaffolding (learning)", url: "https://en.wikipedia.org/wiki/Scaffolding_(learning)" },
+    { label: "Lev Vygotsky", url: "https://en.wikipedia.org/wiki/Lev_Vygotsky" }
+  ]
+},
 };
 

@@ -452,6 +452,18 @@ function Finalize-Summary {
     $ChunkLabel = if ($ChunkCount -gt 0) { " ($ChunkCount chunks)" } else { '' }
     Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
 
+    # -- Cross-POV fuzzy match on unmapped concepts ----------------------------
+    if ($SummaryObject.unmapped_concepts -and @($SummaryObject.unmapped_concepts).Count -gt 0) {
+        $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
+        if ($Resolution.Resolved.Count -gt 0) {
+            foreach ($R in $Resolution.Resolved) {
+                Write-Host "  `u{2502}  `u{2714} Resolved: '$($R.ConceptLabel)' `u{2192} $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
+            }
+            $SummaryObject.unmapped_concepts = $Resolution.Remaining
+            $UnmappedCount = $Resolution.Remaining.Count
+        }
+    }
+
     # -- Write summaries/<doc-id>.json ----------------------------------------
     $FinalSummary = [ordered]@{
         doc_id            = $ThisDocId

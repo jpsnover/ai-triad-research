@@ -358,6 +358,16 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
       return { success: false, nodeId: '', error: 'Taxonomy file has no nodes array' };
     }
 
+    // Check for duplicate labels — if an existing node has the same label, return it instead of creating a new one
+    const normalizedLabel = req.label.trim().toLowerCase();
+    const existing = raw.nodes.find((n: { label?: string }) =>
+      typeof n.label === 'string' && n.label.trim().toLowerCase() === normalizedLabel
+    );
+    if (existing) {
+      console.log(`[addTaxonomyNode] Duplicate label detected: "${req.label}" matches existing node ${existing.id} — returning existing node`);
+      return { success: true, nodeId: existing.id };
+    }
+
     let newId: string;
 
     if (isCrossCutting) {
@@ -439,6 +449,189 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     return { success: true, nodeId: newId };
   } catch (err) {
     return { success: false, nodeId: '', error: String(err) };
+  }
+}
+
+// ── Enrichment pipeline helpers ──────────────────────────────────────────────
+
+/** Map node ID prefix to POV file name */
+function povFileForNodeId(nodeId: string): string | null {
+  if (nodeId.startsWith('acc-')) return 'accelerationist.json';
+  if (nodeId.startsWith('saf-')) return 'safetyist.json';
+  if (nodeId.startsWith('skp-')) return 'skeptic.json';
+  if (nodeId.startsWith('cc-')) return 'cross-cutting.json';
+  return null;
+}
+
+/** Map node ID prefix to POV name */
+function povNameForNodeId(nodeId: string): string {
+  if (nodeId.startsWith('acc-')) return 'accelerationist';
+  if (nodeId.startsWith('saf-')) return 'safetyist';
+  if (nodeId.startsWith('skp-')) return 'skeptic';
+  return 'cross-cutting';
+}
+
+/**
+ * Patch fields on an existing taxonomy node. If parent_id is being set,
+ * also updates the parent's children array.
+ */
+export function updateNodeFields(
+  nodeId: string,
+  fields: Record<string, unknown>,
+): { success: boolean; error?: string } {
+  const fileName = povFileForNodeId(nodeId);
+  if (!fileName) return { success: false, error: `Cannot determine POV file for ${nodeId}` };
+
+  const filePath = path.join(activeTaxonomyDir, fileName);
+  if (!fs.existsSync(filePath)) return { success: false, error: `File not found: ${fileName}` };
+
+  try {
+    const raw = parseJsonFile(filePath) as { nodes: Record<string, unknown>[]; last_modified?: string };
+    if (!Array.isArray(raw.nodes)) return { success: false, error: 'No nodes array in taxonomy file' };
+
+    const node = raw.nodes.find((n) => n.id === nodeId);
+    if (!node) return { success: false, error: `Node ${nodeId} not found in ${fileName}` };
+
+    // Merge fields onto the node
+    for (const [key, value] of Object.entries(fields)) {
+      // For source_refs, append rather than replace
+      if (key === 'source_refs' && Array.isArray(value)) {
+        const existing = Array.isArray(node.source_refs) ? node.source_refs as string[] : [];
+        const merged = [...new Set([...existing, ...value as string[]])];
+        node.source_refs = merged;
+      } else {
+        node[key] = value;
+      }
+    }
+
+    // If parent_id was set, update the parent's children array
+    if ('parent_id' in fields && fields.parent_id) {
+      const parentId = fields.parent_id as string;
+      const parentFileName = povFileForNodeId(parentId);
+
+      if (parentFileName === fileName) {
+        // Same file — update in place
+        const parent = raw.nodes.find((n) => n.id === parentId);
+        if (parent) {
+          const children = Array.isArray(parent.children) ? parent.children as string[] : [];
+          if (!children.includes(nodeId)) {
+            children.push(nodeId);
+            parent.children = children;
+          }
+        }
+      } else if (parentFileName) {
+        // Different file (cross-POV parent) — update separately
+        const parentPath = path.join(activeTaxonomyDir, parentFileName);
+        if (fs.existsSync(parentPath)) {
+          const parentRaw = parseJsonFile(parentPath) as { nodes: Record<string, unknown>[]; last_modified?: string };
+          const parent = parentRaw.nodes?.find((n) => n.id === parentId);
+          if (parent) {
+            const children = Array.isArray(parent.children) ? parent.children as string[] : [];
+            if (!children.includes(nodeId)) {
+              children.push(nodeId);
+              parent.children = children;
+            }
+            parentRaw.last_modified = new Date().toISOString().split('T')[0];
+            writeJsonFileAtomic(parentPath, parentRaw);
+          }
+        }
+      }
+    }
+
+    raw.last_modified = new Date().toISOString().split('T')[0];
+    writeJsonFileAtomic(filePath, raw);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/**
+ * Append proposed edges to edges.json, deduplicating by source|type|target.
+ */
+export function persistEdges(
+  edges: Array<{
+    source: string; target: string; type: string;
+    bidirectional: boolean; confidence: number; rationale: string;
+    model: string; strength?: string;
+  }>,
+): { success: boolean; count: number; error?: string } {
+  const edgesPath = path.join(activeTaxonomyDir, 'edges.json');
+
+  try {
+    let edgesFile: { edges: unknown[]; last_modified?: string; discovery_log?: unknown[]; edge_types?: unknown[] };
+    if (fs.existsSync(edgesPath)) {
+      edgesFile = parseJsonFile(edgesPath) as typeof edgesFile;
+    } else {
+      edgesFile = { edges: [], last_modified: '', discovery_log: [], edge_types: [] };
+    }
+
+    if (!Array.isArray(edgesFile.edges)) edgesFile.edges = [];
+
+    // Build existing edge keys for dedup
+    const existingKeys = new Set(
+      (edgesFile.edges as Array<{ source?: string; target?: string; type?: string }>)
+        .map((e) => `${e.source}|${e.type}|${e.target}`),
+    );
+
+    const now = new Date().toISOString();
+    let added = 0;
+
+    for (const edge of edges) {
+      const key = `${edge.source}|${edge.type}|${edge.target}`;
+      if (existingKeys.has(key)) continue;
+
+      edgesFile.edges.push({
+        source: edge.source,
+        target: edge.target,
+        type: edge.type,
+        bidirectional: edge.bidirectional,
+        confidence: edge.confidence,
+        rationale: edge.rationale,
+        status: 'proposed',
+        discovered_at: now,
+        model: edge.model,
+        ...(edge.strength ? { strength: edge.strength } : {}),
+      });
+
+      existingKeys.add(key);
+      // Add reverse key for bidirectional edges
+      if (edge.bidirectional) {
+        existingKeys.add(`${edge.target}|${edge.type}|${edge.source}`);
+      }
+      added++;
+    }
+
+    edgesFile.last_modified = now;
+    writeJsonFileAtomic(edgesPath, edgesFile);
+    return { success: true, count: added };
+  } catch (err) {
+    return { success: false, count: 0, error: String(err) };
+  }
+}
+
+/**
+ * Return full node objects for a POV (optionally filtered by category).
+ * Unlike loadTaxonomy(), includes parent_id, children, graph_attributes, etc.
+ */
+export function getNodesByPovCategory(pov: string, category?: string): unknown[] {
+  const fileName = POV_FILE_MAP[pov];
+  if (!fileName) return [];
+
+  const filePath = path.join(activeTaxonomyDir, fileName);
+  if (!fs.existsSync(filePath)) return [];
+
+  try {
+    const raw = parseJsonFile(filePath) as { nodes: Record<string, unknown>[] };
+    if (!Array.isArray(raw.nodes)) return [];
+
+    let nodes = raw.nodes;
+    if (category) {
+      nodes = nodes.filter((n) => n.category === category);
+    }
+    return nodes;
+  } catch {
+    return [];
   }
 }
 

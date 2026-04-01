@@ -10,6 +10,34 @@ import { net } from 'electron';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 
+// ---------- Warm-up: preload sentence_transformers model ----------
+
+let _warmupDone = false;
+
+/**
+ * Fire-and-forget: spawns a trivial encode so Python loads the model into memory.
+ * Subsequent computeQueryViaLocalPython calls will start much faster because
+ * the OS has the model files and libraries in its disk cache.
+ */
+export function warmupEmbeddingModel(): void {
+  if (_warmupDone) return;
+  _warmupDone = true;
+  console.log('[embeddings] Warming up local embedding model...');
+  const t0 = Date.now();
+  execFile(
+    'python3',
+    [EMBED_SCRIPT, 'encode', 'warmup'],
+    { timeout: 120_000, maxBuffer: 1024 * 1024 },
+    (err, _stdout, _stderr) => {
+      if (err) {
+        console.warn('[embeddings] Warmup failed (non-fatal):', err.message);
+      } else {
+        console.log(`[embeddings] Warmup complete in ${Date.now() - t0}ms`);
+      }
+    },
+  );
+}
+
 // ---------- Local embeddings from embeddings.json ----------
 
 interface EmbeddingsFile {
@@ -450,6 +478,7 @@ async function generateViaGemini(
   model: string,
   apiKey: string,
   onRetry?: (progress: GenerateTextProgress) => void,
+  timeoutMs?: number,
 ): Promise<string> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
@@ -465,12 +494,12 @@ async function generateViaGemini(
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3,
+              temperature: _debateTemperature ?? 0.3,
               maxOutputTokens: 16384,
             },
           }),
         }),
-        60_000,
+        timeoutMs ?? 60_000,
         'Gemini API request',
       );
     } catch (err: unknown) {
@@ -538,7 +567,7 @@ async function generateViaGemini(
 
     let bodyText: string;
     try {
-      bodyText = await withTimeout(response.text(), 30_000, 'Reading response body');
+      bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading response body');
     } catch (err) {
       console.error('[generateText] Reading body failed:', err);
       throw err instanceof Error ? err : new Error(`Failed to read response body: ${err}`);
@@ -576,6 +605,7 @@ async function generateViaClaude(
   prompt: string,
   model: string,
   apiKey: string,
+  timeoutMs?: number,
 ): Promise<string> {
   const apiModel = getApiModelId(model);
   const maskedKey = apiKey.length > 12 ? apiKey.slice(0, 8) + '...' + apiKey.slice(-4) : '***';
@@ -605,14 +635,14 @@ async function generateViaClaude(
         messages: [{ role: 'user', content: prompt }],
       }),
     }),
-    120_000,
+    timeoutMs ?? 120_000,
     'Claude API request',
   );
 
   console.log(`[Claude] Response status: ${response.status}`);
   console.log(`[Claude] Response headers:`, Object.fromEntries(response.headers.entries()));
 
-  const bodyText = await withTimeout(response.text(), 30_000, 'Reading Claude response');
+  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading Claude response');
   console.log(`[Claude] Response body (first 500):`, bodyText.slice(0, 500));
 
   if (!response.ok) {
@@ -636,6 +666,7 @@ async function generateViaGroq(
   prompt: string,
   model: string,
   apiKey: string,
+  timeoutMs?: number,
 ): Promise<string> {
   const apiModel = getApiModelId(model);
   console.log(`[generateText] Calling Groq ${apiModel}...`);
@@ -654,11 +685,11 @@ async function generateViaGroq(
         max_tokens: 8192,
       }),
     }),
-    60_000,
+    timeoutMs ?? 60_000,
     'Groq API request',
   );
 
-  const bodyText = await withTimeout(response.text(), 30_000, 'Reading Groq response');
+  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading Groq response');
 
   if (!response.ok) {
     throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
@@ -675,11 +706,20 @@ async function generateViaGroq(
 }
 
 let _lastLoggedModel: string | null = null;
+let _debateTemperature: number | null = null;
+
+/** Set the temperature for debate AI calls. Pass null to reset to default (0.3). */
+export function setDebateTemperature(temp: number | null): void {
+  _debateTemperature = temp;
+  if (temp !== null) console.log(`[AI] Debate temperature set to: ${temp}`);
+  else console.log('[AI] Debate temperature reset to default (0.3)');
+}
 
 export async function generateText(
   prompt: string,
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
+  timeoutMs?: number,
 ): Promise<string> {
   const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
   const resolvedModel = model || DEFAULT_GENERATE_MODEL;
@@ -704,11 +744,11 @@ export async function generateText(
 
   switch (backend) {
     case 'claude':
-      return generateViaClaude(prompt, resolvedModel, apiKey);
+      return generateViaClaude(prompt, resolvedModel, apiKey, timeoutMs);
     case 'groq':
-      return generateViaGroq(prompt, resolvedModel, apiKey);
+      return generateViaGroq(prompt, resolvedModel, apiKey, timeoutMs);
     default:
-      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry);
+      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry, timeoutMs);
   }
 }
 

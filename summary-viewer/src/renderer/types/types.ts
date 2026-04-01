@@ -112,3 +112,51 @@ export interface PotentialEdge {
   rationale: string;
   strength?: string;
 }
+
+// ── Enrichment pipeline types ────────────────────────────────────────────────
+
+export type EnrichmentStep = 'source_linking' | 'parent_placement' | 'attribute_extraction' | 'edge_discovery';
+export type EnrichmentStepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+
+export interface EnrichmentProgress {
+  step: EnrichmentStep;
+  status: EnrichmentStepStatus;
+  error?: string;
+}
+
+export interface EnrichmentState {
+  nodeId: string;
+  steps: EnrichmentProgress[];
+}
+
+export interface PersistedEdge {
+  source: string;
+  target: string;
+  type: string;
+  bidirectional: boolean;
+  confidence: number;
+  rationale: string;
+  status: 'proposed' | 'approved' | 'rejected';
+  discovered_at: string;
+  model: string;
+  strength?: string;
+}
+
+export interface FullTaxonomyNode {
+  id: string;
+  category?: string;
+  label: string;
+  description: string;
+  parent_id?: string | null;
+  parent_relationship?: string;
+  parent_rationale?: string;
+  children?: string[];
+  cross_cutting_refs?: string[];
+  source_refs?: string[];
+  graph_attributes?: GraphAttributes;
+  interpretations?: {
+    accelerationist: string;
+    safetyist: string;
+    skeptic: string;
+  };
+}

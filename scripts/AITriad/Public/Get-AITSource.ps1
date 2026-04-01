@@ -14,6 +14,9 @@ function Get-AITSource {
         DatePublished descending.
     .PARAMETER DocId
         Wildcard pattern matched against the source document ID.
+    .PARAMETER Title
+        One or more wildcard patterns matched against the source title.
+        A source matches if its title matches any of the supplied patterns.
     .PARAMETER Pov
         Filter to sources whose pov_tags contain this value.
     .PARAMETER Topic
@@ -32,6 +35,12 @@ function Get-AITSource {
         Get-AITSource -Pov safetyist
         # Sources tagged with the safetyist POV.
     .EXAMPLE
+        Get-AITSource -Title '*alignment*'
+        # Sources whose title matches *alignment*.
+    .EXAMPLE
+        Get-AITSource -Title '*safety*', '*risk*'
+        # Sources whose title matches either pattern.
+    .EXAMPLE
         Get-AITSource -Status pending
         # Sources whose summary is pending.
     #>
@@ -39,6 +48,8 @@ function Get-AITSource {
     param(
         [Parameter(Position = 0)]
         [string]$DocId,
+
+        [string[]]$Title,
 
         [string]$Pov,
 
@@ -84,6 +95,15 @@ function Get-AITSource {
 
         # --- Filters ---
         if ($DocId -and $Meta.id -notlike $DocId) { continue }
+        if ($Title) {
+            $SrcTitle = if ($Props['title']) { $Meta.title } else { $null }
+            if (-not $SrcTitle) { continue }
+            $TitleMatch = $false
+            foreach ($Pattern in $Title) {
+                if ($SrcTitle -like $Pattern) { $TitleMatch = $true; break }
+            }
+            if (-not $TitleMatch) { continue }
+        }
         if ($Pov) {
             $PovArr = if ($Props['pov_tags']) { $Meta.pov_tags } else { @() }
             if ($PovArr -notcontains $Pov) { continue }
@@ -112,6 +132,7 @@ function Get-AITSource {
             PovTags       = if ($Props['pov_tags'])       { $Meta.pov_tags }       else { @() }
             TopicTags     = if ($Props['topic_tags'])     { $Meta.topic_tags }     else { @() }
             OneLiner      = if ($Props['one_liner'])      { $Meta.one_liner }      else { $null }
+            DateImported  = if ($Props['import_time'])    { $Meta.import_time }    else { if ($Props['date_ingested']) { $Meta.date_ingested } else { $null } }
             Directory     = $Folder.FullName
         })
     }

@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': path.resolve(__dirname, 'src/renderer'),
+      '@lib/debate': path.resolve(__dirname, '../lib/debate'),
     },
   },
   build: {
@@ -21,5 +22,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    fs: {
+      allow: [path.resolve(__dirname, '..')],
+    },
   },
 });

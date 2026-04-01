@@ -7,6 +7,7 @@ import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 import { registerTerminalHandlers, cleanupTerminal } from './terminal';
+import { warmupEmbeddingModel } from './embeddings';
 
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
@@ -188,6 +189,7 @@ app.whenReady().then(() => {
   registerTerminalHandlers(() => mainWindow);
   registerWindowHandlers();
   startFocusServer();
+  warmupEmbeddingModel();
 
   // Check for file-viewer command line args
   const diagFileArg = process.argv.find(a => a.startsWith('--diagnostics-file='));

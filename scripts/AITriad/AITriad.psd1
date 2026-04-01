@@ -68,7 +68,10 @@
         'Invoke-PolicyRefinement'
         'Repair-UnmappedConcepts'
         'Invoke-AITDebate'
+        'Convert-MD2PDF'
+        'Show-Markdown'
         'Show-DebateDiagnostics'
+        'Repair-DebateOutput'
         'Show-DebateHarvest'
     )
 
@@ -79,6 +82,7 @@
         'POViewer'
         'SummaryViewer'
         'Redo-Snapshots'
+        'Show-MD'
     )
 
     # Cmdlets exported (none — pure script module)

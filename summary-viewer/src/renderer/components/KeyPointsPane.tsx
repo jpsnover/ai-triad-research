@@ -161,6 +161,51 @@ function GraphAttrBlock({ attrs }: { attrs: GraphAttributes }) {
   );
 }
 
+const ENRICHMENT_LABELS: Record<string, string> = {
+  source_linking: 'Source',
+  parent_placement: 'Hierarchy',
+  attribute_extraction: 'Attributes',
+  edge_discovery: 'Edges',
+};
+
+const ENRICHMENT_ICONS: Record<string, string> = {
+  pending: '\u25CB',   // ○
+  running: '\u21BB',   // ↻
+  done: '\u2713',      // ✓
+  failed: '\u2717',    // ✗
+  skipped: '\u2013',   // –
+};
+
+function EnrichmentProgress({ nodeId }: { nodeId: string }) {
+  const enrichment = useStore(s => s.enrichment.get(nodeId));
+  if (!enrichment) return null;
+
+  const doneCount = enrichment.steps.filter(s => s.status === 'done').length;
+  const total = enrichment.steps.length;
+  const allDone = enrichment.steps.every(s => s.status === 'done' || s.status === 'skipped' || s.status === 'failed');
+  const anyRunning = enrichment.steps.some(s => s.status === 'running');
+
+  return (
+    <div className="enrichment-progress" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+      <span style={{ marginRight: '6px' }}>{allDone ? 'Enriched' : anyRunning ? 'Enriching' : 'Queued'}:</span>
+      {enrichment.steps.map((s) => {
+        const icon = ENRICHMENT_ICONS[s.status];
+        const color = s.status === 'done' ? 'var(--color-success, green)'
+          : s.status === 'failed' ? 'var(--color-error, red)'
+          : s.status === 'running' ? 'var(--color-info, #2196F3)'
+          : 'var(--text-tertiary, #999)';
+        return (
+          <span key={s.step} title={s.error || ENRICHMENT_LABELS[s.step]} style={{ marginRight: '8px', color }}>
+            <span style={{ marginRight: '2px' }}>{icon}</span>
+            {ENRICHMENT_LABELS[s.step]}
+          </span>
+        );
+      })}
+      {allDone && <span style={{ marginLeft: '4px' }}>({doneCount}/{total})</span>}
+    </div>
+  );
+}
+
 function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: number; onSelect: () => void }) {
   const addToTaxonomy = useStore(s => s.addToTaxonomy);
   const runSimilarSearch = useStore(s => s.runSimilarSearch);
@@ -202,7 +247,8 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
     setResult(res);
     setAdding(false);
     if (res.success) {
-      setTimeout(() => setMenuOpen(false), 1500);
+      // Keep menu open longer so user can see enrichment progress
+      setTimeout(() => setMenuOpen(false), 8000);
     }
   }, [uc, addToTaxonomy]);
 
@@ -263,6 +309,7 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
               {result?.success && (
                 <div className="unmapped-popup-success">
                   Added as {result.nodeId}
+                  <EnrichmentProgress nodeId={result.nodeId!} />
                 </div>
               )}
               {result && !result.success && (

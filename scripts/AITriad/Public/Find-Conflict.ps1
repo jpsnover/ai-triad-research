@@ -25,15 +25,20 @@ function Find-Conflict {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias('id')]
         [string]$DocId
     )
 
-    Set-StrictMode -Version Latest
-    $ErrorActionPreference = 'Stop'
+    begin {
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = 'Stop'
 
-    $ConflictsDir = Get-ConflictsDir
-    $SummariesDir = Get-SummariesDir
+        $ConflictsDir = Get-ConflictsDir
+        $SummariesDir = Get-SummariesDir
+    }
+
+    process {
 
     # -- Load summary --------------------------------------------------------
     $SummaryPath = Join-Path $SummariesDir "$DocId.json"
@@ -231,4 +236,5 @@ function Find-Conflict {
         Created         = $created
         Skipped         = $skipped
     }
+    } # end process
 }

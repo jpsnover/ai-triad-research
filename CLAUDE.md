@@ -86,6 +86,7 @@ The `TaxonomyNode` class is defined in `AITriad.psm1` (not a separate file):
 - **Debate-specific AI model.** Each debate can override the global model via `debate_model` on `DebateSession`. Set in New Debate dialog, persisted and restored on load. `getConfiguredModel()` checks debate model first.
 - **Fact-check with web search.** `generateTextWithSearch` uses Gemini's `google_search` tool for grounded fact-checking. Web evidence stored in metadata and viewable via "Show Web Evidence" button on fact-check cards.
 - **`debate_refs`** (optional on `PovNode` and `CrossCuttingNode`): array of debate session IDs that referenced this node. Added by harvest.
+- **POVer Chat** is a 1-on-1 conversation with a single POVer (distinct from multi-agent Debate). Three modes: `brainstorm` (exploratory, high-creativity), `inform` (pedagogical, grounded), `decide` (analytical, Socratic). Mode is switchable mid-chat via header pills. Chat sessions persist in `chats/chat-<id>.json`. Types in `types/chat.ts`, store in `hooks/useChatStore.ts`, prompts in `prompts/chat.ts`. Same taxonomy grounding and BDI context as debates, but lighter — no clarification phase, no multi-agent coordination.
 
 ## Environment Variables
 

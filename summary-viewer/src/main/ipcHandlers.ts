@@ -14,6 +14,9 @@ import {
   getTaxonomyDirs,
   getActiveTaxonomyDirName,
   setActiveTaxonomyDir,
+  updateNodeFields,
+  persistEdges,
+  getNodesByPovCategory,
 } from './fileIO';
 import type { AddTaxonomyNodeRequest } from './fileIO';
 import { loadEmbeddings, computeEmbeddings, computeQueryEmbedding } from './embeddings';
@@ -117,5 +120,19 @@ export function registerIpcHandlers(): void {
       console.error('[IPC] generate-content failed:', msg);
       throw new Error(`AI generation failed: ${msg}`);
     }
+  });
+
+  // ── Enrichment pipeline IPC ──────────────────────────────────────────────
+
+  ipcMain.handle('update-node-fields', (_event, nodeId: string, fields: Record<string, unknown>) => {
+    return updateNodeFields(nodeId, fields);
+  });
+
+  ipcMain.handle('persist-edges', (_event, edges: unknown[]) => {
+    return persistEdges(edges as Parameters<typeof persistEdges>[0]);
+  });
+
+  ipcMain.handle('get-nodes-by-pov-category', (_event, pov: string, category?: string) => {
+    return getNodesByPovCategory(pov, category);
   });
 }

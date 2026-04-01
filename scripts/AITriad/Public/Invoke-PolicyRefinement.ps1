@@ -201,8 +201,9 @@ INSTRUCTIONS:
                 -Model     $Model `
                 -ApiKey    $ResolvedKey `
                 -Temperature 0.1 `
-                -MaxTokens 512 `
-                -TimeoutSec 120
+                -MaxTokens 2048 `
+                -TimeoutSec 120 `
+                -JsonMode
 
             $ResponseText = $AIResult.Text
             if (-not $ResponseText) {

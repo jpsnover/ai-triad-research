@@ -105,7 +105,7 @@ export interface ConflictFile {
   human_notes: ConflictNote[];
 }
 
-export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts' | 'debate';
+export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts' | 'debate' | 'chat';
 
 // ── Edge types (from taxonomy/Origin/edges.json) ─────────
 

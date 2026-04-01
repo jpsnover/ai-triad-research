@@ -225,26 +225,30 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   return (
     <div ref={formRef} className="node-detail-tabbed">
-      <div className="node-detail-toolbar">
-        {onSimilarSearch && (
-          <button className="node-detail-pill" onClick={onSimilarSearch} title="Find similar taxonomy elements">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            Similar Search
-          </button>
-        )}
-        {onPin && (
-          <button className="node-detail-pill" onClick={onPin} title="Pin for comparison">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
-            Pin
-          </button>
-        )}
-        {!readOnly && (
-          <OverflowMenu
-            moveTargets={moveTargets}
-            onDelete={() => setShowDelete(true)}
-            onAIAnalysis={() => useTaxonomyStore.getState().runNodeCritique(pov, node)}
-          />
-        )}
+      <div className="nd-header">
+        <div className="nd-header-title">
+          <span className="nd-header-label">{node.label}</span>
+          <span className="nd-header-cat" data-cat={node.category}>{node.category.toUpperCase()}</span>
+        </div>
+        <div className="nd-header-actions">
+          {onSimilarSearch && (
+            <button className="nd-header-btn" onClick={onSimilarSearch} title="Find similar taxonomy elements">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          )}
+          {onPin && (
+            <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            </button>
+          )}
+          {!readOnly && (
+            <OverflowMenu
+              moveTargets={moveTargets}
+              onDelete={() => setShowDelete(true)}
+              onAIAnalysis={() => useTaxonomyStore.getState().runNodeCritique(pov, node)}
+            />
+          )}
+        </div>
       </div>
 
       {hasErrors && (
@@ -253,12 +257,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           Please fix the highlighted fields before saving.
         </div>
       )}
-
-      <div className="node-detail-title-line" data-cat={node.category}>
-        <span className="node-detail-category">{node.category}</span>
-        <span className="node-detail-title-sep"> : </span>
-        <span className="node-detail-label-text">{node.label}</span>
-      </div>
 
       {/* Tab bar */}
       <div className="node-detail-tabs">

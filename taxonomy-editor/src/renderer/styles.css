@@ -655,15 +655,21 @@ body {
 /* ─── Node list items ──────────────────────────────────── */
 
 .node-item {
-  padding: 8px 12px;
+  padding: var(--node-item-padding, 8px 12px);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--node-item-font, 0.85rem);
   line-height: 1.4;
   color: var(--text-primary);
   transition: background 0.15s;
   border-left: 4px solid transparent;
-  margin-bottom: 2px;
+  margin-bottom: var(--node-item-gap, 2px);
+}
+
+[data-pane-spacing="concise"] .node-item {
+  --node-item-padding: 3px 10px;
+  --node-item-gap: 0px;
+  --node-item-font: 0.8rem;
 }
 
 .node-item[data-cat="Goals/Values"] { border-left-color: var(--cat-goals); }
@@ -724,6 +730,11 @@ body {
 .node-tree-parent-header:hover {
   background: var(--bg-hover);
 }
+
+[data-pane-spacing="concise"] .node-tree-parent-group { margin-bottom: 0; }
+[data-pane-spacing="concise"] .node-tree-parent-header { padding: 3px 10px; font-size: 0.78rem; }
+[data-pane-spacing="concise"] .node-item-child { padding-left: 24px; }
+[data-pane-spacing="concise"] .node-item-id { font-size: 0.65rem; margin-top: 0; }
 
 .node-tree-parent-header.selected {
   background: var(--bg-panel);
@@ -1564,6 +1575,89 @@ body {
   letter-spacing: inherit;
   text-transform: inherit;
   color: inherit;
+}
+
+/* ─── Node detail header (title + badge + actions) ──────── */
+
+.nd-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 14px 12px;
+  gap: 12px;
+}
+
+.nd-header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.nd-header-label {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.nd-header-cat {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  top: -2px;
+}
+
+.nd-header-cat[data-cat="GOALS/VALUES"] {
+  background: rgba(46, 170, 170, 0.12);
+  color: var(--cat-goals);
+  border: 1px solid rgba(46, 170, 170, 0.25);
+}
+.nd-header-cat[data-cat="DATA/FACTS"] {
+  background: rgba(91, 138, 191, 0.12);
+  color: var(--cat-data);
+  border: 1px solid rgba(91, 138, 191, 0.25);
+}
+.nd-header-cat[data-cat="METHODS/ARGUMENTS"] {
+  background: rgba(176, 124, 198, 0.12);
+  color: var(--cat-methods);
+  border: 1px solid rgba(176, 124, 198, 0.25);
+}
+
+.nd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nd-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.nd-header-btn:hover {
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--text-primary);
 }
 
 /* ─── Node detail tabs ──────────────────────────────────── */
@@ -5120,6 +5214,32 @@ body {
   color: var(--text-muted);
 }
 
+/* ─── New Debate Temperature ─────────────────────────── */
+.new-debate-temperature-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.new-debate-temperature-slider {
+  flex: 1;
+  min-width: 120px;
+}
+.new-debate-temperature-input {
+  width: 56px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.new-debate-temperature-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 60px;
+}
+
 /* ─── New Debate Potential Topics ─────────────────────── */
 .new-debate-topics-picker {
   margin-top: 6px;
@@ -5517,6 +5637,138 @@ body {
   border-radius: 8px;
   cursor: pointer;
 }
+/* ─── Convergence Radar Panel ─────────────────────── */
+.convergence-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.convergence-panel-header {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.convergence-panel-title {
+  font-weight: 600;
+}
+.convergence-panel-avg {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-left: auto;
+}
+.convergence-panel-body {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.convergence-radar-empty {
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.convergence-radar-svg {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+.convergence-grid-circle {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 0.5;
+}
+.convergence-axis-line {
+  stroke: var(--border);
+  stroke-width: 0.5;
+}
+.convergence-ghost-polygon {
+  fill: var(--accent);
+  fill-opacity: 0.06;
+  stroke: var(--accent);
+  stroke-opacity: 0.2;
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
+.convergence-polygon {
+  fill: var(--accent);
+  fill-opacity: 0.15;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.convergence-point {
+  fill: var(--accent);
+  cursor: pointer;
+  transition: r 0.15s;
+}
+.convergence-point.hovered {
+  fill: var(--accent-hover, var(--accent));
+}
+.convergence-label {
+  font-size: 10px;
+  fill: var(--text-muted);
+  cursor: pointer;
+}
+.convergence-label.hovered {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+.convergence-center-label {
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.convergence-swap {
+  width: 100%;
+  padding: 6px 0;
+  font-size: 0.75rem;
+}
+.convergence-swap-label {
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.convergence-swap-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.convergence-swap-pill {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.convergence-swap-pill:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.convergence-swap-cancel {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.convergence-overflow {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.debate-convergence-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
 .diagnostics-panel-wrapper {
   position: relative;
   flex-shrink: 0;
@@ -7827,6 +8079,19 @@ body {
 .fallacy-panel-item-label {
   font-size: 0.82rem;
   font-weight: 600;
+}
+.fallacy-panel-item-count {
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+}
+.fallacy-panel-item.selected .fallacy-panel-item-count {
+  background: rgba(255,255,255,0.3);
 }
 .fallacy-panel-item-cat {
   font-size: 0.68rem;

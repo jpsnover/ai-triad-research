@@ -70,6 +70,10 @@ QUANTITY GUIDANCE FOR THIS SECTION:
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
     Use the exact node IDs (e.g. "acc-goals-001", "saf-data-002", "skp-methods-001").
+  - CROSS-POV SEARCH: before declaring a concept unmapped, search ALL four taxonomy
+    files (accelerationist, safetyist, skeptic, AND cross-cutting). A concept may
+    appear under a different POV than you would initially expect. Only declare a
+    concept unmapped after confirming no node in ANY POV covers it.
   - If a point does not fit any existing node, set taxonomy_node_id to null and describe
     it in the unmapped_concepts array.
   - Each key_point must include a stance field. stance must be ONE of:

@@ -121,7 +121,7 @@ function searchConflict(conflict: ConflictFile, regex: RegExp): TaxResult[] {
   for (const inst of conflict.instances) {
     fields.push(['instance:doc_id', inst.doc_id], ['instance:stance', inst.stance], ['instance:assertion', inst.assertion]);
   }
-  for (const note of conflict.human_notes) {
+  for (const note of conflict.human_notes ?? []) {
     fields.push(['note:author', note.author], ['note:note', note.note]);
   }
   for (const [field, value] of fields) {
@@ -293,7 +293,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   // Semantic results mapped
   const semResults: TaxResult[] = useMemo(() => {
     if (mode !== 'taxonomy' || !isSemantic) return [];
-    return semanticResults.map(r => {
+    return (semanticResults || []).map(r => {
       const label = getLabelForId(r.id);
       const tab: TabId = r.id.startsWith('cc-') ? 'cross-cutting'
         : r.id.startsWith('conflict-') ? 'conflicts'

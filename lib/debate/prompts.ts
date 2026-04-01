@@ -6,6 +6,9 @@
  * Prompts are separated from logic per project convention.
  */
 
+import type { DocumentAnalysis } from './types';
+import { documentAnalysisContext } from './documentAnalysis';
+
 const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.';
 
 // ── Length-scaled instructions ──────────────────────────────
@@ -19,10 +22,7 @@ const LENGTH_INSTRUCTIONS: Record<string, string> = {
 };
 
 export function lengthInstruction(length: string): string {
-  const instruction = LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medium;
-  // Debug log to stderr only (stdout reserved for JSON result in CLI mode)
-  console.error(`[debate-prompt] lengthInstruction: "${length}"`);
-  return instruction;
+  return LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medium;
 }
 
 // ── Shared instruction blocks ───────────────────────────────
@@ -35,7 +35,7 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into BDI sections —
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect beliefs to values through reasoning.
 
-Express ideas in your own words. Never say "According to taxonomy node X" — instead, make the argument naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
+Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-goals-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
 Your KNOWN VULNERABILITIES section lists weaknesses in your positions and fallacy tendencies to watch for. Acknowledge a vulnerability when it is directly relevant — this builds credibility. But do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
 
@@ -247,10 +247,23 @@ export function openingStatementPrompt(
   isFirst: boolean,
   debateSourceContent?: string,
   length: string = 'medium',
+  documentAnalysis?: DocumentAnalysis,
 ): string {
   const lengthKey = length || 'medium';
   const includeAssumptions = lengthKey !== 'brief';
   const includeSteelman = lengthKey !== 'brief';
+  const hasDocument = !!(documentAnalysis || debateSourceContent);
+
+  // Use structured analysis when available, fall back to raw source content
+  const documentBlock = documentAnalysis
+    ? documentAnalysisContext(documentAnalysis)
+    : sourceContext(debateSourceContent);
+
+  const documentInstructions = documentAnalysis
+    ? `\nThis debate is grounded in a pre-analyzed document. Your opening should: (1) engage with specific document claims (D-IDs) — state which you accept and which you challenge, (2) address the identified tension points from your perspective, and (3) reference D-IDs in your taxonomy_refs and my_claims targets, NOT in your prose text.\n`
+    : debateSourceContent
+      ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n`
+      : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -266,10 +279,10 @@ ${priorBlock}
 
 The debate topic is:
 
-"${topic}"${sourceContext(debateSourceContent)}
+"${topic}"${documentBlock}
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
-${debateSourceContent ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n` : ''}
+${hasDocument ? documentInstructions : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${includeSteelman ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
 ${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
 ${CLAIM_SKETCHING}
@@ -303,10 +316,15 @@ export function debateResponsePrompt(
   addressing: string,
   debateSourceContent?: string,
   length: string = 'medium',
+  documentAnalysis?: DocumentAnalysis,
 ): string {
   const lengthKey = length || 'medium';
   const includeSteelman = lengthKey !== 'brief';
   const includeDisagreementType = true; // always include — it's a small field
+
+  const documentBlock = documentAnalysis
+    ? documentAnalysisContext(documentAnalysis)
+    : sourceContext(debateSourceContent);
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -324,7 +342,7 @@ ${DIALECTICAL_MOVES}
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"${sourceContext(debateSourceContent)}
+"${topic}"${documentBlock}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
@@ -395,9 +413,15 @@ export function crossRespondPrompt(
   addressing: string,
   length: string = 'medium',
   debateSourceContent?: string,
+  documentAnalysis?: DocumentAnalysis,
 ): string {
   const lengthKey = length || 'medium';
   const includeSteelman = lengthKey !== 'brief';
+
+  // Use structured analysis when available, fall back to lightweight source reminder
+  const documentBlock = documentAnalysis
+    ? documentAnalysisContext(documentAnalysis)
+    : sourceReminder(debateSourceContent);
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -415,7 +439,7 @@ ${DIALECTICAL_MOVES}
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"${sourceReminder(debateSourceContent)}
+"${topic}"${documentBlock}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}

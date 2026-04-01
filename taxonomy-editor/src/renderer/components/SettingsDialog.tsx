@@ -18,7 +18,7 @@ interface RefreshResult {
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const { colorScheme, setColorScheme, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
+  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
   const [hasKey, setHasKey] = useState<Record<string, boolean>>({});
   const [keyInput, setKeyInput] = useState('');
   const [savingKey, setSavingKey] = useState(false);
@@ -181,6 +181,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <option value="dark">Dark</option>
             <option value="bkc">BKC</option>
             <option value="system">System</option>
+          </select>
+        </div>
+
+        <div className="settings-row">
+          <label className="settings-label">Pane 2 Item Spacing</label>
+          <select
+            className="settings-select"
+            value={paneSpacing}
+            onChange={(e) => setPaneSpacing(e.target.value as 'normal' | 'concise')}
+          >
+            <option value="normal">Normal</option>
+            <option value="concise">Concise</option>
           </select>
         </div>
 

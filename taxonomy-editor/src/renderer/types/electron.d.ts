@@ -25,6 +25,7 @@ export interface ElectronAPI {
   updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string }[]) => Promise<void>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string, timeoutMs?: number) => Promise<{ text: string }>;
+  setDebateTemperature: (temp: number | null) => Promise<void>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{ text: string; searchQueries?: string[] }>;
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;
   harvestAddDebateRef: (nodeId: string, debateId: string) => Promise<{ updated: boolean }>;

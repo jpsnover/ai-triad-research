@@ -10,6 +10,7 @@ import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
+import { ConvergencePanel } from './ConvergenceRadar';
 import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -37,15 +38,16 @@ function getPolicyAction(polId: string): string {
 }
 
 
-function speakerLabel(speaker: PoverId | 'system'): string {
+function speakerLabel(speaker: PoverId | 'system' | 'document'): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
+  if (speaker === 'document') return 'Document';
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info ? info.label : speaker;
 }
 
-function speakerColor(speaker: PoverId | 'system'): string | undefined {
-  if (speaker === 'system' || speaker === 'user') return undefined;
+function speakerColor(speaker: PoverId | 'system' | 'document'): string | undefined {
+  if (speaker === 'system' || speaker === 'user' || speaker === 'document') return undefined;
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info?.color;
 }
@@ -1161,6 +1163,7 @@ export function DebateWorkspace() {
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
+  const [showConvergence, setShowConvergence] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSimilarPovSearch = useCallback((query: string) => {
@@ -1220,10 +1223,7 @@ export function DebateWorkspace() {
     setFindQuery('');
   }, []);
 
-  // Auto-scroll to bottom when new entries arrive
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeDebate?.transcript.length]);
+  // Auto-scroll removed — disrupts reading during debate generation
 
   // Phase 8: Auto-save debounced (2s after last change)
   useEffect(() => {
@@ -1325,6 +1325,15 @@ export function DebateWorkspace() {
           {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
         </span>
         <span className="debate-topic-text">{activeDebate.topic.final}</span>
+        {activeDebate.convergence_tracker && activeDebate.convergence_tracker.issues.length > 0 && (
+          <button
+            className={`btn btn-sm debate-convergence-btn${showConvergence ? ' active' : ''}`}
+            onClick={() => setShowConvergence(!showConvergence)}
+            title="Toggle convergence radar chart"
+          >
+            Convergence
+          </button>
+        )}
         <button
           className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
           onClick={toggleDiagnostics}
@@ -1435,6 +1444,11 @@ export function DebateWorkspace() {
       {isOpeningPhase && <OpeningActions />}
 
       {isDebatePhase && <DebateActions />}
+
+      {/* Convergence radar panel */}
+      {showConvergence && activeDebate.convergence_tracker && (
+        <ConvergencePanel tracker={activeDebate.convergence_tracker} />
+      )}
 
       {/* Diagnostics panel — hidden when popout is open */}
       {diagnosticsEnabled && !diagPopoutOpen && <DiagnosticsPanel />}

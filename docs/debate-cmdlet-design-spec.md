@@ -100,7 +100,8 @@ interface AIAdapter {
 ```powershell
 Invoke-AITDebate
     [-Topic] <string>
-    [-DocumentPath <string>]
+    [-Name <string>]               # Human-readable debate name. Used in output filenames.
+    [-DocPath <string>]
     [-Url <string>]
     [-CrossCuttingNodeId <string>]
     [-Debaters <string[]>]         # Default: @('Prometheus','Sentinel','Cassandra'). Min 2.
@@ -111,9 +112,7 @@ Invoke-AITDebate
     [-ProbeEvery <int>]            # Default: 0 (disabled). E.g., 2 = probe after every 2 turns
     [-ResponseLength <string>]     # 'brief', 'medium', 'detailed'. Default: 'medium'
     [-OutputFormat <string>]       # Default: 'pdf'. Options: 'json', 'markdown', 'pdf'
-    [-OutputPath <string>]         # Default: './debates/'
-    [-DiagnosticsPath <string>]    # Default: null (no diagnostics file). Path for diagnostics JSON.
-    [-HarvestPath <string>]        # Default: null (no harvest file). Path for harvest output JSON.
+    [-OutputDirectory <string>]    # Default: './debates/'. All output files written here with auto-generated names.
     [-Clarify]                     # If specified, run clarification phase (automated, not interactive)
     [-Temperature <double>]        # Default: 0.3
     [-Verbose]
@@ -121,9 +120,12 @@ Invoke-AITDebate
 
 ### Parameter Groups
 
+**Debate Identity:**
+- `-Name "Burden of Proof"` — human-readable name for the debate. Used to generate output filenames via `New-Slug` (e.g., `burden-of-proof`). If omitted, auto-generated from `-Topic` (first 6 words slugified).
+
 **Topic Source** (exactly one required):
 - `-Topic "Should the US impose AI licensing?"` — free-form topic string
-- `-DocumentPath ./sources/my-doc/snapshot.md` — debate grounded in a document
+- `-DocPath ./sources/my-doc/snapshot.md` — debate grounded in a document
 - `-Url "https://example.com/article"` — debate grounded in a URL
 - `-CrossCuttingNodeId cc-005` — debate grounded in a cross-cutting taxonomy node
 
@@ -139,15 +141,17 @@ Invoke-AITDebate
 
 **Output:**
 - `-OutputFormat pdf` — default. Options: `json`, `markdown`, `pdf`
-- `-OutputPath ./debates/my-debate` — base path for output files (adds extensions)
-- `-DiagnosticsPath ./debates/my-debate-diag.json` — full diagnostics capture
-- `-HarvestPath ./debates/my-debate-harvest.json` — harvest candidates for visual review
+- `-OutputDirectory ./debates/` — directory for all output files (default: `./debates/`). Filenames are auto-generated from the debate slug:
+  - Debate: `<slug>-debate.<ext>` (e.g., `burden-of-proof-debate.json`)
+  - Diagnostics: `<slug>-diagnostics.json`
+  - Harvest: `<slug>-harvest.json`
 
 ### Execution Flow
 
 ```
 1. Load taxonomy (all 4 POV files + edges + policy registry)
-2. If -DocumentPath or -Url: load/fetch source content
+1b. Resolve debate slug: if -Name given, `New-Slug $Name`; else slugify first 6 words of -Topic
+2. If -DocPath or -Url: load/fetch source content
 3. If -CrossCuttingNodeId: load CC node + linked nodes + conflicts
 4. CLARIFICATION PHASE (only if -Clarify specified):
    a. Moderator generates 1-3 clarifying questions
@@ -174,12 +178,12 @@ Invoke-AITDebate
    a. Generate full synthesis (areas of agreement/disagreement,
       argument map, preferences, policy implications)
    b. Append to transcript
-8. OUTPUT:
-   a. Write transcript + synthesis to -OutputPath in each -OutputFormat
-   b. If -DiagnosticsPath: write full diagnostics JSON
-   c. If -HarvestPath: extract harvest candidates and write JSON
+8. OUTPUT (all files written to -OutputDirectory with auto-generated names):
+   a. Write transcript + synthesis to <slug>-debate.<ext> in -OutputFormat
+   b. Write full diagnostics JSON to <slug>-diagnostics.json
+   c. Extract harvest candidates and write to <slug>-harvest.json
 9. RETURN result object:
-   PSCustomObject with: DebateId, Topic, Turns, OutputFiles,
+   PSCustomObject with: DebateId, Name, Slug, Topic, Turns, OutputFiles,
    DiagnosticsFile, HarvestFile, ClaimCount, DisagreementCount
 ```
 
@@ -189,6 +193,8 @@ Invoke-AITDebate
 ```json
 {
   "id": "debate-uuid",
+  "name": "Burden of Proof",
+  "slug": "burden-of-proof",
   "topic": { "original": "...", "refined": "...", "final": "..." },
   "protocol_id": "structured",
   "model": "gemini-2.5-flash",
@@ -385,6 +391,18 @@ The standalone tool:
 
 ```powershell
 Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Turns 3
+# Output: ./debates/should-us-impose-ai-licensing-debate.pdf
+#         ./debates/should-us-impose-ai-licensing-diagnostics.json
+#         ./debates/should-us-impose-ai-licensing-harvest.json
+```
+
+### Named debate
+
+```powershell
+Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Name "AI Licensing" -Turns 3
+# Output: ./debates/ai-licensing-debate.pdf
+#         ./debates/ai-licensing-diagnostics.json
+#         ./debates/ai-licensing-harvest.json
 ```
 
 ### Full-featured debate
@@ -392,6 +410,7 @@ Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Turns 3
 ```powershell
 $result = Invoke-AITDebate `
     -Topic "The burden of proof rests on those claiming current architectures will scale to AGI" `
+    -Name "Burden of Proof" `
     -Debaters Prometheus,Sentinel,Cassandra `
     -Protocol structured `
     -Model 'gemini-2.5-flash' `
@@ -400,9 +419,11 @@ $result = Invoke-AITDebate `
     -ResponseLength medium `
     -Clarify `
     -OutputFormat json `
-    -OutputPath './debates/burden-of-proof' `
-    -DiagnosticsPath './debates/burden-of-proof-diag.json' `
-    -HarvestPath './debates/burden-of-proof-harvest.json'
+    -OutputDirectory './debates/'
+
+# Output: ./debates/burden-of-proof-debate.json
+#         ./debates/burden-of-proof-diagnostics.json
+#         ./debates/burden-of-proof-harvest.json
 
 # Review results
 $result | Format-List
@@ -418,19 +439,22 @@ Show-DebateHarvest -Path $result.HarvestFile
 
 ```powershell
 Invoke-AITDebate `
-    -DocumentPath '../ai-triad-data/sources/ai-safety-is-category-error-2026/snapshot.md' `
+    -Name "Category Error" `
+    -DocPath '../ai-triad-data/sources/ai-safety-is-category-error-2026/snapshot.md' `
     -Turns 4 `
-    -OutputFormat pdf `
-    -OutputPath './debates/category-error'
+    -OutputFormat pdf
+# Output: ./debates/category-error-debate.pdf
+#         ./debates/category-error-diagnostics.json
+#         ./debates/category-error-harvest.json
 ```
 
 ### Batch debates from curated topics
 
 ```powershell
-# Run all 20 curated topics
+# Run all 20 curated topics (names auto-generated from topic text)
 $topics = node -e "const t = require('./lib/debate/topics.mjs'); t.DEBATE_TOPICS.forEach(t => console.log(t.proposition))"
 $topics | ForEach-Object {
-    Invoke-AITDebate -Topic $_ -Turns 3 -OutputFormat pdf -OutputPath "./debates/batch-$($_.GetHashCode())"
+    Invoke-AITDebate -Topic $_ -Turns 3 -OutputFormat pdf -OutputDirectory './debates/batch/'
 }
 ```
 
@@ -446,7 +470,7 @@ $topics | ForEach-Object {
 | 4 | Debater selection | `-Debaters` parameter specifies which POVers participate (min 2) |
 | 5 | Diagnostics format | JSON structure; reuse existing diagnostics viewer tool |
 | 6 | Harvest tool | New standalone tool whose core is shared with taxonomy editor (common codebase) |
-| 7 | Output format | Default to PDF; specifiable via `-OutputFormat` (json, markdown, pdf) |
+| 7 | Output format | Default to PDF; specifiable via `-OutputFormat` (json, markdown, pdf). User specifies `-OutputDirectory` only; filenames auto-generated from debate slug (`<slug>-debate.<ext>`, `<slug>-diagnostics.json`, `<slug>-harvest.json`) |
 | 8 | Clarification | `-Clarify` switch. If specified, moderator asks clarifying questions (automated — AI generates answers based on topic context). If not specified, skip clarification. |
 | 9 | Probing questions | Injected into the debate — targeted debaters respond to them |
 | 10 | User intervention | Fully automated — no interactive prompts |

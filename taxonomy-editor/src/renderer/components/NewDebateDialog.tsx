@@ -35,6 +35,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [customModel, setCustomModel] = useState(globalModel);
   const [protocolId, setProtocolId] = useState('structured');
+  const [temperature, setTemperature] = useState(0.3);
 
   const toggle = (id: PoverId) => {
     const next = new Set(selected);
@@ -105,6 +106,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       sourceType === 'topic' ? '' : finalContent,
       debateModelOverride,
       protocolId,
+      temperature,
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
@@ -244,6 +246,34 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           {!useCustomModel && (
             <span className="new-debate-model-info">Using global: {globalModel}</span>
           )}
+        </div>
+
+        <label className="new-debate-label">Temperature</label>
+        <div className="new-debate-temperature-row">
+          <input
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+            className="new-debate-temperature-slider"
+          />
+          <input
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0 && v <= 2) setTemperature(v);
+            }}
+            className="new-debate-temperature-input"
+          />
+          <span className="new-debate-temperature-hint">
+            {temperature <= 0.3 ? 'Focused' : temperature <= 0.7 ? 'Balanced' : temperature <= 1.2 ? 'Creative' : 'Wild'}
+          </span>
         </div>
 
         <label className="new-debate-label">Debaters</label>

@@ -82,7 +82,11 @@ function Convert-MD2PDF {
         }
 
         if ($OutputDirectory -and -not (Test-Path $OutputDirectory)) {
-            $null = New-Item -Path $OutputDirectory -ItemType Directory -Force
+            try {
+                $null = New-Item -Path $OutputDirectory -ItemType Directory -Force -ErrorAction Stop
+            } catch {
+                throw "Failed to create output directory '$OutputDirectory': $_`nCheck that the parent directory exists and you have write permissions."
+            }
         }
 
         $Converted = [System.Collections.Generic.List[PSObject]]::new()
@@ -180,7 +184,7 @@ function Convert-MD2PDF {
                         if ($null -ne $TexHeader -and (Test-Path $TexHeader)) { Remove-Item $TexHeader -ErrorAction SilentlyContinue }
                     }
 
-                    if (Test-Path $PdfPath) {
+                    if ((Test-Path $PdfPath) -and (Get-Item $PdfPath).Length -gt 0) {
                         $PdfItem = Get-Item $PdfPath
                         $Result = [PSCustomObject]@{
                             Source = $SourcePath
@@ -197,7 +201,18 @@ function Convert-MD2PDF {
                         $Result
                     }
                     else {
-                        Write-Error "pandoc completed but PDF was not created: $PdfPath"
+                        $EngineInfo = if ($UseFallback) { 'cupsfilter (HTML fallback)' } else { $PdfEngine }
+                        Write-Error @"
+PDF conversion failed for: $SourcePath
+  Engine: $EngineInfo
+  Expected output: $PdfPath
+  Input size: $((Get-Item $SourcePath).Length) bytes
+
+Troubleshooting:
+  1. Verify the Markdown is valid: pandoc '$SourcePath' -t plain | Select-Object -First 5
+  2. Try a different engine: Convert-MD2PDF '$SourcePath' (ensure typst/xelatex is installed)
+  3. Check pandoc version: pandoc --version
+"@
                     }
                 }
                 catch {

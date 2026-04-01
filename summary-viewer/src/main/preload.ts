@@ -63,4 +63,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu-settings', handler);
     return () => { ipcRenderer.removeListener('menu-settings', handler); };
   },
+
+  // Enrichment pipeline
+  updateNodeFields: (nodeId: string, fields: Record<string, unknown>): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('update-node-fields', nodeId, fields),
+
+  persistEdges: (edges: unknown[]): Promise<{ success: boolean; count: number; error?: string }> =>
+    ipcRenderer.invoke('persist-edges', edges),
+
+  getNodesByPovCategory: (pov: string, category?: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-nodes-by-pov-category', pov, category),
 });

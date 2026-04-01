@@ -36,8 +36,10 @@ import {
   probingQuestionsPrompt,
   contextCompressionPrompt,
 } from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from './argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from './argumentNetwork';
 import { formatTaxonomyContext } from './taxonomyContext';
+import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
+import type { DocumentAnalysis } from './types';
 import {
   scoreNodeRelevance,
   selectRelevantNodes,
@@ -49,6 +51,7 @@ import {
   nowISO,
   stripCodeFences,
   parseJsonRobust,
+  extractArraysFromPartialJson,
   formatRecentTranscript,
   parsePoverResponse,
 } from './helpers';
@@ -104,6 +107,11 @@ export class DebateEngine {
     // Phase 1: Clarification (optional)
     if (this.config.enableClarification) {
       await this.runClarification();
+    }
+
+    // Phase 1.5: Document pre-analysis
+    if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
+      await this.runDocumentAnalysis();
     }
 
     // Phase 2: Opening statements
@@ -211,6 +219,14 @@ export class DebateEngine {
       totalRounds: this.config.rounds,
       message: message ?? phase,
     });
+  }
+
+  /** Log a non-fatal warning — records in diagnostics and emits progress */
+  private warn(operation: string, error: unknown, recovery: string): void {
+    const msg = error instanceof Error ? error.message : String(error);
+    const warning = `[WARNING] ${operation}: ${msg}. Recovery: ${recovery}`;
+    process.stderr.write(`[debate-engine] ${warning}\n`);
+    this.onProgress?.({ phase: 'warning', message: warning });
   }
 
   private addEntry(entry: Omit<TranscriptEntry, 'id' | 'timestamp'>): TranscriptEntry {
@@ -353,6 +369,20 @@ export class DebateEngine {
     return formatCommitments(commitments, priorClaims);
   }
 
+  /** Get recent claims from other debaters so the current speaker doesn't echo them */
+  private getEstablishedPointsContext(poverId: Exclude<PoverId, 'user'>): string {
+    const an = this.session.argument_network;
+    if (!an || an.nodes.length === 0) return '';
+
+    const allNodes = an.nodes.map(n => ({
+      id: n.id,
+      text: n.text,
+      speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker,
+    }));
+
+    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10);
+  }
+
   // ── Phase: Clarification ───────────────────────────────────
 
   private async runClarification(): Promise<void> {
@@ -374,7 +404,10 @@ export class DebateEngine {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = parseJsonRobust(text) as any;
       questions = parsed.questions ?? [];
-    } catch { questions = [text]; }
+    } catch (err) {
+      this.warn('Parsing clarification questions', err, 'Using raw AI response as a single question');
+      questions = [text];
+    }
 
     const clarEntry = this.addEntry({
       type: 'clarification',
@@ -398,7 +431,9 @@ export class DebateEngine {
         this.session.topic.refined = parsed.refined_topic;
         this.session.topic.final = parsed.refined_topic;
       }
-    } catch { /* keep original topic */ }
+    } catch (err) {
+      this.warn('Parsing refined topic from clarification', err, 'Keeping original topic unchanged');
+    }
 
     this.addEntry({
       type: 'answer',
@@ -406,6 +441,59 @@ export class DebateEngine {
       content: `[Automated clarification] Refined topic: ${this.session.topic.final}`,
       taxonomy_refs: [],
     });
+  }
+
+  // ── Phase: Document pre-analysis ───────────────────────────
+
+  private async runDocumentAnalysis(): Promise<void> {
+    this.progress('analysis', undefined, 'Analyzing document claims');
+
+    const taxonomySample = buildTaxonomySample(this.taxonomy);
+    const activePovers = this.config.activePovers.map(
+      p => POVER_INFO[p].pov,
+    );
+    const prompt = documentAnalysisPrompt(
+      this.config.sourceContent ?? '',
+      this.session.topic.final,
+      activePovers,
+      taxonomySample,
+    );
+
+    const text = await this.generate(prompt, 'Document analysis');
+
+    let analysis: DocumentAnalysis | null = null;
+    try {
+      analysis = parseJsonRobust(text) as DocumentAnalysis;
+    } catch (err) {
+      this.warn('Parsing document analysis', err, 'Proceeding without document pre-analysis');
+    }
+
+    if (analysis && analysis.i_nodes && analysis.i_nodes.length > 0) {
+      this.session.document_analysis = analysis;
+
+      // Add transcript entry recording the analysis
+      const entry = this.addEntry({
+        type: 'system',
+        speaker: 'system',
+        content: `Document analysis complete: ${analysis.i_nodes.length} claims extracted, ${analysis.tension_points.length} tension points identified.\n\n${analysis.claims_summary}`,
+        taxonomy_refs: [],
+      });
+
+      // Seed argument network with document i-nodes
+      const an = this.session.argument_network!;
+      for (const inode of analysis.i_nodes) {
+        an.nodes.push({
+          id: inode.id,
+          text: inode.text,
+          speaker: 'document',
+          source_entry_id: entry.id,
+          taxonomy_refs: inode.taxonomy_refs,
+          turn_number: 0,
+        });
+      }
+
+      this.recordDiagnostic(entry.id, { prompt, raw_response: text });
+    }
   }
 
   // ── Phase: Opening statements ──────────────────────────────
@@ -428,6 +516,7 @@ export class DebateEngine {
 
       const taxonomyContext = this.getRelevantTaxonomyContext(info.pov);
       const commitmentContext = this.getCommitmentContext(poverId);
+      const establishedPoints = this.getEstablishedPointsContext(poverId);
       const edgeContext = this.formatDebaterEdgeContext(info.pov);
 
       let priorBlock = '';
@@ -438,13 +527,14 @@ export class DebateEngine {
         }
       }
 
-      const fullContext = taxonomyContext + commitmentContext + edgeContext;
+      const fullContext = taxonomyContext + commitmentContext + establishedPoints + edgeContext;
       const prompt = openingStatementPrompt(
         info.label, info.pov, info.personality,
         this.session.topic.final, fullContext, priorBlock,
         priorStatements.length === 0,
-        this.config.sourceContent,
+        this.session.document_analysis ? undefined : this.config.sourceContent,
         this.config.responseLength,
+        this.session.document_analysis,
       );
 
       const start = Date.now();
@@ -527,7 +617,9 @@ export class DebateEngine {
           taxonomy_refs: [],
         });
       }
-    } catch { /* use fallback below */ }
+    } catch (err) {
+      this.warn('Parsing moderator responder selection', err, 'Falling back to least-recently-spoken debater');
+    }
 
     // Fallback: pick pover who spoke least recently
     if (!responder || !this.config.activePovers.includes(responder)) {
@@ -544,16 +636,18 @@ export class DebateEngine {
 
     const taxonomyContext = this.getRelevantTaxonomyContext(info.pov);
     const commitmentContext = this.getCommitmentContext(responder);
+    const establishedPoints = this.getEstablishedPointsContext(responder);
     const debaterEdgeContext = this.formatDebaterEdgeContext(info.pov);
     const updatedTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
 
     const prompt = crossRespondPrompt(
       info.label, info.pov, info.personality,
       this.session.topic.final,
-      taxonomyContext + commitmentContext + debaterEdgeContext,
+      taxonomyContext + commitmentContext + establishedPoints + debaterEdgeContext,
       updatedTranscript, focusPoint, addressing,
       this.config.responseLength,
-      this.config.sourceContent,
+      this.session.document_analysis ? undefined : this.config.sourceContent,
+      this.session.document_analysis,
     );
 
     const start = Date.now();
@@ -633,7 +727,9 @@ export class DebateEngine {
     try {
       const parsed = parseJsonRobust(text) as any;
       questions = parsed.questions ?? [];
-    } catch { /* no probing questions */ }
+    } catch (err) {
+      this.warn('Parsing probing questions', err, 'Skipping probing questions for this round');
+    }
 
     if (questions.length > 0) {
       const content = questions.map((q, i) => `${i + 1}. ${q.text} (targets: ${q.targets?.join(', ') ?? 'all'})`).join('\n');
@@ -685,7 +781,9 @@ export class DebateEngine {
           summary: parsed.summary,
         });
       }
-    } catch { /* compression failed, continue without */ }
+    } catch (err) {
+      this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
+    }
   }
 
   // ── Synthesis ──────────────────────────────────────────────
@@ -711,7 +809,12 @@ export class DebateEngine {
     let synthesisData: Record<string, unknown> = {};
     try {
       synthesisData = parseJsonRobust(text) as any;
-    } catch { /* raw text as fallback */ }
+    } catch {
+      // Synthesis responses are often truncated (token limit) or have malformed JSON.
+      // Salvage complete top-level arrays from the partial JSON.
+      const stripped = stripCodeFences(text);
+      synthesisData = extractArraysFromPartialJson(stripped);
+    }
 
     // Format readable content
     const lines: string[] = [];
@@ -837,15 +940,19 @@ export class DebateEngine {
     let text: string;
     try {
       text = await this.generate(prompt, 'Claim extraction');
-    } catch {
-      return; // Non-critical, skip
+    } catch (err) {
+      this.warn(`Claim extraction for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
+      return;
     }
 
     let claims: { text: string; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
-    } catch { return; }
+    } catch (err) {
+      this.warn(`Parsing claim extraction response for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
+      return;
+    }
 
     const accepted: { text: string; id: string; overlap_pct: number }[] = [];
     const rejected: { text: string; reason: string; overlap_pct: number }[] = [];

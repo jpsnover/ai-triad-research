@@ -125,8 +125,18 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('');
       }
       lines.push('');
-      lines.push(entry.content);
-      lines.push('');
+      if (entry.type === 'probing') {
+        // Ensure each numbered question is separated by a blank line for pandoc
+        const questions = entry.content.split(/\n(?=\*?\d+\.\s)/);
+        for (const q of questions) {
+          lines.push(q.trim());
+          lines.push('');
+        }
+      } else {
+        // Escape @ mentions so pandoc doesn't treat them as citations
+        lines.push(entry.content.replace(/@/g, '\\@'));
+        lines.push('');
+      }
 
       if (entry.taxonomy_refs.length > 0) {
         lines.push(`*Refs:* ${entry.taxonomy_refs.map(r => `\`${r.node_id}\``).join(', ')}`);
@@ -186,10 +196,10 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('');
         for (const c of cruxes) {
           lines.push(`- ${c.question}${c.type ? ` [${c.type}]` : ''}`);
-          if (c.if_yes) lines.push(`  - If yes: ${c.if_yes}`);
-          if (c.if_no) lines.push(`  - If no: ${c.if_no}`);
+          if (c.if_yes) lines.push(`    - If yes: ${c.if_yes}`);
+          if (c.if_no) lines.push(`    - If no: ${c.if_no}`);
+          lines.push('');
         }
-        lines.push('');
       }
 
       // Unresolved Questions
@@ -197,7 +207,10 @@ export function formatDebateMarkdown(session: DebateSession): string {
       if (unresolved?.length) {
         lines.push('### Unresolved Questions');
         lines.push('');
-        for (const q of unresolved) lines.push(`- ${q}`);
+        for (const q of unresolved) {
+          lines.push(`- ${q}`);
+          lines.push('');
+        }
         lines.push('');
       }
 

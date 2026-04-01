@@ -352,6 +352,9 @@ interface TaxonomyState {
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
 
+  paneSpacing: 'normal' | 'concise';
+  setPaneSpacing: (spacing: 'normal' | 'concise') => void;
+
   zoomLevel: number;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -820,7 +823,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     if (!hasPovFilter || povScopes.has('conflicts')) {
       if (!hasAspectFilter) {
         for (const conflict of state.conflicts) {
-          const notes = conflict.human_notes.map(n => n.note).join(' | ');
+          const notes = (conflict.human_notes || []).map((n: { note: string }) => n.note).join(' | ');
           ids.push(conflict.claim_id);
           texts.push(
             `[conflict] Status: ${conflict.status}\nID: ${conflict.claim_id}\nClaim: ${conflict.claim_label}\nDescription: ${conflict.description}${notes ? `\nNotes: ${notes}` : ''}`,
@@ -845,12 +848,17 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       let cache = state.embeddingCache;
 
       if (state.embeddingDirty || cache.size === 0) {
+        console.log('[semantic-search] Building embedding texts...');
         const { ids, texts } = state.buildEmbeddingTexts(povScopes, aspectScopes);
+        console.log(`[semantic-search] Built ${ids.length} texts for embedding`);
         if (texts.length === 0) {
           set({ semanticResults: [], embeddingLoading: false });
           return;
         }
-        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
+        console.log('[semantic-search] Computing embeddings...');
+        const result = await window.electronAPI.computeEmbeddings(texts, ids);
+        console.log('[semantic-search] computeEmbeddings returned:', result ? `vectors: ${result.vectors?.length}` : 'null/undefined');
+        const { vectors } = result;
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
           cache.set(ids[i], vectors[i]);
@@ -858,11 +866,21 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         set({ embeddingCache: cache, embeddingDirty: false });
       }
 
-      const { vector } = await window.electronAPI.computeQueryEmbedding(query);
+      console.log(`[semantic-search] Computing query embedding for: "${query}"`);
+      const qResult = await window.electronAPI.computeQueryEmbedding(query);
+      console.log('[semantic-search] computeQueryEmbedding returned:', qResult ? `vector length: ${qResult.vector?.length}` : 'null/undefined');
+      const { vector } = qResult;
       const results = rankBySimilarity(vector, cache, 0.3, 25);
+      console.log(`[semantic-search] Found ${results.length} results above threshold`);
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
-      set({ embeddingLoading: false, embeddingError: mapErrorToUserMessage(err) });
+      console.error('[semantic-search] Error during semantic search for query "' + query + '":', err);
+      const detail = mapErrorToUserMessage(err);
+      set({
+        semanticResults: [],
+        embeddingLoading: false,
+        embeddingError: `Semantic search failed while computing embeddings for "${query}". ${detail}`,
+      });
     }
   },
 
@@ -1584,6 +1602,15 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   setColorScheme: (scheme) => {
     applyTheme(scheme);
     set({ colorScheme: scheme });
+  },
+
+  paneSpacing: (() => {
+    try { return (localStorage.getItem('taxonomy-editor-pane-spacing') as 'normal' | 'concise') || 'normal'; } catch { return 'normal' as const; }
+  })(),
+  setPaneSpacing: (spacing) => {
+    try { localStorage.setItem('taxonomy-editor-pane-spacing', spacing); } catch { /* ignore */ }
+    document.documentElement.setAttribute('data-pane-spacing', spacing);
+    set({ paneSpacing: spacing });
   },
 
   zoomLevel: (() => {

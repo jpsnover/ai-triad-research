@@ -2,11 +2,14 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
-import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge, PolicyRegistryEntry } from '../types/types';
+import type { SourceInfo, PipelineSummary, TaxonomyNode, SelectedKeyPoint, Theme, PotentialEdge, PolicyRegistryEntry, EnrichmentState, EnrichmentProgress, FullTaxonomyNode } from '../types/types';
 import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import type { SemanticResult } from '../utils/similarity';
 import { buildPotentialEdgesSystemPrompt, buildPotentialEdgesUserPrompt } from '../prompts/potentialEdges';
+import { buildHierarchyPlacementSystemPrompt, buildHierarchyPlacementUserPrompt } from '../prompts/hierarchyPlacement';
+import { buildAttributeExtractionSystemPrompt, buildAttributeExtractionUserPrompt } from '../prompts/attributeExtraction';
+import { buildEdgeDiscoverySystemPrompt, buildEdgeDiscoveryUserPrompt } from '../prompts/edgeDiscovery';
 import type { AIBackend, AIModel } from './aiModels';
 import { getStoredBackend, getStoredModel, storeBackend, storeModel, DEFAULT_MODELS } from './aiModels';
 
@@ -45,6 +48,9 @@ interface SummaryViewerState {
   potentialEdgesLoading: boolean;
   potentialEdgesError: string | null;
 
+  // Enrichment pipeline
+  enrichment: Map<string, EnrichmentState>;
+
   // AI settings
   aiBackend: AIBackend;
   aiModel: AIModel;
@@ -66,6 +72,7 @@ interface SummaryViewerState {
   setSimilarThreshold: (t: number) => void;
   runPotentialEdges: (concept: { label: string; description: string; pov: string; category: string }) => Promise<void>;
   clearPotentialEdges: () => void;
+  runEnrichmentPipeline: (nodeId: string, pov: string, category: string, docId?: string, label?: string, description?: string) => Promise<void>;
 }
 
 export const useStore = create<SummaryViewerState>((set, get) => ({
@@ -91,6 +98,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   potentialEdges: null,
   potentialEdgesLoading: false,
   potentialEdgesError: null,
+  enrichment: new Map(),
 
   aiBackend: getStoredBackend(),
   aiModel: getStoredModel(),
@@ -211,6 +219,35 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
   },
 
   addToTaxonomy: async (pov: string, category: string, label: string, description: string, interpretations?: { accelerationist: string; safetyist: string; skeptic: string }, docId?: string, conceptIndex?: number) => {
+    // Semantic dedup: check if a near-duplicate node already exists via embedding similarity
+    try {
+      let cache = get().embeddingCache;
+      if (cache.size === 0) {
+        const loaded = await window.electronAPI.loadEmbeddings();
+        if (loaded && Object.keys(loaded).length > 0) {
+          cache = new Map<string, number[]>(Object.entries(loaded));
+          set({ embeddingCache: cache });
+        }
+      }
+      if (cache.size > 0) {
+        const queryText = `${label}: ${description}`;
+        const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
+        const matches = rankBySimilarity(queryVector, cache, 0.85, 1);
+        if (matches.length > 0) {
+          const match = matches[0];
+          const taxonomy = get().taxonomy;
+          const matchNode = taxonomy[match.id];
+          const matchLabel = matchNode?.label ?? match.id;
+          console.log(`[addToTaxonomy] Semantic near-duplicate detected: "${label}" ≈ "${matchLabel}" (${match.id}, score ${match.score.toFixed(3)}). Using existing node.`);
+          // Return the existing node instead of creating a duplicate
+          return { success: true, nodeId: match.id };
+        }
+      }
+    } catch (err) {
+      // Dedup check failed — proceed with creation (better to risk a duplicate than block the user)
+      console.warn('[addToTaxonomy] Semantic dedup check failed, proceeding with creation:', err);
+    }
+
     const result = await window.electronAPI.addTaxonomyNode({ pov, category, label, description, interpretations, docId, conceptIndex }) as { success: boolean; nodeId: string; error?: string };
     if (result.success) {
       // Reload taxonomy and summaries to reflect the resolved concept
@@ -230,8 +267,10 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       }
 
       // Invalidate embedding cache so next similar search reloads from file
-      // (the new node's embedding will be available after Update-TaxEmbeddings)
       set({ embeddingCache: new Map() });
+
+      // Fire enrichment pipeline in the background (no await)
+      get().runEnrichmentPipeline(result.nodeId, pov, category, docId, label, description);
     }
     return result;
   },
@@ -322,5 +361,256 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
   clearPotentialEdges: () => {
     set({ potentialEdgesQuery: null, potentialEdges: null, potentialEdgesLoading: false, potentialEdgesError: null });
+  },
+
+  runEnrichmentPipeline: async (nodeId: string, pov: string, category: string, docId?: string, label?: string, description?: string) => {
+    const STEPS: EnrichmentProgress[] = [
+      { step: 'source_linking', status: 'pending' },
+      { step: 'parent_placement', status: 'pending' },
+      { step: 'attribute_extraction', status: 'pending' },
+      { step: 'edge_discovery', status: 'pending' },
+    ];
+
+    const updateStep = (index: number, status: EnrichmentProgress['status'], error?: string) => {
+      set(state => {
+        const enrichment = new Map(state.enrichment);
+        const entry = enrichment.get(nodeId);
+        if (entry) {
+          const steps = [...entry.steps];
+          steps[index] = { ...steps[index], status, error };
+          enrichment.set(nodeId, { ...entry, steps });
+        }
+        return { enrichment };
+      });
+    };
+
+    // Initialize enrichment state
+    set(state => {
+      const enrichment = new Map(state.enrichment);
+      enrichment.set(nodeId, { nodeId, steps: [...STEPS] });
+      return { enrichment };
+    });
+
+    const model = get().aiModel;
+
+    const cleanJson = (raw: string): string =>
+      raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').replace(/,\s*([}\]])/g, '$1');
+
+    // Helper to reload taxonomy into store after writes
+    const reloadTaxonomy = async () => {
+      const taxonomy = await window.electronAPI.loadTaxonomy() as Record<string, TaxonomyNode>;
+      set({ taxonomy });
+    };
+
+    // ── Step 0: Source linking ────────────────────────────────────────────
+    updateStep(0, 'running');
+    try {
+      if (docId) {
+        await window.electronAPI.updateNodeFields(nodeId, { source_refs: [docId] });
+        updateStep(0, 'done');
+      } else {
+        updateStep(0, 'skipped');
+      }
+    } catch (err) {
+      updateStep(0, 'failed', String(err));
+    }
+
+    // ── Step 1: Parent placement ─────────────────────────────────────────
+    updateStep(1, 'running');
+    try {
+      const isCrossCutting = pov === 'cross-cutting';
+      const siblingNodes = await window.electronAPI.getNodesByPovCategory(pov, isCrossCutting ? undefined : category) as FullTaxonomyNode[];
+
+      // Need at least one other node to place under
+      const otherNodes = siblingNodes.filter(n => n.id !== nodeId);
+      if (otherNodes.length === 0) {
+        updateStep(1, 'skipped');
+      } else {
+        const newNode = siblingNodes.find(n => n.id === nodeId);
+        const systemPrompt = buildHierarchyPlacementSystemPrompt();
+        const userPrompt = buildHierarchyPlacementUserPrompt(
+          { id: nodeId, label: label || '', description: description || '', category },
+          otherNodes.map(n => ({
+            id: n.id,
+            label: n.label,
+            description: n.description,
+            category: n.category,
+            parent_id: n.parent_id,
+            children: n.children,
+          })),
+        );
+
+        const raw = await window.electronAPI.generateContent(systemPrompt, userPrompt, model);
+        const parsed = JSON.parse(cleanJson(raw)) as {
+          action: string;
+          parent_id?: string;
+          relationship?: string;
+          rationale?: string;
+          reason?: string;
+        };
+
+        if (parsed.action === 'place' && parsed.parent_id) {
+          // Validate parent exists in siblings
+          const parentExists = otherNodes.some(n => n.id === parsed.parent_id);
+          if (parentExists) {
+            await window.electronAPI.updateNodeFields(nodeId, {
+              parent_id: parsed.parent_id,
+              parent_relationship: parsed.relationship || 'is_a',
+              parent_rationale: parsed.rationale || '',
+            });
+            await reloadTaxonomy();
+          }
+        }
+        updateStep(1, 'done');
+      }
+    } catch (err) {
+      console.error('[Enrichment] Parent placement failed:', err);
+      updateStep(1, 'failed', mapErrorToUserMessage(err));
+    }
+
+    // ── Step 2: Attribute extraction ─────────────────────────────────────
+    updateStep(2, 'running');
+    try {
+      const systemPrompt = buildAttributeExtractionSystemPrompt();
+      const userPrompt = buildAttributeExtractionUserPrompt({
+        id: nodeId,
+        label: label || '',
+        description: description || '',
+        pov,
+        category,
+      });
+
+      const raw = await window.electronAPI.generateContent(systemPrompt, userPrompt, model);
+      const parsed = JSON.parse(cleanJson(raw)) as Record<string, Record<string, unknown>>;
+      const attrs = parsed[nodeId];
+      if (attrs) {
+        await window.electronAPI.updateNodeFields(nodeId, { graph_attributes: attrs });
+        await reloadTaxonomy();
+      }
+      updateStep(2, 'done');
+    } catch (err) {
+      console.error('[Enrichment] Attribute extraction failed:', err);
+      updateStep(2, 'failed', mapErrorToUserMessage(err));
+    }
+
+    // ── Step 3: Edge discovery ───────────────────────────────────────────
+    updateStep(3, 'running');
+    try {
+      const taxonomy = get().taxonomy;
+      const allNodes = Object.entries(taxonomy)
+        .filter(([id]) => id !== nodeId)
+        .map(([id, node]) => {
+          const nodePov = id.startsWith('acc-') ? 'accelerationist'
+            : id.startsWith('saf-') ? 'safetyist'
+            : id.startsWith('skp-') ? 'skeptic'
+            : 'cross-cutting';
+          return { id, label: node.label, description: node.description, pov: nodePov, category: node.category };
+        });
+
+      // Embedding-based pre-filtering
+      let candidates = allNodes;
+      try {
+        let cache = get().embeddingCache;
+        if (cache.size === 0) {
+          const loaded = await window.electronAPI.loadEmbeddings();
+          if (loaded && Object.keys(loaded).length > 0) {
+            cache = new Map<string, number[]>(Object.entries(loaded));
+            set({ embeddingCache: cache });
+          }
+        }
+
+        if (cache.size > 0) {
+          const queryText = `${label || ''}: ${description || ''}`;
+          const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
+          const ranked = rankBySimilarity(queryVector, cache, 0.0, 200);
+
+          // Take top 40 with cross-POV floor (min 4 per non-source POV)
+          const TOP_K = 40;
+          const MIN_PER_POV = 4;
+          const rankedIds = new Set(ranked.map(r => r.id));
+          const selected: string[] = [];
+          const povCounts: Record<string, number> = {};
+
+          // First pass: take top-K by similarity
+          for (const r of ranked) {
+            if (selected.length >= TOP_K) break;
+            if (r.id === nodeId) continue;
+            selected.push(r.id);
+            const rPov = allNodes.find(n => n.id === r.id)?.pov || '';
+            povCounts[rPov] = (povCounts[rPov] || 0) + 1;
+          }
+
+          // Second pass: ensure cross-POV diversity
+          const sourcePov = pov;
+          for (const otherPov of ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting']) {
+            if (otherPov === sourcePov) continue;
+            const count = povCounts[otherPov] || 0;
+            if (count >= MIN_PER_POV) continue;
+            const povNodes = ranked
+              .filter(r => {
+                const rPov = allNodes.find(n => n.id === r.id)?.pov;
+                return rPov === otherPov && !selected.includes(r.id);
+              });
+            for (const r of povNodes) {
+              if ((povCounts[otherPov] || 0) >= MIN_PER_POV) break;
+              selected.push(r.id);
+              povCounts[otherPov] = (povCounts[otherPov] || 0) + 1;
+            }
+          }
+
+          const selectedSet = new Set(selected);
+          candidates = allNodes.filter(n => selectedSet.has(n.id));
+        }
+      } catch {
+        // Embedding filtering failed — fall back to all nodes capped at 80
+        candidates = allNodes.slice(0, 80);
+      }
+
+      // Get source node's graph_attributes for richer context
+      const sourceNodeFull = get().taxonomy[nodeId];
+      const sourceNode = {
+        id: nodeId,
+        label: label || '',
+        description: description || '',
+        pov,
+        category,
+        graph_attributes: sourceNodeFull?.graph_attributes as Record<string, unknown> | undefined,
+      };
+
+      const systemPrompt = buildEdgeDiscoverySystemPrompt();
+      const userPrompt = buildEdgeDiscoveryUserPrompt(sourceNode, candidates);
+
+      const raw = await window.electronAPI.generateContent(systemPrompt, userPrompt, model);
+      const parsed = JSON.parse(cleanJson(raw)) as {
+        source_node_id: string;
+        edges: Array<{
+          type: string; target: string; bidirectional: boolean;
+          confidence: number; rationale: string; strength?: string;
+        }>;
+      };
+
+      // Validate edges
+      const validIds = new Set(Object.keys(taxonomy));
+      const validEdges = (parsed.edges || [])
+        .filter(e => validIds.has(e.target) && e.target !== nodeId && e.confidence >= 0.5)
+        .map(e => ({
+          source: nodeId,
+          target: e.target,
+          type: e.type,
+          bidirectional: e.bidirectional,
+          confidence: e.confidence,
+          rationale: e.rationale,
+          model,
+          strength: e.strength,
+        }));
+
+      if (validEdges.length > 0) {
+        await window.electronAPI.persistEdges(validEdges);
+      }
+      updateStep(3, 'done');
+    } catch (err) {
+      console.error('[Enrichment] Edge discovery failed:', err);
+      updateStep(3, 'failed', mapErrorToUserMessage(err));
+    }
   },
 }));

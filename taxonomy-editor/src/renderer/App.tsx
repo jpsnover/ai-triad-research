@@ -84,15 +84,25 @@ export function App() {
     return <DiagnosticsWindow />;
   }
 
-  // If launched with --diagnostics-file or --harvest-file, render file viewer
+  // Route between CLI file viewer and main app
+  return <AppRouter />;
+}
+
+/** Handles CLI-mode detection — hooks are always called in same order */
+function AppRouter() {
   const [cliMode, setCliMode] = useState<boolean | null>(null);
   useEffect(() => {
     window.electronAPI.getCliFileArg().then(arg => setCliMode(!!arg));
   }, []);
+
   if (cliMode === null) return null; // loading
   if (cliMode) return <FileViewerApp />;
+  return <MainApp />;
+}
 
-  const { activeTab, loading, loadAll, colorScheme, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+/** Main taxonomy editor application */
+function MainApp() {
+  const { activeTab, loading, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
@@ -207,6 +217,11 @@ export function App() {
   useEffect(() => {
     document.documentElement.style.fontSize = `${zoomLevel}%`;
   }, [zoomLevel]);
+
+  // Apply pane spacing
+  useEffect(() => {
+    document.documentElement.setAttribute('data-pane-spacing', paneSpacing);
+  }, [paneSpacing]);
 
   // Zoom keyboard shortcuts: Ctrl+= / Ctrl+- / Ctrl+0
   useEffect(() => {

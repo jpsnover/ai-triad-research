@@ -59,6 +59,32 @@ interface FallacyPanelProps {
   onSelectFallacy?: (key: string | null) => void;
 }
 
+/** Count how many taxonomy nodes reference each fallacy key */
+function getFallacyCounts(): Map<string, number> {
+  const state = useTaxonomyStore.getState();
+  const counts = new Map<string, number>();
+
+  const tally = (attrs: Record<string, unknown> | undefined) => {
+    const pf = attrs?.possible_fallacies;
+    if (!Array.isArray(pf)) return;
+    for (const entry of pf) {
+      if (entry && typeof entry === 'object') {
+        const key = (entry as { fallacy: string }).fallacy;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+  };
+
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    const file = state[pov];
+    if (file) for (const n of file.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
+  }
+  if (state.crossCutting) {
+    for (const n of state.crossCutting.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
+  }
+  return counts;
+}
+
 export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
   const { setToolbarPanel } = useTaxonomyStore();
   const [query, setQuery] = useState('');
@@ -66,11 +92,13 @@ export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const listRef = useRef<HTMLDivElement>(null);
 
+  const fallacyCounts = useMemo(() => getFallacyCounts(), []);
+
   const allEntries = useMemo(() => {
     return Object.entries(FALLACY_CATALOG)
-      .map(([key, entry]) => ({ key, ...entry }))
+      .map(([key, entry]) => ({ key, ...entry, count: fallacyCounts.get(key) || 0 }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, []);
+  }, [fallacyCounts]);
 
   const filtered = useMemo(() => {
     let items = allEntries;
@@ -152,6 +180,9 @@ export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
           >
             <div className="fallacy-panel-item-header">
               <span className="fallacy-panel-item-label">{entry.label}</span>
+              {entry.count > 0 && (
+                <span className="fallacy-panel-item-count">{entry.count}</span>
+              )}
               <span className={`fallacy-panel-item-cat cat-${entry.category}`}>
                 {CATEGORY_LABELS[entry.category]}
               </span>
@@ -199,6 +230,13 @@ export function FallacyDetailPanel({ fallacyKey }: { fallacyKey: string | null }
         <div className="fallacy-detail-label">Description</div>
         <p className="fallacy-detail-text">{entry.description}</p>
       </div>
+
+      {entry.example && (
+        <div className="fallacy-detail-section">
+          <div className="fallacy-detail-label">Example (AI Policy)</div>
+          <p className="fallacy-detail-text" style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>{entry.example}</p>
+        </div>
+      )}
 
       {nodes.length > 0 && (
         <div className="fallacy-detail-section">

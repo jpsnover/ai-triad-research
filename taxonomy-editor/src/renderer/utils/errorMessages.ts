@@ -4,6 +4,16 @@
 export function mapErrorToUserMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
 
+  // API rate limiting — check BEFORE Python errors since chained errors can contain both
+  if (msg.includes('429') || msg.includes('rate limit') || msg.includes('Rate limit')) {
+    return 'API rate limited. Wait a minute and try again, or switch to a different model in Settings.';
+  }
+
+  // API overloaded
+  if (msg.includes('503') || msg.includes('529') || msg.includes('overloaded')) {
+    return 'AI service is temporarily overloaded. Try again in a few seconds.';
+  }
+
   // Python/embedding issues
   if (msg.includes('Python') || msg.includes('python3') || msg.includes('python')) {
     if (msg.includes('not found') || msg.includes('ENOENT') || msg.includes('not installed')) {
@@ -24,16 +34,6 @@ export function mapErrorToUserMessage(err: unknown): string {
       return 'Taxonomy data not found. Check that the data repository is available and .aitriad.json is configured.';
     }
     return `File not found: ${msg.slice(0, 150)}`;
-  }
-
-  // API rate limiting
-  if (msg.includes('429') || msg.includes('rate limit') || msg.includes('Rate limit')) {
-    return 'API rate limited. Wait a minute and try again, or switch to a different model in Settings.';
-  }
-
-  // API overloaded
-  if (msg.includes('503') || msg.includes('529') || msg.includes('overloaded')) {
-    return 'AI service is temporarily overloaded. Try again in a few seconds.';
   }
 
   // No API key

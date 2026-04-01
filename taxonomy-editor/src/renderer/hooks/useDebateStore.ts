@@ -16,9 +16,11 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments } from '../prompts/argumentNetwork';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from '../prompts/argumentNetwork';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis } from '../types/debate';
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantCCNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
+import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
+import { updateConvergenceTracker, swapIssue } from '../utils/convergenceScoring';
 import {
   clarificationPrompt,
   crossCuttingClarificationPrompt,
@@ -38,6 +40,8 @@ import {
   generateId,
   nowISO,
   stripCodeFences,
+  parseAIJson,
+  extractArraysFromPartialJson,
   parseAtMention,
   formatRecentTranscript,
   parsePoverResponse,
@@ -262,6 +266,21 @@ async function extractClaimsAndUpdateAN(
     await get().saveDebate();
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
+
+    // Update convergence tracker
+    const updatedDebate = get().activeDebate;
+    if (updatedDebate?.argument_network) {
+      const getLabelForId = useTaxonomyStore.getState().getLabelForId;
+      const turnNumber = updatedDebate.argument_network.nodes.length;
+      const ct = updateConvergenceTracker(
+        updatedDebate.convergence_tracker,
+        updatedDebate.argument_network,
+        updatedDebate.commitments || {},
+        turnNumber,
+        getLabelForId,
+      );
+      set({ activeDebate: { ...updatedDebate, convergence_tracker: ct } });
+    }
 
     // Record claim extraction diagnostics
     recordDiagnostic(get, set, entryId, {
@@ -503,6 +522,7 @@ function buildOpeningStatementPrompt(
   priorStatements: { speaker: string; statement: string }[],
   sourceContent?: string,
   length: string = 'medium',
+  docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
   let priorBlock = '';
@@ -512,7 +532,7 @@ function buildOpeningStatementPrompt(
       priorBlock += `\n${ps.speaker}:\n${ps.statement}\n`;
     }
   }
-  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0, sourceContent, length);
+  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0, sourceContent, length, docAnalysis);
 }
 
 function buildDebateResponsePrompt(
@@ -524,9 +544,10 @@ function buildDebateResponsePrompt(
   addressing: string,
   sourceContent?: string,
   length: string = 'medium',
+  docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length);
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis);
 }
 
 function buildCrossRespondSelectionPrompt(
@@ -553,9 +574,10 @@ function buildCrossRespondPrompt(
   addressing: string,
   length: string = 'medium',
   sourceContent?: string,
+  docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent);
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis);
 }
 
 function buildDebateSynthesisPrompt(
@@ -616,6 +638,7 @@ interface DebateStore {
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
   debateModel: string | null; // debate-specific model override (null = use global)
+  debateTemperature: number | null; // debate-specific temperature (null = use default 0.3)
   diagnosticsEnabled: boolean;
   selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
   diagPopoutOpen: boolean;
@@ -624,9 +647,10 @@ interface DebateStore {
   toggleDiagnostics: () => void;
   selectDiagEntry: (entryId: string | null) => void;
   setDiagPopoutOpen: (open: boolean) => void;
+  swapConvergenceIssue: (removeId: string, addTaxonomyRef: string, addLabel: string) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number) => Promise<string>;
   createCrossCuttingDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
@@ -683,6 +707,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateActivity: null,
   inspectedNodeId: null,
   debateModel: null,
+  debateTemperature: null,
   diagnosticsEnabled: false,
   selectedDiagEntry: null,
   diagPopoutOpen: false,
@@ -706,6 +731,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
+  swapConvergenceIssue: (removeId, addTaxonomyRef, addLabel) => {
+    const debate = get().activeDebate;
+    if (!debate?.convergence_tracker || !debate.argument_network) return;
+    const turn = debate.argument_network.nodes.length;
+    const ct = swapIssue(
+      debate.convergence_tracker,
+      removeId,
+      addTaxonomyRef,
+      addLabel,
+      debate.argument_network,
+      debate.commitments || {},
+      turn,
+    );
+    set({ activeDebate: { ...debate, convergence_tracker: ct } });
+    get().saveDebate();
+  },
+
   selectDiagEntry: (entryId) => {
     set({ selectedDiagEntry: entryId });
     // Broadcast to popout diagnostics window
@@ -727,7 +769,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId) => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature) => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -752,9 +794,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       generated_with_prompt_version: 'dolce-phase-1',
       debate_model: debateModel || undefined,
       protocol_id: protocolId || 'structured',
+      debate_temperature: debateTemperature ?? undefined,
     };
     await window.electronAPI.saveDebateSession(session);
-    set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null });
+    set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
+    window.electronAPI.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
     return id;
   },
@@ -815,7 +859,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const raw = await window.electronAPI.loadDebateSession(id);
       const session = raw as DebateSession;
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null });
+      // Set temperature on the main process
+      window.electronAPI.setDebateTemperature(session.debate_temperature ?? null);
     } catch (err) {
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
@@ -852,7 +898,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   closeDebate: () => {
-    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null });
+    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null });
+    window.electronAPI.setDebateTemperature(null);
   },
 
   addTranscriptEntry: (entry) => {
@@ -971,10 +1018,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) return;
       let questions: string[];
-      try {
-        const parsed = JSON.parse(stripCodeFences(text));
-        questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : [];
-      } catch {
+      const clarParsed = parseAIJson<{ questions?: string[] } | string[]>(text);
+      if (clarParsed && typeof clarParsed === 'object' && 'questions' in clarParsed && Array.isArray(clarParsed.questions)) {
+        questions = clarParsed.questions.slice(0, 3);
+      } else if (Array.isArray(clarParsed)) {
+        questions = clarParsed.slice(0, 3);
+      } else {
         questions = [text.trim()];
       }
       if (questions.length > 0) {
@@ -1033,12 +1082,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
       if (!isStillValid()) return;
       let refinedTopic: string;
-      try {
-        const parsed = JSON.parse(stripCodeFences(text));
-        refinedTopic = parsed.refined_topic || text.trim();
-      } catch {
-        refinedTopic = text.trim();
-      }
+      const parsed = parseAIJson<{ refined_topic?: string }>(text);
+      refinedTopic = parsed?.refined_topic || text.trim();
 
       get().updateTopic({ refined: refinedTopic, final: refinedTopic });
 
@@ -1055,10 +1100,96 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateGenerating: null });
       await saveDebate();
     }
+
   },
 
   beginDebate: async () => {
     const { activeDebate, updatePhase, saveDebate, addTranscriptEntry } = get();
+
+    // Document pre-analysis: extract i-nodes, tension points, and claims summary
+    // Runs here so it executes whether the user submitted answers or skipped clarification
+    if (activeDebate && !activeDebate.document_analysis &&
+        (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')) {
+      set({ debateGenerating: 'system' as PoverId });
+      const model = getConfiguredModel();
+      const isStillValid = createDebateGuard(get);
+      try {
+        const taxStore = useTaxonomyStore.getState();
+        const taxonomySample = buildTaxonomySample({
+          accelerationist: { nodes: (taxStore.accelerationist?.nodes ?? []) as PovNode[] },
+          safetyist: { nodes: (taxStore.safetyist?.nodes ?? []) as PovNode[] },
+          skeptic: { nodes: (taxStore.skeptic?.nodes ?? []) as PovNode[] },
+          crossCutting: { nodes: (taxStore.crossCutting?.nodes ?? []) as CrossCuttingNode[] },
+          policyRegistry: (taxStore.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action })),
+        });
+
+        const activePovers = activeDebate.active_povers
+          .filter(p => p !== 'user')
+          .map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.pov)
+          .filter(Boolean);
+
+        const analysisPrompt = documentAnalysisPrompt(
+          activeDebate.source_content,
+          activeDebate.topic.final,
+          activePovers,
+          taxonomySample,
+        );
+
+        const { text: analysisText } = await generateTextWithProgress(
+          analysisPrompt, model, `Analyzing document claims (${model})`, set,
+        );
+        if (!isStillValid()) return;
+
+        const analysis = parseAIJson<DocumentAnalysis>(analysisText);
+        if (analysis && analysis.i_nodes && analysis.i_nodes.length > 0) {
+          addTranscriptEntry({
+            type: 'system',
+            speaker: 'system',
+            content: `Document analysis complete: ${analysis.i_nodes.length} claims extracted, ${analysis.tension_points.length} tension points identified.\n\n${analysis.claims_summary}`,
+            taxonomy_refs: [],
+          });
+
+          // Seed argument network with document i-nodes
+          const debate = get().activeDebate;
+          if (debate) {
+            const existingAN = debate.argument_network ?? { nodes: [], edges: [] };
+            const lastEntry = debate.transcript.slice(-1)[0];
+            const sourceEntryId = lastEntry?.id ?? '';
+            const docNodes: ArgumentNetworkNode[] = analysis.i_nodes.map(inode => ({
+              id: inode.id,
+              text: inode.text,
+              speaker: 'document' as ArgumentNetworkNode['speaker'],
+              source_entry_id: sourceEntryId,
+              taxonomy_refs: inode.taxonomy_refs,
+              turn_number: 0,
+            }));
+
+            set({
+              activeDebate: {
+                ...debate,
+                document_analysis: analysis,
+                argument_network: {
+                  nodes: [...existingAN.nodes, ...docNodes],
+                  edges: [...existingAN.edges],
+                },
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[debate] Document analysis failed:', err);
+        addTranscriptEntry({
+          type: 'system',
+          speaker: 'system',
+          content: `Document analysis skipped: ${mapErrorToUserMessage(err)}`,
+          taxonomy_refs: [],
+        });
+      } finally {
+        set({ debateGenerating: null });
+        await saveDebate();
+      }
+    }
+
     updatePhase('opening');
 
     // Initialize opening order with a random shuffle of active AI POVers
@@ -1112,10 +1243,19 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
         speakerClaims,
       );
+      const allANNodes = (get().activeDebate?.argument_network?.nodes || []).map(n => ({
+        id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+      }));
+      const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
       const edgeBlock = formatDebaterEdgeContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock;
 
-      const prompt = buildOpeningStatementPrompt(poverId, topic, taxonomyBlock, priorStatements, activeDebate.source_content || undefined, get().responseLength);
+      const docAnalysis = activeDebate.document_analysis;
+      const prompt = buildOpeningStatementPrompt(
+        poverId, topic, taxonomyBlock, priorStatements,
+        docAnalysis ? undefined : (activeDebate.source_content || undefined),
+        get().responseLength, docAnalysis,
+      );
 
       try {
         const t0 = Date.now();
@@ -1272,12 +1412,17 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         get().activeDebate?.commitments?.[poverId] || { asserted: [], conceded: [], challenged: [] },
         speakerClaims,
       );
+      const allANNodes = (get().activeDebate?.argument_network?.nodes || []).map(n => ({
+        id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+      }));
+      const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
       const edgeBlock = formatDebaterEdgeContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock;
 
       // Use the most current transcript (includes responses from prior POVers in this round)
       const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
 
+      const drDocAnalysis = activeDebate.document_analysis;
       const prompt = buildDebateResponsePrompt(
         poverId,
         topic,
@@ -1285,8 +1430,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         currentTranscript,
         cleanedInput,
         targets.length > 0 ? poverId : 'all',
-        activeDebate.source_content || undefined,
+        drDocAnalysis ? undefined : (activeDebate.source_content || undefined),
         get().responseLength,
+        drDocAnalysis,
       );
 
       try {
@@ -1369,20 +1515,19 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const { text } = await generateTextWithProgress(selectionPrompt, model, `Selecting next responder (${model})`, set);
       if (!isStillValid()) return;
-      try {
-        const parsed = JSON.parse(stripCodeFences(text));
-
+      const modParsed = parseAIJson<{ responder?: string; focus_point?: string; addressing?: string; agreement_detected?: boolean }>(text);
+      if (modParsed) {
         // Map the label back to a PoverId
-        const responderName = (parsed.responder || '').toLowerCase();
+        const responderName = (modParsed.responder || '').toLowerCase();
         responderPover = aiPovers.find((p) =>
           POVER_INFO[p].label.toLowerCase() === responderName,
         ) ?? null;
 
-        focusPoint = parsed.focus_point || '';
-        addressingLabel = parsed.addressing || 'general';
+        focusPoint = modParsed.focus_point || '';
+        addressingLabel = modParsed.addressing || 'general';
 
         // If agreement detected, add a system note and stop
-        if (parsed.agreement_detected) {
+        if (modParsed.agreement_detected) {
           addTranscriptEntry({
             type: 'system',
             speaker: 'system',
@@ -1393,7 +1538,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           await saveDebate();
           return;
         }
-      } catch {
+      } else {
         // Fallback: pick the POVer who spoke least recently
         const lastSpeaker = [...activeDebate.transcript].reverse().find(
           (e) => e.type === 'statement' || e.type === 'opening',
@@ -1421,9 +1566,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
       speakerClaims,
     );
+    const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
+      id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+    }));
+    const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
     const edgeBlock = formatDebaterEdgeContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + edgeBlock;
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock;
 
+    const crDocAnalysis = activeDebate.document_analysis;
     const prompt = buildCrossRespondPrompt(
       responderPover,
       topic,
@@ -1432,7 +1582,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       focusPoint,
       addressingLabel,
       get().responseLength,
-      activeDebate.source_content || undefined,
+      crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+      crDocAnalysis,
     );
 
     try {
@@ -1495,15 +1646,28 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set, 180_000);
       if (!isStillValid()) return;
 
-      let synthesis;
-      try {
-        synthesis = JSON.parse(stripCodeFences(text));
-      } catch {
-        synthesis = { areas_of_agreement: [], areas_of_disagreement: [], unresolved_questions: [text.trim()], taxonomy_coverage: [] };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let synthesis: any = parseAIJson(text);
+      if (!synthesis) {
+        // Synthesis responses are often truncated by token limits.
+        // Salvage complete top-level arrays from the partial JSON.
+        const stripped = stripCodeFences(text);
+        const salvaged = extractArraysFromPartialJson(stripped);
+        const hasData = Object.values(salvaged).some(v => Array.isArray(v) && v.length > 0);
+        if (hasData) {
+          synthesis = salvaged;
+        } else {
+          synthesis = { _raw_text: stripped, areas_of_agreement: [], areas_of_disagreement: [], unresolved_questions: [], taxonomy_coverage: [] };
+        }
       }
 
       // Build readable content
       const lines: string[] = [];
+      if (synthesis._raw_text) {
+        lines.push('*Synthesis could not be parsed as structured data. Raw output:*');
+        lines.push('');
+        lines.push(synthesis._raw_text);
+      }
       if (synthesis.areas_of_agreement?.length > 0) {
         lines.push('**Areas of Agreement:**');
         for (const a of synthesis.areas_of_agreement) {
@@ -1662,11 +1826,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Generating probing questions (${model})`, set);
       if (!isStillValid()) return;
 
-      let questions: { text: string; targets: string[] }[] = [];
-      try {
-        const parsed = JSON.parse(stripCodeFences(text));
-        questions = Array.isArray(parsed.questions) ? parsed.questions : [];
-      } catch {
+      type ProbingQ = { text: string; targets: string[] };
+      let questions: ProbingQ[] = [];
+      const probParsed = parseAIJson<{ questions?: ProbingQ[] } | ProbingQ[]>(text);
+      if (probParsed && typeof probParsed === 'object' && 'questions' in probParsed && Array.isArray(probParsed.questions)) {
+        questions = probParsed.questions;
+      } else if (Array.isArray(probParsed)) {
+        questions = probParsed;
+      }
+      if (questions.length === 0) {
         questions = [{ text: text.trim(), targets: [] }];
       }
 
@@ -1776,10 +1944,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
       if (!isStillValid()) return;
 
-      let result;
-      try {
-        result = JSON.parse(stripCodeFences(text));
-      } catch {
+      let result = parseAIJson<{ verdict?: string; explanation?: string; sources?: unknown[] }>(text);
+      if (!result) {
         result = { verdict: 'unverifiable', explanation: text.trim(), sources: [] };
       }
 
@@ -1873,12 +2039,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (!isStillValid()) return;
 
       let summary: string;
-      try {
-        const parsed = JSON.parse(stripCodeFences(text));
-        summary = parsed.summary || text.trim();
-      } catch {
-        summary = text.trim();
-      }
+      const compParsed = parseAIJson<{ summary?: string }>(text);
+      summary = compParsed?.summary || text.trim();
 
       const lastCompressedEntry = toCompress[toCompress.length - 1];
       const updatedSummaries = [

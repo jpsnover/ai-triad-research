@@ -217,12 +217,16 @@ Export-ModuleMember -Function @(
     'Invoke-PolicyRefinement'
     'Repair-UnmappedConcepts'
     'Invoke-AITDebate'
+    'Convert-MD2PDF'
+    'Show-Markdown'
     'Show-DebateDiagnostics'
     'Show-DebateHarvest'
+    'Repair-DebateOutput'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
     'POViewer'
     'SummaryViewer'
     'Redo-Snapshots'
+    'Show-MD'
 )

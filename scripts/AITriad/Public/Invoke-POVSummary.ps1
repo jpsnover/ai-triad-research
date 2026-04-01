@@ -395,6 +395,23 @@ $snapshotText
         }
     }
 
+    # -- STEP 6b — Cross-POV fuzzy match on unmapped concepts ------------------
+    if ($summaryObject.unmapped_concepts -and @($summaryObject.unmapped_concepts).Count -gt 0) {
+        Write-Step "Fuzzy-matching unmapped concepts against all taxonomy nodes"
+        $resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($summaryObject.unmapped_concepts)
+        if ($resolution.Resolved.Count -gt 0) {
+            foreach ($r in $resolution.Resolved) {
+                Write-OK "  Resolved: '$($r.ConceptLabel)' `u{2192} $($r.MatchedNodeId) '$($r.MatchedNodeLabel)' (score $($r.Score))"
+            }
+            $summaryObject.unmapped_concepts = $resolution.Remaining
+            $unmappedConceptCount = $resolution.Remaining.Count
+            Write-OK "  $($resolution.Resolved.Count) concept(s) resolved, $unmappedConceptCount remaining unmapped"
+        }
+        else {
+            Write-Info "  No fuzzy matches found — all $unmappedConceptCount concept(s) remain unmapped"
+        }
+    }
+
     # -- STEP 7 — Write summary file ------------------------------------------
     Write-Step "Writing summary file"
 

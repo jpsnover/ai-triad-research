@@ -13,9 +13,10 @@ const AIF_TOOLTIPS = {
   'PA': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
 
-function speakerLabel(speaker: PoverId | 'system'): string {
+function speakerLabel(speaker: PoverId | 'system' | 'document'): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
+  if (speaker === 'document') return 'Document';
   return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 }
 

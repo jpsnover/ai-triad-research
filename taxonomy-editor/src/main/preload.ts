@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateText: (prompt: string, model?: string, timeoutMs?: number): Promise<{ text: string }> =>
     ipcRenderer.invoke('generate-text', prompt, model, timeoutMs),
 
+  setDebateTemperature: (temp: number | null): Promise<void> =>
+    ipcRenderer.invoke('set-debate-temperature', temp),
   generateTextWithSearch: (prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> =>
     ipcRenderer.invoke('generate-text-with-search', prompt, model),
 

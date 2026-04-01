@@ -427,6 +427,24 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
             </div>
           )}
 
+          {/* Intellectual Lineage — full width */}
+          {attrs.intellectual_lineage && attrs.intellectual_lineage.length > 0 && (
+            <div className="ga-cell ga-cell-full">
+              <div className="ga-label">{LABEL_MAP.intellectual_lineage}</div>
+              <div className="ga-value" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {attrs.intellectual_lineage.map((item, i) => (
+                  <Badge
+                    key={i}
+                    field="intellectual_lineage"
+                    value={item}
+                    onClick={onBadgeClick}
+                    onContextMenu={contextMenuHandler}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Possible Fallacies — full width */}
           {attrs.possible_fallacies && attrs.possible_fallacies.length > 0 && (
             <div className="ga-cell ga-cell-full">
@@ -453,6 +471,13 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                         )}
                       </div>
                       <div className="ga-fallacy-explanation">{f.explanation}</div>
+                      {info && (
+                        <details className="ga-fallacy-details">
+                          <summary>What is this fallacy?</summary>
+                          <div className="ga-fallacy-description">{info.description}</div>
+                          {info.example && <div className="ga-fallacy-example"><strong>Example:</strong> {info.example}</div>}
+                        </details>
+                      )}
                     </li>
                   );
                 })}

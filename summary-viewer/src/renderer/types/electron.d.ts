@@ -41,6 +41,11 @@ export interface ElectronAPI {
   generateContent: (systemPrompt: string, userPrompt: string, model?: string) => Promise<string>;
   openInTaxonomyEditor: (nodeId: string) => Promise<{ ok: boolean; error?: string }>;
   onMenuSettings: (callback: () => void) => () => void;
+
+  // Enrichment pipeline
+  updateNodeFields: (nodeId: string, fields: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+  persistEdges: (edges: unknown[]) => Promise<{ success: boolean; count: number; error?: string }>;
+  getNodesByPovCategory: (pov: string, category?: string) => Promise<unknown[]>;
 }
 
 declare global {
