@@ -22,6 +22,7 @@ export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
 export * from './schemas';
+export * from './validators';
 
 // ── Situations Migration Normalizers ──────────────────────
 
