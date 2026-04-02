@@ -13,10 +13,14 @@ import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { SearchPanel } from './SearchPanel';
-import { PromptsPanel } from './PromptsPanel';
+import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import type { PromptCatalogEntry } from '../data/promptCatalog';
+import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { FallacyPanel } from './FallacyPanel';
 import { EdgeBrowser } from './EdgeBrowser';
 import { TerminalPanel } from './TerminalPanel';
+import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
+import { PolicyDashboard } from './PolicyDashboard';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 
@@ -66,6 +70,8 @@ export function DebateTab() {
     inspectedNodeId, inspectNode,
   } = useDebateStore();
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { attributeInfo, attributeFilter, toolbarPanel } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
@@ -138,13 +144,15 @@ export function DebateTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
-        <div className="list-panel" style={{ width }}>
+        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
           {toolbarPanel === 'search' && <SearchPanel onSelectResult={(id) => setSearchPreviewId(id)} />}
-          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={() => {}} />}
+          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
           {toolbarPanel === 'edges' && <EdgeBrowser />}
           {toolbarPanel === 'console' && <TerminalPanel />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console'].includes(toolbarPanel) && (
+          {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
+          {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard'].includes(toolbarPanel) && (
             <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
           )}
         </div>
@@ -244,6 +252,15 @@ export function DebateTab() {
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
             {renderSearchPreview()}
+          </div>
+        </>
+      )}
+
+      {toolbarPanel === 'prompts' && !promptInspectorActive && (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <PromptDetailPanel entry={selectedPromptEntry} />
           </div>
         </>
       )}

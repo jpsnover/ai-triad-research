@@ -196,6 +196,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickDocumentFile: (): Promise<{ cancelled: boolean; filePath?: string; content?: string }> =>
     ipcRenderer.invoke('pick-document-file'),
 
+  // Clipboard (Electron 40: renderer clipboard API deprecated)
+  clipboardWriteText: (text: string): Promise<void> =>
+    ipcRenderer.invoke('clipboard-write-text', text),
+
   // Terminal
   terminalSpawn: (): Promise<void> =>
     ipcRenderer.invoke('terminal:spawn'),

@@ -34,3 +34,12 @@ Recurring failure patterns and how to prevent them. Maintained by the Sage agent
 **Root Cause:** The agent changing the function did not grep for cross-scope test files asserting on its output strings. The tests were in another profile's scope, so they weren't in the natural "change + verify" loop.
 **Prevention:** When changing any shared function's output format: (1) grep the entire repo for test files that assert on the old output strings — `grep -r "OLD_HEADER" --include="*.test.*"`, (2) update or flag those tests in the same commit, even if they're outside your scope — your changes caused the breakage so you own the fix (per AGENTS.md collaboration rules), (3) run the affected test suite before committing.
 **Applies To:** All profiles, especially Shared Lib and any profile owning functions consumed cross-scope.
+
+## [Build] UI Regressions After Major Dependency Upgrade (Electron)
+
+**Pattern:** Major framework upgrades (Electron, React, Vite) introduce UI regressions — panels render blank, unexpected UI elements appear — that are not caught until a human visually inspects the app.
+**Instances:**
+- 2026-04-02: Electron 41 upgrade caused edge browser, policy alignment, and policy dashboard to render blank; console panel gained an unwanted chat detail pane. Discovered by user before formal regression testing completed (p/19#3).
+**Root Cause:** Pending — initial report, root cause analysis in progress. Likely candidates: breaking changes in Electron 41's renderer process, webContents API, or CSS defaults; or concurrent feature work (Situations migration, RE changes) conflicting with the upgrade.
+**Prevention:** For major dependency upgrades: (1) complete a visual regression checklist of all panels/views *before* merging — automated tests catch logic errors but miss rendering blank, (2) do not bundle unrelated feature work into the same build as the upgrade — isolate the upgrade so regressions are clearly attributable, (3) maintain a "smoke test" list of every panel/view in the app to manually verify after upgrades.
+**Applies To:** All profiles working on Electron apps, especially SRE and Technical Lead during upgrades.

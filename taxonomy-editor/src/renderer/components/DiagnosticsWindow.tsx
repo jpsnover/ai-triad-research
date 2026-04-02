@@ -61,7 +61,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={(e) => {
         e.stopPropagation();
-        navigator.clipboard.writeText(text);
+        window.electronAPI.clipboardWriteText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}

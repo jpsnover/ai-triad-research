@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ipcMain, shell, dialog, BrowserWindow } from 'electron';
+import { ipcMain, shell, dialog, BrowserWindow, clipboard } from 'electron';
 import fs from 'fs';
 import { execFile } from 'child_process';
 import {
@@ -312,6 +312,11 @@ export function registerIpcHandlers(): void {
     if (/^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+  });
+
+  // Clipboard (Electron 40: renderer clipboard API deprecated → use main process)
+  ipcMain.handle('clipboard-write-text', (_event, text: string) => {
+    clipboard.writeText(text);
   });
 
   ipcMain.handle('build-node-source-index', () => {

@@ -54,6 +54,7 @@ export function PovTab({ pov }: PovTabProps) {
   // Clear pane 3 webview when a different lineage value is selected in pane 1
   useEffect(() => { setLineageLinkUrl(null); }, [lineagePreviewValue]);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
   const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
   const handleSelectFallacy = useCallback((key: string | null) => setSelectedFallacyKey(key), []);
@@ -283,7 +284,7 @@ export function PovTab({ pov }: PovTabProps) {
       case 'lineage':
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
       case 'prompts':
-        return <PromptsPanel onSelectPrompt={handleSelectPrompt} />;
+        return <PromptsPanel onSelectPrompt={handleSelectPrompt} onInspectorToggle={setPromptInspectorActive} />;
       case 'fallacy':
         return <FallacyPanel onSelectFallacy={handleSelectFallacy} />;
       case 'console':
@@ -313,6 +314,10 @@ export function PovTab({ pov }: PovTabProps) {
           <EdgeBrowser />
         </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? (
+        <div className="list-panel list-panel-full">
+          {renderToolbarPane()}
+        </div>
+      ) : (hasToolbarPane && toolbarPanel === 'prompts' && promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -359,7 +364,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -376,11 +381,12 @@ export function PovTab({ pov }: PovTabProps) {
           )}
         </div>
       ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? null
-      : toolbarPanel === 'prompts' ? (
+      : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />
         </div>
-      ) : toolbarPanel === 'fallacy' ? (
+      )
+      : toolbarPanel === 'prompts' ? null : toolbarPanel === 'fallacy' ? (
         <div className="detail-panel">
           <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
         </div>

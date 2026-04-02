@@ -496,7 +496,7 @@ function DebateContextMenu({
   }, [onClose]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(menu.selectedText);
+    window.electronAPI.clipboardWriteText(menu.selectedText);
     onClose();
   };
 

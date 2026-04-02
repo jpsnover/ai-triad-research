@@ -48,6 +48,7 @@ import {
 } from '@lib/debate/helpers';
 import { normalizeBdiLayer } from '@lib/debate';
 import type { PoverResponseMeta } from '@lib/debate/helpers';
+import { usePromptConfigStore } from './usePromptConfigStore';
 
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
@@ -874,6 +875,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
       set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null });
+      // Load prompt config from session (Phase B)
+      usePromptConfigStore.getState().loadSessionConfig(
+        (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
+      );
       // Set temperature on the main process
       window.electronAPI.setDebateTemperature(session.debate_temperature ?? null);
     } catch (err) {
@@ -914,6 +919,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   closeDebate: () => {
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null });
     window.electronAPI.setDebateTemperature(null);
+    usePromptConfigStore.getState().resetSession();
   },
 
   addTranscriptEntry: (entry) => {
@@ -990,6 +996,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate } = get();
     if (!activeDebate) return;
     try {
+      // Persist prompt config overrides with session (Phase B)
+      const promptConfig = usePromptConfigStore.getState().exportSessionConfig();
+      if (Object.keys(promptConfig).length > 0) {
+        (activeDebate as Record<string, unknown>).prompt_config = promptConfig;
+      }
       await window.electronAPI.saveDebateSession(activeDebate);
       set((state) => ({
         sessions: state.sessions.map((s) =>

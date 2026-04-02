@@ -19,12 +19,18 @@ import { PromptInspector } from './PromptInspector';
 
 interface PromptsPanelProps {
   onSelectPrompt: (entry: PromptCatalogEntry | null) => void;
+  onInspectorToggle?: (active: boolean) => void;
 }
 
 type PromptsPanelTab = 'catalog' | 'inspector';
 
-export function PromptsPanel({ onSelectPrompt }: PromptsPanelProps) {
+export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanelProps) {
   const [panelTab, setPanelTab] = useState<PromptsPanelTab>('catalog');
+
+  const switchTab = (tab: PromptsPanelTab) => {
+    setPanelTab(tab);
+    onInspectorToggle?.(tab === 'inspector');
+  };
   const { selectedNodeId, activeTab } = useTaxonomyStore();
   const selectedNode = useTaxonomyStore((s) => {
     if (!selectedNodeId) return null;
@@ -78,11 +84,11 @@ export function PromptsPanel({ onSelectPrompt }: PromptsPanelProps) {
         <div className="prompts-panel-tabs">
           <button
             className={`prompts-panel-tab ${panelTab === 'catalog' ? 'prompts-panel-tab-active' : ''}`}
-            onClick={() => setPanelTab('catalog')}
+            onClick={() => switchTab('catalog')}
           >Catalog</button>
           <button
             className={`prompts-panel-tab ${panelTab === 'inspector' ? 'prompts-panel-tab-active' : ''}`}
-            onClick={() => setPanelTab('inspector')}
+            onClick={() => switchTab('inspector')}
           >Inspector</button>
         </div>
         <span className="prompts-panel-count">{entries.length}</span>
@@ -173,7 +179,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
     setCopied(false);
     // Auto-copy and focus textarea when Research generates a real prompt
     if (entry?.id === 'research' && selectedNode && text && !text.startsWith('(')) {
-      navigator.clipboard.writeText(text).then(() => {
+      window.electronAPI.clipboardWriteText(text).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }).catch(() => {});
@@ -183,7 +189,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(editText);
+      await window.electronAPI.clipboardWriteText(editText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

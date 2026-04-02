@@ -8,10 +8,14 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewChatDialog } from './NewChatDialog';
 import { ChatWorkspace } from './ChatWorkspace';
 import { SearchPanel } from './SearchPanel';
-import { PromptsPanel } from './PromptsPanel';
+import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import type { PromptCatalogEntry } from '../data/promptCatalog';
+import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { FallacyPanel } from './FallacyPanel';
 import { EdgeBrowser } from './EdgeBrowser';
 import { TerminalPanel } from './TerminalPanel';
+import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
+import { PolicyDashboard } from './PolicyDashboard';
 import { POVER_INFO } from '../types/debate';
 import type { ChatSessionSummary, ChatMode } from '../types/chat';
 
@@ -35,6 +39,8 @@ export function ChatTab() {
   const { width, onMouseDown } = useResizablePanel();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -58,13 +64,15 @@ export function ChatTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
-        <div className="list-panel" style={{ width }}>
+        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
           {toolbarPanel === 'search' && <SearchPanel onSelectResult={() => {}} />}
-          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={() => {}} />}
+          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
           {toolbarPanel === 'edges' && <EdgeBrowser />}
           {toolbarPanel === 'console' && <TerminalPanel />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console'].includes(toolbarPanel) && (
+          {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
+          {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard'].includes(toolbarPanel) && (
             <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
           )}
         </div>
@@ -162,12 +170,23 @@ export function ChatTab() {
         </div>
       )}
 
-      <div className="resize-handle" onMouseDown={onMouseDown} />
-
-      {/* Right pane: Chat workspace */}
-      <div className="detail-panel chat-workspace-container">
-        <ChatWorkspace />
-      </div>
+      {/* Right pane: context-dependent */}
+      {(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
+        : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <PromptDetailPanel entry={selectedPromptEntry} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel chat-workspace-container">
+            <ChatWorkspace />
+          </div>
+        </>
+      )}
 
       {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} />}
     </div>

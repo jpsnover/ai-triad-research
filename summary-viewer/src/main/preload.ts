@@ -73,4 +73,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getNodesByPovCategory: (pov: string, category?: string): Promise<unknown[]> =>
     ipcRenderer.invoke('get-nodes-by-pov-category', pov, category),
+
+  // Clipboard (Electron 40: renderer clipboard API deprecated)
+  clipboardWriteText: (text: string): Promise<void> =>
+    ipcRenderer.invoke('clipboard-write-text', text),
 });

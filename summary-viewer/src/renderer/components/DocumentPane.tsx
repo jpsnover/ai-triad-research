@@ -447,7 +447,7 @@ export default function DocumentPane() {
 
   const handleCopyFromMenu = useCallback(() => {
     if (ctxMenu?.text) {
-      navigator.clipboard.writeText(ctxMenu.text);
+      (window as any).electronAPI.clipboardWriteText(ctxMenu.text);
     }
     setCtxMenu(null);
   }, [ctxMenu]);

@@ -4,6 +4,10 @@ A narrative record of significant decisions, shifts, and milestones. Not a chang
 
 ---
 
+## 2026-04-02 — Prompt Inspector Phase B greenlit
+
+With Phase A's read-only inspector live and Relevance Engineering complete, Phase B (t/72) moves the Prompt Inspector from "see what the AI sees" to "control what the AI sees." Five tickets cover: a sparse `PromptConfig` data model with per-session and workspace-level persistence, backend wiring so config values flow through `formatTaxonomyContext()` and `selectRelevantNodes()`, inline UI controls on each data source card (sliders for cosine thresholds, max counts, BDI category toggles), model and temperature overrides per prompt, and workspace defaults in settings. Volume and token estimates update live as the user adjusts controls. This completes the vision laid out in the original spec (e/9#2) — the steering wheel to Relevance Engineering's engine.
+
 ## 2026-04-02 — Prompt Inspector Phase A shipped
 
 The read-only Prompt Inspector is live. Users can now see exactly what the AI sees — all 27 prompt templates browsable by group (debate setup, debate turns, analysis, moderator, chat, taxonomy, research, PowerShell backend), each showing its data pipeline and raw template with highlighted placeholders. The "Generate Preview" feature assembles a fully rendered prompt using real data from an active debate or chat session, so the user can inspect the exact text before it's sent. This is the transparency layer the project has been missing: until now, prompt assembly was a black box. Phase B (configurable controls for node caps, thresholds, BDI filters) is deferred — it depends on the Relevance Engineering parameters being wired through, which is now complete (t/19), so it's unblocked whenever the team is ready.

@@ -3,7 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { ipcMain } from 'electron';
+import { ipcMain, clipboard } from 'electron';
 import {
   discoverSources,
   loadSummary,
@@ -134,5 +134,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('get-nodes-by-pov-category', (_event, pov: string, category?: string) => {
     return getNodesByPovCategory(pov, category);
+  });
+
+  // Clipboard (Electron 40: renderer clipboard API deprecated)
+  ipcMain.handle('clipboard-write-text', (_event, text: string) => {
+    clipboard.writeText(text);
   });
 }

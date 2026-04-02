@@ -54,7 +54,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       conflict.description,
       instances,
     );
-    await navigator.clipboard.writeText(prompt);
+    await window.electronAPI.clipboardWriteText(prompt);
     setClipboardState('copied');
     setTimeout(() => setClipboardState('idle'), 3000);
   }, [conflict.claim_label, conflict.description, conflict.instances]);

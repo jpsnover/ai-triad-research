@@ -159,7 +159,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   const handleResearchCopy = async () => {
     try {
-      await navigator.clipboard.writeText(researchText);
+      await window.electronAPI.clipboardWriteText(researchText);
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
     } catch { /* ignore */ }
