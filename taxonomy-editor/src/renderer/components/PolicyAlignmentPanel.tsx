@@ -9,14 +9,14 @@ const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
-  'cross-cutting': 'var(--color-cc)',
+  'situations': 'var(--color-sit)',
 };
 
 const POV_LABELS: Record<string, string> = {
   accelerationist: 'Accelerationist',
   safetyist: 'Safetyist',
   skeptic: 'Skeptic',
-  'cross-cutting': 'Cross-Cutting',
+  'situations': 'Situations',
 };
 
 interface PolicyUsage {
@@ -35,7 +35,7 @@ interface SharedPolicy {
 
 export function PolicyAlignmentPanel() {
   const {
-    accelerationist, safetyist, skeptic, crossCutting,
+    accelerationist, safetyist, skeptic, situations,
     policyRegistry, edgesFile, setToolbarPanel,
   } = useTaxonomyStore();
   const [filter, setFilter] = useState<'cross-pov' | 'all-shared'>('cross-pov');
@@ -60,7 +60,7 @@ export function PolicyAlignmentPanel() {
     if (accelerationist) collectFromPov('accelerationist', accelerationist.nodes);
     if (safetyist) collectFromPov('safetyist', safetyist.nodes);
     if (skeptic) collectFromPov('skeptic', skeptic.nodes);
-    if (crossCutting) collectFromPov('cross-cutting', crossCutting.nodes);
+    if (situations) collectFromPov('situations', situations.nodes);
 
     // Build shared policy entries
     const result: SharedPolicy[] = [];
@@ -91,7 +91,7 @@ export function PolicyAlignmentPanel() {
     }
 
     return result.sort((a, b) => b.povs.length - a.povs.length || b.usages.length - a.usages.length);
-  }, [accelerationist, safetyist, skeptic, crossCutting, policyRegistry, edgesFile]);
+  }, [accelerationist, safetyist, skeptic, situations, policyRegistry, edgesFile]);
 
   const filtered = useMemo(() => {
     let list = sharedPolicies;

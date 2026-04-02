@@ -43,11 +43,14 @@ export function generatePovNodeId(
   return `${prefix}${zeroPad(next)}`;
 }
 
-export function generateCrossCuttingId(existingIds: string[]): string {
-  const prefix = 'cc-';
+export function generateSituationId(existingIds: string[]): string {
+  const prefix = 'cc-';  // cc- prefix is stable — do NOT change
   const next = maxSequence(existingIds, prefix) + 1;
   return `${prefix}${zeroPad(next)}`;
 }
+
+/** @deprecated Use generateSituationId */
+export const generateCrossCuttingId = generateSituationId;
 
 export function generateConflictId(
   claimLabel: string,

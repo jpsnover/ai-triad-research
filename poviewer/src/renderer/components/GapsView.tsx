@@ -91,7 +91,7 @@ export default function GapsView() {
           <div className="gaps-section">
             <h4 className="gaps-section-title">Coverage by Camp</h4>
             <div className="gaps-camp-grid">
-              {(['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'] as PovCamp[]).map(camp => {
+              {(['accelerationist', 'safetyist', 'skeptic', 'situations'] as PovCamp[]).map(camp => {
                 const campNodes = Array.from(mappedNodeIds).filter(id => id.startsWith(camp.slice(0, 3)));
                 return (
                   <div key={camp} className="gaps-camp-item">

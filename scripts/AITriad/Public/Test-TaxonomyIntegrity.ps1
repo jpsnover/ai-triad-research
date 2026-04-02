@@ -37,7 +37,7 @@ function Test-TaxonomyIntegrity {
     $Passed = 0
 
     # ── Load all data ──
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $AllNodeIds = [System.Collections.Generic.HashSet[string]]::new()
     $PolicyRefs = @{}          # policy_id -> list of node_ids
     $DuplicateRefs = @()       # nodes with duplicate policy_id refs

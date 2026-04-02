@@ -16,7 +16,7 @@ export type AnalysisStatus =
   | 'complete'
   | 'error';
 
-export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting';
+export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
 export type Alignment = 'agrees' | 'contradicts';
 export type StrengthLevel = 'strong' | 'moderate' | 'weak';
 

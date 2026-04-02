@@ -47,7 +47,7 @@ const TAXONOMY_USAGE_CHAT = `Your taxonomy context provides your worldview organ
 Reference relevant nodes naturally in conversation. Never say "According to taxonomy node X" — instead, make points naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field should be 1-2 sentences explaining how that node informed your response.
 
 Your KNOWN VULNERABILITIES section lists weaknesses — acknowledge them when directly relevant.
-Your CROSS-CUTTING CONCERNS show where your interpretation differs from other perspectives.`;
+Your SITUATIONS show where your interpretation differs from other perspectives.`;
 
 // ── System prompt builder ────────────────────────────────
 

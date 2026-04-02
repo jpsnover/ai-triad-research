@@ -6,7 +6,7 @@ VALID POV TAGS (only use these exact strings):
   accelerationist  — document promotes AI speed, abundance, economic gains, first-mover advantage
   safetyist        — document focuses on existential risk, alignment, oversight, pausing deployment
   skeptic          — document focuses on present harms: bias, labor displacement, surveillance, civil liberties
-  cross-cutting    — document engages concepts used differently by multiple camps (e.g. "harm", "governance")
+  situations    — document engages concepts used differently by multiple camps (e.g. "harm", "governance")
 
 RULES:
 - pov_tags: include ALL camps the document meaningfully engages with. Most documents touch 1-3 camps.
@@ -21,7 +21,7 @@ OUTPUT SCHEMA:
   "title": "string",
   "authors": ["string"],
   "date_published": "yyyy-MM-dd or null",
-  "pov_tags": ["accelerationist|safetyist|skeptic|cross-cutting"],
+  "pov_tags": ["accelerationist|safetyist|skeptic|situations"],
   "topic_tags": ["slug-style-tag"],
   "one_liner": "string"
 }
@@ -31,7 +31,7 @@ EXAMPLE OUTPUT (for a hypothetical document about EU AI regulation):
   "title": "The EU AI Act: Balancing Innovation and Safety in Practice",
   "authors": ["Maria Chen", "Thomas Berg"],
   "date_published": "2026-01-15",
-  "pov_tags": ["safetyist", "skeptic", "cross-cutting"],
+  "pov_tags": ["safetyist", "skeptic", "situations"],
   "topic_tags": ["eu-policy", "regulation", "risk-classification", "compliance", "innovation"],
   "one_liner": "Analyzes how the EU AI Act's risk-based framework affects both safety oversight and startup competitiveness."
 }

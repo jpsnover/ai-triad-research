@@ -10,7 +10,7 @@ const POV_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
-  'cross-cutting': 'var(--color-cc)',
+  'situations': 'var(--color-sit)',
 };
 
 type PolicySourceIndex = Record<string, PolicySourceReference[]>;
@@ -62,8 +62,8 @@ export function PolicyDashboard() {
       const state = useTaxonomyStore.getState();
       const nodeToPolicies = new Map<string, string[]>();
 
-      for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'crossCutting'] as const) {
-        const file = povKey === 'crossCutting' ? state.crossCutting : state[povKey];
+      for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+        const file = povKey === 'situations' ? state.situations : state[povKey];
         if (!file?.nodes) continue;
         for (const node of file.nodes) {
           const ga = (node as { graph_attributes?: { policy_actions?: { policy_id?: string }[] } }).graph_attributes;

@@ -4,10 +4,10 @@
 import { create } from 'zustand';
 import type {
   PovTaxonomyFile,
-  CrossCuttingFile,
+  CrossCuttingFile as SituationsFile,
   ConflictFile,
   PovNode,
-  CrossCuttingNode,
+  CrossCuttingNode as SituationNode,
   GraphAttributes,
   Edge,
   EdgesFile,
@@ -19,7 +19,7 @@ import type {
 } from '../types/taxonomy';
 import {
   povTaxonomyFileSchema,
-  crossCuttingFileSchema,
+  crossCuttingFileSchema as situationsFileSchema,
   conflictFileSchema,
   extractPovErrors,
   extractConflictErrors,
@@ -27,18 +27,20 @@ import {
 } from '../utils/validation';
 import {
   generatePovNodeId,
-  generateCrossCuttingId,
+  generateCrossCuttingId as generateSituationId,
   generateConflictId,
   todayISO,
 } from '../utils/idGenerator';
 import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
+import { normalizeNodeProperties, validateTaxonomy } from '@lib/debate';
+import type { ValidationResult } from '@lib/debate';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
-  | { type: 'cross-cutting'; node: CrossCuttingNode }
+  | { type: 'situations'; node: SituationNode }
   | { type: 'conflict'; conflict: ConflictFile };
 
 export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
@@ -245,7 +247,7 @@ interface TaxonomyState {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
   skeptic: PovTaxonomyFile | null;
-  crossCutting: CrossCuttingFile | null;
+  situations: SituationsFile | null;
   policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
 
@@ -325,9 +327,9 @@ interface TaxonomyState {
   movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => void;
   movePovNode: (sourcePov: Pov, nodeId: string, targetPov: Pov, targetCategory: Category) => void;
 
-  updateCrossCuttingNode: (nodeId: string, updates: Partial<CrossCuttingNode>) => void;
-  createCrossCuttingNode: () => string;
-  deleteCrossCuttingNode: (nodeId: string) => void;
+  updateSituationNode: (nodeId: string, updates: Partial<SituationNode>) => void;
+  createSituationNode: () => string;
+  deleteSituationNode: (nodeId: string) => void;
 
   updateConflict: (claimId: string, updates: Partial<ConflictFile>) => void;
   createConflict: (claimLabel: string) => string;
@@ -390,7 +392,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   accelerationist: null,
   safetyist: null,
   skeptic: null,
-  crossCutting: null,
+  situations: null,
   policyRegistry: null,
   conflicts: [],
 
@@ -736,11 +738,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       ? JSON.stringify(state.edgesFile.edge_types, null, 2)
       : '(edges not loaded)';
 
-    const crossCuttingJson = state.crossCutting
-      ? JSON.stringify(state.crossCutting.nodes.map(n => ({
+    const situationsJson = state.situations
+      ? JSON.stringify(state.situations.nodes.map(n => ({
           id: n.id, label: n.label, description: n.description,
         })), null, 2)
-      : '(cross-cutting not loaded)';
+      : '(situations not loaded)';
 
     const povFile = state[pov];
     const povJson = povFile
@@ -759,7 +761,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
     const prompt = nodeCritiquePrompt({
       edgesJson,
-      crossCuttingJson,
+      crossCuttingJson: situationsJson,
       povJson,
       nodeJson,
       povName: POV_LABELS[pov] || pov,
@@ -809,12 +811,12 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
     }
 
-    if (!hasPovFilter || povScopes.has('cross-cutting')) {
-      if (state.crossCutting && !hasAspectFilter) {
-        for (const node of state.crossCutting.nodes) {
+    if (!hasPovFilter || povScopes.has('situations')) {
+      if (state.situations && !hasAspectFilter) {
+        for (const node of state.situations.nodes) {
           ids.push(node.id);
           texts.push(
-            `[cross-cutting]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+            `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
           );
         }
       }
@@ -938,16 +940,24 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         window.electronAPI.loadTaxonomyFile('accelerationist'),
         window.electronAPI.loadTaxonomyFile('safetyist'),
         window.electronAPI.loadTaxonomyFile('skeptic'),
-        window.electronAPI.loadTaxonomyFile('cross-cutting'),
+        window.electronAPI.loadTaxonomyFile('situations'),
         window.electronAPI.loadConflictFiles(),
         window.electronAPI.loadPolicyRegistry(),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
+      // Situations migration shim: normalize cross_cutting_refs → situation_refs on POV nodes
+      for (const povFile of [acc, saf, skp] as PovTaxonomyFile[]) {
+        if (povFile?.nodes) {
+          for (const node of povFile.nodes) {
+            normalizeNodeProperties(node as unknown as Record<string, unknown>);
+          }
+        }
+      }
       set({
         accelerationist: acc as PovTaxonomyFile,
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
-        crossCutting: cc as CrossCuttingFile,
+        situations: cc as SituationsFile,
         policyRegistry: regData?.policies ?? null,
         conflicts: conflicts as ConflictFile[],
         loading: false,
@@ -975,10 +985,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         if (!result.success) {
           Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
-      } else if (key === 'cross-cutting') {
-        const file = state.crossCutting;
+      } else if (key === 'situations') {
+        const file = state.situations;
         if (!file) continue;
-        const result = crossCuttingFileSchema.safeParse(file);
+        const result = situationsFileSchema.safeParse(file);
         if (!result.success) {
           Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
@@ -997,6 +1007,36 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return;
     }
 
+    // Referential integrity + edge domain/range + BDI consistency checks
+    if (state.accelerationist && state.safetyist && state.skeptic && state.situations) {
+      const taxData = {
+        accelerationist: { nodes: state.accelerationist.nodes },
+        safetyist: { nodes: state.safetyist.nodes },
+        skeptic: { nodes: state.skeptic.nodes },
+        situations: { nodes: state.situations.nodes },
+        edges: state.edgesFile?.edges ?? [],
+      };
+      const integrity: ValidationResult = validateTaxonomy(taxData);
+      const integrityErrors = integrity.issues.filter(i => i.severity === 'error');
+      if (integrityErrors.length > 0) {
+        const errorSummary = integrityErrors
+          .slice(0, 5)
+          .map(i => `[${i.code}] ${i.entityId}: ${i.message} — Fix: ${i.fix}`)
+          .join('\n');
+        set({
+          validationErrors: errors,
+          saveError: `Integrity check failed (${integrityErrors.length} error${integrityErrors.length > 1 ? 's' : ''}):\n${errorSummary}`,
+        });
+        return;
+      }
+      // Warnings are logged but don't block save
+      const integrityWarnings = integrity.issues.filter(i => i.severity === 'warning');
+      if (integrityWarnings.length > 0) {
+        console.warn(`[save] ${integrityWarnings.length} integrity warning(s):`,
+          integrityWarnings.map(i => `${i.code}: ${i.entityId} — ${i.message}`));
+      }
+    }
+
     set({ saveError: null, validationErrors: {} });
 
     try {
@@ -1008,10 +1048,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           if (file) {
             promises.push(window.electronAPI.saveTaxonomyFile(key, file));
           }
-        } else if (key === 'cross-cutting') {
-          const file = state.crossCutting;
+        } else if (key === 'situations') {
+          const file = state.situations;
           if (file) {
-            promises.push(window.electronAPI.saveTaxonomyFile('cross-cutting', file));
+            promises.push(window.electronAPI.saveTaxonomyFile('situations', file));
           }
         } else if (key.startsWith('conflict-')) {
           const conflict = state.conflicts.find(c => c.claim_id === key);
@@ -1034,14 +1074,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
               nodesToEmbed.push({ id: node.id, text: node.description, pov: key });
             }
           }
-        } else if (key === 'cross-cutting') {
-          const file = state.crossCutting;
+        } else if (key === 'situations') {
+          const file = state.situations;
           if (file) {
             for (const node of file.nodes) {
               nodesToEmbed.push({
                 id: node.id,
-                text: `[cross-cutting]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
-                pov: 'cross-cutting',
+                text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+                pov: 'situations',
               });
             }
           }
@@ -1089,7 +1129,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       description: '',
       parent_id: null,
       children: [],
-      cross_cutting_refs: [],
+      situation_refs: [],
     };
     const newFile: PovTaxonomyFile = {
       ...file,
@@ -1168,11 +1208,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const newDirty = new Set(state.dirty);
       newDirty.add(pov);
 
-      // Update cross-cutting linked_nodes
-      let newCrossCutting = state.crossCutting;
-      if (newCrossCutting) {
+      // Update situations linked_nodes
+      let newSituations = state.situations;
+      if (newSituations) {
         let ccChanged = false;
-        const ccNodes = newCrossCutting.nodes.map(n => {
+        const ccNodes = newSituations.nodes.map(n => {
           if (n.linked_nodes.includes(oldId)) {
             ccChanged = true;
             return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
@@ -1180,8 +1220,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           return n;
         });
         if (ccChanged) {
-          newCrossCutting = { ...newCrossCutting, last_modified: todayISO(), nodes: ccNodes };
-          newDirty.add('cross-cutting');
+          newSituations = { ...newSituations, last_modified: todayISO(), nodes: ccNodes };
+          newDirty.add('situations');
         }
       }
 
@@ -1199,7 +1239,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       return {
         [pov]: newFile,
-        crossCutting: newCrossCutting,
+        situations: newSituations,
         conflicts: conflictsChanged ? newConflicts : state.conflicts,
         dirty: newDirty,
         selectedNodeId: newId,
@@ -1253,11 +1293,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       newDirty.add(sourcePov);
       newDirty.add(targetPov);
 
-      // Update cross-cutting linked_nodes
-      let newCrossCutting = state.crossCutting;
-      if (newCrossCutting) {
+      // Update situations linked_nodes
+      let newSituations = state.situations;
+      if (newSituations) {
         let ccChanged = false;
-        const ccNodes = newCrossCutting.nodes.map(n => {
+        const ccNodes = newSituations.nodes.map(n => {
           if (n.linked_nodes.includes(oldId)) {
             ccChanged = true;
             return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
@@ -1265,8 +1305,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           return n;
         });
         if (ccChanged) {
-          newCrossCutting = { ...newCrossCutting, last_modified: todayISO(), nodes: ccNodes };
-          newDirty.add('cross-cutting');
+          newSituations = { ...newSituations, last_modified: todayISO(), nodes: ccNodes };
+          newDirty.add('situations');
         }
       }
 
@@ -1305,13 +1345,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         }
       }
 
-      // Update cross_cutting_refs on POV nodes that referenced old node via cc links
+      // Update situation_refs on POV nodes that referenced old node via cc links
       // (POV nodes reference CC nodes, not other POV nodes, so no update needed there)
 
       return {
         [sourcePov]: { ...sourceFile, last_modified: todayISO(), nodes: newSourceNodes },
         [targetPov]: { ...targetFile, last_modified: todayISO(), nodes: newTargetNodes },
-        crossCutting: newCrossCutting,
+        situations: newSituations,
         conflicts: conflictsChanged ? newConflicts : state.conflicts,
         edgesFile: newEdgesFile,
         dirty: newDirty,
@@ -1321,31 +1361,31 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     });
   },
 
-  updateCrossCuttingNode: (nodeId, updates) => {
+  updateSituationNode: (nodeId, updates) => {
     set((state) => {
-      const file = state.crossCutting;
+      const file = state.situations;
       if (!file) return state;
       const newNodes = file.nodes.map(n =>
         n.id === nodeId ? { ...n, ...updates } : n,
       );
-      const newFile: CrossCuttingFile = {
+      const newFile: SituationsFile = {
         ...file,
         last_modified: todayISO(),
         nodes: newNodes,
       };
       const newDirty = new Set(state.dirty);
-      newDirty.add('cross-cutting');
-      return { crossCutting: newFile, dirty: newDirty, embeddingDirty: true };
+      newDirty.add('situations');
+      return { situations: newFile, dirty: newDirty, embeddingDirty: true };
     });
   },
 
-  createCrossCuttingNode: () => {
+  createSituationNode: () => {
     const state = get();
-    const file = state.crossCutting;
+    const file = state.situations;
     if (!file) return '';
     const existingIds = file.nodes.map(n => n.id);
-    const newId = generateCrossCuttingId(existingIds);
-    const newNode: CrossCuttingNode = {
+    const newId = generateSituationId(existingIds);
+    const newNode: SituationNode = {
       id: newId,
       label: '',
       description: '',
@@ -1353,31 +1393,31 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       linked_nodes: [],
       conflict_ids: [],
     };
-    const newFile: CrossCuttingFile = {
+    const newFile: SituationsFile = {
       ...file,
       last_modified: todayISO(),
       nodes: [...file.nodes, newNode],
     };
     const newDirty = new Set(state.dirty);
-    newDirty.add('cross-cutting');
-    set({ crossCutting: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
+    newDirty.add('situations');
+    set({ situations: newFile, dirty: newDirty, selectedNodeId: newId, embeddingDirty: true });
     return newId;
   },
 
-  deleteCrossCuttingNode: (nodeId) => {
+  deleteSituationNode: (nodeId) => {
     set((state) => {
-      const file = state.crossCutting;
+      const file = state.situations;
       if (!file) return state;
       const newNodes = file.nodes.filter(n => n.id !== nodeId);
-      const newFile: CrossCuttingFile = {
+      const newFile: SituationsFile = {
         ...file,
         last_modified: todayISO(),
         nodes: newNodes,
       };
       const newDirty = new Set(state.dirty);
-      newDirty.add('cross-cutting');
+      newDirty.add('situations');
       return {
-        crossCutting: newFile,
+        situations: newFile,
         dirty: newDirty,
         embeddingDirty: true,
         selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
@@ -1529,8 +1569,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const file = state[pov];
       if (file) ids.push(...file.nodes.map(n => n.id));
     }
-    if (state.crossCutting) {
-      ids.push(...state.crossCutting.nodes.map(n => n.id));
+    if (state.situations) {
+      ids.push(...state.situations.nodes.map(n => n.id));
     }
     return ids;
   },
@@ -1546,7 +1586,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       return pol?.action || '';
     }
     if (id.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === id);
+      const node = state.situations?.nodes.find(n => n.id === id);
       return node?.label || '';
     }
     if (id.startsWith('conflict-')) {
@@ -1566,8 +1606,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   lookupPinnedData: (id: string): PinnedData | null => {
     const state = get();
     if (id.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === id);
-      if (node) return { type: 'cross-cutting', node: structuredClone(node) };
+      const node = state.situations?.nodes.find(n => n.id === id);
+      if (node) return { type: 'situations', node: structuredClone(node) };
       return null;
     }
     if (id.startsWith('conflict-')) {
@@ -1676,9 +1716,9 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
     }
 
-    if (state.crossCutting) {
-      for (const node of state.crossCutting.nodes) {
-        matchAttr(node.graph_attributes, node.id, node.label, 'cross-cutting');
+    if (state.situations) {
+      for (const node of state.situations.nodes) {
+        matchAttr(node.graph_attributes, node.id, node.label, 'situations');
       }
     }
 

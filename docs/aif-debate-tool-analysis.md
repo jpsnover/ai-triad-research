@@ -1019,7 +1019,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 **Section 4: New Concepts** (available after Priority 1)
 ```
 ☐ "Architectural ceiling hypothesis"
-    Suggested POV: cross-cutting
+    Suggested POV: situations
     Suggested category: Beliefs
     Evidence: Sentinel and Cassandra both referenced this concept
     → Queues for Invoke-TaxonomyProposal
@@ -1062,7 +1062,7 @@ All harvested data goes to existing stores:
 
 **File:** `taxonomy-editor/src/renderer/types/taxonomy.ts`
 
-Add `debate_refs?: string[]` to `PovNode` and `CrossCuttingNode`. Same pattern as `conflict_ids`.
+Add `debate_refs?: string[]` to `PovNode` and `SituationNode`. Same pattern as `conflict_ids`.
 
 **File:** `taxonomy/schemas/pov-taxonomy.schema.json`
 
@@ -1195,7 +1195,7 @@ After applying, write `ai-triad-data/harvests/{debate-id}.json`:
 - [ ] Verify conflict files exist in `conflicts/` with correct schema
 - [ ] Verify `Find-Conflict` in PowerShell can read the new files and append to them
 - [ ] Verify debate_refs appear on the taxonomy nodes
-- [ ] Verify NodeDetail and CrossCuttingDetail display debate_refs (or at least don't crash)
+- [ ] Verify NodeDetail and SituationDetail display debate_refs (or at least don't crash)
 - [ ] Verify harvest manifest was saved
 - [ ] Open the Harvest dialog again — previously applied items show as "already harvested"
 
@@ -1353,7 +1353,7 @@ function verifyProposedEdge(
 
   // V7: INTERPRETS edges must target cc- nodes
   if (edge.type === 'INTERPRETS' && !edge.target.startsWith('cc-')) {
-    warnings.push('INTERPRETS target must be cross-cutting');
+    warnings.push('INTERPRETS target must be a situation node');
   }
 
   return { valid: warnings.length === 0, warnings };
@@ -1407,8 +1407,8 @@ For new edges: append to the edges array with `status: "proposed"`, `discovered_
   "items": [
     {
       "label": "Architectural Ceiling Hypothesis",
-      "description": "A cross-cutting concept that...",
-      "suggested_pov": "cross-cutting",
+      "description": "A situation that...",
+      "suggested_pov": "situations",
       "suggested_category": "Beliefs",
       "source_debate_id": "debate-uuid",
       "evidence": "Sentinel and Cassandra both referenced this concept across rounds 1-3",
@@ -1444,18 +1444,18 @@ function verifyProposedConcept(
 
   // V3: Description follows genus-differentia pattern
   const gdPov = /^A\s+(Goals\/Values|Data\/Facts|Methods\/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
-  const gdCC = /^A\s+cross-cutting\s+concept\s+that\s+/i;
-  const isCC = concept.suggested_pov === 'cross-cutting';
+  const gdCC = /^A\s+situation\s+that\s+/i;
+  const isCC = concept.suggested_pov === 'situations';
   if (isCC ? !gdCC.test(concept.description) : !gdPov.test(concept.description)) {
     warnings.push('Description does not follow genus-differentia pattern');
   }
 
   // V4: Valid POV
-  if (!['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'].includes(concept.suggested_pov)) {
+  if (!['accelerationist', 'safetyist', 'skeptic', 'situations'].includes(concept.suggested_pov)) {
     warnings.push(`Invalid POV: ${concept.suggested_pov}`);
   }
 
-  // V5: Valid category (unless cross-cutting)
+  // V5: Valid category (unless situation)
   if (!isCC && !['Desires', 'Beliefs', 'Intentions'].includes(concept.suggested_category)) {
     warnings.push(`Invalid category: ${concept.suggested_category}`);
   }

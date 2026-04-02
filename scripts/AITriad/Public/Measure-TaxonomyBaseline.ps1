@@ -265,7 +265,7 @@ function Measure-TaxonomyBaseline {
     $FallacyTypeCounts = @{}
 
     foreach ($Node in $AllNodes.Values) {
-        $GA = $Node.graph_attributes
+        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
         $HasFallacies = $GA -and $GA.PSObject.Properties['possible_fallacies'] -and $GA.possible_fallacies
         if ($HasFallacies) {
             $Fallacies = @($GA.possible_fallacies)
@@ -363,6 +363,101 @@ function Measure-TaxonomyBaseline {
     }
 
     # ══════════════════════════════════════════════════════════════════════
+    # METRIC 8: Ontology Coverage
+    # ══════════════════════════════════════════════════════════════════════
+    Write-Host "  Analyzing ontology coverage..." -ForegroundColor Yellow
+
+    $NodeScopeCount = 0
+    $ParentRelCount = 0
+    $FallacyTierCount = 0
+
+    foreach ($Node in $AllNodes.Values) {
+        # node_scope coverage
+        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+        if ($GA -and $GA.PSObject.Properties['node_scope'] -and $GA.node_scope) {
+            $NodeScopeCount++
+        }
+        # parent_relationship coverage (nodes with parent_id)
+        if ($Node.PSObject.Properties['parent_id'] -and $Node.parent_id) {
+            $ParentRelCount++
+        }
+    }
+
+    # Fallacy tier coverage (fallacies with 'type' field)
+    $FallacyWithTier = 0
+    foreach ($Node in $AllNodes.Values) {
+        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+        if ($GA -and $GA.PSObject.Properties['possible_fallacies'] -and $GA.possible_fallacies) {
+            foreach ($F in @($GA.possible_fallacies)) {
+                if ($F.PSObject.Properties['type'] -and $F.type) { $FallacyWithTier++ }
+            }
+        }
+    }
+
+    # temporal_scope coverage on factual_claims
+    $TotalClaims = 0; $ClaimsWithTemporal = 0
+    foreach ($Sum in $Summaries.Values) {
+        if ($Sum.factual_claims) {
+            foreach ($Claim in @($Sum.factual_claims)) {
+                $TotalClaims++
+                if ($Claim.PSObject.Properties['temporal_scope'] -and $Claim.temporal_scope) {
+                    $ClaimsWithTemporal++
+                }
+            }
+        }
+    }
+
+    # bdi_layer and argument_map coverage on debates
+    $DebatesDir = Get-DebatesDir
+    $TotalDebates = 0; $DebatesWithBdiLayer = 0; $DebatesWithArgMap = 0
+    $TotalDisagreements = 0; $DisagreementsWithBdi = 0
+
+    if (Test-Path $DebatesDir) {
+        foreach ($DebFile in Get-ChildItem -Path $DebatesDir -Filter '*.json' -File -ErrorAction SilentlyContinue) {
+            try {
+                $Debate = Get-Content -Raw -Path $DebFile.FullName | ConvertFrom-Json -Depth 20
+                $TotalDebates++
+
+                # argument_map coverage
+                if ($Debate.PSObject.Properties['argument_map'] -and $Debate.argument_map) {
+                    $DebatesWithArgMap++
+                }
+
+                # bdi_layer on synthesis disagreements
+                if ($Debate.PSObject.Properties['synthesis'] -and $Debate.synthesis.PSObject.Properties['disagreements']) {
+                    foreach ($D in @($Debate.synthesis.disagreements)) {
+                        $TotalDisagreements++
+                        if ($D.PSObject.Properties['bdi_layer'] -and $D.bdi_layer) {
+                            $DisagreementsWithBdi++
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+    }
+
+    $OntologyMetrics = [ordered]@{
+        node_scope_coverage_pct           = [Math]::Round($NodeScopeCount / [Math]::Max(1, $AllNodes.Count) * 100, 1)
+        genus_differentia_pct             = $DescriptionMetrics.genus_differentia_pct
+        bdi_layer_coverage_pct            = if ($TotalDisagreements -gt 0) { [Math]::Round($DisagreementsWithBdi / $TotalDisagreements * 100, 1) } else { 0 }
+        argument_map_coverage_pct         = if ($TotalDebates -gt 0) { [Math]::Round($DebatesWithArgMap / $TotalDebates * 100, 1) } else { 0 }
+        parent_relationship_coverage_pct  = [Math]::Round($ParentRelCount / [Math]::Max(1, $AllNodes.Count) * 100, 1)
+        fallacy_tier_coverage_pct         = if ($FallacyTotal -gt 0) { [Math]::Round($FallacyWithTier / $FallacyTotal * 100, 1) } else { 0 }
+        temporal_scope_coverage_pct       = if ($TotalClaims -gt 0) { [Math]::Round($ClaimsWithTemporal / $TotalClaims * 100, 1) } else { 0 }
+        _counts = [ordered]@{
+            nodes_with_scope     = $NodeScopeCount
+            nodes_with_parent    = $ParentRelCount
+            fallacies_with_tier  = $FallacyWithTier
+            claims_with_temporal = $ClaimsWithTemporal
+            debates_total        = $TotalDebates
+            debates_with_argmap  = $DebatesWithArgMap
+            disagreements_total  = $TotalDisagreements
+            disagreements_with_bdi = $DisagreementsWithBdi
+        }
+    }
+
+    # ══════════════════════════════════════════════════════════════════════
     # ASSEMBLE REPORT
     # ══════════════════════════════════════════════════════════════════════
 
@@ -385,6 +480,7 @@ function Measure-TaxonomyBaseline {
         fallacies          = $FallacyMetrics
         descriptions       = $DescriptionMetrics
         unmapped_concepts  = $UnmappedMetrics
+        ontology_coverage  = $OntologyMetrics
     }
 
     # ── Output ─────────────────────────────────────────────────────────────
@@ -428,6 +524,15 @@ function Measure-TaxonomyBaseline {
 
     Write-Host "`n── Unmapped Concepts ──" -ForegroundColor Cyan
     Write-Host "  Total: $TotalUnmapped, Resolved: $ResolvedUnmapped ($($UnmappedMetrics.resolved_pct)%)"
+
+    Write-Host "`n── Ontology Coverage ──" -ForegroundColor Cyan
+    Write-Host "  node_scope:           $($OntologyMetrics.node_scope_coverage_pct)% ($NodeScopeCount/$($AllNodes.Count))"
+    Write-Host "  genus-differentia:    $($OntologyMetrics.genus_differentia_pct)%"
+    Write-Host "  bdi_layer:            $($OntologyMetrics.bdi_layer_coverage_pct)% ($DisagreementsWithBdi/$TotalDisagreements disagreements)"
+    Write-Host "  argument_map:         $($OntologyMetrics.argument_map_coverage_pct)% ($DebatesWithArgMap/$TotalDebates debates)"
+    Write-Host "  parent_relationship:  $($OntologyMetrics.parent_relationship_coverage_pct)% ($ParentRelCount/$($AllNodes.Count))"
+    Write-Host "  fallacy_tier:         $($OntologyMetrics.fallacy_tier_coverage_pct)% ($FallacyWithTier/$FallacyTotal fallacies)"
+    Write-Host "  temporal_scope:       $($OntologyMetrics.temporal_scope_coverage_pct)% ($ClaimsWithTemporal/$TotalClaims claims)"
 
     Write-Host "" # final newline
 

@@ -24,7 +24,7 @@ function getHighlightClass(point: Point): string {
       accelerationist: 'highlight-acc',
       safetyist: 'highlight-saf',
       skeptic: 'highlight-skp',
-      'cross-cutting': 'highlight-cc',
+      'situations': 'highlight-cc',
     };
     return classMap[camp];
   }

@@ -146,9 +146,9 @@ ATTRIBUTE VOCABULARY:
       Desires → could be any; use the tests above
 
 CROSS-CUTTING NODES:
-For cross-cutting nodes (id starts with "cc-"), also consider the three POV
+For situation nodes (id starts with "cc-"), also consider the three POV
 interpretations when generating attributes. The epistemic_type and rhetorical_strategy
-should reflect the cross-cutting concept itself, not any single POV's interpretation.
+should reflect the situation concept itself, not any single POV's interpretation.
 
 RULES:
   - Be precise and analytical. These attributes power automated reasoning.

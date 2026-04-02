@@ -10,7 +10,7 @@ import type {
 } from '../types/chat';
 import type { PoverId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
@@ -66,8 +66,8 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const povNodes: PovNode[] = povFile?.nodes ?? [];
-  const crossCuttingNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
-  return { povNodes, crossCuttingNodes };
+  const situationNodes: SituationNode[] = state.situations?.nodes ?? [];
+  return { povNodes, situationNodes };
 }
 
 /** Parse the POVer's JSON response into content + taxonomy refs */

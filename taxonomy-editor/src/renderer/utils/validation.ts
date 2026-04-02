@@ -12,7 +12,7 @@ const povNodeSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   parent_id: z.string().nullable(),
   children: z.array(z.string()),
-  cross_cutting_refs: z.array(z.string()),
+  situation_refs: z.array(z.string()),
   conflict_ids: z.array(z.string()).optional(),
 });
 
@@ -25,7 +25,7 @@ export const povTaxonomyFileSchema = z.object({
   nodes: z.array(povNodeSchema),
 });
 
-const crossCuttingNodeSchema = z.object({
+const situationNodeSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   label: z.string().min(1, 'Label is required'),
   description: z.string().min(1, 'Description is required'),
@@ -39,12 +39,15 @@ const crossCuttingNodeSchema = z.object({
   disagreement_type: z.enum(['definitional', 'interpretive', 'structural']).optional(),
 });
 
-export const crossCuttingFileSchema = z.object({
+export const situationsFileSchema = z.object({
   _schema_version: z.string(),
   _doc: z.string(),
   last_modified: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  nodes: z.array(crossCuttingNodeSchema),
+  nodes: z.array(situationNodeSchema),
 });
+
+/** @deprecated Use situationsFileSchema */
+export const crossCuttingFileSchema = situationsFileSchema;
 
 const conflictInstanceSchema = z.object({
   doc_id: z.string().min(1, 'Document ID is required'),

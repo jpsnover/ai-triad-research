@@ -39,7 +39,7 @@ function Compare-Taxonomy {
         $Files    = Get-ChildItem -Path $Resolved -Filter '*.json' -File
 
         foreach ($File in $Files) {
-            if ($File.Name -in @('embeddings.json', 'cross-cutting.json')) { continue }
+            if ($File.Name -in @('embeddings.json', 'situations.json')) { continue }
             try {
                 $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
                 foreach ($Node in $Json.nodes) {

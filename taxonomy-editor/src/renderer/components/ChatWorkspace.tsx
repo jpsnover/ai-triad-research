@@ -27,7 +27,7 @@ function nodeIdToTab(nodeId: string): string {
   if (nodeId.startsWith('acc-')) return 'accelerationist';
   if (nodeId.startsWith('saf-')) return 'safetyist';
   if (nodeId.startsWith('skp-')) return 'skeptic';
-  if (nodeId.startsWith('cc-')) return 'cross-cutting';
+  if (nodeId.startsWith('cc-')) return 'situations';
   return 'unknown';
 }
 

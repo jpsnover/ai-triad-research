@@ -29,7 +29,7 @@ Three communities (accelerationist, safetyist, skeptic) look at the same reality
 | DOLCE Concept | Taxonomy Implementation |
 |---|---|
 | **Description** | Each POV file — `accelerationist.json`, `safetyist.json`, `skeptic.json`. Each represents a coherent worldview that classifies AI-related phenomena. |
-| **Situation** | Cross-cutting nodes in `cross-cutting.json`. These are contested concepts where all three Descriptions classify the same phenomenon differently. The `interpretations` field (with `accelerationist`, `safetyist`, `skeptic` sub-fields) IS the D&S mechanism — three Descriptions of one Situation. |
+| **Situation** | Situation nodes in `situations.json`. These are contested concepts where all three Descriptions classify the same phenomenon differently. The `interpretations` field (with `accelerationist`, `safetyist`, `skeptic` sub-fields) IS the D&S mechanism — three Descriptions of one Situation. |
 | **Information Object** | Source documents, snapshots, summaries. The pipeline (document -> snapshot -> key_points -> taxonomy mapping) is a DOLCE information flow chain. |
 | **Social Object** | Policies, institutions, movements referenced in the taxonomy ("the NIST AI Safety Standard", "the accelerationist movement"). These are non-physical endurants — social constructs that DOLCE provides first-class categories for. |
 
@@ -168,7 +168,7 @@ Three POVs are    Each POV's nodes      Debates produce
 DOLCE             are organized as      structured argument
 Descriptions      Beliefs/Desires/      networks with
                   Intentions            I-nodes, CA-nodes,
-Cross-cutting                           RA-nodes, PA-nodes
+Situation nodes                         RA-nodes, PA-nodes
 nodes are         Disagreements are
 DOLCE Situations  classified by         Attack types and
 with three        BDI layer             schemes classify
@@ -178,13 +178,13 @@ interpretations   conceptual)           interact
 
 **The flow in a debate:**
 
-1. **DOLCE provides the world model.** Three POV files represent three Descriptions. Cross-cutting nodes represent Situations that all three classify differently.
+1. **DOLCE provides the world model.** Three POV files represent three Descriptions. Situation nodes represent Situations that all three classify differently.
 
 2. **BDI structures what agents know and want.** When a debate agent is prompted, its taxonomy context is organized into Beliefs (Beliefs), Values (Desires), and Reasoning Approach (Intentions). The agent knows what it believes, what it cares about, and how it argues.
 
 3. **AIF structures what agents produce.** As agents argue, their output is parsed into an argument network: claims (I-nodes), support relations (RA-nodes), attacks (CA-nodes) with typed attack relations, and warrants (S-nodes). After synthesis, preference applications (PA-nodes) determine which arguments prevail.
 
-4. **The layers feed back into each other.** Debate findings can be "harvested" back into the taxonomy — new conflicts, steelman refinements, debate references. This is the D&S cycle: Descriptions (POVs) classify Situations (cross-cutting concepts), agents reason about them (BDI), produce structured arguments (AIF), and the results update the Descriptions.
+4. **The layers feed back into each other.** Debate findings can be "harvested" back into the taxonomy — new conflicts, steelman refinements, debate references. This is the D&S cycle: Descriptions (POVs) classify Situations, agents reason about them (BDI), produce structured arguments (AIF), and the results update the Descriptions.
 
 ---
 
@@ -194,12 +194,12 @@ interpretations   conceptual)           interact
 
 **DOLCE compliance:**
 
-- The node belongs to exactly one POV (accelerationist, safetyist, or skeptic) or to cross-cutting. This is the Description it lives in.
+- The node belongs to exactly one POV (accelerationist, safetyist, or skeptic) or to situations. This is the Description it lives in.
 - The description uses **genus-differentia format**:
   - POV nodes: `"A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..."`
-  - Cross-cutting nodes: `"A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ..."`
+  - Situation nodes: `"A situation that [differentia]. Encompasses: ... Excludes: ..."`
 - Parent-child relationships use DOLCE-aligned terms: `is_a`, `part_of`, or `specializes`.
-- If the node represents a concept that other POVs also address, consider whether it should be a cross-cutting Situation with per-POV interpretations instead of (or in addition to) a POV-specific node.
+- If the node represents a concept that other POVs also address, consider whether it should be a Situation with per-POV interpretations instead of (or in addition to) a POV-specific node.
 
 **BDI compliance:**
 
@@ -219,7 +219,7 @@ interpretations   conceptual)           interact
 - If the node has `possible_fallacies`, each must have a `type` field (one of: `formal`, `informal_structural`, `informal_contextual`, `cognitive_bias`) and a `confidence` level (`likely`, `possible`, `borderline`).
 - Edge types connecting this node to others must be one of the 7 canonical types.
 
-### When Adding a Cross-Cutting Node
+### When Adding a Situation Node
 
 - It must have `interpretations` with entries for all three POVs — this IS the D&S mechanism (three Descriptions of one Situation).
 - Optionally, it should have a `disagreement_type`: `definitional` (POVs define the concept differently), `interpretive` (POVs agree on the definition but disagree on implications), or `structural` (POVs frame the issue differently at a foundational level).

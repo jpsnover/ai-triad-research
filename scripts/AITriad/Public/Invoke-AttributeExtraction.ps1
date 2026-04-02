@@ -41,7 +41,7 @@ function Invoke-AttributeExtraction {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string]$POV = '',
 
         [ValidateRange(1, 20)]
@@ -93,7 +93,7 @@ function Invoke-AttributeExtraction {
     }
 
     # ── Step 2: Determine which files to process ──
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     if ($POV) {
         $PovFiles = @($POV)
     }
@@ -171,7 +171,7 @@ function Invoke-AttributeExtraction {
                     $Entry['category'] = $Node.category
                 }
                 # Include interpretations for cross-cutting nodes
-                if ($PovKey -eq 'cross-cutting' -and $Node.PSObject.Properties['interpretations']) {
+                if ($PovKey -eq 'situations' -and $Node.PSObject.Properties['interpretations']) {
                     $Entry['interpretations'] = $Node.interpretations
                 }
                 $Entry

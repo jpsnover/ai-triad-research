@@ -69,10 +69,10 @@ ATTRIBUTE VOCABULARY:
     "scheme" -- an argumentative strategy or reasoning pattern. Most Intentions nodes.
     "bridging" -- connects claims to schemes or values. Use sparingly.
 
-CROSS-CUTTING NODES:
-For cross-cutting nodes (id starts with "cc-"), consider the three POV interpretations
+SITUATION NODES:
+For situation nodes (id starts with "cc-"), consider the three POV interpretations
 when generating attributes. The epistemic_type and rhetorical_strategy should reflect the
-cross-cutting concept itself, not any single POV's interpretation.
+situation itself, not any single POV's interpretation.
 
 RULES:
   - Be precise and analytical. These attributes power automated reasoning.

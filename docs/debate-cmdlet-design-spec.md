@@ -103,7 +103,7 @@ Invoke-AITDebate
     [-Name <string>]               # Human-readable debate name. Used in output filenames.
     [-DocPath <string>]
     [-Url <string>]
-    [-CrossCuttingNodeId <string>]
+    [-SituationNodeId <string>]
     [-Debaters <string[]>]         # Default: @('Prometheus','Sentinel','Cassandra'). Min 2.
     [-Protocol <string>]           # Default: 'structured'. Options: 'structured', 'socratic', 'deliberation'
     [-Model <string>]              # Default: $env:AI_MODEL or 'gemini-2.5-flash'
@@ -127,7 +127,7 @@ Invoke-AITDebate
 - `-Topic "Should the US impose AI licensing?"` — free-form topic string
 - `-DocPath ./sources/my-doc/snapshot.md` — debate grounded in a document
 - `-Url "https://example.com/article"` — debate grounded in a URL
-- `-CrossCuttingNodeId cc-005` — debate grounded in a cross-cutting taxonomy node
+- `-SituationNodeId cc-005` — debate grounded in a situation taxonomy node
 
 **Debaters:**
 - `-Debaters Prometheus,Sentinel` — only these two debate (minimum 2)
@@ -152,7 +152,7 @@ Invoke-AITDebate
 1. Load taxonomy (all 4 POV files + edges + policy registry)
 1b. Resolve debate slug: if -Name given, `New-Slug $Name`; else slugify first 6 words of -Topic
 2. If -DocPath or -Url: load/fetch source content
-3. If -CrossCuttingNodeId: load CC node + linked nodes + conflicts
+3. If -SituationNodeId: load situation node + linked nodes + conflicts
 4. CLARIFICATION PHASE (only if -Clarify specified):
    a. Moderator generates 1-3 clarifying questions
    b. AI auto-generates contextual answers (no user interaction)
@@ -465,7 +465,7 @@ $topics | ForEach-Object {
 | # | Question | Decision |
 |---|----------|----------|
 | 1 | Architecture | Extract shared logic into `lib/debate/` common library |
-| 2 | Topic source types | All 4: topic string, document path, URL, cross-cutting node ID |
+| 2 | Topic source types | All 4: topic string, document path, URL, situation node ID |
 | 3 | AI model selection | Default to `$env:AI_MODEL`, allow `-Model` override |
 | 4 | Debater selection | `-Debaters` parameter specifies which POVers participate (min 2) |
 | 5 | Diagnostics format | JSON structure; reuse existing diagnostics viewer tool |

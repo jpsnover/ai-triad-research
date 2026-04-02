@@ -15,7 +15,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <h4>Overview</h4>
           <p>
             This editor manages the AI Triad taxonomy across three perspectives
-            (Accelerationist, Safetyist, Skeptic), cross-cutting concepts shared
+            (Accelerationist, Safetyist, Skeptic), situations shared
             across perspectives, and documented conflicts between positions.
           </p>
         </div>
@@ -44,7 +44,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             has nodes organized into three BDI categories: Desires, Intentions, and Beliefs.
           </p>
           <p>
-            <strong>Cross-Cutting</strong> - Concepts that span all three perspectives.
+            <strong>Situations</strong> - Concepts that span all three perspectives.
             Each node includes how each perspective interprets the concept.
           </p>
           <p>

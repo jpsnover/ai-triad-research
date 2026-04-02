@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useTaxonomyStore, type PinnedData } from '../hooks/useTaxonomyStore';
 import { NodeDetail } from './NodeDetail';
-import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { SituationDetail } from './SituationDetail';
 import { ConflictDetail } from './ConflictDetail';
 
 function PinnedPanelEntry({ data, depth, onClose }: {
@@ -37,8 +37,8 @@ function PinnedPanelEntry({ data, depth, onClose }: {
       {data.type === 'pov' && (
         <NodeDetail pov={data.pov} node={data.node} readOnly chipDepth={chipDepth} />
       )}
-      {data.type === 'cross-cutting' && (
-        <CrossCuttingDetail node={data.node} readOnly chipDepth={chipDepth} />
+      {data.type === 'situations' && (
+        <SituationDetail node={data.node} readOnly chipDepth={chipDepth} />
       )}
       {data.type === 'conflict' && (
         <ConflictDetail conflict={data.conflict} readOnly chipDepth={chipDepth} />

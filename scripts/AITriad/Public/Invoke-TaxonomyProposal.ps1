@@ -102,14 +102,14 @@ function Invoke-TaxonomyProposal {
 
     # Taxonomy nodes (compact: id, pov, category, label, description only)
     $CompactNodes = @()
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $Entry = $script:TaxonomyData[$PovKey]
         if (-not $Entry) { continue }
         foreach ($Node in $Entry.nodes) {
             $CompactNodes += @{
                 id          = $Node.id
                 pov         = $PovKey
-                category    = if ($PovKey -eq 'cross-cutting') { 'Cross-Cutting' } else { $Node.category }
+                category    = if ($PovKey -eq 'situations') { 'Situations' } else { $Node.category }
                 label       = $Node.label
                 description = $Node.description
             }

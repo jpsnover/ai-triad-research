@@ -75,7 +75,7 @@ function Invoke-EdgeDiscovery {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string]$POV = '',
 
         [string]$NodeId = '',
@@ -146,7 +146,7 @@ function Invoke-EdgeDiscovery {
     # ── Step 2: Load all taxonomy nodes ──
     Write-Step 'Loading taxonomy'
 
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $AllNodes = [System.Collections.Generic.List[PSObject]]::new()
     $NodePovMap = @{}   # node ID → pov key
 
@@ -301,7 +301,7 @@ function Invoke-EdgeDiscovery {
             description = $Node.description
         }
         if ($Node.PSObject.Properties['category'])         { $SourceContext['category']        = $Node.category }
-        if ($PovKey -eq 'cross-cutting' -and $Node.PSObject.Properties['interpretations']) {
+        if ($PovKey -eq 'situations' -and $Node.PSObject.Properties['interpretations']) {
             $SourceContext['interpretations'] = $Node.interpretations
         }
         if ($Node.PSObject.Properties['graph_attributes']) { $SourceContext['graph_attributes'] = $Node.graph_attributes }

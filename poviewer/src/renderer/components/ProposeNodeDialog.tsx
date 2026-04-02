@@ -59,7 +59,7 @@ export default function ProposeNodeDialog({ open, onClose }: Props) {
               value={camp}
               onChange={e => setCamp(e.target.value as PovCamp)}
             >
-              {(['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'] as PovCamp[]).map(c => (
+              {(['accelerationist', 'safetyist', 'skeptic', 'situations'] as PovCamp[]).map(c => (
                 <option key={c} value={c}>{POV_LABELS[c]}</option>
               ))}
             </select>

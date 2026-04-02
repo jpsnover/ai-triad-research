@@ -159,7 +159,7 @@ function Show-FallacyInfo {
 
         $TaxDir  = Get-TaxonomyDir
         $Found   = 0
-        $PovKeys = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+        $PovKeys = @('accelerationist', 'safetyist', 'skeptic', 'situations')
 
         foreach ($PovKey in $PovKeys) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"

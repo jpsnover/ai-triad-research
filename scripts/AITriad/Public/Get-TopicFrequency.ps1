@@ -80,7 +80,7 @@ function Get-TopicFrequency {
     # ── Build node index ─────────────────────────────────────────────────────
     Write-Step "Building node index"
     $NodeIndex = @{}
-    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'situations')
 
     foreach ($PovKey in $PovNames) {
         $Entry = $script:TaxonomyData[$PovKey]

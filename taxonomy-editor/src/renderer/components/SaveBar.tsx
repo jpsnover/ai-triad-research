@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 function formatFileKey(key: string): string {
-  if (key === 'cross-cutting') return 'Cross-Cutting';
+  if (key === 'situations') return 'Situations';
   if (key.startsWith('conflict-')) return key;
   return key.charAt(0).toUpperCase() + key.slice(1);
 }
@@ -27,9 +27,9 @@ export function SaveBar() {
       let fileKey: string;
       let fieldPath: string;
       if (parts[0] === 'nodes' && parts.length >= 3) {
-        // POV / cross-cutting: nodes.NODE_ID.field
+        // POV / situations: nodes.NODE_ID.field
         const nodeId = parts[1];
-        fileKey = nodeId.startsWith('cc-') ? 'cross-cutting'
+        fileKey = nodeId.startsWith('cc-') ? 'situations'
           : nodeId.startsWith('acc-') ? 'accelerationist'
           : nodeId.startsWith('saf-') ? 'safetyist'
           : nodeId.startsWith('skp-') ? 'skeptic'

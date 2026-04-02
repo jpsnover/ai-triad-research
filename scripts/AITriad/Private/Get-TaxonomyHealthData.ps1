@@ -28,7 +28,7 @@ function Get-TaxonomyHealthData {
 
     # ── 1. Build node index from $script:TaxonomyData ─────────────────────────
     $NodeIndex = @{}    # keyed by node id
-    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'situations')
 
     foreach ($PovKey in $PovNames) {
         $Entry = $script:TaxonomyData[$PovKey]
@@ -36,7 +36,7 @@ function Get-TaxonomyHealthData {
         foreach ($Node in $Entry.nodes) {
             $NodeIndex[$Node.id] = @{
                 POV              = $PovKey
-                Category         = if ($PovKey -eq 'cross-cutting') { 'Cross-Cutting' }
+                Category         = if ($PovKey -eq 'situations') { 'Situations' }
                                    elseif ($Node.PSObject.Properties['category']) { $Node.category }
                                    else { '' }
                 Label            = $Node.label
@@ -173,9 +173,9 @@ function Get-TaxonomyHealthData {
     })
 
     $OrphanNodes = @($AllNodes | Where-Object { $_.Citations -eq 0 })
-    $MostCited   = @($AllNodes | Where-Object { $_.POV -ne 'cross-cutting' } |
+    $MostCited   = @($AllNodes | Where-Object { $_.POV -ne 'situations' } |
                       Sort-Object Citations -Descending | Select-Object -First 10)
-    $LeastCited  = @($AllNodes | Where-Object { $_.POV -ne 'cross-cutting' -and $_.Citations -gt 0 } |
+    $LeastCited  = @($AllNodes | Where-Object { $_.POV -ne 'situations' -and $_.Citations -gt 0 } |
                       Sort-Object Citations | Select-Object -First 10)
 
     # Unmapped concepts sorted by frequency
@@ -245,7 +245,7 @@ function Get-TaxonomyHealthData {
     }
 
     # Cross-cutting reference health
-    $CcNodes = @($AllNodes | Where-Object { $_.POV -eq 'cross-cutting' })
+    $CcNodes = @($AllNodes | Where-Object { $_.POV -eq 'situations' })
     $CcReferenced = @($CcNodes | Where-Object { $_.Citations -gt 0 })
     $CcOrphaned   = @($CcNodes | Where-Object { $_.Citations -eq 0 })
 

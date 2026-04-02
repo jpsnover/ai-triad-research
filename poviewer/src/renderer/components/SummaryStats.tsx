@@ -8,7 +8,7 @@ interface Props {
   source: Source;
 }
 
-const CAMPS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+const CAMPS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
 
 export default function SummaryStats({ source }: Props) {
   const points = source.points;

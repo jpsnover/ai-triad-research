@@ -25,7 +25,7 @@ function Invoke-ProposalApply {
         accelerationist = 'accelerationist.json'
         safetyist       = 'safetyist.json'
         skeptic         = 'skeptic.json'
-        'cross-cutting' = 'cross-cutting.json'
+        'situations' = 'situations.json'
     }
 
     $FileName = $PovFileMap[$Proposal.pov]
@@ -44,7 +44,7 @@ function Invoke-ProposalApply {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to parse $FileName`: $_" }
     }
 
-    $IsCrossCutting = $Proposal.pov -eq 'cross-cutting'
+    $IsCrossCutting = $Proposal.pov -eq 'situations'
     $Today = (Get-Date).ToString('yyyy-MM-dd')
 
     switch ($Proposal.action) {
@@ -76,7 +76,7 @@ function Invoke-ProposalApply {
                     description        = $Proposal.description
                     parent_id          = $null
                     children           = @()
-                    cross_cutting_refs = @()
+                    situation_refs = @()
                 }
             }
 
@@ -117,8 +117,8 @@ function Invoke-ProposalApply {
                         if ($_ -in $RemoveIds) { $SurvivorId } else { $_ }
                     } | Select-Object -Unique)
                 }
-                if ($Node.PSObject.Properties['cross_cutting_refs'] -and $Node.cross_cutting_refs) {
-                    $Node.cross_cutting_refs = @($Node.cross_cutting_refs | ForEach-Object {
+                if ($Node.PSObject.Properties['situation_refs'] -and $Node.situation_refs) {
+                    $Node.situation_refs = @($Node.situation_refs | ForEach-Object {
                         if ($_ -in $RemoveIds) { $SurvivorId } else { $_ }
                     } | Select-Object -Unique)
                 }
@@ -151,7 +151,7 @@ function Invoke-ProposalApply {
                     description        = $Child.description
                     parent_id          = $TargetId
                     children           = @()
-                    cross_cutting_refs = if ($Target.PSObject.Properties['cross_cutting_refs']) { $Target.cross_cutting_refs } else { @() }
+                    situation_refs = if ($Target.PSObject.Properties['situation_refs']) { $Target.situation_refs } else { @() }
                 }
                 $Raw.nodes += $ChildNode
             }

@@ -275,10 +275,10 @@ export const HARDCODED_POINTS: Point[] = [
     text: SNAPSHOT_TEXT.slice(o7.start, o7.end),
     mappings: [
       {
-        camp: 'cross-cutting',
+        camp: 'situations',
         nodeId: 'cc-003',
         nodeLabel: 'AI Governance and Regulation',
-        category: 'Cross-cutting',
+        category: 'Situations',
         alignment: 'agrees',
         strength: 'strong',
         explanation: 'The proposal itself is governance infrastructure — building shared conceptual ground.',
@@ -565,12 +565,12 @@ export const HARDCODED_NOTEBOOKS: Notebook[] = [
     id: 'nb-001',
     name: 'AI Triad Research',
     sources: [exampleSource, pendingSource],
-    taxonomyFiles: ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'],
+    taxonomyFiles: ['accelerationist', 'safetyist', 'skeptic', 'situations'],
   },
   {
     id: 'nb-002',
     name: 'Empty Notebook',
     sources: [],
-    taxonomyFiles: ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'],
+    taxonomyFiles: ['accelerationist', 'safetyist', 'skeptic', 'situations'],
   },
 ];

@@ -10,7 +10,7 @@ interface PovFilters {
   accelerationist: boolean;
   safetyist: boolean;
   skeptic: boolean;
-  'cross-cutting': boolean;
+  'situations': boolean;
 }
 
 // Hardcoded taxonomy metadata (from real files, for prototype fallback)
@@ -18,7 +18,7 @@ const TAXONOMY_METADATA: Record<string, Omit<TaxonomyMeta, 'isLoading'>> = {
   accelerationist: { pov: 'accelerationist', colorHex: '#27AE60', nodeCount: 12, lastModified: '2026-02-22' },
   safetyist: { pov: 'safetyist', colorHex: '#E74C3C', nodeCount: 12, lastModified: '2026-02-23' },
   skeptic: { pov: 'skeptic', colorHex: '#F39C12', nodeCount: 8, lastModified: '2026-02-21' },
-  'cross-cutting': { pov: 'cross-cutting', colorHex: '#8E44AD', nodeCount: 6, lastModified: '2026-02-22' },
+  'situations': { pov: 'situations', colorHex: '#8E44AD', nodeCount: 6, lastModified: '2026-02-22' },
 };
 
 // Empty initial notebook — will be populated from pipeline
@@ -122,7 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     accelerationist: true,
     safetyist: true,
     skeptic: true,
-    'cross-cutting': true,
+    'situations': true,
   },
 
   searchQuery: '',
@@ -154,7 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Build taxonomy node lookup for resolving real labels/descriptions
       const taxNodes: TaxNodeLookup = {};
       if (window.electronAPI.loadTaxonomyFile) {
-        const povFiles = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+        const povFiles = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
         for (const pov of povFiles) {
           try {
             const data = await window.electronAPI.loadTaxonomyFile(pov) as { nodes?: Array<{ id: string; label: string; description: string }> };
@@ -309,7 +309,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         accelerationist: value,
         safetyist: value,
         skeptic: value,
-        'cross-cutting': value,
+        'situations': value,
       },
     });
   },

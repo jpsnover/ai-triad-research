@@ -88,13 +88,13 @@
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
-      "suggested_pov": "cross-cutting",
+      "suggested_pov": "situations",
       "suggested_category": "Beliefs",
       "reason": "<why this concept deserves a new taxonomy node>",
       "Accelerationist Interpretation": "<2-5 sentences in plain language (grade-10 level): how accelerationists would interpret or use this concept>",
       "Safetyist Interpretation": "<2-5 sentences in plain language (grade-10 level): how safetyists would interpret or use this concept>",
       "Skeptic Interpretation": "<2-5 sentences in plain language (grade-10 level): how skeptics would interpret or use this concept>"
     },
-    { "...": "repeat for ALL unmapped concepts. Include interpretations ONLY for cross-cutting concepts." }
+    { "...": "repeat for ALL unmapped concepts. Include interpretations ONLY for situations concepts." }
   ]
 }

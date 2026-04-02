@@ -60,7 +60,7 @@
         "description",
         "parent_id",
         "children",
-        "cross_cutting_refs"
+        "situation_refs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -110,9 +110,9 @@
             "type": "string"
           }
         },
-        "cross_cutting_refs": {
+        "situation_refs": {
           "type": "array",
-          "description": "List of cross-cutting node IDs that this node relates to. References nodes in the cross-cutting.json file.",
+          "description": "List of situation node IDs that this node relates to. References nodes in the situations.json file.",
           "items": {
             "type": "string",
             "pattern": "^cc-\\d{3}$"

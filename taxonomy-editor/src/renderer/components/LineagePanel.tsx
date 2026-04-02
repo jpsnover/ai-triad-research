@@ -12,7 +12,7 @@ interface LineagePanelProps {
 const catalogKeys = new Set(Object.keys(INTELLECTUAL_LINEAGES));
 
 export function LineagePanel({ onSelectValue }: LineagePanelProps) {
-  const { pendingLineageValue, accelerationist, safetyist, skeptic, crossCutting } = useTaxonomyStore();
+  const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -26,13 +26,13 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) keys.add(l);
       }
     }
-    if (crossCutting) {
-      for (const n of crossCutting.nodes) {
+    if (situations) {
+      for (const n of situations.nodes) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) keys.add(l);
       }
     }
     return [...keys].sort();
-  }, [accelerationist, safetyist, skeptic, crossCutting]);
+  }, [accelerationist, safetyist, skeptic, situations]);
 
   /** Case-insensitive key lookup */
   const findKey = useCallback((value: string): string | undefined => {

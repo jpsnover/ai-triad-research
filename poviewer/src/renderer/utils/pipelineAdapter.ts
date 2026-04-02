@@ -184,7 +184,7 @@ export function summaryToPoints(
   const points: Point[] = [];
   let pointIndex = 0;
 
-  const povCamps: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+  const povCamps: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
 
   for (const camp of povCamps) {
     const povSummary = summary.pov_summaries[camp];

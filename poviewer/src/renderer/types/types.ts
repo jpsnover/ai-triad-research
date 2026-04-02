@@ -5,7 +5,7 @@
 export type Theme = 'light' | 'dark' | 'bkc' | 'system';
 
 // === POV Camps ===
-export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting';
+export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
 
 export type Alignment = 'agrees' | 'contradicts';
 
@@ -19,7 +19,7 @@ export interface TaxonomyNode {
   description: string;
   parent_id: string | null;
   children: string[];
-  cross_cutting_refs: string[];
+  situation_refs: string[];
   conflict_ids?: string[];
 }
 
@@ -31,7 +31,7 @@ export interface TaxonomyFile {
   nodes: TaxonomyNode[];
 }
 
-export interface CrossCuttingNode {
+export interface SituationNode {
   id: string;
   label: string;
   description: string;
@@ -40,10 +40,10 @@ export interface CrossCuttingNode {
   conflict_ids: string[];
 }
 
-export interface CrossCuttingFile {
+export interface SituationsFile {
   _schema_version: string;
   last_modified: string;
-  nodes: CrossCuttingNode[];
+  nodes: SituationNode[];
 }
 
 // === Points & Mappings ===
@@ -119,12 +119,12 @@ export const POV_COLORS: Record<PovCamp, string> = {
   accelerationist: '#27AE60',
   safetyist: '#E74C3C',
   skeptic: '#F39C12',
-  'cross-cutting': '#8E44AD',
+  'situations': '#8E44AD',
 };
 
 export const POV_LABELS: Record<PovCamp, string> = {
   accelerationist: 'Accelerationist',
   safetyist: 'Safetyist',
   skeptic: 'Skeptic',
-  'cross-cutting': 'Cross-cutting',
+  'situations': 'Situations',
 };

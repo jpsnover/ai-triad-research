@@ -2076,7 +2076,7 @@ body {
 .pov-accelerationist, .potential-edge-pov.pov-accelerationist { color: var(--color-acc); }
 .pov-safetyist, .potential-edge-pov.pov-safetyist { color: var(--color-saf); }
 .pov-skeptic, .potential-edge-pov.pov-skeptic { color: var(--color-skp); }
-.pov-cross-cutting, .potential-edge-pov.pov-cross-cutting { color: var(--color-cc); }
+.pov-situations, .potential-edge-pov.pov-situations { color: var(--color-cc); }
 
 .potential-edge-detail-type {
   display: flex;

@@ -20,7 +20,7 @@ const POV_FILE_MAP: Record<string, string> = {
   accelerationist: 'accelerationist.json',
   safetyist: 'safetyist.json',
   skeptic: 'skeptic.json',
-  'cross-cutting': 'cross-cutting.json',
+  'situations': 'situations.json',
 };
 
 export function getTaxonomyDirs(): string[] {

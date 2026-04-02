@@ -10,7 +10,7 @@ $TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
 
 # Get all lineage values from taxonomy
 $allLineage = [System.Collections.Generic.HashSet[string]]::new()
-foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'cross-cutting') {
+foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
     $data = Get-Content (Join-Path $TaxDir "$pov.json") -Raw | ConvertFrom-Json
     foreach ($n in $data.nodes) {
         if ($n.PSObject.Properties['graph_attributes'] -and $n.graph_attributes.intellectual_lineage) {

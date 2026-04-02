@@ -84,7 +84,7 @@ function Invoke-GraphQuery {
     # ── Step 2: Load full graph ──
     Write-Step 'Loading taxonomy graph'
 
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $GraphNodes = [System.Collections.Generic.List[PSObject]]::new()
     $NodePovMap = @{}
 
@@ -106,7 +106,7 @@ function Invoke-GraphQuery {
             if ($Node.PSObject.Properties['graph_attributes']) {
                 $NodeEntry['graph_attributes'] = $Node.graph_attributes
             }
-            if ($PovKey -eq 'cross-cutting' -and $Node.PSObject.Properties['interpretations']) {
+            if ($PovKey -eq 'situations' -and $Node.PSObject.Properties['interpretations']) {
                 $NodeEntry['interpretations'] = $Node.interpretations
             }
             $GraphNodes.Add([PSCustomObject]$NodeEntry)
@@ -286,7 +286,7 @@ $SchemaPrompt
                 'accelerationist' { 'Blue' }
                 'safetyist'       { 'Green' }
                 'skeptic'         { 'Yellow' }
-                'cross-cutting'   { 'Magenta' }
+                'situations'      { 'Magenta' }
                 default           { 'Gray' }
             }
             Write-Host "    [$RefPov]" -NoNewline -ForegroundColor $PovColor

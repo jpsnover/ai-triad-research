@@ -16,7 +16,7 @@ function Invoke-HierarchyProposal {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string]$POV = '',
 
         [ValidateScript({ Test-CategoryParameter $_ })]
@@ -72,7 +72,7 @@ function Invoke-HierarchyProposal {
         accelerationist = 'accelerationist.json'
         safetyist       = 'safetyist.json'
         skeptic         = 'skeptic.json'
-        'cross-cutting' = 'cross-cutting.json'
+        'situations' = 'situations.json'
     }
 
     $AllTaxData = @{}
@@ -124,13 +124,13 @@ function Invoke-HierarchyProposal {
 
     $Buckets = [System.Collections.Generic.List[PSObject]]::new()
 
-    $PovList = if ($POV) { @($POV) } else { @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting') }
+    $PovList = if ($POV) { @($POV) } else { @('accelerationist', 'safetyist', 'skeptic', 'situations') }
 
     foreach ($PovKey in $PovList) {
         if (-not $AllTaxData.ContainsKey($PovKey)) { continue }
         $Nodes = @($AllTaxData[$PovKey].nodes)
 
-        if ($PovKey -eq 'cross-cutting') {
+        if ($PovKey -eq 'situations') {
             # Cross-cutting has no categories — one bucket
             if (-not $Category) {
                 $Buckets.Add([PSCustomObject]@{
@@ -307,7 +307,7 @@ function Invoke-HierarchyProposal {
                     }
                 }
             }
-            if ($Bucket.POV -eq 'cross-cutting' -and
+            if ($Bucket.POV -eq 'situations' -and
                 $Node.PSObject.Properties['interpretations']) {
                 $Entry['interpretations'] = $Node.interpretations
             }
@@ -329,7 +329,7 @@ function Invoke-HierarchyProposal {
         $NodeJson    = $NodeContext    | ConvertTo-Json -Depth 10 -Compress:$false
         $ClusterJson = $ClusterContext | ConvertTo-Json -Depth 10 -Compress:$false
 
-        $CatLine = if ($Bucket.Category) { "Category: $($Bucket.Category)" } else { 'Category: (none — cross-cutting)' }
+        $CatLine = if ($Bucket.Category) { "Category: $($Bucket.Category)" } else { 'Category: (none — situations)' }
 
         $UserPrompt = @"
 POV: $($Bucket.POV)
@@ -482,7 +482,7 @@ $SchemaPrompt
         $PovLabel = $Proposal.pov
         $CatLabel = if ($Proposal.PSObject.Properties['category'] -and $Proposal.category) {
             $Proposal.category
-        } else { '(cross-cutting)' }
+        } else { '(situations)' }
 
         [void]$Md.AppendLine("---")
         [void]$Md.AppendLine('')

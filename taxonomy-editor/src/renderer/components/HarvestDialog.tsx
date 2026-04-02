@@ -48,7 +48,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
       const node = taxState[pov]?.nodes?.find(n => n.id === id);
       if (node) return node.label;
     }
-    const ccNode = taxState.crossCutting?.nodes?.find(n => n.id === id);
+    const ccNode = taxState.situations?.nodes?.find(n => n.id === id);
     return ccNode?.label || null;
   };
 
@@ -56,7 +56,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
     for (const n of taxState[pov]?.nodes || []) allNodeIds.add(n.id);
   }
-  for (const n of taxState.crossCutting?.nodes || []) allNodeIds.add(n.id);
+  for (const n of taxState.situations?.nodes || []) allNodeIds.add(n.id);
 
   console.log('[HarvestDialog] Render — fileData:', !!fileData, 'activeDebate:', !!activeDebate,
     'conflicts:', conflicts.length, 'steelmans:', steelmans.length, 'verdicts:', verdicts.length, 'concepts:', concepts.length);
@@ -114,7 +114,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
     for (const n of taxState[pov]?.nodes || []) existingLabels.add(n.label.toLowerCase());
   }
-  for (const n of taxState.crossCutting?.nodes || []) existingLabels.add(n.label.toLowerCase());
+  for (const n of taxState.situations?.nodes || []) existingLabels.add(n.label.toLowerCase());
 
   // AI-generate conflict descriptions for checked items
   const generateConflictDescriptions = async () => {
@@ -226,7 +226,7 @@ Speaker POV: ${item.suggestedPov}
 
 Generate:
 1. A 3-8 word plain-language label (newspaper headline style)
-2. A genus-differentia description: "${item.suggestedPov === 'cross-cutting' ? 'A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ...' : `A Belief | A Desire | An Intention within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
+2. A genus-differentia description: "${item.suggestedPov === 'situations' ? 'A situation that [differentia]. Encompasses: ... Excludes: ...' : `A Belief | A Desire | An Intention within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
 3. The best category: Desires, Beliefs, or Intentions
 
 Return ONLY JSON (no markdown):
@@ -570,7 +570,7 @@ Return ONLY JSON (no markdown):
                                 <option value="accelerationist">Accelerationist</option>
                                 <option value="safetyist">Safetyist</option>
                                 <option value="skeptic">Skeptic</option>
-                                <option value="cross-cutting">Cross-cutting</option>
+                                <option value="situations">Situations</option>
                               </select>
                             </label>
                             <label>Category:

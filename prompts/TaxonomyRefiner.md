@@ -30,7 +30,7 @@ Label Refinement (3-8 Words): Create a plain-language label that reads like a ne
 
 Genus-Differentia Description: Write the description using this structure:
   For POV nodes: "A Belief | A Desire | An Intention within [POV] discourse that [differentia — what makes this node distinct]. Encompasses: [child themes or concrete examples]. Excludes: [what neighboring nodes cover instead]."
-  For cross-cutting nodes: "A cross-cutting concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+  For situation nodes: "A situation that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
   Rules:
     - First sentence MUST follow the genus-differentia pattern above.
     - Name at least one sibling node (by label, not ID) in the Excludes clause.

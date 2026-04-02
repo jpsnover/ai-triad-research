@@ -59,8 +59,8 @@ function nodeIdToTab(nodeId: string): { tab: TabId; colorVar: string } {
   if (nodeId.startsWith('acc-')) return { tab: 'accelerationist', colorVar: 'var(--color-acc)' };
   if (nodeId.startsWith('saf-')) return { tab: 'safetyist', colorVar: 'var(--color-saf)' };
   if (nodeId.startsWith('skp-')) return { tab: 'skeptic', colorVar: 'var(--color-skp)' };
-  if (nodeId.startsWith('cc-')) return { tab: 'cross-cutting', colorVar: 'var(--color-cc)' };
-  return { tab: 'cross-cutting', colorVar: 'var(--text-muted)' };
+  if (nodeId.startsWith('cc-')) return { tab: 'situations', colorVar: 'var(--color-sit)' };
+  return { tab: 'situations', colorVar: 'var(--text-muted)' };
 }
 
 /** Resolve a node_id to its label from the taxonomy store */
@@ -68,8 +68,8 @@ function getNodeLabel(nodeId: string): string {
   const state = useTaxonomyStore.getState();
   const { tab } = nodeIdToTab(nodeId);
 
-  if (tab === 'cross-cutting') {
-    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
+  if (tab === 'situations') {
+    const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
     if (node) return node.label;
   } else {
     const povFile = state[tab as 'accelerationist' | 'safetyist' | 'skeptic'];
@@ -124,7 +124,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
           <span
             key={polId}
             className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
-            style={{ borderColor: 'var(--color-cc)', color: 'var(--color-cc)' }}
+            style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
             title={getPolicyAction(polId)}
             onClick={(e) => { e.stopPropagation(); inspectNode(polId); }}
           >
@@ -163,7 +163,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
             <div key={polId} className="debate-reasoning-item">
               <button
                 className="debate-reasoning-node"
-                style={{ color: 'var(--color-cc)' }}
+                style={{ color: 'var(--color-sit)' }}
                 onClick={() => inspectNode(polId)}
               >
                 {polId}
@@ -1315,7 +1315,7 @@ export function DebateWorkspace() {
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
   const isOpeningPhase = activeDebate.phase === 'opening';
   const isDebatePhase = activeDebate.phase === 'debate';
-  const isCrossCutting = activeDebate.source_type === 'cross-cutting';
+  const isCrossCutting = activeDebate.source_type === 'situations';
 
   return (
     <div className="debate-workspace">
@@ -1345,7 +1345,7 @@ export function DebateWorkspace() {
           <button
             className="btn btn-sm debate-cc-details-btn"
             onClick={() => setShowCCDetails(true)}
-            title="View cross-cutting context used for this debate"
+            title="View situation context used for this debate"
           >
             Details
           </button>

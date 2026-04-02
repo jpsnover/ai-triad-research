@@ -46,7 +46,7 @@ export function Toolbar() {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   };
 
-  const switchTab = (tab: 'cross-cutting' | 'conflicts' | 'debate' | 'chat') => {
+  const switchTab = (tab: 'situations' | 'conflicts' | 'debate' | 'chat') => {
     clearCurrentPanel();
     setToolbarPanel(null);
     setActiveTab(tab);
@@ -103,11 +103,11 @@ export function Toolbar() {
         <div className="toolbar-separator" />
         {/* Taxonomy */}
         <button
-          className={`toolbar-icon${toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate', 'chat'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-icon${toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
-            if (['cross-cutting', 'conflicts', 'debate', 'chat'].includes(activeTab)) {
+            if (['situations', 'conflicts', 'debate', 'chat'].includes(activeTab)) {
               setActiveTab('accelerationist');
             }
           }}
@@ -120,11 +120,11 @@ export function Toolbar() {
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
         </button>
-        {/* Cross-Cutting */}
+        {/* Situations */}
         <button
-          className={`toolbar-icon${activeTab === 'cross-cutting' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
-          onClick={() => switchTab('cross-cutting')}
-          data-tooltip="Cross-Cutting"
+          className={`toolbar-icon${activeTab === 'situations' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('situations')}
+          data-tooltip="Situations"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />

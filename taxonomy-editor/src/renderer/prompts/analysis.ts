@@ -48,6 +48,7 @@ Blind Spot Check: Is one a subset of the other (Taxonomic overlap)?`;
 
 export interface NodeCritiqueContext {
   edgesJson: string;
+  /** @deprecated Renamed from crossCuttingJson — still accepted for backward compat */
   crossCuttingJson: string;
   povJson: string;
   nodeJson: string;
@@ -63,7 +64,7 @@ You are a Senior Ontologist and AI Researcher. You are critiquing a node within 
 1. RELATIONSHIP GRAMMAR:
 ${ctx.edgesJson}
 
-2. UNIVERSAL CONCEPTS (Cross-Cutting):
+2. UNIVERSAL CONCEPTS (Situations):
 ${ctx.crossCuttingJson}
 
 3. LOCAL HIERARCHY (The ${ctx.povName} POV this node belongs to):

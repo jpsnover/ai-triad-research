@@ -94,7 +94,7 @@ function Invoke-BatchSummary {
         'accelerationist.json' = @('accelerationist')
         'safetyist.json'       = @('safetyist')
         'skeptic.json'         = @('skeptic')
-        'cross-cutting.json'   = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+        'situations.json'      = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     }
 
     # -- STEP 0 — Validate environment ---------------------------------------

@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Multi-perspective research platform for AI policy and safety literature. Organizes sources through a four-POV taxonomy (accelerationist, safetyist, skeptic, cross-cutting), ingests documents, generates AI-powered summaries, and detects factual conflicts across viewpoints.
+Multi-perspective research platform for AI policy and safety literature. Organizes sources through a four-POV taxonomy (accelerationist, safetyist, skeptic, situations), ingests documents, generates AI-powered summaries, and detects factual conflicts across viewpoints.
 
 ## Repository Structure
 

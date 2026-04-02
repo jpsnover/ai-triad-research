@@ -63,7 +63,7 @@ function Import-AITriadDocument {
 
         [Parameter(ParameterSetName = 'ByUrl')]
         [Parameter(ParameterSetName = 'ByFile')]
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string[]]$Pov = @(),
 
         [Parameter(ParameterSetName = 'ByUrl')]

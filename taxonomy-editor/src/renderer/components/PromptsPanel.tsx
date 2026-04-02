@@ -3,19 +3,33 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { PROMPT_CATALOG, type PromptCatalogEntry } from '../data/promptCatalog';
+import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup } from '../data/promptCatalog';
+
+const GROUP_LABELS: Record<PromptGroup, string> = {
+  'debate-setup': 'Debate Setup',
+  'debate-turns': 'Debate Turns',
+  'debate-analysis': 'Debate Analysis',
+  'moderator': 'Moderator',
+  'chat': 'Chat',
+  'taxonomy': 'Taxonomy',
+  'research': 'Research',
+  'powershell': 'PowerShell Backend',
+};
+import { PromptInspector } from './PromptInspector';
 
 interface PromptsPanelProps {
   onSelectPrompt: (entry: PromptCatalogEntry | null) => void;
 }
 
+type PromptsPanelTab = 'catalog' | 'inspector';
+
 export function PromptsPanel({ onSelectPrompt }: PromptsPanelProps) {
+  const [panelTab, setPanelTab] = useState<PromptsPanelTab>('catalog');
   const { selectedNodeId, activeTab } = useTaxonomyStore();
   const selectedNode = useTaxonomyStore((s) => {
     if (!selectedNodeId) return null;
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'crossCutting'] as const) {
-      const key = pov === 'crossCutting' ? 'cross-cutting' : pov;
-      const file = s[key as keyof typeof s] as { nodes: Array<{ id: string; label: string; description: string }> } | null;
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+      const file = s[pov] as { nodes: Array<{ id: string; label: string; description: string }> } | null;
       if (file) {
         const node = file.nodes.find(n => n.id === selectedNodeId);
         if (node) return node;
@@ -61,26 +75,52 @@ export function PromptsPanel({ onSelectPrompt }: PromptsPanelProps) {
   return (
     <div className="prompts-panel" ref={listRef} tabIndex={0}>
       <div className="prompts-panel-header">
-        <span className="prompts-panel-title">Prompts</span>
+        <div className="prompts-panel-tabs">
+          <button
+            className={`prompts-panel-tab ${panelTab === 'catalog' ? 'prompts-panel-tab-active' : ''}`}
+            onClick={() => setPanelTab('catalog')}
+          >Catalog</button>
+          <button
+            className={`prompts-panel-tab ${panelTab === 'inspector' ? 'prompts-panel-tab-active' : ''}`}
+            onClick={() => setPanelTab('inspector')}
+          >Inspector</button>
+        </div>
         <span className="prompts-panel-count">{entries.length}</span>
       </div>
+      {panelTab === 'inspector' ? (
+        <PromptInspector />
+      ) : (
+      <>
       {selectedNode && (
         <div className="prompts-panel-context">
           Selected: <strong>{selectedNode.label}</strong>
         </div>
       )}
       <div className="prompts-panel-list">
-        {entries.map((entry, i) => (
-          <div
-            key={entry.id}
-            className={`prompts-panel-item${i === selectedIndex ? ' selected' : ''}${entry.id === 'research' ? ' prompts-panel-research' : ''}`}
-            onClick={() => { setSelectedIndex(i); setSelectionTick(t => t + 1); }}
-          >
-            <span className="prompts-panel-item-title">{entry.title}</span>
-            <span className="prompts-panel-item-source">{entry.source}</span>
-          </div>
-        ))}
+        {(() => {
+          let lastGroup: PromptGroup | null = null;
+          return entries.map((entry, i) => {
+            const showHeader = entry.group !== lastGroup;
+            lastGroup = entry.group;
+            return (
+              <div key={entry.id}>
+                {showHeader && (
+                  <div className="prompts-panel-group-header">{GROUP_LABELS[entry.group]}</div>
+                )}
+                <div
+                  className={`prompts-panel-item${i === selectedIndex ? ' selected' : ''}${entry.id === 'research' ? ' prompts-panel-research' : ''}`}
+                  onClick={() => { setSelectedIndex(i); setSelectionTick(t => t + 1); }}
+                >
+                  <span className="prompts-panel-item-title">{entry.title}</span>
+                  <span className="prompts-panel-item-source">{entry.source}</span>
+                </div>
+              </div>
+            );
+          });
+        })()}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -101,9 +141,9 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
         if (node) return node;
       }
     }
-    const cc = s['cross-cutting'];
-    if (cc) {
-      const node = cc.nodes.find(n => n.id === selectedNodeId);
+    const sit = s['situations'];
+    if (sit) {
+      const node = sit.nodes.find(n => n.id === selectedNodeId);
       if (node) return node;
     }
     return null;

@@ -5,7 +5,7 @@ Respond with a JSON object matching this schema:
   "referenced_nodes": [
     {
       "id": "node-id",
-      "pov": "accelerationist|safetyist|skeptic|cross-cutting",
+      "pov": "accelerationist|safetyist|skeptic|situations",
       "label": "Node label",
       "relevance": "Why this node is relevant to the answer"
     }

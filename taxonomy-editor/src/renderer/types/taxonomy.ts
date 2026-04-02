@@ -46,7 +46,7 @@ export interface PovNode {
   parent_relationship?: ParentRelationship | null;
   parent_rationale?: string | null;
   children: string[];
-  cross_cutting_refs: string[];
+  situation_refs: string[];
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
   debate_refs?: string[];
@@ -61,7 +61,7 @@ export interface PovTaxonomyFile {
   nodes: PovNode[];
 }
 
-export interface CrossCuttingNode {
+export interface SituationNode {
   id: string;
   label: string;
   description: string;
@@ -78,12 +78,18 @@ export interface CrossCuttingNode {
   debate_refs?: string[];
 }
 
-export interface CrossCuttingFile {
+/** @deprecated Use SituationNode */
+export type CrossCuttingNode = SituationNode;
+
+export interface SituationsFile {
   _schema_version: string;
   _doc: string;
   last_modified: string;
-  nodes: CrossCuttingNode[];
+  nodes: SituationNode[];
 }
+
+/** @deprecated Use SituationsFile */
+export type CrossCuttingFile = SituationsFile;
 
 export type ConflictStance = 'supports' | 'disputes' | 'neutral' | 'qualifies';
 
@@ -110,7 +116,7 @@ export interface ConflictFile {
   human_notes: ConflictNote[];
 }
 
-export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' | 'conflicts' | 'debate' | 'chat';
+export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'debate' | 'chat';
 
 // ── Edge types (from taxonomy/Origin/edges.json) ─────────
 

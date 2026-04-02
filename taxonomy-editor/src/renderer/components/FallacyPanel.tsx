@@ -42,8 +42,8 @@ function getNodesWithFallacy(fallacyKey: string): { id: string; label: string; p
     const file = state[pov];
     if (file) for (const n of file.nodes) check(n.graph_attributes as unknown as Record<string, unknown>, n.id, n.label, pov);
   }
-  if (state.crossCutting) {
-    for (const n of state.crossCutting.nodes) check(n.graph_attributes as unknown as Record<string, unknown>, n.id, n.label, 'cross-cutting');
+  if (state.situations) {
+    for (const n of state.situations.nodes) check(n.graph_attributes as unknown as Record<string, unknown>, n.id, n.label, 'situations');
   }
   return results;
 }
@@ -52,7 +52,7 @@ const POV_COLOR: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
-  'cross-cutting': 'var(--color-cc)',
+  'situations': 'var(--color-sit)',
 };
 
 interface FallacyPanelProps {
@@ -79,8 +79,8 @@ function getFallacyCounts(): Map<string, number> {
     const file = state[pov];
     if (file) for (const n of file.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
   }
-  if (state.crossCutting) {
-    for (const n of state.crossCutting.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
+  if (state.situations) {
+    for (const n of state.situations.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
   }
   return counts;
 }

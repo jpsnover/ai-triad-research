@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { CrossCuttingNode } from '../types/taxonomy';
+import type { SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
@@ -13,8 +13,8 @@ import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { generateResearchPrompt } from '../utils/researchPrompt';
 import { SourcesPanel } from './SourcesPanel';
 
-interface CrossCuttingDetailProps {
-  node: CrossCuttingNode;
+interface SituationDetailProps {
+  node: SituationNode;
   readOnly?: boolean;
   onPin?: () => void;
   onRelated?: () => void;
@@ -22,9 +22,9 @@ interface CrossCuttingDetailProps {
   chipDepth?: number;
 }
 
-type CCTab = 'overview' | 'attributes' | 'sources' | 'accelerationist' | 'safetyist' | 'skeptic';
+type SitTab = 'overview' | 'attributes' | 'sources' | 'accelerationist' | 'safetyist' | 'skeptic';
 
-const CC_TABS: { id: CCTab; label: string; color: string }[] = [
+const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
   { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
   { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
@@ -39,10 +39,10 @@ const POV_TITLES: Record<string, string> = {
   skeptic: 'Skeptic View: Questioning the Narrative',
 };
 
-export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: CrossCuttingDetailProps) {
-  const { updateCrossCuttingNode, deleteCrossCuttingNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, getLabelForId } = useTaxonomyStore();
+export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
+  const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, getLabelForId } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<CCTab>('overview');
+  const [activeTab, setActiveTab] = useState<SitTab>('overview');
   const formRef = useRef<HTMLDivElement>(null);
 
   const allPovIds = getAllNodeIds().filter(id => !id.startsWith('cc-'));
@@ -62,9 +62,9 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
     }
   }, [hasErrors]);
 
-  const update = (updates: Partial<CrossCuttingNode>) => {
+  const update = (updates: Partial<SituationNode>) => {
     if (readOnly) return;
-    updateCrossCuttingNode(node.id, updates);
+    updateSituationNode(node.id, updates);
   };
 
   const updateInterpretation = (pov: 'accelerationist' | 'safetyist' | 'skeptic', value: string) => {
@@ -90,7 +90,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
   };
 
   return (
-    <div ref={formRef} className="cc-detail">
+    <div ref={formRef} className="sit-detail">
       {/* Action pill toolbar — matches POV detail style */}
       <div className="node-detail-toolbar">
         {onDebate && (
@@ -115,13 +115,13 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
       )}
 
       {/* Title line — matches POV detail category:label style */}
-      <div className="node-detail-title-line" data-cat="Cross-Cutting">
-        <span className="node-detail-category">CROSS-CUTTING</span>
+      <div className="node-detail-title-line" data-cat="Situations">
+        <span className="node-detail-category">SITUATIONS</span>
         <span className="node-detail-title-sep"> : </span>
         <span className="node-detail-label-text">{node.label}</span>
       </div>
       {node.disagreement_type && (
-        <div className="cc-detail-disagreement-type" style={{ marginTop: '4px' }}>
+        <div className="sit-detail-disagreement-type" style={{ marginTop: '4px' }}>
           <span
             className="ga-badge"
             style={{
@@ -143,11 +143,11 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
       )}
 
       {/* Tab bar */}
-      <div className="cc-detail-tabs">
-        {CC_TABS.filter(t => t.id !== 'attributes' || node.graph_attributes).map((tab) => (
+      <div className="sit-detail-tabs">
+        {SIT_TABS.filter(t => t.id !== 'attributes' || node.graph_attributes).map((tab) => (
           <button
             key={tab.id}
-            className={`cc-detail-tab ${activeTab === tab.id ? 'cc-detail-tab-active' : ''}`}
+            className={`sit-detail-tab ${activeTab === tab.id ? 'sit-detail-tab-active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
             style={activeTab === tab.id ? { color: tab.color, borderBottomColor: tab.color } : undefined}
           >
@@ -157,9 +157,9 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
       </div>
 
       {/* Tab content */}
-      <div className="cc-detail-tab-content">
+      <div className="sit-detail-tab-content">
         {activeTab === 'overview' && (
-          <div className="cc-overview">
+          <div className="sit-overview">
             {!readOnly && (
               <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
                 <label>Label</label>
@@ -173,7 +173,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
               <label>
                 Description
-                <FieldHelp text='Genus-differentia format: "A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ..."' />
+                <FieldHelp text='Genus-differentia format: "A situation that [differentia]. Encompasses: ... Excludes: ..."' />
               </label>
               <HighlightedTextarea
                 value={node.description}
@@ -227,7 +227,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
             <div className="form-group">
               <label>
                 Linked Nodes
-                <FieldHelp text="POV-specific nodes that relate to this cross-cutting concept." />
+                <FieldHelp text="POV-specific nodes that relate to this situation." />
               </label>
               <div className="chip-list">
                 {node.linked_nodes.map((id) => (
@@ -260,12 +260,12 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
         )}
 
         {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (
-          <div className="cc-pov-split">
+          <div className="sit-pov-split">
             {/* Left: Interpretation */}
-            <div className="cc-pov-interpretation">
-              <h3 className="cc-pov-heading">{POV_TITLES[activeTab]}</h3>
+            <div className="sit-pov-interpretation">
+              <h3 className="sit-pov-heading">{POV_TITLES[activeTab]}</h3>
               {readOnly ? (
-                <div className="cc-pov-text">{node.interpretations[activeTab]}</div>
+                <div className="sit-pov-text">{node.interpretations[activeTab]}</div>
               ) : (
                 <div className={`form-group ${err(`interpretations.${activeTab}`) ? 'has-error' : ''}`}>
                   <HighlightedTextarea
@@ -279,18 +279,18 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
             </div>
 
             {/* Right: Supporting Evidence (linked nodes for this POV) */}
-            <div className="cc-pov-evidence">
+            <div className="sit-pov-evidence">
               <h3
-                className="cc-pov-evidence-heading"
-                style={{ borderBottomColor: CC_TABS.find(t => t.id === activeTab)?.color }}
+                className="sit-pov-evidence-heading"
+                style={{ borderBottomColor: SIT_TABS.find(t => t.id === activeTab)?.color }}
               >Supporting Evidence</h3>
-              <div className="cc-pov-evidence-list">
+              <div className="sit-pov-evidence-list">
                 {linkedByPov(activeTab).length > 0 ? (
                   linkedByPov(activeTab).map((id) => (
                     <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
                   ))
                 ) : (
-                  <div className="cc-pov-evidence-empty">No linked nodes for this perspective</div>
+                  <div className="sit-pov-evidence-empty">No linked nodes for this perspective</div>
                 )}
               </div>
               {!readOnly && (
@@ -312,7 +312,7 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
         <DeleteConfirmDialog
           itemLabel={node.label}
           onConfirm={() => {
-            deleteCrossCuttingNode(node.id);
+            deleteSituationNode(node.id);
             setShowDelete(false);
           }}
           onCancel={() => setShowDelete(false)}
@@ -321,3 +321,6 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
     </div>
   );
 }
+
+/** @deprecated Use SituationDetail */
+export const CrossCuttingDetail = SituationDetail;

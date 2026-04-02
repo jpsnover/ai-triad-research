@@ -91,8 +91,8 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     const state = useTaxonomyStore.getState();
     const policyIdSet = new Set<string>();
 
-    for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'crossCutting'] as const) {
-      const file = povKey === 'crossCutting' ? state.crossCutting : state[povKey];
+    for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+      const file = povKey === 'situations' ? state.situations : state[povKey];
       if (!file?.nodes) continue;
       for (const node of file.nodes) {
         if (!linkedNodes.includes(node.id)) continue;

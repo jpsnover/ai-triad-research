@@ -92,7 +92,7 @@ function Show-TriadDialogue {
 
     # Load all nodes
     $AllNodes = @{}
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
@@ -138,10 +138,10 @@ function Show-TriadDialogue {
 
         $CcNodeIds = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($Edge in $AllEdges) {
-            if ($TopNodeSet.Contains($Edge.source) -and $AllNodes.ContainsKey($Edge.target) -and $AllNodes[$Edge.target].POV -eq 'cross-cutting') {
+            if ($TopNodeSet.Contains($Edge.source) -and $AllNodes.ContainsKey($Edge.target) -and $AllNodes[$Edge.target].POV -eq 'situations') {
                 [void]$CcNodeIds.Add($Edge.target)
             }
-            if ($TopNodeSet.Contains($Edge.target) -and $AllNodes.ContainsKey($Edge.source) -and $AllNodes[$Edge.source].POV -eq 'cross-cutting') {
+            if ($TopNodeSet.Contains($Edge.target) -and $AllNodes.ContainsKey($Edge.source) -and $AllNodes[$Edge.source].POV -eq 'situations') {
                 [void]$CcNodeIds.Add($Edge.source)
             }
         }
@@ -155,7 +155,7 @@ function Show-TriadDialogue {
         }
 
         if ($CcNodeIds.Count -gt 0) {
-            [void]$ContextBuilder.AppendLine("`nRelevant cross-cutting nodes:")
+            [void]$ContextBuilder.AppendLine("`nRelevant situations nodes:")
             foreach ($CcId in $CcNodeIds | Select-Object -First 10) {
                 $N = $AllNodes[$CcId]
                 [void]$ContextBuilder.AppendLine("  - ${CcId}: $($N.Label) — $($N.Description)")

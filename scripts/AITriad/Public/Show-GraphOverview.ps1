@@ -36,7 +36,7 @@ function Show-GraphOverview {
     $AllNodes = @{}
     $NodePovMap = @{}
     $PovCounts = [ordered]@{}
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
@@ -157,7 +157,7 @@ function Show-GraphOverview {
             'accelerationist' { 'Blue' }
             'safetyist'       { 'Green' }
             'skeptic'         { 'Yellow' }
-            'cross-cutting'   { 'Magenta' }
+            'situations'      { 'Magenta' }
         }
         Write-Host "    $($PovKey.PadRight(18)) $($PovCounts[$PovKey])" -ForegroundColor $PovColor
     }

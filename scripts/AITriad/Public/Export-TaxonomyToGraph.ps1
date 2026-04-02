@@ -126,7 +126,7 @@ function Export-TaxonomyToGraph {
     # ── Step 4: Load and export taxonomy nodes ──
     Write-Step 'Exporting taxonomy nodes'
     $TaxDir = Get-TaxonomyDir
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $NodeCount = 0
 
     foreach ($PovKey in $PovFiles) {
@@ -166,7 +166,7 @@ function Export-TaxonomyToGraph {
                 'accelerationist' { 'Accelerationist' }
                 'safetyist'       { 'Safetyist' }
                 'skeptic'         { 'Skeptic' }
-                'cross-cutting'   { 'CrossCutting' }
+                'situations'      { 'Situations' }
             }
             $Query += ", n:$PovLabel"
 

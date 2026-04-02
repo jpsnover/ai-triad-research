@@ -75,7 +75,7 @@ function Get-IngestionPriority {
 
     # --- Orphan nodes (score 10) ---
     foreach ($Orphan in $Health.OrphanNodes) {
-        if ($Orphan.POV -eq 'cross-cutting') { continue }
+        if ($Orphan.POV -eq 'situations') { continue }
         if ($POV -ne 'all' -and $Orphan.POV -ne $POV) { continue }
         $GapCounter++
         $Gaps.Add([PSCustomObject][ordered]@{
@@ -175,7 +175,7 @@ function Get-IngestionPriority {
 
     # --- Single-POV citations (score 4) ---
     foreach ($NC in $Health.NodeCitations) {
-        if ($NC.POV -eq 'cross-cutting') { continue }
+        if ($NC.POV -eq 'situations') { continue }
         if ($NC.Citations -eq 0) { continue }
         if ($POV -ne 'all' -and $NC.POV -ne $POV) { continue }
 

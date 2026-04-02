@@ -454,7 +454,7 @@ function Invoke-DependencyCheck {
                     # Test mode: check if embeddings are stale (more taxonomy nodes than embeddings)
                     if ($IsTestMode -and $EmbCount -ne '?') {
                         $TotalTaxNodes = 0
-                        foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+                        foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
                             $E = $script:TaxonomyData[$PovKey]
                             if ($E) { $TotalTaxNodes += @($E.nodes).Count }
                         }
@@ -507,7 +507,7 @@ function Invoke-DependencyCheck {
     DSection 'DATA INTEGRITY'
 
     $TaxDir    = Get-TaxonomyDir
-    $TaxFiles  = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json')
+    $TaxFiles  = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json')
     $TotalNodes = 0
     foreach ($TF in $TaxFiles) {
         $TFPath = Join-Path $TaxDir $TF

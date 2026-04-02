@@ -332,7 +332,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         const pov = id.startsWith('acc-') ? 'accelerationist'
           : id.startsWith('saf-') ? 'safetyist'
           : id.startsWith('skp-') ? 'skeptic'
-          : 'cross-cutting';
+          : 'situations';
         return { id, label: node.label, description: node.description, pov, category: node.category };
       });
 
@@ -418,7 +418,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     // ── Step 1: Parent placement ─────────────────────────────────────────
     updateStep(1, 'running');
     try {
-      const isCrossCutting = pov === 'cross-cutting';
+      const isCrossCutting = pov === 'situations';
       const siblingNodes = await window.electronAPI.getNodesByPovCategory(pov, isCrossCutting ? undefined : category) as FullTaxonomyNode[];
 
       // Need at least one other node to place under
@@ -503,7 +503,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
           const nodePov = id.startsWith('acc-') ? 'accelerationist'
             : id.startsWith('saf-') ? 'safetyist'
             : id.startsWith('skp-') ? 'skeptic'
-            : 'cross-cutting';
+            : 'situations';
           return { id, label: node.label, description: node.description, pov: nodePov, category: node.category };
         });
 
@@ -542,7 +542,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
 
           // Second pass: ensure cross-POV diversity
           const sourcePov = pov;
-          for (const otherPov of ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting']) {
+          for (const otherPov of ['accelerationist', 'safetyist', 'skeptic', 'situations']) {
             if (otherPov === sourcePov) continue;
             const count = povCounts[otherPov] || 0;
             if (count >= MIN_PER_POV) continue;

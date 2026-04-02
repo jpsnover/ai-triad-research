@@ -38,6 +38,7 @@ class TaxonomyNode {
     [string]$ParentRationale
     [string[]]$Children
     [string[]]$CrossCuttingRefs
+    [string[]]$SituationRefs
     [PSObject]$Interpretations
     [string[]]$LinkedNodes
     [double]$Score
@@ -159,6 +160,26 @@ Set-Alias -Name 'SummaryViewer'    -Value 'Show-SummaryViewer'      -Scope Globa
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Deprecation wrappers — old cmdlet names delegate to new names
+# ─────────────────────────────────────────────────────────────────────────────
+function Find-CrossCuttingCandidates {
+    <#
+    .SYNOPSIS
+        DEPRECATED: Use Find-SituationCandidates instead.
+    #>
+    [CmdletBinding()]
+    param()
+
+    Write-Warning (New-ActionableError -Goal 'run Find-CrossCuttingCandidates' `
+        -Problem 'Find-CrossCuttingCandidates was renamed in the Situations migration' `
+        -Location 'AITriad module' `
+        -NextSteps 'Use Find-SituationCandidates instead' `
+        -PassThru)
+
+    Find-SituationCandidates @PSBoundParameters
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Export public surface
 # ─────────────────────────────────────────────────────────────────────────────
 Export-ModuleMember -Function @(
@@ -199,6 +220,7 @@ Export-ModuleMember -Function @(
     'Show-GraphOverview'
     'Get-TopicFrequency'
     'Get-IngestionPriority'
+    'Find-SituationCandidates'
     'Find-CrossCuttingCandidates'
     'Show-TriadDialogue'
     'Register-AIBackend'
@@ -222,6 +244,8 @@ Export-ModuleMember -Function @(
     'Show-DebateDiagnostics'
     'Show-DebateHarvest'
     'Repair-DebateOutput'
+    'Get-AITSBOM'
+    'Test-OntologyCompliance'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

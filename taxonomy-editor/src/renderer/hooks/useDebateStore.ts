@@ -11,21 +11,21 @@ import type {
   TaxonomyRef,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis } from '../types/debate';
-import { scoreNodeRelevance, selectRelevantNodes, selectRelevantCCNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
+import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker, swapIssue } from '../utils/convergenceScoring';
 import {
   clarificationPrompt,
-  crossCuttingClarificationPrompt,
+  situationClarificationPrompt,
   documentClarificationPrompt,
-  formatCrossCuttingDebateContext,
+  formatSituationDebateContext,
   synthesisPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
@@ -303,10 +303,10 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
 
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const povNodes: PovNode[] = povFile?.nodes ?? [];
-  const crossCuttingNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
+  const situationNodes: SituationNode[] = state.situations?.nodes ?? [];
   const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
 
-  return { povNodes, crossCuttingNodes, policyRegistry };
+  return { povNodes, situationNodes, policyRegistry };
 }
 
 // Cache for node embeddings (loaded once per session)
@@ -338,7 +338,7 @@ async function getRelevantTaxonomyContext(
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const allPovNodes: PovNode[] = povFile?.nodes ?? [];
-  const allCCNodes: CrossCuttingNode[] = state.crossCutting?.nodes ?? [];
+  const allCCNodes: SituationNode[] = state.situations?.nodes ?? [];
 
   try {
     // Build query from debate context
@@ -375,19 +375,19 @@ async function getRelevantTaxonomyContext(
     }
 
     const filteredPov = selectRelevantNodes(allPovNodes, scores, threshold);
-    const filteredCC = selectRelevantCCNodes(allCCNodes, scores, threshold);
+    const filteredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold);
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
-    return { povNodes: filteredPov, crossCuttingNodes: filteredCC, policyRegistry };
+    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     // Fallback: first 21 POV nodes + first 10 CC nodes
     return {
       povNodes: allPovNodes.slice(0, 21),
-      crossCuttingNodes: allCCNodes.slice(0, 10),
+      situationNodes: allCCNodes.slice(0, 10),
       policyRegistry,
     };
   }
@@ -652,7 +652,7 @@ interface DebateStore {
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number) => Promise<string>;
-  createCrossCuttingDebate: (ccNodeId: string) => Promise<string>;
+  createSituationDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
   renameDebate: (id: string, newTitle: string) => Promise<void>;
@@ -804,10 +804,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     return id;
   },
 
-  createCrossCuttingDebate: async (ccNodeId: string) => {
+  createSituationDebate: async (ccNodeId: string) => {
     const taxState = useTaxonomyStore.getState();
-    const ccNode = taxState.crossCutting?.nodes.find(n => n.id === ccNodeId);
-    if (!ccNode) throw new Error(`Cross-cutting node ${ccNodeId} not found`);
+    const ccNode = taxState.situations?.nodes.find(n => n.id === ccNodeId);
+    if (!ccNode) throw new Error(`Situation node ${ccNodeId} not found`);
 
     // Resolve linked node descriptions
     const linkedNodeDescriptions: string[] = [];
@@ -833,7 +833,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const attrs = ccNode.graph_attributes as Record<string, unknown> | undefined;
-    const sourceContent = formatCrossCuttingDebateContext({
+    const sourceContent = formatSituationDebateContext({
       id: ccNode.id,
       label: ccNode.label,
       description: ccNode.description,
@@ -848,7 +848,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const topic = ccNode.label;
     const allPovers: PoverId[] = ['prometheus', 'sentinel', 'cassandra'];
 
-    const id = await get().createDebate(topic, allPovers, false, 'cross-cutting', ccNodeId, sourceContent);
+    const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
     await get().loadDebate(id);
     get().updatePhase('clarification');
     await get().saveDebate();
@@ -1023,8 +1023,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const topic = activeDebate.topic.final;
 
     set({ debateGenerating: 'system' as PoverId });
-    const prompt = activeDebate.source_type === 'cross-cutting'
-      ? crossCuttingClarificationPrompt(topic, activeDebate.source_content)
+    const prompt = activeDebate.source_type === 'situations'
+      ? situationClarificationPrompt(topic, activeDebate.source_content)
       : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
         ? documentClarificationPrompt(topic, activeDebate.source_content)
         : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
@@ -1133,7 +1133,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           accelerationist: { nodes: (taxStore.accelerationist?.nodes ?? []) as PovNode[] },
           safetyist: { nodes: (taxStore.safetyist?.nodes ?? []) as PovNode[] },
           skeptic: { nodes: (taxStore.skeptic?.nodes ?? []) as PovNode[] },
-          crossCutting: { nodes: (taxStore.crossCutting?.nodes ?? []) as CrossCuttingNode[] },
+          situations: { nodes: (taxStore.situations?.nodes ?? []) as SituationNode[] },
           policyRegistry: (taxStore.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action })),
         });
 
@@ -1825,8 +1825,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const ctx = getTaxonomyContext(pov);
       for (const n of ctx.povNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
     }
-    const ccCtx = getTaxonomyContext('accelerationist'); // cross-cutting is the same from any POV
-    for (const n of ccCtx.crossCuttingNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
+    const ccCtx = getTaxonomyContext('accelerationist'); // situations are the same from any POV
+    for (const n of ccCtx.situationNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
 
     const unreferenced = allNodeIds.filter((desc) => {
       const match = desc.match(/^\[([^\]]+)\]/);
@@ -2083,7 +2083,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 function getNodeLabelForFactCheck(nodeId: string): string {
   const state = useTaxonomyStore.getState();
   if (nodeId.startsWith('cc-')) {
-    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
     return node?.label || nodeId;
   }
   const povMap: Record<string, string> = { 'acc-': 'accelerationist', 'saf-': 'safetyist', 'skp-': 'skeptic' };

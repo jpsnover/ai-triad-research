@@ -9,7 +9,7 @@ const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: strin
   accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
   safetyist: { label: 'Safetyist', colorVar: 'var(--color-saf)', bgVar: 'var(--bg-saf)' },
   skeptic: { label: 'Skeptic', colorVar: 'var(--color-skp)', bgVar: 'var(--bg-skp)' },
-  'cross-cutting': { label: 'Cross-Cutting', colorVar: 'var(--text-secondary)', bgVar: 'var(--bg-secondary)' },
+  'situations': { label: 'Situations', colorVar: 'var(--text-secondary)', bgVar: 'var(--bg-secondary)' },
 };
 
 const STANCE_LABELS: Record<string, string> = {
@@ -236,7 +236,7 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
     setResult(null);
     const label = uc.suggested_label || uc.concept.slice(0, 80);
     const description = uc.suggested_description || uc.concept;
-    const interpretations = uc.suggested_pov === 'cross-cutting'
+    const interpretations = uc.suggested_pov === 'situations'
       ? {
           accelerationist: uc['Accelerationist Interpretation'] || '',
           safetyist: uc['Safetyist Interpretation'] || '',
@@ -325,7 +325,7 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
       {uc.suggested_description && (
         <div className="unmapped-description">{uc.suggested_description}</div>
       )}
-      {uc.suggested_pov === 'cross-cutting' && (
+      {uc.suggested_pov === 'situations' && (
         <div className="unmapped-interpretations">
           {uc['Accelerationist Interpretation'] && (
             <div className="unmapped-interp">
@@ -916,11 +916,11 @@ export default function KeyPointsPane() {
         {/* === Unmapped Concepts === */}
         {hasSelection && unmappedConcepts.length > 0 && (() => {
           // Group by POV, sort each group by label
-          const POV_ORDER = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+          const POV_ORDER = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
           const byPov = new Map<string, AggregatedUnmapped[]>();
           for (const pov of POV_ORDER) byPov.set(pov, []);
           for (const uc of unmappedConcepts) {
-            const key = uc.suggested_pov || 'cross-cutting';
+            const key = uc.suggested_pov || 'situations';
             if (!byPov.has(key)) byPov.set(key, []);
             byPov.get(key)!.push(uc);
           }

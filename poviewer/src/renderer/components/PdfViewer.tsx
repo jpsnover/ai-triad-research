@@ -67,7 +67,7 @@ function PdfTextFallback({ source, showBanner }: { source: Source; showBanner: b
         accelerationist: 'rgba(39, 174, 96, 0.20)',
         safetyist: 'rgba(231, 76, 60, 0.18)',
         skeptic: 'rgba(243, 156, 18, 0.20)',
-        'cross-cutting': 'rgba(142, 68, 173, 0.17)',
+        'situations': 'rgba(142, 68, 173, 0.17)',
       };
       return colorMap[point.mappings[0].camp];
     }
@@ -117,7 +117,7 @@ const CAMP_COLORS: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
-  'cross-cutting': 'var(--color-cc)',
+  'situations': 'var(--color-cc)',
 };
 
 interface ContextMenuProps {

@@ -56,7 +56,7 @@ function Find-PossibleFallacy {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string]$POV = '',
 
         [string[]]$Id,
@@ -109,7 +109,7 @@ function Find-PossibleFallacy {
     }
 
     # ── Determine which files to process ──
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     if ($POV) { $PovFiles = @($POV) }
 
     Write-OK "Processing: $($PovFiles -join ', ')"
@@ -199,7 +199,7 @@ function Find-PossibleFallacy {
                     if ($GA.PSObject.Properties['rhetorical_strategy']) { $Entry['rhetorical_strategy'] = $GA.rhetorical_strategy }
                     if ($GA.PSObject.Properties['assumes'])             { $Entry['assumes']             = $GA.assumes }
                 }
-                if ($PovKey -eq 'cross-cutting' -and $Node.PSObject.Properties['interpretations']) {
+                if ($PovKey -eq 'situations' -and $Node.PSObject.Properties['interpretations']) {
                     $Entry['interpretations'] = $Node.interpretations
                 }
                 $Entry

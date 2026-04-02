@@ -24,7 +24,7 @@ The attached files contain the current taxonomy:
   • accelerationist.json
   • safetyist.json
   • skeptic.json
-  • cross-cutting.json
+  • situations.json
 
 
 ═══════════════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ The three camps and their core beliefs:
   Key vocabulary: bias, discrimination, accountability, audits,
   workers, marginalized groups, surveillance, civil liberties.
 
-  🟣 CROSS-CUTTING
+  🟣 SITUATIONS
   Concepts all three camps reference but interpret differently.
   These are the words that create the illusion of agreement.
   Examples: "harm," "risk," "AGI timelines," "alignment,"
@@ -116,7 +116,7 @@ substantive claim, argument, framing, and recommendation.
 
 For each element you identify:
   → Assign it to one or more camps (Accelerationist, Safetyist,
-    Skeptic, Cross-Cutting, or None/Neutral).
+    Skeptic, Situations, or None/Neutral).
   → Assign it to one axis (Desires, Beliefs, Methods).
   → Map it to the closest existing taxonomy node ID (e.g.,
     "acc-goals-001"). Use the exact IDs from the attached JSON.
@@ -134,7 +134,7 @@ Special attention rules:
     empirical that contradicts another camp's Beliefs node,
     flag it explicitly as a FACTUAL CONFLICT with a short
     description of both positions.
-  • Rhetoric: note if the document uses cross-cutting vocabulary
+  • Rhetoric: note if the document uses situations vocabulary
     (like "harm" or "safety") in a camp-specific way without
     defining it. This is a signal of the core communication
     failure the AI Triad project is trying to solve.
@@ -185,7 +185,7 @@ For each element, one row:
 ### 🟡 SKEPTIC ELEMENTS
 [Same table format]
 
-### 🟣 CROSS-CUTTING ELEMENTS
+### 🟣 SITUATION ELEMENTS
 List concepts the document uses in a camp-specific way without
 defining them:
 
@@ -250,7 +250,7 @@ Apply four types of critique:
   TYPE D — CROSS-CUTTING PROMOTIONS
   Cases where a concept currently siloed in one camp's file
   is actually used — differently — by multiple camps. Propose
-  moving it to cross-cutting.json and documenting the per-camp
+  moving it to situations.json and documenting the per-camp
   interpretations.
 
 Prioritization guidance:
@@ -273,7 +273,7 @@ OUTPUT FORMAT FOR PART 2
 - Proposed new nodes: [N]
 - Proposed generalizations: [N]
 - Proposed splits: [N]
-- Proposed cross-cutting promotions: [N]
+- Proposed situation promotions: [N]
 
 ---
 
@@ -281,13 +281,13 @@ OUTPUT FORMAT FOR PART 2
 
 #### [Suggested Node ID, e.g., acc-methods-003]
 - **Priority:** HIGH / MEDIUM / LOW
-- **POV camp:** Accelerationist / Safetyist / Skeptic / Cross-Cutting
+- **POV camp:** Accelerationist / Safetyist / Skeptic / Situations
 - **Category:** Desire / Belief / Intention
 - **Proposed label:** [Short label, 3–6 words]
 - **Proposed description:** [Use genus-differentia format:
   "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
   Encompasses: [examples]. Excludes: [what neighbors cover]."
-  For cross-cutting: "A cross-cutting concept that [differentia].
+  For situations: "A situation that [differentia].
   Encompasses: ... Excludes: ..." — 2-4 sentences total.]
 - **Evidence from this document:** [Quote or paraphrase the
   specific passage that required this new node]
@@ -332,15 +332,15 @@ OUTPUT FORMAT FOR PART 2
 
 ---
 
-### TYPE D — CROSS-CUTTING PROMOTIONS
+### TYPE D — SITUATION PROMOTIONS
 
 #### Existing node: [node-id] in [pov].json
 - **Priority:** HIGH / MEDIUM / LOW
 - **Concept:** [label]
-- **Evidence it's cross-cutting:** [Show how at least two camps
+- **Evidence it's a situation:** [Show how at least two camps
   use this concept with different meanings — cite specific
   passages from this document or well-known positions]
-- **Proposed cross-cutting entry:**
+- **Proposed situation entry:**
   - Accelerationist interpretation: [1 sentence]
   - Safetyist interpretation: [1 sentence]
   - Skeptic interpretation: [1 sentence]

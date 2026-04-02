@@ -63,7 +63,7 @@ const POV_LABELS: Record<string, string> = {
   accelerationist: 'Acc',
   safetyist: 'Saf',
   skeptic: 'Skp',
-  'cross-cutting': 'CC',
+  'situations': 'Sit',
 };
 
 interface SourcesPanelProps {

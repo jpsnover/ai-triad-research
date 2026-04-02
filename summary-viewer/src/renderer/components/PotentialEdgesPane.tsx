@@ -20,7 +20,7 @@ function povFromId(id: string): string {
   if (id.startsWith('acc-')) return 'accelerationist';
   if (id.startsWith('saf-')) return 'safetyist';
   if (id.startsWith('skp-')) return 'skeptic';
-  if (id.startsWith('cc-')) return 'cross-cutting';
+  if (id.startsWith('cc-')) return 'situations';
   return '';
 }
 
@@ -28,7 +28,7 @@ function povLabel(pov: string): string {
   if (pov === 'accelerationist') return 'Acc';
   if (pov === 'safetyist') return 'Saf';
   if (pov === 'skeptic') return 'Skp';
-  if (pov === 'cross-cutting') return 'CC';
+  if (pov === 'situations') return 'CC';
   return pov.slice(0, 3);
 }
 

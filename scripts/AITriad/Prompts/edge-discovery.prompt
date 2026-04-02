@@ -45,7 +45,7 @@ EDGE TYPE VOCABULARY:
 
   INTERPRETS (directional: source → target)
     The source provides a POV-specific reading or reframing of the target concept.
-    Common for POV nodes interpreting cross-cutting concepts.
+    Common for POV nodes interpreting situation concepts.
 
   SUPPORTED_BY (directional: source → target)
     The source node's claim is backed by evidence or authority found in the target.

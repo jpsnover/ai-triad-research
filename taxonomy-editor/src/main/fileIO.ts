@@ -103,8 +103,16 @@ const POV_FILE_MAP: Record<string, string> = {
   accelerationist: 'accelerationist.json',
   safetyist: 'safetyist.json',
   skeptic: 'skeptic.json',
-  'cross-cutting': 'cross-cutting.json',
+  // Situations migration: renderer uses 'situations' key, resolves to situations.json (or cross-cutting.json fallback)
+  'situations': 'situations.json',
 };
+
+/** Resolve the situations/cross-cutting file — tries situations.json first, falls back to cross-cutting.json. */
+export function resolveSituationsFilePath(): string {
+  const sitPath = path.join(activeTaxonomyDir, 'situations.json');
+  if (fs.existsSync(sitPath)) return sitPath;
+  return path.join(activeTaxonomyDir, 'cross-cutting.json');
+}
 
 export function getTaxonomyDirs(): string[] {
   if (!fs.existsSync(TAXONOMY_BASE)) return [];
@@ -165,6 +173,10 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
 }
 
 export function readTaxonomyFile(pov: string): unknown {
+  // Situations migration: fall back to cross-cutting.json if situations.json doesn't exist
+  if (pov === 'situations') {
+    return parseJsonFile(resolveSituationsFilePath());
+  }
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
@@ -173,6 +185,11 @@ export function readTaxonomyFile(pov: string): unknown {
 }
 
 export function writeTaxonomyFile(pov: string, data: unknown): void {
+  // Situations migration: write to whichever file currently exists (prefer situations.json)
+  if (pov === 'situations') {
+    writeJsonFileAtomic(resolveSituationsFilePath(), data);
+    return;
+  }
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
     throw new Error(`Unknown POV: ${pov}`);
@@ -368,7 +385,7 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
   // 2. Build node → policy mapping by scanning all POV files
   const nodeToPolicies = new Map<string, string[]>();
   for (const pov of Object.keys(POV_FILE_MAP)) {
-    if (pov === 'cross-cutting') continue;
+    if (pov === 'situations') continue;
     try {
       const file = readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
       if (!file?.nodes) continue;

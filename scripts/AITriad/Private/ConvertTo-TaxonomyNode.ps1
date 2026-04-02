@@ -49,7 +49,16 @@ function ConvertTo-TaxonomyNode {
         $Obj.Category         = $Node.category
         $Obj.ParentId         = $Node.parent_id
         $Obj.Children         = @($Node.children)
-        $Obj.CrossCuttingRefs = @($Node.cross_cutting_refs)
+        # Accept both cross_cutting_refs and situation_refs (Phase 1D shim)
+        $Refs = @()
+        if ($null -ne $Node.PSObject.Properties['situation_refs']) {
+            $Refs = @($Node.situation_refs)
+        }
+        elseif ($null -ne $Node.PSObject.Properties['cross_cutting_refs']) {
+            $Refs = @($Node.cross_cutting_refs)
+        }
+        $Obj.CrossCuttingRefs = $Refs
+        $Obj.SituationRefs    = $Refs
 
         if ($null -ne $Node.PSObject.Properties['parent_relationship']) {
             $Obj.ParentRelationship = $Node.parent_relationship

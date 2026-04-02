@@ -110,10 +110,10 @@ function Get-Edge {
 
         [string]$DiscoveredBefore,
 
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', '')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations', '')]
         [string]$SourcePov,
 
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', '')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations', '')]
         [string]$TargetPov,
 
         [int]$Index = -1,
@@ -168,7 +168,7 @@ function Get-Edge {
     $NodePovMap = $null
     if ($SourcePov -or $TargetPov -or $CrossPov -ne $null) {
         $NodePovMap = @{}
-        foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+        foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
             $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20

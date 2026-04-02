@@ -59,7 +59,7 @@ function Get-ConflictEvolution {
     $TaxDir = Get-TaxonomyDir
     $AllNodes = @{}
     $NodePovMap = @{}
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')) {
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20

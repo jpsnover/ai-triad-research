@@ -52,7 +52,7 @@ function Update-PolicyRegistry {
     }
 
     # ── Scan all taxonomy files ──
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $ReferencedIds = @{}  # policy_id -> list of { NodeId, POV, Action, Framing }
     $Unregistered  = [System.Collections.Generic.List[object]]::new()
 

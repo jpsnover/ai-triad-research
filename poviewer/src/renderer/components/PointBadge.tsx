@@ -11,7 +11,7 @@ const BADGE_CLASS: Record<PovCamp, string> = {
   accelerationist: 'point-badge-acc',
   safetyist: 'point-badge-saf',
   skeptic: 'point-badge-skp',
-  'cross-cutting': 'point-badge-cc',
+  'situations': 'point-badge-cc',
 };
 
 export default function PointBadge({ point }: Props) {

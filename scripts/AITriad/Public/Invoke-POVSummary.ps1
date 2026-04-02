@@ -146,7 +146,7 @@ function Invoke-POVSummary {
     Write-OK "Taxonomy version: $taxonomyVersion"
 
     # -- STEP 2 — Load all four taxonomy files --------------------------------
-    $taxonomyFiles   = @("accelerationist.json", "safetyist.json", "skeptic.json", "cross-cutting.json")
+    $taxonomyFiles   = @("accelerationist.json", "safetyist.json", "skeptic.json", "situations.json")
     $taxonomyContext = [ordered]@{}
 
     foreach ($file in $taxonomyFiles) {

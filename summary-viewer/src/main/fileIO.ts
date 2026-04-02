@@ -294,14 +294,14 @@ const POV_FILE_MAP: Record<string, string> = {
   accelerationist: 'accelerationist.json',
   safetyist: 'safetyist.json',
   skeptic: 'skeptic.json',
-  'cross-cutting': 'cross-cutting.json',
+  'situations': 'situations.json',
 };
 
 const POV_PREFIX_MAP: Record<string, string> = {
   accelerationist: 'acc',
   safetyist: 'saf',
   skeptic: 'skp',
-  'cross-cutting': 'cc',
+  'situations': 'cc',
 };
 
 const CATEGORY_PREFIX_MAP: Record<string, string> = {
@@ -342,7 +342,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     return { success: false, nodeId: '', error: `Taxonomy file not found: ${fileName}` };
   }
 
-  const isCrossCutting = req.pov === 'cross-cutting';
+  const isCrossCutting = req.pov === 'situations';
   const povPrefix = POV_PREFIX_MAP[req.pov];
 
   if (!isCrossCutting) {
@@ -371,7 +371,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
     let newId: string;
 
     if (isCrossCutting) {
-      // Cross-cutting IDs: cc-NNN
+      // Situation IDs: cc-NNN
       const prefix = `${povPrefix}-`;
       let maxNum = 0;
       for (const node of raw.nodes) {
@@ -421,7 +421,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
           description: req.description,
           parent_id: null,
           children: [],
-          cross_cutting_refs: [],
+          situation_refs: [],
         };
 
     raw.nodes.push(newNode);
@@ -459,7 +459,7 @@ function povFileForNodeId(nodeId: string): string | null {
   if (nodeId.startsWith('acc-')) return 'accelerationist.json';
   if (nodeId.startsWith('saf-')) return 'safetyist.json';
   if (nodeId.startsWith('skp-')) return 'skeptic.json';
-  if (nodeId.startsWith('cc-')) return 'cross-cutting.json';
+  if (nodeId.startsWith('cc-')) return 'situations.json';
   return null;
 }
 
@@ -468,7 +468,7 @@ function povNameForNodeId(nodeId: string): string {
   if (nodeId.startsWith('acc-')) return 'accelerationist';
   if (nodeId.startsWith('saf-')) return 'safetyist';
   if (nodeId.startsWith('skp-')) return 'skeptic';
-  return 'cross-cutting';
+  return 'situations';
 }
 
 /**

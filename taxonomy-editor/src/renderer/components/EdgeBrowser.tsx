@@ -47,7 +47,7 @@ const POVS = [
   { value: 'accelerationist', label: 'Accelerationist' },
   { value: 'safetyist', label: 'Safetyist' },
   { value: 'skeptic', label: 'Skeptic' },
-  { value: 'cross-cutting', label: 'Cross-cutting' },
+  { value: 'situations', label: 'Situations' },
 ];
 
 const EDGE_TYPES = [
@@ -78,7 +78,7 @@ function povForId(id: string): string {
   if (id.startsWith('acc-')) return 'accelerationist';
   if (id.startsWith('saf-')) return 'safetyist';
   if (id.startsWith('skp-')) return 'skeptic';
-  if (id.startsWith('cc-')) return 'cross-cutting';
+  if (id.startsWith('cc-')) return 'situations';
   if (id.startsWith('pol-')) return 'policy';
   return 'unknown';
 }
@@ -87,8 +87,8 @@ const POV_COLOR: Record<string, string> = {
   accelerationist: 'var(--color-acc)',
   safetyist: 'var(--color-saf)',
   skeptic: 'var(--color-skp)',
-  'cross-cutting': 'var(--color-cc)',
-  policy: 'var(--color-cc)',
+  'situations': 'var(--color-sit)',
+  policy: 'var(--color-sit)',
 };
 
 function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {

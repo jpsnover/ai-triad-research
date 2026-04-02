@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
-import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { SituationDetail } from './SituationDetail';
 import { NodeDetail } from './NodeDetail';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PinnedPanel } from './PinnedPanel';
@@ -19,9 +19,9 @@ import { LineagePanel } from './LineagePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 
-export function CrossCuttingTab() {
+export function SituationsTab() {
   const {
-    crossCutting, selectedNodeId, setSelectedNodeId, createCrossCuttingNode,
+    situations, selectedNodeId, setSelectedNodeId, createSituationNode,
     pinnedStack, pinAtDepth,
     attributeFilter, attributeInfo,
     relatedNodeId, showRelatedEdges, selectedEdge,
@@ -76,8 +76,8 @@ export function CrossCuttingTab() {
   }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const orderedIds = useMemo(
-    () => (crossCutting ? crossCutting.nodes.map(n => n.id) : []),
-    [crossCutting],
+    () => (situations ? situations.nodes.map(n => n.id) : []),
+    [situations],
   );
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
@@ -88,16 +88,16 @@ export function CrossCuttingTab() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!crossCutting) {
-    return <div className="detail-panel-empty">No cross-cutting data loaded</div>;
+  if (!situations) {
+    return <div className="detail-panel-empty">No situations data loaded</div>;
   }
 
-  const selectedNode = crossCutting.nodes.find(n => n.id === selectedNodeId) || null;
+  const selectedNode = situations.nodes.find(n => n.id === selectedNodeId) || null;
 
   const handlePin = () => {
     if (selectedNode) {
       pinAtDepth(0, {
-        type: 'cross-cutting',
+        type: 'situations',
         node: structuredClone(selectedNode),
       });
     }
@@ -109,13 +109,13 @@ export function CrossCuttingTab() {
     }
   };
 
-  const { createCrossCuttingDebate } = useDebateStore();
+  const { createSituationDebate } = useDebateStore();
   const { setActiveTab } = useTaxonomyStore();
   const handleDebate = useCallback(async () => {
     if (!selectedNode) return;
-    await createCrossCuttingDebate(selectedNode.id);
+    await createSituationDebate(selectedNode.id);
     setActiveTab('debate');
-  }, [selectedNode, createCrossCuttingDebate, setActiveTab]);
+  }, [selectedNode, createSituationDebate, setActiveTab]);
 
   // Render the promoted panel content for Pane 1
   // Render cross-POV node detail for search preview
@@ -123,8 +123,8 @@ export function CrossCuttingTab() {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const state = useTaxonomyStore.getState();
     if (searchPreviewId.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === searchPreviewId);
-      if (node) return <CrossCuttingDetail node={node} readOnly chipDepth={0} />;
+      const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
+      if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {
       for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const node = state[p]?.nodes.find(n => n.id === searchPreviewId);
@@ -217,21 +217,21 @@ export function CrossCuttingTab() {
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
-          <span className="pane-collapsed-label">Cross-Cutting</span>
+          <span className="pane-collapsed-label">Situations</span>
         </div>
       ) : (
         <div className="list-panel" style={{ width }}>
           <div className="list-panel-header">
-            <h2>Cross-Cutting</h2>
+            <h2>Situations</h2>
             <div className="list-panel-header-actions">
-              <button className="btn btn-sm" onClick={createCrossCuttingNode}>
+              <button className="btn btn-sm" onClick={createSituationNode}>
                 + New
               </button>
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
           <div className="list-panel-items">
-            {crossCutting.nodes.map((node) => (
+            {situations.nodes.map((node) => (
               <ListItem
                 key={node.id}
                 id={node.id}
@@ -294,9 +294,9 @@ export function CrossCuttingTab() {
                 <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
               </div>
               {selectedNode ? (
-                <CrossCuttingDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
+                <SituationDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
               ) : (
-                <div className="detail-panel-empty">Select a cross-cutting node to edit</div>
+                <div className="detail-panel-empty">Select a situation node to edit</div>
               )}
             </div>
           )}
@@ -327,3 +327,6 @@ function ListItem({ id, label, isSelected, onSelect }: { id: string; label: stri
     </div>
   );
 }
+
+/** @deprecated Use SituationsTab instead */
+export const CrossCuttingTab = SituationsTab;

@@ -216,13 +216,13 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   };
 
   const addRef = (id: string) => {
-    if (id && !node.cross_cutting_refs.includes(id)) {
-      update({ cross_cutting_refs: [...node.cross_cutting_refs, id] });
+    if (id && !node.situation_refs.includes(id)) {
+      update({ situation_refs: [...node.situation_refs, id] });
     }
   };
 
   const removeRef = (ref: string) => {
-    update({ cross_cutting_refs: node.cross_cutting_refs.filter(r => r !== ref) });
+    update({ situation_refs: node.situation_refs.filter(r => r !== ref) });
   };
 
   const addConflict = (id: string) => {

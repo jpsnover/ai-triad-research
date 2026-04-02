@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizableVerticalSplit } from '../hooks/useResizablePanel';
 import type { Pov } from '../types/taxonomy';
 import { NodeDetail } from './NodeDetail';
-import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { SituationDetail } from './SituationDetail';
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',
@@ -114,8 +114,8 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
     const state = useTaxonomyStore.getState();
 
     if (selectedId.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === selectedId);
-      if (node) return <CrossCuttingDetail node={node} readOnly chipDepth={0} />;
+      const node = state.situations?.nodes.find(n => n.id === selectedId);
+      if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {
       for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const file = state[pov];
@@ -129,7 +129,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
   };
 
   const handleDoubleClick = (id: string, pov: string) => {
-    const tab = pov === 'cross-cutting' ? 'cross-cutting' as const : pov as Pov;
+    const tab = pov === 'situations' ? 'situations' as const : pov as Pov;
     navigateToNode(tab, id);
   };
 
@@ -138,7 +138,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
       case 'accelerationist': return 'var(--color-acc)';
       case 'safetyist': return 'var(--color-saf)';
       case 'skeptic': return 'var(--color-skp)';
-      case 'cross-cutting': return 'var(--color-cc)';
+      case 'situations': return 'var(--color-sit)';
       default: return 'var(--text-muted)';
     }
   };

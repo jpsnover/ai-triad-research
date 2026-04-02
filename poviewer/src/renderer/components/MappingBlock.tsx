@@ -12,14 +12,14 @@ const BLOCK_CLASS: Record<PovCamp, string> = {
   accelerationist: 'mapping-block-acc',
   safetyist: 'mapping-block-saf',
   skeptic: 'mapping-block-skp',
-  'cross-cutting': 'mapping-block-cc',
+  'situations': 'mapping-block-cc',
 };
 
 const CAMP_CLASS: Record<PovCamp, string> = {
   accelerationist: 'mapping-camp-acc',
   safetyist: 'mapping-camp-saf',
   skeptic: 'mapping-camp-skp',
-  'cross-cutting': 'mapping-camp-cc',
+  'situations': 'mapping-camp-cc',
 };
 
 export default function MappingBlock({ mapping }: Props) {

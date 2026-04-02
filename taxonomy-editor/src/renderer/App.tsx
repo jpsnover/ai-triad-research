@@ -7,7 +7,7 @@ import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
 import { SaveBar } from './components/SaveBar';
 import { PovTab } from './components/PovTab';
-import { CrossCuttingTab } from './components/CrossCuttingTab';
+import { SituationsTab } from './components/SituationsTab';
 import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
@@ -177,7 +177,7 @@ function MainApp() {
       // Determine which tab to navigate to based on node ID prefix
       let tab: Parameters<typeof store.navigateToNode>[0];
       if (nodeId.startsWith('cc-')) {
-        tab = 'cross-cutting';
+        tab = 'situations';
       } else if (nodeId.startsWith('acc-')) {
         tab = 'accelerationist';
       } else if (nodeId.startsWith('saf-')) {
@@ -280,14 +280,14 @@ function MainApp() {
         </div>
       )}
 
-      {toolbarPanel === null && !['cross-cutting', 'conflicts', 'debate', 'chat'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
           {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
           {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
           {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
-          {activeTab === 'cross-cutting' && <CrossCuttingTab />}
+          {activeTab === 'situations' && <SituationsTab />}
           {activeTab === 'conflicts' && <ConflictsTab />}
           {activeTab === 'debate' && <DebateTab />}
           {activeTab === 'chat' && <ChatTab />}

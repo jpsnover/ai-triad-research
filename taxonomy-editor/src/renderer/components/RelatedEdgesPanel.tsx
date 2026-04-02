@@ -13,7 +13,7 @@ const POV_COLOR: Record<string, string> = {
   'acc-': 'var(--color-acc)',
   'saf-': 'var(--color-saf)',
   'skp-': 'var(--color-skp)',
-  'cc-': 'var(--color-cc)',
+  'cc-': 'var(--color-sit)',
 };
 
 function nodeColor(id: string): string {
@@ -143,7 +143,7 @@ const POV_LABELS: Record<PovPrefix, string> = {
   'acc-': 'Accelerationist',
   'saf-': 'Safetyist',
   'skp-': 'Skeptic',
-  'cc-': 'Cross-Cutting',
+  'cc-': 'Situations',
 };
 
 function otherNodePrefix(edge: Edge, nodeId: string): PovPrefix | null {

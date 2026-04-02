@@ -12,7 +12,7 @@ $TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
 $Items = [System.Collections.Generic.List[PSCustomObject]]::new()
 $Seen  = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'cross-cutting') {
+foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
     $data = Get-Content (Join-Path $TaxDir "$pov.json") -Raw | ConvertFrom-Json
     foreach ($n in $data.nodes) {
         if (-not $n.graph_attributes -or -not $n.graph_attributes.intellectual_lineage) { continue }
@@ -112,7 +112,7 @@ for ($batchStart = 0; $batchStart -lt $Items.Count; $batchStart += $BatchSize) {
 Write-Host "Mapped $($LookupMap.Count) annotations"
 
 # Apply to all taxonomy files
-foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'cross-cutting') {
+foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
     $filePath = Join-Path $TaxDir "$pov.json"
     $data = Get-Content $filePath -Raw | ConvertFrom-Json
     $changed = $false

@@ -21,14 +21,14 @@
     Document format: 'pdf', 'html', 'docx', etc.  Defaults to 'unknown'.
 .PARAMETER PovTag
     Array of POV classifications: 'accelerationist', 'safetyist', 'skeptic',
-    and/or 'cross-cutting'.  Defaults to empty array.
+    and/or 'situations'.  Defaults to empty array.
 .PARAMETER TopicTag
     Array of topic slugs (e.g., 'governance', 'alignment').  Defaults to empty
     array.
 .EXAMPLE
     $Meta = New-Metadata -DocId 'ai-governance-2026' -Title 'AI Governance Framework' `
         -DocumentUrl 'https://example.com/paper.pdf' -SourceType 'pdf' `
-        -PovTag @('safetyist','cross-cutting') -TopicTag @('governance','regulation')
+        -PovTag @('safetyist','situations') -TopicTag @('governance','regulation')
 
     Creates a metadata object for a newly ingested PDF with POV and topic tags.
 .EXAMPLE

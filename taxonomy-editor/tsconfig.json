@@ -15,7 +15,8 @@
     "paths": {
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
-      "@lib/debate/*": ["../lib/debate/*"]
+      "@lib/debate/*": ["../lib/debate/*"],
+      "zod": ["node_modules/zod"]
     }
   },
   "include": ["src/**/*", "../lib/**/*"],

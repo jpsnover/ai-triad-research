@@ -129,7 +129,7 @@ function Get-TaxonomyHealth {
     Write-Host "`n  ORPHAN NODES (zero citations)" -ForegroundColor White
     Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
 
-    $PovOrphans = $Health.OrphanNodes | Where-Object { $_.POV -ne 'cross-cutting' }
+    $PovOrphans = $Health.OrphanNodes | Where-Object { $_.POV -ne 'situations' }
     if ($PovOrphans.Count -gt 0) {
         foreach ($Node in ($PovOrphans | Sort-Object POV, Id)) {
             Write-Host "   [$($Node.Id)] ($($Node.POV)) $($Node.Label)" -ForegroundColor Yellow

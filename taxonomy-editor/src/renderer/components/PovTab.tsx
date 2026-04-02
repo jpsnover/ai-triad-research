@@ -10,7 +10,7 @@ import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizable
 import { NodeTree, getOrderedNodeIds } from './NodeTree';
 import type { SortMode } from './NodeTree';
 import { NodeDetail } from './NodeDetail';
-import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { SituationDetail } from './SituationDetail';
 import { NewNodeDialog } from './NewNodeDialog';
 import { PinnedPanel } from './PinnedPanel';
 import { SearchPanel } from './SearchPanel';
@@ -208,8 +208,8 @@ export function PovTab({ pov }: PovTabProps) {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const state = useTaxonomyStore.getState();
     if (searchPreviewId.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === searchPreviewId);
-      if (node) return <CrossCuttingDetail node={node} readOnly chipDepth={0} />;
+      const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
+      if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {
       for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const node = state[p]?.nodes.find(n => n.id === searchPreviewId);

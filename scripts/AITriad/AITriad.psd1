@@ -50,6 +50,7 @@
         'Show-GraphOverview'
         'Get-TopicFrequency'
         'Get-IngestionPriority'
+        'Find-SituationCandidates'
         'Find-CrossCuttingCandidates'
         'Show-TriadDialogue'
         'Register-AIBackend'
@@ -73,6 +74,8 @@
         'Show-DebateDiagnostics'
         'Repair-DebateOutput'
         'Show-DebateHarvest'
+        'Get-AITSBOM'
+        'Test-OntologyCompliance'
     )
 
     # Aliases exported from this module

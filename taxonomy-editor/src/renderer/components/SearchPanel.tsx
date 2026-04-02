@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
-import type { TabId, Category, PovNode, CrossCuttingNode, ConflictFile } from '../types/taxonomy';
+import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 
 type SearchPanelMode =
@@ -96,7 +96,7 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): TaxResult[] {
   return results;
 }
 
-function searchCCNode(node: CrossCuttingNode, regex: RegExp): TaxResult[] {
+function searchCCNode(node: SituationNode, regex: RegExp): TaxResult[] {
   const results: TaxResult[] = [];
   for (const [field, value] of [
     ['id', node.id], ['label', node.label], ['description', node.description],
@@ -106,7 +106,7 @@ function searchCCNode(node: CrossCuttingNode, regex: RegExp): TaxResult[] {
   ] as const) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
-      results.push({ id: node.id, label: node.label, tab: 'cross-cutting', field, matchText: value });
+      results.push({ id: node.id, label: node.label, tab: 'situations', field, matchText: value });
     }
   }
   return results;
@@ -151,7 +151,7 @@ interface SearchPanelProps {
 
 export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const {
-    accelerationist, safetyist, skeptic, crossCutting, conflicts,
+    accelerationist, safetyist, skeptic, situations, conflicts,
     getLabelForId,
     findQuery, findMode, findCaseSensitive,
     setFindQuery, setFindMode, setFindCaseSensitive,
@@ -192,8 +192,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const n = state[pov]?.nodes.find(n => n.id === nodeId);
       if (n) { desc = n.description; break; }
     }
-    if (!desc && state.crossCutting) {
-      const n = state.crossCutting.nodes.find(n => n.id === nodeId);
+    if (!desc && state.situations) {
+      const n = state.situations.nodes.find(n => n.id === nodeId);
       if (n) desc = n.description;
     }
     runSimilarSearch(nodeId, label, desc);
@@ -217,10 +217,10 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const file = useTaxonomyStore.getState()[pov];
       if (file) for (const n of file.nodes) ids.push(n.id);
     }
-    const cc = useTaxonomyStore.getState().crossCutting;
-    if (cc) for (const n of cc.nodes) ids.push(n.id);
+    const sit = useTaxonomyStore.getState().situations;
+    if (sit) for (const n of sit.nodes) ids.push(n.id);
     return ids;
-  }, [accelerationist, safetyist, skeptic, crossCutting]);
+  }, [accelerationist, safetyist, skeptic, situations]);
 
   // ─── Collect unique intellectual lineage values ────────
   const lineageValues = useMemo(() => {
@@ -232,13 +232,13 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) vals.add(l);
       }
     }
-    if (state.crossCutting) {
-      for (const n of state.crossCutting.nodes) {
+    if (state.situations) {
+      for (const n of state.situations.nodes) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) vals.add(l);
       }
     }
     return [...vals].sort();
-  }, [accelerationist, safetyist, skeptic, crossCutting]);
+  }, [accelerationist, safetyist, skeptic, situations]);
 
   // ─── Collect unique possible fallacy values ─────────
   const fallacyValues = useMemo(() => {
@@ -258,11 +258,11 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const file = state[pov];
       if (file) for (const n of file.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
     }
-    if (state.crossCutting) {
-      for (const n of state.crossCutting.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
+    if (state.situations) {
+      for (const n of state.situations.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
     }
     return [...vals].sort();
-  }, [accelerationist, safetyist, skeptic, crossCutting]);
+  }, [accelerationist, safetyist, skeptic, situations]);
 
   // ─── Related mode filtered options ────────────────────
   const relatedFilteredIds = useMemo(() => {
@@ -285,17 +285,17 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     ] as const) {
       if (file) for (const node of file.nodes) all.push(...searchPovNode(node, regex, pov));
     }
-    if (crossCutting) for (const node of crossCutting.nodes) all.push(...searchCCNode(node, regex));
+    if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
     for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
     return dedupe(all);
-  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, crossCutting, conflicts, isSemantic]);
+  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic]);
 
   // Semantic results mapped
   const semResults: TaxResult[] = useMemo(() => {
     if (mode !== 'taxonomy' || !isSemantic) return [];
     return (semanticResults || []).map(r => {
       const label = getLabelForId(r.id);
-      const tab: TabId = r.id.startsWith('cc-') ? 'cross-cutting'
+      const tab: TabId = r.id.startsWith('cc-') ? 'situations'
         : r.id.startsWith('conflict-') ? 'conflicts'
         : r.id.startsWith('acc-') ? 'accelerationist'
         : r.id.startsWith('saf-') ? 'safetyist'
@@ -313,7 +313,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       id: r.id,
       label: getLabelForId(r.id),
       score: r.score,
-      pov: r.id.startsWith('cc-') ? 'cross-cutting'
+      pov: r.id.startsWith('cc-') ? 'situations'
         : r.id.startsWith('acc-') ? 'accelerationist'
         : r.id.startsWith('saf-') ? 'safetyist'
         : r.id.startsWith('skp-') ? 'skeptic'
@@ -358,11 +358,11 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const file = state[pov];
       if (file) for (const node of file.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, pov);
     }
-    if (state.crossCutting) {
-      for (const node of state.crossCutting.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, 'cross-cutting');
+    if (state.situations) {
+      for (const node of state.situations.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, 'situations');
     }
     return results;
-  }, [mode, attrValue, accelerationist, safetyist, skeptic, crossCutting]);
+  }, [mode, attrValue, accelerationist, safetyist, skeptic, situations]);
 
   // ─── Unified flat results list for keyboard nav ───────
   const flatResults: SearchResult[] = useMemo(() => {
@@ -416,8 +416,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const n = state[pov]?.nodes.find(n => n.id === nodeId);
       if (n) { desc = n.description; break; }
     }
-    if (!desc && state.crossCutting) {
-      const n = state.crossCutting.nodes.find(n => n.id === nodeId);
+    if (!desc && state.situations) {
+      const n = state.situations.nodes.find(n => n.id === nodeId);
       if (n) desc = n.description;
     }
     runSimilarSearch(nodeId, label, desc);
@@ -443,7 +443,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       case 'accelerationist': return 'var(--color-acc)';
       case 'safetyist': return 'var(--color-saf)';
       case 'skeptic': return 'var(--color-skp)';
-      case 'cross-cutting': return 'var(--color-cc)';
+      case 'situations': return 'var(--color-sit)';
       default: return 'var(--text-muted)';
     }
   };

@@ -32,7 +32,7 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): SearchResult[]
   return results;
 }
 
-function searchCCNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
+function searchSituationNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
   const results: SearchResult[] = [];
   const fields: [string, string][] = [
     ['id', node.id],
@@ -45,7 +45,7 @@ function searchCCNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
   for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
-      results.push({ id: node.id, label: node.label, tab: 'cross-cutting', field, matchText: value });
+      results.push({ id: node.id, label: node.label, tab: 'situations', field, matchText: value });
     }
   }
   return results;
@@ -91,7 +91,7 @@ const POV_SCOPES: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Acc' },
   { id: 'safetyist', label: 'Saf' },
   { id: 'skeptic', label: 'Skp' },
-  { id: 'cross-cutting', label: 'CC' },
+  { id: 'situations', label: 'CC' },
   { id: 'conflicts', label: 'Conflicts' },
 ];
 
@@ -110,7 +110,7 @@ export function FindBar() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
-    accelerationist, safetyist, skeptic, crossCutting, conflicts,
+    accelerationist, safetyist, skeptic, situations, conflicts,
     setActiveTab, setSelectedNodeId,
     findQuery, findMode, findCaseSensitive,
     setFindQuery, setFindMode, setFindCaseSensitive,
@@ -177,12 +177,12 @@ export function FindBar() {
       }
     }
 
-    if (!hasPovFilter || povScopes.has('cross-cutting')) {
-      if (crossCutting) {
-        for (const node of crossCutting.nodes) {
-          // Cross-cutting nodes don't have a category, so skip if aspect-only filter is active
+    if (!hasPovFilter || povScopes.has('situations')) {
+      if (situations) {
+        for (const node of situations.nodes) {
+          // Situation nodes don't have a category, so skip if aspect-only filter is active
           if (hasAspectFilter) continue;
-          all.push(...searchCCNode(node, regex));
+          all.push(...searchSituationNode(node, regex));
         }
       }
     }
@@ -197,7 +197,7 @@ export function FindBar() {
     }
 
     return dedupeResults(all);
-  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, crossCutting, conflicts, povScopes, aspectScopes]);
+  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, povScopes, aspectScopes]);
 
   const navigateTo = useCallback((result: SearchResult) => {
     setActiveTab(result.tab);

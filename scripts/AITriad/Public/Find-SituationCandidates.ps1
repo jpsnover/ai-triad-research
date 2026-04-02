@@ -1,17 +1,17 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-function Find-CrossCuttingCandidates {
+function Find-SituationCandidates {
     <#
     .SYNOPSIS
-        Discovers candidate cross-cutting concepts by clustering similar nodes across POVs.
+        Discovers candidate situation concepts by clustering similar nodes across POVs.
     .DESCRIPTION
         Computes cross-POV pairwise cosine similarity from taxonomy embeddings, filters to
         pairs above threshold, classifies each pair using an NLI cross-encoder
         (entailment/neutral/contradiction) to distinguish genuine shared concepts from
         opposing positions on the same topic, merges overlapping pairs into groups, boosts
         scores for pairs with TENSION_WITH/CONTRADICTS edges or shared attributes, then
-        optionally calls an LLM to propose cross-cutting node labels and interpretations.
+        optionally calls an LLM to propose situation node labels and interpretations.
 
         The NLI classification uses cross-encoder/nli-deberta-v3-small (local, no API
         required) and tags each candidate pair so the downstream LLM prompt can distinguish
@@ -86,7 +86,7 @@ function Find-CrossCuttingCandidates {
     # ── Step 1: Build node index ──────────────────────────────────────────────
     Write-Step 'Building node index'
     $NodeIndex = @{}
-    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovNames  = @('accelerationist', 'safetyist', 'skeptic', 'situations')
 
     foreach ($PovKey in $PovNames) {
         $Entry = $script:TaxonomyData[$PovKey]
@@ -109,7 +109,7 @@ function Find-CrossCuttingCandidates {
 
     if (-not (Test-Path $EmbeddingsFile)) {
         Write-Fail 'embeddings.json not found — cannot compute similarities'
-        throw 'embeddings.json required for cross-cutting candidate discovery'
+        throw 'embeddings.json required for situation candidate discovery'
     }
 
     $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json -Depth 20
@@ -146,13 +146,13 @@ function Find-CrossCuttingCandidates {
     Write-OK "Loaded edge data for boost scoring"
 
     # ── Step 4: Build existing cc-node links ──────────────────────────────────
-    # Find pairs already linked via cross-cutting nodes (via INTERPRETS edges or cc refs)
+    # Find pairs already linked via situation nodes (via INTERPRETS edges or cc refs)
     $CcLinkedPairs = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($PairKey in $EdgePairs.Keys) {
         $Parts = $PairKey -split '\|'
         $Pov0 = if ($NodeIndex.ContainsKey($Parts[0])) { $NodeIndex[$Parts[0]].POV } else { '' }
         $Pov1 = if ($NodeIndex.ContainsKey($Parts[1])) { $NodeIndex[$Parts[1]].POV } else { '' }
-        if ($Pov0 -eq 'cross-cutting' -or $Pov1 -eq 'cross-cutting') {
+        if ($Pov0 -eq 'situations' -or $Pov1 -eq 'situations') {
             [void]$CcLinkedPairs.Add($PairKey)
         }
     }
@@ -177,7 +177,7 @@ function Find-CrossCuttingCandidates {
 
     # Get non-cc node IDs with embeddings
     $PovNodeIds = @($NodeIndex.Keys | Where-Object {
-        $NodeIndex[$_].POV -ne 'cross-cutting' -and $Embeddings.ContainsKey($_)
+        $NodeIndex[$_].POV -ne 'situations' -and $Embeddings.ContainsKey($_)
     })
 
     $SimilarPairs = [System.Collections.Generic.List[PSObject]]::new()
@@ -539,7 +539,7 @@ function Find-CrossCuttingCandidates {
     # ── Step 7: Optional AI labeling ──────────────────────────────────────────
     $AILabels = $null
     if (-not $NoAI -and $ScoredGroups.Count -gt 0) {
-        Write-Step 'Generating cross-cutting proposals with AI'
+        Write-Step 'Generating situation proposals with AI'
 
         try {
             $Backend = if     ($Model -match '^gemini') { 'gemini' }
@@ -569,8 +569,8 @@ function Find-CrossCuttingCandidates {
                     [void]$ClusterText.AppendLine()
                 }
 
-                $PromptBody = Get-Prompt -Name 'cross-cutting-candidates' -Replacements @{ CLUSTERS = $ClusterText.ToString() }
-                $SchemaBody = Get-Prompt -Name 'cross-cutting-candidates-schema'
+                $PromptBody = Get-Prompt -Name 'situation-candidates' -Replacements @{ CLUSTERS = $ClusterText.ToString() }
+                $SchemaBody = Get-Prompt -Name 'situation-candidates-schema'
                 $FullPrompt = "$PromptBody`n`n$SchemaBody"
 
                 $AIResult = Invoke-AIApi `
@@ -587,7 +587,7 @@ function Find-CrossCuttingCandidates {
                 if ($AIResult -and $AIResult.Text) {
                     $ResponseText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
                     $AILabels = ($ResponseText | ConvertFrom-Json -Depth 20).candidates
-                    Write-OK "AI proposed $($AILabels.Count) cross-cutting concepts ($($AIResult.Backend))"
+                    Write-OK "AI proposed $($AILabels.Count) situation concepts ($($AIResult.Backend))"
                 }
                 else {
                     Write-Warn "AI returned no result"

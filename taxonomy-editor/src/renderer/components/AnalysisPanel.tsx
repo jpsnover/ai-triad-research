@@ -84,7 +84,7 @@ const FIELD_MATCH_KEYWORDS: Record<string, string[]> = {
   category: ['category', 'categorization'],
   parent_id: ['parent', 'parent_id', 'parent id', 'taxonomic placement', 'placement', 'hierarchy'],
   children: ['children', 'child'],
-  cross_cutting_refs: ['cross-cutting', 'cross_cutting', 'cross cutting', 'redundancy', 'redundancy check', 'merge', 'interprets', 'universal concept'],
+  situation_refs: ['situation', 'situations', 'cross-cutting', 'redundancy', 'redundancy check', 'merge', 'interprets', 'universal concept'],
   graph_attributes: ['graph attribute', 'graph_attribute', 'attributes', 'assumes', 'relational integrity', 'falsifiability', 'rhetorical', 'policy'],
 };
 
@@ -121,7 +121,7 @@ function computeDiffs(
     category: 'Category',
     parent_id: 'Parent ID',
     children: 'Children',
-    cross_cutting_refs: 'Cross-Cutting Refs',
+    situation_refs: 'Situation Refs',
     graph_attributes: 'Graph Attributes',
   };
 

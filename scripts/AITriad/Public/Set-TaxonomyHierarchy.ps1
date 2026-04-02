@@ -43,7 +43,7 @@ function Set-TaxonomyHierarchy {
         accelerationist = 'accelerationist.json'
         safetyist       = 'safetyist.json'
         skeptic         = 'skeptic.json'
-        'cross-cutting' = 'cross-cutting.json'
+        'situations' = 'situations.json'
     }
 
     $TaxFiles = @{}
@@ -81,7 +81,7 @@ function Set-TaxonomyHierarchy {
         $PovKey  = $Bucket.pov
         $CatLabel = if ($Bucket.PSObject.Properties['category'] -and $Bucket.category) {
             $Bucket.category
-        } else { '(cross-cutting)' }
+        } else { '(situations)' }
 
         Write-Step "$PovKey / $CatLabel"
 
@@ -92,7 +92,7 @@ function Set-TaxonomyHierarchy {
         }
 
         $FileEntry = $TaxFiles[$PovKey]
-        $IsCrossCutting = $PovKey -eq 'cross-cutting'
+        $IsCrossCutting = $PovKey -eq 'situations'
 
         if (-not $Bucket.PSObject.Properties['parents']) { continue }
 
@@ -101,7 +101,7 @@ function Set-TaxonomyHierarchy {
             'accelerationist' { 'acc' }
             'safetyist'       { 'saf' }
             'skeptic'         { 'skp' }
-            'cross-cutting'   { 'cc'  }
+            'situations'      { 'cc'  }
         }
 
         # For new parent IDs, find the max existing sequence number in this category
@@ -180,7 +180,7 @@ function Set-TaxonomyHierarchy {
                         description        = $Parent.description
                         parent_id          = $null
                         children           = @()
-                        cross_cutting_refs = @()
+                        situation_refs = @()
                     }
                 }
 

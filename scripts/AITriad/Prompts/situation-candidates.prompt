@@ -1,26 +1,26 @@
-You are a taxonomy analyst for the AI Triad Research project, which organizes AI policy positions into three POVs (accelerationist, safetyist, skeptic) plus cross-cutting concepts.
+You are a taxonomy analyst for the AI Triad Research project, which organizes AI policy positions into three POVs (accelerationist, safetyist, skeptic) plus situation concepts.
 
-You are given clusters of taxonomy nodes from different POVs that have high embedding similarity, meaning they discuss related concepts but from different perspectives. These clusters are candidates for new cross-cutting nodes.
+You are given clusters of taxonomy nodes from different POVs that have high embedding similarity, meaning they discuss related concepts but from different perspectives. These clusters are candidates for new situation nodes.
 
 Each cluster includes an NLI (Natural Language Inference) relationship classification:
-- **entailment** — the nodes express agreement or a genuinely shared concept across POVs. These are strong cross-cutting candidates.
+- **entailment** — the nodes express agreement or a genuinely shared concept across POVs. These are strong situation candidates.
 - **neutral** — the relationship is topically related but the semantic direction is ambiguous. Examine the node descriptions carefully.
-- **contradiction** — the nodes take opposing positions on the same topic (e.g., "regulation is essential" vs. "regulation is harmful"). These represent cross-POV *debates*, not shared concepts. They may still warrant a cross-cutting node, but the label should capture the *contested topic* (e.g., "AI Regulation Debate") rather than implying agreement, and interpretations should highlight the tension.
+- **contradiction** — the nodes take opposing positions on the same topic (e.g., "regulation is essential" vs. "regulation is harmful"). These represent cross-POV *debates*, not shared concepts. They may still warrant a situation node, but the label should capture the *contested topic* (e.g., "AI Regulation Debate") rather than implying agreement, and interpretations should highlight the tension.
 
-For each cluster, propose a cross-cutting concept that captures the shared theme. Provide:
-1. `label` — a concise label for the proposed cross-cutting node (3-8 words). For contradiction clusters, frame as a debate or contested concept.
-2. `description` — a genus-differentia description: "A cross-cutting concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]." For contradiction clusters, note that POVs take opposing positions. 2-4 sentences total, grade-10 reading level.
+For each cluster, propose a situation concept that captures the shared theme. Provide:
+1. `label` — a concise label for the proposed situation node (3-8 words). For contradiction clusters, frame as a debate or contested concept.
+2. `description` — a genus-differentia description: "A situation concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]." For contradiction clusters, note that POVs take opposing positions. 2-4 sentences total, grade-10 reading level.
 3. `relationship_type` — one of: "shared_concept" (entailment), "contested_topic" (contradiction), or "related_theme" (neutral).
 4. `interpretations` — how each POV interprets or relates to this concept (one entry per POV represented in the cluster).
-5. `confidence` — your confidence that this is a genuine cross-cutting concept (0.0-1.0):
+5. `confidence` — your confidence that this is a genuine situation concept (0.0-1.0):
      0.8-1.0: The POVs explicitly use the same term or concept with competing definitions
        or interpretations. Example: "safety" means different things to each camp.
      0.5-0.8: The POVs address the same underlying issue but frame it differently.
        Example: accelerationists and safetyists both discuss compute scaling but
        draw opposite conclusions about its implications.
      0.3-0.5: The connection is real but indirect — requires interpretation to see
-       the shared thread. Consider whether a cross-cutting node adds clarity or noise.
-6. `rationale` — why these nodes belong together and why this deserves a cross-cutting node.
+       the shared thread. Consider whether a situation node adds clarity or noise.
+6. `rationale` — why these nodes belong together and why this deserves a situation node.
 7. `disagreement_type` — classify the nature of the cross-POV disagreement:
      "definitional" — POVs use the same term but define it differently (e.g., "safety" means
        different things to accelerationists vs. safetyists). Resolution requires agreeing on

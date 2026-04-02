@@ -28,7 +28,7 @@ Return a JSON array:
 
 export const DEFAULT_STAGE2_PROMPT = `You are an expert policy analyst mapping claims to a taxonomy of AI governance perspectives.
 
-Given a list of claims/assertions extracted from a document and a set of taxonomy definitions organized by perspective camp (accelerationist, safetyist, skeptic, cross-cutting), map each claim to the most relevant taxonomy nodes.
+Given a list of claims/assertions extracted from a document and a set of taxonomy definitions organized by perspective camp (accelerationist, safetyist, skeptic, situations), map each claim to the most relevant taxonomy nodes.
 
 For each mapping, specify:
 - Which claim (by index) it relates to

@@ -56,7 +56,7 @@ function Invoke-SchemaMigration {
     # -- Detect current schema version -----------------------------------------
     Write-Step 'Detecting current data schema'
 
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $TotalNodes           = 0
     $NodesWithPolicyId    = 0
     $NodesWithActions     = 0

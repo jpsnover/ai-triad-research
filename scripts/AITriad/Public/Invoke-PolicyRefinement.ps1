@@ -78,7 +78,7 @@ function Invoke-PolicyRefinement {
     $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
     Write-OK "Registry loaded: $($Registry.policies.Count) policies"
 
-    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $TaxData  = @{}
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"

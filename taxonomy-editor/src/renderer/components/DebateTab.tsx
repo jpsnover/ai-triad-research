@@ -8,7 +8,7 @@ import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizable
 import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from './DebateWorkspace';
 import { NodeDetail } from './NodeDetail';
-import { CrossCuttingDetail } from './CrossCuttingDetail';
+import { SituationDetail } from './SituationDetail';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { DebateSourceViewer } from './DebateSourceViewer';
@@ -38,8 +38,8 @@ function resolveNode(nodeId: string) {
   const state = useTaxonomyStore.getState();
 
   if (nodeId.startsWith('cc-')) {
-    const node = state.crossCutting?.nodes?.find((n: { id: string }) => n.id === nodeId);
-    return node ? { kind: 'crossCutting' as const, node } : null;
+    const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
+    return node ? { kind: 'situation' as const, node } : null;
   }
 
   if (nodeId.startsWith('pol-')) {
@@ -95,8 +95,8 @@ export function DebateTab() {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const resolved = resolveNode(searchPreviewId);
     if (!resolved) return <div className="detail-panel-empty">Node not found</div>;
-    if (resolved.kind === 'crossCutting') {
-      return <CrossCuttingDetail node={resolved.node} readOnly chipDepth={0} />;
+    if (resolved.kind === 'situation') {
+      return <SituationDetail node={resolved.node} readOnly chipDepth={0} />;
     }
     return <NodeDetail pov={resolved.pov} node={resolved.node} readOnly chipDepth={0} />;
   };
@@ -253,7 +253,7 @@ export function DebateTab() {
           <div className="resize-handle" onMouseDown={onMouseDown} />
 
           {/* Pane 2 / 3: Debate workspace (layout depends on source type) */}
-          {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'cross-cutting' ? (
+          {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'situations' ? (
             <>
               {/* Pane 2: Document/URL content (collapsible) */}
               {sourceCollapsed ? (
@@ -298,7 +298,7 @@ export function DebateTab() {
                 <DebateWorkspace />
               </div>
             </>
-          ) : activeDebate && activeDebate.source_type === 'cross-cutting' ? (
+          ) : activeDebate && activeDebate.source_type === 'situations' ? (
             <>
               {/* Cross-cutting debate: workspace directly in Pane 2 (context via Details button) */}
               {detailCollapsed ? (
@@ -386,11 +386,11 @@ export function DebateTab() {
                     </div>
                   </div>
                   <div className="debate-inspect-body">
-                    {resolved.kind === 'crossCutting' ? (
-                      <CrossCuttingDetail node={resolved.node} readOnly />
+                    {resolved.kind === 'situation' ? (
+                      <SituationDetail node={resolved.node} readOnly />
                     ) : resolved.kind === 'policy' ? (
                       <div style={{ padding: 16, fontSize: '0.85rem' }}>
-                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-cc)' }}>{resolved.node.id}</div>
+                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-sit)' }}>{resolved.node.id}</div>
                         <div style={{ marginBottom: 12 }}>{resolved.node.label}</div>
                         {resolved.node.source_povs?.length > 0 && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>

@@ -151,7 +151,7 @@ export interface FullTaxonomyNode {
   parent_relationship?: string;
   parent_rationale?: string;
   children?: string[];
-  cross_cutting_refs?: string[];
+  situation_refs?: string[];
   source_refs?: string[];
   graph_attributes?: GraphAttributes;
   interpretations?: {

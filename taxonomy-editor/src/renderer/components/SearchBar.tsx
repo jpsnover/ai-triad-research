@@ -35,7 +35,7 @@ function searchPovNode(node: PovNode, regex: RegExp, tab: TabId): SearchResult[]
   return results;
 }
 
-function searchCCNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
+function searchSituationNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
   const results: SearchResult[] = [];
   const fields: [string, string][] = [
     ['id', node.id],
@@ -48,7 +48,7 @@ function searchCCNode(node: CrossCuttingNode, regex: RegExp): SearchResult[] {
   for (const [field, value] of fields) {
     regex.lastIndex = 0;
     if (regex.test(value)) {
-      results.push({ id: node.id, label: node.label, tab: 'cross-cutting', field, matchText: value });
+      results.push({ id: node.id, label: node.label, tab: 'situations', field, matchText: value });
     }
   }
   return results;
@@ -94,7 +94,7 @@ const POV_SCOPES: { id: TabId; label: string }[] = [
   { id: 'accelerationist', label: 'Acc' },
   { id: 'safetyist', label: 'Saf' },
   { id: 'skeptic', label: 'Skp' },
-  { id: 'cross-cutting', label: 'CC' },
+  { id: 'situations', label: 'CC' },
   { id: 'conflicts', label: 'Conflicts' },
 ];
 
@@ -116,7 +116,7 @@ export function SearchBar() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
-    accelerationist, safetyist, skeptic, crossCutting, conflicts,
+    accelerationist, safetyist, skeptic, situations, conflicts,
     navigateToNode,
     findQuery, findMode, findCaseSensitive,
     setFindQuery, setFindMode, setFindCaseSensitive,
@@ -212,11 +212,11 @@ export function SearchBar() {
       }
     }
 
-    if (!hasPovFilter || povScopes.has('cross-cutting')) {
-      if (crossCutting) {
-        for (const node of crossCutting.nodes) {
+    if (!hasPovFilter || povScopes.has('situations')) {
+      if (situations) {
+        for (const node of situations.nodes) {
           if (hasAspectFilter) continue;
-          all.push(...searchCCNode(node, regex));
+          all.push(...searchSituationNode(node, regex));
         }
       }
     }
@@ -230,7 +230,7 @@ export function SearchBar() {
     }
 
     return dedupeResults(all);
-  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, crossCutting, conflicts, povScopes, aspectScopes, isSemantic]);
+  }, [findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, povScopes, aspectScopes, isSemantic]);
 
   // Semantic results mapped to SearchResult shape for display
   const semResults: SearchResult[] = useMemo(() => {
@@ -242,11 +242,11 @@ export function SearchBar() {
         acc: 'accelerationist',
         saf: 'safetyist',
         skp: 'skeptic',
-        cc: 'cross-cutting',
+        cc: 'situations',
         conflict: 'conflicts',
       };
       const tab: TabId = r.id.startsWith('cc-')
-        ? 'cross-cutting'
+        ? 'situations'
         : r.id.startsWith('conflict-')
           ? 'conflicts'
           : (prefixToTab[prefix] || 'accelerationist');

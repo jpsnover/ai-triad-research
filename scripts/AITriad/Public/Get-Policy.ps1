@@ -35,7 +35,7 @@ function Get-Policy {
         [Parameter(ParameterSetName = 'ByKeyword')]
         [string]$Keyword,
 
-        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
+        [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')]
         [string]$POV,
 
         [switch]$CrossPOV,
@@ -82,7 +82,7 @@ function Get-Policy {
     # ── Build usage map if requested ──
     $UsageMap = @{}
     if ($IncludeUsage) {
-        $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+        $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
         foreach ($PovKey in $PovFiles) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }

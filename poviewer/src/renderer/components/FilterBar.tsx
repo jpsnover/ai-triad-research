@@ -5,13 +5,13 @@ import { useAppStore } from '../store/useAppStore';
 import type { PovCamp } from '../types/types';
 import { POV_LABELS } from '../types/types';
 
-const CAMPS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+const CAMPS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
 
 const CAMP_CSS: Record<PovCamp, string> = {
   accelerationist: 'filter-chip-acc',
   safetyist: 'filter-chip-saf',
   skeptic: 'filter-chip-skp',
-  'cross-cutting': 'filter-chip-cc',
+  'situations': 'filter-chip-cc',
 };
 
 export default function FilterBar() {

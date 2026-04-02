@@ -12,7 +12,7 @@ const POV_COLOR: Record<string, string> = {
   'acc-': 'var(--color-acc)',
   'saf-': 'var(--color-saf)',
   'skp-': 'var(--color-skp)',
-  'cc-': 'var(--color-cc)',
+  'cc-': 'var(--color-sit)',
 };
 
 function nodeColor(id: string): string {
@@ -26,7 +26,7 @@ function povLabel(id: string): string {
   if (id.startsWith('acc-')) return 'Accelerationist';
   if (id.startsWith('saf-')) return 'Safetyist';
   if (id.startsWith('skp-')) return 'Skeptic';
-  if (id.startsWith('cc-')) return 'Cross-Cutting';
+  if (id.startsWith('cc-')) return 'Situations';
   return 'Unknown';
 }
 
@@ -54,7 +54,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const typeDef = edgesFile?.edge_types.find((t) => t.type === edge.type);
 
   const handleNavigate = (nodeId: string) => {
-    let tab: 'accelerationist' | 'safetyist' | 'skeptic' | 'cross-cutting' = 'cross-cutting';
+    let tab: 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' = 'situations';
     if (nodeId.startsWith('acc-')) tab = 'accelerationist';
     else if (nodeId.startsWith('saf-')) tab = 'safetyist';
     else if (nodeId.startsWith('skp-')) tab = 'skeptic';

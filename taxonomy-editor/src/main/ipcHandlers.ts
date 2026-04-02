@@ -222,7 +222,7 @@ export function registerIpcHandlers(): void {
     const config = loadDataConfig();
     const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
     // Find which file contains this node
-    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json']) {
+    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
       const filePath = path.join(taxonomyDir, fname);
       if (!fs.existsSync(filePath)) continue;
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -244,7 +244,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('harvest-update-steelman', async (_event, nodeId: string, attackerPov: string, newText: string) => {
     const config = loadDataConfig();
     const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
-    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'cross-cutting.json']) {
+    for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
       const filePath = path.join(taxonomyDir, fname);
       if (!fs.existsSync(filePath)) continue;
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));

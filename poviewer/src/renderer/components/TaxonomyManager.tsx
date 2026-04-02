@@ -4,7 +4,7 @@
 import { useAppStore } from '../store/useAppStore';
 import { POV_COLORS, POV_LABELS, type PovCamp } from '../types/types';
 
-const KNOWN_POVS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'];
+const KNOWN_POVS: PovCamp[] = ['accelerationist', 'safetyist', 'skeptic', 'situations'];
 
 export default function TaxonomyManager() {
   const notebooks = useAppStore(s => s.notebooks);

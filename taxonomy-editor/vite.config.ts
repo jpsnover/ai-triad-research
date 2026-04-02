@@ -13,6 +13,8 @@ export default defineConfig({
     alias: {
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
+      // Allow lib/debate/ files to resolve zod from taxonomy-editor's node_modules
+      'zod': path.resolve(__dirname, 'node_modules/zod'),
     },
   },
   build: {

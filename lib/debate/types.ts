@@ -284,3 +284,36 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
     personality: 'Wry, pragmatic, challenges assumptions from both sides',
   },
 };
+
+// ── Prompt Inspector types (Phase A: type definition only) ──────────
+
+import type { Category } from './taxonomyTypes';
+
+export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell';
+export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
+
+/** Per-prompt configuration. Optional and sparse — missing values fall back to coded defaults. */
+export interface PromptConfig {
+  promptId: string;
+  temperature?: number;
+  model?: string;
+  responseLength?: 'brief' | 'medium' | 'detailed';
+  dataSources: {
+    taxonomyNodes?: { maxTotal: number; minPerBdi: number; threshold: number; bdiFilter: Record<Category, boolean> };
+    situationNodes?: { max: number; min: number; threshold: number };
+    vulnerabilities?: { enabled: boolean; max: number };
+    fallacies?: { enabled: boolean; confidenceFilter: 'likely' | 'all' };
+    policyRegistry?: { enabled: boolean; max: number };
+    sourceDocument?: { truncationLimit: number };
+    commitments?: { enabled: boolean };
+    argumentNetwork?: { enabled: boolean };
+    establishedPoints?: { enabled: boolean; max: number };
+  };
+}
+
+/** Result from generatePromptPreview — includes assembled text and metadata for Phase B. */
+export interface PromptPreviewResult {
+  text: string;
+  tokenEstimate: number;
+  sections: { name: string; charCount: number; tokenEstimate: number }[];
+}

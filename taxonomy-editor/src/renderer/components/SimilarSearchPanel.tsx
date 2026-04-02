@@ -98,7 +98,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
   const getDescription = (id: string): string => {
     const state = useTaxonomyStore.getState();
     if (id.startsWith('cc-')) {
-      const node = state.crossCutting?.nodes.find(n => n.id === id);
+      const node = state.situations?.nodes.find(n => n.id === id);
       return node?.description || '';
     }
     if (id.startsWith('conflict-')) {
@@ -117,7 +117,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
 
   const getCategory = (id: string): string => {
     const state = useTaxonomyStore.getState();
-    if (id.startsWith('cc-')) return 'cross-cutting';
+    if (id.startsWith('cc-')) return 'situations';
     if (id.startsWith('conflict-')) return 'conflict';
     for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
       const file = state[pov];
@@ -195,7 +195,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
     if (id.startsWith('acc-')) return 'accelerationist' as const;
     if (id.startsWith('saf-')) return 'safetyist' as const;
     if (id.startsWith('skp-')) return 'skeptic' as const;
-    if (id.startsWith('cc-')) return 'cross-cutting' as const;
+    if (id.startsWith('cc-')) return 'situations' as const;
     if (id.startsWith('conflict-')) return 'conflicts' as const;
     return null;
   };
