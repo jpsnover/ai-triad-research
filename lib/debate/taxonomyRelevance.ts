@@ -58,6 +58,7 @@ export function selectRelevantNodes(
   scores: Map<string, number>,
   threshold: number = 0.3,
   minPerCategory: number = 3,
+  maxTotal?: number,
 ): ScoredPovNode[] {
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
@@ -84,7 +85,7 @@ export function selectRelevantNodes(
     result.push(...selected);
   }
 
-  return result;
+  return maxTotal != null ? result.slice(0, maxTotal) : result;
 }
 
 /**

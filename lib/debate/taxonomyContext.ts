@@ -62,9 +62,23 @@ export function formatNodeAttributes(attrs: GraphAttributes | undefined): string
   return lines;
 }
 
+/** Configurable limits for formatTaxonomyContext. All optional — defaults match prior hardcoded values. */
+export interface FormatContextConfig {
+  maxNodes?: number;
+  primaryCount?: number;
+  vulnMax?: number;
+  vulnEnabled?: boolean;
+  fallacyConfidence?: 'likely' | 'all';
+  fallacyEnabled?: boolean;
+  policyMax?: number;
+  policyEnabled?: boolean;
+  sitPrimary?: number;
+}
+
 /** Format taxonomy nodes into a BDI-structured context block for the LLM prompt */
-export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes: number = 50): string {
-  const povSlice = ctx.povNodes.slice(0, maxNodes);
+export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes?: number, config?: FormatContextConfig): string {
+  const cfg = config ?? {};
+  const povSlice = ctx.povNodes.slice(0, cfg.maxNodes ?? maxNodes ?? 50);
 
   // Group POV nodes by category → BDI section
   const groups: Record<string, PovNode[]> = {
@@ -80,7 +94,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   const lines: string[] = [];
 
   const hasScores = ctx.nodeScores && ctx.nodeScores.size > 0;
-  const PRIMARY_COUNT = 5;
+  const PRIMARY_COUNT = cfg.primaryCount ?? 5;
 
   if (hasScores) {
     lines.push('(★ = most relevant to current topic)');
@@ -130,8 +144,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       });
     }
   }
-  if (vulnEntries.length > 0) {
-    const VULN_LIMIT = 10;
+  if (vulnEntries.length > 0 && (cfg.vulnEnabled ?? true)) {
+    const VULN_LIMIT = cfg.vulnMax ?? 10;
     const sorted = vulnEntries.sort((a, b) => b.score - a.score).slice(0, VULN_LIMIT);
     lines.push('=== POSITIONAL VULNERABILITIES (where your position is weakest) ===');
     lines.push('These are pre-filtered for relevance to the current topic. Acknowledge when directly relevant — but do not over-concede or apologize for your core stance.');
@@ -141,11 +155,13 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // Reasoning watchlist — likely fallacies only (drop possible/borderline)
+  // Reasoning watchlist — configurable confidence filter
   const fallacyLines: string[] = [];
-  for (const n of povSlice) {
+  const fallacyEnabled = cfg.fallacyEnabled ?? true;
+  const fallacyFilter = cfg.fallacyConfidence ?? 'likely';
+  if (fallacyEnabled) for (const n of povSlice) {
     if (n.graph_attributes?.possible_fallacies && n.graph_attributes.possible_fallacies.length > 0) {
-      const likely = n.graph_attributes.possible_fallacies.filter(f => f.confidence === 'likely');
+      const likely = n.graph_attributes.possible_fallacies.filter(f => fallacyFilter === 'all' || f.confidence === 'likely');
       for (const f of likely) {
         fallacyLines.push(`- [${n.id}] ${n.label}: ${f.fallacy.replace(/_/g, ' ')} — ${f.explanation}`);
       }
@@ -160,7 +176,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
   // Situations section — top nodes get full interpretations, rest get selective detail
   if (ctx.situationNodes.length > 0) {
-    const SIT_PRIMARY = 8;
+    const SIT_PRIMARY = cfg.sitPrimary ?? 8;
     const otherPovs = ['accelerationist', 'safetyist', 'skeptic'].filter(p => p !== pov) as Array<'accelerationist' | 'safetyist' | 'skeptic'>;
 
     // Sort by relevance score if available
@@ -213,9 +229,9 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     }
   }
 
-  // Policy registry section — top 10, with top 3 marked as primary
-  if (ctx.policyRegistry && ctx.policyRegistry.length > 0) {
-    const POLICY_LIMIT = 10;
+  // Policy registry section — configurable limit, with top 3 marked as primary
+  if (ctx.policyRegistry && ctx.policyRegistry.length > 0 && (cfg.policyEnabled ?? true)) {
+    const POLICY_LIMIT = cfg.policyMax ?? 10;
     const POLICY_PRIMARY = 3;
     const policies = ctx.policyRegistry.slice(0, POLICY_LIMIT);
 
