@@ -158,27 +158,57 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // Situations section — show this agent's interpretation prominently
+  // Situations section — top nodes get full interpretations, rest get selective detail
   if (ctx.situationNodes.length > 0) {
-    lines.push('=== CROSS-CUTTING CONCERNS ===');
-    lines.push("These concepts are contested across all perspectives. Your interpretation differs from others'.");
-    for (const n of ctx.situationNodes) {
-      lines.push(`[${n.id}] ${n.label}: ${n.description}`);
-      // Show this agent's interpretation prominently
+    const SIT_PRIMARY = 8;
+    const otherPovs = ['accelerationist', 'safetyist', 'skeptic'].filter(p => p !== pov) as Array<'accelerationist' | 'safetyist' | 'skeptic'>;
+
+    // Sort by relevance score if available
+    let sortedSit = ctx.situationNodes;
+    if (hasScores) {
+      sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0));
+    }
+
+    lines.push('=== SITUATIONS (contested concepts across perspectives) ===');
+    lines.push("Your interpretation differs from others'. Understanding their full position helps you identify genuine disagreements.");
+
+    for (let i = 0; i < sortedSit.length; i++) {
+      const n = sortedSit[i];
+      const isPrimary = i < SIT_PRIMARY;
+      lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${n.description}`);
+
+      // This agent's interpretation — always full
       const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
       if (interp) {
         lines.push(`  Your interpretation: ${interp}`);
       }
-      // Brief note about other views
-      const otherPovs = ['accelerationist', 'safetyist', 'skeptic'].filter(p => p !== pov);
-      const otherViews = otherPovs
-        .map(p => {
-          const val = n.interpretations?.[p as keyof typeof n.interpretations];
-          return val ? `${p.charAt(0).toUpperCase() + p.slice(1, 3)}: ${val.length > 80 ? val.slice(0, 77) + '...' : val}` : null;
-        })
-        .filter(Boolean);
-      if (otherViews.length > 0) {
-        lines.push(`  Other views: ${otherViews.join(' | ')}`);
+
+      if (isPrimary) {
+        // Top nodes: show ALL interpretations at full length
+        for (const p of otherPovs) {
+          const val = n.interpretations?.[p];
+          if (val) {
+            lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}: ${val}`);
+          }
+        }
+      } else {
+        // Remaining nodes: show the most contested interpretation in full, truncate others
+        // Heuristic: longest other interpretation = most detailed/divergent
+        const otherInterps = otherPovs
+          .map(p => ({ pov: p, text: n.interpretations?.[p] ?? '' }))
+          .filter(o => o.text.length > 0)
+          .sort((a, b) => b.text.length - a.text.length);
+
+        if (otherInterps.length > 0) {
+          // Most contested in full
+          const most = otherInterps[0];
+          lines.push(`  ${most.pov.charAt(0).toUpperCase() + most.pov.slice(1)}: ${most.text}`);
+          // Others truncated
+          for (const other of otherInterps.slice(1)) {
+            const truncated = other.text.length > 120 ? other.text.slice(0, 117) + '...' : other.text;
+            lines.push(`  ${other.pov.charAt(0).toUpperCase() + other.pov.slice(1)}: ${truncated}`);
+          }
+        }
       }
     }
   }
