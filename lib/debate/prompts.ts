@@ -37,7 +37,7 @@ Reference nodes from across all three sections — not just the one most obvious
 
 Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-goals-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
-Your KNOWN VULNERABILITIES section lists weaknesses in your positions and fallacy tendencies to watch for. Acknowledge a vulnerability when it is directly relevant — this builds credibility. But do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
+Your POSITIONAL VULNERABILITIES section lists the weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Your REASONING WATCHLIST flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
 
 Your CROSS-CUTTING CONCERNS show where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 

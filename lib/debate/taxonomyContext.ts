@@ -116,25 +116,45 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // Vulnerabilities section — aggregated from all POV nodes
-  const vulnLines: string[] = [];
+  // Positional vulnerabilities — steelman_vulnerability entries, scored by relevance, cap at 10
+  const vulnEntries: { nodeId: string; label: string; text: string; score: number }[] = [];
   for (const n of povSlice) {
     if (n.graph_attributes?.steelman_vulnerability) {
       const sv = n.graph_attributes.steelman_vulnerability;
       const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
-      vulnLines.push(`- [${n.id}] ${n.label}: ${svText}`);
+      vulnEntries.push({
+        nodeId: n.id,
+        label: n.label,
+        text: svText,
+        score: ctx.nodeScores?.get(n.id) ?? 0,
+      });
     }
+  }
+  if (vulnEntries.length > 0) {
+    const VULN_LIMIT = 10;
+    const sorted = vulnEntries.sort((a, b) => b.score - a.score).slice(0, VULN_LIMIT);
+    lines.push('=== POSITIONAL VULNERABILITIES (where your position is weakest) ===');
+    lines.push('These are pre-filtered for relevance to the current topic. Acknowledge when directly relevant — but do not over-concede or apologize for your core stance.');
+    for (const v of sorted) {
+      lines.push(`- [${v.nodeId}] ${v.label}: ${v.text}`);
+    }
+    lines.push('');
+  }
+
+  // Reasoning watchlist — likely fallacies only (drop possible/borderline)
+  const fallacyLines: string[] = [];
+  for (const n of povSlice) {
     if (n.graph_attributes?.possible_fallacies && n.graph_attributes.possible_fallacies.length > 0) {
-      const notable = n.graph_attributes.possible_fallacies.filter(f => f.confidence !== 'borderline');
-      for (const f of notable) {
-        vulnLines.push(`- [${n.id}] ${n.label}: Watch for ${f.fallacy.replace(/_/g, ' ')} (${f.confidence})`);
+      const likely = n.graph_attributes.possible_fallacies.filter(f => f.confidence === 'likely');
+      for (const f of likely) {
+        fallacyLines.push(`- [${n.id}] ${n.label}: ${f.fallacy.replace(/_/g, ' ')} — ${f.explanation}`);
       }
     }
   }
-  if (vulnLines.length > 0) {
-    lines.push('=== YOUR KNOWN VULNERABILITIES ===');
-    lines.push('Be aware of these weaknesses in your positions. Acknowledging them when relevant strengthens your credibility — but do not over-concede or apologize for your core stance.');
-    lines.push(...vulnLines.slice(0, 50));
+  if (fallacyLines.length > 0) {
+    lines.push('=== REASONING WATCHLIST (errors to self-monitor) ===');
+    lines.push('These are reasoning patterns you tend toward. Self-monitor — if you catch yourself using one, flag it explicitly rather than letting it pass.');
+    lines.push(...fallacyLines.slice(0, 10));
     lines.push('');
   }
 
