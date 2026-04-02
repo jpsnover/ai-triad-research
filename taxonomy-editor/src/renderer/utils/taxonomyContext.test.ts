@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatTaxonomyContext, formatNodeAttributes, CATEGORY_TO_BDI } from './taxonomyContext';
 import type { TaxonomyContext } from './taxonomyContext';
-import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
+import type { PovNode, SituationNode } from '../types/taxonomy';
 
 // ── Test fixtures ─────────────────────────────────────────
 
@@ -15,7 +15,7 @@ const beliefsNode: PovNode = {
   description: 'Scaling compute leads to emergent capabilities.',
   parent_id: null,
   children: [],
-  cross_cutting_refs: [],
+  situation_refs: [],
   graph_attributes: {
     epistemic_type: 'empirical_claim',
     assumes: ['scaling laws continue to hold'],
@@ -29,7 +29,7 @@ const desiresNode: PovNode = {
   description: 'AI-driven abundance improves quality of life for all.',
   parent_id: null,
   children: [],
-  cross_cutting_refs: [],
+  situation_refs: [],
   graph_attributes: {
     steelman_vulnerability: 'Assumes benefits are evenly distributed',
   },
@@ -42,7 +42,7 @@ const intentionsNode: PovNode = {
   description: 'Building AI fast is the best way to ensure safety.',
   parent_id: null,
   children: [],
-  cross_cutting_refs: [],
+  situation_refs: [],
   graph_attributes: {
     possible_fallacies: [
       { fallacy: 'false_dilemma', confidence: 'likely', explanation: 'Presents speed vs. safety as binary' },
@@ -51,7 +51,7 @@ const intentionsNode: PovNode = {
   },
 };
 
-const ccNode: CrossCuttingNode = {
+const situationNode: SituationNode = {
   id: 'cc-001',
   label: 'When Will Super-Smart AI Arrive?',
   description: 'The timeline debate around AGI arrival.',
@@ -68,7 +68,7 @@ const ccNode: CrossCuttingNode = {
 function buildCtx(overrides?: Partial<TaxonomyContext>): TaxonomyContext {
   return {
     povNodes: [beliefsNode, desiresNode, intentionsNode],
-    crossCuttingNodes: [ccNode],
+    situationNodes: [situationNode],
     ...overrides,
   };
 }
@@ -81,9 +81,9 @@ describe('CATEGORY_TO_BDI mapping', () => {
   });
 
   it('uses BDI terminology in headers', () => {
-    expect(CATEGORY_TO_BDI['Beliefs'].header).toContain('BELIEFS');
-    expect(CATEGORY_TO_BDI['Desires'].header).toContain('DESIRES');
-    expect(CATEGORY_TO_BDI['Intentions'].header).toContain('INTENTIONS');
+    expect(CATEGORY_TO_BDI['Beliefs'].header).toContain('EMPIRICAL GROUNDING');
+    expect(CATEGORY_TO_BDI['Desires'].header).toContain('NORMATIVE COMMITMENTS');
+    expect(CATEGORY_TO_BDI['Intentions'].header).toContain('REASONING APPROACH');
   });
 });
 
@@ -108,15 +108,15 @@ describe('formatNodeAttributes', () => {
 describe('formatTaxonomyContext', () => {
   it('contains all BDI section headers', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('=== YOUR BELIEFS (what you take as empirically true) ===');
-    expect(output).toContain('=== YOUR DESIRES (what you prioritize and why) ===');
-    expect(output).toContain('=== YOUR INTENTIONS (how you argue) ===');
+    expect(output).toContain('=== YOUR EMPIRICAL GROUNDING (what you take as true) ===');
+    expect(output).toContain('=== YOUR NORMATIVE COMMITMENTS (what you argue should happen) ===');
+    expect(output).toContain('=== YOUR REASONING APPROACH (how you construct arguments) ===');
   });
 
   it('places Beliefs nodes under BELIEFS', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const beliefsIdx = output.indexOf('YOUR BELIEFS');
-    const desiresIdx = output.indexOf('YOUR DESIRES');
+    const beliefsIdx = output.indexOf('YOUR EMPIRICAL GROUNDING');
+    const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
     const nodeIdx = output.indexOf('[acc-data-001]');
     expect(nodeIdx).toBeGreaterThan(beliefsIdx);
     expect(nodeIdx).toBeLessThan(desiresIdx);
@@ -124,8 +124,8 @@ describe('formatTaxonomyContext', () => {
 
   it('places Desires nodes under DESIRES', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const desiresIdx = output.indexOf('YOUR DESIRES');
-    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
+    const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
+    const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
     const nodeIdx = output.indexOf('[acc-goals-001]');
     expect(nodeIdx).toBeGreaterThan(desiresIdx);
     expect(nodeIdx).toBeLessThan(intentionsIdx);
@@ -133,26 +133,27 @@ describe('formatTaxonomyContext', () => {
 
   it('places Intentions nodes under INTENTIONS', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
+    const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
     const nodeIdx = output.indexOf('[acc-methods-001]');
     expect(nodeIdx).toBeGreaterThan(intentionsIdx);
   });
 
-  it('contains KNOWN VULNERABILITIES section', () => {
+  it('contains POSITIONAL VULNERABILITIES section', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('=== YOUR KNOWN VULNERABILITIES ===');
+    expect(output).toContain('=== POSITIONAL VULNERABILITIES');
     expect(output).toContain('Assumes benefits are evenly distributed');
-    expect(output).toContain('false dilemma');
   });
 
-  it('does not include borderline fallacies in vulnerabilities', () => {
+  it('contains REASONING WATCHLIST with likely fallacies only', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
+    expect(output).toContain('=== REASONING WATCHLIST');
+    expect(output).toContain('false dilemma');
     expect(output).not.toContain('appeal to fear');
   });
 
-  it('contains CROSS-CUTTING CONCERNS section', () => {
+  it('contains SITUATIONS section', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('=== CROSS-CUTTING CONCERNS ===');
+    expect(output).toContain('=== SITUATIONS');
     expect(output).toContain('[cc-001]');
   });
 
@@ -161,11 +162,10 @@ describe('formatTaxonomyContext', () => {
     expect(output).toContain('Your interpretation: Soon, and we must prepare to benefit.');
   });
 
-  it('shows other POV interpretations as brief summaries', () => {
+  it('shows other POV interpretations in full for primary situation nodes', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('Other views:');
-    expect(output).toContain('Saf:');  // Safetyist abbreviated
-    expect(output).toContain('Ske:');  // Skeptic abbreviated
+    expect(output).toContain('Safetyist: Possibly soon, which makes alignment urgent.');
+    expect(output).toContain('Skeptic: Timelines are speculative and distract from present harms.');
   });
 
   it('changes interpretation based on POV', () => {
@@ -178,22 +178,22 @@ describe('formatTaxonomyContext', () => {
   it('omits empty BDI sections', () => {
     const ctx = buildCtx({ povNodes: [beliefsNode] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
-    expect(output).toContain('YOUR BELIEFS');
-    expect(output).not.toContain('YOUR DESIRES');
-    expect(output).not.toContain('YOUR INTENTIONS');
+    expect(output).toContain('YOUR EMPIRICAL GROUNDING');
+    expect(output).not.toContain('YOUR NORMATIVE COMMITMENTS');
+    expect(output).not.toContain('YOUR REASONING APPROACH');
   });
 
   it('omits vulnerabilities section when no vulnerabilities exist', () => {
     const cleanNode: PovNode = { ...beliefsNode, graph_attributes: { epistemic_type: 'empirical_claim' } };
     const ctx = buildCtx({ povNodes: [cleanNode] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
-    expect(output).not.toContain('KNOWN VULNERABILITIES');
+    expect(output).not.toContain('POSITIONAL VULNERABILITIES');
   });
 
-  it('omits cross-cutting section when no CC nodes', () => {
-    const ctx = buildCtx({ crossCuttingNodes: [] });
+  it('omits situations section when no situation nodes', () => {
+    const ctx = buildCtx({ situationNodes: [] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
-    expect(output).not.toContain('CROSS-CUTTING CONCERNS');
+    expect(output).not.toContain('SITUATIONS');
   });
 
   it('respects maxNodes limit', () => {
@@ -204,13 +204,13 @@ describe('formatTaxonomyContext', () => {
     expect(output).not.toContain('[acc-methods-001]');
   });
 
-  it('section order is Beliefs → Desires → Intentions → Vulnerabilities → Cross-Cutting', () => {
+  it('section order is Empirical Grounding → Normative Commitments → Reasoning → Vulnerabilities → Situations', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const beliefsIdx = output.indexOf('YOUR BELIEFS');
-    const desiresIdx = output.indexOf('YOUR DESIRES');
-    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
-    const vulnIdx = output.indexOf('YOUR KNOWN VULNERABILITIES');
-    const ccIdx = output.indexOf('CROSS-CUTTING CONCERNS');
+    const beliefsIdx = output.indexOf('YOUR EMPIRICAL GROUNDING');
+    const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
+    const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
+    const vulnIdx = output.indexOf('POSITIONAL VULNERABILITIES');
+    const ccIdx = output.indexOf('SITUATIONS');
 
     expect(beliefsIdx).toBeLessThan(desiresIdx);
     expect(desiresIdx).toBeLessThan(intentionsIdx);
