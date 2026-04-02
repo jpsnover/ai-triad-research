@@ -429,6 +429,7 @@ Return ONLY JSON (no markdown):
                       <input type="checkbox" checked={item.checked} onChange={() => toggleConflict(item.id)} />
                       <span className="harvest-item-title">{item.point}</span>
                       {item.bdiLayer && <span className="harvest-badge">{item.bdiLayer}</span>}
+                      {item.resolvability && <span className="harvest-badge harvest-badge-muted">{item.resolvability.replace(/_/g, ' ')}</span>}
                     </label>
                     {item.checked && (
                       <div className="harvest-item-body">

@@ -4,8 +4,12 @@
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
 export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods/Arguments';
 
+export type FallacyTier = 'formal' | 'informal_structural' | 'informal_contextual' | 'cognitive_bias';
+
 export interface PossibleFallacy {
   fallacy: string;
+  /** Fallacy tier — required on new entries, absent on pre-standard data. */
+  type?: FallacyTier;
   confidence: 'likely' | 'possible' | 'borderline';
   explanation: string;
 }

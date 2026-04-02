@@ -36,6 +36,7 @@ const crossCuttingNodeSchema = z.object({
   }),
   linked_nodes: z.array(z.string()),
   conflict_ids: z.array(z.string()),
+  disagreement_type: z.enum(['definitional', 'interpretive', 'structural']).optional(),
 });
 
 export const crossCuttingFileSchema = z.object({

@@ -6,6 +6,7 @@
  * Consumed by taxonomy-editor (Electron app) and the future CLI debate runner.
  */
 
+export * from './errors';
 export * from './types';
 export * from './taxonomyTypes';
 export * from './prompts';

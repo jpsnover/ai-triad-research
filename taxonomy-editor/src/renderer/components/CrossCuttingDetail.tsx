@@ -171,7 +171,10 @@ export function CrossCuttingDetail({ node, readOnly, onPin, onRelated, onDebate,
               </div>
             )}
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
-              <label>Description</label>
+              <label>
+                Description
+                <FieldHelp text='Genus-differentia format: "A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ..."' />
+              </label>
               <HighlightedTextarea
                 value={node.description}
                 onChange={(v) => update({ description: v })}

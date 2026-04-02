@@ -4776,6 +4776,19 @@ body {
   color: #64748b;
 }
 
+.ga-fallacy-type {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.ga-fallacy-type-missing {
+  color: var(--color-warning, #d97706);
+  border: 1px dashed var(--color-warning, #d97706);
+  background: transparent;
+}
 .ga-fallacy-confidence {
   font-size: 0.72rem;
   color: var(--text-secondary);
@@ -7230,6 +7243,10 @@ body {
   background: var(--bg-hover);
   color: var(--text-muted);
   white-space: nowrap;
+}
+.harvest-badge-muted {
+  font-style: italic;
+  opacity: 0.8;
 }
 .harvest-item-body {
   margin-top: 8px;

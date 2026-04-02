@@ -85,7 +85,7 @@
         "description": {
           "type": "string",
           "minLength": 1,
-          "description": "Full description of the claim, value, data point, or methodological position. Should be a self-contained paragraph that can be understood without reading other nodes."
+          "description": "Genus-differentia description: 'A [Category] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' — a self-contained paragraph following DOLCE D&S conventions."
         },
         "parent_id": {
           "type": ["string", "null"],

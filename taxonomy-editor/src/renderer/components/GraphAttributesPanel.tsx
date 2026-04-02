@@ -459,6 +459,15 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                         <span className={`ga-fallacy-badge ga-fallacy-${f.confidence}`}>
                           {label}
                         </span>
+                        {f.type ? (
+                          <span className="ga-fallacy-type" title={`Fallacy tier: ${f.type.replace(/_/g, ' ')}`}>
+                            {f.type.replace(/_/g, ' ')}
+                          </span>
+                        ) : (
+                          <span className="ga-fallacy-type ga-fallacy-type-missing" title="Missing fallacy tier — run attribute extraction to populate">
+                            no tier
+                          </span>
+                        )}
                         <span className="ga-fallacy-confidence">{f.confidence}</span>
                         {info && (
                           <button
