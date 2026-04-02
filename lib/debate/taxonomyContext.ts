@@ -23,15 +23,15 @@ export interface TaxonomyContext {
 /** Map taxonomy categories to BDI sections */
 export const CATEGORY_TO_BDI: Record<string, { header: string; framing: string }> = {
   'Beliefs': {
-    header: '=== YOUR BELIEFS (what you take as empirically true) ===',
+    header: '=== YOUR EMPIRICAL GROUNDING (what you take as true) ===',
     framing: 'These are the factual claims and empirical observations that ground your worldview.',
   },
   'Desires': {
-    header: '=== YOUR DESIRES (what you prioritize and why) ===',
+    header: '=== YOUR NORMATIVE COMMITMENTS (what you argue should happen) ===',
     framing: 'These are the goals and principles you argue from. They are normative commitments, not empirical claims.',
   },
   'Intentions': {
-    header: '=== YOUR INTENTIONS (how you argue) ===',
+    header: '=== YOUR REASONING APPROACH (how you construct arguments) ===',
     framing: 'These are the methods, frameworks, and argumentative strategies you use to connect beliefs to desires.',
   },
 };
