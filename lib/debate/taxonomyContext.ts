@@ -18,6 +18,8 @@ export interface TaxonomyContext {
   povNodes: PovNode[];
   situationNodes: SituationNode[];
   policyRegistry?: PolicyRef[];
+  /** Relevance scores by node ID. When present, enables primary/supporting tiering. */
+  nodeScores?: Map<string, number>;
 }
 
 /** Map taxonomy categories to BDI sections */
@@ -77,6 +79,14 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
   const lines: string[] = [];
 
+  const hasScores = ctx.nodeScores && ctx.nodeScores.size > 0;
+  const PRIMARY_COUNT = 5;
+
+  if (hasScores) {
+    lines.push('(★ = most relevant to current topic)');
+    lines.push('');
+  }
+
   // Emit BDI sections in Beliefs → Desires → Intentions order
   for (const cat of ['Beliefs', 'Desires', 'Intentions'] as const) {
     const nodes = groups[cat];
@@ -84,13 +94,23 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     const bdi = CATEGORY_TO_BDI[cat];
     lines.push(bdi.header);
     lines.push(bdi.framing);
-    for (const n of nodes) {
-      lines.push(`[${n.id}] ${n.label}: ${n.description}`);
+
+    // Sort by score if available, then split into primary/supporting
+    let sorted = nodes;
+    if (hasScores) {
+      sorted = [...nodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0));
+    }
+
+    for (let i = 0; i < sorted.length; i++) {
+      const n = sorted[i];
+      const isPrimary = hasScores && i < PRIMARY_COUNT;
+      const prefix = isPrimary ? '★ ' : '  ';
+      lines.push(`${prefix}[${n.id}] ${n.label}: ${n.description}`);
       if (n.graph_attributes?.epistemic_type) {
-        lines.push(`  Epistemic type: ${n.graph_attributes.epistemic_type}`);
+        lines.push(`    Epistemic type: ${n.graph_attributes.epistemic_type}`);
       }
       if (n.graph_attributes?.assumes && n.graph_attributes.assumes.length > 0) {
-        lines.push(`  Assumes: ${n.graph_attributes.assumes.join('; ')}`);
+        lines.push(`    Assumes: ${n.graph_attributes.assumes.join('; ')}`);
       }
     }
     lines.push('');

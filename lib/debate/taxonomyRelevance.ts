@@ -14,6 +14,11 @@ export interface NodeRelevanceScore {
   score: number;
 }
 
+export interface ScoredPovNode {
+  node: PovNode;
+  score: number;
+}
+
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
   let dot = 0, normA = 0, normB = 0;
@@ -53,9 +58,9 @@ export function selectRelevantNodes(
   scores: Map<string, number>,
   threshold: number = 0.3,
   minPerCategory: number = 3,
-): PovNode[] {
+): ScoredPovNode[] {
   // Group by category
-  const groups: Record<string, { node: PovNode; score: number }[]> = {
+  const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
     'Desires': [],
     'Intentions': [],
@@ -68,7 +73,7 @@ export function selectRelevantNodes(
   }
 
   // For each category: include all above threshold, guarantee minimum
-  const result: PovNode[] = [];
+  const result: ScoredPovNode[] = [];
   for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
     const sorted = groups[cat].sort((a, b) => b.score - a.score);
     const aboveThreshold = sorted.filter(s => s.score >= threshold);
@@ -76,7 +81,7 @@ export function selectRelevantNodes(
     const selected = aboveThreshold.length >= minPerCategory
       ? aboveThreshold
       : sorted.slice(0, Math.max(minPerCategory, aboveThreshold.length));
-    result.push(...selected.map(s => s.node));
+    result.push(...selected);
   }
 
   return result;
