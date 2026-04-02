@@ -163,16 +163,25 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     }
   }
 
-  // Policy registry section — shows available policy actions debaters can reference
+  // Policy registry section — top 10, with top 3 marked as primary
   if (ctx.policyRegistry && ctx.policyRegistry.length > 0) {
+    const POLICY_LIMIT = 10;
+    const POLICY_PRIMARY = 3;
+    const policies = ctx.policyRegistry.slice(0, POLICY_LIMIT);
+
     lines.push('');
     lines.push('=== POLICY ACTIONS (reference by pol-NNN ID when relevant) ===');
     lines.push('These are concrete policy actions identified in the research. When your argument supports or opposes a specific policy, reference its ID in your policy_refs.');
-    for (const pol of ctx.policyRegistry.slice(0, 30)) {
+    if (policies.length > POLICY_PRIMARY) {
+      lines.push('(★ = most relevant to current topic)');
+    }
+    for (let i = 0; i < policies.length; i++) {
+      const pol = policies[i];
       const povTag = pol.source_povs && pol.source_povs.length > 0
         ? ` (${pol.source_povs.join(', ')})`
         : '';
-      lines.push(`[${pol.id}] ${pol.action}${povTag}`);
+      const prefix = i < POLICY_PRIMARY ? '★ ' : '  ';
+      lines.push(`${prefix}[${pol.id}] ${pol.action}${povTag}`);
     }
   }
 
