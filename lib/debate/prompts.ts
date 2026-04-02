@@ -41,7 +41,8 @@ Your KNOWN VULNERABILITIES section lists weaknesses in your positions and fallac
 
 Your CROSS-CUTTING CONCERNS show where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 
-const ARGUMENT_STRATEGY = `HOW TO ARGUE WELL:
+// Core argument strategy (rules 1-3) — included at medium + detailed tiers
+const ARGUMENT_STRATEGY_CORE = `HOW TO ARGUE WELL:
 
 1. STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
    - Claim: what you're asserting
@@ -59,9 +60,10 @@ const ARGUMENT_STRATEGY = `HOW TO ARGUE WELL:
    - Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
    - Prioritize CRUXES: points where, if resolved, someone would change their mind
    - Ignore rhetorical flourishes and focus on substantive claims
-   - If multiple opponents made different arguments, address the one that most threatens your position
+   - If multiple opponents made different arguments, address the one that most threatens your position`;
 
-4. KNOW WHEN TO CONCEDE. Conceding a point is not losing — it's intellectual honesty:
+// Extended argument strategy (rules 4-7) — included at detailed tier only
+const ARGUMENT_STRATEGY_EXTENDED = `4. KNOW WHEN TO CONCEDE. Conceding a point is not losing — it's intellectual honesty:
    - Concede when the evidence clearly supports the opponent's claim
    - Concede when a point is tangential to your core argument (don't defend everything)
    - After conceding, explain why your overall position still holds despite this concession
@@ -88,6 +90,27 @@ const ARGUMENT_STRATEGY = `HOW TO ARGUE WELL:
    If nothing has changed, reference your prior argument briefly and move on to something new.
    Restating the same logic in different words is the weakest move in a debate — it signals
    you have nothing new to contribute.`;
+
+/**
+ * Assemble instruction blocks gated by response length tier.
+ * Brief: minimal (~500 tokens). Medium: core strategy (~1,200 tokens). Detailed: full set.
+ */
+function tieredInstructions(lengthKey: string): string {
+  const blocks: string[] = [TAXONOMY_USAGE];
+
+  if (lengthKey === 'medium' || lengthKey === 'detailed') {
+    blocks.push(ARGUMENT_STRATEGY_CORE);
+    blocks.push(DISAGREEMENT_TYPING);
+  }
+
+  if (lengthKey === 'detailed') {
+    blocks.push(ARGUMENT_STRATEGY_EXTENDED);
+    blocks.push(STEELMAN_INSTRUCTION);
+    blocks.push(DIALECTICAL_MOVES);
+  }
+
+  return blocks.join('\n\n');
+}
 
 const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down.
 
@@ -251,7 +274,6 @@ export function openingStatementPrompt(
 ): string {
   const lengthKey = length || 'medium';
   const includeAssumptions = lengthKey !== 'brief';
-  const includeSteelman = lengthKey !== 'brief';
   const hasDocument = !!(documentAnalysis || debateSourceContent);
 
   // Use structured analysis when available, fall back to raw source content
@@ -270,9 +292,7 @@ Your personality: ${personality}.
 ${READING_LEVEL}
 ${lengthInstruction(lengthKey)}
 
-${TAXONOMY_USAGE}
-
-${ARGUMENT_STRATEGY}
+${tieredInstructions(lengthKey)}
 
 ${taxonomyContext}
 ${priorBlock}
@@ -283,7 +303,7 @@ The debate topic is:
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
-${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${includeSteelman ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
+${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${lengthKey === 'detailed' ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
 ${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
 ${CLAIM_SKETCHING}
 
@@ -319,8 +339,6 @@ export function debateResponsePrompt(
   documentAnalysis?: DocumentAnalysis,
 ): string {
   const lengthKey = length || 'medium';
-  const includeSteelman = lengthKey !== 'brief';
-  const includeDisagreementType = true; // always include — it's a small field
 
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
@@ -331,13 +349,7 @@ Your personality: ${personality}.
 ${READING_LEVEL}
 ${lengthInstruction(lengthKey)}
 
-${TAXONOMY_USAGE}
-
-${ARGUMENT_STRATEGY}
-${includeSteelman ? `\n${STEELMAN_INSTRUCTION}\n` : ''}
-${DISAGREEMENT_TYPING}
-
-${DIALECTICAL_MOVES}
+${tieredInstructions(lengthKey)}
 
 ${taxonomyContext}
 
@@ -364,7 +376,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
   ],
-  "policy_refs": ["pol-001"]${includeDisagreementType ? `,
+  "policy_refs": ["pol-001"]${lengthKey !== 'brief' ? `,
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"` : ''}
 }
 
@@ -416,7 +428,6 @@ export function crossRespondPrompt(
   documentAnalysis?: DocumentAnalysis,
 ): string {
   const lengthKey = length || 'medium';
-  const includeSteelman = lengthKey !== 'brief';
 
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -428,13 +439,7 @@ Your personality: ${personality}.
 ${READING_LEVEL}
 ${lengthInstruction(lengthKey)}
 
-${TAXONOMY_USAGE}
-
-${ARGUMENT_STRATEGY}
-${includeSteelman ? `\n${STEELMAN_INSTRUCTION}\n` : ''}
-${DISAGREEMENT_TYPING}
-
-${DIALECTICAL_MOVES}
+${tieredInstructions(lengthKey)}
 
 ${taxonomyContext}
 
