@@ -18,6 +18,8 @@ interface TaxonomySampleInput {
   safetyist: { nodes: PovNode[] };
   skeptic: { nodes: PovNode[] };
   crossCutting: { nodes: CrossCuttingNode[] };
+  /** New name for crossCutting — Phase 1 shim. */
+  situations?: { nodes: CrossCuttingNode[] };
   policyRegistry: PolicyRef[];
 }
 
@@ -38,7 +40,7 @@ export function buildTaxonomySample(taxonomy: TaxonomySampleInput): string {
     lines.push('');
   }
 
-  const ccNodes = taxonomy.crossCutting.nodes;
+  const ccNodes = (taxonomy.situations ?? taxonomy.crossCutting).nodes;
   if (ccNodes.length > 0) {
     lines.push('CROSS-CUTTING NODES:');
     for (const n of ccNodes) {

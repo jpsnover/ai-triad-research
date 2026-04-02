@@ -17,6 +17,8 @@ export interface PolicyRef {
 export interface TaxonomyContext {
   povNodes: PovNode[];
   crossCuttingNodes: CrossCuttingNode[];
+  /** New name for crossCuttingNodes — Phase 1 shim. */
+  situationNodes?: CrossCuttingNode[];
   policyRegistry?: PolicyRef[];
 }
 
@@ -118,11 +120,12 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // Cross-cutting section — show this agent's interpretation prominently
-  if (ctx.crossCuttingNodes.length > 0) {
+  // Situations section — show this agent's interpretation prominently
+  const ccNodes = ctx.situationNodes ?? ctx.crossCuttingNodes;
+  if (ccNodes.length > 0) {
     lines.push('=== CROSS-CUTTING CONCERNS ===');
     lines.push("These concepts are contested across all perspectives. Your interpretation differs from others'.");
-    for (const n of ctx.crossCuttingNodes) {
+    for (const n of ccNodes) {
       lines.push(`[${n.id}] ${n.label}: ${n.description}`);
       // Show this agent's interpretation prominently
       const interp = n.interpretations?.[pov as keyof typeof n.interpretations];

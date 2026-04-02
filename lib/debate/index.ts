@@ -22,6 +22,21 @@ export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
 
+// ── Situations Migration Normalizers (Phase 1 shims) ──────
+
+/** Normalize legacy node properties: cross_cutting_refs → situation_refs. */
+export function normalizeNodeProperties<T extends Record<string, unknown>>(node: T): T {
+  if ('cross_cutting_refs' in node && !('situation_refs' in node)) {
+    (node as Record<string, unknown>).situation_refs = node.cross_cutting_refs;
+  }
+  return node;
+}
+
+/** Normalize legacy POV string: 'cross-cutting' → 'situations'. */
+export function normalizePov(pov: string): string {
+  return pov === 'cross-cutting' ? 'situations' : pov;
+}
+
 // ── BDI Migration Normalizers (Phase 1 shims) ────────────
 
 /** Normalize legacy bdi_layer values to new BDI terminology. */
