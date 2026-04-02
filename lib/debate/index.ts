@@ -21,7 +21,8 @@ export * from './aiAdapter';
 export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
-export * from './schemas';
+// schemas.ts deliberately excluded from barrel — it imports zod.
+// Import directly: import { PovNodeSchema } from 'lib/debate/schemas';
 export * from './validators';
 
 // ── Situations Migration Normalizers ──────────────────────
