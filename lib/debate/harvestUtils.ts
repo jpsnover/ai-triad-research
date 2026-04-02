@@ -8,6 +8,7 @@
 
 import type { DebateSession, TranscriptEntry, PoverId } from './types';
 import { POVER_INFO } from './types';
+import { nodePovFromId } from './nodeIdUtils';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -161,13 +162,10 @@ export function extractSteelmanCandidates(
     for (const ref of entry.taxonomy_refs) {
       const nodeId = ref.node_id;
       // Determine the node's POV from its prefix
-      let nodePov: string | null = null;
-      if (nodeId.startsWith('acc-')) nodePov = 'accelerationist';
-      else if (nodeId.startsWith('saf-')) nodePov = 'safetyist';
-      else if (nodeId.startsWith('skp-')) nodePov = 'skeptic';
-      else continue; // Skip CC nodes for steelman purposes
+      const nodeIdPov = nodePovFromId(nodeId);
+      if (!nodeIdPov || nodeIdPov === 'situations') continue; // Skip situation nodes for steelman purposes
 
-      if (nodePov === speakerPov) continue; // Same POV, not a cross-POV attack
+      if (nodeIdPov === speakerPov) continue; // Same POV, not a cross-POV attack
 
       const label = getNodeLabel(nodeId);
       if (!label) continue;

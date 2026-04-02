@@ -7,7 +7,8 @@
  * and BDI consistency. Returns actionable diagnostics.
  */
 
-import type { PovNode, SituationNode, Edge, Category } from './taxonomyTypes';
+import type { PovNode, SituationNode, Edge } from './taxonomyTypes';
+import { nodePovFromId } from './nodeIdUtils';
 
 // ── Validation result ─────────────────────────────────────
 
@@ -136,15 +137,6 @@ export function checkReferentialIntegrity(data: TaxonomyData): ValidationResult 
 
 // ── 2. Edge domain/range validator ────────────────────────
 
-/** Get the POV prefix from a node ID (acc-, saf-, skp-, cc-) */
-function nodePov(id: string): string | null {
-  if (id.startsWith('acc-')) return 'accelerationist';
-  if (id.startsWith('saf-')) return 'safetyist';
-  if (id.startsWith('skp-')) return 'skeptic';
-  if (id.startsWith('cc-')) return 'situations';
-  return null;
-}
-
 /**
  * Validate edge domain/range constraints per AIF conventions.
  */
@@ -159,8 +151,8 @@ export function checkEdgeDomainRange(
     // Skip edges with dangling refs — caught by referential integrity
     if (!allNodeIds.has(e.source) || !allNodeIds.has(e.target)) continue;
 
-    const srcPov = nodePov(e.source);
-    const tgtPov = nodePov(e.target);
+    const srcPov = nodePovFromId(e.source);
+    const tgtPov = nodePovFromId(e.target);
     const isSitSource = situationIds.has(e.source);
     const isSitTarget = situationIds.has(e.target);
 
