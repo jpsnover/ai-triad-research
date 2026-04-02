@@ -22,7 +22,7 @@ export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
 
-// ── Situations Migration Normalizers (Phase 1 shims) ──────
+// ── Situations Migration Normalizers ──────────────────────
 
 /** Normalize legacy node properties: cross_cutting_refs → situation_refs. */
 export function normalizeNodeProperties<T extends Record<string, unknown>>(node: T): T {

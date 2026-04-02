@@ -8,7 +8,7 @@
  */
 
 import type { DocumentAnalysis } from './types';
-import type { PovNode, CrossCuttingNode } from './taxonomyTypes';
+import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
 // ── Taxonomy sample builder ─────────────────────────────
@@ -17,9 +17,7 @@ interface TaxonomySampleInput {
   accelerationist: { nodes: PovNode[] };
   safetyist: { nodes: PovNode[] };
   skeptic: { nodes: PovNode[] };
-  crossCutting: { nodes: CrossCuttingNode[] };
-  /** New name for crossCutting — Phase 1 shim. */
-  situations?: { nodes: CrossCuttingNode[] };
+  situations: { nodes: SituationNode[] };
   policyRegistry: PolicyRef[];
 }
 
@@ -40,10 +38,10 @@ export function buildTaxonomySample(taxonomy: TaxonomySampleInput): string {
     lines.push('');
   }
 
-  const ccNodes = (taxonomy.situations ?? taxonomy.crossCutting).nodes;
-  if (ccNodes.length > 0) {
-    lines.push('CROSS-CUTTING NODES:');
-    for (const n of ccNodes) {
+  const sitNodes = taxonomy.situations.nodes;
+  if (sitNodes.length > 0) {
+    lines.push('SITUATION NODES:');
+    for (const n of sitNodes) {
       lines.push(`  ${n.id}: ${n.label}`);
     }
     lines.push('');

@@ -48,16 +48,13 @@ export interface PovNode {
   parent_relationship?: ParentRelationship | null;
   parent_rationale?: string | null;
   children: string[];
-  cross_cutting_refs: string[];
-  /** New name for cross_cutting_refs — Phase 1 shim accepts both. */
-  situation_refs?: string[];
+  situation_refs: string[];
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
   debate_refs?: string[];
 }
 
-/** @deprecated Use SituationNode instead. Kept as alias during migration. */
-export interface CrossCuttingNode {
+export interface SituationNode {
   id: string;
   label: string;
   description: string;
@@ -74,8 +71,8 @@ export interface CrossCuttingNode {
   debate_refs?: string[];
 }
 
-/** New name for CrossCuttingNode — Phase 1 shim. */
-export type SituationNode = CrossCuttingNode;
+/** @deprecated Use SituationNode. Kept for backward compatibility. */
+export type CrossCuttingNode = SituationNode;
 
 // ── Edge types (from taxonomy/Origin/edges.json) ─────────
 

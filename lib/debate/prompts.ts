@@ -660,9 +660,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {"summary": "your summary text"}`;
 }
 
-// ── Cross-Cutting Concern Debate ─────────────────────────
+// ── Situation Debate ─────────────────────────────────────
 
-export interface CrossCuttingDebateInput {
+export interface SituationDebateInput {
   id: string;
   label: string;
   description: string;
@@ -674,10 +674,10 @@ export interface CrossCuttingDebateInput {
   conflictSummaries?: string[];
 }
 
-/** Build a rich source-content block from a cross-cutting node for prompt injection */
-export function formatCrossCuttingDebateContext(cc: CrossCuttingDebateInput): string {
+/** Build a rich source-content block from a situation node for prompt injection */
+export function formatSituationDebateContext(cc: SituationDebateInput): string {
   const lines: string[] = [
-    `=== CROSS-CUTTING CONCERN: ${cc.id} ===`,
+    `=== SITUATION: ${cc.id} ===`,
     `Label: ${cc.label}`,
     `Description: ${cc.description}`,
     '',
@@ -750,12 +750,12 @@ Respond ONLY with a JSON object in this exact format (no markdown, no code fence
 {"questions": ["question 1", "question 2"]}`;
 }
 
-/** Clarification prompt specialized for cross-cutting concern debates */
-export function crossCuttingClarificationPrompt(
+/** Clarification prompt specialized for situation debates */
+export function situationClarificationPrompt(
   topic: string,
   ccContext: string,
 ): string {
-  return `You are a neutral debate facilitator preparing a structured debate grounded in a cross-cutting concern from an AI policy taxonomy.
+  return `You are a neutral debate facilitator preparing a structured debate grounded in a situation from an AI policy taxonomy.
 ${READING_LEVEL}
 
 The user wants to debate this topic:

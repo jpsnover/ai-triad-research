@@ -22,12 +22,12 @@ import type {
   DebateDiagnostics,
 } from './types';
 import { POVER_INFO } from './types';
-import type { PovNode, CrossCuttingNode } from './taxonomyTypes';
+import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { TaxonomyContext } from './taxonomyContext';
 import {
   clarificationPrompt,
   documentClarificationPrompt,
-  crossCuttingClarificationPrompt,
+  situationClarificationPrompt,
   synthesisPrompt,
   openingStatementPrompt,
   crossRespondSelectionPrompt,
@@ -43,7 +43,7 @@ import type { DocumentAnalysis } from './types';
 import {
   scoreNodeRelevance,
   selectRelevantNodes,
-  selectRelevantCCNodes,
+  selectRelevantSituationNodes,
   buildRelevanceQuery,
 } from './taxonomyRelevance';
 import {
@@ -246,7 +246,7 @@ export class DebateEngine {
     const povFile = this.taxonomy[pov as keyof Pick<LoadedTaxonomy, 'accelerationist' | 'safetyist' | 'skeptic'>];
     return {
       povNodes: povFile?.nodes ?? [],
-      crossCuttingNodes: this.taxonomy.crossCutting.nodes,
+      situationNodes: this.taxonomy.situations.nodes,
       policyRegistry: this.taxonomy.policyRegistry,
     };
   }
@@ -273,15 +273,15 @@ export class DebateEngine {
       if (matchingVectors.length > 0) {
         const scores = scoreNodeRelevance(matchingVectors[0], this.taxonomy.embeddings);
         const filteredPov = selectRelevantNodes(ctx.povNodes, scores, 0.3, 3);
-        const filteredCC = selectRelevantCCNodes(ctx.crossCuttingNodes, scores, 0.3, 3);
-        return formatTaxonomyContext({ povNodes: filteredPov, crossCuttingNodes: filteredCC, policyRegistry: ctx.policyRegistry }, pov);
+        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.3, 3);
+        return formatTaxonomyContext({ povNodes: filteredPov, situationNodes: filteredSit, policyRegistry: ctx.policyRegistry }, pov);
       }
     }
 
     // Fallback: unfiltered, top 21 POV + 10 CC
     return formatTaxonomyContext({
       povNodes: ctx.povNodes.slice(0, 21),
-      crossCuttingNodes: ctx.crossCuttingNodes.slice(0, 10),
+      situationNodes: ctx.situationNodes.slice(0, 10),
       policyRegistry: ctx.policyRegistry,
     }, pov);
   }
@@ -392,8 +392,8 @@ export class DebateEngine {
     let prompt: string;
     if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
       prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '');
-    } else if (this.config.sourceType === 'cross-cutting') {
-      prompt = crossCuttingClarificationPrompt(this.config.topic, this.config.sourceContent ?? '');
+    } else if (this.config.sourceType === 'situations') {
+      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '');
     } else {
       prompt = clarificationPrompt(this.config.topic, this.config.sourceContent);
     }

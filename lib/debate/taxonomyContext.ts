@@ -6,7 +6,7 @@
  * for debate agent prompts. Extracted from useDebateStore for testability.
  */
 
-import type { PovNode, CrossCuttingNode, GraphAttributes } from './taxonomyTypes';
+import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes';
 
 export interface PolicyRef {
   id: string;
@@ -16,9 +16,7 @@ export interface PolicyRef {
 
 export interface TaxonomyContext {
   povNodes: PovNode[];
-  crossCuttingNodes: CrossCuttingNode[];
-  /** New name for crossCuttingNodes — Phase 1 shim. */
-  situationNodes?: CrossCuttingNode[];
+  situationNodes: SituationNode[];
   policyRegistry?: PolicyRef[];
 }
 
@@ -121,11 +119,10 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   }
 
   // Situations section — show this agent's interpretation prominently
-  const ccNodes = ctx.situationNodes ?? ctx.crossCuttingNodes;
-  if (ccNodes.length > 0) {
+  if (ctx.situationNodes.length > 0) {
     lines.push('=== CROSS-CUTTING CONCERNS ===');
     lines.push("These concepts are contested across all perspectives. Your interpretation differs from others'.");
-    for (const n of ccNodes) {
+    for (const n of ctx.situationNodes) {
       lines.push(`[${n.id}] ${n.label}: ${n.description}`);
       // Show this agent's interpretation prominently
       const interp = n.interpretations?.[pov as keyof typeof n.interpretations];

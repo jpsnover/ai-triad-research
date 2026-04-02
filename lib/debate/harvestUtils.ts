@@ -362,7 +362,7 @@ export function extractConceptCandidates(
     if (node.text.length < 30) continue;
 
     const speakerLabel = POVER_INFO[node.speaker as Exclude<PoverId, 'user'>]?.label || node.speaker;
-    const speakerPov = POV_FOR_POVER[node.speaker] || 'cross-cutting';
+    const speakerPov = POV_FOR_POVER[node.speaker] || 'situations';
 
     candidates.push({
       id: `hn-${idx++}`,
@@ -397,17 +397,17 @@ export function validateProposedConcept(
   if (words > 8) warnings.push(`Label too long (${words} words, max 8)`);
 
   const gdPov = /^A\s+(Desires|Beliefs|Intentions)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
-  const gdCC = /^A\s+cross-cutting\s+concept\s+that\s+/i;
-  const isCC = concept.pov === 'cross-cutting';
-  if (isCC ? !gdCC.test(concept.description) : !gdPov.test(concept.description)) {
+  const gdSit = /^A\s+situation\s+that\s+/i;
+  const isSit = concept.pov === 'situations';
+  if (isSit ? !gdSit.test(concept.description) : !gdPov.test(concept.description)) {
     warnings.push('Description does not follow genus-differentia pattern');
   }
 
-  if (!['accelerationist', 'safetyist', 'skeptic', 'cross-cutting'].includes(concept.pov)) {
+  if (!['accelerationist', 'safetyist', 'skeptic', 'situations'].includes(concept.pov)) {
     warnings.push(`Invalid POV: ${concept.pov}`);
   }
 
-  if (!isCC && !['Desires', 'Beliefs', 'Intentions'].includes(concept.category)) {
+  if (!isSit && !['Desires', 'Beliefs', 'Intentions'].includes(concept.category)) {
     warnings.push(`Invalid category: ${concept.category}`);
   }
 

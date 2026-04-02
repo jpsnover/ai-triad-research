@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import type { PovNode, CrossCuttingNode, EdgesFile } from './taxonomyTypes';
+import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
 // ── Types ────────────────────────────────────────────────
@@ -17,9 +17,7 @@ export interface LoadedTaxonomy {
   accelerationist: { nodes: PovNode[] };
   safetyist: { nodes: PovNode[] };
   skeptic: { nodes: PovNode[] };
-  crossCutting: { nodes: CrossCuttingNode[] };
-  /** New name for crossCutting — Phase 1 shim, same reference. */
-  situations: { nodes: CrossCuttingNode[] };
+  situations: { nodes: SituationNode[] };
   edges: EdgesFile | null;
   embeddings: Record<string, { pov: string; vector: number[] }>;
   policyRegistry: PolicyRef[];
@@ -116,10 +114,7 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
   const acc = loadJsonSafe<{ nodes: PovNode[] }>(path.join(taxonomyDir, 'accelerationist.json'), { nodes: [] });
   const saf = loadJsonSafe<{ nodes: PovNode[] }>(path.join(taxonomyDir, 'safetyist.json'), { nodes: [] });
   const skp = loadJsonSafe<{ nodes: PovNode[] }>(path.join(taxonomyDir, 'skeptic.json'), { nodes: [] });
-  // Dual file path: try situations.json first, fall back to cross-cutting.json (Phase 1 shim)
-  const sitPath = path.join(taxonomyDir, 'situations.json');
-  const ccPath = path.join(taxonomyDir, 'cross-cutting.json');
-  const cc = loadJsonSafe<{ nodes: CrossCuttingNode[] }>(fs.existsSync(sitPath) ? sitPath : ccPath, { nodes: [] });
+  const sit = loadJsonSafe<{ nodes: SituationNode[] }>(path.join(taxonomyDir, 'situations.json'), { nodes: [] });
   const edges = loadJsonSafe<EdgesFile | null>(path.join(taxonomyDir, 'edges.json'), null);
 
   // Embeddings: { model, dimension, node_count, nodes: { [id]: { pov, vector } } }
@@ -144,8 +139,7 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
     accelerationist: { nodes: acc.nodes ?? [] },
     safetyist: { nodes: saf.nodes ?? [] },
     skeptic: { nodes: skp.nodes ?? [] },
-    crossCutting: { nodes: cc.nodes ?? [] },
-    situations: { nodes: cc.nodes ?? [] },
+    situations: { nodes: sit.nodes ?? [] },
     edges,
     embeddings,
     policyRegistry,

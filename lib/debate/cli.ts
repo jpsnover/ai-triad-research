@@ -17,7 +17,7 @@ import { DebateEngine } from './debateEngine';
 import type { DebateConfig } from './debateEngine';
 import type { DebateSourceType, PoverId } from './types';
 import { POVER_INFO } from './types';
-import { formatCrossCuttingDebateContext } from './prompts';
+import { formatSituationDebateContext } from './prompts';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters';
 
 // ── CLI Config schema ────────────────────────────────────
@@ -27,7 +27,7 @@ interface CLIConfig {
   name?: string;
   docPath?: string;
   url?: string;
-  crossCuttingId?: string;
+  situationId?: string;
   activePovers?: string[];
   model?: string;
   rounds?: number;
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   // Load taxonomy
   log('Loading taxonomy...');
   const taxonomy = loadTaxonomy(repoRoot);
-  log(`Loaded: ${taxonomy.accelerationist.nodes.length} acc, ${taxonomy.safetyist.nodes.length} saf, ${taxonomy.skeptic.nodes.length} skp, ${taxonomy.crossCutting.nodes.length} cc nodes`);
+  log(`Loaded: ${taxonomy.accelerationist.nodes.length} acc, ${taxonomy.safetyist.nodes.length} saf, ${taxonomy.skeptic.nodes.length} skp, ${taxonomy.situations.nodes.length} sit nodes`);
 
   // Resolve topic source
   let topic = config.topic ?? '';
@@ -120,44 +120,44 @@ async function main(): Promise<void> {
     sourceContent = await fetchUrlContent(config.url);
     if (!topic) topic = `Debate grounded in: ${config.url}`;
     log(`Fetched URL: ${config.url} (${sourceContent.length} chars)`);
-  } else if (config.crossCuttingId) {
-    sourceType = 'cross-cutting';
-    sourceRef = config.crossCuttingId;
-    const ccNode = taxonomy.crossCutting.nodes.find(n => n.id === config.crossCuttingId);
-    if (!ccNode) throw new Error(`Cross-cutting node not found: ${config.crossCuttingId}`);
+  } else if (config.situationId) {
+    sourceType = 'situations';
+    sourceRef = config.situationId;
+    const sitNode = taxonomy.situations.nodes.find(n => n.id === config.situationId);
+    if (!sitNode) throw new Error(`Situation node not found: ${config.situationId}`);
 
-    // Build cross-cutting context
+    // Build situation context
     const conflicts = loadConflicts(repoRoot);
     const conflictSummaries = conflicts
-      .filter(c => c.linked_taxonomy_nodes.includes(config.crossCuttingId!))
+      .filter(c => c.linked_taxonomy_nodes.includes(config.situationId!))
       .map(c => `${c.claim_label}: ${c.description}`)
       .slice(0, 5);
 
     const linkedNodeDescriptions: string[] = [];
-    for (const linkedId of ccNode.linked_nodes.slice(0, 10)) {
+    for (const linkedId of sitNode.linked_nodes.slice(0, 10)) {
       for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const node = taxonomy[pov].nodes.find(n => n.id === linkedId);
         if (node) linkedNodeDescriptions.push(`[${node.id}] ${node.label}: ${node.description.slice(0, 150)}`);
       }
     }
 
-    sourceContent = formatCrossCuttingDebateContext({
-      id: ccNode.id,
-      label: ccNode.label,
-      description: ccNode.description,
-      interpretations: ccNode.interpretations,
-      assumes: ccNode.graph_attributes?.assumes,
-      steelmanVulnerability: typeof ccNode.graph_attributes?.steelman_vulnerability === 'string'
-        ? ccNode.graph_attributes.steelman_vulnerability : undefined,
+    sourceContent = formatSituationDebateContext({
+      id: sitNode.id,
+      label: sitNode.label,
+      description: sitNode.description,
+      interpretations: sitNode.interpretations,
+      assumes: sitNode.graph_attributes?.assumes,
+      steelmanVulnerability: typeof sitNode.graph_attributes?.steelman_vulnerability === 'string'
+        ? sitNode.graph_attributes.steelman_vulnerability : undefined,
       linkedNodeDescriptions,
       conflictSummaries,
     });
 
-    if (!topic) topic = `Cross-cutting concern: ${ccNode.label}`;
-    log(`Loaded cross-cutting node: ${ccNode.id} — ${ccNode.label}`);
+    if (!topic) topic = `Situation: ${sitNode.label}`;
+    log(`Loaded situation node: ${sitNode.id} — ${sitNode.label}`);
   }
 
-  if (!topic) throw new Error('No topic specified. Provide --topic, --docPath, --url, or --crossCuttingId');
+  if (!topic) throw new Error('No topic specified. Provide --topic, --docPath, --url, or --situationId');
 
   // Validate debaters
   const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<PoverId, 'user'>[];
@@ -249,7 +249,7 @@ async function main(): Promise<void> {
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
     for (const n of taxonomy[pov].nodes) { allNodeIds.add(n.id); nodeLabels.set(n.id, n.label); }
   }
-  for (const n of taxonomy.crossCutting.nodes) { allNodeIds.add(n.id); nodeLabels.set(n.id, n.label); }
+  for (const n of taxonomy.situations.nodes) { allNodeIds.add(n.id); nodeLabels.set(n.id, n.label); }
   const getNodeLabel = (id: string) => nodeLabels.get(id) ?? null;
 
   const harvestPath = path.join(outputDir, `${slug}-harvest.json`);

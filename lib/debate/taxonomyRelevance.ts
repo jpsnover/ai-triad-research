@@ -7,7 +7,7 @@
  * for each debater's prompt.
  */
 
-import type { PovNode, CrossCuttingNode } from './taxonomyTypes';
+import type { PovNode, SituationNode } from './taxonomyTypes';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -83,16 +83,16 @@ export function selectRelevantNodes(
 }
 
 /**
- * Select relevant cross-cutting nodes based on similarity threshold.
+ * Select relevant situation nodes based on similarity threshold.
  */
-export function selectRelevantCCNodes(
-  ccNodes: CrossCuttingNode[],
+export function selectRelevantSituationNodes(
+  situationNodes: SituationNode[],
   scores: Map<string, number>,
   threshold: number = 0.3,
   min: number = 3,
   max: number = 20,
-): CrossCuttingNode[] {
-  const scored = ccNodes
+): SituationNode[] {
+  const scored = situationNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
     .sort((a, b) => b.score - a.score);
 
