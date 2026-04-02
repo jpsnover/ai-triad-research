@@ -54,15 +54,21 @@ export function selectRelevantNodes(
   threshold: number = 0.3,
   minPerCategory: number = 3,
 ): PovNode[] {
-  // Group by category
+  // Group by category (accept both old and new names — Phase 1 shim)
   const groups: Record<string, { node: PovNode; score: number }[]> = {
     'Data/Facts': [],
     'Goals/Values': [],
     'Methods/Arguments': [],
   };
+  const categoryAlias: Record<string, string> = {
+    'Beliefs': 'Data/Facts',
+    'Desires': 'Goals/Values',
+    'Intentions': 'Methods/Arguments',
+  };
 
   for (const node of povNodes) {
-    const cat = node.category || 'Methods/Arguments';
+    const rawCat = node.category || 'Methods/Arguments';
+    const cat = categoryAlias[rawCat] || rawCat;
     const score = scores.get(node.id) || 0;
     (groups[cat] ?? groups['Methods/Arguments']).push({ node, score });
   }
