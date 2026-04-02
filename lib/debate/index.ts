@@ -21,6 +21,7 @@ export * from './aiAdapter';
 export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
+export * from './schemas';
 
 // ── Situations Migration Normalizers ──────────────────────
 

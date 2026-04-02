@@ -3,6 +3,9 @@
 
 export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
 
+/** Canonical dialectical schemes (AIF-aligned). */
+export type DialecticalScheme = 'CONCEDE' | 'DISTINGUISH' | 'REFRAME' | 'COUNTEREXAMPLE' | 'REDUCE' | 'ESCALATE';
+
 export interface TaxonomyRef {
   node_id: string;
   relevance: string;
@@ -116,7 +119,7 @@ export interface ArgumentNetworkEdge {
   target: string;
   type: 'supports' | 'attacks';
   attack_type?: 'rebut' | 'undercut' | 'undermine';
-  scheme?: string;
+  scheme?: DialecticalScheme;
   warrant?: string;
 }
 
@@ -197,13 +200,13 @@ export interface ArgumentAttack {
   claim: string;
   claimant: PoverId | string;
   attack_type: 'rebut' | 'undercut' | 'undermine';
-  scheme?: 'CONCEDE' | 'DISTINGUISH' | 'REFRAME' | 'COUNTEREXAMPLE' | 'REDUCE' | 'ESCALATE';
+  scheme?: DialecticalScheme;
 }
 
 /** AIF support link (S-node) with warrant and critical questions. */
 export interface SupportLink {
   claim_id: string;
-  scheme?: string;
+  scheme?: DialecticalScheme;
   warrant?: string;
   critical_questions?: { question: string; addressed: boolean }[];
 }

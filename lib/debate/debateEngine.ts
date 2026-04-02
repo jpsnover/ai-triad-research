@@ -1002,7 +1002,7 @@ export class DebateEngine {
           target: rel.prior_claim_id,
           type: rel.relationship === 'attacks' ? 'attacks' : 'supports',
           attack_type: rel.attack_type as 'rebut' | 'undercut' | 'undermine' | undefined,
-          scheme: rel.scheme,
+          scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
           warrant: rel.warrant,
         });
 
