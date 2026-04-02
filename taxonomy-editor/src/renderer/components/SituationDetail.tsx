@@ -12,6 +12,7 @@ import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { generateResearchPrompt } from '../utils/researchPrompt';
 import { SourcesPanel } from './SourcesPanel';
+import { nodeTypeFromId } from '@lib/debate';
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -45,7 +46,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
   const formRef = useRef<HTMLDivElement>(null);
 
-  const allPovIds = getAllNodeIds().filter(id => !id.startsWith('cc-'));
+  const allPovIds = getAllNodeIds().filter(id => nodeTypeFromId(id) !== 'situation');
   const allConflictIds = getAllConflictIds();
 
   const err = (field: string) => validationErrors[`nodes.${node.id}.${field}`];

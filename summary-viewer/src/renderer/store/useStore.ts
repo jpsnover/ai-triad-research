@@ -12,6 +12,7 @@ import { buildAttributeExtractionSystemPrompt, buildAttributeExtractionUserPromp
 import { buildEdgeDiscoverySystemPrompt, buildEdgeDiscoveryUserPrompt } from '../prompts/edgeDiscovery';
 import type { AIBackend, AIModel } from './aiModels';
 import { getStoredBackend, getStoredModel, storeBackend, storeModel, DEFAULT_MODELS } from './aiModels';
+import { nodePovFromId } from '@lib/debate';
 
 interface SummaryViewerState {
   // Data
@@ -329,10 +330,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     try {
       const taxonomy = get().taxonomy;
       const candidateNodes = Object.entries(taxonomy).map(([id, node]) => {
-        const pov = id.startsWith('acc-') ? 'accelerationist'
-          : id.startsWith('saf-') ? 'safetyist'
-          : id.startsWith('skp-') ? 'skeptic'
-          : 'situations';
+        const pov = nodePovFromId(id) ?? 'situations';
         return { id, label: node.label, description: node.description, pov, category: node.category };
       });
 
@@ -500,10 +498,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
       const allNodes = Object.entries(taxonomy)
         .filter(([id]) => id !== nodeId)
         .map(([id, node]) => {
-          const nodePov = id.startsWith('acc-') ? 'accelerationist'
-            : id.startsWith('saf-') ? 'safetyist'
-            : id.startsWith('skp-') ? 'skeptic'
-            : 'situations';
+          const nodePov = nodePovFromId(id) ?? 'situations';
           return { id, label: node.label, description: node.description, pov: nodePov, category: node.category };
         });
 

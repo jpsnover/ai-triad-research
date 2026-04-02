@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import SettingsDialog from './SettingsDialog';
 import type { PotentialEdge, TaxonomyNode } from '../types/types';
+import { nodePovFromId } from '@lib/debate';
 
 type SortKey = 'confidence' | 'type' | 'target' | 'direction';
 type SortDir = 'asc' | 'desc';
@@ -14,14 +15,6 @@ interface ResolvedEdge extends PotentialEdge {
   targetDescription: string;
   targetCategory: string;
   targetPov: string;
-}
-
-function povFromId(id: string): string {
-  if (id.startsWith('acc-')) return 'accelerationist';
-  if (id.startsWith('saf-')) return 'safetyist';
-  if (id.startsWith('skp-')) return 'skeptic';
-  if (id.startsWith('cc-')) return 'situations';
-  return '';
 }
 
 function povLabel(pov: string): string {
@@ -88,7 +81,7 @@ export default function PotentialEdgesPane() {
         targetLabel: node?.label || e.target,
         targetDescription: node?.description || '',
         targetCategory: node?.category || '',
-        targetPov: povFromId(e.target),
+        targetPov: nodePovFromId(e.target) ?? '',
       };
     });
   }, [potentialEdges, taxonomy]);

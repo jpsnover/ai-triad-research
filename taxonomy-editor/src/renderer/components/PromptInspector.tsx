@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup, type DataSourceId } from '../data/promptCatalog';
 import { useDebateStore } from '../hooks/useDebateStore';
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { generatePromptPreview } from '../utils/promptPreview';
+import { DataSourceCard } from './DataSourceCard';
+import { usePromptConfigStore } from '../hooks/usePromptConfigStore';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
   'debate-setup': 'Debate Setup',
@@ -23,41 +25,82 @@ const GROUP_ORDER: PromptGroup[] = [
   'chat', 'taxonomy', 'research', 'powershell',
 ];
 
-const DATA_SOURCE_LABELS: Record<DataSourceId, string> = {
-  taxonomyNodes: 'Taxonomy Nodes',
-  situationNodes: 'Situation Nodes',
-  vulnerabilities: 'Vulnerabilities',
-  fallacies: 'Fallacies',
-  policyRegistry: 'Policy Registry',
-  sourceDocument: 'Source Document',
-  commitments: 'Commitments',
-  argumentNetwork: 'Argument Network',
-  establishedPoints: 'Established Points',
-};
-
-const DATA_SOURCE_DESCRIPTIONS: Record<DataSourceId, string> = {
-  taxonomyNodes: 'POV taxonomy nodes selected by cosine similarity, organized into BDI sections.',
-  situationNodes: 'Contested concepts with per-POV interpretations (DOLCE D&S situations).',
-  vulnerabilities: 'Steelman vulnerabilities — where this POV\'s position is weakest.',
-  fallacies: 'Possible reasoning fallacies identified on taxonomy nodes.',
-  policyRegistry: 'Policy actions referenced by taxonomy nodes.',
-  sourceDocument: 'The source document snapshot (markdown) being analyzed.',
-  commitments: 'Per-debater commitment tracking — asserted, conceded, challenged claims.',
-  argumentNetwork: 'Incremental argument network — claims, supports, attacks from prior turns.',
-  establishedPoints: 'Points of agreement/disagreement established so far in the debate.',
-};
+// Data source labels/descriptions moved to DataSourceCard.tsx
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
 /** Highlight {placeholders} in template text */
-function highlightTemplate(template: string): JSX.Element[] {
+function highlightTemplate(template: string): React.ReactNode[] {
   const parts = template.split(/(\{[^}]+\})/g);
   return parts.map((part, i) =>
     part.startsWith('{') && part.endsWith('}')
       ? <span key={i} className="pi-placeholder">{part}</span>
       : <span key={i}>{part}</span>
+  );
+}
+
+const ALL_MODELS = Object.values(MODELS_BY_BACKEND).flat();
+const RESPONSE_LENGTHS: ('brief' | 'medium' | 'detailed')[] = ['brief', 'medium', 'detailed'];
+const DEBATE_GROUPS = new Set<PromptGroup>(['debate-setup', 'debate-turns', 'debate-analysis', 'moderator']);
+
+function SettingsControls({ promptId, group }: { promptId: string; group: PromptGroup }) {
+  const configGet = usePromptConfigStore(s => s.get);
+  const setSession = usePromptConfigStore(s => s.setSession);
+  const debateModel = useDebateStore(s => s.debateModel);
+
+  const temperature = configGet(`temperature.${promptId}`) as number | undefined
+    ?? configGet(group.startsWith('debate') ? 'temperature.debate' : 'temperature.debate') as number;
+  const model = configGet(`model.${promptId}`) as string | undefined ?? debateModel ?? '';
+  const responseLength = configGet('responseLength') as string ?? 'medium';
+  const isDebate = DEBATE_GROUPS.has(group);
+
+  return (
+    <div className="pi-settings-grid">
+      <label className="pi-control">
+        <span className="pi-control-label">Model</span>
+        <select
+          className="pi-dropdown"
+          value={model}
+          onChange={e => setSession(`model.${promptId}`, e.target.value)}
+        >
+          <option value="">(session default)</option>
+          {ALL_MODELS.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+      </label>
+      <label className="pi-control">
+        <span className="pi-control-label">Temperature</span>
+        <input
+          type="range"
+          min={0}
+          max={2}
+          step={0.1}
+          value={temperature}
+          onChange={e => setSession(`temperature.${promptId}`, Number(e.target.value))}
+          className="pi-slider"
+        />
+        <span className="pi-control-value">{temperature.toFixed(1)}</span>
+      </label>
+      {isDebate && (
+        <div className="pi-control">
+          <span className="pi-control-label">Response length</span>
+          <div className="pi-pills">
+            {RESPONSE_LENGTHS.map(len => (
+              <button
+                key={len}
+                className={`pi-pill ${responseLength === len ? 'pi-pill-active' : ''}`}
+                onClick={() => setSession('responseLength', len)}
+              >
+                {len}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -139,6 +182,9 @@ export function PromptInspector() {
                 <span className="pi-phase-badge">{selected.phase}</span>
               )}
               <p className="pi-purpose">{selected.purpose}</p>
+              <div className="pi-settings-controls">
+                <SettingsControls promptId={selected.id} group={selected.group} />
+              </div>
               <div className="pi-settings-row">
                 <span className="pi-setting">Source: <code>{selected.source}</code></span>
               </div>
@@ -150,14 +196,7 @@ export function PromptInspector() {
                 <h4 className="pi-section-subheader">Data Pipeline</h4>
                 <div className="pi-pipeline-cards">
                   {selected.applicableDataSources.map(dsId => (
-                    <div key={dsId} className="pi-pipeline-card">
-                      <div className="pi-card-header">{DATA_SOURCE_LABELS[dsId]}</div>
-                      <div className="pi-card-desc">{DATA_SOURCE_DESCRIPTIONS[dsId]}</div>
-                      <div className="pi-card-stats">
-                        <span className="pi-card-stat">Volume: —</span>
-                        <span className="pi-card-stat">Tokens: —</span>
-                      </div>
-                    </div>
+                    <DataSourceCard key={dsId} dsId={dsId} />
                   ))}
                 </div>
               </div>

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
@@ -237,19 +238,9 @@ export function SearchBar() {
     if (!isSemantic) return [];
     return semanticResults.map(r => {
       const label = getLabelForId(r.id);
-      const prefix = r.id.split('-')[0];
-      const prefixToTab: Record<string, TabId> = {
-        acc: 'accelerationist',
-        saf: 'safetyist',
-        skp: 'skeptic',
-        cc: 'situations',
-        conflict: 'conflicts',
-      };
-      const tab: TabId = r.id.startsWith('cc-')
-        ? 'situations'
-        : r.id.startsWith('conflict-')
-          ? 'conflicts'
-          : (prefixToTab[prefix] || 'accelerationist');
+      const tab: TabId = r.id.startsWith('conflict-')
+        ? 'conflicts'
+        : (nodePovFromId(r.id) as TabId) || 'accelerationist';
       return { id: r.id, label, tab, field: 'semantic', matchText: '', score: r.score };
     });
   }, [isSemantic, semanticResults, getLabelForId]);

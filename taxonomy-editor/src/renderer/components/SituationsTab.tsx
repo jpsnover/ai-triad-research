@@ -18,6 +18,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { LineagePanel } from './LineagePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { nodeTypeFromId } from '@lib/debate';
 
 export function SituationsTab() {
   const {
@@ -122,7 +123,7 @@ export function SituationsTab() {
   const renderSearchPreview = () => {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const state = useTaxonomyStore.getState();
-    if (searchPreviewId.startsWith('cc-')) {
+    if (nodeTypeFromId(searchPreviewId) === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {

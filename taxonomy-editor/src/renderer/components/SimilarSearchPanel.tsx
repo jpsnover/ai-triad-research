@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { nodePovFromId, SITUATION_PREFIX } from '@lib/debate';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 
@@ -97,7 +98,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
 
   const getDescription = (id: string): string => {
     const state = useTaxonomyStore.getState();
-    if (id.startsWith('cc-')) {
+    if (id.startsWith(SITUATION_PREFIX)) {
       const node = state.situations?.nodes.find(n => n.id === id);
       return node?.description || '';
     }
@@ -117,7 +118,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
 
   const getCategory = (id: string): string => {
     const state = useTaxonomyStore.getState();
-    if (id.startsWith('cc-')) return 'situations';
+    if (id.startsWith(SITUATION_PREFIX)) return 'situations';
     if (id.startsWith('conflict-')) return 'conflict';
     for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
       const file = state[pov];
@@ -192,10 +193,8 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
   };
 
   const resolveTab = (id: string) => {
-    if (id.startsWith('acc-')) return 'accelerationist' as const;
-    if (id.startsWith('saf-')) return 'safetyist' as const;
-    if (id.startsWith('skp-')) return 'skeptic' as const;
-    if (id.startsWith('cc-')) return 'situations' as const;
+    const pov = nodePovFromId(id);
+    if (pov) return pov as 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
     if (id.startsWith('conflict-')) return 'conflicts' as const;
     return null;
   };

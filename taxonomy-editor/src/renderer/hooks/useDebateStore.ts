@@ -46,7 +46,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from '@lib/debate/helpers';
-import { normalizeBdiLayer } from '@lib/debate';
+import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta } from '@lib/debate/helpers';
 import { usePromptConfigStore } from './usePromptConfigStore';
 
@@ -2093,7 +2093,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 /** Helper to get node label for fact check (standalone, no React hooks) */
 function getNodeLabelForFactCheck(nodeId: string): string {
   const state = useTaxonomyStore.getState();
-  if (nodeId.startsWith('cc-')) {
+  if (nodeTypeFromId(nodeId) === 'situation') {
     const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
     return node?.label || nodeId;
   }

@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import SettingsDialog from './SettingsDialog';
 import type { GraphAttributes } from '../types/types';
+import { nodePovFromId } from '@lib/debate';
 
 type SortKey = 'match' | 'id' | 'label' | 'description';
 type SortDir = 'asc' | 'desc';
@@ -319,11 +320,10 @@ export default function SimilarResultsPane() {
 function SimilarDetailPanel({ row }: { row: ResolvedRow | null }) {
   if (!row) return <div className="similar-detail-empty">Node not found</div>;
 
-  const povFromId = (id: string): string => {
-    if (id.startsWith('acc-')) return 'Accelerationist';
-    if (id.startsWith('saf-')) return 'Safetyist';
-    if (id.startsWith('skp-')) return 'Skeptic';
-    if (id.startsWith('cc-')) return 'Cross-cutting';
+  const povDisplayFromId = (id: string): string => {
+    const pov = nodePovFromId(id);
+    if (pov === 'situations') return 'Cross-cutting';
+    if (pov) return pov.charAt(0).toUpperCase() + pov.slice(1);
     return '';
   };
 
@@ -342,7 +342,7 @@ function SimilarDetailPanel({ row }: { row: ResolvedRow | null }) {
         <span className="similar-detail-match">{Math.round(row.score * 100)}% match</span>
       </div>
       <div className="similar-detail-pov-cat">
-        <span className={`pov-badge pov-${povFromId(row.id).toLowerCase()}`}>{povFromId(row.id)}</span>
+        <span className={`pov-badge pov-${povDisplayFromId(row.id).toLowerCase()}`}>{povDisplayFromId(row.id)}</span>
         {row.category && <span className="similar-detail-category">{row.category}</span>}
       </div>
       <h3 className="similar-detail-label">{row.label}</h3>

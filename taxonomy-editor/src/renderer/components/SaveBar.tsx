@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
+import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 function formatFileKey(key: string): string {
@@ -29,11 +30,7 @@ export function SaveBar() {
       if (parts[0] === 'nodes' && parts.length >= 3) {
         // POV / situations: nodes.NODE_ID.field
         const nodeId = parts[1];
-        fileKey = nodeId.startsWith('cc-') ? 'situations'
-          : nodeId.startsWith('acc-') ? 'accelerationist'
-          : nodeId.startsWith('saf-') ? 'safetyist'
-          : nodeId.startsWith('skp-') ? 'skeptic'
-          : 'unknown';
+        fileKey = nodePovFromId(nodeId) ?? 'unknown';
         fieldPath = `${nodeId} → ${parts.slice(2).join('.')}`;
       } else if (parts[0].startsWith('conflict-')) {
         fileKey = parts[0];

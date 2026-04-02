@@ -7,6 +7,7 @@ import { POVER_INFO } from '../types/debate';
 import type { TaxonomyRef } from '../types/debate';
 import type { ChatEntry, ChatMode } from '../types/chat';
 import { CHAT_MODE_INFO } from '../types/chat';
+import { nodePovFromId } from '@lib/debate';
 import Markdown from 'react-markdown';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -24,11 +25,7 @@ function speakerColor(speaker: string): string | undefined {
 }
 
 function nodeIdToTab(nodeId: string): string {
-  if (nodeId.startsWith('acc-')) return 'accelerationist';
-  if (nodeId.startsWith('saf-')) return 'safetyist';
-  if (nodeId.startsWith('skp-')) return 'skeptic';
-  if (nodeId.startsWith('cc-')) return 'situations';
-  return 'unknown';
+  return nodePovFromId(nodeId) ?? 'unknown';
 }
 
 // ── Taxonomy ref pills ───────────────────────────────────

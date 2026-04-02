@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': path.resolve(__dirname, 'src/renderer'),
+      '@lib/debate': path.resolve(__dirname, '../lib/debate'),
     },
   },
   build: {

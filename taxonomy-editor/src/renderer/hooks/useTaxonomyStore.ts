@@ -33,7 +33,7 @@ import {
 } from '../utils/idGenerator';
 import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
-import { normalizeNodeProperties, validateTaxonomy } from '@lib/debate';
+import { normalizeNodeProperties, validateTaxonomy, nodeTypeFromId } from '@lib/debate';
 import type { ValidationResult } from '@lib/debate';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
@@ -1585,7 +1585,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const pol = state.policyRegistry?.find(p => p.id === id);
       return pol?.action || '';
     }
-    if (id.startsWith('cc-')) {
+    if (nodeTypeFromId(id) === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === id);
       return node?.label || '';
     }
@@ -1605,7 +1605,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   lookupPinnedData: (id: string): PinnedData | null => {
     const state = get();
-    if (id.startsWith('cc-')) {
+    if (nodeTypeFromId(id) === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === id);
       if (node) return { type: 'situations', node: structuredClone(node) };
       return null;

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState } from 'react';
+import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
@@ -176,14 +177,9 @@ function MainApp() {
       const store = useTaxonomyStore.getState();
       // Determine which tab to navigate to based on node ID prefix
       let tab: Parameters<typeof store.navigateToNode>[0];
-      if (nodeId.startsWith('cc-')) {
-        tab = 'situations';
-      } else if (nodeId.startsWith('acc-')) {
-        tab = 'accelerationist';
-      } else if (nodeId.startsWith('saf-')) {
-        tab = 'safetyist';
-      } else if (nodeId.startsWith('skp-')) {
-        tab = 'skeptic';
+      const pov = nodePovFromId(nodeId);
+      if (pov) {
+        tab = pov as typeof tab;
       } else if (nodeId.startsWith('conflict-')) {
         tab = 'conflicts';
       } else {

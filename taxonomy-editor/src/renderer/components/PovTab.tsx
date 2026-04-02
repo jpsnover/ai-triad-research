@@ -27,6 +27,7 @@ import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { nodeTypeFromId } from '@lib/debate';
 
 interface PovTabProps {
   pov: Pov;
@@ -208,7 +209,7 @@ export function PovTab({ pov }: PovTabProps) {
   const renderSearchPreview = () => {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const state = useTaxonomyStore.getState();
-    if (searchPreviewId.startsWith('cc-')) {
+    if (nodeTypeFromId(searchPreviewId) === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {

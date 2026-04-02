@@ -463,14 +463,6 @@ function povFileForNodeId(nodeId: string): string | null {
   return null;
 }
 
-/** Map node ID prefix to POV name */
-function povNameForNodeId(nodeId: string): string {
-  if (nodeId.startsWith('acc-')) return 'accelerationist';
-  if (nodeId.startsWith('saf-')) return 'safetyist';
-  if (nodeId.startsWith('skp-')) return 'skeptic';
-  return 'situations';
-}
-
 /**
  * Patch fields on an existing taxonomy node. If parent_id is being set,
  * also updates the parent's children array.

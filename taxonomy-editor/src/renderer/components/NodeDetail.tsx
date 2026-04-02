@@ -15,6 +15,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
+import { nodeTypeFromId } from '@lib/debate';
 
 interface MoveTarget {
   label: string;
@@ -193,7 +194,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   const moveTargets = [...categoryMoveTargets, ...transferTargets];
 
-  const allCcIds = getAllNodeIds().filter(id => id.startsWith('cc-'));
+  const allCcIds = getAllNodeIds().filter(id => nodeTypeFromId(id) === 'situation');
   const allConflictIds = getAllConflictIds();
 
   const err = (field: string) => validationErrors[`nodes.${node.id}.${field}`];

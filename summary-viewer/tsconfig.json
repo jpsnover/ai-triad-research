@@ -11,12 +11,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "outDir": "dist",
-    "rootDir": "src",
     "baseUrl": ".",
     "paths": {
-      "@renderer/*": ["src/renderer/*"]
+      "@renderer/*": ["src/renderer/*"],
+      "@lib/debate": ["../lib/debate/index.ts"],
+      "@lib/debate/*": ["../lib/debate/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../lib/**/*"],
   "exclude": ["node_modules", "dist"]
 }

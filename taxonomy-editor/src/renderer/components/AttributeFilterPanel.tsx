@@ -7,6 +7,7 @@ import { useResizableVerticalSplit } from '../hooks/useResizablePanel';
 import type { Pov } from '../types/taxonomy';
 import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from './SituationDetail';
+import { nodeTypeFromId } from '@lib/debate';
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',
@@ -113,7 +114,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
     if (!selectedId) return null;
     const state = useTaxonomyStore.getState();
 
-    if (selectedId.startsWith('cc-')) {
+    if (nodeTypeFromId(selectedId) === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === selectedId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {

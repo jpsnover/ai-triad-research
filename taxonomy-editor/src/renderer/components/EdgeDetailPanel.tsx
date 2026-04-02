@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 interface EdgeDetailPanelProps {
@@ -22,12 +23,16 @@ function nodeColor(id: string): string {
   return 'var(--text-muted)';
 }
 
+const POV_LABEL: Record<string, string> = {
+  accelerationist: 'Accelerationist',
+  safetyist: 'Safetyist',
+  skeptic: 'Skeptic',
+  situations: 'Situations',
+};
+
 function povLabel(id: string): string {
-  if (id.startsWith('acc-')) return 'Accelerationist';
-  if (id.startsWith('saf-')) return 'Safetyist';
-  if (id.startsWith('skp-')) return 'Skeptic';
-  if (id.startsWith('cc-')) return 'Situations';
-  return 'Unknown';
+  const pov = nodePovFromId(id);
+  return (pov && POV_LABEL[pov]) || 'Unknown';
 }
 
 export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
@@ -54,10 +59,8 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const typeDef = edgesFile?.edge_types.find((t) => t.type === edge.type);
 
   const handleNavigate = (nodeId: string) => {
-    let tab: 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' = 'situations';
-    if (nodeId.startsWith('acc-')) tab = 'accelerationist';
-    else if (nodeId.startsWith('saf-')) tab = 'safetyist';
-    else if (nodeId.startsWith('skp-')) tab = 'skeptic';
+    const pov = nodePovFromId(nodeId);
+    const tab = (pov as 'accelerationist' | 'safetyist' | 'skeptic' | 'situations') || 'situations';
     setActiveTab(tab);
     setSelectedNodeId(nodeId);
     showRelatedEdges(nodeId);

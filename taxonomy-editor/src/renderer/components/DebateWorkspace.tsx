@@ -11,6 +11,7 @@ import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConvergencePanel } from './ConvergenceRadar';
+import { nodePovFromId } from '@lib/debate';
 import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -54,12 +55,17 @@ function speakerColor(speaker: PoverId | 'system' | 'document'): string | undefi
 
 // ── Phase 6: Taxonomy cross-navigation helpers ──────────
 
+const POV_COLOR_VAR: Record<string, string> = {
+  accelerationist: 'var(--color-acc)',
+  safetyist: 'var(--color-saf)',
+  skeptic: 'var(--color-skp)',
+  situations: 'var(--color-sit)',
+};
+
 /** Map node_id prefix to the taxonomy tab and CSS color */
 function nodeIdToTab(nodeId: string): { tab: TabId; colorVar: string } {
-  if (nodeId.startsWith('acc-')) return { tab: 'accelerationist', colorVar: 'var(--color-acc)' };
-  if (nodeId.startsWith('saf-')) return { tab: 'safetyist', colorVar: 'var(--color-saf)' };
-  if (nodeId.startsWith('skp-')) return { tab: 'skeptic', colorVar: 'var(--color-skp)' };
-  if (nodeId.startsWith('cc-')) return { tab: 'situations', colorVar: 'var(--color-sit)' };
+  const pov = nodePovFromId(nodeId);
+  if (pov) return { tab: pov as TabId, colorVar: POV_COLOR_VAR[pov] || 'var(--text-muted)' };
   return { tab: 'situations', colorVar: 'var(--text-muted)' };
 }
 

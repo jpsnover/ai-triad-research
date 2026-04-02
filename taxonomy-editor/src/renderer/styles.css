@@ -2398,6 +2398,51 @@ body {
   font-size: 0.78rem;
   margin-top: 4px;
 }
+.settings-prompt-defaults { margin-top: 4px; }
+.settings-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 2px 0 8px;
+}
+.settings-defaults-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-default-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-default-label {
+  font-size: 0.75rem;
+  min-width: 140px;
+  color: var(--text-secondary);
+}
+.settings-default-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.settings-default-value {
+  font-size: 0.7rem;
+  min-width: 40px;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.settings-default-reset {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 1px 4px;
+}
+.settings-default-reset:hover { color: var(--text-primary); }
+.settings-select-sm { font-size: 0.72rem; padding: 2px 4px; }
 
 .settings-model-row {
   display: flex;
@@ -9432,4 +9477,109 @@ body {
   letter-spacing: 0.05em;
   color: var(--text-muted);
   padding: 8px 12px 2px;
+}
+
+/* ── DataSourceCard inline controls (Phase B) ────────── */
+.pi-card-controls {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pi-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+}
+.pi-control-label {
+  min-width: 100px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.pi-control-value {
+  min-width: 36px;
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pi-slider {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--text-primary);
+}
+.pi-control-toggle {
+  cursor: pointer;
+}
+.pi-control-toggle input[type="checkbox"] {
+  margin: 0 4px 0 0;
+  cursor: pointer;
+}
+.pi-control-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pi-dropdown {
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pi-card-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.pi-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pi-card-reset {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.pi-card-reset:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+/* ── Settings controls (Phase B — model, temp, response length) ── */
+.pi-settings-controls { margin-bottom: 8px; }
+.pi-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pi-pills {
+  display: flex;
+  gap: 0;
+}
+.pi-pill {
+  border: 1px solid var(--border-color);
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 2px 10px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.pi-pill:first-child { border-radius: 4px 0 0 4px; }
+.pi-pill:last-child { border-radius: 0 4px 4px 0; }
+.pi-pill:not(:first-child) { border-left: none; }
+.pi-pill-active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
 }

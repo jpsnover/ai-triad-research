@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
@@ -295,11 +296,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     if (mode !== 'taxonomy' || !isSemantic) return [];
     return (semanticResults || []).map(r => {
       const label = getLabelForId(r.id);
-      const tab: TabId = r.id.startsWith('cc-') ? 'situations'
-        : r.id.startsWith('conflict-') ? 'conflicts'
-        : r.id.startsWith('acc-') ? 'accelerationist'
-        : r.id.startsWith('saf-') ? 'safetyist'
-        : 'skeptic';
+      const tab: TabId = r.id.startsWith('conflict-') ? 'conflicts'
+        : (nodePovFromId(r.id) as TabId) || 'skeptic';
       return { id: r.id, label, tab, field: 'semantic', matchText: '', score: r.score };
     });
   }, [mode, isSemantic, semanticResults, getLabelForId]);
@@ -313,11 +311,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       id: r.id,
       label: getLabelForId(r.id),
       score: r.score,
-      pov: r.id.startsWith('cc-') ? 'situations'
-        : r.id.startsWith('acc-') ? 'accelerationist'
-        : r.id.startsWith('saf-') ? 'safetyist'
-        : r.id.startsWith('skp-') ? 'skeptic'
-        : 'unknown',
+      pov: nodePovFromId(r.id) ?? 'unknown',
     }));
   }, [mode, similarResults, getLabelForId]);
 

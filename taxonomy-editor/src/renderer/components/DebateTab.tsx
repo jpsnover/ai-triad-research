@@ -23,6 +23,7 @@ import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
+import { nodeTypeFromId } from '@lib/debate';
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -41,7 +42,7 @@ function formatDate(iso: string): string {
 function resolveNode(nodeId: string) {
   const state = useTaxonomyStore.getState();
 
-  if (nodeId.startsWith('cc-')) {
+  if (nodeTypeFromId(nodeId) === 'situation') {
     const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
     return node ? { kind: 'situation' as const, node } : null;
   }

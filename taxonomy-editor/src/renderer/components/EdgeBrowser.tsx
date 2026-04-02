@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { nodePovFromId } from '@lib/debate';
 import type { Edge, EdgeType, EdgeStatus } from '../types/taxonomy';
 
 // ── Types ────────────────────────────────────────────────
@@ -75,12 +76,8 @@ const STATUSES = [
 // ── Helpers ──────────────────────────────────────────────
 
 function povForId(id: string): string {
-  if (id.startsWith('acc-')) return 'accelerationist';
-  if (id.startsWith('saf-')) return 'safetyist';
-  if (id.startsWith('skp-')) return 'skeptic';
-  if (id.startsWith('cc-')) return 'situations';
   if (id.startsWith('pol-')) return 'policy';
-  return 'unknown';
+  return nodePovFromId(id) ?? 'unknown';
 }
 
 const POV_COLOR: Record<string, string> = {
