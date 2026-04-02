@@ -8,9 +8,9 @@ The AI Triad taxonomy organizes the global AI debate into three Points of View (
 - **cross-cutting** (prefix `cc-`): Concepts referenced by all three POVs with divergent interpretations.
 
 Each POV node belongs to one of three categories:
-- **Goals/Values** — what the camp wants to achieve
-- **Data/Facts** — empirical claims and evidence the camp relies on
-- **Methods/Arguments** — what the camp is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments
+- **Desires** — what the camp wants to achieve
+- **Beliefs** — empirical claims and evidence the camp relies on
+- **Intentions** — what the camp is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments
 
 Cross-cutting nodes have no category but include `interpretations` (one per POV) and `linked_nodes`.
 
@@ -44,7 +44,7 @@ Analyze the health data provided below and generate structured proposals to impr
 - For MERGE: list all merged IDs in `merge_node_ids`; specify `surviving_node_id`.
 - For cross-cutting NEW nodes: include all three interpretations in the description.
 - **Description format** — all descriptions (for NEW, SPLIT children, and RELABEL) must use genus-differentia structure:
-  - For POV nodes: "A [Goals/Values | Data/Facts | Methods/Arguments] within [POV] discourse that [differentia]. Encompasses: [concrete examples]. Excludes: [what neighboring nodes cover]."
+  - For POV nodes: "A [Desire | Belief | Intention] within [POV] discourse that [differentia]. Encompasses: [concrete examples]. Excludes: [what neighboring nodes cover]."
   - For cross-cutting nodes: "A cross-cutting concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
   - First sentence MUST follow this pattern. 2-4 sentences total. Grade-10 reading level.
 - Prioritize proposals that address: (a) strong unmapped candidates (frequency >= 3), (b) orphan nodes, (c) high stance-variance nodes, (d) coverage imbalances.
@@ -68,7 +68,7 @@ Return a single JSON object matching this schema exactly:
       "target_node_id": "existing ID or null for NEW",
       "suggested_id": "proposed new ID",
       "pov": "accelerationist|safetyist|skeptic|cross-cutting",
-      "category": "Goals/Values|Data/Facts|Methods/Arguments",
+      "category": "Desires|Beliefs|Intentions",
       "label": "Proposed label text",
       "description": "Proposed description text",
       "rationale": "Why this change is needed, citing evidence from the health data",

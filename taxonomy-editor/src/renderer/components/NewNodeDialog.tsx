@@ -9,10 +9,10 @@ interface NewNodeDialogProps {
   onCancel: () => void;
 }
 
-const CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
+const CATEGORIES: Category[] = ['Desires', 'Beliefs', 'Intentions'];
 
 export function NewNodeDialog({ onConfirm, onCancel }: NewNodeDialogProps) {
-  const [category, setCategory] = useState<Category>('Goals/Values');
+  const [category, setCategory] = useState<Category>('Desires');
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>

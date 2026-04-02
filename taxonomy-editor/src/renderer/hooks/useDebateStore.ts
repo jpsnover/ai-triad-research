@@ -46,6 +46,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from '@lib/debate/helpers';
+import { normalizeBdiLayer } from '@lib/debate';
 import type { PoverResponseMeta } from '@lib/debate/helpers';
 
 /** Read the model for the current debate context.
@@ -859,6 +860,19 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const raw = await window.electronAPI.loadDebateSession(id);
       const session = raw as DebateSession;
+      // BDI migration shim: normalize legacy bdi_layer values in synthesis entries
+      for (const entry of session.transcript) {
+        if (entry.type === 'synthesis' && entry.metadata?.synthesis) {
+          const synthesis = entry.metadata.synthesis as { areas_of_disagreement?: { bdi_layer?: string }[] };
+          if (Array.isArray(synthesis.areas_of_disagreement)) {
+            for (const d of synthesis.areas_of_disagreement) {
+              if (d.bdi_layer) {
+                d.bdi_layer = normalizeBdiLayer(d.bdi_layer as Parameters<typeof normalizeBdiLayer>[0]);
+              }
+            }
+          }
+        }
+      }
       set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null });
       // Set temperature on the main process
       window.electronAPI.setDebateTemperature(session.debate_temperature ?? null);

@@ -13,9 +13,9 @@
   --color-conflicts: #64748b;
 
   /* Category accent colors */
-  --cat-goals: #0d9488;
-  --cat-data: #2563eb;
-  --cat-methods: #9333ea;
+  --cat-desires: #0d9488;
+  --cat-beliefs: #2563eb;
+  --cat-intentions: #9333ea;
 
   /* Surfaces */
   --bg-primary: #ffffff;
@@ -31,9 +31,9 @@
   --border-color: #e2e8f0;
 
   /* Category detail backgrounds */
-  --bg-detail-goals: #f0fdfa;
-  --bg-detail-data: #eff6ff;
-  --bg-detail-methods: #faf5ff;
+  --bg-detail-desires: #f0fdfa;
+  --bg-detail-beliefs: #eff6ff;
+  --bg-detail-intentions: #faf5ff;
 
   /* Search highlight */
   --hl-mark-bg: rgba(250, 204, 21, 0.4);
@@ -67,9 +67,9 @@
   --color-conflicts: #95a5a6;
 
   /* Category accent colors */
-  --cat-goals: #2eaaaa;
-  --cat-data: #5b8abf;
-  --cat-methods: #b07cc6;
+  --cat-desires: #2eaaaa;
+  --cat-beliefs: #5b8abf;
+  --cat-intentions: #b07cc6;
 
   /* Surfaces */
   --bg-primary: #111827;
@@ -85,9 +85,9 @@
   --border-color: #374151;
 
   /* Category detail backgrounds */
-  --bg-detail-goals: #0f1f1f;
-  --bg-detail-data: #0f1520;
-  --bg-detail-methods: #171220;
+  --bg-detail-desires: #0f1f1f;
+  --bg-detail-beliefs: #0f1520;
+  --bg-detail-intentions: #171220;
 
   /* Search highlight */
   --hl-mark-bg: rgba(250, 204, 21, 0.35);
@@ -121,9 +121,9 @@
   --color-conflicts: #7a6a82;
 
   /* Category accent colors */
-  --cat-goals: #2e4953;
-  --cat-data: #4d7a8b;
-  --cat-methods: #622c62;
+  --cat-desires: #2e4953;
+  --cat-beliefs: #4d7a8b;
+  --cat-intentions: #622c62;
 
   /* Surfaces */
   --bg-primary: #1f1f1f;
@@ -139,9 +139,9 @@
   --border-color: #4d3a4e;
 
   /* Category detail backgrounds */
-  --bg-detail-goals: #1a2528;
-  --bg-detail-data: #1a2630;
-  --bg-detail-methods: #271a28;
+  --bg-detail-desires: #1a2528;
+  --bg-detail-beliefs: #1a2630;
+  --bg-detail-intentions: #271a28;
 
   /* Search highlight */
   --hl-mark-bg: rgba(163, 73, 164, 0.35);
@@ -574,9 +574,9 @@ body {
   padding: 24px;
 }
 
-.detail-panel[data-cat="Goals/Values"] { background: var(--bg-detail-goals); }
-.detail-panel[data-cat="Data/Facts"]   { background: var(--bg-detail-data); }
-.detail-panel[data-cat="Methods/Arguments"]      { background: var(--bg-detail-methods); }
+.detail-panel[data-cat="Desires"] { background: var(--bg-detail-desires); }
+.detail-panel[data-cat="Beliefs"]   { background: var(--bg-detail-beliefs); }
+.detail-panel[data-cat="Intentions"]      { background: var(--bg-detail-intentions); }
 
 .detail-panel-empty {
   display: flex;
@@ -602,9 +602,9 @@ body {
   margin-bottom: 4px;
 }
 
-.category-label[data-cat="Goals/Values"]       { color: var(--cat-goals); }
-.category-label[data-cat="Data/Facts"]         { color: var(--cat-data); }
-.category-label[data-cat="Methods/Arguments"]  { color: var(--cat-methods); }
+.category-label[data-cat="Desires"]       { color: var(--cat-desires); }
+.category-label[data-cat="Beliefs"]         { color: var(--cat-beliefs); }
+.category-label[data-cat="Intentions"]  { color: var(--cat-intentions); }
 
 .category-toggle {
   display: inline-block;
@@ -672,9 +672,9 @@ body {
   --node-item-font: 0.8rem;
 }
 
-.node-item[data-cat="Goals/Values"] { border-left-color: var(--cat-goals); }
-.node-item[data-cat="Data/Facts"]   { border-left-color: var(--cat-data); }
-.node-item[data-cat="Methods/Arguments"]      { border-left-color: var(--cat-methods); }
+.node-item[data-cat="Desires"] { border-left-color: var(--cat-desires); }
+.node-item[data-cat="Beliefs"]   { border-left-color: var(--cat-beliefs); }
+.node-item[data-cat="Intentions"]      { border-left-color: var(--cat-intentions); }
 
 .node-item:hover {
   background: var(--bg-hover);
@@ -723,9 +723,9 @@ body {
   user-select: none;
 }
 
-.node-tree-parent-header[data-cat="Goals/Values"]       { border-left-color: var(--cat-goals); }
-.node-tree-parent-header[data-cat="Data/Facts"]         { border-left-color: var(--cat-data); }
-.node-tree-parent-header[data-cat="Methods/Arguments"]  { border-left-color: var(--cat-methods); }
+.node-tree-parent-header[data-cat="Desires"]       { border-left-color: var(--cat-desires); }
+.node-tree-parent-header[data-cat="Beliefs"]         { border-left-color: var(--cat-beliefs); }
+.node-tree-parent-header[data-cat="Intentions"]  { border-left-color: var(--cat-intentions); }
 
 .node-tree-parent-header:hover {
   background: var(--bg-hover);
@@ -815,21 +815,21 @@ body {
   letter-spacing: 0.5px;
 }
 
-.detail-category-banner[data-cat="Goals/Values"] {
+.detail-category-banner[data-cat="Desires"] {
   background: rgba(46, 170, 170, 0.12);
-  color: var(--cat-goals);
+  color: var(--cat-desires);
   border: 1px solid rgba(46, 170, 170, 0.25);
 }
 
-.detail-category-banner[data-cat="Data/Facts"] {
+.detail-category-banner[data-cat="Beliefs"] {
   background: rgba(91, 138, 191, 0.12);
-  color: var(--cat-data);
+  color: var(--cat-beliefs);
   border: 1px solid rgba(91, 138, 191, 0.25);
 }
 
-.detail-category-banner[data-cat="Methods/Arguments"] {
+.detail-category-banner[data-cat="Intentions"] {
   background: rgba(176, 124, 198, 0.12);
-  color: var(--cat-methods);
+  color: var(--cat-intentions);
   border: 1px solid rgba(176, 124, 198, 0.25);
 }
 
@@ -1532,21 +1532,21 @@ body {
   flex-shrink: 0;
 }
 
-.node-detail-title-line[data-cat="Goals/Values"] {
+.node-detail-title-line[data-cat="Desires"] {
   background: rgba(46, 170, 170, 0.12);
-  color: var(--cat-goals);
+  color: var(--cat-desires);
   border: 1px solid rgba(46, 170, 170, 0.25);
 }
 
-.node-detail-title-line[data-cat="Data/Facts"] {
+.node-detail-title-line[data-cat="Beliefs"] {
   background: rgba(91, 138, 191, 0.12);
-  color: var(--cat-data);
+  color: var(--cat-beliefs);
   border: 1px solid rgba(91, 138, 191, 0.25);
 }
 
-.node-detail-title-line[data-cat="Methods/Arguments"] {
+.node-detail-title-line[data-cat="Intentions"] {
   background: rgba(176, 124, 198, 0.12);
-  color: var(--cat-methods);
+  color: var(--cat-intentions);
   border: 1px solid rgba(176, 124, 198, 0.25);
 }
 
@@ -1618,19 +1618,19 @@ body {
   top: -2px;
 }
 
-.nd-header-cat[data-cat="GOALS/VALUES"] {
+.nd-header-cat[data-cat="DESIRES"] {
   background: rgba(46, 170, 170, 0.12);
-  color: var(--cat-goals);
+  color: var(--cat-desires);
   border: 1px solid rgba(46, 170, 170, 0.25);
 }
-.nd-header-cat[data-cat="DATA/FACTS"] {
+.nd-header-cat[data-cat="BELIEFS"] {
   background: rgba(91, 138, 191, 0.12);
-  color: var(--cat-data);
+  color: var(--cat-beliefs);
   border: 1px solid rgba(91, 138, 191, 0.25);
 }
-.nd-header-cat[data-cat="METHODS/ARGUMENTS"] {
+.nd-header-cat[data-cat="INTENTIONS"] {
   background: rgba(176, 124, 198, 0.12);
-  color: var(--cat-methods);
+  color: var(--cat-intentions);
   border: 1px solid rgba(176, 124, 198, 0.25);
 }
 
@@ -2153,9 +2153,9 @@ body {
 .find-scope-chip.active[data-tab="cross-cutting"]    { border-color: var(--color-cc);  color: var(--color-cc); }
 .find-scope-chip.active[data-tab="conflicts"]        { border-color: var(--color-conflicts); color: var(--color-conflicts); }
 
-.find-scope-chip.active[data-cat="Goals/Values"] { border-color: var(--cat-goals); color: var(--cat-goals); }
-.find-scope-chip.active[data-cat="Data/Facts"]   { border-color: var(--cat-data);  color: var(--cat-data); }
-.find-scope-chip.active[data-cat="Methods/Arguments"]      { border-color: var(--cat-methods); color: var(--cat-methods); }
+.find-scope-chip.active[data-cat="Desires"] { border-color: var(--cat-desires); color: var(--cat-desires); }
+.find-scope-chip.active[data-cat="Beliefs"]   { border-color: var(--cat-beliefs);  color: var(--cat-beliefs); }
+.find-scope-chip.active[data-cat="Intentions"]      { border-color: var(--cat-intentions); color: var(--cat-intentions); }
 
 .find-results-panel {
   margin-top: 8px;

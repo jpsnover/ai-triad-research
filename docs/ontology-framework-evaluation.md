@@ -38,12 +38,12 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 **What it is:** ISO/IEC 21838-2 realist upper ontology. ~35 classes. Continuants (things that persist) vs. occurrents (things that happen). Designed for modeling mind-independent reality.
 
 **Where it fits the project:**
-- **Data/Facts nodes** map to BFO's quality/process hierarchy. "GPU compute doubled in 18 months" is a measurable process with quantities.
+- **Beliefs nodes** map to BFO's quality/process hierarchy. "GPU compute doubled in 18 months" is a measurable process with quantities.
 - **Source provenance** via IAO (Information Artifact Ontology, built on BFO) — documents, claims as information content entities.
 
 **Where it fails:**
 - **Perspectival disagreement.** BFO is ontologically monist — one reality. The entire AI Triad is built on the premise that three communities look at the same reality through different lenses and reach different conclusions. BFO has no apparatus for "Agent A's description of situation S vs. Agent B's description of situation S." You'd have to bolt on IAO for claims-as-objects, then build a perspectival indexing layer on top — essentially rebuilding what DOLCE D&S provides natively.
-- **Values and norms.** BFO has no categories for ought-statements, preferences, or goals. "AI development should be regulated" has no natural home. The entire Goals/Values axis of the taxonomy is invisible to BFO.
+- **Values and norms.** BFO has no categories for ought-statements, preferences, or goals. "AI development should be regulated" has no natural home. The entire Desires axis of the taxonomy is invisible to BFO.
 - **Argumentation.** BFO doesn't model arguments, premises, rebuttals, or logical support relations. The debate tool's dialectical moves (CONCEDE, DISTINGUISH, REFRAME) have no representation.
 - **Agent cognition.** BFO models agents as material entities with roles. "Prometheus believes scaling is safe" requires leaving BFO entirely.
 
@@ -72,7 +72,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 
 - **Argumentation microstructure.** DOLCE can represent that an argument exists (as an information object), but not the internal structure — premises, conclusions, attack/support, inference schemes. The debate tool's CONCEDE/DISTINGUISH/REFRAME moves have no native representation. You still need AIF or equivalent.
 - **Agent deliberation.** DOLCE models agents as participants in situations, holding descriptions. But it has no plan library, no means-end reasoning, no intention stack. "Prometheus is formulating a counterargument" is a process DOLCE can describe but not drive.
-- **Deontic reasoning.** DOLCE can represent that a normative claim exists, but provides no formal operators for obligation, permission, or prohibition. The Goals/Values axis is representable but not formally reasoned over.
+- **Deontic reasoning.** DOLCE can represent that a normative claim exists, but provides no formal operators for obligation, permission, or prohibition. The Desires axis is representable but not formally reasoned over.
 
 **Verdict:** DOLCE D&S is the strongest single ontology for the core problem — perspectival multiplicity over shared situations. It provides the upper-level framework the project needs. But it needs supplementation for argumentation structure and agent reasoning.
 
@@ -130,7 +130,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 
 - **Provenance (PROV-O).** The existing pipeline is a provenance chain: source document → snapshot → AI extraction → key_points → taxonomy mapping → conflict detection. PROV-O formalizes: who (AI model) derived what (key_points) from what (document) when (generated_at) using what method (prompt + model + temperature). The `summary.json` format already captures most of this informally.
 
-- **Normative claims (deontic layer).** The Goals/Values axis represents normative positions: "AI development SHOULD be regulated" (obligation), "Companies MAY deploy without pre-testing" (permission), "States MUST NOT suppress safety research" (prohibition). A deontic module makes these formally representable and comparable. Currently they're just strings.
+- **Normative claims (deontic layer).** The Desires axis represents normative positions: "AI development SHOULD be regulated" (obligation), "Companies MAY deploy without pre-testing" (permission), "States MUST NOT suppress safety research" (prohibition). A deontic module makes these formally representable and comparable. Currently they're just strings.
 
 **Where it's weaker:**
 
@@ -148,8 +148,8 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 |---|---|---|---|---|---|
 | Perspectival disagreement | Poor | **Strong** | Strong | Strong | **Critical** — three POVs classifying same reality differently |
 | Argumentation structure | Absent | Partial | Weak | **Excellent** | **Critical** — debate moves, premises, attack/support |
-| Normative claims (values, goals) | Absent | Moderate | Moderate | **Strong** | **High** — Goals/Values is 1/3 of taxonomy |
-| Empirical claims + provenance | **Strong** | Good | Weak | **Strong** | **High** — Data/Facts, source tracking |
+| Normative claims (values, goals) | Absent | Moderate | Moderate | **Strong** | **High** — Desires is 1/3 of taxonomy |
+| Empirical claims + provenance | **Strong** | Good | Weak | **Strong** | **High** — Beliefs, source tracking |
 | Agent reasoning (beliefs, values, plans) | Minimal | Moderate | **Excellent** | Weak | **High** — debate agents need coherent worldviews |
 | Social/institutional objects | Via IAO | **Strong** | Absent | Via PROV-O | **Medium** — policies, institutions, movements |
 | OWL/tooling maturity | Excellent | Good | Poor | Good | **Medium** — future interoperability |
@@ -220,7 +220,7 @@ No single framework covers the requirements. The recommended architecture is a *
 
 - **Full OWL formalization.** The project uses JSON, not RDF. Converting to OWL triples would impose massive tooling overhead for unclear benefit. Use the ontological *vocabulary* and *design patterns* without the serialization format.
 - **BFO.** Not needed. DOLCE covers the upper-ontology role better for discourse. The one BFO-aligned piece worth borrowing is IAO's information artifact categories, which are compatible with DOLCE.
-- **Full deontic logic.** The Goals/Values axis benefits from deontic *vocabulary* (obligation, permission, prohibition) but not a formal deontic reasoner. Add deontic terms to prompts as a sub-category refinement per BFO recommendation #3.
+- **Full deontic logic.** The Desires axis benefits from deontic *vocabulary* (obligation, permission, prohibition) but not a formal deontic reasoner. Add deontic terms to prompts as a sub-category refinement per BFO recommendation #3.
 
 ---
 
@@ -232,7 +232,7 @@ The 10 recommendations in `bfo-prompt-recommendations.md` identify real problems
 |---|---|---|---|---|
 | 1 | Genus-differentia definitions | BFO class definitions | DOLCE concept boundaries within Descriptions | Keep — genus-differentia is good practice regardless of framework |
 | 2 | Universal/particular | BFO ontological level | AIF I-node granularity (scheme vs. instance) | Keep — rename to "scheme-level vs. claim-level" |
-| 3 | Sub-category disambiguation | BFO continuant types | Deontic vocabulary for Goals/Values; AIF scheme types for Methods/Arguments | Keep and strengthen — use AIF scheme vocabulary |
+| 3 | Sub-category disambiguation | BFO continuant types | Deontic vocabulary for Desires; AIF scheme types for Intentions | Keep and strengthen — use AIF scheme vocabulary |
 | 4 | Edge semantics | BFO relation ontology | AIF relation types (RA, CA, PA) already align with the 7 canonical types | Keep — AIF provides formal grounding for the same type vocabulary |
 | 5 | Cross-cutting disagreement types | BFO quality/disposition/role | DOLCE D&S Description-conflict types (definitional, interpretive, structural) | Keep — DOLCE provides native support |
 | 6 | Mereological parent-child | BFO is_a/part_of | Same distinction exists in any ontology | Keep as-is |
@@ -252,13 +252,13 @@ The 10 recommendations in `bfo-prompt-recommendations.md` identify real problems
 2. **Restructure debate agent context as explicit BDI.** Currently `taxonomyContext` is a flat dump of node labels/descriptions. Restructure into:
    ```
    === YOUR BELIEFS (what you take as given) ===
-   [Data/Facts nodes for this POV]
+   [Beliefs nodes for this POV]
 
    === YOUR VALUES (what you prioritize) ===
-   [Goals/Values nodes for this POV]
+   [Desires nodes for this POV]
 
    === YOUR REASONING APPROACH (how you argue) ===
-   [Methods/Arguments nodes for this POV]
+   [Intentions nodes for this POV]
 
    === YOUR KNOWN VULNERABILITIES ===
    [steelman_vulnerability, possible_fallacies for your nodes]

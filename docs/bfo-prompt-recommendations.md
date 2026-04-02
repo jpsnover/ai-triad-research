@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-The AI Triad taxonomy is an applied ontology for mapping AI policy discourse. It already exhibits several strong ontological commitments: a fixed upper-level partition (three POVs + cross-cutting), a triaxial category system (Goals/Values, Data/Facts, Methods/Arguments), and typed relations between nodes. However, when evaluated against the design principles of Basic Formal Ontology (BFO) -- the ISO/IEC 21838-2 standard for top-level ontologies -- several systematic issues emerge in the prompts that instruct AI models to populate, extend, and reason over this taxonomy.
+The AI Triad taxonomy is an applied ontology for mapping AI policy discourse. It already exhibits several strong ontological commitments: a fixed upper-level partition (three POVs + cross-cutting), a triaxial category system (Desires, Beliefs, Intentions), and typed relations between nodes. However, when evaluated against the design principles of Basic Formal Ontology (BFO) -- the ISO/IEC 21838-2 standard for top-level ontologies -- several systematic issues emerge in the prompts that instruct AI models to populate, extend, and reason over this taxonomy.
 
 This document proposes 10 recommendations ordered by expected impact, a baseline measurement to track results, a complete consumer audit of affected code, and a phased implementation plan with validation gates and rollback procedures.
 
@@ -224,8 +224,8 @@ Genus-Differentia Description (3-6 Sentences):
 In `pov-summary-system.prompt`, add to unmapped concept instructions:
 
 ```
-  • suggested_description MUST begin with: "A [Goals/Values | Data/Facts |
-    Methods/Arguments] [position | claim | approach] within [POV] discourse
+  • suggested_description MUST begin with: "A Belief | A Desire |
+    An Intention" [position | claim | approach] within [POV] discourse
     that..." followed by the distinguishing characteristic. Then state what
     must be present in a text for this concept to apply and what the nearest
     existing node is and why this concept is distinct from it.
@@ -274,7 +274,7 @@ In `attribute-extraction.prompt`, add:
 
 **BFO Principle:** BFO partitions dependent continuants into qualities, dispositions, and roles. The Goals/Data/Methods triaxis conflates sub-types within each.
 
-**Current Problem:** "Methods/Arguments" conflates policy mechanisms (things people DO) with reasoning frameworks (things people SAY). "Goals/Values" conflates terminal values with instrumental goals. "Data/Facts" conflates observations, predictions, and consensus claims. This causes the most common inter-run classification disagreements.
+**Current Problem:** "Intentions" conflates policy mechanisms (things people DO) with reasoning frameworks (things people SAY). "Desires" conflates terminal values with instrumental goals. "Beliefs" conflates observations, predictions, and consensus claims. This causes the most common inter-run classification disagreements.
 
 **Affected Prompts:**
 - `pov-summary-system.prompt` — add CATEGORY DISAMBIGUATION block
@@ -287,18 +287,18 @@ Add after category definitions in `pov-summary-system.prompt`:
 ```
   CATEGORY DISAMBIGUATION (apply when a passage could fit multiple categories):
 
-  Goals/Values splits into:
+  Desires splits into:
     - Terminal values: desired end-states valued for their own sake.
       TEST: "Would this camp want this even if it didn't lead to anything else?"
     - Instrumental goals: desired states valued as means to terminal values.
       TEST: "Does this camp want this BECAUSE it leads to something else?"
 
-  Data/Facts splits into:
+  Beliefs splits into:
     - Empirical observations: measured, documented phenomena with citations
     - Predictions: forecasts about future states
     - Consensus claims: positions attributed to expert communities
 
-  Methods/Arguments splits into:
+  Intentions splits into:
     - Policy mechanisms: concrete interventions with implementers and targets.
       TEST: "Could this be written into a bill or regulation?"
     - Reasoning frameworks: interpretive lenses, analogies, or argumentative
@@ -307,7 +307,7 @@ Add after category definitions in `pov-summary-system.prompt`:
 
   When assigning category, use these sub-categories to resolve ambiguity.
   Record the sub-category in the "category" field using the format
-  "Methods/Arguments" (parent) -- the sub-category aids your classification
+  "Intentions" (parent) -- the sub-category aids your classification
   but does not change the schema.
 ```
 
@@ -321,7 +321,7 @@ Add after category definitions in `pov-summary-system.prompt`:
 
 **BFO Principle:** The OBO Relation Ontology defines relations with domain/range constraints, transitivity, symmetry, and formal definitions.
 
-**Current Problem:** Edge types lack formal constraints. Goals/Values nodes SUPPORTS Data/Facts nodes (138 domain violations). CONTRADICTS is used between universals (should be TENSION_WITH). 40+ custom types exist beyond the 7 canonical types. SUPPORTED_BY is a redundant inverse of SUPPORTS.
+**Current Problem:** Edge types lack formal constraints. Desires nodes SUPPORTS Beliefs nodes (138 domain violations). CONTRADICTS is used between universals (should be TENSION_WITH). 40+ custom types exist beyond the 7 canonical types. SUPPORTED_BY is a redundant inverse of SUPPORTS.
 
 **Affected Prompts:**
 - `edge-discovery.prompt` — replace type definitions with formally constrained versions
@@ -336,7 +336,7 @@ Replace edge type definitions with formally constrained 7-type vocabulary:
 EDGE TYPE VOCABULARY (with formal constraints):
 
   SUPPORTS (directional: source -> target)
-    Domain: Data/Facts or Methods/Arguments nodes
+    Domain: Beliefs or Intentions nodes
     Range:  any node
     Definition: The source provides empirical evidence, logical reasoning,
     or methodological justification that increases confidence in the target.
@@ -360,7 +360,7 @@ EDGE TYPE VOCABULARY (with formal constraints):
     Transitivity: YES -- only propose direct assumptions.
 
   WEAKENS (directional: source -> target)
-    Domain: Data/Facts or Methods/Arguments nodes
+    Domain: Beliefs or Intentions nodes
     Range:  any node
     Definition: The source reduces confidence in the target WITHOUT making
     it logically impossible.

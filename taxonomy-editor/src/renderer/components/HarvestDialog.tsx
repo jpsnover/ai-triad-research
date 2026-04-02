@@ -226,11 +226,11 @@ Speaker POV: ${item.suggestedPov}
 
 Generate:
 1. A 3-8 word plain-language label (newspaper headline style)
-2. A genus-differentia description: "${item.suggestedPov === 'cross-cutting' ? 'A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ...' : `A [Goals/Values | Data/Facts | Methods/Arguments] within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
-3. The best category: Goals/Values, Data/Facts, or Methods/Arguments
+2. A genus-differentia description: "${item.suggestedPov === 'cross-cutting' ? 'A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ...' : `A Belief | A Desire | An Intention within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
+3. The best category: Desires, Beliefs, or Intentions
 
 Return ONLY JSON (no markdown):
-{"label": "...", "description": "...", "category": "Goals/Values or Data/Facts or Methods/Arguments"}`;
+{"label": "...", "description": "...", "category": "Desires or Beliefs or Intentions"}`;
 
         const { text } = await window.electronAPI.generateText(prompt, model);
         let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
@@ -575,9 +575,9 @@ Return ONLY JSON (no markdown):
                             </label>
                             <label>Category:
                               <select value={item.suggestedCategory} onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedCategory: e.target.value } : c))}>
-                                <option value="Goals/Values">Goals/Values</option>
-                                <option value="Data/Facts">Data/Facts</option>
-                                <option value="Methods/Arguments">Methods/Arguments</option>
+                                <option value="Desires">Desires</option>
+                                <option value="Beliefs">Beliefs</option>
+                                <option value="Intentions">Intentions</option>
                               </select>
                             </label>
                             <label>Description: <textarea

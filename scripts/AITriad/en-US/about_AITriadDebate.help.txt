@@ -1,0 +1,196 @@
+TOPIC
+    about_AITriadDebate
+
+SHORT DESCRIPTION
+    The multi-agent debate system — BDI-structured context, AIF argument
+    mapping, commitment tracking, synthesis, and harvest.
+
+LONG DESCRIPTION
+    AI Triad includes a structured debate system where AI agents argue from
+    different POV perspectives, grounded in taxonomy data.  Debates produce
+    synthesis results that identify agreements, disagreements, and resolution
+    preferences — which can then be "harvested" back into the taxonomy.
+
+  DEBATE OVERVIEW
+    A debate is a structured multi-agent conversation about a specific topic
+    or thesis.  Three AI agents (one per POV: accelerationist, safetyist,
+    skeptic) argue their positions, moderated by a fourth AI agent that
+    manages turn-taking, cross-responds, and synthesis.
+
+    Debates progress through phases:
+    1. CLARIFICATION — the moderator ensures the topic is well-defined.
+    2. OPENING STATEMENTS — each POVer presents their initial position.
+    3. CROSS-RESPOND — agents respond to each other's arguments (configurable,
+       1-5 rounds).
+    4. CLOSING STATEMENTS — each POVer summarizes their position.
+    5. SYNTHESIS — the moderator analyzes the debate and produces structured
+       findings.
+
+  BDI-STRUCTURED TAXONOMY CONTEXT
+    Each debater's prompt includes taxonomy nodes from their POV, organized
+    using the Beliefs-Desires-Intentions (BDI) framework:
+
+    BELIEFS (Data & Facts)
+      Nodes categorized as empirical claims, statistics, research findings.
+      These ground the agent's factual premises.
+
+    DESIRES (Goals & Values)
+      Nodes categorized as normative positions, values, policy goals.
+      These define what the agent is arguing toward.
+
+    INTENTIONS (Methods & Arguments)
+      Nodes categorized as strategies, methods, argumentative approaches.
+      These define how the agent constructs its case.
+
+    VULNERABILITIES
+      Known weaknesses in the POV's position (from steelman_vulnerability).
+      Agents are aware of their own vulnerabilities but do not volunteer them.
+
+    CROSS-CUTTING CONCERNS
+      Cross-cutting nodes relevant to the debate topic, showing how each POV
+      interprets shared concepts differently.
+
+    The formatting function is formatTaxonomyContext() in
+    taxonomy-editor/src/renderer/utils/taxonomyContext.ts.
+
+  INCREMENTAL ARGUMENT NETWORK
+    After each debater's turn, a background AI call extracts claims and maps
+    relationships to prior claims.  The resulting argument network
+    (debate.argument_network) tracks:
+
+    - Individual claims made by each agent
+    - Relationships between claims (supports, contradicts, concedes)
+    - Cross-references to specific prior statements
+
+    The network is validated by word overlap and reference checks to ensure
+    claims are grounded in actual debate content.  The moderator uses the
+    network to select cross-respond pairings.
+
+    Prompt: taxonomy-editor/src/renderer/prompts/argumentNetwork.ts
+
+  PER-DEBATER COMMITMENT TRACKING
+    Derived from the argument network, the commitment store tracks each
+    agent's epistemic state:
+
+    - ASSERTED claims — positions the agent has put forward
+    - CONCEDED claims — points the agent has acknowledged from opponents
+    - CHALLENGED claims — positions the agent has actively disputed
+
+    Commitments are injected into debater prompts via formatCommitments()
+    with an explicit consistency rule: "do not silently contradict prior
+    assertions."  This prevents agents from flip-flopping or making
+    inconsistent arguments across rounds.
+
+    Stored in debate.commitments, keyed by POV.
+
+  SYNTHESIS
+    After all debate rounds complete, the moderator produces a structured
+    synthesis (SynthesisResult) containing:
+
+    agreements        Points all three POVs agree on
+    disagreements     Points of genuine conflict, with analysis
+    key_insights      Novel insights that emerged from the debate
+    argument_map      AIF-structured claim network (optional)
+    preferences       Resolution analysis for each disagreement
+    bdi_layer         Which BDI layer the disagreement operates at
+    resolvability     Whether the disagreement is resolvable
+
+  AIF ARGUMENT MAP
+    The argument_map field in synthesis uses AIF (Argument Interchange Format)
+    structure:
+
+    Claims have:
+      claim_id         Unique identifier
+      claimant         Which POV made the claim
+      text             The claim text
+      attack_type      rebut | undercut | undermine
+      scheme           COUNTEREXAMPLE | DISTINGUISH | AUTHORITY | etc.
+      targets          Claim IDs this claim attacks or supports
+
+    Attack types:
+      Rebut     — directly denies the conclusion
+      Undercut  — challenges the inference from premises to conclusion
+      Undermine — challenges the truth of a premise
+
+  PREFERENCE RESOLUTION
+    Each disagreement in the synthesis is evaluated for which argument
+    prevails, judged by specific criteria:
+
+    Criterion           Meaning
+    ------------------  -----------------------------------------------
+    empirical_evidence  Supported by more/better empirical data
+    logical_validity    Logically sounder argument structure
+    source_authority    Backed by more authoritative sources
+    specificity         More specific and concrete than the opponent
+    scope               Broader applicability or wider implications
+
+    Preferences include a rationale explaining why one argument prevails.
+    Rendered as "Resolution Analysis" in synthesis cards.
+
+  DEBATE HARVEST
+    After synthesis, the "Harvest" button allows promoting debate findings
+    back into the taxonomy.  Five harvestable item types:
+
+    Item Type              Target
+    ---------------------  -----------------------------------------------
+    Conflicts              conflicts/*.json (new conflict records)
+    Steelman refinements   node steelman_vulnerability field
+    Debate references      node debate_refs array
+    Preference verdicts    conflict verdict field
+    New concepts           taxonomy proposals
+
+    All items are user-reviewed with AI-generated descriptions validated
+    before being written.  Harvest manifests are stored in
+    ai-triad-data/harvests/.
+
+  DEBATE-SPECIFIC AI MODEL
+    Each debate can override the global AI model via debate_model on the
+    DebateSession object.  Set in the New Debate dialog, persisted and
+    restored on load.  getConfiguredModel() checks debate model first,
+    then falls back to the global setting.
+
+  FACT-CHECK WITH WEB SEARCH
+    The Taxonomy Editor includes fact-checking via Gemini's google_search
+    tool (generateTextWithSearch).  Web evidence is stored in metadata and
+    viewable via the "Show Web Evidence" button on fact-check cards.
+
+  POVER CHAT (1-ON-1)
+    Distinct from multi-agent debates, POVer Chat is a 1-on-1 conversation
+    with a single POV agent.  Three modes:
+
+    brainstorm   Exploratory, high-creativity — generates novel ideas
+    inform       Pedagogical, grounded — explains concepts from the POV
+    decide       Analytical, Socratic — helps evaluate options
+
+    Mode is switchable mid-chat via header pills.  Chat sessions persist in
+    chats/chat-<id>.json.  Uses the same taxonomy grounding and BDI context
+    as debates, but lighter — no clarification phase, no multi-agent
+    coordination.
+
+  POWERSHELL DEBATE CMDLETS
+    Invoke-AITDebate        Run a debate from the command line
+    Show-DebateDiagnostics  Inspect debate internals and quality metrics
+    Show-DebateHarvest      Review and apply harvest items
+    Repair-DebateOutput     Fix malformed debate JSON output
+
+  EXAMPLE: RUNNING A DEBATE
+    # From the command line
+    Invoke-AITDebate -Topic 'Should AI development be paused?' `
+        -Rounds 3 -Model 'gemini-2.5-pro'
+
+    # From the Taxonomy Editor
+    # 1. Click "New Debate" in the toolbar
+    # 2. Enter a topic or thesis
+    # 3. Select the AI model (or use global default)
+    # 4. Configure cross-respond rounds (1-5)
+    # 5. Click "Start Debate"
+    # 6. After synthesis, click "Harvest" to promote findings
+
+SEE ALSO
+    about_AITriad
+    about_AITriadTaxonomy
+    Invoke-AITDebate
+    Show-DebateDiagnostics
+    Show-DebateHarvest
+    Repair-DebateOutput
+    Show-TriadDialogue

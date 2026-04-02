@@ -1,0 +1,236 @@
+TOPIC
+    about_AITriadIngestion
+
+SHORT DESCRIPTION
+    The document ingestion and summarization pipeline — import, conversion,
+    AI metadata extraction, POV summarization, chunking, conflict detection,
+    and quality control.
+
+LONG DESCRIPTION
+    AI Triad processes external documents (PDFs, web pages, Word documents)
+    through a multi-stage pipeline that converts them to Markdown, extracts
+    metadata, generates multi-POV summaries, and detects factual conflicts
+    across the corpus.
+
+  STAGE 1: DOCUMENT INGESTION (Import-AITriadDocument)
+    The entry point for all documents.  Accepts a URL or local file path.
+
+    Input types and conversion chain:
+      .pdf   → ConvertFrom-Pdf (markitdown > pdftotext > mutool)
+      .html  → ConvertFrom-Html (pandoc > built-in converter)
+      .docx  → ConvertFrom-Docx (markitdown > pandoc > ZIP/XML fallback)
+      .pptx  → ConvertFrom-Office (markitdown only)
+      .xlsx  → ConvertFrom-Office (markitdown only)
+      URL    → Invoke-WebRequest, then ConvertFrom-Html
+
+    For each document, ingestion:
+    1. Generates a slug-based doc-id via New-Slug + Resolve-DocId.
+       Example: "The Future of AI Governance" → "future-ai-governance-2026"
+    2. Creates sources/<doc-id>/ directory.
+    3. Saves the original file to sources/<doc-id>/raw/.
+    4. Converts to Markdown and saves as sources/<doc-id>/snapshot.md with
+       a provenance header (via Add-SnapshotHeader).
+    5. Extracts metadata via AI (Get-AIMetadata) — title, authors, POV tags,
+       topic tags.  Falls back to HTML heuristics (Get-HtmlMeta) if AI fails.
+    6. Creates sources/<doc-id>/metadata.json (via New-Metadata).
+    7. Optionally submits the URL to the Wayback Machine for archival.
+    8. Enqueues the doc-id for summarization (via Add-ToSummaryQueue).
+
+    Key parameters:
+      -Url         Source URL to fetch and ingest
+      -File        Local file path to ingest
+      -Title       Override the AI-extracted title
+      -PovTag      Pre-classify POV tags instead of AI extraction
+      -TopicTag    Pre-classify topic tags
+      -SkipAI      Skip AI metadata extraction (use heuristics only)
+
+  STAGE 2: POV SUMMARIZATION (Invoke-POVSummary / Invoke-BatchSummary)
+    Generates structured multi-perspective summaries for each document.
+
+    Single document: Invoke-POVSummary -DocId 'ai-safety-report-2026'
+    Batch (all pending): Invoke-BatchSummary
+
+    The summarization process:
+    1. Loads snapshot.md and current taxonomy JSON.
+    2. Estimates token count (~4 chars/token).
+    3. If <= 20,000 tokens: single API call with density-scaled prompt.
+       If > 20,000 tokens: chunked pipeline (see CHUNKING below).
+    4. Parses the JSON response (with truncation repair if needed).
+    5. Validates output density against per-field minimums.
+    6. Resolves unmapped_concepts against existing taxonomy nodes.
+    7. Writes summaries/<doc-id>.json.
+    8. Updates metadata.json with summary_status='current'.
+
+    Output schema (summaries/<doc-id>.json):
+      doc_id             Document identifier
+      taxonomy_version   Taxonomy version used for generation
+      generated_at       ISO timestamp
+      ai_model           Model used
+      temperature        Sampling temperature
+      pov_summaries      Per-POV analysis (see below)
+      factual_claims     Extracted factual assertions
+      unmapped_concepts  Concepts not in the current taxonomy
+
+    Per-POV summary (pov_summaries.<pov>):
+      key_points[]       Array of extracted points, each with:
+        point              The key point text
+        taxonomy_node_id   Mapped taxonomy node (or null if unmapped)
+        stance             strongly_aligned|aligned|neutral|opposed|
+                           strongly_opposed|not_applicable
+        evidence           Supporting evidence from the document
+
+    Factual claims (factual_claims[]):
+      claim              The factual assertion
+      claim_label        Short identifier
+      source_pov         Which POV perspective the claim comes from
+      confidence         Estimated confidence level
+      temporal_scope     current_state|predictive|historical|timeless
+      temporal_bound     Specific time reference if applicable
+
+  CHUNKING (LARGE DOCUMENTS)
+    Documents over ~20,000 estimated tokens are processed in chunks:
+
+    1. Split-DocumentChunks divides the Markdown into semantically coherent
+       pieces, preferring heading boundaries (##, ###, ####), falling back to
+       paragraph breaks.  Default: 15,000 tokens/chunk, 2,000 token minimum
+       for the last chunk.
+
+    2. Each chunk is summarized independently with the same taxonomy context
+       and output schema.
+
+    3. Merge-ChunkSummaries combines results:
+       - key_points deduplicated by taxonomy_node_id + first 80 chars
+       - factual_claims deduplicated by claim_label
+       - unmapped_concepts deduplicated by suggested_label
+
+    4. Density check runs on the merged result (warn only, no retry).
+
+  DENSITY SCALING
+    To ensure summaries are proportionally detailed for document length, the
+    system computes minimum output counts based on word count:
+
+    Field              Floor Formula
+    -----------------  --------------------------------
+    key_points/camp    max(3, words / 500)
+    factual_claims     max(3, words / 800)
+    unmapped_concepts  max(2, words / 2000)
+
+    If a summary falls below these floors, the system retries once with an
+    explicit nudge prompt identifying the specific shortfalls.  Chunked
+    summaries warn but do not retry (individual chunks are already smaller).
+
+  STAGE 3: CONFLICT DETECTION (Find-Conflict)
+    Compares factual_claims across all summaries to identify contradictions.
+
+    Find-Conflict reads the factual_claims from each summary and looks for:
+    - Direct contradictions (opposing claims about the same topic)
+    - Temporal conflicts (claims valid at different times)
+    - Perspective-dependent conflicts (same evidence, different conclusions)
+
+    Conflicts are written to conflicts/*.json with:
+      id                 Unique conflict identifier
+      claim_a, claim_b   The two conflicting claims
+      source_a, source_b Document IDs for each claim
+      conflict_type      Type of conflict detected
+      severity           Estimated severity
+      attack_type        rebut|undercut|undermine (optional, AIF-aligned)
+      target_claim       Which claim is being attacked (optional)
+      counter_evidence   Evidence against the target (optional)
+      verdict            Resolution verdict from debate harvest (optional)
+
+  STAGE 4: HEALTH AND QUALITY
+    Several cmdlets monitor corpus quality:
+
+    Get-TaxonomyHealth
+      Analyzes coverage across the taxonomy — which nodes have summaries
+      mapped to them, which are orphaned, where gaps exist.
+
+    Measure-TaxonomyBaseline
+      Captures a point-in-time snapshot of taxonomy metrics (node counts,
+      edge counts, summary coverage, conflict density) for trend tracking.
+
+    Test-TaxonomyIntegrity
+      Validates structural consistency: orphaned references, missing files,
+      schema compliance, edge validity.
+
+    Get-TopicFrequency
+      Clusters nodes by embedding similarity to identify overrepresented
+      and underrepresented topic areas.
+
+    Get-IngestionPriority
+      Ranks potential documents by how much they would improve taxonomy
+      coverage.
+
+  UNMAPPED CONCEPT RESOLUTION
+    When the AI maps a key_point to a taxonomy node that does not exist, or
+    identifies a concept not in the taxonomy, it goes into unmapped_concepts.
+    During finalization, Resolve-UnmappedConcepts attempts fuzzy matching
+    against existing nodes using label similarity.  Successfully matched
+    concepts are removed from unmapped_concepts; the rest remain for manual
+    review or taxonomy expansion.
+
+    Repair-UnmappedConcepts can be run independently to re-resolve unmapped
+    concepts across all summaries after taxonomy changes.
+
+  SNAPSHOT MANAGEMENT
+    Snapshots can go stale when conversion tools improve or when source
+    documents are updated.
+
+    Update-Snapshot -DocId 'ai-safety-report-2026'
+      Regenerates snapshot.md from the raw/ source using the current best
+      conversion tool.
+
+    Update-Snapshot -All
+      Regenerates all snapshots.  Alias: Redo-Snapshots.
+
+  ARCHIVAL
+    Save-WaybackUrl submits URLs to the Internet Archive's Wayback Machine.
+    This runs automatically during ingestion (unless -SkipArchive is set)
+    and can be invoked manually:
+
+    Save-WaybackUrl -Url 'https://example.com/important-paper.pdf'
+
+  PII AUDIT
+    Invoke-PIIAudit scans snapshots and summaries for personally identifiable
+    information (email addresses, phone numbers, etc.) that should not be
+    stored or published.
+
+  EXAMPLE: FULL PIPELINE
+    # 1. Ingest a new document
+    Import-AITriadDocument -Url 'https://example.com/ai-report.pdf' `
+        -PovTag @('safetyist','cross-cutting')
+
+    # 2. Summarize it
+    Invoke-POVSummary -DocId 'ai-report-2026'
+
+    # 3. Detect conflicts with existing corpus
+    Find-Conflict
+
+    # 4. Check overall health
+    Get-TaxonomyHealth
+
+    # 5. Review in the desktop editor
+    Show-TaxonomyEditor
+
+  EXAMPLE: BATCH OPERATIONS
+    # Summarize all pending documents
+    Invoke-BatchSummary -Model 'gemini-2.5-flash' -Temperature 0.1
+
+    # Re-resolve unmapped concepts after adding taxonomy nodes
+    Repair-UnmappedConcepts
+
+    # Regenerate all snapshots with improved conversion
+    Update-Snapshot -All
+
+SEE ALSO
+    about_AITriad
+    about_AITriadTaxonomy
+    Import-AITriadDocument
+    Invoke-POVSummary
+    Invoke-BatchSummary
+    Find-Conflict
+    Get-TaxonomyHealth
+    Update-Snapshot
+    Save-WaybackUrl
+    Invoke-PIIAudit
+    Repair-UnmappedConcepts

@@ -1,9 +1,39 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Agglomerative clustering of node embeddings using average-linkage cosine similarity.
-# Dot-sourced by AITriad.psm1 — do NOT export.
+<#
+.SYNOPSIS
+    Clusters taxonomy nodes by embedding similarity using agglomerative clustering.
+.DESCRIPTION
+    Performs hierarchical agglomerative clustering on taxonomy node embeddings using
+    average-linkage cosine similarity.  Starts with each node as its own cluster,
+    then iteratively merges the two most similar clusters until either MaxClusters
+    is reached or the best inter-cluster similarity falls below MinSimilarity.
 
+    Used by Get-TopicFrequency and Get-TaxonomyHealth to identify thematic groupings
+    and detect coverage gaps across the taxonomy.
+.PARAMETER NodeIds
+    Array of taxonomy node IDs to cluster.  Nodes without embeddings in the
+    Embeddings hashtable are silently excluded.
+.PARAMETER Embeddings
+    Hashtable mapping node IDs to their embedding vectors (double arrays).
+    Loaded from taxonomy/Origin/embeddings.json.
+.PARAMETER MaxClusters
+    Maximum number of clusters to produce.  Merging stops when this count is
+    reached.  Defaults to 10.
+.PARAMETER MinSimilarity
+    Minimum average-linkage cosine similarity required to merge two clusters.
+    Merging stops if the best pair falls below this threshold.  Defaults to 0.55.
+.EXAMPLE
+    $Embeddings = (Get-Content embeddings.json -Raw | ConvertFrom-Json -AsHashtable)
+    $Clusters = Get-EmbeddingClusters -NodeIds @('acc-1','acc-2','acc-3') -Embeddings $Embeddings
+
+    Clusters three accelerationist nodes by semantic similarity.
+.EXAMPLE
+    Get-EmbeddingClusters -NodeIds $AllIds -Embeddings $Emb -MaxClusters 5 -MinSimilarity 0.7
+
+    Produces at most 5 tightly-grouped clusters (similarity >= 0.7).
+#>
 function Get-EmbeddingClusters {
     [CmdletBinding()]
     param(

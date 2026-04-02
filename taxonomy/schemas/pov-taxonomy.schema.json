@@ -68,13 +68,13 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^(acc|saf|skp)-(goals|data|methods)-\\d{3}$",
-          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Goals/Values), data (Data/Facts), methods (Methods/Arguments).",
+          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Desires), data (Beliefs), methods (Intentions). Slugs are legacy stable identifiers — do not change.",
           "examples": ["acc-goals-001", "saf-data-002", "skp-methods-001"]
         },
         "category": {
           "type": "string",
-          "enum": ["Goals/Values", "Data/Facts", "Methods/Arguments"],
-          "description": "The epistemic category this node belongs to. Goals/Values: normative positions about what should happen. Data/Facts: empirical claims about what is or will be. Methods/Arguments: what someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments."
+          "enum": ["Desires", "Beliefs", "Intentions"],
+          "description": "The epistemic category this node belongs to (BDI framework). Desires: normative positions about what should happen. Beliefs: empirical claims about what is or will be. Intentions: what someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments."
         },
         "label": {
           "type": "string",
@@ -85,7 +85,7 @@
         "description": {
           "type": "string",
           "minLength": 1,
-          "description": "Genus-differentia description: 'A [Category] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' — a self-contained paragraph following DOLCE D&S conventions."
+          "description": "Genus-differentia description: 'A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' — a self-contained paragraph following DOLCE D&S conventions."
         },
         "parent_id": {
           "type": ["string", "null"],

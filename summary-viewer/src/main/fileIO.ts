@@ -305,9 +305,9 @@ const POV_PREFIX_MAP: Record<string, string> = {
 };
 
 const CATEGORY_PREFIX_MAP: Record<string, string> = {
-  'Goals/Values': 'goals',
-  'Data/Facts': 'data',
-  'Methods/Arguments': 'methods',
+  'Desires': 'goals',
+  'Beliefs': 'data',
+  'Intentions': 'methods',
 };
 
 export interface AddTaxonomyNodeRequest {

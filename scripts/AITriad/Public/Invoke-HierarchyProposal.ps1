@@ -11,7 +11,7 @@ function Invoke-HierarchyProposal {
         propose parent nodes and child assignments. Outputs a proposal JSON file for human review.
     .EXAMPLE
         Invoke-HierarchyProposal
-        Invoke-HierarchyProposal -POV accelerationist -Category 'Methods/Arguments'
+        Invoke-HierarchyProposal -POV accelerationist -Category 'Intentions'
         Invoke-HierarchyProposal -DryRun
     #>
     [CmdletBinding(SupportsShouldProcess)]
@@ -19,7 +19,7 @@ function Invoke-HierarchyProposal {
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')]
         [string]$POV = '',
 
-        [ValidateSet('Goals/Values', 'Data/Facts', 'Methods/Arguments')]
+        [ValidateScript({ Test-CategoryParameter $_ })]
         [string]$Category = '',
 
         [ValidateScript({ Test-AIModelId $_ })]
@@ -141,7 +141,7 @@ function Invoke-HierarchyProposal {
             }
         }
         else {
-            $Categories = if ($Category) { @($Category) } else { @('Goals/Values', 'Data/Facts', 'Methods/Arguments') }
+            $Categories = if ($Category) { @($Category) } else { @('Beliefs', 'Desires', 'Intentions') }
             foreach ($Cat in $Categories) {
                 $CatNodes = @($Nodes | Where-Object { $_.category -eq $Cat })
                 if ($CatNodes.Count -ge 2) {

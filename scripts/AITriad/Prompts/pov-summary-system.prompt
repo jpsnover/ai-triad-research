@@ -7,28 +7,28 @@ the document's content to three Points of View (POV camps):
   - Skeptic: AI causes immediate, measurable harms (bias, labor displacement, privacy)
 
 For EACH POV camp you must identify:
-  1. Goals/Values       — desired end-states the document supports or opposes
-  2. Data/Facts         — empirical claims the document asserts or disputes
-  3. Methods/Arguments  — what someone is arguing for or against, and the methods,
+  1. Desires       — desired end-states the document supports or opposes
+  2. Beliefs         — empirical claims the document asserts or disputes
+  3. Intentions  — what someone is arguing for or against, and the methods,
      logic models, interpretive lenses, or policy approaches they use to make those arguments
 
 CATEGORY DISAMBIGUATION — use these sub-type tests when a point could fit multiple categories:
-  Goals/Values (BDI: Values/Desires):
+  Desires:
     - "Should" statements, desired end-states, normative commitments
-    - Test: "Is this about what OUGHT to happen?" → Goals/Values
+    - Test: "Is this about what OUGHT to happen?" → Desires
     - Sub-types: aspirational goals, ethical principles, risk thresholds, priority rankings
-  Data/Facts (BDI: Beliefs):
+  Beliefs:
     - Empirical claims, observations, measurements, predictions about the world
-    - Test: "Could this be proven true or false with evidence?" → Data/Facts
+    - Test: "Could this be proven true or false with evidence?" → Beliefs
     - Sub-types: statistics, study results, historical precedents, trend observations, forecasts
-  Methods/Arguments (BDI: Intentions/Reasoning):
+  Intentions:
     - Strategies, frameworks, policy approaches, argumentative moves
-    - Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?" → Methods/Arguments
+    - Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?" → Intentions
     - Sub-types: policy proposals, governance frameworks, technical approaches, rhetorical strategies
   Edge cases:
-    - "AI will cause mass unemployment" → Data/Facts (empirical prediction)
-    - "We must prevent AI-caused unemployment" → Goals/Values (normative commitment)
-    - "Universal basic income can mitigate AI displacement" → Methods/Arguments (policy approach)
+    - "AI will cause mass unemployment" → Beliefs (empirical prediction)
+    - "We must prevent AI-caused unemployment" → Desires (normative commitment)
+    - "Universal basic income can mitigate AI displacement" → Intentions (policy approach)
 
 REQUIRED OUTPUT DENSITY (hard constraints — responses below these minimums will be
 REJECTED and you will be asked to redo the analysis):
@@ -36,7 +36,7 @@ REJECTED and you will be asked to redo the analysis):
 
   MINIMUMS (non-negotiable):
     • key_points: AT LEAST {{KP_MIN}} per POV camp (target {{KP_MIN}}-{{KP_MAX}}).
-      You MUST cover ALL three categories (Goals/Values, Data/Facts, Methods/Arguments)
+      You MUST cover ALL three categories (Desires, Beliefs, Intentions)
       in EACH camp. A {{WORD_COUNT}}-word document contains far more than 2 points per
       camp — read carefully and extract every one.
     • factual_claims: AT LEAST {{FC_MIN}} (target {{FC_MIN}}-{{FC_MAX}}).
@@ -61,7 +61,7 @@ REJECTED and you will be asked to redo the analysis):
     the description defines the concept's boundaries.
 
     DESCRIPTION FORMAT — all descriptions must use genus-differentia structure:
-      For POV concepts: "A [Goals/Values | Data/Facts | Methods/Arguments] within
+      For POV concepts: "A [Desire | Belief | Intention] within
         [accelerationist | safetyist | skeptic] discourse that [what makes this concept
         distinct]. Encompasses: [concrete examples or sub-themes]. Excludes: [what
         neighboring concepts cover instead]."
@@ -119,7 +119,7 @@ RULES:
     confirming no node in ANY POV covers it.
   - If a point does not fit any existing node, set taxonomy_node_id to null and describe
     it in the unmapped_concepts array. This is how the taxonomy grows.
-  - For Data/Facts points only: if the document's claim contradicts or supports an
+  - For Beliefs points only: if the document's claim contradicts or supports an
     existing conflict entry, include the conflict_id in factual_claims.
   - Each key_point must include a stance field. stance must be ONE of:
     strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.

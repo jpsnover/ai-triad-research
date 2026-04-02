@@ -1,10 +1,58 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Per-document AI summarization worker.
-# Small documents (<= 20K tokens) use a single LLM call.
-# Large documents are split into chunks, processed in parallel, and merged.
+<#
+.SYNOPSIS
+    Generates a multi-POV AI summary for a single document.
+.DESCRIPTION
+    Core summarization worker called by Invoke-POVSummary and Invoke-BatchSummary.
+    Reads the document's snapshot.md, builds a density-scaled prompt with the
+    current taxonomy, and calls the AI API to produce a structured JSON summary
+    containing per-POV key_points, factual_claims, and unmapped_concepts.
 
+    Documents under ~20,000 estimated tokens use a single API call with density
+    validation and one retry.  Larger documents are automatically split into
+    semantically coherent chunks (via Split-DocumentChunks), each chunk is
+    summarized independently, and results are merged (via Merge-ChunkSummaries)
+    with deduplication.
+
+    The output is written to summaries/<doc-id>.json and the source's
+    metadata.json is updated with summary_status='current'.
+.PARAMETER Doc
+    Hashtable with document context: DocId, Meta, PovTags, SnapshotFile, MetaFile.
+    Built by the calling cmdlet from the source directory.
+.PARAMETER ApiKey
+    AI API key for the configured backend.
+.PARAMETER Model
+    AI model identifier (e.g., 'gemini-2.5-flash').  Must be registered in
+    ai-models.json.
+.PARAMETER Temperature
+    Sampling temperature for the AI call.  Lower values produce more deterministic
+    output.
+.PARAMETER TaxonomyVersion
+    Current taxonomy version string (from TAXONOMY_VERSION file).
+.PARAMETER TaxonomyJson
+    Serialized JSON of the full taxonomy, injected into the prompt for node
+    mapping.
+.PARAMETER SystemPromptTemplate
+    The system prompt template with {{WORD_COUNT}}, {{KP_MIN}}, etc. placeholders
+    for density scaling.
+.PARAMETER ChunkSystemPromptTemplate
+    Optional override prompt for chunk-level summarization.  If empty, the
+    'pov-summary-chunk-system' prompt is loaded from Prompts/.
+.PARAMETER OutputSchema
+    JSON schema string that the AI response must conform to.
+.PARAMETER SummariesDir
+    Absolute path to the summaries output directory.
+.PARAMETER Now
+    ISO timestamp for the generated_at field.
+.EXAMPLE
+    # Typically called internally by Invoke-POVSummary:
+    $Result = Invoke-DocumentSummary -Doc $DocContext -ApiKey $Key -Model 'gemini-2.5-flash' `
+        -Temperature 0.1 -TaxonomyVersion '4.2' -TaxonomyJson $TaxJson `
+        -SystemPromptTemplate $Prompt -OutputSchema $Schema -SummariesDir $OutDir -Now (Get-Date -Format 'o')
+    if ($Result.Success) { Write-Host "Generated $($Result.TotalPoints) key points" }
+#>
 function Invoke-DocumentSummary {
     [CmdletBinding()]
     param(

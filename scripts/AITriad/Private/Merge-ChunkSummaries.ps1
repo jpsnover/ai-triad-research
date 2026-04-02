@@ -1,10 +1,30 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Merges multiple chunk-level POV summaries into a single consolidated summary.
-# Deduplicates key_points by taxonomy_node_id + point similarity,
-# unions factual_claims and unmapped_concepts, and removes exact duplicates.
+<#
+.SYNOPSIS
+    Merges chunk-level POV summaries into a single consolidated summary.
+.DESCRIPTION
+    When a large document is processed via the chunked pipeline in
+    Invoke-DocumentSummary, each chunk produces an independent summary object.
+    This function combines them into one unified summary by:
 
+    1. Merging key_points per POV camp, deduplicating by taxonomy_node_id +
+       first 80 characters of the point text (case-insensitive).
+    2. Merging factual_claims, deduplicating by claim_label (or first 60 chars
+       of claim text as fallback).
+    3. Merging unmapped_concepts, deduplicating by suggested_label.
+
+    The merged result has the same schema as a single-call summary and can be
+    passed directly to Finalize-Summary.
+.PARAMETER ChunkResults
+    Array of PSObjects — each is a parsed summary from one document chunk.
+    Must have pov_summaries, factual_claims, and unmapped_concepts properties.
+.EXAMPLE
+    $Merged = Merge-ChunkSummaries -ChunkResults @($Chunk1, $Chunk2, $Chunk3)
+
+    Merges three chunk summaries into one, deduplicating overlapping points.
+#>
 function Merge-ChunkSummaries {
     [CmdletBinding()]
     param(

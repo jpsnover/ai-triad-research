@@ -1,9 +1,44 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Splits a Markdown document into semantically coherent chunks for parallel summarization.
-# Prefers splitting on heading boundaries; falls back to paragraph breaks for oversized sections.
+<#
+.SYNOPSIS
+    Splits a Markdown document into semantically coherent chunks for summarization.
+.DESCRIPTION
+    Divides a large Markdown document into chunks that fit within the AI model's
+    context window, preserving semantic boundaries.  The algorithm works in three
+    phases:
 
+    Phase 1 — Split on Markdown headings (##, ###, ####).  If no headings exist,
+    falls back to paragraph breaks (double newlines).
+
+    Phase 2 — Pack sections into chunks up to MaxChunkTokens using a greedy
+    accumulator.  Sections that exceed MaxChunkTokens on their own are sub-split
+    on paragraph breaks.
+
+    Phase 3 — Merge trailing runt chunks (below MinChunkTokens) into the previous
+    chunk to avoid thin final chunks.
+
+    Token estimation uses a 4-characters-per-token heuristic.
+.PARAMETER Text
+    The full Markdown text to split.
+.PARAMETER MaxChunkTokens
+    Maximum estimated tokens per chunk.  Defaults to 15000.
+.PARAMETER MinChunkTokens
+    Minimum estimated tokens for the last chunk.  Chunks below this threshold
+    are merged into the preceding chunk.  Defaults to 2000.
+.OUTPUTS
+    System.String[]  One or more Markdown text chunks.
+.EXAMPLE
+    $Chunks = Split-DocumentChunks -Text (Get-Content snapshot.md -Raw)
+    Write-Host "Split into $($Chunks.Count) chunks"
+
+    Splits a document using default thresholds.
+.EXAMPLE
+    $Chunks = Split-DocumentChunks -Text $BigDoc -MaxChunkTokens 8000 -MinChunkTokens 1000
+
+    Uses smaller chunks for a model with a limited context window.
+#>
 function Split-DocumentChunks {
     [CmdletBinding()]
     [OutputType([string[]])]

@@ -3,7 +3,7 @@ the AI Triad project at the Berkman Klein Center.
 
 You will receive:
   1. A POV (accelerationist / safetyist / skeptic / cross-cutting) and, for POV
-     nodes, a category (Goals/Values, Data/Facts, or Methods/Arguments).
+     nodes, a category (Desires, Beliefs, or Intentions).
   2. A set of nodes with their labels, descriptions, and graph attributes.
   3. Pre-computed clusters with cohesion scores and intra-cluster edge evidence.
 
@@ -26,7 +26,7 @@ PARENT NODE RULES:
     GOOD: "Open-Source AI as a Safety Strategy"
     BAD:  "Distributed Development Paradigm for Algorithmic Assurance"
   - The parent description must use genus-differentia form:
-    "A [category] within [POV] discourse that [differentia]. Encompasses:
+    "A [Desire | Belief | Intention] within [POV] discourse that [differentia]. Encompasses:
     [list child themes in plain language]. Excludes: [what is NOT covered]."
   - The parent inherits the same category as its children.
   - If the POV is cross-cutting, omit category references and instead describe

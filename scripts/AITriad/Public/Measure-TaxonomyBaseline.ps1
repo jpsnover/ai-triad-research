@@ -193,7 +193,7 @@ function Measure-TaxonomyBaseline {
     $TypeCounts = @{}
     $OrphanEdges = 0
     $SelfEdges = 0
-    $GoalSupportsData = 0  # Domain violation: Goals/Values SUPPORTS Data/Facts
+    $GoalSupportsData = 0  # Domain violation: Desires SUPPORTS Beliefs
 
     foreach ($E in $Edges) {
         $Type = $E.type
@@ -212,11 +212,11 @@ function Measure-TaxonomyBaseline {
             continue
         }
 
-        # Check domain violation: Goals/Values SUPPORTS Data/Facts (skip policy nodes)
+        # Check domain violation: Desires SUPPORTS Beliefs (skip policy nodes)
         if ($SrcIsPolicy -or $TgtIsPolicy) { continue }
         $SrcCat = if ($SrcNode.PSObject.Properties['category']) { $SrcNode.category } else { $null }
         $TgtCat = if ($TgtNode.PSObject.Properties['category']) { $TgtNode.category } else { $null }
-        if ($Type -eq 'SUPPORTS' -and $SrcCat -eq 'Goals/Values' -and $TgtCat -eq 'Data/Facts') {
+        if ($Type -eq 'SUPPORTS' -and $SrcCat -eq 'Desires' -and $TgtCat -eq 'Beliefs') {
             $GoalSupportsData++
         }
     }
@@ -321,7 +321,7 @@ function Measure-TaxonomyBaseline {
         $DescLengths += $Desc.Length
         if ($Desc.Length -lt 50) { $ShortDescs++ }
         if ($Desc -eq $Node.label) { $StubDescs++ }
-        if ($Desc -match '^A\s+(Goals/Values|Data/Facts|Methods/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+' -or
+        if ($Desc -match '^An?\s+(Belief|Desire|Intention)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+' -or
             $Desc -match '^A\s+cross-cutting\s+concept\s+that\s+') {
             $GenusPattern++
         }
@@ -411,7 +411,7 @@ function Measure-TaxonomyBaseline {
     Write-Host "  Total: $($Edges.Count)"
     Write-Host "  Canonical types: $($EdgeMetrics.canonical_type_count), Non-canonical: $($EdgeMetrics.non_canonical_type_count)"
     Write-Host "  Orphans: $OrphanEdges, Self-edges: $SelfEdges"
-    Write-Host "  Goals/Values SUPPORTS Data/Facts (domain violation): $GoalSupportsData"
+    Write-Host "  Desires SUPPORTS Beliefs (domain violation): $GoalSupportsData"
 
     Write-Host "`n── Conflicts ──" -ForegroundColor Cyan
     Write-Host "  Total: $($Conflicts.Count), Single-instance: $SingleInstance ($($ConflictMetrics.single_instance_pct)%)"

@@ -1,8 +1,42 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Factory for the canonical metadata.json structure.
+<#
+.SYNOPSIS
+    Creates a canonical metadata.json object for a new source document.
+.DESCRIPTION
+    Factory function that produces the standard ordered hashtable used as
+    sources/<doc-id>/metadata.json.  Sets default values for ingestion timestamps,
+    archive status ('pending'), and summary status ('pending').  Called by
+    Import-AITriadDocument during document ingestion.
+.PARAMETER DocId
+    The slug-format document identifier (e.g., 'ai-safety-report-2026').
+.PARAMETER Title
+    Human-readable document title.
+.PARAMETER DocumentUrl
+    Original URL where the document was obtained.  Defaults to empty string.
+.PARAMETER Author
+    Array of author names.  Defaults to empty array.
+.PARAMETER SourceType
+    Document format: 'pdf', 'html', 'docx', etc.  Defaults to 'unknown'.
+.PARAMETER PovTag
+    Array of POV classifications: 'accelerationist', 'safetyist', 'skeptic',
+    and/or 'cross-cutting'.  Defaults to empty array.
+.PARAMETER TopicTag
+    Array of topic slugs (e.g., 'governance', 'alignment').  Defaults to empty
+    array.
+.EXAMPLE
+    $Meta = New-Metadata -DocId 'ai-governance-2026' -Title 'AI Governance Framework' `
+        -DocumentUrl 'https://example.com/paper.pdf' -SourceType 'pdf' `
+        -PovTag @('safetyist','cross-cutting') -TopicTag @('governance','regulation')
 
+    Creates a metadata object for a newly ingested PDF with POV and topic tags.
+.EXAMPLE
+    $Meta = New-Metadata -DocId 'blog-post-2026' -Title 'Why AI Will Be Fine'
+    $Meta | ConvertTo-Json | Set-Content metadata.json
+
+    Creates minimal metadata and writes it to disk.
+#>
 function New-Metadata {
     [CmdletBinding()]
     param(

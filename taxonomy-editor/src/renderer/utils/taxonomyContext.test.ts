@@ -8,9 +8,9 @@ import type { PovNode, CrossCuttingNode } from '../types/taxonomy';
 
 // ── Test fixtures ─────────────────────────────────────────
 
-const dataNode: PovNode = {
+const beliefsNode: PovNode = {
   id: 'acc-data-001',
-  category: 'Data/Facts',
+  category: 'Beliefs',
   label: 'More Power Equals More Smarts',
   description: 'Scaling compute leads to emergent capabilities.',
   parent_id: null,
@@ -22,9 +22,9 @@ const dataNode: PovNode = {
   },
 };
 
-const goalsNode: PovNode = {
+const desiresNode: PovNode = {
   id: 'acc-goals-001',
-  category: 'Goals/Values',
+  category: 'Desires',
   label: 'AI Creates a World of Plenty',
   description: 'AI-driven abundance improves quality of life for all.',
   parent_id: null,
@@ -35,9 +35,9 @@ const goalsNode: PovNode = {
   },
 };
 
-const methodsNode: PovNode = {
+const intentionsNode: PovNode = {
   id: 'acc-methods-001',
-  category: 'Methods/Arguments',
+  category: 'Intentions',
   label: 'Winning the Race for Safe AI',
   description: 'Building AI fast is the best way to ensure safety.',
   parent_id: null,
@@ -67,7 +67,7 @@ const ccNode: CrossCuttingNode = {
 
 function buildCtx(overrides?: Partial<TaxonomyContext>): TaxonomyContext {
   return {
-    povNodes: [dataNode, goalsNode, methodsNode],
+    povNodes: [beliefsNode, desiresNode, intentionsNode],
     crossCuttingNodes: [ccNode],
     ...overrides,
   };
@@ -76,14 +76,14 @@ function buildCtx(overrides?: Partial<TaxonomyContext>): TaxonomyContext {
 // ── Tests ─────────────────────────────────────────────────
 
 describe('CATEGORY_TO_BDI mapping', () => {
-  it('maps all three categories', () => {
-    expect(Object.keys(CATEGORY_TO_BDI)).toEqual(['Data/Facts', 'Goals/Values', 'Methods/Arguments']);
+  it('maps all three BDI categories', () => {
+    expect(Object.keys(CATEGORY_TO_BDI)).toEqual(['Beliefs', 'Desires', 'Intentions']);
   });
 
   it('uses BDI terminology in headers', () => {
-    expect(CATEGORY_TO_BDI['Data/Facts'].header).toContain('BELIEFS');
-    expect(CATEGORY_TO_BDI['Goals/Values'].header).toContain('VALUES');
-    expect(CATEGORY_TO_BDI['Methods/Arguments'].header).toContain('REASONING APPROACH');
+    expect(CATEGORY_TO_BDI['Beliefs'].header).toContain('BELIEFS');
+    expect(CATEGORY_TO_BDI['Desires'].header).toContain('DESIRES');
+    expect(CATEGORY_TO_BDI['Intentions'].header).toContain('INTENTIONS');
   });
 });
 
@@ -93,13 +93,13 @@ describe('formatNodeAttributes', () => {
   });
 
   it('includes assumes and epistemic_type', () => {
-    const lines = formatNodeAttributes(dataNode.graph_attributes);
+    const lines = formatNodeAttributes(beliefsNode.graph_attributes);
     expect(lines.some(l => l.includes('Assumes:'))).toBe(true);
     expect(lines.some(l => l.includes('empirical_claim'))).toBe(true);
   });
 
   it('filters borderline fallacies', () => {
-    const lines = formatNodeAttributes(methodsNode.graph_attributes);
+    const lines = formatNodeAttributes(intentionsNode.graph_attributes);
     expect(lines.some(l => l.includes('false dilemma'))).toBe(true);
     expect(lines.some(l => l.includes('appeal to fear'))).toBe(false);
   });
@@ -109,33 +109,33 @@ describe('formatTaxonomyContext', () => {
   it('contains all BDI section headers', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     expect(output).toContain('=== YOUR BELIEFS (what you take as empirically true) ===');
-    expect(output).toContain('=== YOUR VALUES (what you prioritize and why) ===');
-    expect(output).toContain('=== YOUR REASONING APPROACH (how you argue) ===');
+    expect(output).toContain('=== YOUR DESIRES (what you prioritize and why) ===');
+    expect(output).toContain('=== YOUR INTENTIONS (how you argue) ===');
   });
 
-  it('places Data/Facts nodes under BELIEFS', () => {
+  it('places Beliefs nodes under BELIEFS', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const beliefsIdx = output.indexOf('YOUR BELIEFS');
-    const valuesIdx = output.indexOf('YOUR VALUES');
+    const desiresIdx = output.indexOf('YOUR DESIRES');
     const nodeIdx = output.indexOf('[acc-data-001]');
     expect(nodeIdx).toBeGreaterThan(beliefsIdx);
-    expect(nodeIdx).toBeLessThan(valuesIdx);
+    expect(nodeIdx).toBeLessThan(desiresIdx);
   });
 
-  it('places Goals/Values nodes under VALUES', () => {
+  it('places Desires nodes under DESIRES', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const valuesIdx = output.indexOf('YOUR VALUES');
-    const reasoningIdx = output.indexOf('YOUR REASONING APPROACH');
+    const desiresIdx = output.indexOf('YOUR DESIRES');
+    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
     const nodeIdx = output.indexOf('[acc-goals-001]');
-    expect(nodeIdx).toBeGreaterThan(valuesIdx);
-    expect(nodeIdx).toBeLessThan(reasoningIdx);
+    expect(nodeIdx).toBeGreaterThan(desiresIdx);
+    expect(nodeIdx).toBeLessThan(intentionsIdx);
   });
 
-  it('places Methods/Arguments nodes under REASONING APPROACH', () => {
+  it('places Intentions nodes under INTENTIONS', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    const reasoningIdx = output.indexOf('YOUR REASONING APPROACH');
+    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
     const nodeIdx = output.indexOf('[acc-methods-001]');
-    expect(nodeIdx).toBeGreaterThan(reasoningIdx);
+    expect(nodeIdx).toBeGreaterThan(intentionsIdx);
   });
 
   it('contains KNOWN VULNERABILITIES section', () => {
@@ -176,15 +176,15 @@ describe('formatTaxonomyContext', () => {
   });
 
   it('omits empty BDI sections', () => {
-    const ctx = buildCtx({ povNodes: [dataNode] });
+    const ctx = buildCtx({ povNodes: [beliefsNode] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
     expect(output).toContain('YOUR BELIEFS');
-    expect(output).not.toContain('YOUR VALUES');
-    expect(output).not.toContain('YOUR REASONING APPROACH');
+    expect(output).not.toContain('YOUR DESIRES');
+    expect(output).not.toContain('YOUR INTENTIONS');
   });
 
   it('omits vulnerabilities section when no vulnerabilities exist', () => {
-    const cleanNode: PovNode = { ...dataNode, graph_attributes: { epistemic_type: 'empirical_claim' } };
+    const cleanNode: PovNode = { ...beliefsNode, graph_attributes: { epistemic_type: 'empirical_claim' } };
     const ctx = buildCtx({ povNodes: [cleanNode] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
     expect(output).not.toContain('KNOWN VULNERABILITIES');
@@ -198,23 +198,23 @@ describe('formatTaxonomyContext', () => {
 
   it('respects maxNodes limit', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist', 1);
-    // Only the first node (dataNode) should appear
+    // Only the first node (beliefsNode) should appear
     expect(output).toContain('[acc-data-001]');
     expect(output).not.toContain('[acc-goals-001]');
     expect(output).not.toContain('[acc-methods-001]');
   });
 
-  it('section order is Beliefs → Values → Reasoning → Vulnerabilities → Cross-Cutting', () => {
+  it('section order is Beliefs → Desires → Intentions → Vulnerabilities → Cross-Cutting', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const beliefsIdx = output.indexOf('YOUR BELIEFS');
-    const valuesIdx = output.indexOf('YOUR VALUES');
-    const reasoningIdx = output.indexOf('YOUR REASONING APPROACH');
+    const desiresIdx = output.indexOf('YOUR DESIRES');
+    const intentionsIdx = output.indexOf('YOUR INTENTIONS');
     const vulnIdx = output.indexOf('YOUR KNOWN VULNERABILITIES');
     const ccIdx = output.indexOf('CROSS-CUTTING CONCERNS');
 
-    expect(beliefsIdx).toBeLessThan(valuesIdx);
-    expect(valuesIdx).toBeLessThan(reasoningIdx);
-    expect(reasoningIdx).toBeLessThan(vulnIdx);
+    expect(beliefsIdx).toBeLessThan(desiresIdx);
+    expect(desiresIdx).toBeLessThan(intentionsIdx);
+    expect(intentionsIdx).toBeLessThan(vulnIdx);
     expect(vulnIdx).toBeLessThan(ccIdx);
   });
 });

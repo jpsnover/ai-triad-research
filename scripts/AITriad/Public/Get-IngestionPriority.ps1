@@ -150,7 +150,7 @@ function Get-IngestionPriority {
     }
 
     # --- Coverage imbalance (score 5) ---
-    $Categories = @('Goals/Values', 'Data/Facts', 'Methods/Arguments')
+    $Categories = @('Beliefs', 'Desires', 'Intentions')
     foreach ($Cat in $Categories) {
         $Counts = @(@('accelerationist', 'safetyist', 'skeptic') | ForEach-Object { $Health.CoverageBalance[$_][$Cat] })
         $Min = ($Counts | Measure-Object -Minimum).Minimum

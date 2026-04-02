@@ -14,11 +14,11 @@ A proper hierarchy would enable:
 - Attribute inheritance in graph queries (child inherits parent's epistemic type, audience, etc.)
 - Better document mapping (map to most specific node; fall back to parent)
 - Meaningful SPLIT proposals (the AI currently has no hierarchy to split into)
-- Reduced visual clutter (299 Methods/Arguments nodes across 3 POVs become manageable groups)
+- Reduced visual clutter (299 Intentions nodes across 3 POVs become manageable groups)
 
 ### Inventory
 
-| File | Nodes | Goals/Values | Data/Facts | Methods/Arguments | Has parent_id |
+| File | Nodes | Desires | Beliefs | Intentions | Has parent_id |
 |------|-------|-------------|------------|-------------------|--------------|
 | accelerationist.json | 74 | 12 | 15 | 47 | 1 |
 | safetyist.json | 125 | 13 | 36 | 76 | 0 |
@@ -72,7 +72,7 @@ Use `Get-EmbeddingClusters` to group nodes within each of the 9 POV/category buc
 ```json
 {
   "pov": "accelerationist",
-  "category": "Methods/Arguments",
+  "category": "Intentions",
   "clusters": [
     {
       "cluster_id": 0,
@@ -131,7 +131,7 @@ You are an ontology engineer organizing taxonomy nodes into a shallow hierarchy.
 
 You will receive:
   1. A POV (accelerationist / safetyist / skeptic) and a category
-     (Goals/Values, Data/Facts, or Methods/Arguments)
+     (Desires, Beliefs, or Intentions)
   2. A set of nodes with their labels, descriptions, and graph attributes
   3. Pre-computed clusters with cohesion scores and edge evidence
 
@@ -187,7 +187,7 @@ OUTPUT: JSON array of parent proposals.
       "id": "acc-methods-P01",
       "is_new": true,
       "label": "Open-Source AI Advocacy",
-      "description": "A Methods/Arguments position within accelerationist discourse that advocates for open-source development as both a safety mechanism and a democratization strategy. Encompasses: open-source safety arguments, legal protection for open models, community-driven development. Excludes: closed-source safety testing (saf-methods), market competition arguments (acc-methods-012)."
+      "description": "A Intentions position within accelerationist discourse that advocates for open-source development as both a safety mechanism and a democratization strategy. Encompasses: open-source safety arguments, legal protection for open models, community-driven development. Excludes: closed-source safety testing (saf-methods), market competition arguments (acc-methods-012)."
     },
     "children": [
       {
@@ -216,15 +216,15 @@ Run the prompt for each of the 9 POV/category buckets + 1 cross-cutting pass:
 
 | Pass | POV | Category | Node Count | Expected Parents |
 |------|-----|----------|------------|-----------------|
-| 1 | accelerationist | Goals/Values | 12 | 2-3 |
-| 2 | accelerationist | Data/Facts | 15 | 3-4 |
-| 3 | accelerationist | Methods/Arguments | 47 | 8-12 |
-| 4 | safetyist | Goals/Values | 13 | 2-3 |
-| 5 | safetyist | Data/Facts | 36 | 5-7 |
-| 6 | safetyist | Methods/Arguments | 76 | 10-12 |
-| 7 | skeptic | Goals/Values | 13 | 2-3 |
-| 8 | skeptic | Data/Facts | 38 | 5-7 |
-| 9 | skeptic | Methods/Arguments | 49 | 8-12 |
+| 1 | accelerationist | Desires | 12 | 2-3 |
+| 2 | accelerationist | Beliefs | 15 | 3-4 |
+| 3 | accelerationist | Intentions | 47 | 8-12 |
+| 4 | safetyist | Desires | 13 | 2-3 |
+| 5 | safetyist | Beliefs | 36 | 5-7 |
+| 6 | safetyist | Intentions | 76 | 10-12 |
+| 7 | skeptic | Desires | 13 | 2-3 |
+| 8 | skeptic | Beliefs | 38 | 5-7 |
+| 9 | skeptic | Intentions | 49 | 8-12 |
 | 10 | cross-cutting | (none) | 91 | 10-15 |
 
 **Estimated total new parent nodes:** 55-80
@@ -254,10 +254,10 @@ Output a validation report flagging any failures for manual resolution.
 For each POV, generate a Markdown review document:
 
 ```markdown
-# Accelerationist Hierarchy Proposal — Methods/Arguments
+# Accelerationist Hierarchy Proposal — Intentions
 
 ## Parent: Open-Source AI Advocacy (acc-methods-P01) [NEW]
-> A Methods/Arguments position within accelerationist discourse that...
+> A Intentions position within accelerationist discourse that...
 
 | Child | Label | Relationship | Rationale |
 |-------|-------|-------------|-----------|
@@ -285,9 +285,9 @@ For each proposal, the reviewer can:
 - **Reject**: the cluster remains flat (no parent_id assigned)
 
 **Priority order for review:**
-1. Start with the smallest buckets (Goals/Values, 12-13 nodes each) to calibrate judgment
-2. Then Data/Facts (15-38 nodes) -- empirical claims cluster well
-3. Then Methods/Arguments (47-76 nodes) -- largest and most ambiguous
+1. Start with the smallest buckets (Desires, 12-13 nodes each) to calibrate judgment
+2. Then Beliefs (15-38 nodes) -- empirical claims cluster well
+3. Then Intentions (47-76 nodes) -- largest and most ambiguous
 4. Cross-cutting last -- most complex due to lack of category axis
 
 ### Step 3.3 — Resolve Edge Cases

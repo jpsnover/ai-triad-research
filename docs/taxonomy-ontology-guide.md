@@ -55,9 +55,9 @@ The three taxonomy node categories map directly to BDI layers:
 
 | BDI Layer | Taxonomy Category | What It Contains | Example |
 |---|---|---|---|
-| **Beliefs** | `Data/Facts` | Empirical claims the agent takes as true | "GPU compute has doubled every 18 months" |
-| **Desires** | `Goals/Values` | Normative commitments and priorities | "AI development should prioritize safety over speed" |
-| **Intentions** | `Methods/Arguments` | Argumentative strategies and reasoning patterns | "Cost-benefit analysis applied to AI regulation" |
+| **Beliefs** | `Beliefs` | Empirical claims the agent takes as true | "GPU compute has doubled every 18 months" |
+| **Desires** | `Desires` | Normative commitments and priorities | "AI development should prioritize safety over speed" |
+| **Intentions** | `Intentions` | Argumentative strategies and reasoning patterns | "Cost-benefit analysis applied to AI regulation" |
 
 **How BDI structures debate prompts:**
 
@@ -65,13 +65,13 @@ When a debate agent receives its taxonomy context, the nodes are organized into 
 
 ```
 === YOUR BELIEFS (what you take as empirically true) ===
-[Data/Facts nodes for this POV]
+[Beliefs nodes for this POV]
 
 === YOUR VALUES (what you prioritize and why) ===
-[Goals/Values nodes for this POV]
+[Desires nodes for this POV]
 
 === YOUR REASONING APPROACH (how you argue) ===
-[Methods/Arguments nodes for this POV]
+[Intentions nodes for this POV]
 ```
 
 This structure tells the agent: "Here is what you believe to be factually true, here is what you care about, and here is how you argue." The strongest arguments connect beliefs to values through reasoning — agents are instructed to reference nodes from all three BDI sections.
@@ -143,8 +143,8 @@ Taxonomy nodes can be classified by their AIF role:
 
 | Scope | Meaning | Typical Category |
 |---|---|---|
-| `claim` | A specific testable assertion | Usually `Data/Facts` |
-| `scheme` | An argumentative strategy or reasoning pattern | Usually `Methods/Arguments` |
+| `claim` | A specific testable assertion | Usually `Beliefs` |
+| `scheme` | An argumentative strategy or reasoning pattern | Usually `Intentions` |
 | `bridging` | Connects claims to schemes | Rare, intermediate nodes |
 
 This field is populated organically by the attribute extraction process, not batch-assigned.
@@ -180,7 +180,7 @@ interpretations   conceptual)           interact
 
 1. **DOLCE provides the world model.** Three POV files represent three Descriptions. Cross-cutting nodes represent Situations that all three classify differently.
 
-2. **BDI structures what agents know and want.** When a debate agent is prompted, its taxonomy context is organized into Beliefs (Data/Facts), Values (Goals/Values), and Reasoning Approach (Methods/Arguments). The agent knows what it believes, what it cares about, and how it argues.
+2. **BDI structures what agents know and want.** When a debate agent is prompted, its taxonomy context is organized into Beliefs (Beliefs), Values (Desires), and Reasoning Approach (Intentions). The agent knows what it believes, what it cares about, and how it argues.
 
 3. **AIF structures what agents produce.** As agents argue, their output is parsed into an argument network: claims (I-nodes), support relations (RA-nodes), attacks (CA-nodes) with typed attack relations, and warrants (S-nodes). After synthesis, preference applications (PA-nodes) determine which arguments prevail.
 
@@ -196,19 +196,19 @@ interpretations   conceptual)           interact
 
 - The node belongs to exactly one POV (accelerationist, safetyist, or skeptic) or to cross-cutting. This is the Description it lives in.
 - The description uses **genus-differentia format**:
-  - POV nodes: `"A [Category] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..."`
+  - POV nodes: `"A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..."`
   - Cross-cutting nodes: `"A cross-cutting concept that [differentia]. Encompasses: ... Excludes: ..."`
 - Parent-child relationships use DOLCE-aligned terms: `is_a`, `part_of`, or `specializes`.
 - If the node represents a concept that other POVs also address, consider whether it should be a cross-cutting Situation with per-POV interpretations instead of (or in addition to) a POV-specific node.
 
 **BDI compliance:**
 
-- The node has exactly one category: `Data/Facts`, `Goals/Values`, or `Methods/Arguments`.
+- The node has exactly one category: `Beliefs`, `Desires`, or `Intentions`.
 - The category must match the node's actual content:
-  - `Data/Facts` — empirical claims, observable phenomena, measurable trends. Ask: "Is this something that could be verified or falsified with evidence?"
-  - `Goals/Values` — normative commitments, priorities, principles. Ask: "Is this about what *should* happen or what *matters*?"
-  - `Methods/Arguments` — reasoning strategies, analytical frameworks, argumentative approaches. Ask: "Is this about *how* to think about something?"
-- If a node seems to span categories (e.g., "AI safety metrics" could be Data or Methods), choose based on how the POV *uses* it in arguments. If it's cited as evidence, it's Data/Facts. If it's cited as a way to evaluate claims, it's Methods/Arguments.
+  - `Beliefs` — empirical claims, observable phenomena, measurable trends. Ask: "Is this something that could be verified or falsified with evidence?"
+  - `Desires` — normative commitments, priorities, principles. Ask: "Is this about what *should* happen or what *matters*?"
+  - `Intentions` — reasoning strategies, analytical frameworks, argumentative approaches. Ask: "Is this about *how* to think about something?"
+- If a node seems to span categories (e.g., "AI safety metrics" could be Data or Methods), choose based on how the POV *uses* it in arguments. If it's cited as evidence, it's Beliefs. If it's cited as a way to evaluate claims, it's Intentions.
 
 **AIF compliance:**
 

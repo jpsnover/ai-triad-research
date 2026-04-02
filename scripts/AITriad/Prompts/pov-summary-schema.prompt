@@ -5,30 +5,30 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
-          "category": "Goals/Values",
+          "category": "Desires",
           "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "<e.g. Section 2, paragraph 3>"
         },
-        { "...": "repeat for EVERY relevant Goals/Values point" },
+        { "...": "repeat for EVERY relevant Desires point" },
         {
           "stance": "...",
           "taxonomy_node_id": "...",
-          "category": "Data/Facts",
+          "category": "Beliefs",
           "point": "...",
           "verbatim": "...",
           "excerpt_context": "..."
         },
-        { "...": "repeat for EVERY relevant Data/Facts point" },
+        { "...": "repeat for EVERY relevant Beliefs point" },
         {
           "stance": "...",
           "taxonomy_node_id": "...",
-          "category": "Methods/Arguments",
+          "category": "Intentions",
           "point": "...",
           "verbatim": "...",
           "excerpt_context": "..."
         },
-        { "...": "repeat for EVERY relevant Methods/Arguments point" }
+        { "...": "repeat for EVERY relevant Intentions point" }
       ]
     },
     "safetyist": {
@@ -36,7 +36,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
-          "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
+          "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
@@ -49,7 +49,7 @@
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
           "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
-          "category": "<Goals/Values | Data/Facts | Methods/Arguments>",
+          "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "..."
@@ -76,7 +76,7 @@
       "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
-      "suggested_category": "Goals/Values",
+      "suggested_category": "Desires",
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
@@ -84,12 +84,12 @@
       "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "safetyist",
-      "suggested_category": "Methods/Arguments",
+      "suggested_category": "Intentions",
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
       "suggested_pov": "cross-cutting",
-      "suggested_category": "Data/Facts",
+      "suggested_category": "Beliefs",
       "reason": "<why this concept deserves a new taxonomy node>",
       "Accelerationist Interpretation": "<2-5 sentences in plain language (grade-10 level): how accelerationists would interpret or use this concept>",
       "Safetyist Interpretation": "<2-5 sentences in plain language (grade-10 level): how safetyists would interpret or use this concept>",

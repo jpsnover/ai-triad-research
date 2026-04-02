@@ -12,6 +12,32 @@
     AMSI pattern-density threshold.
 #>
 
+<#
+.SYNOPSIS
+    Cleans raw pdftotext output by removing layout artifacts.
+.DESCRIPTION
+    Post-processes the raw text output from pdftotext to produce clean,
+    readable Markdown.  Performs five cleanup passes:
+
+    1. Strips artifact lines — lines containing only dots, dashes, underscores,
+       pipes, equals signs, or standalone page numbers.
+    2. De-indents — removes the minimum common leading whitespace from all
+       non-blank lines.
+    3. Rejoins hyphenated words — merges words split across line breaks by
+       hyphenation (e.g., "gover-\nnance" → "governance").
+    4. Collapses blank lines — reduces runs of 3+ blank lines to 2.
+    5. Trims leading/trailing whitespace.
+.PARAMETER RawText
+    The raw text output from pdftotext.
+.EXAMPLE
+    $Clean = Optimize-PdfText -RawText (Get-Content raw-output.txt -Raw)
+
+    Cleans pdftotext output for use as a document snapshot.
+.EXAMPLE
+    & pdftotext document.pdf output.txt
+    $Md = Optimize-PdfText -RawText (Get-Content output.txt -Raw)
+    $Md | Set-Content snapshot.md
+#>
 function Optimize-PdfText {
     param([Parameter(Mandatory)][string]$RawText)
 

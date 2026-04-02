@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
-export type Category = 'Goals/Values' | 'Data/Facts' | 'Methods/Arguments';
+
+export type Category = 'Desires' | 'Beliefs' | 'Intentions';
 
 export type FallacyTier = 'formal' | 'informal_structural' | 'informal_contextual' | 'cognitive_bias';
 

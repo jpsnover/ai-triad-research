@@ -29,7 +29,7 @@ Label Refinement (3-8 Words): Create a plain-language label that reads like a ne
   BAD:  "Preemptive Algorithmic Containment Strategies"
 
 Genus-Differentia Description: Write the description using this structure:
-  For POV nodes: "A [Goals/Values | Data/Facts | Methods/Arguments] within [POV] discourse that [differentia — what makes this node distinct]. Encompasses: [child themes or concrete examples]. Excludes: [what neighboring nodes cover instead]."
+  For POV nodes: "A Belief | A Desire | An Intention within [POV] discourse that [differentia — what makes this node distinct]. Encompasses: [child themes or concrete examples]. Excludes: [what neighboring nodes cover instead]."
   For cross-cutting nodes: "A cross-cutting concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
   Rules:
     - First sentence MUST follow the genus-differentia pattern above.
@@ -40,11 +40,11 @@ Genus-Differentia Description: Write the description using this structure:
 Structural Framework:
 Assign the node to one of three drivers. Use these disambiguation tests:
 
-Goals/Values: Desired end-states (The Why). Test: "Is this about what OUGHT to happen?"
+Desires: Desired end-states (The Why). Test: "Is this about what OUGHT to happen?"
 
-Data/Facts: Accepted empirical evidence (The What). Test: "Could this be proven true or false with evidence?"
+Beliefs: Accepted empirical evidence (The What). Test: "Could this be proven true or false with evidence?"
 
-Methods/Arguments (Cognitive Frameworks): What someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments. Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?"
+Intentions (Cognitive Frameworks): What someone is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments. Test: "Is this about HOW to achieve a goal or HOW to reason about the issue?"
 
 Constraint Checklist:
 

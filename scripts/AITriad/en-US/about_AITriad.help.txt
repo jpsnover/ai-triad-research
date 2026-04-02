@@ -1,0 +1,166 @@
+TOPIC
+    about_AITriad
+
+SHORT DESCRIPTION
+    Overview of the AI Triad Research platform — architecture, data flow, module
+    structure, and theory of operations.
+
+LONG DESCRIPTION
+    AI Triad Research is a multi-perspective research platform for AI policy and
+    safety literature.  It organizes sources through a four-POV taxonomy
+    (accelerationist, safetyist, skeptic, cross-cutting), ingests documents,
+    generates AI-powered summaries, and detects factual conflicts across
+    viewpoints.
+
+  WHY MULTIPLE PERSPECTIVES?
+    AI policy debates involve fundamentally different assumptions about risk,
+    benefit, and timeline.  Rather than forcing a single "correct" view, AI Triad
+    maps the same evidence through each perspective simultaneously, making
+    agreements and disagreements explicit.  This approach:
+
+    - Reveals where viewpoints share factual premises but differ on
+      interpretation.
+    - Identifies genuine factual conflicts (not just rhetorical differences).
+    - Surfaces cross-cutting themes that transcend any single camp.
+    - Enables structured multi-agent debates that test arguments rigorously.
+
+  ARCHITECTURE
+    The platform consists of a PowerShell 7 module (AITriad), three Electron
+    desktop applications, and a structured data repository.
+
+    Code Repository (ai-triad-research):
+      scripts/AITriad/         Main PowerShell module (60 public cmdlets)
+      scripts/AIEnrich.psm1    Multi-backend AI API abstraction
+      scripts/DocConverters.psm1  Document format conversion
+      scripts/PdfOptimizer.psm1   PDF text cleanup
+      taxonomy-editor/         Electron + React + Vite — main desktop app
+      poviewer/                POV analysis viewer (standalone)
+      summary-viewer/          Summary browser (standalone)
+      lib/                     Shared TypeScript libraries
+
+    Data Repository (ai-triad-data, separate repo):
+      taxonomy/Origin/         Authoritative POV JSON files + embeddings
+      taxonomy/schemas/        JSON schemas for validation
+      sources/<doc-id>/        Per-document directories (metadata + snapshot)
+      summaries/<doc-id>.json  AI-generated POV summaries
+      conflicts/*.json         Auto-detected factual conflicts
+      debates/*.json           Multi-agent debate sessions
+      harvests/*.json          Debate harvest manifests
+
+    The two repos are linked via .aitriad.json in the code repo root, which
+    points to the data repo via a relative data_root path.
+
+  MODULE STRUCTURE
+    The AITriad PowerShell module uses a Public/Private split:
+
+    Public/    Exported functions (60 cmdlets) — the user-facing API.
+    Private/   Internal helpers — not exported, used by public functions.
+    Prompts/   AI prompt templates loaded via Get-Prompt.
+    Formats/   PowerShell formatting definitions (Taxonomy.Format.ps1xml).
+    en-US/     About topics (this file and others).
+
+    At import time, AITriad.psm1:
+    1. Defines the TaxonomyNode class.
+    2. Loads ai-models.json (model registry).
+    3. Dot-sources all Private/*.ps1, then all Public/*.ps1.
+    4. Imports companion modules (DocConverters, AIEnrich).
+    5. Loads taxonomy JSON files into $script:TaxonomyData.
+    6. Loads the policy registry from policy_actions.json.
+
+  COMPANION MODULES
+    AIEnrich.psm1 — Wraps Gemini (Google), Claude (Anthropic), and Groq APIs
+    behind the unified Invoke-AIApi dispatcher.  Handles API key resolution,
+    backend-specific request formatting, retry logic, and response envelope
+    parsing.  Separated from the main module to avoid AMSI false-positive
+    detections.
+
+    DocConverters.psm1 — Converts PDF, DOCX, HTML, PPTX, and other formats to
+    Markdown using a tool priority chain: markitdown > pandoc > pdftotext >
+    built-in converters.
+
+    PdfOptimizer.psm1 — Post-processes pdftotext output to strip layout
+    artifacts, de-indent, rejoin hyphenated words, and normalize whitespace.
+
+  DATA FLOW
+    The platform processes documents through four stages:
+
+    1. INGEST (Import-AITriadDocument)
+       - Accepts a URL or local file path.
+       - Converts the source to Markdown (snapshot.md) via DocConverters.
+       - Extracts metadata via AI (Get-AIMetadata) or heuristics.
+       - Creates sources/<doc-id>/ with metadata.json, snapshot.md, and raw/.
+       - Optionally submits the URL to the Wayback Machine for archival.
+       - Enqueues the document for summarization.
+
+    2. SUMMARIZE (Invoke-POVSummary / Invoke-BatchSummary)
+       - Reads the snapshot and current taxonomy.
+       - Builds a density-scaled prompt with per-POV node references.
+       - Calls the AI API to generate structured JSON with key_points per POV,
+         factual_claims, and unmapped_concepts.
+       - Large documents (>20K tokens) are chunked and merged.
+       - Writes summaries/<doc-id>.json.
+
+    3. CONFLICT DETECTION (Find-Conflict)
+       - Reads factual_claims from summaries.
+       - Compares claims across documents for contradictions.
+       - Creates/updates conflicts/*.json with conflict details.
+
+    4. HEALTH & ANALYSIS
+       - Get-TaxonomyHealth analyzes coverage gaps.
+       - Measure-TaxonomyBaseline captures quality metrics over time.
+       - Get-TopicFrequency identifies thematic clusters via embeddings.
+       - Test-TaxonomyIntegrity validates data consistency.
+
+  AI BACKENDS
+    The module supports three AI backends, configured via ai-models.json:
+
+    Backend   Default Model                  Env Variable
+    -------   -------------------------      ----------------
+    Gemini    gemini-3.1-flash-lite-preview  GEMINI_API_KEY
+    Claude    claude-sonnet-4-5              ANTHROPIC_API_KEY
+    Groq      groq-llama-3.3-70b             GROQ_API_KEY
+
+    The default model is set via $env:AI_MODEL or defaults to
+    gemini-3.1-flash-lite-preview.  All AI-calling cmdlets accept a -Model
+    parameter to override per-call.
+
+  DATA PATH RESOLUTION
+    Because code and data live in separate repositories, path resolution uses:
+
+    PowerShell: Get-TaxonomyDir, Get-SourcesDir, Get-SummariesDir, etc.
+    TypeScript: resolveDataPath() from lib/resolveDataPath.ts
+
+    Resolution priority:
+    1. $env:AI_TRIAD_DATA_ROOT (explicit override)
+    2. .aitriad.json data_root (relative path from code repo)
+    3. Monorepo fallback (taxonomy/, sources/, etc. in repo root)
+
+  GETTING STARTED
+    # Install the module
+    Import-Module ./scripts/AITriad/AITriad.psd1
+
+    # Check dependencies
+    Test-Dependencies
+
+    # Ingest a document
+    Import-AITriadDocument -Url 'https://example.com/paper.pdf'
+
+    # Generate summaries
+    Invoke-BatchSummary
+
+    # Detect conflicts
+    Find-Conflict
+
+    # Launch the desktop editor
+    Show-TaxonomyEditor
+
+SEE ALSO
+    about_AITriadTaxonomy
+    about_AITriadDebate
+    about_AITriadIngestion
+    Get-Tax
+    Show-AITriadHelp
+    Import-AITriadDocument
+    Invoke-POVSummary
+    Find-Conflict
+    Get-TaxonomyHealth

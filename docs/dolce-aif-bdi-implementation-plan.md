@@ -430,7 +430,7 @@ V2.6 — Embedding Space Stability (NEW — must build)
   (e.g., encode description + label, not description alone).
 ```
 
-**If verification fails at scale (>15% of nodes):** STOP migration. Do not proceed to remaining batches. Investigate whether the prompt is causing systematic issues (e.g., all Data/Facts nodes lose specificity, all Methods/Arguments nodes become too abstract). Fix prompt, re-run a 10-node test batch, verify, then resume.
+**If verification fails at scale (>15% of nodes):** STOP migration. Do not proceed to remaining batches. Investigate whether the prompt is causing systematic issues (e.g., all Beliefs nodes lose specificity, all Intentions nodes become too abstract). Fix prompt, re-run a 10-node test batch, verify, then resume.
 
 #### Phase 3 — AIF Synthesis and Conflict Fields
 
@@ -504,7 +504,7 @@ V5.2 — Node Scope Requirement Enforcement
 
 V5.3 — Domain/Range Validation (Script — not AI)
   After all edge type changes:
-    For each SUPPORTS edge: source must be Data/Facts or Methods/Arguments
+    For each SUPPORTS edge: source must be Beliefs or Intentions
     For each CONTRADICTS edge: source and target must have same node_scope
     For each INTERPRETS edge: target must start with "cc-"
   Script-based, no AI involved. Run as post-migration validation.
@@ -679,7 +679,7 @@ Add `bdi_layer`, `resolvability` to `areas_of_disagreement`. Add `argument_map` 
 Create snapshot tests for `formatTaxonomyContext`:
 1. Feed 3 known POV nodes (one per category) + 1 CC node to `formatTaxonomyContext`
 2. Assert output contains `=== YOUR BELIEFS ===`, `=== YOUR VALUES ===`, `=== YOUR REASONING APPROACH ===`, `=== YOUR KNOWN VULNERABILITIES ===` sections
-3. Assert Data/Facts nodes appear under BELIEFS, Goals/Values under VALUES, Methods/Arguments under REASONING APPROACH
+3. Assert Beliefs nodes appear under BELIEFS, Desires under VALUES, Intentions under REASONING APPROACH
 4. Save as Pester/Jest test file for regression
 
 ### Affected Files (Complete)

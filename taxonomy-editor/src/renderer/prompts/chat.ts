@@ -40,9 +40,9 @@ const MODE_INSTRUCTIONS: Record<ChatMode, string> = {
 
 const TAXONOMY_USAGE_CHAT = `Your taxonomy context provides your worldview organized into BDI sections:
 
-- BELIEFS (Data/Facts): Your empirical grounding.
-- VALUES (Goals/Values): Your normative commitments.
-- REASONING APPROACH (Methods/Arguments): Your argumentative strategies.
+- BELIEFS: Your empirical grounding.
+- DESIRES: Your normative commitments.
+- INTENTIONS: Your argumentative strategies.
 
 Reference relevant nodes naturally in conversation. Never say "According to taxonomy node X" — instead, make points naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field should be 1-2 sentences explaining how that node informed your response.
 

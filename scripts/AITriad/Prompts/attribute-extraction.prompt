@@ -37,12 +37,12 @@ ATTRIBUTE VOCABULARY:
   falsifiability (required, string — pick ONE):
     Use the node's genus-differentia description to guide your assessment. The genus
     (category) tells you the DISCOURSE TYPE, which constrains falsifiability:
-    - Data/Facts nodes make empirical claims → more likely "high" or "medium"
-    - Goals/Values nodes express normative commitments → more likely "low"
-    - Methods/Arguments nodes propose strategies → "medium" (testable in principle
+    - Beliefs nodes make empirical claims → more likely "high" or "medium"
+    - Desires nodes express normative commitments → more likely "low"
+    - Intentions nodes propose strategies → "medium" (testable in principle
       but depends on context and implementation)
-    This is guidance, not a rule — a Data/Facts node CAN be "low" if it makes an
-    unfalsifiable claim, and a Goals/Values node CAN be "medium" if it rests on
+    This is guidance, not a rule — a Beliefs node CAN be "low" if it makes an
+    unfalsifiable claim, and a Desires node CAN be "medium" if it rests on
     an empirical assumption.
 
     "high" — could be clearly disproven by specific evidence or events.
@@ -127,12 +127,12 @@ ATTRIBUTE VOCABULARY:
 
   node_scope (required, string — pick ONE):
     Classifies what role this node plays in the argumentation structure:
-    "claim" — a specific, testable assertion about the world. Most Data/Facts nodes
+    "claim" — a specific, testable assertion about the world. Most Beliefs nodes
       are claims. A claim can be supported or attacked by other nodes.
       Test: "Does this node assert something that could be true or false?"
       Example: "AGI will arrive by 2030" — a specific prediction.
     "scheme" — an argumentative strategy, framework, or reasoning pattern. Most
-      Methods/Arguments nodes are schemes. A scheme connects evidence to conclusions.
+      Intentions nodes are schemes. A scheme connects evidence to conclusions.
       Test: "Does this node describe HOW to reason about something?"
       Example: "Cost-benefit analysis of AI regulation" — a reasoning approach.
     "bridging" — a node that connects claims to schemes or values, serving as an
@@ -141,9 +141,9 @@ ATTRIBUTE VOCABULARY:
       Example: "AI safety research as a prerequisite for deployment" — links the
       safety claim to the deployment scheme.
     Category guidance (not a rule — override when the content doesn't match):
-      Data/Facts → usually "claim"
-      Methods/Arguments → usually "scheme"
-      Goals/Values → could be any; use the tests above
+      Beliefs → usually "claim"
+      Intentions → usually "scheme"
+      Desires → could be any; use the tests above
 
 CROSS-CUTTING NODES:
 For cross-cutting nodes (id starts with "cc-"), also consider the three POV

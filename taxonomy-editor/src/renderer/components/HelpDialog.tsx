@@ -41,7 +41,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <h4>Tabs</h4>
           <p>
             <strong>Accelerationist / Safetyist / Skeptic</strong> - Each perspective
-            has nodes organized into three categories: Goals/Values, Methods/Arguments, and Data/Facts.
+            has nodes organized into three BDI categories: Desires, Intentions, and Beliefs.
           </p>
           <p>
             <strong>Cross-Cutting</strong> - Concepts that span all three perspectives.

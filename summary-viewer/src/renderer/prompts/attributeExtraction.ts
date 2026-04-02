@@ -38,8 +38,8 @@ ATTRIBUTE VOCABULARY:
     "high" -- could be clearly disproven by specific evidence or events.
     "medium" -- partially testable but involves value judgments or long time horizons.
     "low" -- primarily a value claim, definitional, or unfalsifiable by nature.
-    Category guidance: Data/Facts -> usually "high"/"medium", Goals/Values -> usually "low",
-    Methods/Arguments -> usually "medium". Override when content doesn't match.
+    Category guidance: Beliefs -> usually "high"/"medium", Desires -> usually "low",
+    Intentions -> usually "medium". Override when content doesn't match.
 
   audience (required, string -- pick ONE or TWO, comma-separated):
     "policymakers", "technical_researchers", "industry_leaders",
@@ -65,8 +65,8 @@ ATTRIBUTE VOCABULARY:
     Empty array is acceptable for well-reasoned nodes. Do not force findings.
 
   node_scope (required, string -- pick ONE):
-    "claim" -- a specific, testable assertion. Most Data/Facts nodes.
-    "scheme" -- an argumentative strategy or reasoning pattern. Most Methods/Arguments nodes.
+    "claim" -- a specific, testable assertion. Most Beliefs nodes.
+    "scheme" -- an argumentative strategy or reasoning pattern. Most Intentions nodes.
     "bridging" -- connects claims to schemes or values. Use sparingly.
 
 CROSS-CUTTING NODES:

@@ -1,0 +1,205 @@
+TOPIC
+    about_AITriadTaxonomy
+
+SHORT DESCRIPTION
+    The four-POV taxonomy system — node types, ontology frameworks (DOLCE, BDI,
+    AIF), genus-differentia descriptions, and graph structure.
+
+LONG DESCRIPTION
+    The AI Triad taxonomy is a structured knowledge graph that classifies AI
+    policy positions into four points of view (POVs).  Each POV file contains
+    nodes organized into categories, with cross-cutting nodes capturing themes
+    that span multiple perspectives.
+
+  THE FOUR POINTS OF VIEW
+    Accelerationist (prefix: acc-)
+      Believes AI development should proceed rapidly with minimal restriction.
+      Emphasizes economic benefits, technological progress, competitive
+      advantage, and the risks of falling behind.  Nodes cover arguments like
+      "innovation requires freedom" and "regulation stifles progress."
+
+    Safetyist (prefix: saf-)
+      Prioritizes risk mitigation and alignment research.  Emphasizes
+      existential risk, value alignment, controllability, and precautionary
+      principles.  Nodes cover arguments like "unsafe AI poses civilizational
+      risk" and "we need interpretability before deployment."
+
+    Skeptic (prefix: skp-)
+      Questions both accelerationist and safetyist framings.  Emphasizes
+      uncertainty about AI capabilities, institutional capture, narrative
+      analysis, and the gap between AI hype and reality.  Nodes cover arguments
+      like "current AI is not as capable as claimed" and "safety concerns may
+      be overstated."
+
+    Cross-cutting (prefix: cc-)
+      Themes that appear across multiple POVs with different interpretations.
+      Examples: "dual-use technology," "regulatory capture," "public trust."
+      These nodes have an interpretations field showing how each POV views the
+      concept, plus linked_nodes pointing to relevant POV nodes.
+
+  TAXONOMY FILES
+    Each POV has an authoritative JSON file in taxonomy/Origin/:
+
+    File                        Contents
+    --------------------------  ----------------------------------------
+    accelerationist.json        POV metadata + nodes array
+    safetyist.json              POV metadata + nodes array
+    skeptic.json                POV metadata + nodes array
+    cross-cutting.json          CC metadata + nodes array
+    embeddings.json             Vector embeddings for all nodes
+    edges.json                  Inter-node relationships
+    policy_actions.json         Policy action registry
+    _archived_edges.json        Legacy edges from pre-AIF migration
+
+  NODE STRUCTURE (POV NODES)
+    Each POV node has these fields:
+
+    Field               Type        Description
+    ------------------  ----------  ------------------------------------------
+    id                  string      Unique identifier (e.g., 'acc-tech-progress')
+    label               string      Human-readable name
+    description         string      Genus-differentia definition (see below)
+    category            string      Grouping within the POV
+    parent_id           string|null Parent node for hierarchy
+    parent_relationship string      Relationship type to parent
+    parent_rationale    string      Why this parent was chosen
+    children            string[]    Child node IDs
+    cross_cutting_refs  string[]    References to CC node IDs
+    graph_attributes    object      AIF-aligned attributes (see below)
+    steelman_vulnerability  object  Per-POV vulnerability assessments
+    debate_refs         string[]    Debate session IDs that referenced this node
+
+  NODE STRUCTURE (CROSS-CUTTING NODES)
+    Field               Type        Description
+    ------------------  ----------  ------------------------------------------
+    id                  string      Unique identifier (e.g., 'cc-dual-use')
+    label               string      Human-readable name
+    description         string      Genus-differentia definition
+    interpretations     object      Per-POV interpretation text
+    linked_nodes        string[]    Related POV node IDs
+    disagreement_type   string      'definitional'|'interpretive'|'structural'
+    graph_attributes    object      AIF-aligned attributes
+    debate_refs         string[]    Debate session IDs
+
+  GENUS-DIFFERENTIA DESCRIPTIONS
+    All node descriptions follow the genus-differentia pattern from classical
+    logic.  This ensures descriptions are precise, consistent, and machine-
+    parseable.
+
+    POV nodes:
+      "A [Category] within [POV] discourse that [differentia].
+       Encompasses: [what it includes]. Excludes: [what it does not]."
+
+    Cross-cutting nodes:
+      "A cross-cutting concept that [differentia].
+       Encompasses: [what it includes]. Excludes: [what it does not]."
+
+    Example:
+      "A Methods & Arguments node within safetyist discourse that advocates
+       for interpretability requirements before deploying high-capability
+       systems. Encompasses: mechanistic interpretability, feature
+       visualization, circuit analysis. Excludes: post-hoc explanation
+       tools that do not reveal internal reasoning."
+
+  ONTOLOGY FRAMEWORKS
+    The taxonomy integrates three ontology frameworks:
+
+    DOLCE (Descriptive Ontology for Linguistic and Cognitive Engineering)
+      Provides the upper-level ontological categories.  Nodes are classified
+      as endurants (persistent entities like institutions), perdurants
+      (processes like regulation), or qualities (properties like risk level).
+
+    BDI (Beliefs, Desires, Intentions)
+      Structures POV arguments into cognitive categories:
+      - Beliefs: factual claims and evidence (Data/Facts nodes)
+      - Desires: goals, values, and preferences (Goals/Values nodes)
+      - Intentions: proposed methods and strategies (Methods/Arguments nodes)
+      This mapping is used by debate agents to ground their arguments in the
+      appropriate epistemic category.
+
+    AIF (Argument Interchange Format)
+      Provides the argument structure:
+      - node_scope: 'claim' | 'scheme' | 'bridging'
+      - Edge types: SUPPORTS, CONTRADICTS, ASSUMES, WEAKENS, RESPONDS_TO,
+        TENSION_WITH, INTERPRETS (7 canonical types)
+      - Debate synthesis includes argument_map with attack_type
+        (rebut/undercut/undermine) and scheme (COUNTEREXAMPLE/DISTINGUISH/etc.)
+
+  GRAPH ATTRIBUTES
+    Nodes may have a graph_attributes field populated by
+    Invoke-AttributeExtraction.  Key attributes:
+
+    node_scope       'claim' | 'scheme' | 'bridging' — AIF role classification
+    evidence_type    Type of supporting evidence
+    confidence       Estimated confidence level
+    temporal_scope   When the claim applies
+
+  EDGES
+    Edges in edges.json represent relationships between nodes.  The 7 canonical
+    AIF-aligned edge types are:
+
+    SUPPORTS       Node A provides evidence or reasoning for Node B
+    CONTRADICTS    Node A directly conflicts with Node B
+    ASSUMES        Node A depends on Node B being true
+    WEAKENS        Node A reduces confidence in Node B
+    RESPONDS_TO    Node A is a reply to the argument in Node B
+    TENSION_WITH   Node A and B are in tension but not direct contradiction
+    INTERPRETS     Node A offers an interpretation of Node B
+
+    Edge management cmdlets: Get-Edge, Set-Edge, Approve-Edge,
+    Invoke-EdgeDiscovery.
+
+  EMBEDDINGS
+    Each node has a vector embedding stored in embeddings.json, generated by
+    Update-TaxEmbeddings.  Embeddings enable:
+
+    - Semantic search (Find-AITSource with embedding similarity)
+    - Topic clustering (Get-TopicFrequency via Get-EmbeddingClusters)
+    - Cross-cutting candidate discovery (Find-CrossCuttingCandidates)
+    - Unmapped concept resolution during summarization
+
+  THE TAXONOMYNODE CLASS
+    In PowerShell, taxonomy nodes are represented by the [TaxonomyNode] class
+    (defined in AITriad.psm1).  Properties:
+
+    POV, Id, Label, Description, Category, ParentId, ParentRelationship,
+    ParentRationale, Children, CrossCuttingRefs, Interpretations,
+    LinkedNodes, Score, GraphAttributes
+
+    Get-Tax returns [TaxonomyNode] objects with custom formatting via
+    Taxonomy.Format.ps1xml.
+
+  COMMON OPERATIONS
+    # List all nodes in a POV
+    Get-Tax -POV accelerationist
+
+    # Search nodes by label or description
+    Get-Tax -Filter 'alignment'
+
+    # Get a specific node
+    Get-GraphNode -Id 'saf-interpretability'
+
+    # Find edges for a node
+    Get-Edge -NodeId 'acc-tech-progress'
+
+    # Check taxonomy health
+    Get-TaxonomyHealth
+
+    # Run integrity checks
+    Test-TaxonomyIntegrity
+
+    # Update embeddings after taxonomy changes
+    Update-TaxEmbeddings
+
+SEE ALSO
+    about_AITriad
+    about_AITriadDebate
+    Get-Tax
+    Get-GraphNode
+    Get-Edge
+    Set-Edge
+    Invoke-AttributeExtraction
+    Find-CrossCuttingCandidates
+    Get-TaxonomyHealth
+    Test-TaxonomyIntegrity
+    Update-TaxEmbeddings

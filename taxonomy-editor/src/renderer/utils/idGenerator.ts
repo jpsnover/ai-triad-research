@@ -10,9 +10,9 @@ const POV_PREFIX: Record<Pov, string> = {
 };
 
 const CATEGORY_SLUG: Record<Category, string> = {
-  'Goals/Values': 'goals',
-  'Data/Facts': 'data',
-  'Methods/Arguments': 'methods',
+  'Desires': 'goals',
+  'Beliefs': 'data',
+  'Intentions': 'methods',
 };
 
 function zeroPad(n: number, width: number = 3): string {

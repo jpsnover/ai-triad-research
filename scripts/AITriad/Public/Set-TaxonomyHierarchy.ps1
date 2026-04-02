@@ -106,10 +106,10 @@ function Set-TaxonomyHierarchy {
 
         # For new parent IDs, find the max existing sequence number in this category
         $CatPrefix = switch ($Bucket.category) {
-            'Goals/Values'       { 'goals' }
-            'Data/Facts'         { 'data' }
-            'Methods/Arguments'  { 'methods' }
-            default              { '' }
+            'Beliefs'    { 'data' }
+            'Desires'    { 'goals' }
+            'Intentions' { 'methods' }
+            default      { '' }
         }
 
         $MaxSeq = 0

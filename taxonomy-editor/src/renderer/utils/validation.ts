@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 
-const categoryEnum = z.enum(['Goals/Values', 'Data/Facts', 'Methods/Arguments']);
+const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
 const povNodeSchema = z.object({
   id: z.string().min(1, 'ID is required'),

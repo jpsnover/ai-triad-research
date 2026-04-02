@@ -99,9 +99,9 @@ const POV_SCOPES: { id: TabId; label: string }[] = [
 ];
 
 const ASPECT_SCOPES: { id: Category; label: string }[] = [
-  { id: 'Goals/Values', label: 'Goals' },
-  { id: 'Data/Facts', label: 'Data' },
-  { id: 'Methods/Arguments', label: 'Methods/Args' },
+  { id: 'Desires', label: 'Desires' },
+  { id: 'Beliefs', label: 'Beliefs' },
+  { id: 'Intentions', label: 'Intentions' },
 ];
 
 export function SearchBar() {

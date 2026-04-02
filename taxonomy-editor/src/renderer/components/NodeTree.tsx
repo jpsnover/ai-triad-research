@@ -22,7 +22,7 @@ interface NodeTreeProps {
   misfits?: Set<string> | null;
 }
 
-const CATEGORY_ORDER: Category[] = ['Goals/Values', 'Methods/Arguments', 'Data/Facts'];
+const CATEGORY_ORDER: Category[] = ['Desires', 'Intentions', 'Beliefs'];
 
 function sortNodes(nodes: PovNode[], mode: SortMode, scores: Map<string, number> | null): PovNode[] {
   if (mode === 'id') {

@@ -10,25 +10,25 @@ Map the content to three Points of View (POV camps):
   - Skeptic: AI causes immediate, measurable harms (bias, labor displacement, privacy)
 
 For EACH POV camp you must identify:
-  1. Goals/Values       — desired end-states the document supports or opposes
-  2. Data/Facts         — empirical claims the document asserts or disputes
-  3. Methods/Arguments  — what someone is arguing for or against, and the methods,
+  1. Desires       — desired end-states the document supports or opposes
+  2. Beliefs         — empirical claims the document asserts or disputes
+  3. Intentions  — what someone is arguing for or against, and the methods,
      logic models, interpretive lenses, or policy approaches they use to make those arguments
 
 CATEGORY DISAMBIGUATION — use these sub-type tests when a point could fit multiple categories:
-  Goals/Values (BDI: Values/Desires):
+  Desires:
     - "Should" statements, desired end-states, normative commitments
-    - Test: "Is this about what OUGHT to happen?" → Goals/Values
-  Data/Facts (BDI: Beliefs):
+    - Test: "Is this about what OUGHT to happen?" → Desires
+  Beliefs:
     - Empirical claims, observations, measurements, predictions about the world
-    - Test: "Could this be proven true or false with evidence?" → Data/Facts
-  Methods/Arguments (BDI: Intentions/Reasoning):
+    - Test: "Could this be proven true or false with evidence?" → Beliefs
+  Intentions:
     - Strategies, frameworks, policy approaches, argumentative moves
-    - Test: "Is this about HOW to achieve a goal or HOW to reason?" → Methods/Arguments
+    - Test: "Is this about HOW to achieve a goal or HOW to reason?" → Intentions
   Edge cases:
-    - "AI will cause mass unemployment" → Data/Facts (empirical prediction)
-    - "We must prevent AI-caused unemployment" → Goals/Values (normative)
-    - "Universal basic income can mitigate AI displacement" → Methods/Arguments (policy)
+    - "AI will cause mass unemployment" → Beliefs (empirical prediction)
+    - "We must prevent AI-caused unemployment" → Desires (normative)
+    - "Universal basic income can mitigate AI displacement" → Intentions (policy)
 
 QUANTITY GUIDANCE FOR THIS SECTION:
   - Extract EVERY distinct point in this section. Do not cap or limit your output.
@@ -45,7 +45,7 @@ QUANTITY GUIDANCE FOR THIS SECTION:
     the description defines the concept's boundaries.
 
     DESCRIPTION FORMAT — all descriptions must use genus-differentia structure:
-      For POV concepts: "A [Goals/Values | Data/Facts | Methods/Arguments] within
+      For POV concepts: "A [Desire | Belief | Intention] within
         [accelerationist | safetyist | skeptic] discourse that [what makes this concept
         distinct]. Encompasses: [concrete examples or sub-themes]. Excludes: [what
         neighboring concepts cover instead]."

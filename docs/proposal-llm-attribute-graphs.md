@@ -34,7 +34,7 @@ An LLM Attribute Graph is a property graph where:
   "id": "saf-goals-001",
   "label": "Prevent Catastrophic Outcomes",
   "description": "The primary goal is ensuring AI systems...",
-  "category": "Goals/Values",
+  "category": "Desires",
   "cross_cutting_refs": ["cc-001"]
 }
 ```
@@ -46,7 +46,7 @@ An LLM Attribute Graph is a property graph where:
   "type": "taxonomy_claim",
   "label": "Prevent Catastrophic Outcomes",
   "description": "The primary goal is ensuring AI systems...",
-  "category": "Goals/Values",
+  "category": "Desires",
   "attributes": {
     "epistemic_type": "normative_prescription",
     "rhetorical_strategy": "precautionary_framing",

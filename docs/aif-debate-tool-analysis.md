@@ -1020,7 +1020,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 ```
 ☐ "Architectural ceiling hypothesis"
     Suggested POV: cross-cutting
-    Suggested category: Data/Facts
+    Suggested category: Beliefs
     Evidence: Sentinel and Cassandra both referenced this concept
     → Queues for Invoke-TaxonomyProposal
     [Edit label] [Edit description]
@@ -1409,7 +1409,7 @@ For new edges: append to the edges array with `status: "proposed"`, `discovered_
       "label": "Architectural Ceiling Hypothesis",
       "description": "A cross-cutting concept that...",
       "suggested_pov": "cross-cutting",
-      "suggested_category": "Data/Facts",
+      "suggested_category": "Beliefs",
       "source_debate_id": "debate-uuid",
       "evidence": "Sentinel and Cassandra both referenced this concept across rounds 1-3",
       "status": "queued"
@@ -1422,7 +1422,7 @@ For new edges: append to the edges array with `status: "proposed"`, `discovered_
 
 When the user checks a new concept item, the AI generates a genus-differentia description following the project's conventions.
 
-**Prompt:** "Propose a taxonomy node for this concept observed in a debate. Follow genus-differentia format: 'A [Category] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' Use plain language, grade-10 reading level."
+**Prompt:** "Propose a taxonomy node for this concept observed in a debate. Follow genus-differentia format: 'A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' Use plain language, grade-10 reading level."
 
 **Verification — V-H4.2: Validate proposed concept**
 
@@ -1456,7 +1456,7 @@ function verifyProposedConcept(
   }
 
   // V5: Valid category (unless cross-cutting)
-  if (!isCC && !['Goals/Values', 'Data/Facts', 'Methods/Arguments'].includes(concept.suggested_category)) {
+  if (!isCC && !['Desires', 'Beliefs', 'Intentions'].includes(concept.suggested_category)) {
     warnings.push(`Invalid category: ${concept.suggested_category}`);
   }
 

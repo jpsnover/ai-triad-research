@@ -14,6 +14,21 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Utility: check for an external tool
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Tests whether an external CLI tool is available on the system PATH.
+.DESCRIPTION
+    Checks if the named executable can be found via Get-Command.  Used by the
+    document conversion functions to determine which conversion tool chain is
+    available (pandoc, pdftotext, mutool, markitdown).
+.PARAMETER Name
+    The executable name to check (e.g., 'pandoc', 'pdftotext', 'markitdown').
+.EXAMPLE
+    if (Test-ExternalTool 'pandoc') { Write-Host 'pandoc is available' }
+
+.EXAMPLE
+    Test-ExternalTool 'markitdown'  # Returns $true or $false
+#>
 function Test-ExternalTool {
     param([string]$Name)
     return ($null -ne (Get-Command $Name -ErrorAction SilentlyContinue))
@@ -24,6 +39,36 @@ function Test-ExternalTool {
 # Covers the common structural elements found in policy/academic articles.
 # If pandoc is available it is used instead for higher fidelity.
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Converts HTML content to Markdown.
+.DESCRIPTION
+    Transforms raw HTML into clean Markdown suitable for AI summarization.  If
+    pandoc is installed, delegates to it for high-fidelity conversion.  Otherwise,
+    uses a built-in pure-PowerShell converter that handles:
+
+    - Block elements: headings (h1-h6), paragraphs, blockquotes, ordered/unordered
+      lists, tables, horizontal rules, line breaks.
+    - Inline elements: bold, italic, inline code, hyperlinks.
+    - Stripping: script, style, nav, footer, header, aside, and other non-content
+      elements.
+    - Entity decoding: named entities (&amp;, &mdash;, etc.) and numeric entities.
+    - Whitespace normalization: tab expansion, blank-line collapsing.
+.PARAMETER Html
+    The raw HTML string to convert.
+.PARAMETER SourceUrl
+    Optional source URL, passed through for provenance (not currently used in
+    conversion but available for future link resolution).
+.EXAMPLE
+    $Md = ConvertFrom-Html -Html (Invoke-WebRequest 'https://example.com/article').Content
+    $Md | Set-Content snapshot.md
+
+    Converts a fetched web page to Markdown.
+.EXAMPLE
+    $Md = ConvertFrom-Html -Html (Get-Content page.html -Raw)
+
+    Converts a local HTML file to Markdown.
+#>
 function ConvertFrom-Html {
     param(
         [Parameter(Mandatory)][string]$Html,
@@ -155,6 +200,27 @@ function ConvertFrom-Html {
 # ─────────────────────────────────────────────────────────────────────────────
 # Extract the <title> and a best-effort author from raw HTML
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Extracts title and author metadata from raw HTML.
+.DESCRIPTION
+    Parses HTML for metadata using a priority chain:
+    - Title: og:title meta tag → <title> element.
+    - Author: name="author" meta tag → property="article:author" meta tag.
+
+    Returns a hashtable with Title (string) and Author (string array).  Both
+    default to empty if no metadata is found.  Used during document ingestion
+    as a fast heuristic before AI metadata extraction.
+.PARAMETER Html
+    The raw HTML string to parse for metadata.
+.EXAMPLE
+    $Meta = Get-HtmlMeta -Html $RawHtml
+    Write-Host "Title: $($Meta.Title), Authors: $($Meta.Author -join ', ')"
+
+.EXAMPLE
+    $Meta = Get-HtmlMeta -Html (Get-Content page.html -Raw)
+    if ($Meta.Title) { $FallbackTitle = $Meta.Title }
+#>
 function Get-HtmlMeta {
     param([string]$Html)
 
@@ -229,6 +295,30 @@ function ConvertFrom-MarkItDown {
 # PDF → Markdown
 # Priority: markitdown → pdftotext → mutool → placeholder
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Converts a PDF file to Markdown text.
+.DESCRIPTION
+    Extracts text from a PDF using the best available tool, in priority order:
+
+    1. markitdown (Microsoft's universal converter) — best quality, handles
+       complex layouts.  Install: pip install 'markitdown[all]'
+    2. pdftotext (from poppler-utils) — good for text-heavy PDFs.  Output is
+       post-processed by Optimize-PdfText to strip layout artifacts.
+    3. mutool (from MuPDF) — fallback text extractor.
+    4. Placeholder — if no tool is found, returns instructions for installing one.
+
+    The output Markdown is ready for Add-SnapshotHeader and AI summarization.
+.PARAMETER PdfPath
+    Absolute path to the PDF file to convert.
+.EXAMPLE
+    $Md = ConvertFrom-Pdf -PdfPath '/path/to/document.pdf'
+    $Md | Set-Content snapshot.md
+
+.EXAMPLE
+    $Md = ConvertFrom-Pdf -PdfPath $RawFile
+    if ($Md -match 'PDF EXTRACTION FAILED') { Write-Warning 'Install a PDF tool' }
+#>
 function ConvertFrom-Pdf {
     param(
         [Parameter(Mandatory)][string]$PdfPath
@@ -266,6 +356,27 @@ function ConvertFrom-Pdf {
 # DOCX → Markdown
 # Priority: markitdown → pandoc → ZIP/XML fallback
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Converts a DOCX file to Markdown text.
+.DESCRIPTION
+    Extracts text from a Word document using the best available tool:
+
+    1. markitdown — best quality, preserves formatting.
+    2. pandoc — high-fidelity DOCX-to-Markdown conversion.
+    3. ZIP/XML fallback — extracts document.xml from the DOCX archive (which is
+       a ZIP file) and strips XML tags to produce plain-text paragraphs.
+
+    Returns a placeholder message if no tool succeeds.
+.PARAMETER DocxPath
+    Absolute path to the DOCX file to convert.
+.EXAMPLE
+    $Md = ConvertFrom-Docx -DocxPath '/path/to/report.docx'
+
+.EXAMPLE
+    $Md = ConvertFrom-Docx -DocxPath $File.FullName
+    if ($Md -notmatch 'EXTRACTION FAILED') { Set-Content snapshot.md $Md }
+#>
 function ConvertFrom-Docx {
     param(
         [Parameter(Mandatory)][string]$DocxPath

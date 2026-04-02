@@ -66,6 +66,34 @@ if ($script:ModelRegistry.Count -eq 0) {
 # Resolves the API key for a given backend using the priority:
 #   explicit -ApiKey > backend-specific env var > AI_API_KEY fallback
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Resolves the API key for a given AI backend.
+.DESCRIPTION
+    Determines the API key to use for an AI backend call using the following
+    priority chain:
+
+    1. Explicit key passed via -ExplicitKey parameter.
+    2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY,
+       or GROQ_API_KEY).
+    3. Universal fallback: $env:AI_API_KEY.
+
+    Returns $null if no key is found at any level.  The resolved source is
+    tracked in $script:LastApiKeySource for diagnostic logging.
+.PARAMETER ExplicitKey
+    An API key passed directly by the caller.  Takes highest priority.
+.PARAMETER Backend
+    The AI backend name: 'gemini', 'claude', or 'groq'.  Determines which
+    environment variable to check.
+.EXAMPLE
+    $Key = Resolve-AIApiKey -Backend 'gemini'
+
+    Resolves the Gemini API key from $env:GEMINI_API_KEY or $env:AI_API_KEY.
+.EXAMPLE
+    $Key = Resolve-AIApiKey -ExplicitKey 'sk-abc123' -Backend 'claude'
+
+    Returns the explicit key, ignoring environment variables.
+#>
 function Resolve-AIApiKey {
     [CmdletBinding()]
     param(
@@ -110,6 +138,56 @@ function Resolve-AIApiKey {
 # backend-specific request, calls the API with retry logic, and returns a
 # uniform result object.
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Calls an AI backend with a prompt and returns the generated text.
+.DESCRIPTION
+    Central dispatcher for all AI API calls in the AITriad module.  Accepts a
+    prompt and model name, looks up the backend (Gemini, Claude, or Groq) from
+    the model registry (ai-models.json), builds the backend-specific HTTP
+    request, executes it with automatic retry on transient errors (HTTP 429,
+    503, 529), and returns a uniform result object.
+
+    The result object has four properties:
+      Text        — the generated text content
+      Backend     — 'gemini', 'claude', or 'groq'
+      Model       — the model ID that was used
+      RawResponse — the full deserialized API response
+
+    Returns $null on failure (with warnings explaining the issue).
+.PARAMETER Prompt
+    The prompt text to send to the AI model.
+.PARAMETER Model
+    Model identifier from ai-models.json (e.g., 'gemini-2.5-flash',
+    'claude-sonnet-4-5', 'groq-llama-3.3-70b').  Defaults to 'gemini-2.5-flash'.
+.PARAMETER ApiKey
+    Optional explicit API key.  If empty, resolved via Resolve-AIApiKey.
+.PARAMETER Temperature
+    Sampling temperature (0.0–2.0).  Lower = more deterministic.  Defaults to 0.1.
+.PARAMETER MaxTokens
+    Maximum tokens in the response.  Defaults to 1024.
+.PARAMETER JsonMode
+    When specified, requests JSON-formatted output from the backend.
+.PARAMETER TimeoutSec
+    HTTP request timeout in seconds.  Defaults to 120.
+.PARAMETER MaxRetries
+    Number of retry attempts on transient failures.  Defaults to 3.
+.PARAMETER RetryDelays
+    Array of delay durations (seconds) between retries.  Defaults to @(5, 15, 45).
+.EXAMPLE
+    $Result = Invoke-AIApi -Prompt 'Summarize this document...' -Model 'gemini-2.5-flash'
+    $Result.Text  # The generated summary
+
+.EXAMPLE
+    $Result = Invoke-AIApi -Prompt $Prompt -Model 'claude-sonnet-4-5' -JsonMode -MaxTokens 4096
+    $Parsed = $Result.Text | ConvertFrom-Json
+
+    Requests JSON output from Claude and parses it.
+.EXAMPLE
+    Invoke-AIApi -Prompt 'Hello' -Model 'groq-llama-3.3-70b' -Temperature 0.7
+
+    Calls the Groq backend with higher creativity.
+#>
 function Invoke-AIApi {
     [CmdletBinding()]
     param(
@@ -334,6 +412,43 @@ function Invoke-AIApi {
 #   title, authors, date_published, pov_tags, topic_tags, one_liner
 # On any failure returns $null.
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Extracts structured metadata from a document using AI.
+.DESCRIPTION
+    Sends the first ~6,000 words of a Markdown document to an AI backend and
+    asks it to extract structured metadata including title, authors, publication
+    date, POV tags, topic tags, and a one-line summary.
+
+    The metadata-extraction prompt is loaded from Prompts/metadata-extraction.prompt.
+    POV tags are validated against the four canonical values (accelerationist,
+    safetyist, skeptic, cross-cutting); unrecognized tags are rejected with a
+    warning.  Topic tags are normalized to lowercase slugs.
+
+    Returns a hashtable with: title, authors, date_published, pov_tags,
+    topic_tags, one_liner.  Returns $null on any AI or parsing failure.
+.PARAMETER MarkdownText
+    The full Markdown text of the document.  Only the first ~6,000 words are
+    sent to keep token costs low.
+.PARAMETER SourceUrl
+    Original URL for context (helps the AI identify the source).
+.PARAMETER FallbackTitle
+    A heuristic title extracted from HTML or filename, used if AI extraction
+    fails.  Defaults to empty string.
+.PARAMETER Model
+    AI model to use for extraction.  Defaults to 'gemini-2.5-flash-lite' (fast
+    and cheap for metadata tasks).
+.PARAMETER ApiKey
+    Optional explicit API key.  If empty, resolved via Resolve-AIApiKey.
+.EXAMPLE
+    $Meta = Get-AIMetadata -MarkdownText $Snapshot -SourceUrl 'https://example.com/paper'
+    Write-Host "Title: $($Meta.title), POVs: $($Meta.pov_tags -join ', ')"
+
+.EXAMPLE
+    $Meta = Get-AIMetadata -MarkdownText $md -FallbackTitle 'Unknown Paper' -Model 'gemini-2.5-flash'
+
+    Uses a faster model with a fallback title.
+#>
 function Get-AIMetadata {
     [CmdletBinding()]
     param(
@@ -427,6 +542,33 @@ $Excerpt
 # Attempts to salvage a JSON string that was truncated mid-output by closing
 # any open strings, arrays, and objects.  Returns $null if repair fails.
 # ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Attempts to salvage truncated or malformed JSON from AI responses.
+.DESCRIPTION
+    AI models sometimes produce JSON that is cut off mid-output due to token
+    limits.  This function attempts to repair such output using two strategies:
+
+    Strategy 1 — Close the truncated tail.  If the text is mid-string, closes
+    the quote.  Strips trailing commas, colons, and dangling keys.  Rescans for
+    open brackets/braces and appends the necessary closing characters.
+
+    Strategy 2 — Truncate back to the last position where the root JSON object
+    was fully closed (a complete, valid document).
+
+    Returns the repaired JSON string if either strategy produces valid JSON.
+    Returns $null if repair is not possible.
+.PARAMETER Text
+    The raw (possibly truncated) JSON text to repair.  May include markdown
+    code fences, which are stripped automatically.
+.EXAMPLE
+    $Fixed = Repair-TruncatedJson -Text '{"key": "value", "arr": [1, 2'
+    # Returns: '{"key": "value", "arr": [1, 2]}'
+
+.EXAMPLE
+    $Fixed = Repair-TruncatedJson -Text $AIResult.Text
+    if ($Fixed) { $Obj = $Fixed | ConvertFrom-Json }
+#>
 function Repair-TruncatedJson {
     [CmdletBinding()]
     param(

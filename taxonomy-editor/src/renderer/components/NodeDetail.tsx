@@ -90,14 +90,21 @@ interface NodeDetailProps {
   chipDepth?: number;
 }
 
-const ALL_CATEGORIES: Category[] = ['Goals/Values', 'Data/Facts', 'Methods/Arguments'];
+const ALL_CATEGORIES: Category[] = ['Desires', 'Beliefs', 'Intentions'];
 const ALL_POVS: Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
 
 /** BDI layer guidance for each category */
 const BDI_GUIDANCE: Record<Category, string> = {
-  'Data/Facts': 'BDI: Beliefs — empirical claims that could be verified or falsified with evidence.',
-  'Goals/Values': 'BDI: Desires — normative commitments about what should happen or what matters.',
-  'Methods/Arguments': 'BDI: Intentions — reasoning strategies and argumentative approaches for how to think about something.',
+  'Beliefs': 'Beliefs — empirical claims that could be verified or falsified with evidence.',
+  'Desires': 'Desires — normative commitments about what should happen or what matters.',
+  'Intentions': 'Intentions — reasoning strategies and argumentative approaches for how to think about something.',
+};
+
+/** Singular form with article for genus-differentia descriptions */
+const CATEGORY_SINGULAR: Record<Category, string> = {
+  'Beliefs': 'A Belief',
+  'Desires': 'A Desire',
+  'Intentions': 'An Intention',
 };
 const POV_LABELS: Record<Pov, string> = {
   accelerationist: 'Accelerationist',
@@ -322,7 +329,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
               <label>
                 Description
-                <FieldHelp text={`Genus-differentia format: "A [${node.category}] within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..."`} />
+                <FieldHelp text={`Genus-differentia format: "${CATEGORY_SINGULAR[node.category]} within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..."`} />
               </label>
               <HighlightedTextarea
                 value={node.description}

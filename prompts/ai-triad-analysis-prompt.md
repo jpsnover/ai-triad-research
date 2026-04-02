@@ -70,9 +70,9 @@ The three camps and their core beliefs:
   "governance," "safety."
 
 Each camp is organized along three axes:
-  • Goals/Values — desired end-states; what does this camp
+  • Desires — desired end-states; what does this camp
     ultimately want the world to look like?
-  • Data/Facts   — empirical claims the camp treats as true;
+  • Beliefs   — empirical claims the camp treats as true;
     these are falsifiable and may conflict across camps.
   • Methods      — how the camp says we should act; policy
     approaches, interpretive frameworks, priorities.
@@ -117,7 +117,7 @@ substantive claim, argument, framing, and recommendation.
 For each element you identify:
   → Assign it to one or more camps (Accelerationist, Safetyist,
     Skeptic, Cross-Cutting, or None/Neutral).
-  → Assign it to one axis (Goals/Values, Data/Facts, Methods).
+  → Assign it to one axis (Desires, Beliefs, Methods).
   → Map it to the closest existing taxonomy node ID (e.g.,
     "acc-goals-001"). Use the exact IDs from the attached JSON.
   → If no node fits, flag it as UNMAPPED and describe what
@@ -130,8 +130,8 @@ Stance scoring — assign one of these to each camp overall:
   opposed | strongly_opposed | not_applicable
 
 Special attention rules:
-  • Data/Facts claims: if the document asserts something
-    empirical that contradicts another camp's Data/Facts node,
+  • Beliefs claims: if the document asserts something
+    empirical that contradicts another camp's Beliefs node,
     flag it explicitly as a FACTUAL CONFLICT with a short
     description of both positions.
   • Rhetoric: note if the document uses cross-cutting vocabulary
@@ -176,8 +176,8 @@ For each element, one row:
 
 | Taxonomy Node ID | Category       | What the document says | Supported / Disputed / Neutral |
 |------------------|----------------|------------------------|-------------------------------|
-| acc-goals-001    | Goals/Values   | [specific claim]       | Supported                     |
-| UNMAPPED         | Data/Facts     | [claim with no node]   | Neutral                       |
+| acc-goals-001    | Desires   | [specific claim]       | Supported                     |
+| UNMAPPED         | Beliefs     | [claim with no node]   | Neutral                       |
 
 ### 🔴 SAFETYIST ELEMENTS
 [Same table format]
@@ -197,7 +197,7 @@ defining them:
 
 ## FACTUAL CONFLICTS DETECTED
 List empirical claims in this document that directly contradict
-a node in another camp's Data/Facts section:
+a node in another camp's Beliefs section:
 
 | Claim in this document | Contradicts node | Other camp's position |
 |------------------------|------------------|-----------------------|
@@ -282,10 +282,10 @@ OUTPUT FORMAT FOR PART 2
 #### [Suggested Node ID, e.g., acc-methods-003]
 - **Priority:** HIGH / MEDIUM / LOW
 - **POV camp:** Accelerationist / Safetyist / Skeptic / Cross-Cutting
-- **Category:** Goals/Values / Data/Facts / Methods
+- **Category:** Desire / Belief / Intention
 - **Proposed label:** [Short label, 3–6 words]
 - **Proposed description:** [Use genus-differentia format:
-  "A [Category] within [POV] discourse that [differentia].
+  "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
   Encompasses: [examples]. Excludes: [what neighbors cover]."
   For cross-cutting: "A cross-cutting concept that [differentia].
   Encompasses: ... Excludes: ..." — 2-4 sentences total.]
@@ -307,7 +307,7 @@ OUTPUT FORMAT FOR PART 2
 - **Problem:** [Why is this too narrow? What did it fail to
   capture from this document?]
 - **Proposed new description:** [Use genus-differentia format:
-  "A [Category] within [POV] discourse that [differentia].
+  "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
   Encompasses: [broadened scope]. Excludes: [boundaries]."
   2-4 sentences total. Name at least one sibling in Excludes.]
 - **Risk of over-broadening:** [What would this revised node
@@ -384,8 +384,8 @@ Before finalizing your response, check each of these:
     something. Finding the silences is often the most
     analytically valuable part of this exercise.
 
-  ☐ You have checked whether any Data/Facts claim in this
-    document contradicts a Data/Facts node in a different
+  ☐ You have checked whether any Beliefs claim in this
+    document contradicts a Beliefs node in a different
     camp's taxonomy file. These contradictions are the core
     factual conflicts the project needs to track.
 
