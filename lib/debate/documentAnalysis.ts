@@ -22,15 +22,30 @@ interface TaxonomySampleInput {
 }
 
 /**
- * Build a brief taxonomy sample for the analysis prompt.
- * Includes node IDs + labels so the AI can map document claims to real taxonomy items.
+ * Build a taxonomy sample for the analysis prompt.
+ * When nodeScores are provided, nodes are ranked by relevance and capped per POV.
+ * Without scores, includes all nodes (original behavior).
  */
-export function buildTaxonomySample(taxonomy: TaxonomySampleInput): string {
+export function buildTaxonomySample(
+  taxonomy: TaxonomySampleInput,
+  nodeScores?: Map<string, number>,
+): string {
   const lines: string[] = [];
+  const POV_LIMIT = 40;
+  const SIT_LIMIT = 20;
+  const POLICY_LIMIT = 15;
 
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-    const nodes = taxonomy[pov].nodes;
+    let nodes = taxonomy[pov].nodes;
     if (nodes.length === 0) continue;
+
+    // Rank by score and cap when scores available
+    if (nodeScores && nodeScores.size > 0) {
+      nodes = [...nodes]
+        .sort((a, b) => (nodeScores.get(b.id) ?? 0) - (nodeScores.get(a.id) ?? 0))
+        .slice(0, POV_LIMIT);
+    }
+
     lines.push(`${pov.toUpperCase()} NODES:`);
     for (const n of nodes) {
       lines.push(`  ${n.id}: ${n.label}`);
@@ -38,8 +53,13 @@ export function buildTaxonomySample(taxonomy: TaxonomySampleInput): string {
     lines.push('');
   }
 
-  const sitNodes = taxonomy.situations.nodes;
+  let sitNodes = taxonomy.situations.nodes;
   if (sitNodes.length > 0) {
+    if (nodeScores && nodeScores.size > 0) {
+      sitNodes = [...sitNodes]
+        .sort((a, b) => (nodeScores.get(b.id) ?? 0) - (nodeScores.get(a.id) ?? 0))
+        .slice(0, SIT_LIMIT);
+    }
     lines.push('SITUATION NODES:');
     for (const n of sitNodes) {
       lines.push(`  ${n.id}: ${n.label}`);
@@ -47,8 +67,9 @@ export function buildTaxonomySample(taxonomy: TaxonomySampleInput): string {
     lines.push('');
   }
 
-  const policies = taxonomy.policyRegistry;
+  let policies = taxonomy.policyRegistry;
   if (policies.length > 0) {
+    policies = policies.slice(0, POLICY_LIMIT);
     lines.push('POLICY ITEMS:');
     for (const p of policies) {
       lines.push(`  ${p.id}: ${p.action}`);
