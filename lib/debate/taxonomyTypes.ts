@@ -5,9 +5,7 @@
 // Full taxonomy types live in taxonomy-editor/src/renderer/types/taxonomy.ts.
 
 export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
-export type Category =
-  | 'Goals/Values' | 'Data/Facts' | 'Methods/Arguments'
-  | 'Desires' | 'Beliefs' | 'Intentions';
+export type Category = 'Desires' | 'Beliefs' | 'Intentions';
 
 export type FallacyTier = 'formal' | 'informal_structural' | 'informal_contextual' | 'cognitive_bias';
 

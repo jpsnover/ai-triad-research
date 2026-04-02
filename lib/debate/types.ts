@@ -225,7 +225,7 @@ export interface SynthesisResult {
     point: string;
     positions: { pover: PoverId; stance: string }[];
     /** BDI layer classification — added in dolce-phase-1. Absent in older debates. */
-    bdi_layer?: 'belief' | 'value' | 'conceptual' | 'desire' | 'intention';
+    bdi_layer?: 'belief' | 'desire' | 'intention';
     /** How this disagreement could be resolved — added in dolce-phase-1. Absent in older debates. */
     resolvability?: 'resolvable_by_evidence' | 'negotiable_via_tradeoffs' | 'requires_term_clarification';
   }[];
