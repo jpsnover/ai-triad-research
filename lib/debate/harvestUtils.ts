@@ -372,7 +372,7 @@ export function extractConceptCandidates(
       suggestedLabel: '',
       suggestedDescription: '',
       suggestedPov: speakerPov,
-      suggestedCategory: 'Methods/Arguments',
+      suggestedCategory: 'Intentions',
       checked: false,
       warnings: [],
     });
@@ -396,7 +396,7 @@ export function validateProposedConcept(
   if (words < 3) warnings.push(`Label too short (${words} words, need 3+)`);
   if (words > 8) warnings.push(`Label too long (${words} words, max 8)`);
 
-  const gdPov = /^A\s+(Goals\/Values|Data\/Facts|Methods\/Arguments)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
+  const gdPov = /^A\s+(Desires|Beliefs|Intentions)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\s+that\s+/i;
   const gdCC = /^A\s+cross-cutting\s+concept\s+that\s+/i;
   const isCC = concept.pov === 'cross-cutting';
   if (isCC ? !gdCC.test(concept.description) : !gdPov.test(concept.description)) {
@@ -407,7 +407,7 @@ export function validateProposedConcept(
     warnings.push(`Invalid POV: ${concept.pov}`);
   }
 
-  if (!isCC && !['Goals/Values', 'Data/Facts', 'Methods/Arguments'].includes(concept.category)) {
+  if (!isCC && !['Desires', 'Beliefs', 'Intentions'].includes(concept.category)) {
     warnings.push(`Invalid category: ${concept.category}`);
   }
 

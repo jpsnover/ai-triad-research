@@ -20,31 +20,19 @@ export interface TaxonomyContext {
   policyRegistry?: PolicyRef[];
 }
 
-/** Map taxonomy categories to BDI sections. Both old and new category names accepted (Phase 1 shim). */
+/** Map taxonomy categories to BDI sections */
 export const CATEGORY_TO_BDI: Record<string, { header: string; framing: string }> = {
-  'Data/Facts': {
-    header: '=== YOUR BELIEFS (what you take as empirically true) ===',
-    framing: 'These are the factual claims and empirical observations that ground your worldview.',
-  },
   'Beliefs': {
     header: '=== YOUR BELIEFS (what you take as empirically true) ===',
     framing: 'These are the factual claims and empirical observations that ground your worldview.',
   },
-  'Goals/Values': {
-    header: '=== YOUR VALUES (what you prioritize and why) ===',
-    framing: 'These are the goals and principles you argue from. They are normative commitments, not empirical claims.',
-  },
   'Desires': {
-    header: '=== YOUR VALUES (what you prioritize and why) ===',
+    header: '=== YOUR DESIRES (what you prioritize and why) ===',
     framing: 'These are the goals and principles you argue from. They are normative commitments, not empirical claims.',
-  },
-  'Methods/Arguments': {
-    header: '=== YOUR REASONING APPROACH (how you argue) ===',
-    framing: 'These are the methods, frameworks, and argumentative strategies you use to connect beliefs to values.',
   },
   'Intentions': {
-    header: '=== YOUR REASONING APPROACH (how you argue) ===',
-    framing: 'These are the methods, frameworks, and argumentative strategies you use to connect beliefs to values.',
+    header: '=== YOUR INTENTIONS (how you argue) ===',
+    framing: 'These are the methods, frameworks, and argumentative strategies you use to connect beliefs to desires.',
   },
 };
 
@@ -76,28 +64,21 @@ export function formatNodeAttributes(attrs: GraphAttributes | undefined): string
 export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes: number = 50): string {
   const povSlice = ctx.povNodes.slice(0, maxNodes);
 
-  // Group POV nodes by category → BDI section (accept both old and new names)
+  // Group POV nodes by category → BDI section
   const groups: Record<string, PovNode[]> = {
-    'Data/Facts': [],
-    'Goals/Values': [],
-    'Methods/Arguments': [],
-  };
-  // Map new category names to old keys for grouping (Phase 1 shim)
-  const categoryAlias: Record<string, string> = {
-    'Beliefs': 'Data/Facts',
-    'Desires': 'Goals/Values',
-    'Intentions': 'Methods/Arguments',
+    'Beliefs': [],
+    'Desires': [],
+    'Intentions': [],
   };
   for (const n of povSlice) {
-    const rawCat = n.category || 'Methods/Arguments';
-    const cat = categoryAlias[rawCat] || rawCat;
-    (groups[cat] ?? groups['Methods/Arguments']).push(n);
+    const cat = n.category || 'Intentions';
+    (groups[cat] ?? groups['Intentions']).push(n);
   }
 
   const lines: string[] = [];
 
-  // Emit BDI sections in Beliefs → Values → Reasoning order
-  for (const cat of ['Data/Facts', 'Goals/Values', 'Methods/Arguments'] as const) {
+  // Emit BDI sections in Beliefs → Desires → Intentions order
+  for (const cat of ['Beliefs', 'Desires', 'Intentions'] as const) {
     const nodes = groups[cat];
     if (nodes.length === 0) continue;
     const bdi = CATEGORY_TO_BDI[cat];

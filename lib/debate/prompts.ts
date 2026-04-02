@@ -27,13 +27,13 @@ export function lengthInstruction(length: string): string {
 
 // ── Shared instruction blocks ───────────────────────────────
 
-const TAXONOMY_USAGE = `Your taxonomy context is organized into BDI sections — Beliefs, Values, and Reasoning Approach — that structure your worldview:
+const TAXONOMY_USAGE = `Your taxonomy context is organized into BDI sections — Beliefs, Desires, and Intentions — that structure your worldview:
 
-- BELIEFS (Data/Facts): Your empirical grounding. Draw on these when making factual claims or citing evidence.
-- VALUES (Goals/Values): Your normative commitments. Draw on these when arguing about what matters or what should happen.
-- REASONING APPROACH (Methods/Arguments): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
+- BELIEFS (Beliefs): Your empirical grounding. Draw on these when making factual claims or citing evidence.
+- DESIRES (Desires): Your normative commitments. Draw on these when arguing about what matters or what should happen.
+- INTENTIONS (Intentions): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
 
-Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect beliefs to values through reasoning.
+Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect beliefs to desires through intentions.
 
 Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-goals-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
@@ -498,8 +498,8 @@ Identify:
    a. "type": EMPIRICAL, VALUES, or DEFINITIONAL (as before)
    b. "bdi_layer": which layer of the debaters' worldview this disagreement lives in:
       - "belief" — they disagree about what is empirically true (facts, evidence, predictions)
-      - "value" — they share the facts but prioritize differently (goals, principles, trade-offs)
-      - "conceptual" — they define a key term or concept differently (meaning, scope, framing)
+      - "desire" — they share the facts but prioritize differently (goals, principles, trade-offs)
+      - "intention" — they define a key term or concept differently (meaning, scope, framing)
    c. "resolvability": how this disagreement could potentially be resolved:
       - "resolvable_by_evidence" — new data or studies could settle this (typical for belief disagreements)
       - "negotiable_via_tradeoffs" — requires explicit trade-off reasoning, not evidence (typical for value disagreements)
@@ -530,7 +530,7 @@ Identify:
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
-  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or value or conceptual", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],

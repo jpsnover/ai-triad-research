@@ -54,28 +54,22 @@ export function selectRelevantNodes(
   threshold: number = 0.3,
   minPerCategory: number = 3,
 ): PovNode[] {
-  // Group by category (accept both old and new names — Phase 1 shim)
+  // Group by category
   const groups: Record<string, { node: PovNode; score: number }[]> = {
-    'Data/Facts': [],
-    'Goals/Values': [],
-    'Methods/Arguments': [],
-  };
-  const categoryAlias: Record<string, string> = {
-    'Beliefs': 'Data/Facts',
-    'Desires': 'Goals/Values',
-    'Intentions': 'Methods/Arguments',
+    'Beliefs': [],
+    'Desires': [],
+    'Intentions': [],
   };
 
   for (const node of povNodes) {
-    const rawCat = node.category || 'Methods/Arguments';
-    const cat = categoryAlias[rawCat] || rawCat;
+    const cat = node.category || 'Intentions';
     const score = scores.get(node.id) || 0;
-    (groups[cat] ?? groups['Methods/Arguments']).push({ node, score });
+    (groups[cat] ?? groups['Intentions']).push({ node, score });
   }
 
   // For each category: include all above threshold, guarantee minimum
   const result: PovNode[] = [];
-  for (const cat of ['Data/Facts', 'Goals/Values', 'Methods/Arguments']) {
+  for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
     const sorted = groups[cat].sort((a, b) => b.score - a.score);
     const aboveThreshold = sorted.filter(s => s.score >= threshold);
     // Take at least minPerCategory, even if below threshold
