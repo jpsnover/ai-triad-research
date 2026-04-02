@@ -35,7 +35,7 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
 
-Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-goals-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
+Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-desires-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
 Your POSITIONAL VULNERABILITIES section lists the weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Your REASONING WATCHLIST flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
 
@@ -311,7 +311,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
   ],
   "my_claims": [
     {"claim": "near-verbatim key assertion from your statement", "targets": []}
@@ -370,7 +370,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
   "move_types": ["DISTINGUISH", "COUNTEREXAMPLE"],
   "my_claims": [
@@ -460,7 +460,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-goals-002", "relevance": "The emphasis on X directly supports the claim that Y."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
   "move_types": ["CONCEDE", "DISTINGUISH"],
   "my_claims": [
@@ -540,7 +540,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],
   "unresolved_questions": ["..."],
-  "taxonomy_coverage": [{"node_id": "e.g. acc-goals-002", "how_used": "brief description"}],
+  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
@@ -638,7 +638,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "verdict": "supported" | "disputed" | "unverifiable" | "false",
   "explanation": "brief explanation of your assessment",
   "sources": [
-    {"node_id": "e.g. acc-goals-002"},
+    {"node_id": "e.g. acc-desires-002"},
     {"conflict_id": "e.g. conflict-xyz"}
   ]
 }`;

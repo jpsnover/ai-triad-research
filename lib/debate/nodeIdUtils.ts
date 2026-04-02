@@ -17,13 +17,13 @@ export const POV_PREFIXES: Record<string, string> = {
 };
 
 /** Situation node ID prefix. */
-export const SITUATION_PREFIX = 'cc-';
+export const SITUATION_PREFIX = 'sit-';
 
-/** Category slug within POV IDs (e.g., the 'goals' in 'acc-goals-001'). */
+/** Category slug within POV IDs (e.g., the 'desires' in 'acc-desires-001'). */
 export const CATEGORY_SLUGS: Record<string, string> = {
-  'goals': 'Desires',
-  'data': 'Beliefs',
-  'methods': 'Intentions',
+  'desires': 'Desires',
+  'beliefs': 'Beliefs',
+  'intentions': 'Intentions',
 };
 
 // ── ID → POV resolution ──────────────────────────────────
@@ -60,25 +60,5 @@ export function isNodeOfPov(id: string, pov: string): boolean {
   return nodePovFromId(id) === pov;
 }
 
-// ── Legacy ID normalization (permanent safety net) ───────
-
-/** Legacy prefix mapping for un-migrated external data. */
-const LEGACY_SLUG_MAP: Record<string, string> = {
-  // These will be populated in Phase 2A when the canonical slugs change.
-  // For now, current slugs ARE canonical — no normalization needed.
-};
-
-/**
- * Normalize a node ID from legacy format to current format.
- * Permanent safety net for external data that may not have been migrated.
- * Currently a no-op — will map old→new after Phase 2A.
- */
-export function normalizeNodeId(id: string): string {
-  // Phase 2A will add mappings here (e.g., 'acc-goals-' → 'acc-desires-')
-  for (const [oldSlug, newSlug] of Object.entries(LEGACY_SLUG_MAP)) {
-    if (id.includes(oldSlug)) {
-      return id.replace(oldSlug, newSlug);
-    }
-  }
-  return id;
-}
+// Legacy ID normalization lives in index.ts (normalizeNodeId).
+// It handles cc-→sit- and goals→desires/data→beliefs/methods→intentions mappings.
