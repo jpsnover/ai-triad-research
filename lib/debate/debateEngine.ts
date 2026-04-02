@@ -385,7 +385,7 @@ export class DebateEngine {
       speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker,
     }));
 
-    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10);
+    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10, an.edges);
   }
 
   // ── Phase: Clarification ───────────────────────────────────

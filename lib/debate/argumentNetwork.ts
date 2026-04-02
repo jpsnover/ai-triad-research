@@ -162,21 +162,73 @@ export function formatArgumentNetworkContext(
   return lines.join('\n');
 }
 
-/** Format recent claims from ALL debaters for injection into a debater's prompt.
- *  Shows what ground has already been covered so the debater doesn't echo others. */
+/** Format claims from other debaters, prioritized by response-relevance.
+ *  Tier 1: Claims that respond to this agent's prior claims.
+ *  Tier 2: Unaddressed claims targeting this agent.
+ *  Tier 3: Recency (fallback). */
 export function formatEstablishedPoints(
   allNodes: { id: string; text: string; speaker: string }[],
   currentSpeaker: string,
   maxPoints: number = 10,
+  edges?: { source: string; target: string; type: 'supports' | 'attacks' }[],
 ): string {
   if (allNodes.length === 0) return '';
 
-  // Take the most recent claims from OTHER speakers
-  const otherClaims = allNodes
-    .filter(n => n.speaker !== currentSpeaker)
-    .slice(-maxPoints);
-
+  const otherClaims = allNodes.filter(n => n.speaker !== currentSpeaker);
   if (otherClaims.length === 0) return '';
+
+  // Identify this speaker's claim IDs
+  const myClaims = new Set(allNodes.filter(n => n.speaker === currentSpeaker).map(n => n.id));
+  const otherIds = new Set(otherClaims.map(n => n.id));
+
+  // Tier 1: Claims that directly respond to my claims (via edges)
+  const tier1 = new Set<string>();
+  // Tier 2: Claims targeting me that I haven't responded to
+  const tier2 = new Set<string>();
+
+  if (edges && edges.length > 0) {
+    // Claims from others that target my claims
+    for (const e of edges) {
+      if (otherIds.has(e.source) && myClaims.has(e.target)) {
+        tier1.add(e.source);
+      }
+    }
+
+    // Claims targeting me that I haven't addressed (no edge from my claims to theirs)
+    const myTargets = new Set(edges.filter(e => myClaims.has(e.source)).map(e => e.target));
+    for (const id of tier1) {
+      // Already in tier 1 — skip
+    }
+    for (const c of otherClaims) {
+      if (!tier1.has(c.id) && !myTargets.has(c.id)) {
+        // Check if this claim targets any of my claims
+        const targetsMe = edges.some(e => e.source === c.id && myClaims.has(e.target));
+        if (targetsMe) tier2.add(c.id);
+      }
+    }
+  }
+
+  // Build prioritized list
+  const result: { id: string; text: string; speaker: string; tag: string }[] = [];
+
+  for (const c of otherClaims) {
+    if (tier1.has(c.id)) {
+      result.push({ ...c, tag: '[RESPONDS TO YOUR CLAIM]' });
+    }
+  }
+  for (const c of otherClaims) {
+    if (tier2.has(c.id)) {
+      result.push({ ...c, tag: '[UNADDRESSED — TARGETING YOU]' });
+    }
+  }
+  // Tier 3: remaining by recency
+  for (const c of otherClaims.slice().reverse()) {
+    if (!tier1.has(c.id) && !tier2.has(c.id) && result.length < maxPoints) {
+      result.push({ ...c, tag: '' });
+    }
+  }
+
+  const capped = result.slice(0, maxPoints);
 
   const lines = [
     '',
@@ -185,8 +237,9 @@ export function formatEstablishedPoints(
     'If you agree, say so briefly ("as [name] noted") and move to what you can ADD.',
     'If you disagree, attack the specific claim rather than restating it.',
   ];
-  for (const c of otherClaims) {
-    lines.push(`- ${c.id} (${c.speaker}): ${c.text}`);
+  for (const c of capped) {
+    const tag = c.tag ? ` ${c.tag}` : '';
+    lines.push(`- ${c.id} (${c.speaker}):${tag} ${c.text}`);
   }
 
   return lines.join('\n') + '\n';
