@@ -159,6 +159,67 @@ export function computeQbafConvergence(
   return scores.reduce((sum, s) => sum + s, 0) / scores.length;
 }
 
+// ── Fact-check QBAF integration ───────────────────────────
+
+export interface WebEvidenceItem {
+  id: string;
+  text: string;
+  /** Does this evidence support or contradict the checked claim? */
+  relation: 'supports' | 'attacks';
+  /** Source reliability (0-1). Higher for authoritative sources. */
+  source_reliability: number;
+  /** How relevant this evidence is to the claim (0-1). */
+  relevance: number;
+}
+
+export interface FactCheckQbafResult {
+  /** Final claim strength after incorporating web evidence (0-1). */
+  adjusted_strength: number;
+  /** Original claim strength before web evidence. */
+  original_strength: number;
+  /** Number of supporting vs attacking evidence items. */
+  support_count: number;
+  attack_count: number;
+  /** QBAF computation details. */
+  qbaf: QbafResult;
+}
+
+/**
+ * Compute QBAF-adjusted claim strength incorporating web evidence.
+ * Models the claim as a QBAF node, web evidence as supporting/attacking nodes,
+ * and runs DF-QuAD to get the adjusted strength.
+ */
+export function computeFactCheckStrength(
+  claimBaseStrength: number,
+  evidence: WebEvidenceItem[],
+): FactCheckQbafResult {
+  const claimNode: QbafNode = { id: 'claim', base_strength: claimBaseStrength };
+  const nodes: QbafNode[] = [claimNode];
+  const edges: QbafEdge[] = [];
+
+  for (const e of evidence) {
+    // Evidence node strength = source_reliability × relevance
+    const evidenceStrength = clamp(e.source_reliability * e.relevance);
+    nodes.push({ id: e.id, base_strength: evidenceStrength });
+    edges.push({
+      source: e.id,
+      target: 'claim',
+      type: e.relation,
+      weight: e.relevance,
+    });
+  }
+
+  const qbaf = computeQbafStrengths(nodes, edges);
+
+  return {
+    adjusted_strength: qbaf.strengths.get('claim') ?? claimBaseStrength,
+    original_strength: claimBaseStrength,
+    support_count: evidence.filter(e => e.relation === 'supports').length,
+    attack_count: evidence.filter(e => e.relation === 'attacks').length,
+    qbaf,
+  };
+}
+
 // ── Helpers ───────────────────────────────────────────────
 
 function clamp(v: number): number {
