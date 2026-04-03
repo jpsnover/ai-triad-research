@@ -323,13 +323,13 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion from your statement", "targets": []}
   ],
-  "policy_refs": ["pol-001"]${includeAssumptions ? `,
+  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}]${includeAssumptions ? `,
   "key_assumptions": [
     {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
   ]` : ''}
 }
 
-"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if no policies are directly relevant to your statement.`;
+"policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if no policies are directly relevant.`;
 }
 
 export function debateResponsePrompt(
@@ -383,11 +383,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
   ],
-  "policy_refs": ["pol-001"]${lengthKey !== 'brief' ? `,
+  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}]${lengthKey !== 'brief' ? `,
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"` : ''}
 }
 
-"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if none are relevant.`;
+"policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
 }
 
 export function crossRespondSelectionPrompt(
@@ -473,11 +473,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
-  "policy_refs": ["pol-001"],
+  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
 }
 
-"policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if none are relevant.`;
+"policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
 }
 
 // ── Multi-phase synthesis prompts (PQ-5) ────────────────

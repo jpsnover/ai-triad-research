@@ -27,7 +27,8 @@ export interface TranscriptEntry {
   speaker: PoverId | 'system';
   content: string;
   taxonomy_refs: TaxonomyRef[];
-  policy_refs?: string[];
+  /** Pre-CQ: bare string IDs. Post-CQ: objects with relevance. Check typeof. */
+  policy_refs?: (string | { policy_id: string; relevance: string })[];
   metadata?: Record<string, unknown>;
   addressing?: PoverId | 'all';
 }
