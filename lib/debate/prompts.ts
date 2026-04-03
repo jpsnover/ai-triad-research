@@ -33,7 +33,7 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 - NORMATIVE COMMITMENTS (Desires): Your value positions. Draw on these when arguing about what matters or what should happen.
 - REASONING APPROACH (Intentions): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
 
-Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
+Nodes marked ★ are most relevant to the current topic — prioritize these in your response. Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
 
 Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-desires-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
 
