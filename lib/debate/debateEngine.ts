@@ -58,6 +58,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from './helpers';
+import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -598,7 +599,21 @@ export class DebateEngine {
         )
       : '';
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext);
+    // QBAF: surface strongest unaddressed claims for moderator prioritization
+    let qbafContext = '';
+    if (an && an.nodes.some(n => n.computed_strength != null)) {
+      const addressed = new Set(an.edges.map(e => e.target));
+      const unaddressed = an.nodes
+        .filter(n => n.computed_strength != null && !addressed.has(n.id))
+        .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+        .slice(0, 5);
+      if (unaddressed.length > 0) {
+        qbafContext = '\n\n=== STRONGEST UNADDRESSED CLAIMS (by QBAF strength) ===\nPrioritize these — they are well-supported but no one has responded to them yet.\n'
+          + unaddressed.map(n => `- ${n.id} (${POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker}, strength ${n.computed_strength!.toFixed(2)}): ${n.text}`).join('\n');
+      }
+    }
+
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext);
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
 
     let responder: Exclude<PoverId, 'user'> | null = null;
@@ -977,7 +992,7 @@ export class DebateEngine {
       return;
     }
 
-    let claims: { text: string; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] = [];
+    let claims: { text: string; bdi_category?: string; base_strength?: number; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
@@ -1013,6 +1028,7 @@ export class DebateEngine {
         source_entry_id: entryId,
         taxonomy_refs: taxonomyRefIds,
         turn_number: turnNumber,
+        base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
       });
 
       // Track commitment
@@ -1046,6 +1062,33 @@ export class DebateEngine {
 
     this.session.diagnostics!.overview.claims_accepted += accepted.length;
     this.session.diagnostics!.overview.claims_rejected += rejected.length;
+
+    // QBAF: recompute strengths after each extraction
+    if (an.nodes.some(n => n.base_strength != null)) {
+      const qbafNodes = an.nodes
+        .filter(n => n.base_strength != null)
+        .map(n => ({ id: n.id, base_strength: n.base_strength! }));
+      const qbafEdges = an.edges.map(e => ({
+        source: e.source,
+        target: e.target,
+        type: e.type,
+        weight: e.weight ?? 0.5,
+        attack_type: e.attack_type,
+      }));
+      const result = computeQbafStrengths(qbafNodes, qbafEdges);
+      for (const node of an.nodes) {
+        const strength = result.strengths.get(node.id);
+        if (strength !== undefined) node.computed_strength = strength;
+      }
+
+      // Update convergence tracker with QBAF strengths
+      if (this.session.convergence_tracker) {
+        for (const issue of this.session.convergence_tracker.issues) {
+          const qbafConv = computeQbafConvergence(issue.claim_ids, result.strengths);
+          if (qbafConv !== undefined) issue.qbaf_strength = qbafConv;
+        }
+      }
+    }
 
     this.recordDiagnostic(entryId, {
       extracted_claims: { accepted, rejected },

@@ -38,11 +38,21 @@ For each distinct claim in the statement:
 
 Extract 1-4 claims. Each claim must be traceable to text actually in the statement. Do NOT invent claims.
 
+For each claim, also classify:
+- "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
+- "base_strength": 0.0-1.0 — how strong is this claim as an argument?
+  For belief claims: assign 0.5 (human will adjust)
+  For desire claims: consider whether it explicitly grounds in values (+), acknowledges tradeoffs (+), cites precedent (+)
+  For intention claims: consider whether it specifies a mechanism (+), bounds its scope (+), addresses failure modes (+)
+  Do NOT assign an overall holistic judgment — score based on these checkable features.
+
 Return ONLY JSON (no markdown):
 {
   "claims": [
     {
       "text": "near-verbatim claim from the statement",
+      "bdi_category": "belief or desire or intention",
+      "base_strength": 0.5,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
@@ -101,11 +111,17 @@ For each claim:
 3. If the debater listed no targets but you see an obvious relationship to a prior claim,
    you may add it — but prefer the debater's own assessment.
 
+Also classify each claim:
+- "bdi_category": "belief" (empirical/factual), "desire" (normative/value), or "intention" (strategic/methodological)
+- "base_strength": 0.0-1.0 — for beliefs assign 0.5, for desires/intentions score based on checkable features (values grounding, tradeoff acknowledgment, mechanism specificity, scope bounding)
+
 Return ONLY JSON (no markdown):
 {
   "claims": [
     {
       "text": "the debater's claim text (unchanged)",
+      "bdi_category": "belief or desire or intention",
+      "base_strength": 0.5,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
