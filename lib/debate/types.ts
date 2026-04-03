@@ -111,6 +111,10 @@ export interface ArgumentNetworkNode {
   source_entry_id: string;
   taxonomy_refs: string[];
   turn_number: number;
+  /** QBAF: AI-assigned intrinsic argument strength (0-1). Absent in pre-QBAF debates. */
+  base_strength?: number;
+  /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
+  computed_strength?: number;
 }
 
 export interface ArgumentNetworkEdge {
@@ -121,6 +125,8 @@ export interface ArgumentNetworkEdge {
   attack_type?: 'rebut' | 'undercut' | 'undermine';
   scheme?: DialecticalScheme;
   warrant?: string;
+  /** QBAF: Attack/support magnitude (0-1). Absent in pre-QBAF debates. */
+  weight?: number;
 }
 
 export interface CommitmentStore {
