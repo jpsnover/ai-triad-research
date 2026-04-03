@@ -111,6 +111,8 @@ export interface ArgumentNetworkNode {
   source_entry_id: string;
   taxonomy_refs: string[];
   turn_number: number;
+  /** FIRE: How reliably this claim was extracted from the source (0-1). Distinct from argument quality. */
+  extraction_confidence?: number;
   /** QBAF: AI-assigned intrinsic argument strength (0-1). Absent in pre-QBAF debates. */
   base_strength?: number;
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
