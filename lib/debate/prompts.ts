@@ -552,6 +552,8 @@ Tasks:
    - Classify attacks: "rebut", "undercut", or "undermine"
    - Note dialectical scheme: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
    - Each claim must be traceable to the transcript${documentAnalysis}
+3. Identify concepts discussed in this debate that are NOT covered by any existing taxonomy node. For each, propose a new node with a label (3-8 words), genus-differentia description, POV, category, and rationale explaining why this debate surfaced a gap. Link to the claim IDs that motivated the proposal.
+4. Identify existing taxonomy nodes that should be modified based on what this debate revealed — descriptions that are too narrow, categories that are wrong, or nodes that should be split. For each, specify the node ID, modification type, suggested change, and rationale.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -560,6 +562,12 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
     ]}
+  ],
+  "taxonomy_proposals": [
+    {"label": "3-8 word label", "description": "A [Category] within [POV] discourse that [differentia]...", "pov": "accelerationist or safetyist or skeptic or situations", "category": "Beliefs or Desires or Intentions", "rationale": "why this debate surfaced a gap", "source_claims": ["C1", "C3"]}
+  ],
+  "taxonomy_modifications": [
+    {"node_id": "acc-desires-001", "modification_type": "refine_description or add_nuance or recategorize or split", "suggested_change": "what to change", "rationale": "what the debate revealed", "source_claims": ["C2"]}
   ]${documentSchema}
 }`;
 }
