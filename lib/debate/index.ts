@@ -26,6 +26,7 @@ export * from './formatters';
 export * from './validators';
 export * from './nodeIdUtils';
 export * from './qbaf';
+export * from './qbafCombinator';
 
 // ── Situations Migration Normalizers ──────────────────────
 
