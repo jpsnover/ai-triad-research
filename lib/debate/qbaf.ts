@@ -140,6 +140,25 @@ export function computeQbafStrengths(
   return { strengths, iterations, converged };
 }
 
+// ── Convergence integration ───────────────────────────────
+
+/**
+ * Compute QBAF-based convergence for a set of claim IDs.
+ * Returns the average computed_strength of the claims.
+ * Higher = stronger disagreement (claims are well-supported on both sides).
+ * Returns undefined if no claim has a computed strength.
+ */
+export function computeQbafConvergence(
+  claimIds: string[],
+  strengths: Map<string, number>,
+): number | undefined {
+  const scores = claimIds
+    .map(id => strengths.get(id))
+    .filter((s): s is number => s !== undefined);
+  if (scores.length === 0) return undefined;
+  return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+}
+
 // ── Helpers ───────────────────────────────────────────────
 
 function clamp(v: number): number {

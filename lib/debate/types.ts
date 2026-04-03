@@ -144,6 +144,8 @@ export interface ConvergenceIssue {
   convergence: number;
   claim_ids: string[];
   history: { turn: number; value: number }[];
+  /** QBAF-derived convergence strength (0-1). Preferred over heuristic `convergence` when present. */
+  qbaf_strength?: number;
 }
 
 export interface ConvergenceTracker {
