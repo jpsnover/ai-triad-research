@@ -239,8 +239,13 @@ Generate 1 to 3 concise clarifying questions that would help sharpen the debate.
 - Be neutral — do not favor any particular perspective
 - Be concise (one sentence each)
 
+For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
+- Topic-specific and substantive (not generic like "yes/no")
+- Mutually distinct — each option steers the debate in a different direction
+- 1-2 sentences each
+
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
-{"questions": ["question 1", "question 2"]}`;
+{"questions": [{"question": "your clarifying question", "options": ["option 1 text", "option 2 text", "option 3 text"]}]}`;
 }
 
 export function synthesisPrompt(
@@ -879,8 +884,13 @@ Before the debate begins, you need to help the user focus. Generate 1 to 3 clari
 - Be neutral — do not favor any perspective
 - Be concise (one sentence each)
 
+For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
+- Topic-specific and substantive (not generic like "yes/no")
+- Mutually distinct — each option steers the debate in a different direction
+- 1-2 sentences each
+
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
-{"questions": ["question 1", "question 2"]}`;
+{"questions": [{"question": "your clarifying question", "options": ["option 1 text", "option 2 text", "option 3 text"]}]}`;
 }
 
 /** Clarification prompt specialized for situation debates */
@@ -905,6 +915,11 @@ The three POV interpretations above show where the perspectives already diverge.
 - Be neutral — do not favor any perspective
 - Be concise (one sentence each)
 
+For each question, generate 3-5 answer options that cover the reasonable answer space. Options should be:
+- Topic-specific and substantive (not generic like "yes/no")
+- Mutually distinct — each option steers the debate in a different direction
+- 1-2 sentences each
+
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
-{"questions": ["question 1", "question 2"]}`;
+{"questions": [{"question": "your clarifying question", "options": ["option 1 text", "option 2 text", "option 3 text"]}]}`;
 }

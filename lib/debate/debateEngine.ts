@@ -408,28 +408,33 @@ export class DebateEngine {
     }
 
     const text = await this.generate(prompt, 'Clarification questions');
-    let questions: string[] = [];
+    let structuredQuestions: { question: string; options: string[] }[] = [];
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = parseJsonRobust(text) as any;
-      questions = parsed.questions ?? [];
+      const raw = parsed.questions ?? [];
+      // Handle both old format (string[]) and new format ({question, options}[])
+      structuredQuestions = raw.map((q: string | { question: string; options?: string[] }) =>
+        typeof q === 'string' ? { question: q, options: [] } : { question: q.question, options: q.options ?? [] }
+      );
     } catch (err) {
       this.warn('Parsing clarification questions', err, 'Using raw AI response as a single question');
-      questions = [text];
+      structuredQuestions = [{ question: text, options: [] }];
     }
+
+    const questionTexts = structuredQuestions.map(q => q.question);
 
     const clarEntry = this.addEntry({
       type: 'clarification',
       speaker: 'system',
-      content: questions.join('\n'),
+      content: questionTexts.join('\n'),
       taxonomy_refs: [],
-      metadata: { questions },
+      metadata: { questions: structuredQuestions },
     });
     this.recordDiagnostic(clarEntry.id, { prompt, raw_response: text });
 
     // Auto-generate answers and synthesize refined topic
     this.progress('clarification', undefined, 'Synthesizing refined topic');
-    const qaPairs = questions.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
+    const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
     const synthPrompt = synthesisPrompt(this.config.topic, qaPairs);
     const synthText = await this.generate(synthPrompt, 'Topic synthesis');
 
