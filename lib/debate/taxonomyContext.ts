@@ -73,12 +73,43 @@ export interface FormatContextConfig {
   policyMax?: number;
   policyEnabled?: boolean;
   sitPrimary?: number;
+  /**
+   * CHESS: IDs of branch root nodes to inject deeply. When set, only nodes
+   * within these branches get full injection; other branches inject top-level
+   * nodes only (safety margin). When absent, all nodes injected (existing behavior).
+   */
+  relevantBranches?: Set<string>;
 }
 
 /** Format taxonomy nodes into a BDI-structured context block for the LLM prompt */
 export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes?: number, config?: FormatContextConfig): string {
   const cfg = config ?? {};
-  const povSlice = ctx.povNodes.slice(0, cfg.maxNodes ?? maxNodes ?? 50);
+  const limit = cfg.maxNodes ?? maxNodes ?? 50;
+
+  // CHESS: filter to relevant branches + top-level safety margin
+  let filteredNodes = ctx.povNodes;
+  if (cfg.relevantBranches && cfg.relevantBranches.size > 0) {
+    // Build parent→root lookup for branch membership
+    const nodeMap = new Map(ctx.povNodes.map(n => [n.id, n]));
+    const rootCache = new Map<string, string>();
+
+    function findRoot(id: string): string {
+      if (rootCache.has(id)) return rootCache.get(id)!;
+      const node = nodeMap.get(id);
+      if (!node || !node.parent_id) { rootCache.set(id, id); return id; }
+      const root = findRoot(node.parent_id);
+      rootCache.set(id, root);
+      return root;
+    }
+
+    filteredNodes = ctx.povNodes.filter(n => {
+      const root = findRoot(n.id);
+      // Include if: in a relevant branch, or is a top-level node (safety margin)
+      return cfg.relevantBranches!.has(root) || n.parent_id === null;
+    });
+  }
+
+  const povSlice = filteredNodes.slice(0, limit);
 
   // Group POV nodes by category → BDI section
   const groups: Record<string, PovNode[]> = {
