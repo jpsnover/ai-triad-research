@@ -475,6 +475,132 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 "policy_refs" — list any pol-NNN IDs from the POLICY ACTIONS section that your argument supports, opposes, or implies. Omit or leave empty if none are relevant.`;
 }
 
+// ── Multi-phase synthesis prompts (PQ-5) ────────────────
+
+/** Phase 1: Extract core synthesis — agreement, disagreement, cruxes, unresolved questions */
+export function synthExtractPrompt(
+  topic: string,
+  transcript: string,
+): string {
+  return `You are a debate analyst. Analyze this structured debate and extract the core synthesis.
+${READING_LEVEL}
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== FULL TRANSCRIPT ===
+${transcript}
+
+Identify:
+1. Areas where the debaters agree (and which debaters)
+2. Areas where they genuinely disagree (with each debater's specific stance)
+3. For each disagreement, classify:
+   a. "type": EMPIRICAL, VALUES, or DEFINITIONAL
+   b. "bdi_layer": "belief" (empirical disagreement), "desire" (value priorities differ), or "intention" (key terms defined differently)
+   c. "resolvability": "resolvable_by_evidence", "negotiable_via_tradeoffs", or "requires_term_clarification"
+4. Cruxes — specific questions that, if answered, would change a debater's position
+5. Questions that remain unresolved
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
+  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "cruxes": [
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
+  ],
+  "unresolved_questions": ["..."]
+}`;
+}
+
+/** Phase 2: Build argument map + taxonomy coverage from transcript and Phase 1 disagreements */
+export function synthMapPrompt(
+  topic: string,
+  transcript: string,
+  disagreements: string,
+  hasSourceDocument: boolean = false,
+): string {
+  const documentAnalysis = hasSourceDocument ? `
+7. Document vs. debater claims: Separate the claims that originate from the source document from arguments the debaters constructed independently.` : '';
+
+  const documentSchema = hasSourceDocument ? `,
+  "document_claims": [
+    {"claim": "what the document asserts", "accepted_by": ["prometheus"], "challenged_by": ["sentinel"], "challenge_basis": "brief summary"}
+  ]` : '';
+
+  return `You are a debate analyst. Build an argument map from this structured debate.
+${READING_LEVEL}
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== KEY DISAGREEMENTS (from prior analysis) ===
+${disagreements}
+
+=== FULL TRANSCRIPT ===
+${transcript}
+
+Tasks:
+1. Which taxonomy nodes were referenced and how they were used
+2. Build an argument map: extract key claims and their relationships
+   - Each claim gets an ID (C1, C2, ...), near-verbatim text, and who made it
+   - For each claim, list supports (supported_by) and attacks (attacked_by)
+   - Classify attacks: "rebut", "undercut", or "undermine"
+   - Note dialectical scheme: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
+   - Each claim must be traceable to the transcript${documentAnalysis}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
+  "argument_map": [
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
+    ]}
+  ]${documentSchema}
+}`;
+}
+
+/** Phase 3: Evaluate preferences + policy implications from argument map and disagreements */
+export function synthEvaluatePrompt(
+  topic: string,
+  disagreements: string,
+  argumentMap: string,
+  policyContext: string = '',
+): string {
+  return `You are a debate analyst. Evaluate which arguments are stronger and identify policy implications.
+${READING_LEVEL}
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== DISAGREEMENTS ===
+${disagreements}
+
+=== ARGUMENT MAP ===
+${argumentMap}
+
+Tasks:
+1. For each disagreement, evaluate which position is STRONGER and why.
+   Apply these preference criteria (in order of priority):
+   a. "empirical_evidence" — which position cites more or better evidence?
+   b. "logical_validity" — which position has fewer logical gaps or fallacies?
+   c. "source_authority" — which position draws on more authoritative sources?
+   d. "specificity" — which position is more concrete and testable?
+   e. "scope" — which position accounts for more relevant considerations?
+   If genuinely undecidable, say so and explain what evidence would tip the balance.
+2. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "preferences": [
+    {"conflict": "description of disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
+  ],
+  "policy_implications": [
+    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "prometheus", "stance": "supports/opposes/modifies and why"}], "implication": "how this affects what policy should be adopted"}
+  ]
+}`;
+}
+
+/** @deprecated Use multi-phase synthesis (synthExtractPrompt + synthMapPrompt + synthEvaluatePrompt). Kept for backward compatibility. */
 export function debateSynthesisPrompt(
   topic: string,
   transcript: string,

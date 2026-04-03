@@ -33,6 +33,9 @@ import {
   crossRespondSelectionPrompt,
   crossRespondPrompt,
   debateSynthesisPrompt,
+  synthExtractPrompt,
+  synthMapPrompt,
+  synthEvaluatePrompt,
   probingQuestionsPrompt,
   contextCompressionPrompt,
 } from './prompts';
@@ -802,24 +805,49 @@ export class DebateEngine {
     // Policy context
     let policyContext = '';
     if (this.taxonomy.policyRegistry.length > 0) {
-      const policyLines = this.taxonomy.policyRegistry.slice(0, 30).map(p => `${p.id}: ${p.action}`);
+      const policyLines = this.taxonomy.policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`);
       policyContext = `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${policyLines.join('\n')}`;
     }
 
-    const prompt = debateSynthesisPrompt(this.session.topic.final, fullTranscript, hasSourceDoc, policyContext);
     const start = Date.now();
-    const text = await this.generate(prompt, 'Debate synthesis', 180_000);
-    const elapsed = Date.now() - start;
-
     let synthesisData: Record<string, unknown> = {};
-    try {
-      synthesisData = parseJsonRobust(text) as any;
-    } catch {
-      // Synthesis responses are often truncated (token limit) or have malformed JSON.
-      // Salvage complete top-level arrays from the partial JSON.
-      const stripped = stripCodeFences(text);
-      synthesisData = extractArraysFromPartialJson(stripped);
-    }
+
+    // Phase 1: Extract core synthesis
+    this.progress('synthesis', undefined, 'Phase 1/3: Extracting agreements and disagreements');
+    const extractText = await this.generate(
+      synthExtractPrompt(this.session.topic.final, fullTranscript),
+      'Synthesis Phase 1: Extract', 60_000,
+    );
+    let extractData: Record<string, unknown> = {};
+    try { extractData = parseJsonRobust(extractText) as any; }
+    catch { extractData = extractArraysFromPartialJson(stripCodeFences(extractText)); }
+    Object.assign(synthesisData, extractData);
+
+    // Phase 2: Build argument map
+    this.progress('synthesis', undefined, 'Phase 2/3: Building argument map');
+    const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
+    const mapText = await this.generate(
+      synthMapPrompt(this.session.topic.final, fullTranscript, disagreementsSummary, hasSourceDoc),
+      'Synthesis Phase 2: Map', 60_000,
+    );
+    let mapData: Record<string, unknown> = {};
+    try { mapData = parseJsonRobust(mapText) as any; }
+    catch { mapData = extractArraysFromPartialJson(stripCodeFences(mapText)); }
+    Object.assign(synthesisData, mapData);
+
+    // Phase 3: Evaluate preferences + policy implications
+    this.progress('synthesis', undefined, 'Phase 3/3: Evaluating preferences');
+    const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
+    const evalText = await this.generate(
+      synthEvaluatePrompt(this.session.topic.final, disagreementsSummary, argMapSummary, policyContext),
+      'Synthesis Phase 3: Evaluate', 60_000,
+    );
+    let evalData: Record<string, unknown> = {};
+    try { evalData = parseJsonRobust(evalText) as any; }
+    catch { evalData = extractArraysFromPartialJson(stripCodeFences(evalText)); }
+    Object.assign(synthesisData, evalData);
+
+    const elapsed = Date.now() - start;
 
     // Format readable content
     const lines: string[] = [];
@@ -900,7 +928,7 @@ export class DebateEngine {
     } else if (typeof synthesisData.summary === 'string') {
       content = synthesisData.summary;
     } else {
-      content = stripCodeFences(text);
+      content = JSON.stringify(synthesisData, null, 2);
     }
 
     const entry = this.addEntry({
@@ -912,8 +940,7 @@ export class DebateEngine {
     });
 
     this.recordDiagnostic(entry.id, {
-      prompt,
-      raw_response: text,
+      raw_response: JSON.stringify({ extractData, mapData, evalData }),
       model: this.config.model,
       response_time_ms: elapsed,
     });
