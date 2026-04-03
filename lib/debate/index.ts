@@ -25,6 +25,7 @@ export * from './formatters';
 // Import directly: import { PovNodeSchema } from 'lib/debate/schemas';
 export * from './validators';
 export * from './nodeIdUtils';
+export * from './qbaf';
 
 // ── Situations Migration Normalizers ──────────────────────
 
@@ -39,6 +40,15 @@ export function normalizeNodeProperties<T extends Record<string, unknown>>(node:
 /** Normalize legacy POV string: 'cross-cutting' → 'situations'. */
 export function normalizePov(pov: string): string {
   return pov === 'cross-cutting' ? 'situations' : pov;
+}
+
+/** Normalize legacy node IDs: old slugs → new BDI/Situations slugs. */
+export function normalizeNodeId(id: string): string {
+  if (id.startsWith('cc-')) return 'sit-' + id.slice(3);
+  return id
+    .replace(/^(acc|saf|skp)-goals-/, '$1-desires-')
+    .replace(/^(acc|saf|skp)-data-/, '$1-beliefs-')
+    .replace(/^(acc|saf|skp)-methods-/, '$1-intentions-');
 }
 
 // ── BDI Migration Normalizers (Phase 1 shims) ────────────

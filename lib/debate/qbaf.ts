@@ -1,0 +1,147 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * QBAF — Quantitative Bipolar Argumentation Framework.
+ * Implements DF-QuAD (Discontinuity-Free Quantitative Argumentation Debate)
+ * gradual semantics for computing argument acceptability strengths.
+ */
+
+// ── Types ─────────────────────────────────────────────────
+
+export interface QbafNode {
+  id: string;
+  base_strength: number;
+}
+
+export interface QbafEdge {
+  source: string;
+  target: string;
+  type: 'supports' | 'attacks';
+  weight: number;
+  attack_type?: 'rebut' | 'undercut' | 'undermine';
+}
+
+export interface QbafOptions {
+  /** Maximum iterations before forced termination. Default: 100. */
+  maxIterations?: number;
+  /** Convergence threshold — max delta between iterations. Default: 0.001. */
+  convergenceThreshold?: number;
+  /** Weight multipliers by attack type. Default: rebut=1.0, undercut=1.1, undermine=1.2. */
+  attackWeights?: Partial<Record<'rebut' | 'undercut' | 'undermine', number>>;
+}
+
+export interface QbafResult {
+  strengths: Map<string, number>;
+  iterations: number;
+  converged: boolean;
+}
+
+// ── Default attack type weights ───────────────────────────
+
+const DEFAULT_ATTACK_WEIGHTS: Record<string, number> = {
+  rebut: 1.0,
+  undercut: 1.1,
+  undermine: 1.2,
+};
+
+// ── DF-QuAD Engine ────────────────────────────────────────
+
+/**
+ * Compute QBAF acceptability strengths using DF-QuAD gradual semantics.
+ *
+ * For each node v:
+ *   σ(v) = τ(v) × (1 - aggAtt) × (1 + aggSup)
+ *   clamped to [0, 1]
+ *
+ * where:
+ *   τ(v) = base strength
+ *   aggAtt = Σ (σ(attacker) × edge_weight × attack_type_multiplier), clamped to [0, 1]
+ *   aggSup = Σ (σ(supporter) × edge_weight), clamped to [0, 1]
+ *
+ * Iterates until convergence or maxIterations.
+ */
+export function computeQbafStrengths(
+  nodes: QbafNode[],
+  edges: QbafEdge[],
+  options?: QbafOptions,
+): QbafResult {
+  const maxIter = options?.maxIterations ?? 100;
+  const threshold = options?.convergenceThreshold ?? 0.001;
+  const atkWeights = { ...DEFAULT_ATTACK_WEIGHTS, ...options?.attackWeights };
+
+  if (nodes.length === 0) {
+    return { strengths: new Map(), iterations: 0, converged: true };
+  }
+
+  // Initialize strengths to base_strength
+  const strengths = new Map<string, number>();
+  for (const n of nodes) {
+    strengths.set(n.id, clamp(n.base_strength));
+  }
+
+  // Build adjacency: target → incoming edges
+  const attacks = new Map<string, { sourceId: string; weight: number }[]>();
+  const supports = new Map<string, { sourceId: string; weight: number }[]>();
+
+  for (const e of edges) {
+    // Skip edges referencing unknown nodes
+    if (!strengths.has(e.source) || !strengths.has(e.target)) continue;
+
+    const effectiveWeight = e.type === 'attacks'
+      ? e.weight * (atkWeights[e.attack_type ?? 'rebut'] ?? 1.0)
+      : e.weight;
+
+    const map = e.type === 'attacks' ? attacks : supports;
+    if (!map.has(e.target)) map.set(e.target, []);
+    map.get(e.target)!.push({ sourceId: e.source, weight: effectiveWeight });
+  }
+
+  // Iterate until convergence
+  let converged = false;
+  let iterations = 0;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    iterations = iter + 1;
+    let maxDelta = 0;
+
+    for (const n of nodes) {
+      const base = clamp(n.base_strength);
+
+      // Aggregate attack influence
+      const attackEdges = attacks.get(n.id) ?? [];
+      let aggAtt = 0;
+      for (const a of attackEdges) {
+        aggAtt += (strengths.get(a.sourceId) ?? 0) * a.weight;
+      }
+      aggAtt = clamp(aggAtt);
+
+      // Aggregate support influence
+      const supportEdges = supports.get(n.id) ?? [];
+      let aggSup = 0;
+      for (const s of supportEdges) {
+        aggSup += (strengths.get(s.sourceId) ?? 0) * s.weight;
+      }
+      aggSup = clamp(aggSup);
+
+      // DF-QuAD update rule
+      const newStrength = clamp(base * (1 - aggAtt) * (1 + aggSup));
+      const delta = Math.abs(newStrength - (strengths.get(n.id) ?? 0));
+      if (delta > maxDelta) maxDelta = delta;
+      strengths.set(n.id, newStrength);
+    }
+
+    if (maxDelta < threshold) {
+      converged = true;
+      break;
+    }
+  }
+
+  return { strengths, iterations, converged };
+}
+
+// ── Helpers ───────────────────────────────────────────────
+
+function clamp(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
