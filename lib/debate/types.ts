@@ -4,7 +4,18 @@
 export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
 
 /** Canonical dialectical schemes (AIF-aligned). */
-export type DialecticalScheme = 'CONCEDE' | 'DISTINGUISH' | 'REFRAME' | 'COUNTEREXAMPLE' | 'REDUCE' | 'ESCALATE';
+export type DialecticalScheme =
+  | 'DISTINGUISH'
+  | 'COUNTEREXAMPLE'
+  | 'CONCEDE-AND-PIVOT'
+  | 'REFRAME'
+  | 'EMPIRICAL CHALLENGE'
+  | 'EXTEND'
+  | 'UNDERCUT'
+  // Legacy — accept but don't prompt for these
+  | 'CONCEDE'
+  | 'REDUCE'
+  | 'ESCALATE';
 
 export interface TaxonomyRef {
   node_id: string;
@@ -81,6 +92,14 @@ export interface DebateSession {
   convergence_tracker?: ConvergenceTracker;
   /** Pre-analysis of source document — extracted i-nodes, tensions, and summary. Absent for topic-only debates. */
   document_analysis?: DocumentAnalysis;
+  /** QBAF strength snapshots after each turn — for timeline visualization. Absent in pre-QBAF debates. */
+  qbaf_timeline?: QbafTimelineEntry[];
+}
+
+/** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
+export interface QbafTimelineEntry {
+  turn: number;
+  strengths: Record<string, number>;
 }
 
 // ── Document pre-analysis types ────────────────────────
@@ -118,6 +137,8 @@ export interface ArgumentNetworkNode {
   base_strength?: number;
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
   computed_strength?: number;
+  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5). */
+  scoring_method?: 'ai_rubric' | 'human' | 'default_pending';
 }
 
 export interface ArgumentNetworkEdge {

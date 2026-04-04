@@ -19,6 +19,11 @@ export interface ScoredPovNode {
   score: number;
 }
 
+export interface ScoredSituationNode {
+  node: SituationNode;
+  score: number;
+}
+
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
   let dot = 0, normA = 0, normB = 0;
@@ -97,7 +102,7 @@ export function selectRelevantSituationNodes(
   threshold: number = 0.3,
   min: number = 3,
   max: number = 20,
-): SituationNode[] {
+): ScoredSituationNode[] {
   const scored = situationNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
     .sort((a, b) => b.score - a.score);
@@ -107,7 +112,7 @@ export function selectRelevantSituationNodes(
     ? aboveThreshold
     : scored.slice(0, Math.max(min, aboveThreshold.length));
 
-  return selected.slice(0, max).map(s => s.node);
+  return selected.slice(0, max);
 }
 
 /**

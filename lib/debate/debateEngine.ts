@@ -280,7 +280,7 @@ export class DebateEngine {
         const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.3, 3);
         return formatTaxonomyContext({
           povNodes: scoredPov.map(s => s.node),
-          situationNodes: filteredSit,
+          situationNodes: filteredSit.map(s => s.node),
           policyRegistry: ctx.policyRegistry,
           nodeScores: scores,
         }, pov);
@@ -615,8 +615,11 @@ export class DebateEngine {
         .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
         .slice(0, 5);
       if (unaddressed.length > 0) {
-        qbafContext = '\n\n=== STRONGEST UNADDRESSED CLAIMS (by QBAF strength) ===\nPrioritize these — they are well-supported but no one has responded to them yet.\n'
-          + unaddressed.map(n => `- ${n.id} (${POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker}, strength ${n.computed_strength!.toFixed(2)}): ${n.text}`).join('\n');
+        qbafContext = '\n\n=== STRONGEST UNADDRESSED CLAIMS (by QBAF strength) ===\nPrioritize these — they are well-supported but no one has responded to them yet.\nClaims marked [unscored] have default strength (0.5) — their actual strength is unknown pending human review.\n'
+          + unaddressed.map(n => {
+            const unscoredTag = n.scoring_method === 'default_pending' ? ' [unscored]' : '';
+            return `- ${n.id} (${POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}): ${n.text}`;
+          }).join('\n');
       }
     }
 
@@ -1050,6 +1053,9 @@ export class DebateEngine {
         taxonomy_refs: taxonomyRefIds,
         turn_number: turnNumber,
         base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
+        scoring_method: typeof claim.base_strength === 'number'
+          ? 'ai_rubric'
+          : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
       });
 
       // Track commitment
@@ -1108,6 +1114,29 @@ export class DebateEngine {
           const qbafConv = computeQbafConvergence(issue.claim_ids, result.strengths);
           if (qbafConv !== undefined) issue.qbaf_strength = qbafConv;
         }
+      }
+
+      // Snapshot timeline: capture all computed_strengths at this turn
+      if (!this.session.qbaf_timeline) this.session.qbaf_timeline = [];
+      const strengths: Record<string, number> = {};
+      for (const node of an.nodes) {
+        if (node.computed_strength != null) strengths[node.id] = node.computed_strength;
+      }
+      this.session.qbaf_timeline.push({ turn: turnNumber, strengths });
+
+      // Compute per-entry net delta: sum of strength changes caused by this turn's claims
+      const prevSnapshot = this.session.qbaf_timeline.length >= 2
+        ? this.session.qbaf_timeline[this.session.qbaf_timeline.length - 2].strengths
+        : {};
+      let netDelta = 0;
+      for (const [id, strength] of Object.entries(strengths)) {
+        netDelta += strength - (prevSnapshot[id] ?? 0);
+      }
+      // Store on the transcript entry metadata
+      const entry = this.session.transcript.find(e => e.id === entryId);
+      if (entry) {
+        if (!entry.metadata) entry.metadata = {};
+        entry.metadata.qbaf_net_delta = netDelta;
       }
     }
 
