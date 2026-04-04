@@ -52,6 +52,20 @@ export interface PovNode {
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
   debate_refs?: string[];
+  /** Concession history — tracks cross-debate concessions affecting this node. Absent in pre-tracking nodes. */
+  concession_history?: ConcessionRecord[];
+}
+
+export type ConcessionType = 'full' | 'conditional' | 'tactical';
+
+export interface ConcessionRecord {
+  debate_id: string;
+  speaker: string;
+  text: string;
+  turn: number;
+  conceded_to: string;
+  concession_type: ConcessionType;
+  bdi_impact: 'belief' | 'desire' | 'intention';
 }
 
 export interface SituationNode {
