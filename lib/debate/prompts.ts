@@ -9,7 +9,7 @@
 import type { DocumentAnalysis } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
 
-const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.';
+const READING_LEVEL = 'Write your statement text at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
 
 // ── Length-scaled instructions ──────────────────────────────
 // Each length tier specifies both the size constraint AND which
@@ -17,7 +17,7 @@ const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct la
 
 const LENGTH_INSTRUCTIONS: Record<string, string> = {
   brief: 'Be concise — 2-4 sentences maximum. State your core claim and one supporting reason. Skip steelmanning and assumption disclosure at this length.',
-  medium: 'Provide a moderately detailed response — 1-2 paragraphs. Include a brief steelman of the position you are critiquing (1 sentence) before presenting your argument.',
+  medium: 'Provide a moderately detailed response — 2–3 paragraphs. Your steelman sentence, core argument, and any vulnerability acknowledgment can be woven together naturally. You do not need a separate paragraph for each. Before presenting your argument, include a one-sentence steelman of the strongest opposing point you are directly responding to. If multiple opponents made different arguments, steelman the one you are primarily addressing — not all of them.',
   detailed: 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence.',
 };
 
@@ -35,9 +35,9 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
 
-When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response.
+When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response. If no nodes are starred, or if starred nodes are not relevant to the question being asked, select the 2–3 most pertinent nodes from any section and build your argument around those. Note in your taxonomy_refs why you chose them over other candidates.
 
-Express ideas in your own words. See OUTPUT FORMAT for rules on how to reference taxonomy nodes.`;
+Express ideas in your own words. See OUTPUT FORMAT for rules on referencing taxonomy nodes.`;
 
 // ── MUST — CORE BEHAVIORS (medium + detailed tiers) ──────────────────────
 
@@ -60,7 +60,9 @@ PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose bas
 - Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
 - Prioritize CRUXES: points where, if resolved, someone would change their mind
 - Ignore rhetorical flourishes and focus on substantive claims
-- If multiple opponents made different arguments, address the one that most threatens your position`;
+- If multiple opponents made different arguments, address the one that most threatens your position
+
+HANDLING FLAWED QUESTIONS: If the question directed at you contains a false premise, a loaded framing, or is outside the scope of your debater's expertise, name the problem briefly before responding. Do not accept a flawed frame just to answer the question — restate the issue accurately, then give your substantive response. If the question is entirely off-topic for your perspective, say so and redirect to the most relevant nearby issue you can address.`;
 
 // ── MUST — EXTENDED (detailed tier only) ─────────────────────────────────
 
@@ -142,36 +144,35 @@ DISAGREEMENT CLASSIFICATION: When you disagree with another debater, classify yo
   → These require agreeing on definitions before debating substance. Flag the term.
 Include a "disagreement_type" field in your response when you disagree.
 
-DISAGREEMENT INTENSITY: When expressing disagreement, quantify it with precise language.
-Choose a modifier that matches the actual severity of the clash:
+INTENSITY CALIBRATION: When expressing agreement or disagreement, calibrate your intensity using these tiers:
 
-- LOW (gentle difference of opinion): slightly, mildly, somewhat, marginally, partially, tentatively
-  e.g., "I mildly disagree — the data supports a more nuanced reading."
+- LOW: For minor differences or partial alignment. Modifiers: slightly, mildly, tentatively, partially, broadly.
+  Example disagreement: "I mildly disagree — the data supports a more nuanced reading."
+  Example agreement: "I partially agree — the general direction is right, but the mechanism is different."
 
-- MEDIUM (real, substantive clash): considerably, significantly, substantially, notably, meaningfully, plainly
-  e.g., "I plainly disagree — this conflates correlation with causation."
+- MEDIUM: For real substantive clashes or clear genuine alignment. Modifiers: considerably, substantially, largely, notably, meaningfully, plainly.
+  Example disagreement: "I plainly disagree — this conflates correlation with causation."
+  Example agreement: "I largely agree — the evidence here is compelling, though I'd add a caveat."
 
-- HIGH (fundamental, serious opposition): strongly, vehemently, profoundly, categorically, emphatically, flatly, fundamentally
-  e.g., "I fundamentally disagree — this premise undermines the entire framework."
+- HIGH: For fundamental opposition or full endorsement. Modifiers: strongly, categorically, emphatically, completely, unreservedly, fundamentally.
+  Example disagreement: "I fundamentally disagree — this premise undermines the entire framework."
+  Example agreement: "I absolutely agree — this is well-supported and central to the issue."
 
-Match the intensity to the stakes. A definitional quibble warrants "mildly." A claim that
-misrepresents evidence warrants "substantially." A position that contradicts core principles
-warrants "categorically." Never default to the same intensity — calibrate each time.
+Match intensity to stakes. A definitional quibble warrants LOW. A misrepresentation of evidence warrants MEDIUM. A contradiction of core principles warrants HIGH. Partial agreement is more useful than blanket agreement — "I largely agree but diverge on X" advances the debate; "I agree" does not.
 
-AGREEMENT INTENSITY: When expressing agreement, quantify it with the same precision.
-Choose a modifier that matches the actual degree of alignment:
+MOVE TYPES: When constructing your response, identify which argumentative moves you are making. Select 1–3 from this list that best describe what your response is doing:
 
-- LOW (cautious or partial nod): slightly, tentatively, partially, loosely, broadly, vaguely
-  e.g., "I partially agree — the general direction is right, but the mechanism is different."
+- DISTINGUISH: Drawing a boundary between two things your opponent is conflating or treating as equivalent. Use when someone lumps together cases that have meaningful differences.
+- COUNTEREXAMPLE: Offering a specific case, scenario, or piece of evidence that undermines a general claim. Use when an opponent makes a broad assertion that doesn't hold universally.
+- CONCEDE-AND-PIVOT: Granting an opponent's point but redirecting to a stronger position or showing why the concession doesn't change your conclusion. Use when an opponent has a valid point that doesn't actually defeat your argument.
+- REFRAME: Changing the lens, framing, or level of analysis through which the issue is viewed. Use when the current framing obscures what you believe is the real issue.
+- EMPIRICAL CHALLENGE: Disputing the factual basis of a claim — the data is wrong, outdated, misrepresented, or insufficient. Use when your disagreement is about what is true, not what matters.
+- EXTEND: Building on a point made by yourself or an ally in a previous round, adding new evidence or reasoning. Use when a prior argument was underdeveloped or needs reinforcement.
+- UNDERCUT: Attacking not the conclusion but the reasoning link between an opponent's evidence and their claim. Use when the facts may be right but the logic connecting them to the conclusion is flawed.
 
-- MEDIUM (clear, genuine alignment): considerably, substantially, largely, generally, meaningfully, notably
-  e.g., "I largely agree — the evidence here is compelling, though I'd add a caveat."
+List your selections in the move_types field of your JSON output. Choose only types that genuinely describe your argument — do not pad the list.
 
-- HIGH (full, enthusiastic endorsement): strongly, wholeheartedly, entirely, completely, unreservedly, emphatically, absolutely
-  e.g., "I absolutely agree — this is well-supported and central to the issue."
-
-Partial agreement is more useful than blanket agreement. "I largely agree but diverge on X"
-advances the debate; "I agree" does not. Calibrate every time.
+POLICY AWARENESS: As you construct your argument, consider whether your position supports, opposes, or has implications for any policies listed in the POLICY ACTIONS section of your taxonomy context. If it does, factor that connection into how you frame your argument — don't just tag it after the fact. Record these connections in the policy_refs field of your output.
 
 POSITIONAL VULNERABILITIES: Your taxonomy includes a section listing weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
 
@@ -179,50 +180,57 @@ REASONING WATCHLIST: Your taxonomy flags reasoning errors you tend toward — se
 
 CROSS-CUTTING CONCERNS: Your taxonomy shows where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 
-const DIALECTICAL_MOVES = `Your response should employ one or more of these dialectical moves. Choose strategically:
-
-- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim.
-  USE WHEN: The opponent makes a general claim and you can identify a concrete exception.
-  THE KEY: The example must be genuinely analogous, not a superficial similarity.
+const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical moves. Choose strategically:
 
 - DISTINGUISH: Accept the opponent's evidence but show it doesn't apply here.
   USE WHEN: The evidence is real but the context, scope, or conditions differ from what's being claimed.
   THE KEY: Explain precisely WHY the distinction matters — what's different about this case?
 
+- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim.
+  USE WHEN: The opponent makes a general claim and you can identify a concrete exception.
+  THE KEY: The example must be genuinely analogous, not a superficial similarity.
+
+- CONCEDE-AND-PIVOT: Acknowledge a valid point, then redirect to what it misses.
+  USE WHEN: The evidence clearly supports their claim, but the broader conclusion doesn't follow.
+  THE KEY: The concession must be genuine — not "Great point, but..." empty flattery.
+  A concession immediately reversed by "however" is a rhetorical tic, not intellectual honesty.
+
 - REFRAME: Shift the framing to reveal what the current frame hides.
   USE WHEN: The opponent's framing excludes important considerations or presupposes their conclusion.
   THE KEY: Show what becomes visible in your frame that was invisible in theirs.
 
-- REDUCE: Show the opponent's logic leads to an absurd or unacceptable conclusion.
-  USE WHEN: The opponent's principle, applied consistently, produces results they wouldn't endorse.
-  THE KEY: The reductio must follow from THEIR premises, not from a distortion of them.
+- EMPIRICAL CHALLENGE: Dispute the factual basis of a claim with specific counter-evidence.
+  USE WHEN: The opponent cites data, studies, or precedent that you can directly contest.
+  THE KEY: Cite specific counter-evidence — don't just assert "that's wrong."
 
-- ESCALATE: Raise the stakes by connecting to a broader principle.
-  USE WHEN: The specific disagreement reflects a deeper conflict worth surfacing.
-  THE KEY: The broader principle must actually be at stake, not just rhetorically invoked.
+- EXTEND: Build on another debater's point to strengthen or expand it.
+  USE WHEN: An ally or even an opponent made a point that supports your position if taken further.
+  THE KEY: Add genuine new substance — don't just agree and restate.
 
-- CONCEDE: Acknowledge a valid point from the opponent.
-  USE WHEN: The evidence clearly supports their claim, OR the point is tangential to your core argument.
-  NEVER USE: As empty flattery before attacking ("Great point, but..."). A concession that
-  is immediately reversed by "however" is not a real concession — it's a rhetorical tic.
+- UNDERCUT: Attack the warrant (the reasoning link) rather than the evidence or conclusion.
+  USE WHEN: The opponent's evidence is real and their conclusion may be right, but their
+  reasoning for WHY the evidence supports the conclusion is flawed.
+  THE KEY: Show that even accepting the evidence, the conclusion doesn't follow by THIS logic.
 
 MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
 conceded last turn, lead with a challenge or reframe this turn. If you distinguished
-last turn, try a counterexample or escalation. The best debates feature genuine variety
-in rhetorical strategy — not a predictable cycle of "I concede, but I distinguish."
+last turn, try a counterexample or undercut. The best debates feature genuine variety
+in rhetorical strategy — not a predictable cycle.
 
 SENTENCE VARIETY: Never begin two consecutive responses with the same phrase. Vary your
-openings. Instead of always starting with "I concede," use natural language:
+openings:
 - "That's a fair point — but it actually strengthens my case because..."
 - "You're right that X, and that's precisely why..."
 - "The evidence you cite is real, but it proves the opposite of what you claim..."
 - "Let me challenge that directly..."
 - "Consider what happens if we apply your logic consistently..."
 
-Include a "move_types" array in your response listing which moves you used.`;
+Include a "move_types" array in your response (select 1-3 per response).`;
 
 const OUTPUT_FORMAT = `## OUTPUT FORMAT
 Structure your response as the following JSON object. Every field must be present.
+
+NODE-ID PROHIBITION: Node IDs are system metadata, not part of the conversation. Never surface them in your statement text — no "AN-64," no "According to taxonomy node X," no "Cassandra's AN-64 point." Instead, describe the actual argument in plain language. Use the taxonomy_refs field for attribution.
 
 CLAIM SKETCHING: As you write your response, identify your 1-4 most important claims — the
 assertions that carry your argument. For each claim, extract a near-verbatim sentence from your
@@ -244,14 +252,7 @@ For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining
 how that node informed your argument — not a brief label. Vary your sentence openings; never
 start with "This node".
 
-NODE-ID PROHIBITION: NEVER use internal identifiers (AN-64, acc-desires-002, PR-12, etc.) in
-your statement text — these are system metadata, not part of the conversation. Never say
-"According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual
-argument ("Cassandra's claim that regulatory capture is inevitable").
-
-POLICY REFERENCES: For each policy from the POLICY ACTIONS section that your argument supports,
-opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave
-empty if no policies are directly relevant.`;
+POLICY REFERENCES: For each relevant policy, provide 1–2 sentences explaining how your argument relates to it. Omit or leave empty if none are relevant.`;
 
 /** Find the last markdown heading before a character position */
 function findLastHeading(text: string, beforePos: number): string | null {
@@ -450,7 +451,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["DISTINGUISH", "COUNTEREXAMPLE"],
+  "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
   ],
@@ -543,7 +544,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["COUNTEREXAMPLE", "REFRAME"],
+  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
