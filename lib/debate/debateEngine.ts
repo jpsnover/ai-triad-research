@@ -668,6 +668,12 @@ export class DebateEngine {
     const debaterEdgeContext = this.formatDebaterEdgeContext(info.pov);
     const updatedTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
 
+    // Collect this debater's prior move_types for diversity enforcement
+    const priorMoves = this.session.transcript
+      .filter(e => e.speaker === responder && e.metadata)
+      .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as string[]) ?? [])
+      .slice(-6); // Last 3 turns × ~2 moves each
+
     const prompt = crossRespondPrompt(
       info.label, info.pov, info.personality,
       this.session.topic.final,
@@ -676,6 +682,7 @@ export class DebateEngine {
       this.config.responseLength,
       this.session.document_analysis ? undefined : this.config.sourceContent,
       this.session.document_analysis,
+      priorMoves,
     );
 
     const start = Date.now();
