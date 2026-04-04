@@ -22,7 +22,14 @@ function Invoke-BatchSummary {
     .PARAMETER MaxConcurrent
         Number of documents to process in parallel. Default: 1.
     .PARAMETER SkipConflictDetection
-        Do not call Find-Conflict after each summary.
+        Do not call Invoke-QbafConflictAnalysis after each summary.
+    .PARAMETER IterativeExtraction
+        Use FIRE iterative extraction for all documents. Routes each document
+        through Invoke-POVSummary with -IterativeExtraction. Incompatible with
+        -MaxConcurrent > 1.
+    .PARAMETER AutoFire
+        Use two-stage AutoFire sniff per document. Routes each document through
+        Invoke-POVSummary with -AutoFire. Incompatible with -MaxConcurrent > 1.
     .EXAMPLE
         Invoke-BatchSummary
     .EXAMPLE
@@ -55,7 +62,11 @@ function Invoke-BatchSummary {
         [ValidateRange(1, 10)]
         [int]$MaxConcurrent = 1,
 
-        [switch]$SkipConflictDetection
+        [switch]$SkipConflictDetection,
+
+        [switch]$IterativeExtraction,
+
+        [switch]$AutoFire
     )
 
     begin {
@@ -371,48 +382,102 @@ function Invoke-BatchSummary {
 
     $Results = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
-    if ($MaxConcurrent -le 1) {
+    # Determine if we should route through Invoke-POVSummary (FIRE modes) or
+    # Invoke-DocumentSummary (single-shot, supports chunking and parallelism)
+    $UsePOVSummaryPath = $IterativeExtraction -or $AutoFire
+
+    if ($UsePOVSummaryPath) {
+        $FireMode = if ($IterativeExtraction) { '-IterativeExtraction' } else { '-AutoFire' }
+        Write-Info "Using Invoke-POVSummary path ($FireMode) for each document"
+
         foreach ($Doc in $DocsToProcess) {
-            # Inject debate context for contested nodes into the system prompt
-            $DocSharedParams = $SharedParams.Clone()
-            if ($DebateContext.Count -gt 0) {
-                $DebateNotes = @()
-                foreach ($NodeId in $DebateContext.Keys) {
-                    $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
+            $StartTime = Get-Date
+            try {
+                $PovParams = @{
+                    DocId    = $Doc.DocId
+                    Model    = $Model
+                    ApiKey   = $ApiKey
+                    Temperature = $Temperature
+                    Force    = $true
                 }
-                if ($DebateNotes.Count -gt 0) {
-                    $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
+                if ($IterativeExtraction) { $PovParams['IterativeExtraction'] = $true }
+                if ($AutoFire)            { $PovParams['AutoFire'] = $true }
+
+                Invoke-POVSummary @PovParams
+
+                $Elapsed = (Get-Date) - $StartTime
+                # Read back the summary to get stats for the report
+                $SumPath = Join-Path $SummariesDir "$($Doc.DocId).json"
+                $SumData = if (Test-Path $SumPath) { Get-Content -Raw $SumPath | ConvertFrom-Json -Depth 20 } else { $null }
+                $TotalPts = 0
+                foreach ($c in @('accelerationist','safetyist','skeptic')) {
+                    if ($SumData -and $SumData.pov_summaries.$c -and $SumData.pov_summaries.$c.key_points) {
+                        $TotalPts += @($SumData.pov_summaries.$c.key_points).Count
+                    }
                 }
+                $FcCount = if ($SumData -and $SumData.factual_claims) { @($SumData.factual_claims).Count } else { 0 }
+                $UcCount = if ($SumData -and $SumData.unmapped_concepts) { @($SumData.unmapped_concepts).Count } else { 0 }
+
+                $Results.Add(@{
+                    Success       = $true
+                    DocId         = $Doc.DocId
+                    TotalPoints   = $TotalPts
+                    NullNodes     = 0
+                    FactualCount  = $FcCount
+                    UnmappedCount = $UcCount
+                    ElapsedSecs   = [int]$Elapsed.TotalSeconds
+                    ChunkCount    = 0
+                })
             }
-            $Result = Invoke-DocumentSummary -Doc $Doc @DocSharedParams
-            $Results.Add($Result)
+            catch {
+                $Results.Add(@{
+                    Success = $false
+                    DocId   = $Doc.DocId
+                    Error   = $_.Exception.Message
+                })
+            }
+        }
+    }
+    elseif ($MaxConcurrent -le 1) {
+        foreach ($Doc in $DocsToProcess) {
+            try {
+                # Inject debate context for contested nodes into the system prompt
+                $DocSharedParams = $SharedParams.Clone()
+                if ($DebateContext.Count -gt 0) {
+                    $DebateNotes = @()
+                    foreach ($NodeId in $DebateContext.Keys) {
+                        $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
+                    }
+                    if ($DebateNotes.Count -gt 0) {
+                        $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
+                    }
+                }
+                $Result = Invoke-DocumentSummary -Doc $Doc @DocSharedParams
+                $Results.Add($Result)
+            }
+            catch {
+                Write-Warn "  `u{2717} $($Doc.DocId) — $($_.Exception.Message)"
+                $Results.Add(@{ Success = $false; DocId = $Doc.DocId; Error = $_.Exception.Message })
+            }
         }
     } else {
         Write-Info "Running $MaxConcurrent parallel workers"
 
-        # Capture all helper functions needed by Invoke-DocumentSummary
-        $FnBody        = (Get-Command Invoke-DocumentSummary).ScriptBlock.ToString()
-        $HelperFns     = @('Get-DensityFloors','Test-SummaryDensity','Build-DensityRetryNudge',
-                           'Build-DensityScaledPrompt','Build-DocHeader','Parse-AIResponse',
-                           'Finalize-Summary','Repair-TruncatedJson',
-                           'Invoke-ChunkedSummary','Merge-ChunkSummaries',
-                           'Split-DocumentChunks') |
-                         ForEach-Object {
-                             $cmd = Get-Command $_ -ErrorAction SilentlyContinue
-                             if ($cmd) { "function $_ {$($cmd.ScriptBlock.ToString())}" }
-                         }
-        $HelperBlock   = $HelperFns -join "`n"
-        $AIEnrichPath  = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
+        # Import the full module in each parallel runspace — this ensures all
+        # functions (public + private), script-scope variables ($script:TaxonomyData,
+        # $script:RepoRoot, $script:CachedEmbeddings, etc.), and prompt caches are
+        # available. Previous approach (manual function capture) broke when new
+        # functions/variables were added (RAG, CHESS, FIRE, QBAF).
+        $ModulePath = Join-Path $script:ModuleRoot 'AITriad.psm1'
 
         $DocsToProcess | ForEach-Object -Parallel {
-            Import-Module $using:AIEnrichPath -Force
-            $fn = [scriptblock]::Create("function Invoke-DocumentSummary {$using:FnBody}")
-            . $fn
-            $helpers = [scriptblock]::Create($using:HelperBlock)
-            . $helpers
-
-            $bag    = $using:Results
-            $Result = Invoke-DocumentSummary -Doc $_ @using:SharedParams
+            Import-Module $using:ModulePath -Force
+            # Invoke-DocumentSummary is private — call through module scope
+            $Mod = Get-Module AITriad
+            $bag = $using:Results
+            $Doc = $_
+            $Params = $using:SharedParams
+            $Result = & $Mod { param($D, $P) Invoke-DocumentSummary -Doc $D @P } $Doc $Params
             [void]$bag.Add($Result)
 
         } -ThrottleLimit $MaxConcurrent
@@ -420,16 +485,16 @@ function Invoke-BatchSummary {
 
     # -- STEP 7 — Conflict detection for successful summaries -----------------
     if (-not $SkipConflictDetection) {
-        Write-Step "Running conflict detection"
+        Write-Step "Running conflict detection (QBAF)"
 
         $SuccessfulDocs = $Results | Where-Object { $_.Success }
 
         foreach ($Result in $SuccessfulDocs) {
             try {
-                Find-Conflict -DocId $Result.DocId
+                Invoke-QbafConflictAnalysis -DocId $Result.DocId
                 Write-Info "  Conflict detection: $($Result.DocId)"
             } catch {
-                Write-Warn "  Find-Conflict failed for $($Result.DocId): $_"
+                Write-Warn "  Invoke-QbafConflictAnalysis failed for $($Result.DocId): $_"
             }
         }
     }

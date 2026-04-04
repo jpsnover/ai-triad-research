@@ -76,6 +76,9 @@
         'Show-DebateHarvest'
         'Get-AITSBOM'
         'Test-OntologyCompliance'
+        'Get-RelevantTaxonomyNodes'
+        'Invoke-QbafConflictAnalysis'
+        'Test-ExtractionQuality'
     )
 
     # Aliases exported from this module

@@ -8,13 +8,13 @@ function Invoke-POVSummary {
         POV summary mapped to the AI Triad taxonomy.
     .DESCRIPTION
         Implements the core AI summarization loop for ONE document:
-            1. Loads sources/<doc-id>/snapshot.md
-            2. Loads all four taxonomy files + TAXONOMY_VERSION
-            3. Builds a structured prompt (system + taxonomy + document)
-            4. Calls the AI API (Gemini, Claude, or Groq)
-            5. Validates and writes summaries/<doc-id>.json
-            6. Updates sources/<doc-id>/metadata.json (summary_status, summary_version)
-            7. Runs basic conflict detection
+            1. Validates inputs and resolves paths
+            2. Loads taxonomy version
+            3. Delegates extraction to Invoke-SummaryPipeline (CHESS, RAG,
+               AutoFire, FIRE/single-shot, density retry, unmapped resolution)
+            4. Writes summaries/<doc-id>.json
+            5. Updates sources/<doc-id>/metadata.json (summary_status, summary_version)
+            6. Runs basic conflict detection
     .PARAMETER DocId
         The document slug ID, e.g. "altman-2024-agi-path".
     .PARAMETER RepoRoot
@@ -31,6 +31,12 @@ function Invoke-POVSummary {
         Build and display the prompt, but do NOT call the API or write any files.
     .PARAMETER Force
         Re-process the document even if summary_status is already "current".
+    .PARAMETER FullTaxonomy
+        Bypass RAG — inject all taxonomy nodes into the prompt.
+    .PARAMETER IterativeExtraction
+        Force FIRE iterative extraction.
+    .PARAMETER AutoFire
+        Enable two-stage FIRE sniff (auto-detect whether FIRE is worthwhile).
     .EXAMPLE
         Invoke-POVSummary -DocId "altman-2024-agi-path"
     .EXAMPLE
@@ -55,7 +61,13 @@ function Invoke-POVSummary {
         [double]$Temperature = 0.1,
 
         [switch]$DryRun,
-        [switch]$Force
+        [switch]$Force,
+
+        [switch]$FullTaxonomy,
+
+        [switch]$IterativeExtraction,
+
+        [switch]$AutoFire
     )
 
     Set-StrictMode -Version Latest
@@ -145,45 +157,7 @@ function Invoke-POVSummary {
     $taxonomyVersion = (Get-Content $paths.VersionFile -Raw).Trim()
     Write-OK "Taxonomy version: $taxonomyVersion"
 
-    # -- STEP 2 — Load all four taxonomy files --------------------------------
-    $taxonomyFiles   = @("accelerationist.json", "safetyist.json", "skeptic.json", "situations.json")
-    $taxonomyContext = [ordered]@{}
-
-    foreach ($file in $taxonomyFiles) {
-        $filePath = Join-Path $paths.TaxonomyDir $file
-        if (-not (Test-Path $filePath)) {
-            Write-Fail "Taxonomy file missing: $filePath"
-            throw "Taxonomy file missing: $file"
-        }
-        $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json -Depth 20
-        $nodeCount = $taxonomyContext[$file].nodes.Count
-        Write-OK "  $file ($nodeCount nodes)"
-    }
-
-    $taxonomyJson = $taxonomyContext | ConvertTo-Json -Depth 20 -Compress:$false
-
-    # -- STEP 2b — Load policy registry for prompt context ---------------------
-    $policyRegistryContext = ''
-    $policyRegistryPath = Join-Path $paths.TaxonomyDir 'policy_actions.json'
-    if (Test-Path $policyRegistryPath) {
-        $policyReg = Get-Content -Raw -Path $policyRegistryPath | ConvertFrom-Json -Depth 20
-        if ($policyReg.policies -and $policyReg.policies.Count -gt 0) {
-            # Build compact ID + action listing, one per line, cap at ~5KB
-            $policyLines = $policyReg.policies | ForEach-Object { "$($_.id): $($_.action)" }
-            $policyBlock = $policyLines -join "`n"
-            if ($policyBlock.Length -gt 5000) {
-                $policyBlock = $policyBlock.Substring(0, 5000) + "`n... (truncated)"
-            }
-            $policyRegistryContext = @"
-
-=== POLICY REGISTRY (use pol-NNN IDs when referencing policy actions) ===
-$policyBlock
-"@
-            Write-OK "Policy registry loaded: $($policyReg.policies.Count) policies for prompt context"
-        }
-    }
-
-    # -- STEP 3 — Load the document snapshot ----------------------------------
+    # -- STEP 2 — Load snapshot ------------------------------------------------
     Write-Step "Loading document snapshot"
 
     $snapshotText    = Get-Content $paths.SnapshotFile -Raw
@@ -198,59 +172,31 @@ $policyBlock
         Write-Warn "Document is very long (~$estimatedTokens tokens). Consider chunking if the API call fails."
     }
 
-    # -- STEP 4 — Build the prompt --------------------------------------------
-    Write-Step "Building prompt"
-
-    # Density-scaled extraction guidance based on document size
-    $wordCount = ($snapshotText -split '\s+').Count
-    $floors = Get-DensityFloors -WordCount $wordCount
-    $kpMin  = $floors.KpMin
-    $kpMax  = [Math]::Max(8,  [int]($wordCount / 200))
-    $fcMin  = $floors.FcMin
-    $fcMax  = [Math]::Max(8,  [int]($wordCount / 300))
-    $ucMin  = $floors.UcMin
-    $ucMax  = [Math]::Max(5,  [int]($wordCount / 800))
-    Write-Info "Document: ~$wordCount words → key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax"
-
-    $outputSchema = Get-Prompt -Name 'pov-summary-schema'
-    $systemPrompt = Get-Prompt -Name 'pov-summary-system' -Replacements @{
-        WORD_COUNT = $wordCount
-        KP_MIN     = $kpMin
-        KP_MAX     = $kpMax
-        FC_MIN     = $fcMin
-        FC_MAX     = $fcMax
-        UC_MIN     = $ucMin
-        UC_MAX     = $ucMax
-    }
-
-    $fullPrompt = @"
-$systemPrompt
-
-=== TAXONOMY (version $taxonomyVersion) ===
-$taxonomyJson
-$policyRegistryContext
-
-=== OUTPUT SCHEMA (your response must match this structure) ===
-$outputSchema
-
-=== DOCUMENT: $DocId ===
-Title: $($metadata.title)
-POV tags (pre-classified): $($metadata.pov_tags -join ', ')
-Topic tags: $($metadata.topic_tags -join ', ')
-
---- DOCUMENT CONTENT ---
-$snapshotText
-"@
-
-    $promptLength         = $fullPrompt.Length
-    $promptTokensEstimate = [int]($promptLength / 4)
-    Write-OK "Prompt assembled: $promptLength chars (~$promptTokensEstimate tokens estimated)"
-    Write-Info "  System instructions : $([int]($systemPrompt.Length / 4)) tokens (est.)"
-    Write-Info "  Taxonomy context    : $([int]($taxonomyJson.Length / 4)) tokens (est.)"
-    Write-Info "  Document content    : $estimatedTokens tokens (est.)"
-
-    # -- DRY RUN — print and return -------------------------------------------
+    # -- DRY RUN — build prompt locally and display ----------------------------
     if ($DryRun) {
+        # Load full taxonomy for display (DryRun has no API key for CHESS/RAG)
+        $taxonomyFiles   = @("accelerationist.json", "safetyist.json", "skeptic.json", "situations.json")
+        $taxonomyContext = [ordered]@{}
+        foreach ($file in $taxonomyFiles) {
+            $filePath = Join-Path $paths.TaxonomyDir $file
+            if (Test-Path $filePath) {
+                $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json -Depth 20
+            }
+        }
+        $taxonomyJson = $taxonomyContext | ConvertTo-Json -Depth 20 -Compress:$false
+
+        $wordCount = ($snapshotText -split '\s+').Count
+        $outputSchema = Get-Prompt -Name 'pov-summary-schema'
+        $systemPrompt = Get-Prompt -Name 'pov-summary-system' -Replacements @{
+            WORD_COUNT = $wordCount
+            KP_MIN     = [Math]::Max(3,  [int]($wordCount / 500))
+            KP_MAX     = [Math]::Max(8,  [int]($wordCount / 200))
+            FC_MIN     = [Math]::Max(3,  [int]($wordCount / 800))
+            FC_MAX     = [Math]::Max(8,  [int]($wordCount / 300))
+            UC_MIN     = [Math]::Max(2,  [int]($wordCount / 2000))
+            UC_MAX     = [Math]::Max(5,  [int]($wordCount / 800))
+        }
+
         Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
         Write-Host "  DRY RUN: FULL PROMPT PREVIEW" -ForegroundColor Yellow
         Write-Host "$('─' * 72)" -ForegroundColor DarkGray
@@ -275,152 +221,100 @@ $snapshotText
         return
     }
 
-    # -- STEP 5 — Call the AI API (with density validation + retry) ------------
-    Write-Step "Calling AI API ($Model)"
+    # -- STEP 3 — Run extraction pipeline --------------------------------------
+    Write-Step "Running extraction pipeline"
 
-    $densityFloors = Get-DensityFloors -WordCount $wordCount
-    $maxDensityRetries = 1
-    $startTime = Get-Date
-    $summaryObject = $null
+    $systemPromptTemplate = Get-Prompt -Name 'pov-summary-system'
+    $outputSchema = Get-Prompt -Name 'pov-summary-schema'
 
-    for ($densityAttempt = 0; $densityAttempt -le $maxDensityRetries; $densityAttempt++) {
-        $attemptPrompt = $fullPrompt
-        if ($densityAttempt -gt 0) {
-            Write-Warn "Retry $densityAttempt/$maxDensityRetries — density too low"
-            $attemptPrompt = $fullPrompt + "`n`n" + $densityRetryNudge
-        }
+    $pipelineResult = Invoke-SummaryPipeline `
+        -SnapshotText          $snapshotText `
+        -DocId                 $DocId `
+        -Metadata              $metadata `
+        -ApiKey                $ApiKey `
+        -Model                 $Model `
+        -Temperature           $Temperature `
+        -TaxonomyVersion       $taxonomyVersion `
+        -SystemPromptTemplate  $systemPromptTemplate `
+        -OutputSchema          $outputSchema `
+        -FullTaxonomy:$FullTaxonomy `
+        -IterativeExtraction:$IterativeExtraction `
+        -AutoFire:$AutoFire
 
-        Write-Info "Sending request..."
-
-        $aiResult = Invoke-AIApi `
-            -Prompt      $attemptPrompt `
-            -Model       $Model `
-            -ApiKey      $ApiKey `
-            -Temperature $Temperature `
-            -MaxTokens   32768 `
-            -JsonMode `
-            -TimeoutSec  120
-
-        if ($null -eq $aiResult) {
-            throw "AI API call returned null for $DocId"
-        }
-
-        $elapsed = (Get-Date) - $startTime
-        Write-OK "Response received from $($aiResult.Backend) in $([int]$elapsed.TotalSeconds)s"
-
-        # -- STEP 6 — Extract and validate the response JSON ----------------------
-        Write-Step "Parsing and validating AI response"
-
-        $rawText = $aiResult.Text
-
-        Write-Verbose "Raw AI response:"
-        Write-Verbose $rawText
-
-        $cleanedText = $rawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-        $cleanedText = $cleanedText.Trim()
-
-        try {
-            $summaryObject = $cleanedText | ConvertFrom-Json -Depth 20
-            Write-OK "Valid JSON received from $($aiResult.Backend)"
-        } catch {
-            # Attempt repair of truncated JSON
-            Write-Warn "JSON parse failed — attempting repair"
-            $repaired = Repair-TruncatedJson -Text $rawText
-            if ($repaired) {
-                try {
-                    $summaryObject = $repaired | ConvertFrom-Json -Depth 20
-                    Write-OK "JSON repaired successfully (truncated response recovered)"
-                } catch {
-                    $summaryObject = $null
-                }
-            }
-            if ($null -eq $summaryObject) {
-                Write-Fail "AI returned invalid JSON. Raw response saved for inspection."
-                $debugPath = Join-Path $paths.SummariesDir "${DocId}.debug-raw.txt"
-                Set-Content -Path $debugPath -Value $rawText -Encoding UTF8
-                Write-Info "Raw response saved to: $debugPath"
-                throw "AI returned invalid JSON for $DocId"
-            }
-        }
-
-        $requiredKeys = @("pov_summaries", "factual_claims", "unmapped_concepts")
-        $missingKeys  = $requiredKeys | Where-Object { $null -eq $summaryObject.PSObject.Properties[$_] }
-        if ($missingKeys) {
-            Write-Warn "Response is missing expected keys: $($missingKeys -join ', ')"
-            Write-Info "Continuing with partial data — review the summary file manually."
-        }
-
-        $validStances = @("strongly_aligned","aligned","neutral","opposed","strongly_opposed","not_applicable")
-        $camps = @("accelerationist","safetyist","skeptic")
-
-        foreach ($camp in $camps) {
-            $campData = $summaryObject.pov_summaries.$camp
-            if ($campData) {
-                if ($campData.key_points) {
-                    foreach ($kp in $campData.key_points) {
-                        if ($kp.stance -notin $validStances) {
-                            Write-Warn "Invalid stance '$($kp.stance)' for $camp key_point — replacing with 'neutral'"
-                            $kp.stance = 'neutral'
-                        }
-                    }
-                }
-                $pointCount = if ($campData.key_points) { @($campData.key_points).Count } else { 0 }
-                $nullNodes  = if ($campData.key_points) { @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count } else { 0 }
-                Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
-            } else {
-                Write-Warn "  $camp : no data returned — may not be relevant to this document"
-            }
-        }
-
-        $factualClaimCount    = if ($summaryObject.factual_claims)    { @($summaryObject.factual_claims).Count }    else { 0 }
-        $unmappedConceptCount = if ($summaryObject.unmapped_concepts) { @($summaryObject.unmapped_concepts).Count } else { 0 }
-
-        Write-OK "  factual_claims    : $factualClaimCount"
-        Write-OK "  unmapped_concepts : $unmappedConceptCount"
-        if ($unmappedConceptCount -gt 0) {
-            Write-Warn "$unmappedConceptCount concept(s) didn't map to existing taxonomy nodes — review for taxonomy expansion."
-        }
-
-        # -- Density validation ---------------------------------------------------
-        $densityCheck = Test-SummaryDensity -SummaryObject $summaryObject -Floors $densityFloors
-        if ($densityCheck.Pass) {
-            break
-        }
-
-        $densityRetryNudge = Build-DensityRetryNudge -Shortfalls $densityCheck.Shortfalls
-        Write-Warn "Density check FAILED: $($densityCheck.Shortfalls -join '; ')"
-
-        if ($densityAttempt -eq $maxDensityRetries) {
-            Write-Warn "Accepting under-dense result after $($densityAttempt + 1) attempt(s)"
-        }
+    if (-not $pipelineResult.Success) {
+        Write-Fail "Pipeline failed: $($pipelineResult.Error)"
+        throw "Pipeline failed for ${DocId}: $($pipelineResult.Error)"
     }
 
-    # -- STEP 6b — Cross-POV fuzzy match on unmapped concepts ------------------
-    if ($summaryObject.unmapped_concepts -and @($summaryObject.unmapped_concepts).Count -gt 0) {
-        Write-Step "Fuzzy-matching unmapped concepts against all taxonomy nodes"
-        $resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($summaryObject.unmapped_concepts)
-        if ($resolution.Resolved.Count -gt 0) {
-            foreach ($r in $resolution.Resolved) {
-                Write-OK "  Resolved: '$($r.ConceptLabel)' `u{2192} $($r.MatchedNodeId) '$($r.MatchedNodeLabel)' (score $($r.Score))"
-            }
-            $summaryObject.unmapped_concepts = $resolution.Remaining
-            $unmappedConceptCount = $resolution.Remaining.Count
-            Write-OK "  $($resolution.Resolved.Count) concept(s) resolved, $unmappedConceptCount remaining unmapped"
+    # Extract results from pipeline
+    $summaryObject        = $pipelineResult.Summary
+    $factualClaimCount    = $pipelineResult.FactualCount
+    $unmappedConceptCount = $pipelineResult.UnmappedCount
+    $taxonomyJson         = $pipelineResult.TaxonomyJson
+    $fireStats            = $pipelineResult.FireStats
+    $usedFire             = $pipelineResult.UsedFire
+    $elapsed              = [TimeSpan]::FromSeconds($pipelineResult.ElapsedSeconds)
+    $camps                = @('accelerationist', 'safetyist', 'skeptic')
+
+    # Report extraction results
+    Write-OK "Pipeline complete in $($pipelineResult.ElapsedSeconds)s ($($pipelineResult.Backend))"
+    foreach ($camp in $camps) {
+        $campData = $summaryObject.pov_summaries.$camp
+        if ($campData -and $campData.key_points) {
+            $pointCount = @($campData.key_points).Count
+            $nullNodes  = @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
+            Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
         }
         else {
-            Write-Info "  No fuzzy matches found — all $unmappedConceptCount concept(s) remain unmapped"
+            Write-Warn "  $camp : no data returned"
         }
     }
+    Write-OK "  factual_claims    : $factualClaimCount"
+    Write-OK "  unmapped_concepts : $unmappedConceptCount"
 
-    # -- STEP 7 — Write summary file ------------------------------------------
+    if ($usedFire -and $fireStats) {
+        Write-Info "  FIRE: $($fireStats.total_api_calls) API calls, $($fireStats.total_iterations) iterations, $($fireStats.termination_reason)"
+    }
+
+    # -- STEP 4 — Write summary file ------------------------------------------
     Write-Step "Writing summary file"
+
+    # Detect RAG vs full taxonomy from the context format
+    $IsRagFiltered = $taxonomyJson -match '^\s*=== RELEVANT TAXONOMY NODES'
+    if ($IsRagFiltered) {
+        $taxonomyNodeCount = ([regex]::Matches($taxonomyJson, '^\s{2}\w', [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    }
+    else {
+        $taxonomyNodeCount = ([regex]::Matches($taxonomyJson, '"id"\s*:')).Count
+    }
+
+    $modelInfo = [ordered]@{
+        model             = $Model
+        temperature       = $Temperature
+        max_tokens        = 32768
+        extraction_mode   = if ($usedFire) { 'fire' } else { 'single_shot' }
+        taxonomy_filter   = if ($FullTaxonomy) { 'full' } else { 'rag' }
+        taxonomy_nodes    = $taxonomyNodeCount
+    }
+
+    if ($usedFire -and $fireStats) {
+        $modelInfo['fire_confidence_threshold'] = 0.7
+        $modelInfo['fire_stats'] = [ordered]@{
+            api_calls          = $fireStats.total_api_calls
+            iterations         = $fireStats.total_iterations
+            claims_total       = $fireStats.claims_total
+            claims_confident   = $fireStats.claims_confident
+            claims_iterated    = $fireStats.claims_iterated
+            elapsed_seconds    = $fireStats.elapsed_seconds
+            termination_reason = $fireStats.termination_reason
+        }
+    }
 
     $finalSummary = [ordered]@{
         doc_id            = $DocId
         taxonomy_version  = $taxonomyVersion
         generated_at      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-        ai_model          = $Model
-        temperature       = $Temperature
+        model_info        = $modelInfo
         pov_summaries     = $summaryObject.pov_summaries
         factual_claims    = $summaryObject.factual_claims
         unmapped_concepts = $summaryObject.unmapped_concepts
@@ -437,7 +331,7 @@ $snapshotText
         throw
     }
 
-    # -- STEP 8 — Update metadata.json ----------------------------------------
+    # -- STEP 5 — Update metadata.json ----------------------------------------
     Write-Step "Updating metadata"
 
     try {
@@ -448,6 +342,28 @@ $snapshotText
         $metaUpdated["summary_status"]  = "current"
         $metaUpdated["summary_updated"] = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
+        # Summary statistics
+        $claimsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        foreach ($claim in @($summaryObject.factual_claims)) {
+            foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
+                if     ($nodeId -like 'acc-*') { $claimsByPov['accelerationist']++ }
+                elseif ($nodeId -like 'saf-*') { $claimsByPov['safetyist']++ }
+                elseif ($nodeId -like 'skp-*') { $claimsByPov['skeptic']++ }
+                elseif ($nodeId -like 'sit-*') { $claimsByPov['situations']++ }
+            }
+        }
+        $totalFacts = 0
+        foreach ($camp in @('accelerationist', 'safetyist', 'skeptic')) {
+            $campData = $summaryObject.pov_summaries.$camp
+            if ($campData -and $campData.key_points) {
+                $totalFacts += @($campData.key_points).Count
+            }
+        }
+        $metaUpdated["total_claims"]       = $factualClaimCount
+        $metaUpdated["claims_by_pov"]      = $claimsByPov
+        $metaUpdated["total_facts"]        = $totalFacts
+        $metaUpdated["unmapped_concepts"]  = $unmappedConceptCount
+
         Set-Content -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
         Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
     }
@@ -456,7 +372,7 @@ $snapshotText
         Write-Info "Run Invoke-POVSummary -Force -DocId '$DocId' to retry."
     }
 
-    # -- STEP 9 — Conflict detection ------------------------------------------
+    # -- STEP 6 — Conflict detection ------------------------------------------
     Write-Step "Running conflict detection"
 
     $today = Get-Date -Format "yyyy-MM-dd"
@@ -554,7 +470,7 @@ $snapshotText
         }
     }
 
-    # -- STEP 10 — Print human-readable summary to console --------------------
+    # -- STEP 7 — Print human-readable summary to console --------------------
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
     Write-Host "  POV SUMMARY: $DocId" -ForegroundColor White
     Write-Host "  Taxonomy v$taxonomyVersion  |  Model: $Model" -ForegroundColor Gray
@@ -594,9 +510,14 @@ $snapshotText
     if ($unmappedConceptCount -gt 0) {
         Write-Host "`n  UNMAPPED CONCEPTS (potential new taxonomy nodes):" -ForegroundColor Magenta
         foreach ($concept in $summaryObject.unmapped_concepts) {
-            Write-Host "    [$($concept.suggested_pov) / $($concept.suggested_category)]" -ForegroundColor Magenta
-            Write-Host "    $($concept.concept)" -ForegroundColor Gray
-            Write-Host "    Reason: $($concept.reason)" -ForegroundColor DarkGray
+            $cProps = $concept.PSObject.Properties
+            $povCat  = "[$( if ($cProps['suggested_pov']) { $concept.suggested_pov } else { '?' } ) / $( if ($cProps['suggested_category']) { $concept.suggested_category } else { '?' } )]"
+            $label   = if ($cProps['suggested_label']) { $concept.suggested_label } elseif ($cProps['concept']) { $concept.concept } else { '(no label)' }
+            $desc    = if ($cProps['concept']) { $concept.concept } elseif ($cProps['suggested_description']) { $concept.suggested_description } else { '' }
+            $reason  = if ($cProps['reason']) { $concept.reason } else { '' }
+            Write-Host "    $povCat" -ForegroundColor Magenta
+            if ($desc) { Write-Host "    $desc" -ForegroundColor Gray }
+            if ($reason) { Write-Host "    Reason: $reason" -ForegroundColor DarkGray }
         }
     }
 

@@ -109,10 +109,17 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
 }
 
 /** Combined taxonomy + policy refs with single "Show reasoning" toggle */
+type PolicyRefEntry = string | { policy_id: string; relevance: string };
+
+function resolvePolRef(ref: PolicyRefEntry): { id: string; relevance: string | null } {
+  if (typeof ref === 'string') return { id: ref, relevance: null };
+  return { id: ref.policy_id, relevance: ref.relevance };
+}
+
 function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
   refs: TaxonomyRef[];
-  policyRefs?: string[];
-  metaPolicyRefs?: string[];
+  policyRefs?: PolicyRefEntry[];
+  metaPolicyRefs?: PolicyRefEntry[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const inspectNode = useDebateStore((s) => s.inspectNode);
@@ -126,17 +133,20 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
         {refs.map((taxRef) => (
           <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
         ))}
-        {polRefs.map((polId) => (
-          <span
-            key={polId}
-            className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
-            style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
-            title={getPolicyAction(polId)}
-            onClick={(e) => { e.stopPropagation(); inspectNode(polId); }}
-          >
-            {polId}
-          </span>
-        ))}
+        {polRefs.map((polRef, i) => {
+          const { id } = resolvePolRef(polRef);
+          return (
+            <span
+              key={`${id}-${i}`}
+              className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
+              style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
+              title={getPolicyAction(id)}
+              onClick={(e) => { e.stopPropagation(); inspectNode(id); }}
+            >
+              {id}
+            </span>
+          );
+        })}
         {(refs.length > 0 || polRefs.length > 0) && (
           <button
             className="debate-reasoning-toggle"
@@ -165,19 +175,22 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
               </div>
             );
           })}
-          {polRefs.map((polId) => (
-            <div key={polId} className="debate-reasoning-item">
-              <button
-                className="debate-reasoning-node"
-                style={{ color: 'var(--color-sit)' }}
-                onClick={() => inspectNode(polId)}
-              >
-                {polId}
-              </button>
-              <span className="debate-reasoning-label">{getPolicyAction(polId)}</span>
-              <span className="debate-reasoning-text">Policy action referenced by this debater's argument</span>
-            </div>
-          ))}
+          {polRefs.map((polRef, i) => {
+            const { id, relevance } = resolvePolRef(polRef);
+            return (
+              <div key={`${id}-${i}`} className="debate-reasoning-item">
+                <button
+                  className="debate-reasoning-node"
+                  style={{ color: 'var(--color-sit)' }}
+                  onClick={() => inspectNode(id)}
+                >
+                  {id}
+                </button>
+                <span className="debate-reasoning-label">{getPolicyAction(id)}</span>
+                <span className="debate-reasoning-text">{relevance ?? 'Policy action referenced by this debater\'s argument'}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -384,11 +397,52 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   );
 }
 
+function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
+  const meta = entry.metadata as Record<string, unknown> | undefined;
+  const questions = meta?.questions as { question: string; options?: string[] }[] | undefined;
+
+  // If structured questions available in metadata, render from those
+  if (questions && Array.isArray(questions) && questions.length > 0 && typeof questions[0] === 'object') {
+    return (
+      <div className="debate-statement debate-speaker-system debate-type-clarification" data-entry-id={entry.id}>
+        <div className="debate-statement-header">
+          <span className="debate-statement-speaker">{speakerLabel(entry.speaker)}</span>
+          <span className="debate-statement-type">{entry.type}</span>
+        </div>
+        <div className="debate-statement-content markdown-body">
+          <ol>
+            {questions.map((q, i) => (
+              <li key={i}>{typeof q === 'string' ? q : q.question}</li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: render content as markdown (old format)
+  return (
+    <div className="debate-statement debate-speaker-system debate-type-clarification" data-entry-id={entry.id}>
+      <div className="debate-statement-header">
+        <span className="debate-statement-speaker">{speakerLabel(entry.speaker)}</span>
+        <span className="debate-statement-type">{entry.type}</span>
+      </div>
+      <div className="debate-statement-content markdown-body">
+        <Markdown>{entry.content}</Markdown>
+      </div>
+    </div>
+  );
+}
+
 function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
   entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
+  const activeDebate = useDebateStore(s => s.activeDebate);
+  const anNodeId = activeDebate?.argument_network?.nodes?.find(
+    n => n.source_entry_id === entry.id
+  )?.id ?? null;
   return (
     <div
       className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}
@@ -399,7 +453,10 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
         <span className="debate-statement-speaker" style={color ? { color } : undefined}>
           {speakerLabel(entry.speaker)}
         </span>
-        <span className="debate-statement-type">{entry.type}</span>
+        <span className="debate-statement-type">
+          {entry.type}
+          {anNodeId && <span className="debate-an-id"> · {anNodeId}</span>}
+        </span>
       </div>
       <div className="debate-statement-content markdown-body">
         {findQuery
@@ -622,12 +679,19 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
 }
 
 /** Clarification phase action bar */
+interface StructuredQuestion {
+  question: string;
+  options: string[];
+}
+
 function ClarificationActions() {
   const {
     activeDebate, debateGenerating, debateError,
     submitAnswersAndSynthesize, runClarification, beginDebate,
   } = useDebateStore();
   const [answer, setAnswer] = useState('');
+  const [selections, setSelections] = useState<Record<number, string>>({});
+  const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   if (!activeDebate) return null;
@@ -636,11 +700,42 @@ function ClarificationActions() {
   const hasAnswers = activeDebate.transcript.some((e) => e.type === 'answer');
   const hasRefinedTopic = activeDebate.topic.refined !== null;
 
+  // Extract structured questions from clarification transcript entries
+  const clarificationEntry = activeDebate.transcript.find(e => e.type === 'clarification');
+  const rawQuestions = (clarificationEntry?.metadata as Record<string, unknown>)?.questions;
+  const structuredQuestions: StructuredQuestion[] | null =
+    Array.isArray(rawQuestions) && rawQuestions.length > 0 && typeof rawQuestions[0] === 'object' && rawQuestions[0] !== null && 'options' in (rawQuestions[0] as Record<string, unknown>)
+      ? (rawQuestions as StructuredQuestion[]).filter(q => q.options && q.options.length > 0)
+      : null;
+
+  const allAnswered = structuredQuestions
+    ? structuredQuestions.every((_, i) => {
+        const sel = selections[i];
+        return sel === '__other__' ? (otherTexts[i] ?? '').trim().length > 0 : !!sel;
+      })
+    : answer.trim().length > 0;
+
+  const handlePillSelect = (qIdx: number, option: string) => {
+    setSelections(prev => ({ ...prev, [qIdx]: prev[qIdx] === option ? '' : option }));
+  };
+
   const handleSubmitAnswers = async () => {
-    if (!answer.trim() || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
-    await submitAnswersAndSynthesize(answer.trim());
+    if (structuredQuestions) {
+      // Format structured answers as Q&A text for synthesis
+      const qaText = structuredQuestions.map((q, i) => {
+        const sel = selections[i];
+        const answerText = sel === '__other__' ? (otherTexts[i] ?? '').trim() : sel;
+        return `Q: ${q.question}\nA: ${answerText}`;
+      }).join('\n\n');
+      await submitAnswersAndSynthesize(qaText);
+    } else {
+      await submitAnswersAndSynthesize(answer.trim());
+    }
     setAnswer('');
+    setSelections({});
+    setOtherTexts({});
     setSubmitting(false);
   };
 
@@ -667,32 +762,89 @@ function ClarificationActions() {
       {hasClarifications && !hasAnswers && !hasRefinedTopic && (
         <>
           <div className="debate-action-hint">Answer their questions to sharpen the topic, or skip ahead.</div>
-          <div className="debate-clarification-input">
-            <textarea
-              className="debate-answer-textarea"
-              placeholder="Your answers..."
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              rows={3}
-              disabled={isGenerating || submitting}
-            />
-            <div className="debate-clarification-buttons">
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmitAnswers}
-                disabled={!answer.trim() || isGenerating || submitting}
-              >
-                {submitting ? 'Synthesizing...' : 'Submit Answers'}
-              </button>
-              <button
-                className="btn"
-                onClick={handleBeginDebate}
-                disabled={isGenerating || submitting}
-              >
-                Skip — Start Debating
-              </button>
+          {structuredQuestions ? (
+            <div className="cq-questions">
+              {structuredQuestions.map((q, qIdx) => (
+                <div key={qIdx} className="cq-question-card">
+                  <div className="cq-question-text">{q.question}</div>
+                  <div className="cq-options">
+                    {q.options.map((opt, oIdx) => (
+                      <button
+                        key={oIdx}
+                        className={`cq-option-pill ${selections[qIdx] === opt ? 'selected' : ''}`}
+                        onClick={() => handlePillSelect(qIdx, opt)}
+                        disabled={isGenerating || submitting}
+                      >
+                        {selections[qIdx] === opt && <span className="cq-check">{'\u2713'} </span>}
+                        {opt}
+                      </button>
+                    ))}
+                    <button
+                      className={`cq-option-pill cq-option-pill-other ${selections[qIdx] === '__other__' ? 'selected' : ''}`}
+                      onClick={() => handlePillSelect(qIdx, '__other__')}
+                      disabled={isGenerating || submitting}
+                    >
+                      Other...
+                    </button>
+                  </div>
+                  {selections[qIdx] === '__other__' && (
+                    <input
+                      className="cq-option-other-input"
+                      type="text"
+                      placeholder="Type your answer..."
+                      value={otherTexts[qIdx] ?? ''}
+                      onChange={e => setOtherTexts(prev => ({ ...prev, [qIdx]: e.target.value }))}
+                      disabled={isGenerating || submitting}
+                      autoFocus
+                    />
+                  )}
+                </div>
+              ))}
+              <div className="debate-clarification-buttons">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSubmitAnswers}
+                  disabled={!allAnswered || isGenerating || submitting}
+                >
+                  {submitting ? 'Synthesizing...' : 'Continue'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={handleBeginDebate}
+                  disabled={isGenerating || submitting}
+                >
+                  Skip — Start Debating
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="debate-clarification-input">
+              <textarea
+                className="debate-answer-textarea"
+                placeholder="Your answers..."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                rows={3}
+                disabled={isGenerating || submitting}
+              />
+              <div className="debate-clarification-buttons">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSubmitAnswers}
+                  disabled={!answer.trim() || isGenerating || submitting}
+                >
+                  {submitting ? 'Synthesizing...' : 'Submit Answers'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={handleBeginDebate}
+                  disabled={isGenerating || submitting}
+                >
+                  Skip — Start Debating
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1412,6 +1564,9 @@ export function DebateWorkspace() {
         )}
         {activeDebate.transcript.map((entry, idx) => {
           const matchOffset = findOffsets.get(entry.id) ?? 0;
+          // Skip the clarification transcript card — the interactive ClarificationActions panel
+          // below the transcript already shows the questions as clickable pills.
+          if (entry.type === 'clarification') return null;
           const card = entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} />
             : entry.type === 'fact-check'

@@ -65,6 +65,8 @@ function Find-SituationCandidates {
 
         [switch]$ShowDebatesOnly,
 
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model,
 
         [string]$ApiKey,

@@ -206,7 +206,7 @@ export class DebateEngine {
     this.progress('generating', undefined, label);
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, this.config.model, {
-      temperature: this.config.temperature ?? 0.3,
+      temperature: this.config.temperature ?? 0.5,
       timeoutMs,
     });
     const elapsed = Date.now() - start;
@@ -421,7 +421,9 @@ export class DebateEngine {
       structuredQuestions = [{ question: text, options: [] }];
     }
 
-    const questionTexts = structuredQuestions.map(q => q.question);
+    const questionTexts = structuredQuestions.map(q =>
+      typeof q.question === 'string' ? q.question : JSON.stringify(q.question)
+    );
 
     const clarEntry = this.addEntry({
       type: 'clarification',
@@ -767,7 +769,14 @@ export class DebateEngine {
     }
 
     if (questions.length > 0) {
-      const content = questions.map((q, i) => `${i + 1}. ${q.text} (targets: ${q.targets?.join(', ') ?? 'all'})`).join('\n');
+      const content = questions.map((q, i) => {
+        // Handle varying AI response shapes: {text, targets} or {question, options} or string
+        const qText = typeof q === 'string' ? q
+          : (q as any).text ?? (q as any).question ?? JSON.stringify(q);
+        const targets = (q as any).targets ?? (q as any).options;
+        const targetStr = Array.isArray(targets) ? targets.join(', ') : 'all';
+        return `${i + 1}. ${qText} (targets: ${targetStr})`;
+      }).join('\n');
       this.addEntry({
         type: 'probing',
         speaker: 'system',

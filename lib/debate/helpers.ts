@@ -185,7 +185,8 @@ export function formatRecentTranscript(
       : e.speaker === 'system' ? 'System'
       : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
     const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
-    parts.push(`${label}${typeTag}: ${e.content}`);
+    const contentStr = typeof e.content === 'string' ? e.content : JSON.stringify(e.content);
+    parts.push(`${label}${typeTag}: ${contentStr}`);
   }
 
   return parts.join('\n\n');

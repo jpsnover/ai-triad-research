@@ -52,11 +52,11 @@ function Get-Edge {
         Get-Edge
         # Returns all edges.
     .EXAMPLE
-        Get-Edge -Source 'acc-goals-*'
+        Get-Edge -Source 'acc-desires-*'
         # All edges from accelerationist goal nodes.
     .EXAMPLE
-        Get-Edge -NodeId 'saf-goals-001'
-        # All edges connected to saf-goals-001 (source or target).
+        Get-Edge -NodeId 'saf-desires-001'
+        # All edges connected to saf-desires-001 (source or target).
     .EXAMPLE
         Get-Edge -Type CONTRADICTS -Status approved
         # Approved contradictions.
@@ -102,6 +102,8 @@ function Get-Edge {
 
         [string]$Strength,
 
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model,
 
         [string]$Rationale,

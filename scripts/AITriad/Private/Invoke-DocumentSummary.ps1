@@ -66,7 +66,9 @@ function Invoke-DocumentSummary {
         [string]$ChunkSystemPromptTemplate = '',
         [Parameter(Mandatory)][string]$OutputSchema,
         [Parameter(Mandatory)][string]$SummariesDir,
-        [Parameter(Mandatory)][string]$Now
+        [Parameter(Mandatory)][string]$Now,
+        [switch]$IterativeExtraction,
+        [switch]$AutoFire
     )
 
     Set-StrictMode -Version Latest
@@ -94,84 +96,37 @@ function Invoke-DocumentSummary {
     }
 
     # ========================================================================
-    # SINGLE-CALL PATH (small documents)
+    # SINGLE-CALL PATH (small documents) — delegates to shared pipeline
     # ========================================================================
 
-    # -- Build density-scaled system prompt -----------------------------------
-    $WordCount = ($SnapshotText -split '\s+').Count
-    $DensityFloors = Get-DensityFloors -WordCount $WordCount
-    $SystemPrompt = Build-DensityScaledPrompt -WordCount $WordCount -Template $SystemPromptTemplate
+    Write-Host "  `u{2502}  Running extraction pipeline..." -ForegroundColor Gray
 
-    # -- Build prompt ---------------------------------------------------------
-    $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
-    $FullPrompt = @"
-$SystemPrompt
+    $PipelineResult = Invoke-SummaryPipeline `
+        -SnapshotText          $SnapshotText `
+        -DocId                 $ThisDocId `
+        -Metadata              $Meta `
+        -ApiKey                $ApiKey `
+        -Model                 $Model `
+        -Temperature           $Temperature `
+        -TaxonomyVersion       $TaxonomyVersion `
+        -SystemPromptTemplate  $SystemPromptTemplate `
+        -OutputSchema          $OutputSchema `
+        -IterativeExtraction:$IterativeExtraction `
+        -AutoFire:$AutoFire
 
-=== TAXONOMY (version $TaxonomyVersion) ===
-$TaxonomyJson
-
-=== OUTPUT SCHEMA (your response must match this structure) ===
-$OutputSchema
-
-$DocHeader
-
---- DOCUMENT CONTENT ---
-$SnapshotText
-"@
-
-    # -- Call AI API (with density validation + retry) -------------------------
-    $MaxDensityRetries = 1
-    $StartTime = Get-Date
-    $SummaryObject = $null
-
-    for ($Attempt = 0; $Attempt -le $MaxDensityRetries; $Attempt++) {
-        $AttemptPrompt = $FullPrompt
-        if ($Attempt -gt 0) {
-            Write-Host "  `u{2502}  `u{21BB} Retry $Attempt/$MaxDensityRetries — density too low" -ForegroundColor Yellow
-            $AttemptPrompt = $FullPrompt + "`n`n" + $DensityRetryNudge
-        }
-
-        $AIResult = Invoke-AIApi `
-            -Prompt     $AttemptPrompt `
-            -Model      $Model `
-            -ApiKey     $ApiKey `
-            -Temperature $Temperature `
-            -MaxTokens  65536 `
-            -JsonMode `
-            -TimeoutSec 300 `
-            -MaxRetries 3 `
-            -RetryDelays @(5, 15, 45)
-
-        if ($null -eq $AIResult) {
-            Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId" -ForegroundColor Red
-            return @{ Success = $false; DocId = $ThisDocId; Error = 'API call returned null' }
-        }
-
-        $Elapsed = (Get-Date) - $StartTime
-        Write-Host "  `u{2502}  `u{2713} Response ($($AIResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
-
-        $SummaryObject = Parse-AIResponse -RawText $AIResult.Text -ThisDocId $ThisDocId -SummariesDir $SummariesDir
-        if ($null -eq $SummaryObject) {
-            return @{ Success = $false; DocId = $ThisDocId; Error = 'InvalidJson' }
-        }
-
-        $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
-        if ($DensityCheck.Pass) {
-            break
-        }
-
-        # Build a nudge message for the retry with specific shortfalls
-        $DensityRetryNudge = Build-DensityRetryNudge -Shortfalls $DensityCheck.Shortfalls
-        Write-Host "  `u{2502}  `u{26A0} Density check FAILED: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
-
-        if ($Attempt -eq $MaxDensityRetries) {
-            Write-Host "  `u{2502}  `u{26A0} Accepting under-dense result after $($Attempt + 1) attempt(s)" -ForegroundColor Yellow
-        }
+    if (-not $PipelineResult.Success) {
+        Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId — $($PipelineResult.Error)" -ForegroundColor Red
+        return @{ Success = $false; DocId = $ThisDocId; Error = $PipelineResult.Error }
     }
 
-    return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
+    $Elapsed = [TimeSpan]::FromSeconds($PipelineResult.ElapsedSeconds)
+    Write-Host "  `u{2502}  `u{2713} Pipeline complete ($($PipelineResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+
+    return Finalize-Summary -SummaryObject $PipelineResult.Summary -ThisDocId $ThisDocId `
         -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
-        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed
+        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed `
+        -TaxonomyJson $PipelineResult.TaxonomyJson `
+        -FireStats $PipelineResult.FireStats
 }
 
 # ============================================================================
@@ -223,11 +178,26 @@ function Invoke-ChunkedSummary {
 
         Write-Host "  `u{2502}  chunk $ChunkNum/$ChunkCount (~$ChunkTokens tokens)..." -ForegroundColor Gray -NoNewline
 
+        # Per-chunk relevance filtering: use chunk text as query for better node selection
+        $ChunkTaxonomy = $TaxonomyJson
+        try {
+            $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText `
+                -Threshold 0.30 -MaxTotal 150 -MinPerCategory 2 `
+                -IncludeSituations -Format context -ApiKey $ApiKey
+            if ($ChunkRelevant) {
+                $ChunkTaxonomy = $ChunkRelevant
+                Write-Verbose "  Chunk $ChunkNum`: RAG-filtered to ~40 nodes"
+            }
+        }
+        catch {
+            Write-Verbose "  Chunk $ChunkNum`: RAG fallback — using document-level taxonomy"
+        }
+
         $ChunkPrompt = @"
 $ChunkSystemPrompt
 
 === TAXONOMY (version $TaxonomyVersion) ===
-$TaxonomyJson
+$ChunkTaxonomy
 
 === OUTPUT SCHEMA (your response must match this structure) ===
 $OutputSchema
@@ -308,7 +278,8 @@ $ChunkText
 
     return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
         -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
-        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed -ChunkCount $ChunkCount
+        -Now $Now -SummariesDir $SummariesDir -Doc $Doc -Elapsed $Elapsed -ChunkCount $ChunkCount `
+        -TaxonomyJson $TaxonomyJson
 }
 
 # ============================================================================
@@ -472,7 +443,9 @@ function Finalize-Summary {
         [string]$SummariesDir,
         [hashtable]$Doc,
         [TimeSpan]$Elapsed,
-        [int]$ChunkCount = 0
+        [int]$ChunkCount = 0,
+        [string]$TaxonomyJson = '',
+        [object]$FireStats = $null
     )
 
     # Validate stance values and gather counts
@@ -502,31 +475,69 @@ function Finalize-Summary {
 
     # -- Cross-POV fuzzy match on unmapped concepts ----------------------------
     if ($SummaryObject.unmapped_concepts -and @($SummaryObject.unmapped_concepts).Count -gt 0) {
-        $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
-        if ($Resolution.Resolved.Count -gt 0) {
-            foreach ($R in $Resolution.Resolved) {
-                Write-Host "  `u{2502}  `u{2714} Resolved: '$($R.ConceptLabel)' `u{2192} $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
+        try {
+            $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
+            if (@($Resolution.Resolved).Count -gt 0) {
+                foreach ($R in @($Resolution.Resolved)) {
+                    Write-Host "  `u{2502}  `u{2714} Resolved: '$($R.ConceptLabel)' `u{2192} $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
+                }
+                $SummaryObject.unmapped_concepts = @($Resolution.Remaining)
+                $UnmappedCount = @($Resolution.Remaining).Count
             }
-            $SummaryObject.unmapped_concepts = $Resolution.Remaining
-            $UnmappedCount = $Resolution.Remaining.Count
+        }
+        catch {
+            Write-Host "  `u{2502}  `u{26A0} Unmapped concept resolution failed: $($_.Exception.Message)" -ForegroundColor Yellow
         }
     }
 
     # -- Write summaries/<doc-id>.json ----------------------------------------
+    # Detect RAG vs full taxonomy from the context format
+    $IsRagFiltered = $TaxonomyJson -match '^\s*=== RELEVANT TAXONOMY NODES'
+    if ($IsRagFiltered) {
+        $EstNodeCount = ([regex]::Matches($TaxonomyJson, '^\s{2}\w', [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    }
+    else {
+        $EstNodeCount = ([regex]::Matches($TaxonomyJson, '"id"\s*:')).Count
+    }
+
+    $TaxFilter = if ($ChunkCount -gt 0) { 'rag_per_chunk' } elseif ($IsRagFiltered) { 'rag' } else { 'full' }
+
+    $UsedFire = $null -ne $FireStats
+    $ModelInfo = [ordered]@{
+        model             = $Model
+        temperature       = $Temperature
+        max_tokens        = 32768
+        extraction_mode   = if ($UsedFire) { 'fire' } else { 'single_shot' }
+        taxonomy_filter   = $TaxFilter
+        taxonomy_nodes    = $EstNodeCount
+    }
+
+    if ($UsedFire) {
+        $ModelInfo['fire_confidence_threshold'] = 0.7
+        $ModelInfo['fire_stats'] = [ordered]@{
+            api_calls          = $FireStats.total_api_calls
+            iterations         = $FireStats.total_iterations
+            claims_total       = $FireStats.claims_total
+            claims_confident   = $FireStats.claims_confident
+            claims_iterated    = $FireStats.claims_iterated
+            elapsed_seconds    = $FireStats.elapsed_seconds
+            termination_reason = $FireStats.termination_reason
+        }
+    }
+
+    if ($ChunkCount -gt 0) {
+        $ModelInfo['chunked']     = $true
+        $ModelInfo['chunk_count'] = $ChunkCount
+    }
+
     $FinalSummary = [ordered]@{
         doc_id            = $ThisDocId
         taxonomy_version  = $TaxonomyVersion
         generated_at      = $Now
-        ai_model          = $Model
-        temperature       = $Temperature
+        model_info        = $ModelInfo
         pov_summaries     = $SummaryObject.pov_summaries
         factual_claims    = $SummaryObject.factual_claims
         unmapped_concepts = $SummaryObject.unmapped_concepts
-    }
-
-    if ($ChunkCount -gt 0) {
-        $FinalSummary['chunked'] = $true
-        $FinalSummary['chunk_count'] = $ChunkCount
     }
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"
@@ -545,6 +556,22 @@ function Finalize-Summary {
         $MetaUpdated['summary_version'] = $TaxonomyVersion
         $MetaUpdated['summary_status']  = 'current'
         $MetaUpdated['summary_updated'] = $Now
+
+        # Summary statistics for Source objects
+        $claimsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        foreach ($claim in @($SummaryObject.factual_claims)) {
+            foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
+                if     ($nodeId -like 'acc-*') { $claimsByPov['accelerationist']++ }
+                elseif ($nodeId -like 'saf-*') { $claimsByPov['safetyist']++ }
+                elseif ($nodeId -like 'skp-*') { $claimsByPov['skeptic']++ }
+                elseif ($nodeId -like 'sit-*') { $claimsByPov['situations']++ }
+            }
+        }
+        $MetaUpdated['total_claims']      = $FactualCount
+        $MetaUpdated['claims_by_pov']     = $claimsByPov
+        $MetaUpdated['total_facts']       = $TotalPoints
+        $MetaUpdated['unmapped_concepts'] = $UnmappedCount
+
         Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
     }
     catch {

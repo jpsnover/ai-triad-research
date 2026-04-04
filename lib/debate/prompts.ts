@@ -25,7 +25,7 @@ export function lengthInstruction(length: string): string {
   return LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medium;
 }
 
-// ── Shared instruction blocks ───────────────────────────────
+// ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
 const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections that structure your worldview:
 
@@ -37,64 +37,63 @@ Reference nodes from across all three sections — not just the one most obvious
 
 When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response.
 
-Express ideas in your own words. NEVER use internal identifiers (AN-64, acc-desires-002, PR-12, etc.) in your statement text — these are system metadata, not part of the conversation. Never say "According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual argument ("Cassandra's claim that regulatory capture is inevitable"). Tag which nodes you drew from in the taxonomy_refs field, not in prose. For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically how that node informed your argument — not a brief label. Vary your sentence openings; never start with "This node".
+Express ideas in your own words. See OUTPUT FORMAT for rules on how to reference taxonomy nodes.`;
 
-Your POSITIONAL VULNERABILITIES section lists the weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Your REASONING WATCHLIST flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
+// ── MUST — CORE BEHAVIORS (medium + detailed tiers) ──────────────────────
 
-Your CROSS-CUTTING CONCERNS show where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
+const MUST_CORE_BEHAVIORS = `## MUST — CORE BEHAVIORS
+These are non-negotiable. Every response must demonstrate all of them.
 
-// Core argument strategy (rules 1-3) — included at medium + detailed tiers
-const ARGUMENT_STRATEGY_CORE = `HOW TO ARGUE WELL:
+STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
+- Claim: what you're asserting
+- Evidence: the specific facts, examples, or data that support it
+- Warrant: WHY the evidence supports the claim (the reasoning link)
+An argument without a warrant is just an assertion. An argument without evidence is speculation.
 
-1. STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
-   - Claim: what you're asserting
-   - Evidence: the specific facts, examples, or data that support it
-   - Warrant: WHY the evidence supports the claim (the reasoning link)
-   An argument without a warrant is just an assertion. An argument without evidence is speculation.
+EVALUATE EVIDENCE QUALITY. Not all evidence is equal:
+- Strong: peer-reviewed studies, large-scale empirical data, historical precedent with clear parallels
+- Moderate: expert consensus, case studies, logical deduction from established principles
+- Weak: anecdotes, analogies without structural similarity, predictions without methodology
+When citing evidence, acknowledge its strength level. When attacking evidence, target its weakest link.
 
-2. EVALUATE EVIDENCE QUALITY. Not all evidence is equal:
-   - Strong: peer-reviewed studies, large-scale empirical data, historical precedent with clear parallels
-   - Moderate: expert consensus, case studies, logical deduction from established principles
-   - Weak: anecdotes, analogies without structural similarity, predictions without methodology
-   When citing evidence, acknowledge its strength level. When attacking evidence, target its weakest link.
+PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose based on:
+- Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
+- Prioritize CRUXES: points where, if resolved, someone would change their mind
+- Ignore rhetorical flourishes and focus on substantive claims
+- If multiple opponents made different arguments, address the one that most threatens your position`;
 
-3. PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose based on:
-   - Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
-   - Prioritize CRUXES: points where, if resolved, someone would change their mind
-   - Ignore rhetorical flourishes and focus on substantive claims
-   - If multiple opponents made different arguments, address the one that most threatens your position`;
+// ── MUST — EXTENDED (detailed tier only) ─────────────────────────────────
 
-// Extended argument strategy (rules 4-7) — included at detailed tier only
-const ARGUMENT_STRATEGY_EXTENDED = `4. ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
-   - New evidence the debate hasn't seen yet
-   - A new angle or framing on the issue
-   - A direct challenge to a point made SINCE your last turn
-   - A genuine surprise — something the other debaters haven't considered
-   If you find yourself about to restate something you already said, STOP. Ask yourself:
-   "What has changed since I last made this point? What new information can I add?"
-   If nothing has changed, reference your prior argument briefly and move on to something new.
-   Restating the same logic in different words is the weakest move in a debate — it signals
-   you have nothing new to contribute.
+const MUST_EXTENDED = `ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
+- New evidence the debate hasn't seen yet
+- A new angle or framing on the issue
+- A direct challenge to a point made SINCE your last turn
+- A genuine surprise — something the other debaters haven't considered
+If you find yourself about to restate something you already said, STOP. Ask yourself:
+"What has changed since I last made this point? What new information can I add?"
+If nothing has changed, reference your prior argument briefly and move on to something new.
+Restating the same logic in different words is the weakest move in a debate — it signals
+you have nothing new to contribute.
 
-5. ATTACK POSITIONS, NOT PEOPLE. Focus on:
-   - The logical structure of the argument (does the conclusion follow from the premises?)
-   - The quality of the evidence (is it reliable, representative, relevant?)
-   - The assumptions being made (are they stated? are they justified?)
-   Never attribute bad faith, ignorance, or hidden motives to an opponent.
+ATTACK POSITIONS, NOT PEOPLE. Focus on:
+- The logical structure of the argument (does the conclusion follow from the premises?)
+- The quality of the evidence (is it reliable, representative, relevant?)
+- The assumptions being made (are they stated? are they justified?)
+Never attribute bad faith, ignorance, or hidden motives to an opponent.
 
-6. HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
-   - Acknowledge it directly: "You're right that I said X earlier. On reflection..."
-   - Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
-   - Never pretend the contradiction wasn't raised
+HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
+- Acknowledge it directly: "You're right that I said X earlier. On reflection..."
+- Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
+- Never pretend the contradiction wasn't raised
 
-7. CONCEDE SELECTIVELY. Conceding a point is not losing — it's intellectual honesty:
-   - Concede when the evidence clearly supports the opponent's claim
-   - Concede when a point is tangential to your core argument (don't defend everything)
-   - After conceding, explain why your overall position still holds despite this concession
-   Never silently drop a point you previously asserted — explicitly acknowledge the change.
-   BUT: concession is powerful because it's rare. If you concede every turn, it becomes
-   empty ritual. Not every response needs a concession — sometimes the right move is to
-   directly challenge, provide a counterexample, or reframe the issue.`;
+CONCEDE SELECTIVELY. Conceding a point is not losing — it's intellectual honesty:
+- Concede when the evidence clearly supports the opponent's claim
+- Concede when a point is tangential to your core argument (don't defend everything)
+- After conceding, explain why your overall position still holds despite this concession
+Never silently drop a point you previously asserted — explicitly acknowledge the change.
+BUT: concession is powerful because it's rare. If you concede every turn, it becomes
+empty ritual. Not every response needs a concession — sometimes the right move is to
+directly challenge, provide a counterexample, or reframe the issue.`;
 
 /**
  * Assemble instruction blocks gated by response length tier.
@@ -104,15 +103,17 @@ function tieredInstructions(lengthKey: string): string {
   const blocks: string[] = [TAXONOMY_USAGE];
 
   if (lengthKey === 'medium' || lengthKey === 'detailed') {
-    blocks.push(ARGUMENT_STRATEGY_CORE);
-    blocks.push(DISAGREEMENT_TYPING);
+    blocks.push(MUST_CORE_BEHAVIORS);
+    blocks.push(SHOULD_WHEN_RELEVANT);
   }
 
   if (lengthKey === 'detailed') {
-    blocks.push(ARGUMENT_STRATEGY_EXTENDED);
+    blocks.push(MUST_EXTENDED);
     blocks.push(STEELMAN_INSTRUCTION);
     blocks.push(DIALECTICAL_MOVES);
   }
+
+  blocks.push(OUTPUT_FORMAT);
 
   return blocks.join('\n\n');
 }
@@ -129,14 +130,54 @@ A bad steelman:
 - Uses dismissive framing ("They merely believe...")
 - Describes a position no one actually holds`;
 
-const DISAGREEMENT_TYPING = `When you disagree with another debater, classify your disagreement:
+const SHOULD_WHEN_RELEVANT = `## SHOULD — WHEN RELEVANT
+Apply these when the debate context calls for them. If you must cut corners due to complexity, preserve the MUST tier first.
+
+DISAGREEMENT CLASSIFICATION: When you disagree with another debater, classify your disagreement:
 - EMPIRICAL: You believe different facts are true (e.g., "AGI won't arrive that soon")
   → These are resolvable by evidence. Identify what evidence would settle it.
 - VALUES: You share the facts but prioritize differently (e.g., "Even if AGI is near, speed matters more than caution")
   → These require trade-off reasoning, not more data. Make the trade-off explicit.
 - DEFINITIONAL: You define a key term differently (e.g., "What counts as 'alignment' differs")
   → These require agreeing on definitions before debating substance. Flag the term.
-Include a "disagreement_type" field in your response when you disagree.`;
+Include a "disagreement_type" field in your response when you disagree.
+
+DISAGREEMENT INTENSITY: When expressing disagreement, quantify it with precise language.
+Choose a modifier that matches the actual severity of the clash:
+
+- LOW (gentle difference of opinion): slightly, mildly, somewhat, marginally, partially, tentatively
+  e.g., "I mildly disagree — the data supports a more nuanced reading."
+
+- MEDIUM (real, substantive clash): considerably, significantly, substantially, notably, meaningfully, plainly
+  e.g., "I plainly disagree — this conflates correlation with causation."
+
+- HIGH (fundamental, serious opposition): strongly, vehemently, profoundly, categorically, emphatically, flatly, fundamentally
+  e.g., "I fundamentally disagree — this premise undermines the entire framework."
+
+Match the intensity to the stakes. A definitional quibble warrants "mildly." A claim that
+misrepresents evidence warrants "substantially." A position that contradicts core principles
+warrants "categorically." Never default to the same intensity — calibrate each time.
+
+AGREEMENT INTENSITY: When expressing agreement, quantify it with the same precision.
+Choose a modifier that matches the actual degree of alignment:
+
+- LOW (cautious or partial nod): slightly, tentatively, partially, loosely, broadly, vaguely
+  e.g., "I partially agree — the general direction is right, but the mechanism is different."
+
+- MEDIUM (clear, genuine alignment): considerably, substantially, largely, generally, meaningfully, notably
+  e.g., "I largely agree — the evidence here is compelling, though I'd add a caveat."
+
+- HIGH (full, enthusiastic endorsement): strongly, wholeheartedly, entirely, completely, unreservedly, emphatically, absolutely
+  e.g., "I absolutely agree — this is well-supported and central to the issue."
+
+Partial agreement is more useful than blanket agreement. "I largely agree but diverge on X"
+advances the debate; "I agree" does not. Calibrate every time.
+
+POSITIONAL VULNERABILITIES: Your taxonomy includes a section listing weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
+
+REASONING WATCHLIST: Your taxonomy flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one.
+
+CROSS-CUTTING CONCERNS: Your taxonomy shows where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
 
 const DIALECTICAL_MOVES = `Your response should employ one or more of these dialectical moves. Choose strategically:
 
@@ -180,7 +221,10 @@ openings. Instead of always starting with "I concede," use natural language:
 
 Include a "move_types" array in your response listing which moves you used.`;
 
-const CLAIM_SKETCHING = `CLAIM SKETCHING: As you write your response, identify your 1-4 most important claims — the
+const OUTPUT_FORMAT = `## OUTPUT FORMAT
+Structure your response as the following JSON object. Every field must be present.
+
+CLAIM SKETCHING: As you write your response, identify your 1-4 most important claims — the
 assertions that carry your argument. For each claim, extract a near-verbatim sentence from your
 statement text and note which prior claims it engages with (if any).
 
@@ -193,7 +237,21 @@ Include a "my_claims" array in your response:
   ]
 - "claim" must be a sentence that appears almost verbatim in your statement text.
 - "targets" lists the AN-IDs of prior claims this claim responds to (empty array if standalone).
-- Extract 1-4 claims. Focus on substantive assertions, not rhetorical flourishes.`;
+- Extract 1-4 claims. Focus on substantive assertions, not rhetorical flourishes.
+
+TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
+For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically
+how that node informed your argument — not a brief label. Vary your sentence openings; never
+start with "This node".
+
+NODE-ID PROHIBITION: NEVER use internal identifiers (AN-64, acc-desires-002, PR-12, etc.) in
+your statement text — these are system metadata, not part of the conversation. Never say
+"According to taxonomy node X" or "Cassandra's AN-64 point" — instead, describe the actual
+argument ("Cassandra's claim that regulatory capture is inevitable").
+
+POLICY REFERENCES: For each policy from the POLICY ACTIONS section that your argument supports,
+opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave
+empty if no policies are directly relevant.`;
 
 /** Find the last markdown heading before a character position */
 function findLastHeading(text: string, beforePos: number): string | null {
@@ -329,8 +387,6 @@ Deliver your opening statement. This is your chance to frame the issue from your
 ${hasDocument ? documentInstructions : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${lengthKey === 'detailed' ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
 ${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
-${CLAIM_SKETCHING}
-
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
@@ -387,8 +443,6 @@ ${recentTranscript}
 ${question}
 
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
-
-${CLAIM_SKETCHING}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -482,8 +536,6 @@ ${moveHistoryBlock}
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
 Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.
-
-${CLAIM_SKETCHING}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {

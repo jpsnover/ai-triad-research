@@ -50,6 +50,8 @@ function Get-TopicFrequency {
         [ValidateRange(0.3, 0.9)]
         [double]$ClusterThreshold = 0.55,
 
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model,
 
         [string]$ApiKey,

@@ -16,7 +16,7 @@
 .EXAMPLE
     Invoke-AITDebate -DocPath ../ai-triad-data/sources/my-doc/snapshot.md -Name "My Doc Debate"
 .EXAMPLE
-    Invoke-AITDebate -CrossCuttingNodeId cc-005 -Clarify -Probe
+    Invoke-AITDebate -CrossCuttingNodeId sit-005 -Clarify -Probe
 #>
 function Invoke-AITDebate {
     [CmdletBinding(DefaultParameterSetName = 'Topic')]
@@ -44,7 +44,7 @@ function Invoke-AITDebate {
 
         [Parameter()]
         [ValidateScript({ Test-AIModelId $_ })]
-        [ArgumentCompleter({ Get-AIModelCompletions @args })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model,
 
         [Parameter()]

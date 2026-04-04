@@ -23,7 +23,7 @@ function Invoke-HierarchyProposal {
         [string]$Category = '',
 
         [ValidateScript({ Test-AIModelId $_ })]
-        [ArgumentCompleter({ Get-AIModelCompletion @args })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model = 'gemini-2.5-flash',
 
         [string]$ApiKey = '',

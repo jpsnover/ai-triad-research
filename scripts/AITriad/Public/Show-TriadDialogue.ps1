@@ -37,6 +37,8 @@ function Show-TriadDialogue {
 
         [string]$OutputFile,
 
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model = 'gemini-2.5-flash',
 
         [string]$ApiKey,

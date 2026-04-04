@@ -45,6 +45,7 @@ function Get-AITSource {
         # Sources whose summary is pending.
     #>
     [CmdletBinding()]
+    [OutputType('AITSource')]
     param(
         [Parameter(Position = 0)]
         [string]$DocId,
@@ -76,7 +77,8 @@ function Get-AITSource {
         return
     }
 
-    $Results = [System.Collections.Generic.List[PSObject]]::new()
+    $SummariesDir = Get-SummariesDir
+    $Results = [System.Collections.Generic.List[AITSource]]::new()
 
     foreach ($Folder in $Folders) {
         $MetaPath = Join-Path $Folder.FullName 'metadata.json'
@@ -121,20 +123,125 @@ function Get-AITSource {
             if ($SrcType -ne $SourceType) { continue }
         }
 
-        $Results.Add([PSCustomObject]@{
-            PSTypeName    = 'AITriad.Source'
-            DocId         = $Meta.id
-            Title         = if ($Props['title'])          { $Meta.title }          else { $null }
-            Authors       = if ($Props['authors'])        { $Meta.authors }        else { @() }
-            DatePublished = if ($Props['date_published']) { $Meta.date_published } else { $null }
-            SourceType    = if ($Props['source_type'])    { $Meta.source_type }    else { $null }
-            SummaryStatus = if ($Props['summary_status']) { $Meta.summary_status } else { $null }
-            PovTags       = if ($Props['pov_tags'])       { $Meta.pov_tags }       else { @() }
-            TopicTags     = if ($Props['topic_tags'])     { $Meta.topic_tags }     else { @() }
-            OneLiner      = if ($Props['one_liner'])      { $Meta.one_liner }      else { $null }
-            DateImported  = if ($Props['import_time'])    { $Meta.import_time }    else { if ($Props['date_ingested']) { $Meta.date_ingested } else { $null } }
-            Directory     = $Folder.FullName
-        })
+        # Build snapshot.md path
+        $SnapshotPath = Join-Path $Folder.FullName 'snapshot.md'
+        $MDPath = if (Test-Path $SnapshotPath) { $SnapshotPath } else { $null }
+
+        # Load summary file (needed for ModelInfo and fallback stats)
+        $Summary     = $null
+        $SummaryPath = Join-Path $SummariesDir "$($Meta.id).json"
+        if (Test-Path $SummaryPath) {
+            try {
+                $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json -Depth 20
+            }
+            catch {
+                Write-Verbose "Could not parse summary for $($Meta.id): $($_.Exception.Message)"
+            }
+        }
+
+        # Load summary statistics — prefer cached values in metadata, fall back to summary file
+        $TotalClaims      = 0
+        $ClaimsPov        = [ClaimsByPov]::new()
+        $TotalFacts       = 0
+        $UnmappedConcepts = 0
+
+        if ($Props['total_claims']) {
+            # Stats cached in metadata (written by Invoke-POVSummary)
+            $TotalClaims      = [int]$Meta.total_claims
+            $TotalFacts       = if ($Props['total_facts']) { [int]$Meta.total_facts } else { 0 }
+            $UnmappedConcepts = if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { [int]$Meta.unmapped_concepts } else { 0 }
+            if ($Props['claims_by_pov'] -and $Meta.claims_by_pov) {
+                $Cbp = $Meta.claims_by_pov
+                $CbpProps = $Cbp.PSObject.Properties
+                $ClaimsPov.Accelerationist = if ($CbpProps['accelerationist']) { [int]$Cbp.accelerationist } else { 0 }
+                $ClaimsPov.Safetyist       = if ($CbpProps['safetyist'])       { [int]$Cbp.safetyist }       else { 0 }
+                $ClaimsPov.Skeptic         = if ($CbpProps['skeptic'])         { [int]$Cbp.skeptic }         else { 0 }
+                $ClaimsPov.Situations      = if ($CbpProps['situations'])      { [int]$Cbp.situations }      else { 0 }
+            }
+        }
+        elseif ($null -ne $Summary) {
+            # Fall back to computing from summary file
+            if ($Summary.factual_claims) {
+                $TotalClaims = @($Summary.factual_claims).Count
+            }
+
+            foreach ($Claim in @($Summary.factual_claims)) {
+                if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
+                $Nodes = @($Claim.linked_taxonomy_nodes)
+                if ($Nodes.Count -eq 0) { continue }
+                foreach ($NodeId in $Nodes) {
+                    if     ($NodeId -like 'acc-*') { $ClaimsPov.Accelerationist++ }
+                    elseif ($NodeId -like 'saf-*') { $ClaimsPov.Safetyist++ }
+                    elseif ($NodeId -like 'skp-*') { $ClaimsPov.Skeptic++ }
+                    elseif ($NodeId -like 'sit-*') { $ClaimsPov.Situations++ }
+                }
+            }
+
+            foreach ($Pov_ in @('accelerationist', 'safetyist', 'skeptic')) {
+                $PovData = $Summary.pov_summaries.$Pov_
+                if ($PovData -and $PovData.key_points) {
+                    $TotalFacts += @($PovData.key_points).Count
+                }
+            }
+
+            if ($Summary.unmapped_concepts) {
+                $UnmappedConcepts = @($Summary.unmapped_concepts).Count
+            }
+        }
+
+        # Hydrate ModelInfo from summary's model_info or legacy ai_model field
+        $MInfo = $null
+        if ($null -ne $Summary) {
+            $MInfo = [AITModelInfo]::new()
+            $SP = $Summary.PSObject.Properties
+            if ($SP['model_info']) {
+                $Mi = $Summary.model_info
+                $Mp = $Mi.PSObject.Properties
+                $MInfo.Model                  = if ($Mp['model'])                    { $Mi.model }                    else { $null }
+                $MInfo.Temperature            = if ($Mp['temperature'])              { $Mi.temperature }              else { 0 }
+                $MInfo.MaxTokens              = if ($Mp['max_tokens'])               { $Mi.max_tokens }               else { 0 }
+                $MInfo.ExtractionMode         = if ($Mp['extraction_mode'])          { $Mi.extraction_mode }          else { $null }
+                $MInfo.TaxonomyFilter         = if ($Mp['taxonomy_filter'])          { $Mi.taxonomy_filter }          else { $null }
+                $MInfo.TaxonomyNodes          = if ($Mp['taxonomy_nodes'])           { $Mi.taxonomy_nodes }           else { 0 }
+                $MInfo.FireConfidenceThreshold = if ($Mp['fire_confidence_threshold']) { $Mi.fire_confidence_threshold } else { 0 }
+                $MInfo.Chunked                = if ($Mp['chunked'])                  { $Mi.chunked }                  else { $false }
+                $MInfo.ChunkCount             = if ($Mp['chunk_count'])              { $Mi.chunk_count }              else { 0 }
+                $MInfo.FireStats              = if ($Mp['fire_stats'])               { $Mi.fire_stats }               else { $null }
+            }
+            elseif ($SP['ai_model']) {
+                # Legacy format
+                $MInfo.Model       = $Summary.ai_model
+                $MInfo.Temperature = if ($SP['temperature']) { $Summary.temperature } else { 0 }
+            }
+        }
+
+        $Src                   = [AITSource]::new()
+        $Src.Id                = $Meta.id
+        $Src.Title             = if ($Props['title'])            { $Meta.title }            else { $null }
+        $Src.Url               = if ($Props['url'])              { $Meta.url }              else { $null }
+        $Src.Authors           = if ($Props['authors'])          { $Meta.authors }          else { @() }
+        $Src.DatePublished     = if ($Props['date_published'])   { $Meta.date_published }   else { $null }
+        $Src.DateIngested      = if ($Props['date_ingested'])    { $Meta.date_ingested }    else { $null }
+        $Src.ImportTime        = if ($Props['import_time'])      { $Meta.import_time }      else { $null }
+        $Src.SourceTime        = if ($Props['source_time'])      { $Meta.source_time }      else { $null }
+        $Src.SourceType        = if ($Props['source_type'])      { $Meta.source_type }      else { $null }
+        $Src.PovTags           = if ($Props['pov_tags'])         { $Meta.pov_tags }         else { @() }
+        $Src.TopicTags         = if ($Props['topic_tags'])       { $Meta.topic_tags }       else { @() }
+        $Src.RolodexAuthorIds  = if ($Props['rolodex_author_ids']) { $Meta.rolodex_author_ids } else { @() }
+        $Src.ArchiveStatus     = if ($Props['archive_status'])   { $Meta.archive_status }   else { $null }
+        $Src.SummaryVersion    = if ($Props['summary_version'])  { $Meta.summary_version }  else { $null }
+        $Src.SummaryStatus     = if ($Props['summary_status'])   { $Meta.summary_status }   else { $null }
+        $Src.SummaryUpdated    = if ($Props['summary_updated'])  { $Meta.summary_updated }  else { $null }
+        $Src.OneLiner          = if ($Props['one_liner'])        { $Meta.one_liner }        else { $null }
+        $Src.MDPath            = $MDPath
+        $Src.Directory         = $Folder.FullName
+        $Src.TotalClaims       = $TotalClaims
+        $Src.ClaimsByPov       = $ClaimsPov
+        $Src.TotalFacts        = $TotalFacts
+        $Src.UnmappedConcepts  = $UnmappedConcepts
+        $Src.ModelInfo         = $MInfo
+
+        $Results.Add($Src)
     }
 
     if ($Results.Count -eq 0) {

@@ -25,6 +25,66 @@ if ($_candidateRepoRoot -and (Test-Path (Join-Path $_candidateRepoRoot '.aitriad
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ClaimsByPov — per-POV claim counts for AITSource objects
+# ─────────────────────────────────────────────────────────────────────────────
+class ClaimsByPov {
+    [int]$Accelerationist
+    [int]$Safetyist
+    [int]$Skeptic
+    [int]$Situations
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AITModelInfo — model and extraction parameters used to generate a summary
+# ─────────────────────────────────────────────────────────────────────────────
+class AITModelInfo {
+    [string] $Model
+    [double] $Temperature
+    [int]    $MaxTokens
+    [string] $ExtractionMode      # fire | single_shot | auto_fire
+    [string] $TaxonomyFilter      # rag | full | rag_per_chunk
+    [int]    $TaxonomyNodes
+    [double] $FireConfidenceThreshold
+    [bool]   $Chunked
+    [int]    $ChunkCount
+    [PSObject]$FireStats           # api_calls, iterations, claims_total, etc.
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AITSource — typed representation of a source document + summary statistics
+# ─────────────────────────────────────────────────────────────────────────────
+class AITSource {
+    [string]       $Id
+    [string]       $Title
+    [string]       $Url
+    [string[]]     $Authors
+    [string]       $DatePublished
+    [string]       $DateIngested
+    [string]       $ImportTime
+    [string]       $SourceTime
+    [string]       $SourceType
+    [string[]]     $PovTags
+    [string[]]     $TopicTags
+    [string[]]     $RolodexAuthorIds
+    [string]       $ArchiveStatus
+    [string]       $SummaryVersion
+    [string]       $SummaryStatus
+    [string]       $SummaryUpdated
+    [string]       $OneLiner
+    [string]       $MDPath
+    [string]       $Directory
+
+    # Summary statistics (populated when summary exists)
+    [int]          $TotalClaims
+    [ClaimsByPov]  $ClaimsByPov
+    [int]          $TotalFacts
+    [int]          $UnmappedConcepts
+    [AITModelInfo] $ModelInfo
+}
+
+Update-TypeData -TypeName AITSource -MemberType AliasProperty -MemberName DocId -Value Id -Force
+
+# ─────────────────────────────────────────────────────────────────────────────
 # TaxonomyNode class — must live in .psm1 for PowerShell type resolution
 # ─────────────────────────────────────────────────────────────────────────────
 class TaxonomyNode {
@@ -49,6 +109,7 @@ class TaxonomyNode {
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
 $script:TaxonomyData = @{}
+$script:CachedEmbeddings = $null  # Lazy-loaded by Get-RelevantTaxonomyNodes
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load ai-models.json — single source of truth for backend/model lists
@@ -246,6 +307,9 @@ Export-ModuleMember -Function @(
     'Repair-DebateOutput'
     'Get-AITSBOM'
     'Test-OntologyCompliance'
+    'Get-RelevantTaxonomyNodes'
+    'Invoke-QbafConflictAnalysis'
+    'Test-ExtractionQuality'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
@@ -254,3 +318,25 @@ Export-ModuleMember -Function @(
     'Redo-Snapshots'
     'Show-MD'
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Register -Model argument completers (module-scoped, captures $script:ValidModelIds)
+# ─────────────────────────────────────────────────────────────────────────────
+$_modelCompleter = {
+    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+    $script:ValidModelIds | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+    }
+}
+
+foreach ($_cmd in @(
+    'Invoke-POVSummary', 'Invoke-BatchSummary', 'Invoke-AttributeExtraction',
+    'Invoke-EdgeDiscovery', 'Invoke-GraphQuery', 'Invoke-TaxonomyProposal',
+    'Invoke-HierarchyProposal', 'Invoke-PolicyRefinement', 'Invoke-AITDebate',
+    'Import-AITriadDocument', 'Find-PolicyAction', 'Find-PossibleFallacy',
+    'Find-SituationCandidates', 'Get-ConflictEvolution', 'Get-Edge',
+    'Get-IngestionPriority', 'Get-RelevantTaxonomyNodes', 'Get-TopicFrequency',
+    'Show-TriadDialogue'
+)) {
+    Register-ArgumentCompleter -CommandName $_cmd -ParameterName 'Model' -ScriptBlock $_modelCompleter
+}

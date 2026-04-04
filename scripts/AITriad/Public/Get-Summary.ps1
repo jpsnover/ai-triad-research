@@ -127,7 +127,7 @@ function Get-Summary {
             DocId       = $Summary.doc_id
             Title       = $Title
             GeneratedAt = $Summary.generated_at
-            Model       = $Summary.ai_model
+            Model       = if ($Summary.PSObject.Properties['model_info']) { $Summary.model_info.model } elseif ($Summary.PSObject.Properties['ai_model']) { $Summary.ai_model } else { $null }
             PointCounts = $PointCounts
         }
 
