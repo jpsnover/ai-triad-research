@@ -65,33 +65,36 @@ const ARGUMENT_STRATEGY_CORE = `HOW TO ARGUE WELL:
    - If multiple opponents made different arguments, address the one that most threatens your position`;
 
 // Extended argument strategy (rules 4-7) — included at detailed tier only
-const ARGUMENT_STRATEGY_EXTENDED = `4. KNOW WHEN TO CONCEDE. Conceding a point is not losing — it's intellectual honesty:
-   - Concede when the evidence clearly supports the opponent's claim
-   - Concede when a point is tangential to your core argument (don't defend everything)
-   - After conceding, explain why your overall position still holds despite this concession
-   Never silently drop a point you previously asserted — explicitly acknowledge the change.
+const ARGUMENT_STRATEGY_EXTENDED = `4. ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
+   - New evidence the debate hasn't seen yet
+   - A new angle or framing on the issue
+   - A direct challenge to a point made SINCE your last turn
+   - A genuine surprise — something the other debaters haven't considered
+   If you find yourself about to restate something you already said, STOP. Ask yourself:
+   "What has changed since I last made this point? What new information can I add?"
+   If nothing has changed, reference your prior argument briefly and move on to something new.
+   Restating the same logic in different words is the weakest move in a debate — it signals
+   you have nothing new to contribute.
 
-5. HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
-   - Acknowledge it directly: "You're right that I said X earlier. On reflection..."
-   - Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
-   - Never pretend the contradiction wasn't raised
-
-6. ATTACK POSITIONS, NOT PEOPLE. Focus on:
+5. ATTACK POSITIONS, NOT PEOPLE. Focus on:
    - The logical structure of the argument (does the conclusion follow from the premises?)
    - The quality of the evidence (is it reliable, representative, relevant?)
    - The assumptions being made (are they stated? are they justified?)
    Never attribute bad faith, ignorance, or hidden motives to an opponent.
 
-7. ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
-   - New evidence the debate hasn't seen yet
-   - A new angle or framing on the issue
-   - A direct response to a point made SINCE your last turn
-   - An explicit concession or qualification of your prior position
-   If you find yourself about to restate something you already said, STOP. Ask yourself:
-   "What has changed since I last made this point? What new information can I add?"
-   If nothing has changed, reference your prior argument briefly and move on to something new.
-   Restating the same logic in different words is the weakest move in a debate — it signals
-   you have nothing new to contribute.`;
+6. HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
+   - Acknowledge it directly: "You're right that I said X earlier. On reflection..."
+   - Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
+   - Never pretend the contradiction wasn't raised
+
+7. CONCEDE SELECTIVELY. Conceding a point is not losing — it's intellectual honesty:
+   - Concede when the evidence clearly supports the opponent's claim
+   - Concede when a point is tangential to your core argument (don't defend everything)
+   - After conceding, explain why your overall position still holds despite this concession
+   Never silently drop a point you previously asserted — explicitly acknowledge the change.
+   BUT: concession is powerful because it's rare. If you concede every turn, it becomes
+   empty ritual. Not every response needs a concession — sometimes the right move is to
+   directly challenge, provide a counterexample, or reframe the issue.`;
 
 /**
  * Assemble instruction blocks gated by response length tier.
@@ -137,9 +140,9 @@ Include a "disagreement_type" field in your response when you disagree.`;
 
 const DIALECTICAL_MOVES = `Your response should employ one or more of these dialectical moves. Choose strategically:
 
-- CONCEDE: Acknowledge a valid point from the opponent.
-  USE WHEN: The evidence clearly supports their claim, OR the point is tangential to your core argument.
-  NEVER USE: As empty flattery before attacking ("Great point, but...").
+- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim.
+  USE WHEN: The opponent makes a general claim and you can identify a concrete exception.
+  THE KEY: The example must be genuinely analogous, not a superficial similarity.
 
 - DISTINGUISH: Accept the opponent's evidence but show it doesn't apply here.
   USE WHEN: The evidence is real but the context, scope, or conditions differ from what's being claimed.
@@ -149,10 +152,6 @@ const DIALECTICAL_MOVES = `Your response should employ one or more of these dial
   USE WHEN: The opponent's framing excludes important considerations or presupposes their conclusion.
   THE KEY: Show what becomes visible in your frame that was invisible in theirs.
 
-- COUNTEREXAMPLE: Provide a specific case that challenges the opponent's claim.
-  USE WHEN: The opponent makes a general claim and you can identify a concrete exception.
-  THE KEY: The example must be genuinely analogous, not a superficial similarity.
-
 - REDUCE: Show the opponent's logic leads to an absurd or unacceptable conclusion.
   USE WHEN: The opponent's principle, applied consistently, produces results they wouldn't endorse.
   THE KEY: The reductio must follow from THEIR premises, not from a distortion of them.
@@ -160,6 +159,24 @@ const DIALECTICAL_MOVES = `Your response should employ one or more of these dial
 - ESCALATE: Raise the stakes by connecting to a broader principle.
   USE WHEN: The specific disagreement reflects a deeper conflict worth surfacing.
   THE KEY: The broader principle must actually be at stake, not just rhetorically invoked.
+
+- CONCEDE: Acknowledge a valid point from the opponent.
+  USE WHEN: The evidence clearly supports their claim, OR the point is tangential to your core argument.
+  NEVER USE: As empty flattery before attacking ("Great point, but..."). A concession that
+  is immediately reversed by "however" is not a real concession — it's a rhetorical tic.
+
+MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
+conceded last turn, lead with a challenge or reframe this turn. If you distinguished
+last turn, try a counterexample or escalation. The best debates feature genuine variety
+in rhetorical strategy — not a predictable cycle of "I concede, but I distinguish."
+
+SENTENCE VARIETY: Never begin two consecutive responses with the same phrase. Vary your
+openings. Instead of always starting with "I concede," use natural language:
+- "That's a fair point — but it actually strengthens my case because..."
+- "You're right that X, and that's precisely why..."
+- "The evidence you cite is real, but it proves the opposite of what you claim..."
+- "Let me challenge that directly..."
+- "Consider what happens if we apply your logic consistently..."
 
 Include a "move_types" array in your response listing which moves you used.`;
 
@@ -433,6 +450,7 @@ export function crossRespondPrompt(
   length: string = 'medium',
   debateSourceContent?: string,
   documentAnalysis?: DocumentAnalysis,
+  priorMoveTypes?: string[],
 ): string {
   const lengthKey = length || 'medium';
 
@@ -440,6 +458,10 @@ export function crossRespondPrompt(
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
     : sourceReminder(debateSourceContent);
+
+  const moveHistoryBlock = priorMoveTypes && priorMoveTypes.length > 0
+    ? `\n=== YOUR RECENT MOVES ===\nYour last ${priorMoveTypes.length} responses used: ${priorMoveTypes.join(' → ')}.\n${priorMoveTypes.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
+    : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -455,11 +477,11 @@ ${taxonomyContext}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
-
+${moveHistoryBlock}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
-Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. If you agree on some points, say so (CONCEDE) and push further.
+Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.
 
 ${CLAIM_SKETCHING}
 
@@ -469,7 +491,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["CONCEDE", "DISTINGUISH"],
+  "move_types": ["COUNTEREXAMPLE", "REFRAME"],
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
