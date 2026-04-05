@@ -9,7 +9,7 @@ function Get-GraphNode {
         Loads a node by ID and returns it enriched with all inbound and outbound
         edges from edges.json. Optionally traverses the graph to a given depth.
     .PARAMETER Id
-        The node ID to retrieve (e.g., "acc-goals-001").
+        The node ID to retrieve (e.g., "acc-desires-001").
     .PARAMETER Depth
         How many hops of edges to include. Default: 1 (direct neighbors only).
     .PARAMETER EdgeType
@@ -20,11 +20,11 @@ function Get-GraphNode {
     .PARAMETER RepoRoot
         Path to the repository root. Defaults to the module-resolved repo root.
     .EXAMPLE
-        Get-GraphNode -Id "saf-goals-001"
+        Get-GraphNode -Id "saf-desires-001"
     .EXAMPLE
-        Get-GraphNode -Id "acc-goals-001" -Depth 2 -EdgeType TENSION_WITH
+        Get-GraphNode -Id "acc-desires-001" -Depth 2 -EdgeType TENSION_WITH
     .EXAMPLE
-        Get-GraphNode -Id "cc-001" -Status approved
+        Get-GraphNode -Id "sit-001" -Status approved
     #>
     [CmdletBinding()]
     param(

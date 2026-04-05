@@ -96,7 +96,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-goals-001',
+        nodeId: 'acc-desires-001',
         nodeLabel: 'Abundance through AI',
         category: 'Desires',
         alignment: 'agrees',
@@ -105,7 +105,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'safetyist',
-        nodeId: 'saf-goals-001',
+        nodeId: 'saf-desires-001',
         nodeLabel: 'Prevent catastrophic and existential AI outcomes',
         category: 'Desires',
         alignment: 'agrees',
@@ -114,7 +114,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'skeptic',
-        nodeId: 'skp-data-003',
+        nodeId: 'skp-beliefs-003',
         nodeLabel: 'AGI risk framing distracts from present harms',
         category: 'Beliefs',
         alignment: 'agrees',
@@ -135,7 +135,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-goals-001',
+        nodeId: 'acc-desires-001',
         nodeLabel: 'Abundance through AI',
         category: 'Desires',
         alignment: 'agrees',
@@ -156,7 +156,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'safetyist',
-        nodeId: 'saf-goals-001',
+        nodeId: 'saf-desires-001',
         nodeLabel: 'Prevent catastrophic and existential AI outcomes',
         category: 'Desires',
         alignment: 'agrees',
@@ -177,7 +177,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'skeptic',
-        nodeId: 'skp-data-003',
+        nodeId: 'skp-beliefs-003',
         nodeLabel: 'AGI risk framing distracts from present harms',
         category: 'Beliefs',
         alignment: 'agrees',
@@ -198,7 +198,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-goals-003',
+        nodeId: 'acc-desires-003',
         nodeLabel: 'Democratize access to AI capability',
         category: 'Desires',
         alignment: 'agrees',
@@ -207,7 +207,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'safetyist',
-        nodeId: 'saf-goals-003',
+        nodeId: 'saf-desires-003',
         nodeLabel: 'Solve the alignment problem before deployment',
         category: 'Desires',
         alignment: 'agrees',
@@ -216,7 +216,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'skeptic',
-        nodeId: 'skp-methods-001',
+        nodeId: 'skp-intentions-001',
         nodeLabel: 'Regulate based on present harms, not future speculation',
         category: 'Intentions',
         alignment: 'agrees',
@@ -237,7 +237,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-methods-001',
+        nodeId: 'acc-intentions-001',
         nodeLabel: 'Speed reduces risk (first-mover alignment advantage)',
         category: 'Intentions',
         alignment: 'agrees',
@@ -246,7 +246,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'safetyist',
-        nodeId: 'saf-data-001',
+        nodeId: 'saf-beliefs-001',
         nodeLabel: 'The alignment problem is unsolved',
         category: 'Beliefs',
         alignment: 'contradicts',
@@ -255,7 +255,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'skeptic',
-        nodeId: 'skp-methods-001',
+        nodeId: 'skp-intentions-001',
         nodeLabel: 'Regulate based on present harms, not future speculation',
         category: 'Intentions',
         alignment: 'agrees',
@@ -276,7 +276,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'situations',
-        nodeId: 'cc-003',
+        nodeId: 'sit-003',
         nodeLabel: 'AI Governance and Regulation',
         category: 'Situations',
         alignment: 'agrees',
@@ -297,7 +297,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-data-003',
+        nodeId: 'acc-beliefs-003',
         nodeLabel: 'AI is already producing measurable economic gains',
         category: 'Beliefs',
         alignment: 'agrees',
@@ -318,7 +318,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'safetyist',
-        nodeId: 'saf-methods-003',
+        nodeId: 'saf-intentions-003',
         nodeLabel: 'Technical-empiricist safety research program',
         category: 'Intentions',
         alignment: 'agrees',
@@ -327,7 +327,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'accelerationist',
-        nodeId: 'acc-methods-001',
+        nodeId: 'acc-intentions-001',
         nodeLabel: 'Speed reduces risk (first-mover alignment advantage)',
         category: 'Intentions',
         alignment: 'agrees',
@@ -349,7 +349,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'safetyist',
-        nodeId: 'saf-goals-003',
+        nodeId: 'saf-desires-003',
         nodeLabel: 'Solve the alignment problem before deployment',
         category: 'Desires',
         alignment: 'agrees',
@@ -370,7 +370,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-goals-004',
+        nodeId: 'acc-desires-004',
         nodeLabel: 'AI as public research infrastructure',
         category: 'Desires',
         alignment: 'agrees',
@@ -391,7 +391,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'safetyist',
-        nodeId: 'saf-goals-002',
+        nodeId: 'saf-desires-002',
         nodeLabel: 'Maintain meaningful human oversight of AI',
         category: 'Desires',
         alignment: 'agrees',
@@ -400,7 +400,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'skeptic',
-        nodeId: 'skp-methods-002',
+        nodeId: 'skp-intentions-002',
         nodeLabel: 'Mandate algorithmic audits and impact assessments',
         category: 'Intentions',
         alignment: 'agrees',
@@ -421,7 +421,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-methods-002',
+        nodeId: 'acc-intentions-002',
         nodeLabel: 'Open-source model weights enable safety scrutiny',
         category: 'Intentions',
         alignment: 'agrees',
@@ -430,7 +430,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'skeptic',
-        nodeId: 'skp-methods-002',
+        nodeId: 'skp-intentions-002',
         nodeLabel: 'Mandate algorithmic audits and impact assessments',
         category: 'Intentions',
         alignment: 'agrees',
@@ -452,7 +452,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-methods-003',
+        nodeId: 'acc-intentions-003',
         nodeLabel: 'Accuracy thresholds as sufficient deployment criteria',
         category: 'Intentions',
         alignment: 'agrees',
@@ -461,7 +461,7 @@ export const HARDCODED_POINTS: Point[] = [
       },
       {
         camp: 'safetyist',
-        nodeId: 'saf-methods-003',
+        nodeId: 'saf-intentions-003',
         nodeLabel: 'Technical-empiricist safety research program',
         category: 'Intentions',
         alignment: 'agrees',
@@ -493,7 +493,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'safetyist',
-        nodeId: 'saf-data-004',
+        nodeId: 'saf-beliefs-004',
         nodeLabel: 'Reward misspecification as systematic failure mechanism',
         category: 'Beliefs',
         alignment: 'agrees',
@@ -525,7 +525,7 @@ export const HARDCODED_POINTS: Point[] = [
     mappings: [
       {
         camp: 'accelerationist',
-        nodeId: 'acc-goals-003',
+        nodeId: 'acc-desires-003',
         nodeLabel: 'Democratize access to AI capability',
         category: 'Desires',
         alignment: 'agrees',

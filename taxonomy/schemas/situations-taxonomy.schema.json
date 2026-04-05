@@ -37,6 +37,44 @@
     }
   },
   "$defs": {
+    "Interpretation": {
+      "description": "A POV's interpretation of a situation. Either a plain string (legacy format) or a BDI-decomposed object separating empirical claims, normative commitments, and strategic reasoning within the interpretation.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Legacy format — single paragraph describing the POV's interpretation."
+        },
+        {
+          "type": "object",
+          "description": "BDI-decomposed interpretation — separates the POV's empirical claims (belief), normative commitments (desire), and strategic reasoning (intention) for richer analytical downstream use.",
+          "required": ["belief", "desire", "intention", "summary"],
+          "additionalProperties": false,
+          "properties": {
+            "belief": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The empirical claim(s) this POV makes about the situation. What factual assertions does this perspective rely on? Test: 'Could this be proven true or false with evidence?'"
+            },
+            "desire": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The normative commitment(s) this POV holds regarding the situation. What does this perspective argue should happen? Test: 'Is this about what ought to happen?'"
+            },
+            "intention": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The strategic reasoning this POV applies to the situation. How does this perspective argue the issue should be approached? Test: 'Is this about how to achieve a goal or reason about the issue?'"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "description": "1-2 sentence summary of the full interpretation for UI display and backward compatibility. Should capture the essence of all three BDI components."
+            }
+          }
+        }
+      ]
+    },
     "SituationNode": {
       "type": "object",
       "description": "A situation node representing a DOLCE Situation — a contested concept that all three POV Descriptions classify differently. The interpretations field implements the D&S mechanism: three Descriptions of one Situation.",
@@ -53,9 +91,9 @@
         "id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^cc-\\d{3}$",
-          "description": "Unique identifier for this situation node. Format: cc-{sequence}. The cc- prefix is a legacy stable identifier — do not change.",
-          "examples": ["cc-001", "cc-012"]
+          "pattern": "^sit-\\d{3}$",
+          "description": "Unique identifier for this situation node. Format: sit-{sequence}.",
+          "examples": ["sit-001", "sit-012"]
         },
         "label": {
           "type": "string",
@@ -70,23 +108,20 @@
         },
         "interpretations": {
           "type": "object",
-          "description": "Per-POV interpretations — the DOLCE D&S mechanism. Three Descriptions of one Situation. Each POV explains how it understands this concept.",
+          "description": "Per-POV interpretations — the DOLCE D&S mechanism. Three Descriptions of one Situation. Each POV explains how it understands this concept. Each interpretation is either a plain string (legacy) or a BDI-decomposed object with belief, desire, intention, and summary fields.",
           "required": ["accelerationist", "safetyist", "skeptic"],
           "additionalProperties": false,
           "properties": {
             "accelerationist": {
-              "type": "string",
-              "minLength": 1,
+              "$ref": "#/$defs/Interpretation",
               "description": "How the accelerationist POV interprets this situation."
             },
             "safetyist": {
-              "type": "string",
-              "minLength": 1,
+              "$ref": "#/$defs/Interpretation",
               "description": "How the safetyist POV interprets this situation."
             },
             "skeptic": {
-              "type": "string",
-              "minLength": 1,
+              "$ref": "#/$defs/Interpretation",
               "description": "How the skeptic POV interprets this situation."
             }
           }

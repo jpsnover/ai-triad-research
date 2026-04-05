@@ -6,7 +6,7 @@ the position. Each node may reference multiple lineages, assigned by an LLM duri
 attribute extraction (`Invoke-AttributeExtraction`).
 
 ```powershell
-(Get-Tax -Id 'acc-goals-001').GraphAttributes.intellectual_lineage
+(Get-Tax -Id 'acc-desires-001').GraphAttributes.intellectual_lineage
 ```
 
 Unlike controlled-vocabulary fields (epistemic type, emotional register), intellectual

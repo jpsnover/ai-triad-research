@@ -54,7 +54,7 @@ Return a JSON array:
 [
   {
     "pointIndex": 0,
-    "nodeId": "acc-goals-001",
+    "nodeId": "acc-desires-001",
     "nodeLabel": "Node label text",
     "category": "Category name",
     "camp": "accelerationist",

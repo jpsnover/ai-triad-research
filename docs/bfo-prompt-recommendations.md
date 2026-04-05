@@ -216,8 +216,8 @@ Genus-Differentia Description (3-6 Sentences):
     constraints on compute and data scaling as the primary path to AI capability
     gains. Applies when a text argues that scaling laws are reliable, resource
     caps are counterproductive, or compute access should be expanded. Excludes
-    arguments about architectural innovation (acc-methods-X) or open-source
-    access (acc-goals-003), which concern HOW capabilities are distributed
+    arguments about architectural innovation (acc-intentions-X) or open-source
+    access (acc-desires-003), which concern HOW capabilities are distributed
     rather than WHETHER to scale."
 ```
 
@@ -811,7 +811,7 @@ Before Phase 1 and after each phase, run this validation checklist:
 
 1. `Import-Module AITriad -Force` — module loads without errors
 2. `Get-Tax | Select -First 5` — nodes render with descriptions
-3. `Get-Tax -Id acc-goals-001 | Format-List` — single node detail works
+3. `Get-Tax -Id acc-desires-001 | Format-List` — single node detail works
 4. `Measure-TaxonomyBaseline` — all metrics computed without errors
 5. `Invoke-POVSummary -DocId <sample> -DryRun` — prompt assembly works
 6. Start taxonomy-editor — NodeDetail renders, Sources tab loads, Related tab shows edges

@@ -19,6 +19,7 @@ import {
   chatSystemPrompt,
   chatOpeningPrompt,
   chatContinuationPrompt,
+  CHAT_MODE_TEMPERATURE,
 } from '../prompts/chat';
 
 function generateId(): string {
@@ -61,12 +62,12 @@ function stripCodeFences(text: string): string {
   return text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
 }
 
-/** Get taxonomy data for a given POV */
+/** Get taxonomy data for a given POV — caps applied to prevent context explosion */
 function getTaxonomyContext(pov: string): TaxonomyContext {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
-  const povNodes: PovNode[] = povFile?.nodes ?? [];
-  const situationNodes: SituationNode[] = state.situations?.nodes ?? [];
+  const povNodes: PovNode[] = (povFile?.nodes ?? []).slice(0, 35);
+  const situationNodes: SituationNode[] = (state.situations?.nodes ?? []).slice(0, 15);
   return { povNodes, situationNodes };
 }
 
@@ -269,6 +270,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
       const model = getConfiguredModel();
 
+      // Set per-mode temperature before generating
+      await window.electronAPI.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
+
       const systemBlock = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
@@ -339,6 +343,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
       const model = getConfiguredModel();
 
+      // Set per-mode temperature before generating
+      await window.electronAPI.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
+
       const systemBlock = chatSystemPrompt(
         info.label, info.pov, info.personality,
         activeChat.mode, activeChat.topic, taxonomyBlock,
@@ -346,7 +353,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const transcriptText = formatTranscriptForContext(
         withUserMsg.transcript, info.label,
       );
-      const userBlock = chatContinuationPrompt(message.trim(), transcriptText);
+      // PQ-7: Extract prior claims from POVer's responses for consistency tracking
+      const priorClaims = withUserMsg.transcript
+        .filter(e => e.speaker !== 'user' && e.content.length > 20)
+        .map(e => {
+          // Take the first substantive sentence as a claim summary
+          const firstSentence = e.content.match(/^[^.!?]+[.!?]/)?.[0] ?? e.content.slice(0, 120);
+          return firstSentence.trim();
+        })
+        .filter(Boolean);
+      const userBlock = chatContinuationPrompt(message.trim(), transcriptText, priorClaims);
       const prompt = `${systemBlock}\n\n${userBlock}`;
 
       const result = await generateTextWithProgress(

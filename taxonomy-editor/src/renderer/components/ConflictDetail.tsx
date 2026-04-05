@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { ConflictFile } from '../types/taxonomy';
+import type { ConflictFile, ConflictQbaf } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
@@ -289,6 +289,11 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         </div>
       </div>
 
+      {/* QBAF Analysis (Q-15a) — shown when qbaf field present and feature flag on */}
+      {conflict.qbaf && useTaxonomyStore.getState().qbafEnabled && (
+        <QbafConflictPanel qbaf={conflict.qbaf} />
+      )}
+
       {showDelete && !readOnly && (
         <DeleteConfirmDialog
           itemLabel={conflict.claim_label}
@@ -299,6 +304,77 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           onCancel={() => setShowDelete(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** Mini QBAF argument map + resolution card for conflict detail */
+function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
+  const { graph, resolution } = qbaf;
+
+  function strengthBand(score: number): { label: string; cls: string } {
+    if (score >= 0.8) return { label: 'Strong', cls: 'qbaf-strong' };
+    if (score >= 0.5) return { label: 'Moderate', cls: 'qbaf-moderate' };
+    if (score >= 0.3) return { label: 'Weak', cls: 'qbaf-weak' };
+    return { label: 'Very Weak', cls: 'qbaf-very-weak' };
+  }
+
+  return (
+    <div className="conflict-qbaf-panel">
+      <div className="conflict-qbaf-header">QBAF Analysis</div>
+
+      {/* Mini argument map — claims with strength badges */}
+      <div className="conflict-qbaf-claims">
+        {graph.nodes.map(node => {
+          const band = strengthBand(node.computed_strength);
+          const delta = node.computed_strength - node.base_strength;
+          const isPrevailing = resolution?.prevailing_claim === node.id;
+          return (
+            <div key={node.id} className={`conflict-qbaf-claim ${isPrevailing ? 'conflict-qbaf-prevailing' : ''}`}>
+              <span className="conflict-qbaf-pov">{node.source_pov.slice(0, 3).toUpperCase()}</span>
+              <span className="conflict-qbaf-text">{node.text.slice(0, 100)}{node.text.length > 100 ? '...' : ''}</span>
+              <span className={`qbaf-badge ${band.cls}`} style={{ opacity: 0.3 + node.computed_strength * 0.7 }}>
+                {band.label}
+                {Math.abs(delta) > 0.1 && (
+                  <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
+                    {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Edges */}
+      {graph.edges.length > 0 && (
+        <div className="conflict-qbaf-edges">
+          {graph.edges.map((edge, i) => (
+            <div key={i} className="conflict-qbaf-edge">
+              <span className={`conflict-qbaf-edge-type ${edge.type === 'attacks' ? 'conflict-qbaf-attack' : 'conflict-qbaf-support'}`}>
+                {edge.type === 'attacks' ? '\u2694' : '\u2764'} {edge.attack_type ?? edge.type}
+              </span>
+              <span className="conflict-qbaf-edge-weight">weight: {edge.weight.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Resolution card */}
+      {resolution && (
+        <div className="conflict-qbaf-resolution">
+          <div className="conflict-qbaf-resolution-header">Resolution Analysis</div>
+          <div className="conflict-qbaf-resolution-body">
+            <span>Prevailing: <strong>{graph.nodes.find(n => n.id === resolution.prevailing_claim)?.text.slice(0, 60) ?? resolution.prevailing_claim}</strong></span>
+            <span>Strength: {resolution.prevailing_strength.toFixed(2)} (margin: {resolution.margin.toFixed(2)})</span>
+            <span>Criterion: {resolution.criterion.replace(/_/g, ' ')}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="conflict-qbaf-meta">
+        {qbaf.algorithm} &middot; {qbaf.iterations} iterations &middot; {new Date(qbaf.computed_at).toLocaleDateString()}
+      </div>
     </div>
   );
 }

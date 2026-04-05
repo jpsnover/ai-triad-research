@@ -319,6 +319,64 @@ export function registerIpcHandlers(): void {
     clipboard.writeText(text);
   });
 
+  // Taxonomy proposal files (for batch approve UI)
+  ipcMain.handle('list-proposals', () => {
+    const proposalDir = path.join(getDataRootPath(), loadDataConfig().taxonomy_dir, 'proposals');
+    if (!fs.existsSync(proposalDir)) return [];
+    return fs.readdirSync(proposalDir)
+      .filter(f => f.endsWith('.json'))
+      .sort()
+      .reverse()
+      .map(f => {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(proposalDir, f), 'utf-8'));
+          return { filename: f, ...data };
+        } catch {
+          return { filename: f, error: 'Failed to parse' };
+        }
+      });
+  });
+
+  ipcMain.handle('save-proposal', (_event, filename: string, data: unknown) => {
+    const proposalDir = path.join(getDataRootPath(), loadDataConfig().taxonomy_dir, 'proposals');
+    if (!fs.existsSync(proposalDir)) fs.mkdirSync(proposalDir, { recursive: true });
+    if (!/^proposal-[\d-]+\.json$/.test(filename)) {
+      return { error: 'Invalid proposal filename' };
+    }
+    const filePath = path.join(proposalDir, filename);
+    const tmpPath = filePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+    fs.renameSync(tmpPath, filePath);
+    return { saved: true };
+  });
+
+  // PowerShell prompt file reader (for Prompt Inspector)
+  ipcMain.handle('read-ps-prompt', (_event, promptName: string) => {
+    // Sanitize: only allow alphanumeric, hyphens, no path traversal
+    if (!/^[a-z0-9-]+$/.test(promptName)) {
+      return { text: null, error: 'Invalid prompt name' };
+    }
+    const promptPath = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts', `${promptName}.prompt`);
+    if (!fs.existsSync(promptPath)) {
+      return { text: null, error: `Prompt file not found: ${promptName}.prompt` };
+    }
+    try {
+      const text = fs.readFileSync(promptPath, 'utf-8');
+      return { text };
+    } catch (err) {
+      return { text: null, error: String(err) };
+    }
+  });
+
+  // List all available PS prompt files
+  ipcMain.handle('list-ps-prompts', () => {
+    const promptDir = path.join(PROJECT_ROOT, 'scripts', 'AITriad', 'Prompts');
+    if (!fs.existsSync(promptDir)) return [];
+    return fs.readdirSync(promptDir)
+      .filter(f => f.endsWith('.prompt'))
+      .map(f => f.replace('.prompt', ''));
+  });
+
   ipcMain.handle('build-node-source-index', () => {
     return buildNodeSourceIndex();
   });

@@ -12,6 +12,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { formatTaxonomyContext } from './taxonomyContext';
 import type { TaxonomyContext } from './taxonomyContext';
 import type { PovNode, SituationNode } from '../types/taxonomy';
+import { interpretationText } from '../types/taxonomy';
 import type { PromptPreviewResult } from '@lib/debate';
 import {
   clarificationPrompt,
@@ -89,7 +90,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
       case 'debate-situation-clarification': {
         const sitNode = ctx.situationNodes[0];
         const sitContext = sitNode
-          ? `[${sitNode.id}] ${sitNode.label}: ${sitNode.description}\nInterpretations:\n  Acc: ${sitNode.interpretations.accelerationist}\n  Saf: ${sitNode.interpretations.safetyist}\n  Skp: ${sitNode.interpretations.skeptic}`
+          ? `[${sitNode.id}] ${sitNode.label}: ${sitNode.description}\nInterpretations:\n  Acc: ${interpretationText(sitNode.interpretations.accelerationist)}\n  Saf: ${interpretationText(sitNode.interpretations.safetyist)}\n  Skp: ${interpretationText(sitNode.interpretations.skeptic)}`
           : '(no situation node available)';
         text = situationClarificationPrompt(topic, sitContext);
         sections.push(section('Prompt', text));

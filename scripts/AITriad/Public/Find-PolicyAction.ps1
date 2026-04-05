@@ -39,7 +39,7 @@ function Find-PolicyAction {
     .EXAMPLE
         Find-PolicyAction -POV accelerationist
     .EXAMPLE
-        Find-PolicyAction -Id acc-goals-001, saf-goals-001
+        Find-PolicyAction -Id acc-desires-001, saf-desires-001
     .EXAMPLE
         Find-PolicyAction -Force -Model 'groq-llama-4-scout'
     #>

@@ -7,7 +7,7 @@ Return a JSON object with the following structure:
   "edges": [
     {
       "type": "TENSION_WITH",
-      "target": "saf-goals-001",
+      "target": "saf-desires-001",
       "bidirectional": true,
       "confidence": 0.85,
       "rationale": "Both nodes address AI development speed but from opposing priorities — one maximizes progress, the other maximizes caution.",
@@ -15,15 +15,15 @@ Return a JSON object with the following structure:
     },
     {
       "type": "ASSUMES",
-      "target": "cc-001",
+      "target": "sit-001",
       "bidirectional": false,
       "confidence": 0.90,
-      "rationale": "The source node's urgency depends entirely on AGI arriving within a near-term planning horizon, which is exactly what cc-001 debates.",
+      "rationale": "The source node's urgency depends entirely on AGI arriving within a near-term planning horizon, which is exactly what sit-001 debates.",
       "strength": "strong"
     },
     {
       "type": "SUPPORTS",
-      "target": "acc-data-003",
+      "target": "acc-beliefs-003",
       "bidirectional": false,
       "confidence": 0.65,
       "rationale": "The economic argument in the source provides indirect support for the data claims about market growth.",

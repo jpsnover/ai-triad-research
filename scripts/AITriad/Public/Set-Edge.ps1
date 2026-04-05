@@ -40,7 +40,7 @@ function Set-Edge {
         Get-Edge -Type CONTRADICTS -Status proposed | Set-Edge -Status approved
         # Approve all proposed contradictions.
     .EXAMPLE
-        Get-Edge -NodeId 'acc-goals-001' -MinConfidence 0.9 | Set-Edge -Status approved
+        Get-Edge -NodeId 'acc-desires-001' -MinConfidence 0.9 | Set-Edge -Status approved
         # Approve high-confidence edges for a specific node.
     .EXAMPLE
         Get-Edge -Source 'saf-*' -Status proposed -MinConfidence 0.85 | Set-Edge -Status approved -PassThru

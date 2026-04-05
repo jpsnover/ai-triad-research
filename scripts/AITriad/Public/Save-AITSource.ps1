@@ -31,7 +31,7 @@ function Save-AITSource {
         Save-AITSource -Directory './export' -DocId 'ai-as-normal-technology-2026','concrete-problems-ai-safety-2026'
         # Copy multiple documents' raw files.
     .EXAMPLE
-        Find-AITSource -Id 'skp-methods-005' | Save-AITSource -Directory './export'
+        Find-AITSource -Id 'skp-intentions-005' | Save-AITSource -Directory './export'
         # Pipeline from Find-AITSource.
     #>
     [CmdletBinding(SupportsShouldProcess)]

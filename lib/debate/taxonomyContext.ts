@@ -7,6 +7,7 @@
  */
 
 import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes';
+import { interpretationText, isBdiInterpretation } from './taxonomyTypes';
 
 export interface PolicyRef {
   id: string;
@@ -227,22 +228,38 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       // This agent's interpretation — always full
       const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
       if (interp) {
-        lines.push(`  Your interpretation: ${interp}`);
+        const myInterp = typeof interp === 'object' ? interp : undefined;
+        if (isPrimary && myInterp && isBdiInterpretation(interp)) {
+          // BDI-decomposed: show structured breakdown for primary nodes
+          lines.push(`  Your interpretation (BDI breakdown):`);
+          lines.push(`    Belief: ${myInterp.belief}`);
+          lines.push(`    Desire: ${myInterp.desire}`);
+          lines.push(`    Intention: ${myInterp.intention}`);
+        } else {
+          lines.push(`  Your interpretation: ${interpretationText(interp)}`);
+        }
       }
 
       if (isPrimary) {
-        // Top nodes: show ALL interpretations at full length
+        // Top nodes: show ALL interpretations — BDI breakdown when available
         for (const p of otherPovs) {
           const val = n.interpretations?.[p];
           if (val) {
-            lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}: ${val}`);
+            if (isBdiInterpretation(val)) {
+              lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}:`);
+              lines.push(`    Belief: ${val.belief}`);
+              lines.push(`    Desire: ${val.desire}`);
+              lines.push(`    Intention: ${val.intention}`);
+            } else {
+              lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}: ${interpretationText(val)}`);
+            }
           }
         }
       } else {
         // Remaining nodes: show the most contested interpretation in full, truncate others
         // Heuristic: longest other interpretation = most detailed/divergent
         const otherInterps = otherPovs
-          .map(p => ({ pov: p, text: n.interpretations?.[p] ?? '' }))
+          .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p]) }))
           .filter(o => o.text.length > 0)
           .sort((a, b) => b.text.length - a.text.length);
 
@@ -283,4 +300,87 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   }
 
   return lines.join('\n');
+}
+
+/** Instrumentation data for tracking what was injected vs what was used. */
+export interface ContextInjectionManifest {
+  povNodeIds: string[];
+  povPrimaryIds: string[];
+  situationNodeIds: string[];
+  vulnerabilityCount: number;
+  policyCount: number;
+  totalTokenEstimate: number;
+}
+
+/**
+ * Compute the injection manifest — what node IDs would be injected for this context.
+ * Call alongside formatTaxonomyContext and store on the transcript entry for usage analysis.
+ */
+export function computeInjectionManifest(
+  ctx: TaxonomyContext,
+  pov: string,
+  maxNodes?: number,
+  config?: FormatContextConfig,
+): ContextInjectionManifest {
+  const cfg = config ?? {};
+  const limit = cfg.maxNodes ?? maxNodes ?? 50;
+  const PRIMARY_COUNT = cfg.primaryCount ?? 5;
+  const SIT_PRIMARY = cfg.sitPrimary ?? 8;
+
+  // Replicate the same filtering/slicing logic as formatTaxonomyContext
+  let filteredNodes = ctx.povNodes;
+  if (cfg.relevantBranches && cfg.relevantBranches.size > 0) {
+    const nodeMap = new Map(ctx.povNodes.map(n => [n.id, n]));
+    const rootCache = new Map<string, string>();
+    function findRoot(id: string): string {
+      if (rootCache.has(id)) return rootCache.get(id)!;
+      const node = nodeMap.get(id);
+      if (!node || !node.parent_id) { rootCache.set(id, id); return id; }
+      const root = findRoot(node.parent_id);
+      rootCache.set(id, root);
+      return root;
+    }
+    filteredNodes = ctx.povNodes.filter(n => {
+      const root = findRoot(n.id);
+      return cfg.relevantBranches!.has(root) || n.parent_id === null;
+    });
+  }
+
+  const povSlice = filteredNodes.slice(0, limit);
+
+  // Group by BDI to find primaries (same logic as formatTaxonomyContext)
+  const groups: Record<string, typeof povSlice> = { 'Beliefs': [], 'Desires': [], 'Intentions': [] };
+  for (const n of povSlice) {
+    const cat = n.category || 'Intentions';
+    (groups[cat] ?? groups['Intentions']).push(n);
+  }
+
+  const primaryIds: string[] = [];
+  for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
+    const sorted = ctx.nodeScores
+      ? groups[cat].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0))
+      : groups[cat];
+    for (let i = 0; i < Math.min(PRIMARY_COUNT, sorted.length); i++) {
+      primaryIds.push(sorted[i].id);
+    }
+  }
+
+  const sitSlice = (ctx.situationNodes ?? []).slice(0, 15);
+  const sitIds = sitSlice.map(n => n.id);
+
+  // Rough token estimate: ~80 tokens per POV node, ~150 per primary situation, ~50 per non-primary
+  const tokenEst = povSlice.length * 80
+    + Math.min(sitSlice.length, SIT_PRIMARY) * 150
+    + Math.max(0, sitSlice.length - SIT_PRIMARY) * 50
+    + (ctx.vulnerabilities?.length ?? 0) * 60
+    + (ctx.policyRegistry?.length ?? 0) * 40;
+
+  return {
+    povNodeIds: povSlice.map(n => n.id),
+    povPrimaryIds: primaryIds,
+    situationNodeIds: sitIds,
+    vulnerabilityCount: Math.min((ctx.vulnerabilities ?? []).length, cfg.vulnMax ?? 10),
+    policyCount: Math.min((ctx.policyRegistry ?? []).length, cfg.policyMax ?? 10),
+    totalTokenEstimate: tokenEst,
+  };
 }

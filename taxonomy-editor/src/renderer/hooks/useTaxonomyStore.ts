@@ -17,6 +17,7 @@ import type {
   ConflictInstance,
   ConflictNote,
 } from '../types/taxonomy';
+import { interpretationText } from '../types/taxonomy';
 import {
   povTaxonomyFileSchema,
   crossCuttingFileSchema as situationsFileSchema,
@@ -356,6 +357,10 @@ interface TaxonomyState {
 
   paneSpacing: 'normal' | 'concise';
   setPaneSpacing: (spacing: 'normal' | 'concise') => void;
+
+  /** QBAF visualization toggle (Q-10). Off by default until calibrated. */
+  qbafEnabled: boolean;
+  setQbafEnabled: (enabled: boolean) => void;
 
   zoomLevel: number;
   zoomIn: () => void;
@@ -734,27 +739,66 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     // Step 2: Build prompt with full context
     set({ analysisStep: 2 });
 
-    const edgesJson = state.edgesFile
-      ? JSON.stringify(state.edgesFile.edge_types, null, 2)
-      : '(edges not loaded)';
+    // PQ-8: Pre-filter context to target node's neighborhood
+    const nodeId = node.id;
+    const neighborIds = new Set<string>();
+    neighborIds.add(nodeId);
+    if (node.parent_id) neighborIds.add(node.parent_id);
+    for (const childId of node.children) neighborIds.add(childId);
+    for (const sitRef of node.situation_refs) neighborIds.add(sitRef);
 
-    const situationsJson = state.situations
-      ? JSON.stringify(state.situations.nodes.map(n => ({
-          id: n.id, label: n.label, description: n.description,
+    // Edges: only those involving this node or its direct neighbors
+    const relevantEdges = state.edgesFile?.edges.filter(
+      e => neighborIds.has(e.source) || neighborIds.has(e.target)
+    ) ?? [];
+    const edgesJson = relevantEdges.length > 0
+      ? JSON.stringify(relevantEdges.map(e => ({
+          source: e.source, target: e.target, type: e.type,
+          confidence: e.confidence, rationale: e.rationale,
         })), null, 2)
+      : '(no edges involving this node)';
+
+    // Situations: only those referenced by this node
+    const situationsJson = state.situations
+      ? JSON.stringify(state.situations.nodes
+          .filter(n => node.situation_refs.includes(n.id))
+          .map(n => ({
+            id: n.id, label: n.label, description: n.description,
+          })), null, 2)
       : '(situations not loaded)';
 
+    // POV hierarchy: parent, siblings, children — not the entire file
     const povFile = state[pov];
+    const hierarchyIds = new Set(neighborIds);
+    if (povFile) {
+      // Add siblings (nodes sharing the same parent)
+      if (node.parent_id) {
+        for (const n of povFile.nodes) {
+          if (n.parent_id === node.parent_id) hierarchyIds.add(n.id);
+        }
+      }
+    }
     const povJson = povFile
-      ? JSON.stringify(povFile.nodes.map(n => ({
-          id: n.id, label: n.label, category: n.category, parent_id: n.parent_id,
-        })), null, 2)
+      ? JSON.stringify(povFile.nodes
+          .filter(n => hierarchyIds.has(n.id))
+          .map(n => ({
+            id: n.id, label: n.label, category: n.category, parent_id: n.parent_id,
+          })), null, 2)
       : '(POV file not loaded)';
 
+    // Policies: only those referenced by this node's policy_actions
+    const nodePolIds = new Set((node.graph_attributes?.policy_actions ?? []).map(pa => pa.policy_id).filter(Boolean));
+    // Also include policies from relevant edges
+    for (const e of relevantEdges) {
+      if (e.source.startsWith('pol-')) nodePolIds.add(e.source);
+      if (e.target.startsWith('pol-')) nodePolIds.add(e.target);
+    }
     const policyRegistryJson = state.policyRegistry
-      ? JSON.stringify(state.policyRegistry.map(p => ({
-          id: p.id, action: p.action, source_povs: p.source_povs,
-        })), null, 2)
+      ? JSON.stringify(state.policyRegistry
+          .filter(p => nodePolIds.has(p.id) || nodePolIds.size === 0)
+          .map(p => ({
+            id: p.id, action: p.action, source_povs: p.source_povs,
+          })), null, 2)
       : '(policy registry not loaded)';
 
     const nodeJson = JSON.stringify(node, null, 2);
@@ -816,7 +860,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         for (const node of state.situations.nodes) {
           ids.push(node.id);
           texts.push(
-            `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+            `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${interpretationText(node.interpretations.accelerationist)}\nSafetyist interpretation: ${interpretationText(node.interpretations.safetyist)}\nSkeptic interpretation: ${interpretationText(node.interpretations.skeptic)}`,
           );
         }
       }
@@ -1080,7 +1124,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
             for (const node of file.nodes) {
               nodesToEmbed.push({
                 id: node.id,
-                text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${node.interpretations.accelerationist}\nSafetyist interpretation: ${node.interpretations.safetyist}\nSkeptic interpretation: ${node.interpretations.skeptic}`,
+                text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${node.description}\nAccelerationist interpretation: ${interpretationText(node.interpretations.accelerationist)}\nSafetyist interpretation: ${interpretationText(node.interpretations.safetyist)}\nSkeptic interpretation: ${interpretationText(node.interpretations.skeptic)}`,
                 pov: 'situations',
               });
             }
@@ -1651,6 +1695,15 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     try { localStorage.setItem('taxonomy-editor-pane-spacing', spacing); } catch { /* ignore */ }
     document.documentElement.setAttribute('data-pane-spacing', spacing);
     set({ paneSpacing: spacing });
+  },
+
+  qbafEnabled: (() => {
+    // Default to true — Q-0 calibration passed (hybrid: AI for Desires/Intentions, human for Beliefs)
+    try { const v = localStorage.getItem('taxonomy-editor-qbaf'); return v === null ? true : v === 'true'; } catch { return true; }
+  })(),
+  setQbafEnabled: (enabled) => {
+    try { localStorage.setItem('taxonomy-editor-qbaf', String(enabled)); } catch { /* ignore */ }
+    set({ qbafEnabled: enabled });
   },
 
   zoomLevel: (() => {

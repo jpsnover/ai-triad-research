@@ -8,7 +8,7 @@ These strategies were assigned by an LLM during attribute extraction
 (`Invoke-AttributeExtraction`) and can be viewed with:
 
 ```powershell
-(Get-Tax -Id 'acc-goals-001').GraphAttributes.rhetorical_strategy
+(Get-Tax -Id 'acc-desires-001').GraphAttributes.rhetorical_strategy
 ```
 
 ---

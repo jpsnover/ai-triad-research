@@ -10,24 +10,24 @@ OUTPUT FORMAT — return a single JSON object matching this schema exactly:
       "description": "An Intention position within accelerationist discourse that advocates open-source development as both a safety mechanism and a democratization strategy. Encompasses: arguments that transparency improves safety, legal protections for open models, community-driven AI development. Excludes: closed-source safety testing, market competition arguments.",
       "children": [
         {
-          "node_id": "acc-methods-002",
+          "node_id": "acc-intentions-002",
           "relationship": "is_a",
           "rationale": "Argues open-source is specifically safer — a kind of open-source advocacy focused on the safety angle."
         },
         {
-          "node_id": "acc-methods-021",
+          "node_id": "acc-intentions-021",
           "relationship": "specializes",
           "rationale": "Proposes letting many AI variants flourish — a specific implementation of the open-source philosophy."
         }
       ]
     },
     {
-      "promoted_from": "acc-methods-012",
+      "promoted_from": "acc-intentions-012",
       "label": null,
       "description": null,
       "children": [
         {
-          "node_id": "acc-methods-031",
+          "node_id": "acc-intentions-031",
           "relationship": "is_a",
           "rationale": "New tech lowering prices is a specific instance of market-driven progress."
         }
@@ -36,7 +36,7 @@ OUTPUT FORMAT — return a single JSON object matching this schema exactly:
   ],
   "outliers": [
     {
-      "node_id": "acc-methods-028",
+      "node_id": "acc-intentions-028",
       "reason": "Unique abstract concept (Ladder of Generality) with no thematic neighbors in this category."
     }
   ]

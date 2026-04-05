@@ -94,7 +94,7 @@
         "statement": "string — the opening statement text",
         "taxonomy_refs": [
           {
-            "node_id": "e.g. acc-goals-002",
+            "node_id": "e.g. acc-desires-002",
             "relevance": "string — 1 to 4 sentences explaining how the node informed the argument"
           }
         ]

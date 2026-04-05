@@ -9,6 +9,8 @@
 import React from 'react';
 import type { DataSourceId } from '../data/promptCatalog';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import type { Category } from '../types/taxonomy';
 
 interface DataSourceCardProps {
   dsId: DataSourceId;
@@ -104,11 +106,52 @@ const DATA_SOURCE_LABELS: Record<DataSourceId, string> = {
   establishedPoints: 'Established Points',
 };
 
+/** Live node selection preview for RAG parameter visibility (RAG-4) */
+function TaxonomyNodeCountPreview() {
+  const configGet = usePromptConfigStore(s => s.get);
+  const maxTotal = configGet('taxonomyNodes.maxTotal') as number;
+  const beliefsOn = configGet('taxonomyNodes.bdiFilter.Beliefs') as boolean;
+  const desiresOn = configGet('taxonomyNodes.bdiFilter.Desires') as boolean;
+  const intentionsOn = configGet('taxonomyNodes.bdiFilter.Intentions') as boolean;
+
+  // Count nodes per category across all POVs
+  const counts = useTaxonomyStore(s => {
+    const result: Record<string, number> = { Beliefs: 0, Desires: 0, Intentions: 0 };
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = s[pov];
+      if (!file?.nodes) continue;
+      for (const n of file.nodes) {
+        result[n.category] = (result[n.category] ?? 0) + 1;
+      }
+    }
+    return result;
+  });
+
+  const totalAvailable = (beliefsOn ? counts.Beliefs : 0) + (desiresOn ? counts.Desires : 0) + (intentionsOn ? counts.Intentions : 0);
+  const totalAll = counts.Beliefs + counts.Desires + counts.Intentions;
+  const selected = Math.min(maxTotal, totalAvailable);
+  const pct = totalAll > 0 ? ((selected / totalAll) * 100).toFixed(1) : '0';
+
+  return (
+    <div className="pi-node-count-preview">
+      <span className="pi-node-count-main">{selected} / {totalAll} nodes selected ({pct}%)</span>
+      <span className="pi-node-count-breakdown">
+        {beliefsOn ? `B:${counts.Beliefs}` : <s>B:{counts.Beliefs}</s>}
+        {' · '}
+        {desiresOn ? `D:${counts.Desires}` : <s>D:{counts.Desires}</s>}
+        {' · '}
+        {intentionsOn ? `I:${counts.Intentions}` : <s>I:{counts.Intentions}</s>}
+      </span>
+    </div>
+  );
+}
+
 function renderControls(dsId: DataSourceId): React.ReactNode {
   switch (dsId) {
     case 'taxonomyNodes':
       return (
         <>
+          <TaxonomyNodeCountPreview />
           <Slider label="Max total" configKey="taxonomyNodes.maxTotal" min={5} max={100} />
           <Slider label="Min per BDI" configKey="taxonomyNodes.minPerBdi" min={1} max={10} />
           <Slider label="Similarity threshold" configKey="taxonomyNodes.threshold" min={0} max={1} step={0.05} />

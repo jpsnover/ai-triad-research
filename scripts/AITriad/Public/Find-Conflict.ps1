@@ -4,9 +4,14 @@
 function Find-Conflict {
     <#
     .SYNOPSIS
-        Factual conflict detection and deduplication.
+        DEPRECATED: Use Invoke-QbafConflictAnalysis for QBAF-augmented conflict detection.
+        Legacy factual conflict detection retained for backward compatibility.
     .DESCRIPTION
-        Called by Invoke-BatchSummary after each summary is generated.
+        DEPRECATED — this cmdlet performs binary conflict detection without QBAF
+        strength computation. Use Invoke-QbafConflictAnalysis instead for richer
+        output with computed_strength, attack_type, and resolution analysis.
+
+        Legacy behavior retained: called by Invoke-BatchSummary after each summary.
         Groups conflicts by Claim ID to prevent duplicate entries.
 
         Logic:
@@ -33,6 +38,8 @@ function Find-Conflict {
     begin {
         Set-StrictMode -Version Latest
         $ErrorActionPreference = 'Stop'
+
+        Write-Warning 'Find-Conflict is DEPRECATED. Use Invoke-QbafConflictAnalysis for QBAF-augmented conflict detection with strength computation and attack/support analysis.'
 
         $ConflictsDir = Get-ConflictsDir
         $SummariesDir = Get-SummariesDir

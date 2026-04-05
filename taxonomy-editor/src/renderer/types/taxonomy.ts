@@ -61,14 +61,32 @@ export interface PovTaxonomyFile {
   nodes: PovNode[];
 }
 
+/** BDI-decomposed interpretation — separates empirical claims, normative commitments, and strategic reasoning. */
+export interface BdiInterpretation {
+  belief: string;
+  desire: string;
+  intention: string;
+  summary: string;
+}
+
+/** Interpretation is either a plain string (legacy) or BDI-decomposed object. */
+export type Interpretation = string | BdiInterpretation;
+
+/** Extract display text from an interpretation (handles both formats). */
+export function interpretationText(interp: Interpretation | undefined): string {
+  if (!interp) return '';
+  if (typeof interp === 'string') return interp;
+  return interp.summary;
+}
+
 export interface SituationNode {
   id: string;
   label: string;
   description: string;
   interpretations: {
-    accelerationist: string;
-    safetyist: string;
-    skeptic: string;
+    accelerationist: Interpretation;
+    safetyist: Interpretation;
+    skeptic: Interpretation;
   };
   linked_nodes: string[];
   conflict_ids: string[];
@@ -106,6 +124,38 @@ export interface ConflictNote {
   note: string;
 }
 
+export interface ConflictQbafNode {
+  id: string;
+  text: string;
+  source_pov: string;
+  base_strength: number;
+  computed_strength: number;
+}
+
+export interface ConflictQbafEdge {
+  source: string;
+  target: string;
+  type: 'attacks' | 'supports';
+  attack_type?: 'rebut' | 'undercut' | 'undermine';
+  weight: number;
+}
+
+export interface ConflictQbaf {
+  graph: {
+    nodes: ConflictQbafNode[];
+    edges: ConflictQbafEdge[];
+  };
+  resolution?: {
+    prevailing_claim: string;
+    prevailing_strength: number;
+    margin: number;
+    criterion: string;
+  };
+  computed_at: string;
+  algorithm: string;
+  iterations: number;
+}
+
 export interface ConflictFile {
   claim_id: string;
   claim_label: string;
@@ -114,6 +164,8 @@ export interface ConflictFile {
   linked_taxonomy_nodes: string[];
   instances: ConflictInstance[];
   human_notes: ConflictNote[];
+  /** QBAF argument graph + resolution. Absent on pre-QBAF conflicts. */
+  qbaf?: ConflictQbaf;
 }
 
 export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'debate' | 'chat';

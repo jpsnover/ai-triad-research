@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { PovNode, CrossCuttingNode, ConflictFile, TabId, Category } from '../types/taxonomy';
+import { interpretationText } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 
 interface SearchResult {
@@ -38,9 +39,9 @@ function searchSituationNode(node: CrossCuttingNode, regex: RegExp): SearchResul
     ['id', node.id],
     ['label', node.label],
     ['description', node.description],
-    ['interp:accelerationist', node.interpretations.accelerationist],
-    ['interp:safetyist', node.interpretations.safetyist],
-    ['interp:skeptic', node.interpretations.skeptic],
+    ['interp:accelerationist', interpretationText(node.interpretations.accelerationist)],
+    ['interp:safetyist', interpretationText(node.interpretations.safetyist)],
+    ['interp:skeptic', interpretationText(node.interpretations.skeptic)],
   ];
   for (const [field, value] of fields) {
     regex.lastIndex = 0;

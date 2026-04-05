@@ -91,6 +91,10 @@ export function DebateTab() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  // Bulk delete selection mode (BD-1)
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [sourceCollapsed, setSourceCollapsed] = useState(false);
@@ -166,10 +170,30 @@ export function DebateTab() {
           <div className="list-panel-header">
             <h2>Debates</h2>
             <div className="list-panel-header-actions">
-              <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-                + New
-              </button>
-              <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+              {selectMode ? (
+                <>
+                  <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
+                  <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
+                  {selectedIds.size > 0 && (
+                    <button className="btn btn-sm btn-danger" onClick={() => setShowBulkDeleteConfirm(true)}>
+                      Delete {selectedIds.size}
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}>Done</button>
+                </>
+              ) : (
+                <>
+                  {sessions.length > 0 && (
+                    <button className="btn btn-sm btn-ghost" onClick={() => setSelectMode(true)} title="Select debates for bulk delete">
+                      Select
+                    </button>
+                  )}
+                  <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+                    + New
+                  </button>
+                  <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
+                </>
+              )}
             </div>
           </div>
           <div className="list-panel-items">
@@ -186,9 +210,22 @@ export function DebateTab() {
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}`}
-                onClick={() => handleSelect(s)}
+                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${selectMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
+                onClick={selectMode ? () => setSelectedIds(prev => {
+                  const next = new Set(prev);
+                  next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                  return next;
+                }) : () => handleSelect(s)}
               >
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    className="bulk-select-checkbox"
+                    checked={selectedIds.has(s.id)}
+                    onChange={() => {}} // handled by parent onClick
+                    onClick={e => e.stopPropagation()}
+                  />
+                )}
                 {renamingId === s.id ? (
                   <input
                     className="debate-session-item-rename"
@@ -458,6 +495,40 @@ export function DebateTab() {
 
       {showNewDialog && (
         <NewDebateDialog onClose={() => setShowNewDialog(false)} />
+      )}
+      {showBulkDeleteConfirm && (
+        <div className="dialog-overlay" onClick={() => setShowBulkDeleteConfirm(false)}>
+          <div className="dialog bulk-delete-dialog" onClick={e => e.stopPropagation()}>
+            <h3>Delete {selectedIds.size} debate{selectedIds.size !== 1 ? 's' : ''}?</h3>
+            <div className="bulk-delete-list">
+              {sessions.filter(s => selectedIds.has(s.id)).map(s => (
+                <div key={s.id} className="bulk-delete-item">
+                  <span className="bulk-delete-item-title">{s.title}</span>
+                  <span className="bulk-delete-item-meta">{s.phase} &middot; {s.turn_count ?? '?'} turns</span>
+                </div>
+              ))}
+            </div>
+            <div className="bulk-delete-note">
+              Session files will be permanently deleted. Harvested items (conflicts, steelman refinements, debate refs) are preserved.
+            </div>
+            <div className="dialog-actions">
+              <button className="btn" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+              <button
+                className="btn btn-danger"
+                onClick={async () => {
+                  for (const id of selectedIds) {
+                    await deleteDebate(id);
+                  }
+                  setShowBulkDeleteConfirm(false);
+                  setSelectMode(false);
+                  setSelectedIds(new Set());
+                }}
+              >
+                Delete {selectedIds.size} Debate{selectedIds.size !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

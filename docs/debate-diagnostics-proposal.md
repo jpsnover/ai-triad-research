@@ -211,7 +211,7 @@ A panel that receives a transcript entry ID and displays its diagnostic data in 
 │                                                          │
 │ ▶ Taxonomy Context (click to expand)                     │
 │   === YOUR BELIEFS ===                                   │
-│   [acc-data-001] More Power Equals More Smarts: ...      │
+│   [acc-beliefs-001] More Power Equals More Smarts: ...      │
 │   ...                                                    │
 │                                                          │
 │ ▶ Commitments at This Point                              │

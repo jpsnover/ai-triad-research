@@ -47,6 +47,7 @@ For each distinct claim in the statement:
      ARGUMENT_FROM_IGNORANCE — derives conclusion from absence of evidence
      SLIPPERY_SLOPE — claims a small action leads to extreme outcomes through a chain
      ARGUMENT_FROM_RISK — advocates caution based on magnitude of potential harm
+     ARGUMENT_FROM_METAPHOR — uses a metaphor or figurative frame to structure reasoning about the target domain (e.g., "AI development is a race", "regulation is red tape", "alignment is taming a genie")
      OTHER — if none fit (include brief description)
 3. If it's a new standalone claim, responds_to should be an empty array
 

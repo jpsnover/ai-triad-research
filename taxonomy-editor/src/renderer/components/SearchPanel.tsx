@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
+import { interpretationText } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 
 type SearchPanelMode =
@@ -101,9 +102,9 @@ function searchCCNode(node: SituationNode, regex: RegExp): TaxResult[] {
   const results: TaxResult[] = [];
   for (const [field, value] of [
     ['id', node.id], ['label', node.label], ['description', node.description],
-    ['interp:accelerationist', node.interpretations.accelerationist],
-    ['interp:safetyist', node.interpretations.safetyist],
-    ['interp:skeptic', node.interpretations.skeptic],
+    ['interp:accelerationist', interpretationText(node.interpretations.accelerationist)],
+    ['interp:safetyist', interpretationText(node.interpretations.safetyist)],
+    ['interp:skeptic', interpretationText(node.interpretations.skeptic)],
   ] as const) {
     regex.lastIndex = 0;
     if (regex.test(value)) {

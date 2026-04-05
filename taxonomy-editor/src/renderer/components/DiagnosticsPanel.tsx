@@ -14,7 +14,7 @@ import type { CoverageMap, CoverageMapEntry } from '@lib/debate/coverageTracker'
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
-  'CA': 'CA-node (Conflict Application) — an attack relationship. Three types: rebut (contradicts conclusion), undercut (denies the inference), undermine (attacks premise credibility).',
+  'CA': 'CA-node (Conflict Application) — an attack relationship. Three types: rebut (contradicts conclusion), undercut (denies the inference), undermine (attacks premise credibility). Each attack is classified by argumentation scheme (e.g., ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_ANALOGY) with critical questions that identify how to evaluate it.',
   'RA': 'RA-node (Rule Application) — an inference scheme explaining WHY one claim supports another. The warrant is the reasoning pattern connecting evidence to conclusion.',
   'PA': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
@@ -95,6 +95,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                     <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
                       <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
                       {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
+                      {(e as any).argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{(e as any).argumentation_scheme}</span>}
                       {e.weight != null && <QbafEdgeIndicator edge={e} />}
                       {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
                     </div>
@@ -196,6 +197,44 @@ function EntryView({ entryId }: { entryId: string }) {
                 <span className="diag-v">{(trace.convergence_score * 100).toFixed(0)}%{trace.convergence_triggered ? ' (triggered)' : ''}</span>
               </div>
             )}
+            {(trace as any).recent_scheme && (
+              <div className="diag-kv">
+                <span className="diag-k">Recent Scheme:</span>
+                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{(trace as any).recent_scheme}</span>
+              </div>
+            )}
+            {(trace as any).metaphor_reframe_offered && (
+              <div className="diag-kv" style={{ marginTop: 4 }}>
+                <span className="diag-k">Metaphor Reframe:</span>
+                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
+                  {(trace as any).metaphor_reframe_offered} {(trace as any).metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
+                </span>
+              </div>
+            )}
+            {(trace as any).critical_questions && (
+              <div style={{ fontSize: '0.7rem', marginTop: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
+                <div className="diag-k" style={{ marginBottom: 2 }}>Critical Questions for Moderator:</div>
+                <div className="diag-muted" style={{ whiteSpace: 'pre-wrap' }}>{(trace as any).critical_questions}</div>
+              </div>
+            )}
+            {(trace as any).argument_network_snapshot && (
+              <div style={{ fontSize: '0.7rem', marginTop: 4 }}>
+                <div className="diag-k">Argument Network at Decision:</div>
+                <div className="diag-muted">
+                  {(trace as any).argument_network_snapshot.total_claims} claims, {(trace as any).argument_network_snapshot.total_edges} edges, {(trace as any).argument_network_snapshot.unaddressed_claims} unaddressed
+                </div>
+                {(trace as any).argument_network_snapshot.strongest_unaddressed?.length > 0 && (
+                  <div style={{ marginTop: 2 }}>
+                    <span className="diag-k">Strongest unaddressed:</span>
+                    {(trace as any).argument_network_snapshot.strongest_unaddressed.map((n: any, i: number) => (
+                      <div key={i} className="diag-muted" style={{ paddingLeft: 8 }}>
+                        {n.id} ({n.speaker}, strength {n.strength?.toFixed(2)}): {n.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {Object.keys(trace.commitment_snapshot).length > 0 && (
               <div className="diag-mod-commitments">
                 <span className="diag-k">Commitments at selection:</span>
@@ -261,8 +300,87 @@ function EntryView({ entryId }: { entryId: string }) {
         </CollapsibleSection>
       )}
 
+      {/* Claim Extraction Details — scheme classification, prompt, response */}
+      {(diag as any)?.claim_extraction && (() => {
+        const ce = (diag as any).claim_extraction as { prompt: string; raw_response: string; response_time_ms: number; claims_parsed: number; schemes_classified: string[] };
+        return (
+          <CollapsibleSection title={`Claim Extraction — ${ce.claims_parsed} claims, ${ce.schemes_classified.length} schemes (${ce.response_time_ms}ms)`}>
+            {ce.schemes_classified.length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <span className="diag-k">Argumentation Schemes Classified:</span>
+                <div className="diag-badges" style={{ marginTop: 2 }}>
+                  {ce.schemes_classified.map((s, i) => (
+                    <span key={i} className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <CollapsibleSection title="Extraction Prompt">
+              <textarea readOnly className="diag-textarea" value={ce.prompt} />
+            </CollapsibleSection>
+            <CollapsibleSection title="Extraction Raw Response">
+              <textarea readOnly className="diag-textarea" value={ce.raw_response} />
+            </CollapsibleSection>
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* QBAF Claim Strength (D-Q3) */}
       <QbafClaimStrengthSection entryId={entryId} activeDebate={activeDebate} />
+
+      {/* Context Usage Analysis — injected vs referenced */}
+      {entry?.metadata?.injection_manifest && (
+        <CollapsibleSection title="Context Usage Analysis">
+          {(() => {
+            const manifest = entry.metadata.injection_manifest as { povNodeIds: string[]; povPrimaryIds: string[]; situationNodeIds: string[]; vulnerabilityCount: number; policyCount: number; totalTokenEstimate: number };
+            const referencedIds = new Set((entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id));
+            const injectedPov = manifest.povNodeIds ?? [];
+            const injectedSit = manifest.situationNodeIds ?? [];
+            const usedPov = injectedPov.filter(id => referencedIds.has(id));
+            const usedSit = injectedSit.filter(id => referencedIds.has(id));
+            const usedPrimary = (manifest.povPrimaryIds ?? []).filter(id => referencedIds.has(id));
+            const unusedRefs = [...referencedIds].filter(id => !injectedPov.includes(id) && !injectedSit.includes(id));
+
+            return (
+              <div style={{ fontSize: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <div className="diag-k">POV Nodes</div>
+                    <div className="diag-v">{usedPov.length} / {injectedPov.length} used ({injectedPov.length > 0 ? Math.round(100 * usedPov.length / injectedPov.length) : 0}%)</div>
+                  </div>
+                  <div>
+                    <div className="diag-k">Primary (★)</div>
+                    <div className="diag-v">{usedPrimary.length} / {(manifest.povPrimaryIds ?? []).length} used</div>
+                  </div>
+                  <div>
+                    <div className="diag-k">Situations</div>
+                    <div className="diag-v">{usedSit.length} / {injectedSit.length} used ({injectedSit.length > 0 ? Math.round(100 * usedSit.length / injectedSit.length) : 0}%)</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <div className="diag-k">Vulnerabilities</div>
+                    <div className="diag-v">{manifest.vulnerabilityCount} injected</div>
+                  </div>
+                  <div>
+                    <div className="diag-k">Policies</div>
+                    <div className="diag-v">{manifest.policyCount} injected</div>
+                  </div>
+                  <div>
+                    <div className="diag-k">Est. Tokens</div>
+                    <div className="diag-v">~{manifest.totalTokenEstimate?.toLocaleString()}</div>
+                  </div>
+                </div>
+                {unusedRefs.length > 0 && (
+                  <div style={{ color: 'var(--warning)', marginTop: 4 }}>
+                    {unusedRefs.length} referenced node(s) not in injected context — hallucinated refs?
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </CollapsibleSection>
+      )}
 
       {/* Taxonomy Context */}
       {diag?.taxonomy_context && (
@@ -753,18 +871,24 @@ function OverviewView() {
                   <span className="diag-an-id">{n.id}</span>
                   <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
                   {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
-                  {n.base_strength != null && <QbafClaimBadge node={n} />}
-                  {n.computed_strength != null && n.base_strength != null && Math.abs(n.computed_strength - n.base_strength) > 0.01 && (
-                    <span className={`qbaf-delta ${n.computed_strength - n.base_strength > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
-                      ({n.computed_strength - n.base_strength > 0 ? '+' : ''}{(n.computed_strength - n.base_strength).toFixed(2)})
-                    </span>
-                  )}
+                  <QbafClaimBadge node={{ ...n, base_strength: n.base_strength ?? 0.5 }} />
+                  {(() => {
+                    const base = n.base_strength ?? 0.5;
+                    const computed = n.computed_strength ?? base;
+                    const delta = computed - base;
+                    return Math.abs(delta) > 0.01 ? (
+                      <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
+                        ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>{n.text}</div>
                 {attacks.map(a => (
                   <div key={a.id} className="diag-an-edge diag-an-attack">
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
                     ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
+                    {(a as any).argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{(a as any).argumentation_scheme}</span>}
                     {a.weight != null && <QbafEdgeIndicator edge={a} />}
                     {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
                   </div>
@@ -808,6 +932,78 @@ function OverviewView() {
           ))}
         </CollapsibleSection>
       )}
+
+      {/* Moderator Deliberations — aggregate moderator_trace from system entries */}
+      {(() => {
+        const modEntries = activeDebate.transcript
+          .filter(e => (e.metadata as Record<string, unknown>)?.moderator_trace)
+          .map(e => ({
+            id: e.id,
+            trace: (e.metadata as Record<string, unknown>).moderator_trace as {
+              selected: string; focus_point: string; addressing?: string;
+              agreement_detected?: boolean; recent_scheme?: string | null;
+              convergence_score?: number | null; convergence_triggered?: boolean;
+              argument_network_snapshot?: { total_claims: number; total_edges: number; unaddressed_claims: number } | null;
+            },
+          }));
+        if (modEntries.length === 0) return null;
+
+        // Count selections per debater
+        const selectionCounts: Record<string, number> = {};
+        let convergenceValues: number[] = [];
+        modEntries.forEach(({ trace }) => {
+          selectionCounts[trace.selected] = (selectionCounts[trace.selected] || 0) + 1;
+          if (trace.convergence_score != null) convergenceValues.push(trace.convergence_score);
+        });
+        const latestTrace = modEntries[modEntries.length - 1].trace;
+        const avgConvergence = convergenceValues.length > 0
+          ? convergenceValues.reduce((a, b) => a + b, 0) / convergenceValues.length
+          : null;
+
+        return (
+          <CollapsibleSection title={`Moderator Deliberations — ${modEntries.length} rounds`} defaultOpen>
+            <div className="diag-kv">
+              <span className="diag-k">Speaker selection:</span>
+              <div className="diag-badges">
+                {Object.entries(selectionCounts).sort((a, b) => b[1] - a[1]).map(([s, c]) => (
+                  <span key={s} className="diag-badge diag-badge-move">{speakerLabel(s as PoverId)} ({c})</span>
+                ))}
+              </div>
+            </div>
+            {avgConvergence != null && (
+              <div className="diag-kv">
+                <span className="diag-k">Avg convergence:</span>
+                <span className="diag-v">{(avgConvergence * 100).toFixed(0)}%</span>
+                {latestTrace.convergence_triggered && <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>triggered</span>}
+              </div>
+            )}
+            {latestTrace.focus_point && (
+              <div className="diag-kv">
+                <span className="diag-k">Current focus:</span>
+                <span className="diag-v">{latestTrace.focus_point}</span>
+              </div>
+            )}
+            {latestTrace.argument_network_snapshot && (
+              <div className="diag-kv">
+                <span className="diag-k">AN snapshot:</span>
+                <span className="diag-v">
+                  {latestTrace.argument_network_snapshot.total_claims} claims, {latestTrace.argument_network_snapshot.total_edges} edges, {latestTrace.argument_network_snapshot.unaddressed_claims} unaddressed
+                </span>
+              </div>
+            )}
+            <div style={{ marginTop: 6, fontSize: '0.65rem' }}>
+              {modEntries.slice(-5).reverse().map(({ id, trace }) => (
+                <div key={id} className="diag-mod-round" style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
+                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', minWidth: 50 }}>{speakerLabel(trace.selected as PoverId)}</span>
+                  <span className="diag-muted" style={{ flex: 1 }}>{trace.focus_point}</span>
+                  {trace.recent_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>}
+                  {trace.convergence_score != null && <span className="diag-muted">{(trace.convergence_score * 100).toFixed(0)}%</span>}
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Overview Stats */}
       {diag && (

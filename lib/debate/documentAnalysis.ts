@@ -32,7 +32,7 @@ export function buildTaxonomySample(
 ): string {
   const lines: string[] = [];
   const POV_LIMIT = 40;
-  const SIT_LIMIT = 20;
+  const SIT_LIMIT = 15;
   const POLICY_LIMIT = 15;
 
   for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {

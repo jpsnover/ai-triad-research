@@ -92,7 +92,7 @@ function PromptDefaultsSection() {
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
+  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, qbafEnabled, setQbafEnabled, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
   const [hasKey, setHasKey] = useState<Record<string, boolean>>({});
   const [keyInput, setKeyInput] = useState('');
   const [savingKey, setSavingKey] = useState(false);
@@ -268,6 +268,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <option value="normal">Normal</option>
             <option value="concise">Concise</option>
           </select>
+        </div>
+
+        <div className="settings-row">
+          <label className="settings-label">QBAF Visualization</label>
+          <label className="settings-toggle">
+            <input
+              type="checkbox"
+              checked={qbafEnabled}
+              onChange={(e) => setQbafEnabled(e.target.checked)}
+            />
+            <span>Show argument strength scores in debates</span>
+          </label>
         </div>
 
         <div className="settings-divider" />

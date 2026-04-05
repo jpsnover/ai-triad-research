@@ -68,14 +68,41 @@ export interface ConcessionRecord {
   bdi_impact: 'belief' | 'desire' | 'intention';
 }
 
+/** BDI-decomposed interpretation — separates empirical claims, normative commitments, and strategic reasoning. */
+export interface BdiInterpretation {
+  /** Empirical claim(s) this POV makes about the situation. */
+  belief: string;
+  /** Normative commitment(s) this POV holds regarding the situation. */
+  desire: string;
+  /** Strategic reasoning this POV applies to the situation. */
+  intention: string;
+  /** 1-2 sentence summary for UI display and backward compatibility. */
+  summary: string;
+}
+
+/** Interpretation is either a plain string (legacy) or BDI-decomposed object. */
+export type Interpretation = string | BdiInterpretation;
+
+/** Extract the display text from an interpretation (handles both formats). */
+export function interpretationText(interp: Interpretation | undefined): string {
+  if (!interp) return '';
+  if (typeof interp === 'string') return interp;
+  return interp.summary;
+}
+
+/** Check if an interpretation is BDI-decomposed. */
+export function isBdiInterpretation(interp: Interpretation | undefined): interp is BdiInterpretation {
+  return typeof interp === 'object' && interp !== null && 'belief' in interp;
+}
+
 export interface SituationNode {
   id: string;
   label: string;
   description: string;
   interpretations: {
-    accelerationist: string;
-    safetyist: string;
-    skeptic: string;
+    accelerationist: Interpretation;
+    safetyist: Interpretation;
+    skeptic: Interpretation;
   };
   linked_nodes: string[];
   conflict_ids: string[];

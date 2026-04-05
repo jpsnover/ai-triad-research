@@ -58,11 +58,11 @@ Each data-touching phase produces a manifest in `ai-triad-data/migrations/phase-
   "items_total": 451,
   "items_succeeded": 448,
   "items_failed": 3,
-  "items_failed_ids": ["acc-goals-042", "skp-data-019", "cc-051"],
+  "items_failed_ids": ["acc-desires-042", "skp-beliefs-019", "sit-051"],
   "failure_reasons": {
-    "acc-goals-042": "AI returned empty description",
-    "skp-data-019": "Genus-differentia pattern validation failed",
-    "cc-051": "Referenced nonexistent sibling node"
+    "acc-desires-042": "AI returned empty description",
+    "skp-beliefs-019": "Genus-differentia pattern validation failed",
+    "sit-051": "Referenced nonexistent sibling node"
   },
   "post_actions": {
     "embeddings_regenerated": true,
@@ -506,7 +506,7 @@ V5.3 — Domain/Range Validation (Script — not AI)
   After all edge type changes:
     For each SUPPORTS edge: source must be Beliefs or Intentions
     For each CONTRADICTS edge: source and target must have same node_scope
-    For each INTERPRETS edge: target must start with "cc-"
+    For each INTERPRETS edge: target must start with "sit-"
   Script-based, no AI involved. Run as post-migration validation.
   Threshold: 0 violations. Violations indicate mapping table or reclassification errors.
 
@@ -618,24 +618,24 @@ These checks need to exist as code, not just documentation. Here's what to build
 ```
 === YOUR BELIEFS (what you take as empirically true) ===
 These are the factual claims and empirical observations that ground your worldview.
-[acc-data-001] More Power Equals More Smarts: The evidence shows...
+[acc-beliefs-001] More Power Equals More Smarts: The evidence shows...
   Epistemic type: empirical_claim
 ...
 
 === YOUR VALUES (what you prioritize and why) ===
 These are the goals and principles you argue from. They are normative commitments, not empirical claims.
-[acc-goals-001] AI Creates a World of Plenty: ...
+[acc-desires-001] AI Creates a World of Plenty: ...
 ...
 
 === YOUR REASONING APPROACH (how you argue) ===
 These are the methods, frameworks, and argumentative strategies you use to connect beliefs to values.
-[acc-methods-001] Winning the Race for Safe AI: ...
+[acc-intentions-001] Winning the Race for Safe AI: ...
 ...
 
 === YOUR KNOWN VULNERABILITIES ===
 Be aware of these weaknesses in your positions. Acknowledging them strengthens your credibility.
-- acc-goals-001: Overlooks the possibility that... (steelman vulnerability)
-- acc-methods-006: Criticism Driven by Fear — watch for Ad_Hominem (likely)
+- acc-desires-001: Overlooks the possibility that... (steelman vulnerability)
+- acc-intentions-006: Criticism Driven by Fear — watch for Ad_Hominem (likely)
 ...
 
 === CROSS-CUTTING CONCERNS ===
@@ -748,7 +748,7 @@ Tag: `pre-dolce-phase-1` (code repo only). Revert 4 files.
 **Per-node tracking:** The migration manifest tracks each node as `pending` → `migrated` → `reviewed`:
 ```json
 {
-  "node_id": "acc-goals-001",
+  "node_id": "acc-desires-001",
   "status": "migrated",
   "batch": 3,
   "old_description_hash": "a1b2c3",
@@ -1043,7 +1043,7 @@ Repos: Code + Data. Add `relationship_type` (is_a / part_of / specializes) to no
 # PowerShell Module
 Import-Module AITriad -Force                              # loads without errors
 Get-Tax | Select -First 5                                 # nodes render
-Get-Tax -Id acc-goals-001 | Format-List                   # single node works
+Get-Tax -Id acc-desires-001 | Format-List                   # single node works
 Measure-TaxonomyBaseline                                  # all metrics computed
 Invoke-POVSummary -DocId <sample> -DryRun                 # prompt builds
 Invoke-EdgeDiscovery -DryRun                              # edge prompt builds

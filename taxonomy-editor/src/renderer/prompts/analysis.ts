@@ -21,7 +21,7 @@ Semantic Mapping: Do the descriptions cover the same conceptual territory using 
 Functional Utility: If one element were deleted, would any unique information, constraint, or application be lost?
 
 The "So What?" Test: Does the difference in phrasing lead to a different real-world outcome or technical requirement?
-Consider the Category of the element and how this relates to the analysis. For example, a Method might be used to implement a Goal/Value .  A Fact/Data might backup or verify a claim.  A Concept might be a component of a Method or a Goal.  A Risk might be mitigated by a Method or be a consequence of not following a Method.
+Consider the BDI Category of each element. A Belief grounds empirical claims — it can be verified or falsified. A Desire frames normative commitments — what should happen or what matters. An Intention describes argumentative strategies — how to reason about a topic. Two elements in different BDI categories are almost certainly distinct even if they address the same topic.
 
 Input Data:
 
@@ -83,6 +83,9 @@ Critique this node with a focus on **Systemic Integration**:
 3. **Taxonomic Placement:** Is the \`parent_id\` logically sound given the other nodes in the Local Hierarchy?
 4. **Epistemic Drift:** Does the POV-specific description lean too far into rhetoric, losing its connection to the underlying universal concept?
 5. **Policy Action Alignment:** Do the node's \`policy_actions\` reference appropriate registry entries (pol-NNN IDs)? Should any be replaced with a better-matching existing policy? Are any missing policies that this node clearly implies? Every policy_action MUST have a valid \`policy_id\` — reuse existing registry entries when possible.
+6. **Description Format (Genus-Differentia):** The description MUST follow: "A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..." For situation nodes: "A situation that [differentia]. Encompasses: ... Excludes: ..." If it doesn't, propose a rewrite.
+7. **BDI Category Alignment:** Does the \`category\` (Beliefs/Desires/Intentions) match the node's content? Beliefs = empirical/verifiable. Desires = normative/priorities. Intentions = reasoning strategies. Flag mismatches.
+8. **Node Scope:** If \`node_scope\` is present, verify: \`claim\` = specific testable assertion, \`scheme\` = argumentative pattern, \`bridging\` = connects claims to schemes. If absent and the node clearly fits one, suggest adding it.
 
 ### OUTPUT FORMAT
 Respond in Markdown with the following sections in order:

@@ -67,7 +67,7 @@ function Invoke-EdgeDiscovery {
     .EXAMPLE
         Invoke-EdgeDiscovery -StaleOnly
     .EXAMPLE
-        Invoke-EdgeDiscovery -NodeId "acc-goals-001" -Force
+        Invoke-EdgeDiscovery -NodeId "acc-desires-001" -Force
     .EXAMPLE
         Invoke-EdgeDiscovery -MaxConcurrent 6
     .EXAMPLE

@@ -25,7 +25,7 @@ function Invoke-CypherQuery {
     .EXAMPLE
         Invoke-CypherQuery "MATCH (n:TaxonomyNode {pov: `$pov}) RETURN n.id, n.label" -Parameters @{ pov = 'safetyist' }
     .EXAMPLE
-        Invoke-CypherQuery "MATCH p=shortestPath((a:TaxonomyNode {id: `$from})-[*]-(b:TaxonomyNode {id: `$to})) RETURN p" -Parameters @{ from = 'acc-goals-001'; to = 'saf-goals-001' }
+        Invoke-CypherQuery "MATCH p=shortestPath((a:TaxonomyNode {id: `$from})-[*]-(b:TaxonomyNode {id: `$to})) RETURN p" -Parameters @{ from = 'acc-desires-001'; to = 'saf-desires-001' }
     #>
     [CmdletBinding()]
     param(

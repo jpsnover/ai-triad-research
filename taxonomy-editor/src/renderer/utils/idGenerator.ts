@@ -10,9 +10,9 @@ const POV_PREFIX: Record<Pov, string> = {
 };
 
 const CATEGORY_SLUG: Record<Category, string> = {
-  'Desires': 'goals',
-  'Beliefs': 'data',
-  'Intentions': 'methods',
+  'Desires': 'desires',
+  'Beliefs': 'beliefs',
+  'Intentions': 'intentions',
 };
 
 function zeroPad(n: number, width: number = 3): string {
@@ -44,7 +44,7 @@ export function generatePovNodeId(
 }
 
 export function generateSituationId(existingIds: string[]): string {
-  const prefix = 'cc-';  // cc- prefix is stable — do NOT change
+  const prefix = 'sit-';
   const next = maxSequence(existingIds, prefix) + 1;
   return `${prefix}${zeroPad(next)}`;
 }

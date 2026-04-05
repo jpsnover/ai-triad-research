@@ -106,16 +106,16 @@ function Set-TaxonomyHierarchy {
 
         # For new parent IDs, find the max existing sequence number in this category
         $CatPrefix = switch ($Bucket.category) {
-            'Beliefs'    { 'data' }
-            'Desires'    { 'goals' }
-            'Intentions' { 'methods' }
+            'Beliefs'    { 'beliefs' }
+            'Desires'    { 'desires' }
+            'Intentions' { 'intentions' }
             default      { '' }
         }
 
         $MaxSeq = 0
         foreach ($Node in $FileEntry.Data.nodes) {
             if ($IsCrossCutting) {
-                if ($Node.id -match '^cc-(\d+)$') {
+                if ($Node.id -match '^sit-(\d+)$') {
                     $Seq = [int]$Matches[1]
                     if ($Seq -gt $MaxSeq) { $MaxSeq = $Seq }
                 }
@@ -153,7 +153,7 @@ function Set-TaxonomyHierarchy {
             else {
                 # ── Create new parent node ───────────────────────────────
                 if ($IsCrossCutting) {
-                    $ParentId = "cc-$($NextSeq.ToString('D3'))"
+                    $ParentId = "sit-$($NextSeq.ToString('D3'))"
                     $NextSeq++
 
                     $NewNode = [ordered]@{
@@ -189,7 +189,7 @@ function Set-TaxonomyHierarchy {
                     Write-Warn "ID collision: $ParentId — incrementing"
                     $NextSeq++
                     if ($IsCrossCutting) {
-                        $ParentId = "cc-$($NextSeq.ToString('D3'))"
+                        $ParentId = "sit-$($NextSeq.ToString('D3'))"
                     } else {
                         $ParentId = "$PovPrefix-$CatPrefix-$($NextSeq.ToString('D3'))"
                     }

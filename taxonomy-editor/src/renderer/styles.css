@@ -6431,6 +6431,29 @@ body {
 .debate-type-synthesis .debate-statement-content {
   font-size: 0.85rem;
   line-height: 1.5;
+  white-space: normal;
+}
+
+.debate-type-synthesis .debate-statement-content ul,
+.debate-type-synthesis .debate-statement-content ol {
+  display: block;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  list-style: disc;
+}
+
+.debate-type-synthesis .debate-statement-content li {
+  display: list-item;
+  margin: 0.3em 0;
+}
+
+.debate-type-synthesis .debate-statement-content p {
+  margin: 0.5em 0;
+}
+
+.debate-type-synthesis .debate-statement-content strong {
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 /* ─── Debate Action Buttons (Synthesize/Probe) ────────── */

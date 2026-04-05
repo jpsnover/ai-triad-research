@@ -77,9 +77,9 @@ Describe 'Data Path Resolution' {
     }
 
     It 'Get-Tax -Id should return a single node' {
-        $node = Get-Tax -Id 'acc-goals-001'
+        $node = Get-Tax -Id 'acc-desires-001'
         if ($node) {
-            $node.Id | Should -Be 'acc-goals-001'
+            $node.Id | Should -Be 'acc-desires-001'
             $node.Label | Should -Not -BeNullOrEmpty
             $node.Description | Should -Not -BeNullOrEmpty
             $node.POV | Should -Be 'accelerationist'

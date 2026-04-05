@@ -31,18 +31,18 @@ An LLM Attribute Graph is a property graph where:
 **Current representation (flat JSON):**
 ```json
 {
-  "id": "saf-goals-001",
+  "id": "saf-desires-001",
   "label": "Prevent Catastrophic Outcomes",
   "description": "The primary goal is ensuring AI systems...",
   "category": "Desires",
-  "cross_cutting_refs": ["cc-001"]
+  "cross_cutting_refs": ["sit-001"]
 }
 ```
 
 **As a LAG node:**
 ```json
 {
-  "id": "saf-goals-001",
+  "id": "saf-desires-001",
   "type": "taxonomy_claim",
   "label": "Prevent Catastrophic Outcomes",
   "description": "The primary goal is ensuring AI systems...",
@@ -61,10 +61,10 @@ An LLM Attribute Graph is a property graph where:
     "steelman_vulnerability": "collapses if AGI timelines are > 50 years"
   },
   "edges": [
-    {"type": "TENSION_WITH", "target": "acc-goals-001",
+    {"type": "TENSION_WITH", "target": "acc-desires-001",
      "attributes": {"tension_type": "speed_vs_caution", "bridgeable": true,
                      "common_ground": "both accept AI is powerful"}},
-    {"type": "ASSUMES", "target": "cc-001",
+    {"type": "ASSUMES", "target": "sit-001",
      "attributes": {"dependency_strength": "critical",
                      "if_false": "entire node loses urgency"}},
     {"type": "SUPPORTED_BY", "target": "doc:anthropics-responsible-scaling-policy-2026",
@@ -207,7 +207,7 @@ A new PowerShell cmdlet `Invoke-GraphQuery` would accept natural-language questi
 
 ```powershell
 # Direct graph traversal
-Get-GraphNode -Id "saf-goals-001" -Depth 2 -EdgeType TENSION_WITH
+Get-GraphNode -Id "saf-desires-001" -Depth 2 -EdgeType TENSION_WITH
 
 # Attribute-filtered search
 Find-GraphNode -Where { $_.attributes.epistemic_type -eq "empirical_claim" `
@@ -218,7 +218,7 @@ Invoke-GraphQuery "What assumptions does the safetyist position share
                    with the accelerationist position?"
 
 # Path discovery
-Find-GraphPath -From "acc-goals-001" -To "skp-methods-003" -MaxHops 4
+Find-GraphPath -From "acc-desires-001" -To "skp-intentions-003" -MaxHops 4
 ```
 
 ---
@@ -237,10 +237,10 @@ Find-GraphPath -From "acc-goals-001" -To "skp-methods-003" -MaxHops 4
 
 ```powershell
 # "What does the accelerationist case actually rest on?"
-Get-AssumptionChain -RootNode "acc-goals-001" -Depth 5
+Get-AssumptionChain -RootNode "acc-desires-001" -Depth 5
 
 # Output:
-# acc-goals-001: "Maximize AI Development Speed"
+# acc-desires-001: "Maximize AI Development Speed"
 #   ASSUMES -> "Scaling laws continue to hold" (empirical, falsifiable)
 #     ASSUMES -> "Compute cost continues to fall" (empirical, trend-based)
 #     ASSUMES -> "No regulatory hard stop" (political, uncertain)
@@ -259,8 +259,8 @@ Get-AssumptionChain -RootNode "acc-goals-001" -Depth 5
 - **Gap analysis:** "Which safetyist claims have no empirical support in our source corpus?" (nodes with no SUPPORTED_BY edges to empirical documents).
 
 ```powershell
-Invoke-DebateBrief -Position "acc-goals-001" `
-                   -Against "skp-methods-003" `
+Invoke-DebateBrief -Position "acc-desires-001" `
+                   -Against "skp-intentions-003" `
                    -Style "steelman_both"
 ```
 

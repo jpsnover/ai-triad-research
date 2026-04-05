@@ -162,6 +162,111 @@ function Invoke-ProposalApply {
             Write-Warning "Split '$TargetId' into $($ChildProposals.Count) children. Summaries referencing '$TargetId' may need re-processing."
         }
 
+        'REORDER' {
+            $TargetId = $Proposal.target_node_id
+            $NewParentId = $Proposal.new_parent_id
+
+            $Target = $Raw.nodes | Where-Object { $_.id -eq $TargetId }
+            if (-not $Target) {
+                return [PSCustomObject]@{ Success = $false; Error = "Target node '$TargetId' not found for REORDER" }
+            }
+
+            $NewParent = $Raw.nodes | Where-Object { $_.id -eq $NewParentId }
+            if (-not $NewParent) {
+                return [PSCustomObject]@{ Success = $false; Error = "New parent '$NewParentId' not found — exact match required" }
+            }
+
+            # Remove from old parent's children array
+            $OldParentId = $Target.parent_id
+            if ($OldParentId) {
+                $OldParent = $Raw.nodes | Where-Object { $_.id -eq $OldParentId }
+                if ($OldParent -and $OldParent.PSObject.Properties['children']) {
+                    $OldParent.children = @($OldParent.children | Where-Object { $_ -ne $TargetId })
+                }
+            }
+
+            # Set new parent
+            $Target.parent_id = $NewParentId
+
+            # Add to new parent's children
+            if ($NewParent.PSObject.Properties['children']) {
+                if ($TargetId -notin @($NewParent.children)) {
+                    $NewParent.children = @($NewParent.children) + @($TargetId)
+                }
+            }
+            else {
+                $NewParent | Add-Member -NotePropertyName 'children' -NotePropertyValue @($TargetId) -Force
+            }
+        }
+
+        'DEPTH_EXPAND' {
+            $TargetId = $Proposal.target_node_id
+            $Target = $Raw.nodes | Where-Object { $_.id -eq $TargetId }
+            if (-not $Target) {
+                return [PSCustomObject]@{ Success = $false; Error = "Target node '$TargetId' not found for DEPTH_EXPAND" }
+            }
+
+            $SubGroups = @($Proposal.children)
+            if ($SubGroups.Count -eq 0) {
+                return [PSCustomObject]@{ Success = $false; Error = "DEPTH_EXPAND has no sub-group proposals" }
+            }
+            if ($SubGroups.Count -gt 3) {
+                return [PSCustomObject]@{ Success = $false; Error = "DEPTH_EXPAND exceeds max 3 node changes per proposal" }
+            }
+
+            # Create intermediate parent nodes under the dense parent
+            foreach ($SubGroup in $SubGroups) {
+                $IntNode = [ordered]@{
+                    id          = $SubGroup.suggested_id
+                    category    = if ($SubGroup.PSObject.Properties['category']) { $SubGroup.category } else { $Target.category }
+                    label       = $SubGroup.label
+                    description = $SubGroup.description
+                    parent_id   = $TargetId
+                    children    = @()
+                    situation_refs = @()
+                }
+                $Raw.nodes += [PSCustomObject]$IntNode
+
+                # Move assigned children under the new intermediate node
+                if ($SubGroup.PSObject.Properties['assigned_children']) {
+                    foreach ($ChildId in @($SubGroup.assigned_children)) {
+                        $Child = $Raw.nodes | Where-Object { $_.id -eq $ChildId }
+                        if ($Child) {
+                            $Child.parent_id = $SubGroup.suggested_id
+                            $IntNode.children = @($IntNode.children) + @($ChildId)
+                        }
+                    }
+                    # Remove moved children from original parent's children array
+                    if ($Target.PSObject.Properties['children']) {
+                        $Target.children = @($Target.children | Where-Object { $_ -notin @($SubGroup.assigned_children) })
+                    }
+                }
+            }
+
+            # Add new intermediate nodes to parent's children
+            if ($Target.PSObject.Properties['children']) {
+                $Target.children = @($Target.children) + @($SubGroups | ForEach-Object { $_.suggested_id })
+            }
+        }
+
+        'WIDTH_EXPAND' {
+            # Same as NEW but motivated by density signals
+            if ($Raw.nodes | Where-Object { $_.id -eq $Proposal.suggested_id }) {
+                return [PSCustomObject]@{ Success = $false; Error = "Node ID '$($Proposal.suggested_id)' already exists" }
+            }
+
+            $NewNode = [ordered]@{
+                id          = $Proposal.suggested_id
+                category    = $Proposal.category
+                label       = $Proposal.label
+                description = $Proposal.description
+                parent_id   = $null
+                children    = @()
+                situation_refs = @()
+            }
+            $Raw.nodes += [PSCustomObject]$NewNode
+        }
+
         default {
             return [PSCustomObject]@{ Success = $false; Error = "Unknown action: $($Proposal.action)" }
         }

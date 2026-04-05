@@ -101,7 +101,7 @@ export function selectRelevantSituationNodes(
   scores: Map<string, number>,
   threshold: number = 0.45,
   min: number = 3,
-  max: number = 20,
+  max: number = 15,
 ): ScoredSituationNode[] {
   const scored = situationNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))

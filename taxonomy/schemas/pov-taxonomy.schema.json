@@ -67,9 +67,9 @@
         "id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(acc|saf|skp)-(goals|data|methods)-\\d{3}$",
-          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: goals (Desires), data (Beliefs), methods (Intentions). Slugs are legacy stable identifiers — do not change.",
-          "examples": ["acc-goals-001", "saf-data-002", "skp-methods-001"]
+          "pattern": "^(acc|saf|skp)-(desires|beliefs|intentions)-\\d{3}$",
+          "description": "Unique identifier for this node. Format: {pov_prefix}-{category_prefix}-{sequence}. POV prefixes: acc (accelerationist), saf (safetyist), skp (skeptic). Category prefixes: desires (Desires), beliefs (Beliefs), intentions (Intentions).",
+          "examples": ["acc-desires-001", "saf-beliefs-002", "skp-intentions-001"]
         },
         "category": {
           "type": "string",
@@ -115,9 +115,9 @@
           "description": "List of situation node IDs that this node relates to. References nodes in the situations.json file.",
           "items": {
             "type": "string",
-            "pattern": "^cc-\\d{3}$"
+            "pattern": "^sit-\\d{3}$"
           },
-          "examples": [["cc-001", "cc-003"]]
+          "examples": [["sit-001", "sit-003"]]
         },
         "conflict_ids": {
           "type": "array",

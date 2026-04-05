@@ -4,7 +4,7 @@
       "key_points": [
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
-          "taxonomy_node_id": "<node id from taxonomy, e.g. acc-goals-001, OR null if no match>",
+          "taxonomy_node_id": "<node id from taxonomy, e.g. acc-desires-001, OR null if no match>",
           "category": "Desires",
           "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
@@ -35,7 +35,7 @@
       "key_points": [
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
-          "taxonomy_node_id": "<node id, e.g. saf-goals-001, OR null if no match>",
+          "taxonomy_node_id": "<node id, e.g. saf-desires-001, OR null if no match>",
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
@@ -48,7 +48,7 @@
       "key_points": [
         {
           "stance": "<strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable>",
-          "taxonomy_node_id": "<node id, e.g. skp-goals-001, OR null if no match>",
+          "taxonomy_node_id": "<node id, e.g. skp-desires-001, OR null if no match>",
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
@@ -66,7 +66,20 @@
       "temporal_scope": "<current_state | predictive | historical | timeless>",
       "temporal_bound": "<specific date, date range, or null if timeless. e.g. 'by 2030', '2023-2025', null>",
       "potential_conflict_id": "<existing conflict id if relevant, OR null>",
-      "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"]
+      "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"],
+      "evidence_criteria": {
+        "specificity": "<vague | qualified | precise>",
+        "has_warrant": "<true | false>",
+        "internally_consistent": "<true | false>",
+        "category_criteria": "<SEE BELOW — answer the 3 criteria matching this claim's BDI category>"
+      },
+      "claim_relations": [
+        {
+          "target_claim_label": "<claim_label of the related claim>",
+          "relation": "<supports | attacks>",
+          "attack_type": "<rebut | undercut | undermine | null if supports>"
+        }
+      ]
     },
     { "...": "repeat for EVERY factual claim" }
   ],

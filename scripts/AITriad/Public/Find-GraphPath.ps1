@@ -22,9 +22,9 @@ function Find-GraphPath {
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
-        Find-GraphPath -From "acc-goals-001" -To "saf-goals-001"
+        Find-GraphPath -From "acc-desires-001" -To "saf-desires-001"
     .EXAMPLE
-        Find-GraphPath -From "acc-goals-001" -To "skp-methods-003" -MaxHops 4
+        Find-GraphPath -From "acc-desires-001" -To "skp-intentions-003" -MaxHops 4
     #>
     [CmdletBinding()]
     param(

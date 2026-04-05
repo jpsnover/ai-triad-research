@@ -9,7 +9,7 @@ import type { PovNode, SituationNode } from '../types/taxonomy';
 // ── Test fixtures ─────────────────────────────────────────
 
 const beliefsNode: PovNode = {
-  id: 'acc-data-001',
+  id: 'acc-beliefs-001',
   category: 'Beliefs',
   label: 'More Power Equals More Smarts',
   description: 'Scaling compute leads to emergent capabilities.',
@@ -23,7 +23,7 @@ const beliefsNode: PovNode = {
 };
 
 const desiresNode: PovNode = {
-  id: 'acc-goals-001',
+  id: 'acc-desires-001',
   category: 'Desires',
   label: 'AI Creates a World of Plenty',
   description: 'AI-driven abundance improves quality of life for all.',
@@ -36,7 +36,7 @@ const desiresNode: PovNode = {
 };
 
 const intentionsNode: PovNode = {
-  id: 'acc-methods-001',
+  id: 'acc-intentions-001',
   category: 'Intentions',
   label: 'Winning the Race for Safe AI',
   description: 'Building AI fast is the best way to ensure safety.',
@@ -52,7 +52,7 @@ const intentionsNode: PovNode = {
 };
 
 const situationNode: SituationNode = {
-  id: 'cc-001',
+  id: 'sit-001',
   label: 'When Will Super-Smart AI Arrive?',
   description: 'The timeline debate around AGI arrival.',
   interpretations: {
@@ -117,7 +117,7 @@ describe('formatTaxonomyContext', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const beliefsIdx = output.indexOf('YOUR EMPIRICAL GROUNDING');
     const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
-    const nodeIdx = output.indexOf('[acc-data-001]');
+    const nodeIdx = output.indexOf('[acc-beliefs-001]');
     expect(nodeIdx).toBeGreaterThan(beliefsIdx);
     expect(nodeIdx).toBeLessThan(desiresIdx);
   });
@@ -126,7 +126,7 @@ describe('formatTaxonomyContext', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
     const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
-    const nodeIdx = output.indexOf('[acc-goals-001]');
+    const nodeIdx = output.indexOf('[acc-desires-001]');
     expect(nodeIdx).toBeGreaterThan(desiresIdx);
     expect(nodeIdx).toBeLessThan(intentionsIdx);
   });
@@ -134,7 +134,7 @@ describe('formatTaxonomyContext', () => {
   it('places Intentions nodes under INTENTIONS', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
-    const nodeIdx = output.indexOf('[acc-methods-001]');
+    const nodeIdx = output.indexOf('[acc-intentions-001]');
     expect(nodeIdx).toBeGreaterThan(intentionsIdx);
   });
 
@@ -154,7 +154,7 @@ describe('formatTaxonomyContext', () => {
   it('contains SITUATIONS section', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     expect(output).toContain('=== SITUATIONS');
-    expect(output).toContain('[cc-001]');
+    expect(output).toContain('[sit-001]');
   });
 
   it('shows the current POV interpretation prominently', () => {
@@ -199,9 +199,9 @@ describe('formatTaxonomyContext', () => {
   it('respects maxNodes limit', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist', 1);
     // Only the first node (beliefsNode) should appear
-    expect(output).toContain('[acc-data-001]');
-    expect(output).not.toContain('[acc-goals-001]');
-    expect(output).not.toContain('[acc-methods-001]');
+    expect(output).toContain('[acc-beliefs-001]');
+    expect(output).not.toContain('[acc-desires-001]');
+    expect(output).not.toContain('[acc-intentions-001]');
   });
 
   it('section order is Empirical Grounding → Normative Commitments → Reasoning → Vulnerabilities → Situations', () => {

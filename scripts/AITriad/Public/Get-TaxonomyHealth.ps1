@@ -271,7 +271,104 @@ function Get-TaxonomyHealth {
         }
     }
 
-    # ── 9. Per-Document Breakdown (Detailed only) ──────────────────────────────
+    # ── 9. TaxoAdapt Density Signals ────────────────────────────────────────────
+    if ($Health.DensitySignals -and $Health.DensitySignals.Count -gt 0) {
+        Write-Host "`n  TAXOADAPT DENSITY SIGNALS ($($Health.DensitySignals.Count) signals)" -ForegroundColor White
+        Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
+
+        $DepthExpand = @($Health.DensitySignals | Where-Object { $_.signal -eq 'depth_expand' })
+        $WidthExpand = @($Health.DensitySignals | Where-Object { $_.signal -eq 'width_expand' })
+        $Imbalances  = @($Health.DensitySignals | Where-Object { $_.signal -match 'pov_imbalance' })
+
+        if ($DepthExpand.Count -gt 0) {
+            Write-Host "  Depth expansion candidates ($($DepthExpand.Count)):" -ForegroundColor Yellow
+            foreach ($S in $DepthExpand) {
+                Write-Host "    $($S.node_id) ($($S.pov)/$($S.category)): $($S.metric) children" -ForegroundColor Yellow
+            }
+        }
+
+        if ($WidthExpand.Count -gt 0) {
+            Write-Host "  Width expansion candidates ($($WidthExpand.Count)):" -ForegroundColor Yellow
+            foreach ($S in $WidthExpand) {
+                Write-Host "    $($S.label): $($S.metric) unmapped concept frequency" -ForegroundColor Yellow
+            }
+        }
+
+        if ($Imbalances.Count -gt 0) {
+            Write-Host "  POV imbalances (normalized, $($Imbalances.Count)):" -ForegroundColor Yellow
+            foreach ($S in $Imbalances) {
+                $Color = if ($S.signal -eq 'pov_imbalance_under') { 'Red' } else { 'Yellow' }
+                Write-Host "    $($S.detail)" -ForegroundColor $Color
+            }
+        }
+
+        if ($DepthExpand.Count -eq 0 -and $WidthExpand.Count -eq 0 -and $Imbalances.Count -eq 0) {
+            Write-OK 'No density signals detected'
+        }
+    }
+
+    # ── 10. QBAF Strength Distribution (if analysis exists) ────────────────────
+    $QbafDir = Join-Path (Get-DataRoot) 'qbaf-conflicts'
+    if (Test-Path $QbafDir) {
+        $QbafFiles = @(Get-ChildItem -Path $QbafDir -Filter '*.json' -File | Sort-Object LastWriteTime -Descending)
+        if ($QbafFiles.Count -gt 0) {
+            Write-Host "`n  QBAF STRENGTH DISTRIBUTION" -ForegroundColor White
+            Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
+
+            # Load most recent analysis
+            $Latest = Get-Content -Raw -Path $QbafFiles[0].FullName | ConvertFrom-Json -Depth 10
+
+            if ($Latest.PSObject.Properties['claims'] -and $Latest.claims) {
+                $Strengths = @($Latest.claims | ForEach-Object { $_.computed_strength })
+                $Sorted = $Strengths | Sort-Object
+
+                $Median = $Sorted[[int]($Sorted.Count / 2)]
+                $Weak = @($Strengths | Where-Object { $_ -lt 0.3 }).Count
+                $Strong = @($Strengths | Where-Object { $_ -gt 0.7 }).Count
+
+                Write-Info "Latest analysis: $($QbafFiles[0].Name)"
+                Write-Info "Claims analyzed: $($Strengths.Count)"
+                Write-Info "Median strength: $([Math]::Round($Median, 2))"
+                Write-Info "Weak (<0.3):     $Weak"
+                Write-Info "Strong (>0.7):   $Strong"
+
+                if ($Latest.PSObject.Properties['qbaf_converged']) {
+                    Write-Info "QBAF converged:  $($Latest.qbaf_converged) ($($Latest.qbaf_iterations) iterations)"
+                }
+
+                # Map strengths back to taxonomy nodes
+                $NodeStrengths = @{}
+                foreach ($Claim in $Latest.claims) {
+                    if ($Claim.PSObject.Properties['linked_nodes']) {
+                        foreach ($NodeId in @($Claim.linked_nodes)) {
+                            if (-not $NodeStrengths.ContainsKey($NodeId)) {
+                                $NodeStrengths[$NodeId] = [System.Collections.Generic.List[double]]::new()
+                            }
+                            $NodeStrengths[$NodeId].Add($Claim.computed_strength)
+                        }
+                    }
+                }
+
+                # Flag weakly-supported nodes
+                $WeakNodes = @($NodeStrengths.GetEnumerator() | Where-Object {
+                    ($_.Value | Measure-Object -Average).Average -lt 0.3
+                } | Sort-Object { ($_.Value | Measure-Object -Average).Average })
+
+                if ($WeakNodes.Count -gt 0) {
+                    Write-Warn "$($WeakNodes.Count) taxonomy node(s) have weak QBAF support (avg strength < 0.3):"
+                    foreach ($WN in ($WeakNodes | Select-Object -First 10)) {
+                        $AvgStr = [Math]::Round(($WN.Value | Measure-Object -Average).Average, 2)
+                        Write-Host "    $($WN.Key): avg strength $AvgStr ($($WN.Value.Count) claims)" -ForegroundColor Yellow
+                    }
+                }
+                else {
+                    Write-OK 'No weakly-supported nodes detected'
+                }
+            }
+        }
+    }
+
+    # ── 10. Per-Document Breakdown (Detailed only) ─────────────────────────────
     if ($Detailed) {
         Write-Host "`n  PER-DOCUMENT BREAKDOWN" -ForegroundColor White
         Write-Host "  $('─' * 40)" -ForegroundColor DarkGray

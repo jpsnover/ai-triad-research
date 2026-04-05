@@ -491,9 +491,9 @@ Find-Conflict -DocId 'situational-awareness-decade-ahead-2026'
       <tr><td><code>-Id</code></td><td>string[]</td><td>Yes</td><td>Taxonomy node ID patterns (supports wildcards)</td></tr>
     </table>
 <pre>
-Find-AITSource -Id 'skp-methods-005'
+Find-AITSource -Id 'skp-intentions-005'
 Find-AITSource -Id 'skp-methods*'
-Find-AITSource -Id 'acc-goals-001','saf-data-002'
+Find-AITSource -Id 'acc-desires-001','saf-beliefs-002'
 </pre>
   </div>
 
@@ -599,7 +599,7 @@ Invoke-AttributeExtraction -Force -Model gemini-2.5-pro
 <pre>
 Find-PolicyAction -DryRun
 Find-PolicyAction -POV accelerationist
-Find-PolicyAction -Id acc-goals-001, saf-goals-001
+Find-PolicyAction -Id acc-desires-001, saf-desires-001
 Find-PolicyAction -Force -Model 'groq-llama-4-scout'
 </pre>
   </div>
@@ -625,7 +625,7 @@ Find-PolicyAction -Force -Model 'groq-llama-4-scout'
 <pre>
 Find-PossibleFallacy -DryRun
 Find-PossibleFallacy -POV accelerationist
-Find-PossibleFallacy -Id acc-goals-001, saf-goals-001
+Find-PossibleFallacy -Id acc-desires-001, saf-desires-001
 Find-PossibleFallacy -Force -Model 'gemini-2.5-pro'
 </pre>
   </div>
@@ -677,7 +677,7 @@ Show-FallacyInfo -List                    # list all 59 fallacies
 Invoke-EdgeDiscovery -DryRun
 Invoke-EdgeDiscovery -POV accelerationist
 Invoke-EdgeDiscovery -StaleOnly
-Invoke-EdgeDiscovery -NodeId "acc-goals-001" -Force
+Invoke-EdgeDiscovery -NodeId "acc-desires-001" -Force
 </pre>
   </div>
 
@@ -688,14 +688,14 @@ Invoke-EdgeDiscovery -NodeId "acc-goals-001" -Force
     edges from <code>edges.json</code>. Supports BFS traversal to a specified depth.</p>
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td><code>-Id</code></td><td>string</td><td>Yes</td><td>Node ID (e.g., <code>acc-goals-001</code>)</td></tr>
+      <tr><td><code>-Id</code></td><td>string</td><td>Yes</td><td>Node ID (e.g., <code>acc-desires-001</code>)</td></tr>
       <tr><td><code>-Depth</code></td><td>int</td><td>No</td><td>BFS traversal hops (0&ndash;5). Default: 1</td></tr>
       <tr><td><code>-EdgeType</code></td><td>string</td><td>No</td><td>Filter to this edge type only</td></tr>
       <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Filter by edge status: proposed, approved, rejected</td></tr>
     </table>
 <pre>
-Get-GraphNode -Id "saf-goals-001"
-Get-GraphNode -Id "acc-goals-001" -Depth 2 -EdgeType TENSION_WITH
+Get-GraphNode -Id "saf-desires-001"
+Get-GraphNode -Id "acc-desires-001" -Depth 2 -EdgeType TENSION_WITH
 </pre>
   </div>
 
@@ -713,8 +713,8 @@ Get-GraphNode -Id "acc-goals-001" -Depth 2 -EdgeType TENSION_WITH
       <tr><td><code>-Status</code></td><td>string</td><td>No</td><td>Only traverse edges with this status</td></tr>
     </table>
 <pre>
-Find-GraphPath -From "acc-goals-001" -To "saf-goals-001"
-Find-GraphPath -From "acc-goals-001" -To "skp-methods-003" -MaxHops 4
+Find-GraphPath -From "acc-desires-001" -To "saf-desires-001"
+Find-GraphPath -From "acc-desires-001" -To "skp-intentions-003" -MaxHops 4
 </pre>
   </div>
 
@@ -766,8 +766,8 @@ Approve-Edge -Interactive
       <tr><td><code>-First</code></td><td>int</td><td>No</td><td>Return only the first N matching edges</td></tr>
     </table>
 <pre>
-Get-Edge -Source 'acc-goals-*'
-Get-Edge -NodeId 'saf-goals-001'
+Get-Edge -Source 'acc-desires-*'
+Get-Edge -NodeId 'saf-desires-001'
 Get-Edge -Type CONTRADICTS -Status approved
 Get-Edge -CrossPov $true -MinConfidence 0.9
 Get-Edge -Rationale '*existential*' -Type 'TENS*'
@@ -797,7 +797,7 @@ Get-Edge -Type SUPPORTS -First 10
 Set-Edge -Index 42 -Status approved
 Set-Edge -Index 10 -Notes 'Reviewed — strong relationship'
 Get-Edge -Type CONTRADICTS -Status proposed | Set-Edge -Status approved
-Get-Edge -NodeId 'acc-goals-001' -MinConfidence 0.9 | Set-Edge -Status approved
+Get-Edge -NodeId 'acc-desires-001' -MinConfidence 0.9 | Set-Edge -Status approved
 Get-Edge -Source 'saf-*' -MinConfidence 0.85 | Set-Edge -Status approved -PassThru
 </pre>
   </div>
@@ -1078,7 +1078,7 @@ Register-AIBackend -Port 8888 -NoBrowser
     </table>
 <pre>
 Save-AITSource -Directory './export' -DocId 'ai-as-normal-technology-2026'
-Find-AITSource -Id 'skp-methods-005' | Save-AITSource -Directory './export'
+Find-AITSource -Id 'skp-intentions-005' | Save-AITSource -Directory './export'
 </pre>
   </div>
 

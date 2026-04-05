@@ -127,7 +127,7 @@ Invoke-AITDebate
 - `-Topic "Should the US impose AI licensing?"` — free-form topic string
 - `-DocPath ./sources/my-doc/snapshot.md` — debate grounded in a document
 - `-Url "https://example.com/article"` — debate grounded in a URL
-- `-SituationNodeId cc-005` — debate grounded in a situation taxonomy node
+- `-SituationNodeId sit-005` — debate grounded in a situation taxonomy node
 
 **Debaters:**
 - `-Debaters Prometheus,Sentinel` — only these two debate (minimum 2)

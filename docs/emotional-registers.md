@@ -6,7 +6,7 @@ exactly one emotional register, assigned by an LLM during attribute extraction
 (`Invoke-AttributeExtraction`).
 
 ```powershell
-(Get-Tax -Id 'acc-goals-001').GraphAttributes.emotional_register
+(Get-Tax -Id 'acc-desires-001').GraphAttributes.emotional_register
 ```
 
 ---

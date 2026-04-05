@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { interpretationText, Interpretation } from '@lib/debate';
+
 /**
  * Builds prompts for extracting graph_attributes for a single new taxonomy node.
  */
@@ -84,7 +86,7 @@ export function buildAttributeExtractionUserPrompt(
   node: {
     id: string; label: string; description: string;
     pov: string; category?: string;
-    interpretations?: { accelerationist: string; safetyist: string; skeptic: string };
+    interpretations?: { accelerationist: Interpretation; safetyist: Interpretation; skeptic: Interpretation };
   },
 ): string {
   let nodeBlock = `NODE TO ANALYZE:
@@ -96,9 +98,9 @@ export function buildAttributeExtractionUserPrompt(
 
   if (node.interpretations) {
     nodeBlock += `
-  Accelerationist Interpretation: ${node.interpretations.accelerationist}
-  Safetyist Interpretation: ${node.interpretations.safetyist}
-  Skeptic Interpretation: ${node.interpretations.skeptic}`;
+  Accelerationist Interpretation: ${interpretationText(node.interpretations.accelerationist)}
+  Safetyist Interpretation: ${interpretationText(node.interpretations.safetyist)}
+  Skeptic Interpretation: ${interpretationText(node.interpretations.skeptic)}`;
   }
 
   return `${nodeBlock}

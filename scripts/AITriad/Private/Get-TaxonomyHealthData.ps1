@@ -193,6 +193,106 @@ function Get-TaxonomyHealthData {
             }
         })
 
+    # ── Semantic deduplication of unmapped concepts (t/181) ──────────
+    # Clusters semantically similar unmapped concepts using embedding cosine similarity.
+    # Merges clusters: representative gets summed frequency + unioned contributing docs.
+    $SIM_THRESHOLD = 0.75  # Cosine similarity threshold for clustering
+
+    if ($UnmappedSorted.Count -gt 1) {
+        $embeddings = Get-TextEmbedding -Texts @($UnmappedSorted.Concept)
+        if ($null -ne $embeddings) {
+            # Cosine similarity function
+            function Get-CosineSim([double[]]$a, [double[]]$b) {
+                $dot = 0.0; $na = 0.0; $nb = 0.0
+                for ($k = 0; $k -lt $a.Length; $k++) {
+                    $dot += $a[$k] * $b[$k]
+                    $na += $a[$k] * $a[$k]
+                    $nb += $b[$k] * $b[$k]
+                }
+                $denom = [Math]::Sqrt($na) * [Math]::Sqrt($nb)
+                if ($denom -eq 0) { return 0 }
+                return $dot / $denom
+            }
+
+            # Single-linkage clustering
+            $clusterId = @{}  # index → cluster representative index
+            for ($i = 0; $i -lt $UnmappedSorted.Count; $i++) { $clusterId[$i] = $i }
+
+            $vecKeys = @($embeddings.Keys | Sort-Object { [int]$_ })
+            for ($i = 0; $i -lt $UnmappedSorted.Count; $i++) {
+                $vecI = $embeddings["$i"]
+                if (-not $vecI) { continue }
+                for ($j = $i + 1; $j -lt $UnmappedSorted.Count; $j++) {
+                    $vecJ = $embeddings["$j"]
+                    if (-not $vecJ) { continue }
+                    if ($clusterId[$i] -eq $clusterId[$j]) { continue }  # already same cluster
+
+                    $sim = Get-CosineSim ([double[]]$vecI) ([double[]]$vecJ)
+                    if ($sim -ge $SIM_THRESHOLD) {
+                        # Merge: assign j's cluster to i's cluster representative
+                        $oldCluster = $clusterId[$j]
+                        $newCluster = $clusterId[$i]
+                        for ($m = 0; $m -lt $UnmappedSorted.Count; $m++) {
+                            if ($clusterId[$m] -eq $oldCluster) { $clusterId[$m] = $newCluster }
+                        }
+                    }
+                }
+            }
+
+            # Group by cluster and merge
+            $clusters = @{}
+            for ($i = 0; $i -lt $UnmappedSorted.Count; $i++) {
+                $rep = $clusterId[$i]
+                if (-not $clusters.ContainsKey($rep)) { $clusters[$rep] = @() }
+                $clusters[$rep] += $i
+            }
+
+            $mergedCount = 0
+            $dedupedList = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($entry in $clusters.GetEnumerator()) {
+                $indices = $entry.Value
+                if ($indices.Count -eq 1) {
+                    $dedupedList.Add($UnmappedSorted[$indices[0]])
+                    continue
+                }
+
+                # Pick representative: highest frequency, then longest description
+                $members = @($indices | ForEach-Object { $UnmappedSorted[$_] })
+                $rep = $members | Sort-Object { $_.Frequency } -Descending |
+                                  Sort-Object { $_.Concept.Length } -Descending |
+                                  Select-Object -First 1
+
+                # Merge metadata from all members
+                $allDocs = [System.Collections.Generic.HashSet[string]]::new()
+                $allReasons = [System.Collections.Generic.List[string]]::new()
+                $totalFreq = 0
+                foreach ($m in $members) {
+                    $totalFreq += $m.Frequency
+                    foreach ($d in $m.ContributingDocs) { [void]$allDocs.Add($d) }
+                    foreach ($r in $m.Reasons) {
+                        if ($r -and $r -notin $allReasons) { $allReasons.Add($r) }
+                    }
+                }
+
+                $merged = [PSCustomObject]@{
+                    Concept           = $rep.Concept
+                    NormalizedKey     = $rep.NormalizedKey
+                    Frequency         = $totalFreq
+                    SuggestedPov      = $rep.SuggestedPov
+                    SuggestedCategory = $rep.SuggestedCategory
+                    ContributingDocs  = @($allDocs)
+                    Reasons           = @($allReasons)
+                    ClusterSize       = $indices.Count
+                }
+                $dedupedList.Add($merged)
+                $mergedCount += ($indices.Count - 1)
+            }
+
+            $UnmappedSorted = @($dedupedList | Sort-Object { $_.Frequency } -Descending)
+            Write-Verbose "Semantic dedup: merged $mergedCount duplicates, $($UnmappedSorted.Count) unique concepts remain"
+        }
+    }
+
     $StrongCandidates = @($UnmappedSorted | Where-Object { $_.Frequency -ge 3 })
 
     # Stance variance per node
@@ -255,6 +355,105 @@ function Get-TaxonomyHealthData {
         ReferencedCount = $CcReferenced.Count
         Orphaned       = $CcOrphaned
         OrphanedCount  = $CcOrphaned.Count
+    }
+
+    # ── TaxoAdapt mapping density signals (POV-normalized) ─────────────────────
+    $DensitySignals = [System.Collections.Generic.List[PSObject]]::new()
+
+    # Build parent→children map from raw taxonomy data
+    $ChildrenMap = @{}  # parent_id → list of child IDs
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        $Entry = $script:TaxonomyData[$PovKey]
+        if (-not $Entry) { continue }
+        foreach ($Node in $Entry.nodes) {
+            if ($Node.PSObject.Properties['parent_id'] -and $Node.parent_id) {
+                if (-not $ChildrenMap.ContainsKey($Node.parent_id)) {
+                    $ChildrenMap[$Node.parent_id] = [System.Collections.Generic.List[string]]::new()
+                }
+                $ChildrenMap[$Node.parent_id].Add($Node.id)
+            }
+        }
+    }
+
+    # Signal 1: Leaf node density — parents with too many direct children → depth expansion
+    $DepthExpandThreshold = 8
+    foreach ($ParentId in $ChildrenMap.Keys) {
+        $ChildCount = $ChildrenMap[$ParentId].Count
+        if ($ChildCount -ge $DepthExpandThreshold -and $NodeIndex.ContainsKey($ParentId)) {
+            $ParentInfo = $NodeIndex[$ParentId]
+            $DensitySignals.Add([PSCustomObject][ordered]@{
+                signal     = 'depth_expand'
+                node_id    = $ParentId
+                pov        = $ParentInfo.POV
+                category   = $ParentInfo.Category
+                label      = $ParentInfo.Label
+                metric     = $ChildCount
+                detail     = "$ParentId has $ChildCount direct children (threshold: $DepthExpandThreshold)"
+            })
+        }
+    }
+
+    # Signal 2: Unmapped concept rate per POV×category branch → width expansion
+    # Counts how many unmapped concepts were suggested for each POV×category
+    $UnmappedByBranch = @{}
+    foreach ($UC in $UnmappedSorted) {
+        $Key = "$($UC.SuggestedPov)|$($UC.SuggestedCategory)"
+        if (-not $UnmappedByBranch.ContainsKey($Key)) { $UnmappedByBranch[$Key] = 0 }
+        $UnmappedByBranch[$Key] += $UC.Frequency
+    }
+
+    $WidthExpandThreshold = 5  # total frequency of unmapped concepts in a branch
+    foreach ($Branch in $UnmappedByBranch.GetEnumerator()) {
+        if ($Branch.Value -ge $WidthExpandThreshold) {
+            $Parts = $Branch.Key -split '\|'
+            $BranchPov = $Parts[0]; $BranchCat = $Parts[1]
+            $DensitySignals.Add([PSCustomObject][ordered]@{
+                signal     = 'width_expand'
+                node_id    = $null
+                pov        = $BranchPov
+                category   = $BranchCat
+                label      = "$BranchPov/$BranchCat"
+                metric     = $Branch.Value
+                detail     = "$BranchPov/$BranchCat has $($Branch.Value) unmapped concept frequency (threshold: $WidthExpandThreshold)"
+            })
+        }
+    }
+
+    # Signal 3: POV-normalized coverage imbalance
+    # Compare each POV×category against the MEAN across POVs (not absolute counts)
+    $PovKeys = @('accelerationist', 'safetyist', 'skeptic')
+    foreach ($Cat in $Categories) {
+        $Counts = @($PovKeys | ForEach-Object { $CoverageBalance[$_][$Cat] })
+        $Mean = ($Counts | Measure-Object -Average).Average
+        if ($Mean -eq 0) { continue }
+
+        foreach ($Pov in $PovKeys) {
+            $Count = $CoverageBalance[$Pov][$Cat]
+            $Ratio = $Count / $Mean
+            # Flag if a POV is below 60% of the mean (under-represented) or above 160% (over-represented)
+            if ($Ratio -lt 0.6) {
+                $DensitySignals.Add([PSCustomObject][ordered]@{
+                    signal     = 'pov_imbalance_under'
+                    node_id    = $null
+                    pov        = $Pov
+                    category   = $Cat
+                    label      = "$Pov/$Cat"
+                    metric     = [Math]::Round($Ratio, 2)
+                    detail     = "$Pov has $Count nodes in $Cat vs mean $([Math]::Round($Mean, 1)) ($([Math]::Round($Ratio * 100))% of mean)"
+                })
+            }
+            elseif ($Ratio -gt 1.6) {
+                $DensitySignals.Add([PSCustomObject][ordered]@{
+                    signal     = 'pov_imbalance_over'
+                    node_id    = $null
+                    pov        = $Pov
+                    category   = $Cat
+                    label      = "$Pov/$Cat"
+                    metric     = [Math]::Round($Ratio, 2)
+                    detail     = "$Pov has $Count nodes in $Cat vs mean $([Math]::Round($Mean, 1)) ($([Math]::Round($Ratio * 100))% of mean) — expansion here would INCREASE imbalance"
+                })
+            }
+        }
     }
 
     # Summary-level statistics
@@ -451,5 +650,6 @@ function Get-TaxonomyHealthData {
         CrossCuttingHealth = $CrossCuttingHealth
         SummaryStats      = $SummaryStatsResult
         GraphHealth       = $GraphHealth
+        DensitySignals    = $DensitySignals.ToArray()
     }
 }

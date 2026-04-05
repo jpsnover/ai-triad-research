@@ -10,21 +10,21 @@ function Find-AITSource {
         contain at least one key_point whose taxonomy_node_id matches any of
         the supplied -Id patterns.
 
-        Patterns support PowerShell wildcards (e.g. skp-methods* matches
-        skp-methods-001, skp-methods-005, etc.).
+        Patterns support PowerShell wildcards (e.g. skp-intentions* matches
+        skp-intentions-001, skp-intentions-005, etc.).
 
         Output includes the doc ID, title, matching POV, and the matched
         key_point details so you can see exactly which points map to the node.
     .PARAMETER Id
         One or more taxonomy node ID patterns (supports wildcards).
     .EXAMPLE
-        Find-AITSource -Id 'skp-methods-005'
+        Find-AITSource -Id 'skp-intentions-005'
         # Exact match — sources referencing that single node.
     .EXAMPLE
-        Find-AITSource -Id 'skp-methods*'
+        Find-AITSource -Id 'skp-intentions*'
         # Wildcard — all skeptic methods nodes.
     .EXAMPLE
-        Find-AITSource -Id 'acc-goals-001','saf-data-002'
+        Find-AITSource -Id 'acc-desires-001','saf-beliefs-002'
         # Multiple IDs — sources referencing either node.
     .EXAMPLE
         Find-AITSource -Id 'cc-*'

@@ -225,7 +225,7 @@ Taxonomy:
 Return a JSON array:
 [
   {
-    "nodeId": "acc-goals-001",
+    "nodeId": "acc-desires-001",
     "nodeLabel": "Node label",
     "category": "Category",
     "camp": "accelerationist",

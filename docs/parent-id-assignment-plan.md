@@ -76,8 +76,8 @@ Use `Get-EmbeddingClusters` to group nodes within each of the 9 POV/category buc
   "clusters": [
     {
       "cluster_id": 0,
-      "node_ids": ["acc-methods-001", "acc-methods-023", "acc-methods-032"],
-      "centroid_node": "acc-methods-001"
+      "node_ids": ["acc-intentions-001", "acc-intentions-023", "acc-intentions-032"],
+      "centroid_node": "acc-intentions-001"
     }
   ]
 }
@@ -184,24 +184,24 @@ OUTPUT: JSON array of parent proposals.
 [
   {
     "parent": {
-      "id": "acc-methods-P01",
+      "id": "acc-intentions-P01",
       "is_new": true,
       "label": "Open-Source AI Advocacy",
-      "description": "A Intentions position within accelerationist discourse that advocates for open-source development as both a safety mechanism and a democratization strategy. Encompasses: open-source safety arguments, legal protection for open models, community-driven development. Excludes: closed-source safety testing (saf-methods), market competition arguments (acc-methods-012)."
+      "description": "A Intentions position within accelerationist discourse that advocates for open-source development as both a safety mechanism and a democratization strategy. Encompasses: open-source safety arguments, legal protection for open models, community-driven development. Excludes: closed-source safety testing (saf-intentions), market competition arguments (acc-intentions-012)."
     },
     "children": [
       {
-        "node_id": "acc-methods-002",
+        "node_id": "acc-intentions-002",
         "relationship": "is_a",
         "rationale": "Argues open-source is specifically safer -- a kind of open-source advocacy focused on the safety angle."
       },
       {
-        "node_id": "acc-methods-021",
+        "node_id": "acc-intentions-021",
         "relationship": "specializes",
         "rationale": "Proposes letting many AI variants flourish -- a specific implementation of the open-source philosophy."
       },
       {
-        "node_id": "acc-methods-022",
+        "node_id": "acc-intentions-022",
         "relationship": "specializes",
         "rationale": "Focuses on legal protection -- a specific policy mechanism for open-source advocacy."
       }
@@ -256,20 +256,20 @@ For each POV, generate a Markdown review document:
 ```markdown
 # Accelerationist Hierarchy Proposal — Intentions
 
-## Parent: Open-Source AI Advocacy (acc-methods-P01) [NEW]
+## Parent: Open-Source AI Advocacy (acc-intentions-P01) [NEW]
 > A Intentions position within accelerationist discourse that...
 
 | Child | Label | Relationship | Rationale |
 |-------|-------|-------------|-----------|
-| acc-methods-002 | Open Source AI is Safer AI | is_a | ... |
-| acc-methods-021 | Let a Thousand AIs Bloom | specializes | ... |
-| acc-methods-022 | Keep Open-Source AI Legal Everywhere | specializes | ... |
+| acc-intentions-002 | Open Source AI is Safer AI | is_a | ... |
+| acc-intentions-021 | Let a Thousand AIs Bloom | specializes | ... |
+| acc-intentions-022 | Keep Open-Source AI Legal Everywhere | specializes | ... |
 
 **Verdict:** [ ] Accept  [ ] Modify  [ ] Reject
 
 ---
 
-## Parent: Market-Driven Progress (acc-methods-012) [PROMOTED]
+## Parent: Market-Driven Progress (acc-intentions-012) [PROMOTED]
 > ... (existing description, possibly revised)
 
 | Child | Label | Relationship | Rationale |

@@ -10,15 +10,25 @@ import type { ChatMode } from '../types/chat';
 
 const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.';
 
+// ── Per-mode temperature ────────────────────────────────
+// Brainstorm: high creativity, exploratory. Inform: moderate, structured.
+// Decide: focused, analytical — lowest temperature for precise reasoning.
+
+export const CHAT_MODE_TEMPERATURE: Record<ChatMode, number> = {
+  brainstorm: 0.7,
+  inform: 0.4,
+  decide: 0.3,
+};
+
 // ── Mode-specific behavior instructions ──────────────────
 
 const MODE_INSTRUCTIONS: Record<ChatMode, string> = {
   brainstorm: `You are in BRAINSTORM mode. Be enthusiastic, generative, and exploratory.
 - Say "yes, and..." — build on ideas rather than shutting them down.
 - Suggest tangents, "what if" scenarios, and unexpected connections.
-- Loosen your POV stance — co-create freely rather than rigidly defending positions.
-- Use light taxonomy grounding — feel free to explore beyond established nodes.
-- Push creative boundaries while keeping ideas intellectually substantive.`,
+- Explore boldly WITHIN your POV's logical space — root all ideas in your core commitments. Extrapolate from your Beliefs, imagine novel ways to achieve your Desires, propose creative Intentions. Don't abandon your grounding.
+- Reference taxonomy nodes when your ideas connect to established positions, but feel free to extrapolate beyond them.
+- Push creative boundaries while keeping ideas intellectually substantive and POV-consistent.`,
 
   inform: `You are in INFORM mode. Be pedagogical, structured, and thorough.
 - Explain your worldview clearly — help the user understand how your POV sees this topic.
@@ -33,7 +43,8 @@ const MODE_INSTRUCTIONS: Record<ChatMode, string> = {
 - Surface tradeoffs and second-order consequences from your POV's perspective.
 - Stay in character — pressure-test the user's reasoning through your lens.
 - When appropriate, offer a structured pros/cons summary or decision matrix.
-- Be honest about uncertainty and where your POV has blind spots.`,
+- Be honest about uncertainty and where your POV has blind spots.
+- Evaluate argument strength: When the user makes a claim, assess how well-evidenced it is. Strong claims have empirical support or logical rigor. Weak claims rely on assertion or anecdote. Flag weak arguments constructively: "That's an interesting point, but it would be stronger with [specific evidence type]."`,
 };
 
 // ── Taxonomy usage (lighter than debate) ─────────────────
@@ -43,6 +54,8 @@ const TAXONOMY_USAGE_CHAT = `Your taxonomy context provides your worldview organ
 - BELIEFS: Your empirical grounding.
 - DESIRES: Your normative commitments.
 - INTENTIONS: Your argumentative strategies.
+
+Nodes marked with ★ are most relevant to the current topic. Prioritize them in your response. Unstarred nodes provide broader context.
 
 Reference relevant nodes naturally in conversation. Never say "According to taxonomy node X" — instead, make points naturally and tag which nodes you drew from in the taxonomy_refs field. For each taxonomy_ref, the "relevance" field should be 1-2 sentences explaining how that node informed your response.
 
@@ -110,8 +123,13 @@ Start by acknowledging the decision, then ask 2-3 targeted clarifying questions 
 export function chatContinuationPrompt(
   userMessage: string,
   priorTranscript: string,
+  priorClaims?: string[],
 ): string {
-  return `${priorTranscript ? `=== CONVERSATION SO FAR ===\n${priorTranscript}\n\n` : ''}The user says: "${userMessage}"
+  const claimsBlock = priorClaims && priorClaims.length > 0
+    ? `\n=== YOUR PRIOR CLAIMS ===\nYou have previously asserted:\n${priorClaims.slice(-8).map(c => `- ${c}`).join('\n')}\nDo not silently contradict these. If you change your position, acknowledge it explicitly.\n`
+    : '';
+
+  return `${priorTranscript ? `=== CONVERSATION SO FAR ===\n${priorTranscript}\n\n` : ''}${claimsBlock}The user says: "${userMessage}"
 
 Respond naturally, staying in character and following your mode instructions.`;
 }

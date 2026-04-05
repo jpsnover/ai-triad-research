@@ -266,7 +266,7 @@ Document text → AI model → JSON response → Parse → Validate → Write su
 | Key structure | `Invoke-POVSummary.ps1:346-351` | Required keys present | Doesn't check key_points structure |
 | Stance values | `Invoke-POVSummary.ps1:353-373` | Enum validation | Good |
 | Density | `Invoke-POVSummary.ps1:384-396` | Floor check | Good |
-| **Node IDs** | — | **Not validated** | AI may invent IDs like `acc-goals-999` that don't exist |
+| **Node IDs** | — | **Not validated** | AI may invent IDs like `acc-desires-999` that don't exist |
 | Write | `Invoke-POVSummary.ps1:413` | None | Non-atomic |
 
 **Pipeline 2: Argument Network Extraction**

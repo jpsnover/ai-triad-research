@@ -146,7 +146,7 @@ Before starting code work, clean the data repo:
 
 ### 4.3 Node-to-policy edges
 - Add `PROPOSES` edge type to `edges.json` edge_types
-- Generate edges: `acc-goals-001 --PROPOSES--> pol-001` from `graph_attributes.policy_actions`
+- Generate edges: `acc-desires-001 --PROPOSES--> pol-001` from `graph_attributes.policy_actions`
 - This makes the implicit link explicit and queryable
 
 ### 4.4 Update taxonomy-editor Edge Browser

@@ -68,15 +68,16 @@ function Get-Tax {
         Get-Tax -Overlaps -CrossPOV
         # Cross-POV overlaps only (most interesting for consolidation).
     .EXAMPLE
-        'acc-goals-001','saf-goals-001' | Get-Tax
+        'acc-desires-001','saf-desires-001' | Get-Tax
         # Pipeline by value — accepts bare ID strings.
     .EXAMPLE
-        Get-Tax -Id 'acc-goals-*' | Get-Tax
+        Get-Tax -Id 'acc-desires-*' | Get-Tax
         # Pipeline by property name — objects with an Id property.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Text')]
     param(
         [Parameter(Position = 0)]
+        [ArgumentCompleter({ param($cmd, $param, $word) @('accelerationist','safetyist','skeptic','situations') | Where-Object { $_ -like "$word*" } })]
         [string]$POV = '*',
 
         [Parameter(ParameterSetName = 'Text', ValueFromPipeline, ValueFromPipelineByPropertyName)]

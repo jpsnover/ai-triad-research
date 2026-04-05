@@ -366,7 +366,7 @@ interface PoverResponse {
 }
 
 interface TaxonomyRef {
-  node_id: string;       // e.g., "acc-goals-002"
+  node_id: string;       // e.g., "acc-desires-002"
   relevance: string;     // Brief note on how this node informed the statement
 }
 ```
@@ -394,7 +394,7 @@ Every POVer statement card displays small, colored pill badges for each referenc
 │ more jobs than it destroyed, and AI will be   │
 │ no different..."                             │
 │                                              │
-│ [acc-goals-002] [acc-data-005] [cc-003]     │
+│ [acc-desires-002] [acc-beliefs-005] [cc-003]     │
 └────────────────────────────────────────────┘
 ```
 

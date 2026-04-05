@@ -54,8 +54,12 @@ Part 1: Evidence Audit
 For each stance above, find 2-3 authoritative sources that support or refute the specific assertion.
 Assess the empirical quality: is this claim based on peer-reviewed data, modeling, expert opinion, or anecdote?
 
-Part 2: Root Cause Analysis
-Identify WHY the sources disagree. Common causes:
+Part 2: Root Cause Analysis (BDI Layer)
+Identify WHY the sources disagree, and classify the disagreement:
+  - **Belief-level (empirical):** Different data, methods, or interpretations of evidence → potentially resolvable with better evidence
+  - **Desire-level (normative):** Different values, priorities, or risk tolerances → negotiable via tradeoffs, not resolvable by evidence alone
+  - **Intention-level (definitional):** Different definitions, scope, or framing of the concept → requires term clarification
+Common specific causes:
   - Different definitions or scope (e.g., "AI" means different things)
   - Different time horizons or geographic contexts
   - Conflicting empirical data or methodological approaches

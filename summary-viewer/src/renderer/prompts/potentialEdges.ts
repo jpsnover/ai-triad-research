@@ -88,7 +88,7 @@ OUTPUT SCHEMA:
   "edges": [
     {
       "type": "TENSION_WITH",
-      "target": "saf-goals-001",
+      "target": "saf-desires-001",
       "inbound": false,
       "bidirectional": true,
       "confidence": 0.85,

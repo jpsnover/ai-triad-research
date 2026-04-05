@@ -5,7 +5,7 @@ kind of knowledge claim the position makes. Each node has exactly one epistemic
 type, assigned by an LLM during attribute extraction (`Invoke-AttributeExtraction`).
 
 ```powershell
-(Get-Tax -Id 'acc-goals-001').GraphAttributes.epistemic_type
+(Get-Tax -Id 'acc-desires-001').GraphAttributes.epistemic_type
 ```
 
 ---

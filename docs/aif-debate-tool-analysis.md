@@ -77,7 +77,7 @@ The AIF paper establishes a formal ontology for representing argumentation with 
 
 **Current state:** The `argument_map` in synthesis output has claims with `supported_by: ["C3"]` — a flat reference from one claim to another. There is no intermediate node representing *why* C3 supports C1. The reasoning is implicit in the claim text.
 
-**Similarly:** The taxonomy's `edges.json` connects nodes directly: `acc-goals-001 SUPPORTS saf-data-002`. There is no S-node explaining the inference pattern.
+**Similarly:** The taxonomy's `edges.json` connects nodes directly: `acc-desires-001 SUPPORTS saf-beliefs-002`. There is no S-node explaining the inference pattern.
 
 **Impact:** Without S-nodes, you can't:
 - Distinguish between different types of support (analogical, causal, authoritative)
@@ -993,26 +993,26 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 
 **Section 2: Edge Updates** (available after Priority 1)
 ```
-☑ acc-data-001 ↔ saf-methods-001: strengthen TENSION_WITH
+☑ acc-beliefs-001 ↔ saf-intentions-001: strengthen TENSION_WITH
     Current confidence: 0.75 → Proposed: 0.85
     Evidence: 3 direct attacks across 2 debate rounds
     [Adjust confidence slider]
 
-☐ acc-goals-002 → skp-data-005: new SUPPORTS edge
+☐ acc-desires-002 → skp-beliefs-005: new SUPPORTS edge
     Proposed confidence: 0.70
     Evidence: Prometheus's argument in round 2 linked these
 ```
 
 **Section 3: Steelman Refinements**
 ```
-☑ saf-methods-001: Refine from_accelerationist steelman
+☑ saf-intentions-001: Refine from_accelerationist steelman
     Current: "Pausing cedes the field to less safety-conscious actors"
     Proposed: "2024 scaling results show capabilities emerging without
     architectural changes, undermining the pause premise"
     Source: Prometheus cross-respond, round 2
     [Edit proposed text]
 
-☐ acc-data-001: Refine from_skeptic steelman
+☐ acc-beliefs-001: Refine from_skeptic steelman
     [keep current — debate didn't produce a better one]
 ```
 
@@ -1028,7 +1028,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 
 **Section 5: Debate References**
 ```
-☑ Mark as debated: acc-data-001, saf-methods-001, acc-goals-002
+☑ Mark as debated: acc-beliefs-001, saf-intentions-001, acc-desires-002
     → Adds debate ID to each node's debate_refs field
 ```
 
@@ -1081,7 +1081,7 @@ Add `create-conflict` handler that writes a new conflict JSON file to the confli
   "claim_label": "...",
   "description": "...",
   "status": "open",
-  "linked_taxonomy_nodes": ["acc-data-001", "saf-methods-001"],
+  "linked_taxonomy_nodes": ["acc-beliefs-001", "saf-intentions-001"],
   "instances": [
     { "doc_id": "debate:{debate-id}", "stance": "supports", "assertion": "...", "date_flagged": "..." },
     { "doc_id": "debate:{debate-id}", "stance": "disputes", "assertion": "...", "date_flagged": "..." }
@@ -1180,7 +1180,7 @@ After applying, write `ai-triad-data/harvests/{debate-id}.json`:
   "items": [
     { "type": "conflict", "action": "created", "id": "conflict-scaling-compute-agi", "status": "applied" },
     { "type": "conflict", "action": "created", "id": "conflict-licensing-regime", "status": "rejected" },
-    { "type": "debate_ref", "action": "added", "node_id": "acc-data-001", "status": "applied" },
+    { "type": "debate_ref", "action": "added", "node_id": "acc-beliefs-001", "status": "applied" },
     ...
   ]
 }

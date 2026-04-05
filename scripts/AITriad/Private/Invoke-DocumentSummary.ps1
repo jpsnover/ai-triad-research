@@ -467,22 +467,30 @@ function Finalize-Summary {
         }
     }
 
-    $FactualCount   = if ($SummaryObject.factual_claims)    { @($SummaryObject.factual_claims).Count }    else { 0 }
-    $UnmappedCount  = if ($SummaryObject.unmapped_concepts) { @($SummaryObject.unmapped_concepts).Count } else { 0 }
+    $SoProps = $SummaryObject.PSObject.Properties
+    $FactualClaims  = if ($SoProps['factual_claims'])    { $SummaryObject.factual_claims }    else { @() }
+    $UnmappedConcs  = if ($SoProps['unmapped_concepts']) { $SummaryObject.unmapped_concepts } else { @() }
+    $FactualCount   = @($FactualClaims).Count
+    $UnmappedCount  = @($UnmappedConcs).Count
 
     $ChunkLabel = if ($ChunkCount -gt 0) { " ($ChunkCount chunks)" } else { '' }
     Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
 
     # -- Cross-POV fuzzy match on unmapped concepts ----------------------------
-    if ($SummaryObject.unmapped_concepts -and @($SummaryObject.unmapped_concepts).Count -gt 0) {
+    if ($UnmappedCount -gt 0) {
         try {
             $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
             if (@($Resolution.Resolved).Count -gt 0) {
                 foreach ($R in @($Resolution.Resolved)) {
                     Write-Host "  `u{2502}  `u{2714} Resolved: '$($R.ConceptLabel)' `u{2192} $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
                 }
-                $SummaryObject.unmapped_concepts = @($Resolution.Remaining)
-                $UnmappedCount = @($Resolution.Remaining).Count
+                $UnmappedConcs = @($Resolution.Remaining)
+                if ($SoProps['unmapped_concepts']) {
+                    $SummaryObject.unmapped_concepts = $UnmappedConcs
+                } else {
+                    $SummaryObject | Add-Member -NotePropertyName 'unmapped_concepts' -NotePropertyValue $UnmappedConcs -Force
+                }
+                $UnmappedCount = $UnmappedConcs.Count
             }
         }
         catch {
@@ -535,9 +543,9 @@ function Finalize-Summary {
         taxonomy_version  = $TaxonomyVersion
         generated_at      = $Now
         model_info        = $ModelInfo
-        pov_summaries     = $SummaryObject.pov_summaries
-        factual_claims    = $SummaryObject.factual_claims
-        unmapped_concepts = $SummaryObject.unmapped_concepts
+        pov_summaries     = if ($SoProps['pov_summaries']) { $SummaryObject.pov_summaries } else { [ordered]@{} }
+        factual_claims    = @($FactualClaims)
+        unmapped_concepts = @($UnmappedConcs)
     }
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"
@@ -559,7 +567,8 @@ function Finalize-Summary {
 
         # Summary statistics for Source objects
         $claimsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
-        foreach ($claim in @($SummaryObject.factual_claims)) {
+        foreach ($claim in @($FactualClaims)) {
+            if (-not $claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
             foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
                 if     ($nodeId -like 'acc-*') { $claimsByPov['accelerationist']++ }
                 elseif ($nodeId -like 'saf-*') { $claimsByPov['safetyist']++ }

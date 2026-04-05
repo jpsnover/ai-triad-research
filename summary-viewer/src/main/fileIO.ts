@@ -459,7 +459,7 @@ function povFileForNodeId(nodeId: string): string | null {
   if (nodeId.startsWith('acc-')) return 'accelerationist.json';
   if (nodeId.startsWith('saf-')) return 'safetyist.json';
   if (nodeId.startsWith('skp-')) return 'skeptic.json';
-  if (nodeId.startsWith('cc-')) return 'situations.json';
+  if (nodeId.startsWith('sit-')) return 'situations.json';
   return null;
 }
 

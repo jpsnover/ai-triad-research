@@ -45,12 +45,15 @@ function Split-DocumentChunks {
     param(
         [Parameter(Mandatory)][string]$Text,
         [int]$MaxChunkTokens = 15000,
-        [int]$MinChunkTokens = 2000
+        [int]$MinChunkTokens = 2000,
+        [int]$OverlapTokens = 0
     )
 
     Set-StrictMode -Version Latest
 
-    # Rough token estimation: 1 token ≈ 4 characters
+    # Calibrated token estimation: 1 token ≈ 4.0 chars (conservative)
+    # Calibration (2026-04-03): mean=3.96, median=4.41 across 20 docs via Gemini countTokens.
+    # Using 4.0 (slightly conservative) to avoid underestimating token usage.
     function Est-Tokens([string]$s) { [int]($s.Length / 4) }
 
     $TotalTokens = Est-Tokens $Text
@@ -127,6 +130,29 @@ function Split-DocumentChunks {
     # Flush the last accumulator
     if ($CurrentTokens -gt 0) {
         $Chunks.Add($CurrentChunk.ToString().Trim())
+    }
+
+    # ── Phase 2b: Apply chunk overlap ────────────────────────────────────────
+    # Prepend the last N tokens of the previous chunk as context prefix
+    if ($OverlapTokens -gt 0 -and $Chunks.Count -gt 1) {
+        $OverlapChars = $OverlapTokens * 4  # 1 token ≈ 4 chars
+        $Overlapped = [System.Collections.Generic.List[string]]::new()
+        $Overlapped.Add($Chunks[0])  # First chunk has no previous context
+
+        for ($i = 1; $i -lt $Chunks.Count; $i++) {
+            $PrevText = $Chunks[$i - 1]
+            $OverlapLen = [Math]::Min($OverlapChars, $PrevText.Length)
+            $OverlapText = $PrevText.Substring($PrevText.Length - $OverlapLen)
+
+            # Find a clean break point (paragraph or sentence boundary)
+            $CleanBreak = $OverlapText.IndexOf("`n`n")
+            if ($CleanBreak -gt 0 -and $CleanBreak -lt $OverlapLen * 0.5) {
+                $OverlapText = $OverlapText.Substring($CleanBreak).TrimStart()
+            }
+
+            $Overlapped.Add("$OverlapText`n`n---`n`n$($Chunks[$i])")
+        }
+        $Chunks = $Overlapped
     }
 
     # ── Phase 3: Merge tiny trailing chunks into the previous one ────────────

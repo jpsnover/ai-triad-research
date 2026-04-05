@@ -222,7 +222,7 @@ Each of the three POV camps (accelerationist, safetyist, skeptic) gets an indepe
 ```json
 {
   "stance": "aligned",           // strongly_aligned|aligned|neutral|opposed|strongly_opposed|not_applicable
-  "taxonomy_node_id": "acc-goals-001",  // exact node ID or null if unmapped
+  "taxonomy_node_id": "acc-desires-001",  // exact node ID or null if unmapped
   "category": "Desires",         // Desires|Beliefs|Intentions
   "point": "3-6 sentences analyzing this claim from the POV perspective",
   "verbatim": "1-5 sentences copied word-for-word from the document",
@@ -249,7 +249,7 @@ Cross-POV empirical assertions extracted from the document. These are the raw ma
   "temporal_scope": "predictive", // current_state|predictive|historical|timeless
   "temporal_bound": "by 2030",    // date string or null
   "potential_conflict_id": null,   // existing conflict ID if matches known disagreement
-  "linked_taxonomy_nodes": ["acc-data-003", "saf-data-007"]
+  "linked_taxonomy_nodes": ["acc-beliefs-003", "saf-beliefs-007"]
 }
 ```
 
@@ -277,7 +277,7 @@ For concepts suggested as situations (cross-POV), the AI also produces three int
 Taxonomy mapping is performed **by the AI model during summary generation**, not as a separate post-processing step. The full taxonomy (all four files, ~200+ nodes) is injected into the prompt, and the AI is instructed to:
 
 1. **Search all four taxonomy files** (accelerationist, safetyist, skeptic, situations) for a matching node
-2. **Set `taxonomy_node_id`** to the exact node ID (e.g., `acc-goals-001`, `saf-data-002`, `cc-003`)
+2. **Set `taxonomy_node_id`** to the exact node ID (e.g., `acc-desires-001`, `saf-beliefs-002`, `cc-003`)
 3. **Cross-POV search**: Before declaring a concept unmapped, search all POVs — a safetyist claim might map to an accelerationist node that addresses the same phenomenon from a different angle
 4. **Set `taxonomy_node_id: null`** only if no existing node captures the concept
 

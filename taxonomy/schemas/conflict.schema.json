@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jsnov/ai-triad-research/taxonomy/schemas/conflict.schema.json",
+  "title": "Conflict Claim File",
+  "description": "Schema for a conflict claim file in the AI Triad Research project. Each file tracks a single factual claim that is disputed or supported across multiple source documents, with optional QBAF strength computation.",
+  "type": "object",
+  "required": [
+    "claim_id",
+    "claim_label",
+    "description",
+    "status",
+    "linked_taxonomy_nodes",
+    "instances",
+    "human_notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "claim_id": {
+      "type": "string",
+      "pattern": "^conflict-[a-z0-9-]+$",
+      "description": "Unique identifier for this conflict claim. Format: conflict-{slug}.",
+      "examples": ["conflict-agi-timelines-001", "conflict-scaling-laws-001"]
+    },
+    "claim_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Short human-readable label for the disputed claim."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Verbatim text of the factual claim being tracked."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "closed", "resolved"],
+      "description": "Current resolution status. open: actively disputed. closed: no longer relevant. resolved: consensus reached."
+    },
+    "linked_taxonomy_nodes": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "description": "Taxonomy node ID(s) related to this conflict. May be a single string (legacy) or an array."
+    },
+    "instances": {
+      "type": "array",
+      "description": "Stack of document instances that reference this claim, ordered by date_flagged.",
+      "items": {
+        "$ref": "#/$defs/ConflictInstance"
+      }
+    },
+    "human_notes": {
+      "type": "array",
+      "description": "Human-authored annotations on this conflict.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "description": "Optional resolution verdict from debate harvest. Added by harvest promote.",
+      "properties": {
+        "prevailing_stance": { "type": "string" },
+        "criterion": { "type": "string" },
+        "rationale": { "type": "string" },
+        "debate_id": { "type": "string" }
+      }
+    },
+    "qbaf": {
+      "$ref": "#/$defs/QbafAnalysis",
+      "description": "Optional QBAF strength computation. Absent on pre-QBAF conflicts."
+    }
+  },
+  "$defs": {
+    "ConflictInstance": {
+      "type": "object",
+      "required": ["doc_id", "stance", "assertion", "date_flagged"],
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "type": "string",
+          "description": "Source document ID that references this claim."
+        },
+        "stance": {
+          "type": "string",
+          "enum": ["supports", "disputes", "neutral", "qualifies"],
+          "description": "How this document relates to the claim."
+        },
+        "assertion": {
+          "type": "string",
+          "description": "The specific text from the document asserting or disputing the claim."
+        },
+        "date_flagged": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date when this instance was flagged."
+        },
+        "temporal_scope": {
+          "type": "string",
+          "enum": ["current_state", "predictive", "historical", "timeless"],
+          "description": "Optional temporal classification of when the claim applies."
+        },
+        "temporal_bound": {
+          "type": "string",
+          "description": "Optional specific time reference (e.g., 'by 2030', 'as of Q1 2026')."
+        },
+        "attack_type": {
+          "type": "string",
+          "enum": ["rebut", "undercut", "undermine"],
+          "description": "Optional AIF attack classification when stance is 'disputes'."
+        },
+        "target_claim": {
+          "type": "string",
+          "description": "Optional: the specific claim being attacked (when attack_type is present)."
+        },
+        "counter_evidence": {
+          "type": "string",
+          "description": "Optional: specific evidence cited against the claim."
+        }
+      }
+    },
+    "QbafAnalysis": {
+      "type": "object",
+      "description": "QBAF (Quantitative Bipolar Argumentation Framework) strength computation results.",
+      "required": ["graph", "computed_at", "algorithm"],
+      "additionalProperties": false,
+      "properties": {
+        "graph": {
+          "type": "object",
+          "description": "The QBAF argument graph with nodes (claims) and edges (attack/support relations).",
+          "required": ["nodes", "edges"],
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "text", "source_pov", "base_strength", "computed_strength"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique claim identifier within this QBAF graph."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "The claim text."
+                  },
+                  "source_pov": {
+                    "type": "string",
+                    "enum": ["accelerationist", "safetyist", "skeptic", "situations"],
+                    "description": "Which POV originated this claim."
+                  },
+                  "base_strength": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Initial argument strength before propagation. For Desires/Intentions: AI-computed via BDI-aware evidence rubric (v3). For Beliefs: human-assigned."
+                  },
+                  "computed_strength": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Final acceptability score after DF-QuAD propagation through attack/support network."
+                  },
+                  "evidence_criteria": {
+                    "type": "object",
+                    "description": "Optional: the decomposed scoring criteria that produced base_strength. Makes scores auditable.",
+                    "properties": {
+                      "category": {
+                        "type": "string",
+                        "enum": ["Beliefs", "Desires", "Intentions"]
+                      },
+                      "specificity": {
+                        "type": "string",
+                        "enum": ["vague", "qualified", "precise"]
+                      },
+                      "has_warrant": { "type": "boolean" },
+                      "internally_consistent": { "type": "boolean" },
+                      "cites_source": { "type": "boolean" },
+                      "source_quality": {
+                        "type": "string",
+                        "enum": ["none", "anecdotal", "institutional", "peer_reviewed", "replicated"]
+                      },
+                      "source_consistent": {
+                        "oneOf": [
+                          { "type": "boolean" },
+                          { "type": "string", "enum": ["unknown"] }
+                        ]
+                      },
+                      "values_grounded": { "type": "boolean" },
+                      "tradeoff_acknowledged": { "type": "boolean" },
+                      "precedent_cited": { "type": "boolean" },
+                      "mechanism_specified": { "type": "boolean" },
+                      "scope_bounded": { "type": "boolean" },
+                      "failure_mode_addressed": { "type": "boolean" },
+                      "is_contested": { "type": "boolean" }
+                    }
+                  },
+                  "scoring_method": {
+                    "type": "string",
+                    "enum": ["ai_rubric_v3", "human_assigned"],
+                    "description": "How base_strength was determined."
+                  }
+                }
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["source", "target", "type", "weight"],
+                "additionalProperties": false,
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "description": "Source claim ID (the attacker or supporter)."
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Target claim ID (the claim being attacked or supported)."
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["attacks", "supports"],
+                    "description": "Relationship type in QBAF terms."
+                  },
+                  "attack_type": {
+                    "type": "string",
+                    "enum": ["rebut", "undercut", "undermine"],
+                    "description": "AIF attack classification. Present only when type is 'attacks'."
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Attack/support magnitude."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "resolution": {
+          "type": "object",
+          "description": "Optional: which claim prevails after QBAF computation.",
+          "properties": {
+            "prevailing_claim": {
+              "type": "string",
+              "description": "ID of the claim with highest computed_strength."
+            },
+            "prevailing_strength": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "margin": {
+              "type": "number",
+              "description": "Difference between top two claims' computed_strength."
+            },
+            "criterion": {
+              "type": "string",
+              "enum": ["qbaf_computed_strength"],
+              "description": "Resolution method used."
+            }
+          }
+        },
+        "computed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when QBAF analysis was performed."
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": ["df-quad"],
+          "description": "Gradual semantics algorithm used."
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of propagation iterations until convergence."
+        }
+      }
+    }
+  }
+}
