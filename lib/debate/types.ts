@@ -94,12 +94,26 @@ export interface DebateSession {
   document_analysis?: DocumentAnalysis;
   /** QBAF strength snapshots after each turn — for timeline visualization. Absent in pre-QBAF debates. */
   qbaf_timeline?: QbafTimelineEntry[];
+  /** Coverage tracking — which source claims have been discussed. Absent for topic-only debates or pre-coverage debates. */
+  claim_coverage?: ClaimCoverageEntry[];
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
 export interface QbafTimelineEntry {
   turn: number;
   strengths: Record<string, number>;
+}
+
+/** Per-source-claim coverage entry — tracks whether a document claim was discussed in the debate (CT-1). */
+export interface ClaimCoverageEntry {
+  /** Source document claim ID (from DocumentINode). */
+  claim_id: string;
+  /** Whether any AN node matched above the similarity threshold. */
+  discussed: boolean;
+  /** Highest cosine similarity score against any AN node. */
+  best_match_score: number;
+  /** AN node ID that best matched this source claim, if discussed. */
+  matched_an_node?: string;
 }
 
 // ── Document pre-analysis types ────────────────────────
@@ -272,6 +286,8 @@ export interface SynthesisResult {
   preferences?: PreferenceEntry[];
   /** Policy implications — how disagreements affect concrete policy actions. */
   policy_implications?: PolicyImplication[];
+  /** Coverage tracking — which source claims were discussed vs uncovered (CT-1). */
+  claim_coverage?: ClaimCoverageEntry[];
 }
 
 export interface PreferenceEntry {

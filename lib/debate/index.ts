@@ -28,6 +28,7 @@ export * from './nodeIdUtils';
 export * from './qbaf';
 export * from './qbafCombinator';
 export * from './concessionTracker';
+export * from './coverageTracker';
 
 // ── Situations Migration Normalizers ──────────────────────
 
