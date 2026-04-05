@@ -624,7 +624,12 @@ export class DebateEngine {
       }
     }
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext);
+    // Find the most recent argumentation scheme for critical question injection
+    const recentScheme = an?.edges
+      .filter(e => e.argumentation_scheme && e.argumentation_scheme !== 'OTHER')
+      .slice(-1)[0]?.argumentation_scheme;
+
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext, recentScheme);
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
 
     let responder: Exclude<PoverId, 'user'> | null = null;
@@ -1039,7 +1044,7 @@ export class DebateEngine {
       return;
     }
 
-    let claims: { text: string; bdi_category?: string; base_strength?: number; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] = [];
+    let claims: { text: string; bdi_category?: string; base_strength?: number; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
@@ -1097,6 +1102,7 @@ export class DebateEngine {
           attack_type: rel.attack_type as 'rebut' | 'undercut' | 'undermine' | undefined,
           scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
           warrant: rel.warrant,
+          argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
         });
 
         // Track concessions and challenges

@@ -34,6 +34,20 @@ For each distinct claim in the statement:
 2. If it responds to a prior claim, classify the relationship:
    - "supports" with a warrant (WHY it supports — the reasoning pattern)
    - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the inference, "undermine" = attacks premise credibility) and scheme (COUNTEREXAMPLE, DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE)
+   - "argumentation_scheme": classify the reasoning pattern being used. Pick ONE:
+     ARGUMENT_FROM_EVIDENCE — supported by specific data or measurements
+     ARGUMENT_FROM_EXPERT_OPINION — supported by expert testimony or institutional authority
+     ARGUMENT_FROM_PRECEDENT — supported by a historical case or legal precedent
+     ARGUMENT_FROM_CONSEQUENCES — based on predicted outcomes of an action
+     ARGUMENT_FROM_ANALOGY — draws a parallel to another domain
+     PRACTICAL_REASONING — advocates an action as means to a stated goal
+     ARGUMENT_FROM_DEFINITION — depends on how a key term is defined
+     ARGUMENT_FROM_VALUES — grounded in an explicit value or ethical principle
+     ARGUMENT_FROM_FAIRNESS — appeals to equal treatment or proportionality
+     ARGUMENT_FROM_IGNORANCE — derives conclusion from absence of evidence
+     SLIPPERY_SLOPE — claims a small action leads to extreme outcomes through a chain
+     ARGUMENT_FROM_RISK — advocates caution based on magnitude of potential harm
+     OTHER — if none fit (include brief description)
 3. If it's a new standalone claim, responds_to should be an empty array
 
 Extract 1-4 claims. Each claim must be traceable to text actually in the statement. Do NOT invent claims.
@@ -59,6 +73,7 @@ Return ONLY JSON (no markdown):
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
           "scheme": "COUNTEREXAMPLE etc (only if attacks)",
+          "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"
         }
       ]
@@ -108,6 +123,10 @@ For each claim:
    - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the
      inference, "undermine" = attacks premise credibility) and scheme (COUNTEREXAMPLE,
      DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE)
+   - "argumentation_scheme": classify the reasoning pattern (ARGUMENT_FROM_EVIDENCE,
+     ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES,
+     ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES,
+     ARGUMENT_FROM_FAIRNESS, ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, OTHER)
 3. If the debater listed no targets but you see an obvious relationship to a prior claim,
    you may add it — but prefer the debater's own assessment.
 
@@ -128,6 +147,7 @@ Return ONLY JSON (no markdown):
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
           "scheme": "COUNTEREXAMPLE etc (only if attacks)",
+          "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"
         }
       ]
@@ -139,18 +159,18 @@ Return ONLY JSON (no markdown):
 /** Format the argument network for injection into moderator prompts */
 export function formatArgumentNetworkContext(
   nodes: { id: string; text: string; speaker: string }[],
-  edges: { source: string; target: string; type: string; attack_type?: string; scheme?: string; warrant?: string }[],
+  edges: { source: string; target: string; type: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[],
 ): string {
   if (nodes.length === 0) return '';
 
   const lines = ['', '=== ARGUMENT NETWORK (claims made so far) ==='];
 
   // Build adjacency for display
-  const attacksOn = new Map<string, { source: string; type: string; scheme?: string; warrant?: string }[]>();
+  const attacksOn = new Map<string, { source: string; type: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[]>();
   for (const e of edges) {
     if (e.type === 'attacks') {
       const list = attacksOn.get(e.target) || [];
-      list.push({ source: e.source, type: e.attack_type || 'rebut', scheme: e.scheme, warrant: e.warrant });
+      list.push({ source: e.source, type: e.attack_type || 'rebut', scheme: e.scheme, argumentation_scheme: e.argumentation_scheme, warrant: e.warrant });
       attacksOn.set(e.target, list);
     }
   }
@@ -162,7 +182,8 @@ export function formatArgumentNetworkContext(
       : ' [unaddressed]';
     lines.push(`${n.id} (${n.speaker}): "${n.text}"${attacks.length > 0 || edges.some(e => e.source === n.id) ? '' : attackSuffix}`);
     for (const a of attacks) {
-      lines.push(`  <- ${a.source} ${a.type}${a.scheme ? ` via ${a.scheme}` : ''}${a.warrant ? ` — ${a.warrant}` : ''}`);
+      const schemeInfo = a.argumentation_scheme ? ` [${a.argumentation_scheme}]` : '';
+      lines.push(`  <- ${a.source} ${a.type}${a.scheme ? ` via ${a.scheme}` : ''}${schemeInfo}${a.warrant ? ` — ${a.warrant}` : ''}`);
     }
   }
 

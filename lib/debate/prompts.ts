@@ -463,11 +463,101 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
 }
 
+// ── Argumentation Scheme Critical Questions (t/183) ──────
+
+const SCHEME_CRITICAL_QUESTIONS: Record<string, string[]> = {
+  ARGUMENT_FROM_EVIDENCE: [
+    'Is the evidence accurately reported?',
+    'Is the sample representative?',
+    'Are there confounding factors?',
+    'Has the evidence been independently replicated?',
+  ],
+  ARGUMENT_FROM_EXPERT_OPINION: [
+    'Is the expert an authority in this specific domain?',
+    'Do other experts in the field agree?',
+    'Does the expert have a conflict of interest?',
+    "Is the expert's statement being accurately represented?",
+  ],
+  ARGUMENT_FROM_PRECEDENT: [
+    'Is the precedent genuinely analogous?',
+    'Are the differences between cases significant enough to change the outcome?',
+    'Was the outcome caused by the cited action or by other factors?',
+    'Has the context changed since the precedent?',
+  ],
+  ARGUMENT_FROM_CONSEQUENCES: [
+    'How likely is the predicted consequence?',
+    'Are there unconsidered consequences (positive or negative)?',
+    'Is the consequence actually as good/bad as claimed?',
+    'Are there alternative actions with the same benefit but fewer costs?',
+  ],
+  ARGUMENT_FROM_ANALOGY: [
+    'Are the compared cases genuinely similar in relevant respects?',
+    'Are there important differences that prevent the transfer?',
+    'Is the analogy illuminating or substituting for direct evidence?',
+    'Does the analogy break down at the point where the conclusion is drawn?',
+  ],
+  PRACTICAL_REASONING: [
+    'Is the goal actually desirable? Are there competing goals?',
+    'Does the action actually achieve the goal?',
+    'Are there more effective alternatives with fewer side effects?',
+    'Are the stated circumstances accurate?',
+  ],
+  ARGUMENT_FROM_DEFINITION: [
+    'Is the definition widely accepted or stipulated by the arguer?',
+    'Are there alternative legitimate definitions that change the conclusion?',
+    'Is the definition applied consistently?',
+    'Does the definition capture essential features or is it too narrow/broad?',
+  ],
+  ARGUMENT_FROM_VALUES: [
+    'Is the value actually relevant to this context?',
+    'Are there competing values that pull in the opposite direction?',
+    'How should this value be weighed against competing values?',
+    'Is the connection between the action and the value genuine?',
+  ],
+  ARGUMENT_FROM_FAIRNESS: [
+    'Are the compared parties actually relevantly similar/different?',
+    'What is the relevant dimension of comparison?',
+    'Does the proposed fair treatment create other unfairnesses?',
+    'Is the fairness principle applied consistently?',
+  ],
+  ARGUMENT_FROM_IGNORANCE: [
+    'Has the relevant evidence actually been sought?',
+    'Is the burden of proof correctly placed?',
+    'Would we expect evidence to be available if the claim were true?',
+    'Is the arguer exploiting an asymmetry in evidence availability?',
+  ],
+  SLIPPERY_SLOPE: [
+    'Is each step in the chain actually likely?',
+    'Are there intervention points where the chain can be broken?',
+    'Is the final outcome as extreme as claimed?',
+    'Does the arguer provide mechanism for each step?',
+  ],
+  ARGUMENT_FROM_RISK: [
+    'How well-established is the magnitude of the potential harm?',
+    'Is the probability genuinely uncertain or actually very low?',
+    'Does the proposed caution itself carry significant costs?',
+    'Is the risk being compared to the baseline risk of inaction?',
+  ],
+};
+
+/** Format critical questions for a given argumentation scheme, for moderator injection. */
+export function formatCriticalQuestions(scheme: string): string {
+  const cqs = SCHEME_CRITICAL_QUESTIONS[scheme];
+  if (!cqs) return '';
+  return `The most recent argument uses ${scheme}. Critical questions to consider:\n${cqs.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
+}
+
 export function crossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
   edgeContext: string = '',
+  recentScheme?: string,
 ): string {
+  const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
+  const schemeSection = cqBlock
+    ? `\n\n=== ARGUMENTATION SCHEME ANALYSIS ===\n${cqBlock}\nConsider directing a debater to challenge this argument on one of these critical questions.\n`
+    : '';
+
   return `You are a debate moderator analyzing the current state of a structured debate.
 ${READING_LEVEL}
 
@@ -476,7 +566,7 @@ ${recentTranscript}
 
 === ACTIVE DEBATERS ===
 ${activePovers.join(', ')}
-${edgeContext}
+${edgeContext}${schemeSection}
 
 Identify the most productive next exchange. Which debater should respond, to whom, and about what specific point? Consider:
 - Which disagreement would be most clarified by a direct exchange?
@@ -627,6 +717,8 @@ Tasks:
    - For each claim, list supports (supported_by) and attacks (attacked_by)
    - Classify attacks: "rebut", "undercut", or "undermine"
    - Note dialectical scheme: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
+   - Classify the argumentation_scheme: ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES, ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES, ARGUMENT_FROM_FAIRNESS, ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, or OTHER
+   - For attacks, note which critical_question_addressed (1-4) the attack targets — e.g., challenging an analogy on CQ2 means "important differences prevent transfer"
    - Each claim must be traceable to the transcript${documentAnalysis}
 3. Identify concepts discussed in this debate that are NOT covered by any existing taxonomy node. For each, propose a new node with a label (3-8 words), genus-differentia description, POV, category, and rationale explaining why this debate surfaced a gap. Link to the claim IDs that motivated the proposal.
 4. Identify existing taxonomy nodes that should be modified based on what this debate revealed — descriptions that are too narrow, categories that are wrong, or nodes that should be split. For each, specify the node ID, modification type, suggested change, and rationale.
@@ -636,7 +728,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
-      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
   "taxonomy_proposals": [
@@ -760,7 +852,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
-      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE"}
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
   "preferences": [
