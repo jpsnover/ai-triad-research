@@ -139,7 +139,7 @@ async function generateViaGemini(
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: opts.temperature ?? 0.3,
+          temperature: opts.temperature ?? 0.7,
           maxOutputTokens: opts.maxTokens ?? 16384,
         },
       }),
@@ -192,7 +192,7 @@ async function generateViaClaude(
       body: JSON.stringify({
         model: apiModelId,
         max_tokens: opts.maxTokens ?? 8192,
-        temperature: opts.temperature ?? 0.3,
+        temperature: opts.temperature ?? 0.7,
         messages: [{ role: 'user', content: prompt }],
       }),
     }),
@@ -243,7 +243,7 @@ async function generateViaGroq(
       body: JSON.stringify({
         model: apiModelId,
         messages: [{ role: 'user', content: prompt }],
-        temperature: opts.temperature ?? 0.3,
+        temperature: opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
       }),
     }),

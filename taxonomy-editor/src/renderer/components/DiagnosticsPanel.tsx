@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, EntryDiagnostics, DebateDiagnostics } from '../types/debate';
+import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../types/debate';
+import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -29,6 +31,86 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
       </button>
       {open && <div className="diag-section-body">{children}</div>}
     </div>
+  );
+}
+
+function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; activeDebate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } } | null }) {
+  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const anNodes = activeDebate?.argument_network?.nodes?.filter(
+    n => n.source_entry_id === entryId
+  ) ?? [];
+  const anEdges = activeDebate?.argument_network?.edges ?? [];
+  const scoredNodes = anNodes.filter(n => n.computed_strength != null || n.base_strength != null);
+
+  const handleScoreChange = useCallback((nodeId: string, score: number) => {
+    const debate = useDebateStore.getState().activeDebate;
+    if (!debate?.argument_network) return;
+    const node = debate.argument_network.nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.base_strength = score;
+      node.scoring_method = 'human';
+    }
+  }, []);
+
+  if (!qbafEnabled || scoredNodes.length === 0) return null;
+
+  return (
+    <CollapsibleSection title={`QBAF Strength (${scoredNodes.length} claims)`} defaultOpen>
+      {scoredNodes.map(node => {
+        const computed = node.computed_strength ?? node.base_strength ?? 0;
+        const base = node.base_strength ?? computed;
+        const delta = computed - base;
+        const incoming = anEdges.filter(e => e.target === node.id);
+        const bdiLayer = node.taxonomy_refs.some(r => r.includes('-beliefs-')) ? 'Beliefs'
+          : node.taxonomy_refs.some(r => r.includes('-desires-')) ? 'Desires'
+          : node.taxonomy_refs.some(r => r.includes('-intentions-')) ? 'Intentions' : 'Unknown';
+        const isPending = node.scoring_method === 'default_pending';
+
+        return (
+          <div key={node.id} className={`diag-qbaf-card ${isPending ? 'diag-qbaf-pending' : ''}`}>
+            <div className="diag-qbaf-card-header">
+              <span className="diag-an-id">{node.id}</span>
+              <QbafClaimBadge node={node} />
+            </div>
+            <div className="diag-qbaf-claim-text">{node.text}</div>
+            <div className="diag-qbaf-strength-row">
+              <span className="diag-k">Base:</span> <span className="diag-v">{base.toFixed(2)}</span>
+              <span className="diag-qbaf-arrow">→</span>
+              <span className="diag-k">Computed:</span> <span className="diag-v">{computed.toFixed(2)}</span>
+              {Math.abs(delta) > 0.01 && (
+                <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
+                  ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
+                </span>
+              )}
+            </div>
+            {incoming.length > 0 && (
+              <div className="diag-qbaf-edges">
+                {incoming.map((e, i) => {
+                  const srcNode = activeDebate?.argument_network?.nodes?.find(n => n.id === e.source);
+                  return (
+                    <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
+                      <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
+                      {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
+                      {e.weight != null && <QbafEdgeIndicator edge={e} />}
+                      {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="diag-qbaf-meta">
+              <span className="diag-badge diag-badge-type">{bdiLayer}</span>
+              <span className="diag-muted">Scored by: {node.scoring_method === 'ai_rubric' ? 'AI rubric (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'default_pending' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
+            </div>
+            {isPending && (
+              <div className="diag-qbaf-slider-row">
+                <QbafScoreSlider node={node} onScoreChange={handleScoreChange} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </CollapsibleSection>
   );
 }
 
@@ -62,6 +144,68 @@ function EntryView({ entryId }: { entryId: string }) {
           )}
         </CollapsibleSection>
       )}
+
+      {/* Moderator Deliberation (t/160) */}
+      {meta?.moderator_trace && (() => {
+        const trace = meta.moderator_trace as {
+          selected: string; excluded_last_speaker: string | null;
+          candidates: { debater: string; computed_strength: number | null; rank: number }[];
+          convergence_score: number | null; convergence_triggered: boolean;
+          commitment_snapshot: Record<string, { asserted: number; conceded: number; challenged: number }>;
+          selection_reason: string; focus_point: string;
+        };
+        return (
+          <CollapsibleSection title={`Moderator — selected ${trace.selected} (${trace.selection_reason.replace(/_/g, ' ')})`} defaultOpen>
+            <div className="diag-kv">
+              <span className="diag-k">Selected:</span> <span className="diag-v">{trace.selected}</span>
+            </div>
+            {trace.excluded_last_speaker && (
+              <div className="diag-kv">
+                <span className="diag-k">Excluded (last speaker):</span> <span className="diag-v">{trace.excluded_last_speaker}</span>
+              </div>
+            )}
+            <div className="diag-kv">
+              <span className="diag-k">Reason:</span> <span className="diag-badge diag-badge-move">{trace.selection_reason.replace(/_/g, ' ')}</span>
+            </div>
+            {trace.focus_point && (
+              <div className="diag-kv">
+                <span className="diag-k">Focus:</span> <span className="diag-v">{trace.focus_point}</span>
+              </div>
+            )}
+            {trace.candidates.length > 0 && (
+              <div className="diag-mod-candidates">
+                <span className="diag-k">Candidates:</span>
+                {trace.candidates.map((c, i) => (
+                  <div key={i} className="diag-mod-candidate">
+                    <span className="diag-mod-rank">#{c.rank}</span>
+                    <span>{c.debater}</span>
+                    {c.computed_strength != null && (
+                      <span className="diag-muted">strength: {c.computed_strength.toFixed(2)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {trace.convergence_score != null && (
+              <div className="diag-kv">
+                <span className="diag-k">Convergence:</span>
+                <span className="diag-v">{(trace.convergence_score * 100).toFixed(0)}%{trace.convergence_triggered ? ' (triggered)' : ''}</span>
+              </div>
+            )}
+            {Object.keys(trace.commitment_snapshot).length > 0 && (
+              <div className="diag-mod-commitments">
+                <span className="diag-k">Commitments at selection:</span>
+                {Object.entries(trace.commitment_snapshot).map(([debater, counts]) => (
+                  <div key={debater} className="diag-mod-commit-row">
+                    <span className="diag-mod-commit-name">{debater}:</span>
+                    <span className="diag-muted">{counts.asserted}A {counts.conceded}C {counts.challenged}Ch</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Dialectical Moves */}
       {meta?.move_types && (
@@ -112,6 +256,9 @@ function EntryView({ entryId }: { entryId: string }) {
           ))}
         </CollapsibleSection>
       )}
+
+      {/* QBAF Claim Strength (D-Q3) */}
+      <QbafClaimStrengthSection entryId={entryId} activeDebate={activeDebate} />
 
       {/* Taxonomy Context */}
       {diag?.taxonomy_context && (
@@ -209,6 +356,137 @@ function EntryView({ entryId }: { entryId: string }) {
   );
 }
 
+const TIMELINE_SPEAKER_COLORS: Record<string, string> = {
+  prometheus: '#27AE60',
+  sentinel: '#E74C3C',
+  cassandra: '#F1C40F',
+};
+const TIMELINE_W = 560;
+const TIMELINE_H = 200;
+const TIMELINE_PAD = { top: 20, right: 20, bottom: 30, left: 40 };
+
+function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
+  timeline: QbafTimelineEntry[];
+  nodes: ArgumentNetworkNode[];
+  onSelectClaim?: (nodeId: string) => void;
+}) {
+  const [hoveredClaim, setHoveredClaim] = useState<string | null>(null);
+  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  if (!qbafEnabled || timeline.length === 0) return null;
+
+  // Collect all claim IDs that appear in the timeline
+  const claimIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const snap of timeline) for (const id of Object.keys(snap.strengths)) ids.add(id);
+    return [...ids];
+  }, [timeline]);
+
+  const maxTurn = Math.max(...timeline.map(t => t.turn));
+  const plotW = TIMELINE_W - TIMELINE_PAD.left - TIMELINE_PAD.right;
+  const plotH = TIMELINE_H - TIMELINE_PAD.top - TIMELINE_PAD.bottom;
+  const xScale = (turn: number) => TIMELINE_PAD.left + (turn / Math.max(1, maxTurn)) * plotW;
+  const yScale = (val: number) => TIMELINE_PAD.top + (1 - val) * plotH;
+
+  return (
+    <CollapsibleSection title={`Strength Timeline (${claimIds.length} claims, ${timeline.length} snapshots)`} defaultOpen>
+      <svg viewBox={`0 0 ${TIMELINE_W} ${TIMELINE_H}`} className="diag-timeline-svg">
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1.0].map(v => (
+          <g key={v}>
+            <line x1={TIMELINE_PAD.left} y1={yScale(v)} x2={TIMELINE_W - TIMELINE_PAD.right} y2={yScale(v)} stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />
+            <text x={TIMELINE_PAD.left - 4} y={yScale(v) + 3} textAnchor="end" fill="var(--text-muted)" fontSize={8}>{v.toFixed(1)}</text>
+          </g>
+        ))}
+        {/* X-axis labels */}
+        {timeline.map(snap => (
+          <text key={snap.turn} x={xScale(snap.turn)} y={TIMELINE_H - 5} textAnchor="middle" fill="var(--text-muted)" fontSize={8}>
+            T{snap.turn}
+          </text>
+        ))}
+
+        {/* Lines per claim */}
+        {claimIds.map(claimId => {
+          const node = nodes.find(n => n.id === claimId);
+          const speaker = node?.speaker ?? 'system';
+          const color = TIMELINE_SPEAKER_COLORS[speaker] ?? '#64748b';
+          const points = timeline
+            .filter(s => s.strengths[claimId] != null)
+            .map(s => `${xScale(s.turn)},${yScale(s.strengths[claimId])}`);
+          if (points.length < 2) return null;
+          const isHovered = hoveredClaim === claimId;
+
+          return (
+            <g key={claimId}>
+              <polyline
+                points={points.join(' ')}
+                fill="none"
+                stroke={color}
+                strokeWidth={isHovered ? 2.5 : 1.2}
+                opacity={hoveredClaim && !isHovered ? 0.15 : 0.8}
+                style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                onMouseEnter={() => setHoveredClaim(claimId)}
+                onMouseLeave={() => setHoveredClaim(null)}
+                onClick={() => onSelectClaim?.(claimId)}
+              />
+              {/* Endpoint dot */}
+              {points.length > 0 && (() => {
+                const last = timeline.filter(s => s.strengths[claimId] != null).at(-1);
+                if (!last) return null;
+                return (
+                  <circle
+                    cx={xScale(last.turn)}
+                    cy={yScale(last.strengths[claimId])}
+                    r={isHovered ? 4 : 2.5}
+                    fill={color}
+                    opacity={hoveredClaim && !isHovered ? 0.15 : 1}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={() => setHoveredClaim(claimId)}
+                    onMouseLeave={() => setHoveredClaim(null)}
+                    onClick={() => onSelectClaim?.(claimId)}
+                  />
+                );
+              })()}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Hovered claim tooltip */}
+      {hoveredClaim && (() => {
+        const node = nodes.find(n => n.id === hoveredClaim);
+        const lastSnap = timeline.filter(s => s.strengths[hoveredClaim] != null).at(-1);
+        const firstSnap = timeline.find(s => s.strengths[hoveredClaim] != null);
+        if (!node || !lastSnap || !firstSnap) return null;
+        const startVal = firstSnap.strengths[hoveredClaim];
+        const endVal = lastSnap.strengths[hoveredClaim];
+        const delta = endVal - startVal;
+        return (
+          <div className="diag-timeline-tooltip">
+            <strong>{hoveredClaim}</strong> ({speakerLabel(node.speaker as PoverId)}):
+            {' '}{startVal.toFixed(2)} → {endVal.toFixed(2)}
+            {Math.abs(delta) > 0.01 && (
+              <span className={delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}>
+                {' '}({delta > 0 ? '+' : ''}{delta.toFixed(2)})
+              </span>
+            )}
+            <div className="diag-muted" style={{ fontSize: '0.6rem' }}>{node.text.slice(0, 100)}{node.text.length > 100 ? '…' : ''}</div>
+          </div>
+        );
+      })()}
+
+      {/* Legend */}
+      <div className="diag-timeline-legend">
+        {Object.entries(TIMELINE_SPEAKER_COLORS).map(([speaker, color]) => (
+          <span key={speaker} className="diag-timeline-legend-item">
+            <span style={{ display: 'inline-block', width: 10, height: 3, background: color, marginRight: 4 }} />
+            {speakerLabel(speaker as PoverId)}
+          </span>
+        ))}
+      </div>
+    </CollapsibleSection>
+  );
+}
+
 function OverviewView() {
   const { activeDebate } = useDebateStore();
   if (!activeDebate) return null;
@@ -216,9 +494,15 @@ function OverviewView() {
   const an = activeDebate.argument_network;
   const commitments = activeDebate.commitments;
   const diag = activeDebate.diagnostics;
+  const timeline = activeDebate.qbaf_timeline;
 
   return (
     <div className="diag-overview">
+      {/* Strength Timeline (D-Q5) */}
+      {timeline && timeline.length > 0 && an && (
+        <StrengthTimeline timeline={timeline} nodes={an.nodes} />
+      )}
+
       {/* Argument Network */}
       {an && an.nodes.length > 0 && (() => {
         const caCount = an.edges.filter(e => e.type === 'attacks').length;
@@ -237,12 +521,19 @@ function OverviewView() {
                   <span className="diag-an-id">{n.id}</span>
                   <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
                   {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
+                  {n.base_strength != null && <QbafClaimBadge node={n} />}
+                  {n.computed_strength != null && n.base_strength != null && Math.abs(n.computed_strength - n.base_strength) > 0.01 && (
+                    <span className={`qbaf-delta ${n.computed_strength - n.base_strength > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
+                      ({n.computed_strength - n.base_strength > 0 ? '+' : ''}{(n.computed_strength - n.base_strength).toFixed(2)})
+                    </span>
+                  )}
                 </div>
                 <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>{n.text}</div>
                 {attacks.map(a => (
                   <div key={a.id} className="diag-an-edge diag-an-attack">
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
                     ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
+                    {a.weight != null && <QbafEdgeIndicator edge={a} />}
                     {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
                   </div>
                 ))}
@@ -250,6 +541,7 @@ function OverviewView() {
                   <div key={s.id} className="diag-an-edge diag-an-support">
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'default' }} title={AIF_TOOLTIPS['RA']}>RA</span>
                     ← {s.source} supports
+                    {s.weight != null && <QbafEdgeIndicator edge={s} />}
                     {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {s.warrant}</div>}
                   </div>
                 ))}

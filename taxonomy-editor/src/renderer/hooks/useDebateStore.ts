@@ -375,13 +375,20 @@ async function getRelevantTaxonomyContext(
       }
     }
 
-    const filteredPov = selectRelevantNodes(allPovNodes, scores, threshold);
-    const filteredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold);
+    const scoredPov = selectRelevantNodes(allPovNodes, scores, threshold);
+    const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold);
+
+    // Unwrap ScoredPovNode → PovNode and build nodeScores map
+    const filteredPov = scoredPov.map(s => s.node);
+    const filteredCC = scoredCC.map(s => s.node);
+    const nodeScores = new Map<string, number>();
+    for (const s of scoredPov) nodeScores.set(s.node.id, s.score);
+    for (const s of scoredCC) nodeScores.set(s.node.id, s.score);
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
-    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry };
+    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
@@ -640,7 +647,7 @@ interface DebateStore {
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
   debateModel: string | null; // debate-specific model override (null = use global)
-  debateTemperature: number | null; // debate-specific temperature (null = use default 0.3)
+  debateTemperature: number | null; // debate-specific temperature (null = use default 0.7)
   diagnosticsEnabled: boolean;
   selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
   diagPopoutOpen: boolean;
@@ -1092,7 +1099,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const clarifications: { speaker: string; questions: string[]; answers: string }[] = [];
     const clarEntries = get().activeDebate!.transcript.filter((e) => e.type === 'clarification');
     for (const entry of clarEntries) {
-      const qs = (entry.metadata?.questions as string[]) || [entry.content];
+      const rawQs = entry.metadata?.questions;
+      // Handle both old format (string[]) and new format ({question, options}[])
+      const qs: string[] = Array.isArray(rawQs)
+        ? rawQs.map((q: unknown) => typeof q === 'string' ? q : (q as { question: string }).question ?? String(q))
+        : [entry.content];
       clarifications.push({
         speaker: POVER_INFO[entry.speaker as Exclude<PoverId, 'user'>]?.label || entry.speaker,
         questions: qs,
@@ -1105,7 +1116,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
-      if (!isStillValid()) return;
+      if (!isStillValid()) { set({ debateGenerating: null }); return; }
       let refinedTopic: string;
       const parsed = parseAIJson<{ refined_topic?: string }>(text);
       refinedTopic = parsed?.refined_topic || text.trim();
@@ -1119,6 +1130,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: [],
         metadata: { refined_topic: refinedTopic },
       });
+      // Synthesis succeeded — auto-advance to the debate
+      set({ debateGenerating: null });
+      await saveDebate();
+      await get().beginDebate();
+      return;
     } catch (err) {
       set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
@@ -1536,6 +1552,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     let responderPover: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = '';
     let addressingLabel = 'general';
+    let aiSelectedResponder: string | null = null; // Track what the AI originally picked
 
     try {
       const { text } = await generateTextWithProgress(selectionPrompt, model, `Selecting next responder (${model})`, set);
@@ -1547,6 +1564,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         responderPover = aiPovers.find((p) =>
           POVER_INFO[p].label.toLowerCase() === responderName,
         ) ?? null;
+        aiSelectedResponder = responderPover;
 
         focusPoint = modParsed.focus_point || '';
         addressingLabel = modParsed.addressing || 'general';
@@ -1576,9 +1594,53 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return;
     }
 
-    if (!responderPover) {
-      responderPover = aiPovers[0];
+    // Enforce turn alternation: never select the last speaker
+    const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
+      (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
+    );
+    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<PoverId, 'user'> | undefined;
+
+    if (!responderPover || responderPover === lastSpeaker) {
+      // Pick someone other than the last speaker
+      const alternatives = aiPovers.filter(p => p !== lastSpeaker);
+      responderPover = alternatives.length > 0 ? alternatives[0] : aiPovers[0];
     }
+
+    // Build moderator trace for diagnostics (t/161)
+    const anNodes = activeDebate.argument_network?.nodes ?? [];
+    const moderatorTrace: Record<string, unknown> = {
+      selected: POVER_INFO[responderPover].label,
+      excluded_last_speaker: lastSpeaker ? POVER_INFO[lastSpeaker]?.label ?? lastSpeaker : null,
+      candidates: aiPovers
+        .filter(p => p !== lastSpeaker)
+        .map((p, i) => {
+          const poverClaims = anNodes.filter(n => n.speaker === p);
+          const avgStrength = poverClaims.length > 0
+            ? poverClaims.reduce((sum, n) => sum + (n.computed_strength ?? 0.5), 0) / poverClaims.length
+            : null;
+          return {
+            debater: POVER_INFO[p].label,
+            computed_strength: avgStrength,
+            rank: i + 1,
+          };
+        }),
+      convergence_score: activeDebate.convergence_tracker?.issues?.[0]?.convergence ?? null,
+      convergence_triggered: false,
+      commitment_snapshot: Object.fromEntries(
+        aiPovers.map(p => [
+          POVER_INFO[p].label,
+          {
+            asserted: (activeDebate.commitments?.[p]?.asserted ?? []).length,
+            conceded: (activeDebate.commitments?.[p]?.conceded ?? []).length,
+            challenged: (activeDebate.commitments?.[p]?.challenged ?? []).length,
+          },
+        ])
+      ),
+      selection_reason: responderPover === aiSelectedResponder
+        ? 'moderator_ai_selection'
+        : aiSelectedResponder ? 'turn_alternation_override' : 'fallback',
+      focus_point: focusPoint,
+    };
 
     // Step 2: Generate the cross-response
     set({ debateGenerating: responderPover });
@@ -1625,7 +1687,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: taxonomyRefs,
         policy_refs: meta.policy_refs,
         addressing: 'all',
-        metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, ...meta },
+        metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, moderator_trace: moderatorTrace, ...meta },
       });
 
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
