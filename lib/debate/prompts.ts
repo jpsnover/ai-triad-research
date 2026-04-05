@@ -16,15 +16,7 @@ const READING_LEVEL = 'Write your statement text at a 10th-grade reading level. 
 // Each length tier specifies both the size constraint AND which
 // dialectical requirements apply at that tier.
 
-const LENGTH_INSTRUCTIONS: Record<string, string> = {
-  brief: 'Be concise — 2-4 sentences maximum. State your core claim and one supporting reason. Skip steelmanning and assumption disclosure at this length.',
-  medium: 'Provide a moderately detailed response — 2–3 paragraphs. Your steelman sentence, core argument, and any vulnerability acknowledgment can be woven together naturally. You do not need a separate paragraph for each. Before presenting your argument, include a one-sentence steelman of the strongest opposing point you are directly responding to. If multiple opponents made different arguments, steelman the one you are primarily addressing — not all of them.',
-  detailed: 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence.',
-};
-
-export function lengthInstruction(length: string): string {
-  return LENGTH_INSTRUCTIONS[length] || LENGTH_INSTRUCTIONS.medium;
-}
+const DETAIL_INSTRUCTION = 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence.';
 
 // ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
@@ -98,27 +90,17 @@ BUT: concession is powerful because it's rare. If you concede every turn, it bec
 empty ritual. Not every response needs a concession — sometimes the right move is to
 directly challenge, provide a counterexample, or reframe the issue.`;
 
-/**
- * Assemble instruction blocks gated by response length tier.
- * Brief: minimal (~500 tokens). Medium: core strategy (~1,200 tokens). Detailed: full set.
- */
-function tieredInstructions(lengthKey: string): string {
-  const blocks: string[] = [TAXONOMY_USAGE];
-
-  if (lengthKey === 'medium' || lengthKey === 'detailed') {
-    blocks.push(MUST_CORE_BEHAVIORS);
-    blocks.push(SHOULD_WHEN_RELEVANT);
-  }
-
-  if (lengthKey === 'detailed') {
-    blocks.push(MUST_EXTENDED);
-    blocks.push(STEELMAN_INSTRUCTION);
-    blocks.push(DIALECTICAL_MOVES);
-  }
-
-  blocks.push(OUTPUT_FORMAT);
-
-  return blocks.join('\n\n');
+/** Assemble all instruction blocks — always the full set (DT-1: length tiers removed). */
+function allInstructions(): string {
+  return [
+    TAXONOMY_USAGE,
+    MUST_CORE_BEHAVIORS,
+    SHOULD_WHEN_RELEVANT,
+    MUST_EXTENDED,
+    STEELMAN_INSTRUCTION,
+    DIALECTICAL_MOVES,
+    OUTPUT_FORMAT,
+  ].join('\n\n');
 }
 
 const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down.
@@ -353,11 +335,9 @@ export function openingStatementPrompt(
   priorBlock: string,
   isFirst: boolean,
   debateSourceContent?: string,
-  length: string = 'medium',
+  _length?: string, // Deprecated — always generates detailed (DT-1)
   documentAnalysis?: DocumentAnalysis,
 ): string {
-  const lengthKey = length || 'medium';
-  const includeAssumptions = lengthKey !== 'brief';
   const hasDocument = !!(documentAnalysis || debateSourceContent);
 
   // Use structured analysis when available, fall back to raw source content
@@ -374,9 +354,9 @@ export function openingStatementPrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
-${lengthInstruction(lengthKey)}
+${DETAIL_INSTRUCTION}
 
-${tieredInstructions(lengthKey)}
+${allInstructions()}
 
 ${taxonomyContext}
 ${priorBlock}
@@ -387,8 +367,10 @@ The debate topic is:
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
-${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements.${lengthKey === 'detailed' ? ' Before critiquing any prior position, briefly acknowledge the strongest version of that position.' : ''} You may reference or contrast with them, but focus on your own position.`}
-${includeAssumptions ? `\nState 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.\n` : ''}
+${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
+
+State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
@@ -398,10 +380,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion from your statement", "targets": []}
   ],
-  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}]${includeAssumptions ? `,
+  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "key_assumptions": [
     {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
-  ]` : ''}
+  ]
 }
 
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if no policies are directly relevant.`;
@@ -417,11 +399,9 @@ export function debateResponsePrompt(
   question: string,
   addressing: string,
   debateSourceContent?: string,
-  length: string = 'medium',
+  _length?: string, // Deprecated — always generates detailed (DT-1)
   documentAnalysis?: DocumentAnalysis,
 ): string {
-  const lengthKey = length || 'medium';
-
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
     : sourceContext(debateSourceContent);
@@ -429,9 +409,9 @@ export function debateResponsePrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
-${lengthInstruction(lengthKey)}
+${DETAIL_INSTRUCTION}
 
-${tieredInstructions(lengthKey)}
+${allInstructions()}
 
 ${taxonomyContext}
 
@@ -456,8 +436,8 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
   ],
-  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}]${lengthKey !== 'brief' ? `,
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"` : ''}
+  "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
 }
 
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
@@ -680,13 +660,11 @@ export function crossRespondPrompt(
   recentTranscript: string,
   focusPoint: string,
   addressing: string,
-  length: string = 'medium',
+  _length?: string, // Deprecated — always generates detailed (DT-1)
   debateSourceContent?: string,
   documentAnalysis?: DocumentAnalysis,
   priorMoveTypes?: string[],
 ): string {
-  const lengthKey = length || 'medium';
-
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
@@ -699,9 +677,9 @@ export function crossRespondPrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${READING_LEVEL}
-${lengthInstruction(lengthKey)}
+${DETAIL_INSTRUCTION}
 
-${tieredInstructions(lengthKey)}
+${allInstructions()}
 
 ${taxonomyContext}
 
