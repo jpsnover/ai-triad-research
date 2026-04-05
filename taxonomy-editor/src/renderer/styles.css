@@ -10354,3 +10354,16 @@ body {
 .coverage-status-covered { color: #16a34a; }
 .coverage-status-partial { color: #eab308; }
 .coverage-status-uncovered { color: #dc2626; }
+
+/* CT-4: Click-to-steer for uncovered claims */
+.coverage-claim-steerable { cursor: pointer; transition: background 0.15s, border-left-color 0.15s; }
+.coverage-claim-steerable:hover { background: rgba(59,130,246,0.1); border-left-color: #3b82f6; }
+.coverage-claim-steerable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.coverage-steer-hint {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-style: italic;
+}
+.coverage-claim-steerable:hover .coverage-steer-hint { opacity: 1; }

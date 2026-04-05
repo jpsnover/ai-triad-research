@@ -8,6 +8,7 @@
 
 import type { DocumentAnalysis } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
+import { interpretationText } from './taxonomyTypes';
 
 const READING_LEVEL = 'Write your statement text at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
 
@@ -776,15 +777,26 @@ export function probingQuestionsPrompt(
   transcript: string,
   unreferencedNodes: string[],
   hasSourceDocument: boolean = false,
+  uncoveredClaims?: string[],
 ): string {
   const unreferencedBlock = unreferencedNodes.length > 0
     ? `\n\n=== TAXONOMY NODES NOT YET REFERENCED ===\n${unreferencedNodes.join('\n')}`
+    : '';
+
+  const uncoveredBlock = uncoveredClaims && uncoveredClaims.length > 0
+    ? `\n\n=== UNCOVERED DOCUMENT CLAIMS ===
+The following claims from the source document have NOT been addressed by any debater. Consider asking questions that would force debaters to engage with these gaps:
+${uncoveredClaims.join('\n')}`
     : '';
 
   const documentGuidance = hasSourceDocument
     ? `- Identify parts of the source document that debaters ignored, glossed over, or mischaracterized — ask them to address those specific passages
 - Ask whether the document's framing itself is contested: does it define key terms in a way that advantages one perspective?
 `
+    : '';
+
+  const uncoveredGuidance = uncoveredClaims && uncoveredClaims.length > 0
+    ? `- PRIORITY: At least 1-2 questions should directly target uncovered document claims listed below — the debate is incomplete until these are addressed\n`
     : '';
 
   return `You are a debate facilitator. Given this debate, suggest 3-5 probing questions that would advance the discussion.
@@ -794,7 +806,7 @@ The best probing question is a "crux" — one where a debater would say: "If the
 - Would actually change someone's mind if answered — not just interesting-sounding questions
 - Distinguish between empirical disagreements (resolvable with evidence) and value disagreements (requiring trade-off reasoning)
 - Expose unstated assumptions that debaters are relying on without defending
-${documentGuidance}- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
+${documentGuidance}${uncoveredGuidance}- ${unreferencedNodes.length > 0 ? 'Explore taxonomy areas not yet discussed' : 'Deepen the current lines of argument'}
 - Push debaters beyond their comfort zones — ask them to engage with evidence that challenges their view
 
 For each question, indicate which debater's position it most threatens and why.
@@ -804,7 +816,7 @@ For each question, indicate which debater's position it most threatens and why.
 
 === TRANSCRIPT ===
 ${transcript}
-${unreferencedBlock}
+${unreferencedBlock}${uncoveredBlock}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -903,11 +915,11 @@ export function formatSituationDebateContext(cc: SituationDebateInput): string {
     `Description: ${cc.description}`,
     '',
     '=== POV INTERPRETATIONS ===',
-    `Accelerationist: ${cc.interpretations.accelerationist}`,
+    `Accelerationist: ${interpretationText(cc.interpretations.accelerationist)}`,
     '',
-    `Safetyist: ${cc.interpretations.safetyist}`,
+    `Safetyist: ${interpretationText(cc.interpretations.safetyist)}`,
     '',
-    `Skeptic: ${cc.interpretations.skeptic}`,
+    `Skeptic: ${interpretationText(cc.interpretations.skeptic)}`,
   ];
 
   if (cc.assumes && cc.assumes.length > 0) {

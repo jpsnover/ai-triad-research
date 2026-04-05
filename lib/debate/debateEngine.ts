@@ -59,6 +59,7 @@ import {
   parsePoverResponse,
 } from './helpers';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
+import { computeCoverageMap } from './coverageTracker';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -760,7 +761,29 @@ export class DebateEngine {
 
     const transcript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
     const hasSourceDoc = this.config.sourceType === 'document' || this.config.sourceType === 'url';
-    const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc);
+
+    // CT-4: Compute uncovered document claims to steer probing questions toward gaps
+    let uncoveredClaims: string[] | undefined;
+    if (this.session.document_analysis?.i_nodes?.length) {
+      const anNodes = this.session.argument_network?.nodes ?? [];
+      if (anNodes.length > 0) {
+        try {
+          const documentClaims = this.session.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
+          const coverageMap = computeCoverageMap(anNodes, documentClaims);
+          uncoveredClaims = coverageMap.coverage
+            .filter(c => c.status === 'uncovered')
+            .map(c => {
+              const text = documentClaims.find(dc => dc.id === c.claimId)?.text ?? c.claimId;
+              return `[${c.claimId}] ${text}`;
+            })
+            .slice(0, 10); // Cap at 10 to avoid prompt bloat
+        } catch {
+          // Coverage computation failed — proceed without uncovered claims
+        }
+      }
+    }
+
+    const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc, uncoveredClaims);
     const text = await this.generate(prompt, 'Probing questions');
 
     let questions: { text: string; targets: string[] }[] = [];

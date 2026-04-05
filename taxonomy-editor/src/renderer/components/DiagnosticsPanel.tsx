@@ -635,8 +635,9 @@ function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
   );
 }
 
-/** Document Coverage section (CT-3): shows per-claim coverage status sorted uncovered-first. */
-function DocumentCoverageSection({ coverageMap }: { coverageMap: CoverageMap }) {
+/** Document Coverage section (CT-3/CT-4): shows per-claim coverage status sorted uncovered-first.
+ *  Click-to-steer (CT-4): uncovered/partial claims are clickable — injects a steering question into the debate. */
+function DocumentCoverageSection({ coverageMap, onSteerToClaim }: { coverageMap: CoverageMap; onSteerToClaim?: (claimText: string) => void }) {
   const { stats, coverage, documentClaims } = coverageMap;
   const claimTextById = useMemo(() => {
     const m = new Map<string, string>();
@@ -664,14 +665,26 @@ function DocumentCoverageSection({ coverageMap }: { coverageMap: CoverageMap }) 
         <span className="coverage-stat coverage-stat-uncovered">{stats.uncoveredCount} uncovered</span>
       </div>
       <div className="coverage-claim-list">
-        {sortedCoverage.map(entry => (
-          <div key={entry.claimId} className={`coverage-claim-row coverage-claim-${entry.status}`}>
+        {sortedCoverage.map(entry => {
+          const claimText = claimTextById.get(entry.claimId) ?? entry.claimId;
+          const isClickable = onSteerToClaim && entry.status !== 'covered';
+          return (
+          <div
+            key={entry.claimId}
+            className={`coverage-claim-row coverage-claim-${entry.status}${isClickable ? ' coverage-claim-steerable' : ''}`}
+            onClick={isClickable ? () => onSteerToClaim(claimText) : undefined}
+            title={isClickable ? 'Click to steer the debate toward this claim' : undefined}
+            role={isClickable ? 'button' : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSteerToClaim(claimText); } } : undefined}
+          >
             <div className="coverage-claim-header">
               {statusIcon(entry.status)}
               <span className="coverage-claim-id">{entry.claimId}</span>
+              {isClickable && <span className="coverage-steer-hint">click to steer</span>}
               <span className="coverage-claim-score">{(entry.similarity * 100).toFixed(0)}%</span>
             </div>
-            <div className="coverage-claim-text">{claimTextById.get(entry.claimId) ?? entry.claimId}</div>
+            <div className="coverage-claim-text">{claimText}</div>
             {entry.matchedAnNodes.length > 0 && (
               <div className="coverage-matched-nodes">
                 <span className="diag-muted">Matched AN:</span>
@@ -681,14 +694,15 @@ function DocumentCoverageSection({ coverageMap }: { coverageMap: CoverageMap }) 
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </CollapsibleSection>
   );
 }
 
 function OverviewView() {
-  const { activeDebate } = useDebateStore();
+  const { activeDebate, askQuestion, debateGenerating } = useDebateStore();
   if (!activeDebate) return null;
 
   const an = activeDebate.argument_network;
@@ -716,8 +730,10 @@ function OverviewView() {
         <StrengthTimeline timeline={timeline} nodes={an.nodes} />
       )}
 
-      {/* Document Coverage (CT-3) */}
-      {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} />}
+      {/* Document Coverage (CT-3/CT-4) — click-to-steer injects a question about uncovered claims */}
+      {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} onSteerToClaim={debateGenerating ? undefined : (claimText) => {
+        askQuestion(`What is your perspective on the claim that ${claimText}?`);
+      }} />}
 
       {/* Argument Network */}
       {an && an.nodes.length > 0 && (() => {
