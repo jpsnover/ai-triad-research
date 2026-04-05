@@ -7,6 +7,10 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
+import { computeQbafStrengths } from '@lib/debate';
+import type { QbafNode, QbafEdge } from '@lib/debate';
+import { computeCoverageMap } from '@lib/debate/coverageTracker';
+import type { CoverageMap, CoverageMapEntry } from '@lib/debate/coverageTracker';
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -487,6 +491,202 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
   );
 }
 
+/** What-If Mode (D-Q6): counterfactual strength propagation via DF-QuAD. */
+function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {
+  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const [active, setActive] = useState(false);
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+
+  // Original strengths from the debate data
+  const originalStrengths = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const n of nodes) {
+      if (n.computed_strength != null) map[n.id] = n.computed_strength;
+      else if (n.base_strength != null) map[n.id] = n.base_strength;
+    }
+    return map;
+  }, [nodes]);
+
+  // Counterfactual: re-run DF-QuAD with overridden base_strengths
+  const whatIfStrengths = useMemo(() => {
+    if (!active || Object.keys(overrides).length === 0) return null;
+
+    const qbafNodes: QbafNode[] = nodes
+      .filter(n => n.base_strength != null)
+      .map(n => ({
+        id: n.id,
+        base_strength: overrides[n.id] ?? n.base_strength ?? 0.5,
+      }));
+    const qbafEdges: QbafEdge[] = edges
+      .filter(e => e.weight != null)
+      .map(e => ({
+        source: e.source,
+        target: e.target,
+        type: e.type,
+        weight: e.weight!,
+        attack_type: e.attack_type,
+      }));
+
+    if (qbafNodes.length === 0) return null;
+    const result = computeQbafStrengths(qbafNodes, qbafEdges);
+    const map: Record<string, number> = {};
+    for (const [id, val] of result.strengths) map[id] = val;
+    return map;
+  }, [active, overrides, nodes, edges]);
+
+  const scoredNodes = nodes.filter(n => n.base_strength != null);
+  if (!qbafEnabled || scoredNodes.length === 0) return null;
+
+  const handleSliderChange = (nodeId: string, value: number) => {
+    setOverrides(prev => ({ ...prev, [nodeId]: value }));
+  };
+
+  const handleReset = () => {
+    setOverrides({});
+  };
+
+  const hasOverrides = Object.keys(overrides).length > 0;
+
+  return (
+    <CollapsibleSection title={`What-If Mode — counterfactual strength propagation${active ? ' (active)' : ''}`} defaultOpen={active}>
+      <div className="whatif-header">
+        <button
+          className={`btn btn-sm whatif-toggle ${active ? 'whatif-toggle-active' : ''}`}
+          onClick={() => { setActive(!active); if (active) setOverrides({}); }}
+        >
+          {active ? 'Disable What-If' : 'Enable What-If'}
+        </button>
+        {active && hasOverrides && (
+          <button className="btn btn-sm whatif-reset" onClick={handleReset}>
+            Reset
+          </button>
+        )}
+        {active && hasOverrides && whatIfStrengths && (
+          <span className="whatif-status">
+            {Object.keys(overrides).length} override{Object.keys(overrides).length !== 1 ? 's' : ''} applied
+          </span>
+        )}
+      </div>
+
+      {active && (
+        <div className="whatif-node-list">
+          {scoredNodes.map(n => {
+            const origBase = n.base_strength ?? 0.5;
+            const currentBase = overrides[n.id] ?? origBase;
+            const isOverridden = overrides[n.id] != null;
+            const origComputed = originalStrengths[n.id] ?? origBase;
+            const whatIfComputed = whatIfStrengths?.[n.id] ?? origComputed;
+            const delta = whatIfStrengths ? whatIfComputed - origComputed : 0;
+
+            return (
+              <div key={n.id} className={`whatif-node ${isOverridden ? 'whatif-node-modified' : ''}`}>
+                <div className="whatif-node-header">
+                  <span className="diag-an-id">{n.id}</span>
+                  <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
+                  {isOverridden && (
+                    <button
+                      className="whatif-node-reset-btn"
+                      onClick={() => setOverrides(prev => { const next = { ...prev }; delete next[n.id]; return next; })}
+                      title="Reset this node"
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+                <div className="whatif-node-text">{n.text.slice(0, 100)}{n.text.length > 100 ? '...' : ''}</div>
+                <div className="whatif-slider-row">
+                  <span className="diag-k">Base:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={currentBase}
+                    onChange={e => handleSliderChange(n.id, Number(e.target.value))}
+                    className="whatif-slider"
+                    title={`Base strength: ${currentBase.toFixed(2)} (original: ${origBase.toFixed(2)})`}
+                  />
+                  <span className="whatif-slider-value">{currentBase.toFixed(2)}</span>
+                  {isOverridden && (
+                    <span className="whatif-orig-value">(was {origBase.toFixed(2)})</span>
+                  )}
+                </div>
+                {whatIfStrengths && (
+                  <div className="whatif-result-row">
+                    <span className="diag-k">Computed:</span>
+                    <span className="diag-v">{origComputed.toFixed(2)}</span>
+                    <span className="diag-qbaf-arrow">{'\u2192'}</span>
+                    <span className={`whatif-new-value ${Math.abs(delta) > 0.01 ? (delta > 0 ? 'whatif-up' : 'whatif-down') : ''}`}>
+                      {whatIfComputed.toFixed(2)}
+                    </span>
+                    {Math.abs(delta) > 0.01 && (
+                      <span className={`whatif-delta ${delta > 0 ? 'whatif-delta-up' : 'whatif-delta-down'}`}>
+                        {delta > 0 ? '\u2191' : '\u2193'} {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+/** Document Coverage section (CT-3): shows per-claim coverage status sorted uncovered-first. */
+function DocumentCoverageSection({ coverageMap }: { coverageMap: CoverageMap }) {
+  const { stats, coverage, documentClaims } = coverageMap;
+  const claimTextById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of documentClaims) m.set(c.id, c.text);
+    return m;
+  }, [documentClaims]);
+
+  // Sort: uncovered first, then partially_covered, then covered
+  const sortedCoverage = useMemo(() => {
+    const order: Record<string, number> = { uncovered: 0, partially_covered: 1, covered: 2 };
+    return [...coverage].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  }, [coverage]);
+
+  const statusIcon = (status: string) => {
+    if (status === 'covered') return <span className="coverage-status-icon coverage-status-covered" title="Covered">&#9679;</span>;
+    if (status === 'partially_covered') return <span className="coverage-status-icon coverage-status-partial" title="Partially covered">&#9681;</span>;
+    return <span className="coverage-status-icon coverage-status-uncovered" title="Uncovered">&#9675;</span>;
+  };
+
+  return (
+    <CollapsibleSection title={`Document Coverage — ${stats.coveredCount + stats.partiallyCoveredCount}/${stats.totalClaims} claims (${Math.round(stats.coveragePercentage)}%)`} defaultOpen>
+      <div className="coverage-summary-row">
+        <span className="coverage-stat coverage-stat-covered">{stats.coveredCount} covered</span>
+        <span className="coverage-stat coverage-stat-partial">{stats.partiallyCoveredCount} partial</span>
+        <span className="coverage-stat coverage-stat-uncovered">{stats.uncoveredCount} uncovered</span>
+      </div>
+      <div className="coverage-claim-list">
+        {sortedCoverage.map(entry => (
+          <div key={entry.claimId} className={`coverage-claim-row coverage-claim-${entry.status}`}>
+            <div className="coverage-claim-header">
+              {statusIcon(entry.status)}
+              <span className="coverage-claim-id">{entry.claimId}</span>
+              <span className="coverage-claim-score">{(entry.similarity * 100).toFixed(0)}%</span>
+            </div>
+            <div className="coverage-claim-text">{claimTextById.get(entry.claimId) ?? entry.claimId}</div>
+            {entry.matchedAnNodes.length > 0 && (
+              <div className="coverage-matched-nodes">
+                <span className="diag-muted">Matched AN:</span>
+                {entry.matchedAnNodes.map(nodeId => (
+                  <span key={nodeId} className="diag-badge" style={{ fontSize: '0.55rem' }}>{nodeId}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </CollapsibleSection>
+  );
+}
+
 function OverviewView() {
   const { activeDebate } = useDebateStore();
   if (!activeDebate) return null;
@@ -496,12 +696,28 @@ function OverviewView() {
   const diag = activeDebate.diagnostics;
   const timeline = activeDebate.qbaf_timeline;
 
+  // Coverage map (CT-3) — computed when document_analysis has claims
+  const coverageMap = useMemo<CoverageMap | null>(() => {
+    if (!activeDebate?.document_analysis?.i_nodes?.length) return null;
+    const anNodes = activeDebate.argument_network?.nodes ?? [];
+    if (anNodes.length === 0) return null;
+    const documentClaims = activeDebate.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
+    try {
+      return computeCoverageMap(anNodes, documentClaims);
+    } catch {
+      return null;
+    }
+  }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
+
   return (
     <div className="diag-overview">
       {/* Strength Timeline (D-Q5) */}
       {timeline && timeline.length > 0 && an && (
         <StrengthTimeline timeline={timeline} nodes={an.nodes} />
       )}
+
+      {/* Document Coverage (CT-3) */}
+      {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} />}
 
       {/* Argument Network */}
       {an && an.nodes.length > 0 && (() => {
@@ -551,6 +767,11 @@ function OverviewView() {
         </CollapsibleSection>
         );
       })()}
+
+      {/* What-If Mode (D-Q6) */}
+      {an && an.nodes.length > 0 && (
+        <WhatIfSection nodes={an.nodes} edges={an.edges} />
+      )}
 
       {/* Commitment Stores */}
       {commitments && Object.keys(commitments).length > 0 && (

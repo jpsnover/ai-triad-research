@@ -11,6 +11,7 @@
  */
 
 import { cosineSimilarity } from './taxonomyRelevance';
+import { ActionableError } from './errors';
 import type { DocumentINode, ArgumentNetworkNode, ClaimCoverageEntry } from './types';
 
 // ── Types ─────────────────────────────────────────────────
@@ -29,6 +30,39 @@ export interface CoverageResult {
 export interface CoverageOptions {
   /** Cosine similarity threshold for considering a claim "discussed". Default: 0.65. */
   threshold?: number;
+}
+
+/** Tri-state coverage status for richer reporting (CT-1). */
+export type CoverageStatus = 'covered' | 'uncovered' | 'partially_covered';
+
+/** Per-claim coverage detail with tri-state status and matched AN node IDs. */
+export interface CoverageMapEntry {
+  claimId: string;
+  status: CoverageStatus;
+  /** AN node IDs that matched above the partial threshold. */
+  matchedAnNodes: string[];
+  /** Highest similarity score among all AN nodes. */
+  similarity: number;
+}
+
+/** Full coverage map with per-claim detail and aggregate stats (CT-1). */
+export interface CoverageMap {
+  documentClaims: Array<{ id: string; text: string }>;
+  coverage: CoverageMapEntry[];
+  stats: {
+    totalClaims: number;
+    coveredCount: number;
+    partiallyCoveredCount: number;
+    uncoveredCount: number;
+    coveragePercentage: number;
+  };
+}
+
+export interface CoverageMapOptions {
+  /** Similarity above this = partially_covered. Default: 0.3. */
+  partialThreshold?: number;
+  /** Similarity above this = covered. Default: 0.5. */
+  coveredThreshold?: number;
 }
 
 // ── Engine ────────────────────────────────────────────────
@@ -141,6 +175,98 @@ export function computeCoverageByTextOverlap(
     coverage_ratio: totalCount > 0 ? discussedCount / totalCount : 0,
     discussed_count: discussedCount,
     total_count: totalCount,
+  };
+}
+
+// ── Tri-state coverage engine (CT-1) ──────────────────────
+
+/**
+ * Compute a tri-state coverage map matching AN nodes to source document claims
+ * using word-level Jaccard similarity.
+ *
+ * Thresholds:
+ * - > coveredThreshold (default 0.5) → 'covered'
+ * - > partialThreshold (default 0.3) → 'partially_covered'
+ * - otherwise → 'uncovered'
+ *
+ * All AN nodes above the partial threshold are included in matchedAnNodes,
+ * not just the best match — so consumers can see every relevant debate turn.
+ *
+ * @param anNodes - Argument network nodes from the debate
+ * @param documentClaims - Source document claims (id + text pairs)
+ * @param options - Threshold overrides
+ * @returns CoverageMap with per-claim status and aggregate stats
+ */
+export function computeCoverageMap(
+  anNodes: ArgumentNetworkNode[],
+  documentClaims: Array<{ id: string; text: string }>,
+  options?: CoverageMapOptions,
+): CoverageMap {
+  const partialThreshold = options?.partialThreshold ?? 0.3;
+  const coveredThreshold = options?.coveredThreshold ?? 0.5;
+
+  if (coveredThreshold <= partialThreshold) {
+    throw new ActionableError({
+      goal: 'Compute debate coverage map',
+      problem: `coveredThreshold (${coveredThreshold}) must be greater than partialThreshold (${partialThreshold})`,
+      location: 'coverageTracker.computeCoverageMap',
+      nextSteps: [
+        'Ensure coveredThreshold > partialThreshold in CoverageMapOptions',
+        'Defaults are partialThreshold=0.3, coveredThreshold=0.5',
+      ],
+    });
+  }
+
+  // Pre-tokenize AN nodes once (avoid re-tokenizing per claim)
+  const anTokenSets = anNodes.map(n => ({ id: n.id, tokens: tokenize(n.text) }));
+
+  const coverage: CoverageMapEntry[] = [];
+
+  for (const claim of documentClaims) {
+    const claimTokens = tokenize(claim.text);
+    let bestScore = 0;
+    const matchedAnNodes: string[] = [];
+
+    for (const an of anTokenSets) {
+      const score = jaccardSimilarity(claimTokens, an.tokens);
+      if (score > bestScore) bestScore = score;
+      if (score >= partialThreshold) matchedAnNodes.push(an.id);
+    }
+
+    let status: CoverageStatus;
+    if (bestScore >= coveredThreshold) {
+      status = 'covered';
+    } else if (bestScore >= partialThreshold) {
+      status = 'partially_covered';
+    } else {
+      status = 'uncovered';
+    }
+
+    coverage.push({
+      claimId: claim.id,
+      status,
+      matchedAnNodes,
+      similarity: bestScore,
+    });
+  }
+
+  const coveredCount = coverage.filter(c => c.status === 'covered').length;
+  const partiallyCoveredCount = coverage.filter(c => c.status === 'partially_covered').length;
+  const uncoveredCount = coverage.filter(c => c.status === 'uncovered').length;
+  const totalClaims = coverage.length;
+
+  return {
+    documentClaims,
+    coverage,
+    stats: {
+      totalClaims,
+      coveredCount,
+      partiallyCoveredCount,
+      uncoveredCount,
+      coveragePercentage: totalClaims > 0
+        ? ((coveredCount + partiallyCoveredCount * 0.5) / totalClaims) * 100
+        : 0,
+    },
   };
 }
 

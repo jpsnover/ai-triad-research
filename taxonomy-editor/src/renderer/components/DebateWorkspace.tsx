@@ -12,6 +12,8 @@ import { HarvestDialog } from './HarvestDialog';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConvergencePanel } from './ConvergenceRadar';
 import { nodePovFromId } from '@lib/debate';
+import { computeCoverageMap } from '@lib/debate/coverageTracker';
+import type { CoverageMap } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -83,6 +85,20 @@ function getNodeLabel(nodeId: string): string {
     if (node) return node.label;
   }
   return nodeId;
+}
+
+/** Coverage badge for the debate header (CT-2). Color-coded by coverage %. */
+function CoverageBadge({ coverageMap }: { coverageMap: CoverageMap }) {
+  const { stats } = coverageMap;
+  const pct = Math.round(stats.coveragePercentage);
+  const colorClass = pct > 75 ? 'coverage-badge-green' : pct >= 40 ? 'coverage-badge-yellow' : 'coverage-badge-red';
+  const covered = stats.coveredCount + stats.partiallyCoveredCount;
+
+  return (
+    <span className={`coverage-badge ${colorClass}`} title={`${stats.coveredCount} covered, ${stats.partiallyCoveredCount} partial, ${stats.uncoveredCount} uncovered`}>
+      Coverage: {covered}/{stats.totalClaims} claims ({pct}%)
+    </span>
+  );
 }
 
 /** Clickable taxonomy pill that opens the node in pane 3 */
@@ -440,9 +456,11 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
   const activeDebate = useDebateStore(s => s.activeDebate);
+  const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
   )?.id ?? null;
+  const netDelta = (entry.metadata as Record<string, unknown> | undefined)?.qbaf_net_delta as number | undefined;
   return (
     <div
       className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}
@@ -457,6 +475,14 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           {entry.type}
           {anNodeId && <span className="debate-an-id"> · {anNodeId}</span>}
         </span>
+        {qbafEnabled && netDelta != null && Math.abs(netDelta) > 0.01 && (
+          <span
+            className={`qbaf-net-delta ${netDelta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}
+            title={`Net QBAF strength change this turn: ${netDelta > 0 ? '+' : ''}${netDelta.toFixed(2)}`}
+          >
+            {netDelta > 0 ? '▲' : '▼'} {netDelta > 0 ? '+' : ''}{netDelta.toFixed(2)} net
+          </span>
+        )}
       </div>
       <div className="debate-statement-content markdown-body">
         {findQuery
@@ -687,7 +713,7 @@ interface StructuredQuestion {
 function ClarificationActions() {
   const {
     activeDebate, debateGenerating, debateError,
-    submitAnswersAndSynthesize, runClarification, beginDebate,
+    submitAnswersAndSynthesize, beginDebate,
   } = useDebateStore();
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
@@ -708,8 +734,8 @@ function ClarificationActions() {
       ? (rawQuestions as StructuredQuestion[]).filter(q => q.options && q.options.length > 0)
       : null;
 
-  const allAnswered = structuredQuestions
-    ? structuredQuestions.every((_, i) => {
+  const anyAnswered = structuredQuestions
+    ? structuredQuestions.some((_, i) => {
         const sel = selections[i];
         return sel === '__other__' ? (otherTexts[i] ?? '').trim().length > 0 : !!sel;
       })
@@ -723,12 +749,16 @@ function ClarificationActions() {
     if (submitting) return;
     setSubmitting(true);
     if (structuredQuestions) {
-      // Format structured answers as Q&A text for synthesis
-      const qaText = structuredQuestions.map((q, i) => {
-        const sel = selections[i];
-        const answerText = sel === '__other__' ? (otherTexts[i] ?? '').trim() : sel;
-        return `Q: ${q.question}\nA: ${answerText}`;
-      }).join('\n\n');
+      // Format structured answers as Q&A text for synthesis (skip unanswered questions)
+      const qaText = structuredQuestions
+        .map((q, i) => {
+          const sel = selections[i];
+          if (!sel) return null;
+          const answerText = sel === '__other__' ? (otherTexts[i] ?? '').trim() : sel;
+          return answerText ? `Q: ${q.question}\nA: ${answerText}` : null;
+        })
+        .filter(Boolean)
+        .join('\n\n');
       await submitAnswersAndSynthesize(qaText);
     } else {
       await submitAnswersAndSynthesize(answer.trim());
@@ -736,12 +766,6 @@ function ClarificationActions() {
     setAnswer('');
     setSelections({});
     setOtherTexts({});
-    setSubmitting(false);
-  };
-
-  const handleAnotherRound = async () => {
-    setSubmitting(true);
-    await runClarification();
     setSubmitting(false);
   };
 
@@ -804,7 +828,7 @@ function ClarificationActions() {
                 <button
                   className="btn btn-primary"
                   onClick={handleSubmitAnswers}
-                  disabled={!allAnswered || isGenerating || submitting}
+                  disabled={!anyAnswered || isGenerating || submitting}
                 >
                   {submitting ? 'Synthesizing...' : 'Continue'}
                 </button>
@@ -848,27 +872,10 @@ function ClarificationActions() {
         </>
       )}
 
-      {hasRefinedTopic && activeDebate.phase === 'clarification' && (
-        <div className="debate-clarification-buttons">
-          <button
-            className="btn btn-primary debate-begin-btn"
-            onClick={handleBeginDebate}
-            disabled={isGenerating || submitting}
-          >
-            Let the Debate Begin
-          </button>
-          <button
-            className="btn"
-            onClick={handleAnotherRound}
-            disabled={isGenerating || submitting}
-          >
-            Another Round of Questions
-          </button>
+      {hasClarifications && hasAnswers && activeDebate.phase === 'clarification' && (
+        <div className="debate-action-hint">
+          {isGenerating ? 'Synthesizing topic and starting debate...' : 'Starting debate...'}
         </div>
-      )}
-
-      {hasClarifications && hasAnswers && !hasRefinedTopic && (
-        <div className="debate-action-hint">Synthesizing refined topic...</div>
       )}
     </div>
   );
@@ -1349,6 +1356,19 @@ export function DebateWorkspace() {
 
   useEffect(() => { setFindCurrentIndex(0); }, [findQuery, findTotal]);
 
+  // ── Coverage tracking (CT-2) ───────────────────────────
+  const coverageMap = useMemo<CoverageMap | null>(() => {
+    if (!activeDebate?.document_analysis?.i_nodes?.length) return null;
+    const anNodes = activeDebate.argument_network?.nodes ?? [];
+    if (anNodes.length === 0) return null;
+    const documentClaims = activeDebate.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
+    try {
+      return computeCoverageMap(anNodes, documentClaims);
+    } catch {
+      return null;
+    }
+  }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
+
   useEffect(() => {
     if (!findVisible || findTotal === 0) return;
     document.querySelector(`[data-find-index="${findCurrentIndex}"]`)
@@ -1483,6 +1503,7 @@ export function DebateWorkspace() {
           {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
         </span>
         <span className="debate-topic-text">{activeDebate.topic.final}</span>
+        {coverageMap && <CoverageBadge coverageMap={coverageMap} />}
         {activeDebate.convergence_tracker && activeDebate.convergence_tracker.issues.length > 0 && (
           <button
             className={`btn btn-sm debate-convergence-btn${showConvergence ? ' active' : ''}`}
