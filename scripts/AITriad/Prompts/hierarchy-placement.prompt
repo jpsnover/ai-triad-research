@@ -25,7 +25,8 @@ PLACEMENT RULES:
     "specializes": the orphan is a concrete implementation of the parent's principle.
   - Provide a 1-2 sentence rationale for each placement.
   - A new parent follows the same rules as hierarchy-proposal.prompt: 3-8 word label,
-    genus-differentia description, grade-10 reading level.
+    genus-differentia description (3 lines: genus-differentia, "Encompasses: ...",
+    "Excludes: ..."), grade-10 reading level. Use "\n" to separate lines in JSON.
 
 RULES:
   - Every orphan must appear exactly once in the output — in "placements", "new_parents",
@@ -36,8 +37,8 @@ OUTPUT FORMAT:
 {
   "placements": [
     {
-      "node_id": "saf-methods-030",
-      "parent_id": "saf-methods-080",
+      "node_id": "saf-intentions-030",
+      "parent_id": "saf-intentions-080",
       "relationship": "specializes",
       "rationale": "Defense-in-depth is a specific technical safety approach."
     }
@@ -48,12 +49,12 @@ OUTPUT FORMAT:
       "description": "A thematic area that examines...",
       "children": [
         {
-          "node_id": "cc-071",
+          "node_id": "sit-071",
           "relationship": "is_a",
           "rationale": "..."
         },
         {
-          "node_id": "cc-088",
+          "node_id": "sit-088",
           "relationship": "is_a",
           "rationale": "..."
         }
@@ -62,7 +63,7 @@ OUTPUT FORMAT:
   ],
   "top_level": [
     {
-      "node_id": "skp-methods-025",
+      "node_id": "skp-intentions-025",
       "reason": "Highly specific political reference with no thematic neighbors."
     }
   ]

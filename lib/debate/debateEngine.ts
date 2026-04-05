@@ -31,6 +31,8 @@ import {
   synthesisPrompt,
   openingStatementPrompt,
   crossRespondSelectionPrompt,
+  formatCriticalQuestions,
+  selectReframingMetaphor,
   crossRespondPrompt,
   debateSynthesisPrompt,
   synthExtractPrompt,
@@ -40,7 +42,8 @@ import {
   contextCompressionPrompt,
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from './argumentNetwork';
-import { formatTaxonomyContext } from './taxonomyContext';
+import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
+import type { ContextInjectionManifest } from './taxonomyContext';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
 import type { DocumentAnalysis } from './types';
 import {
@@ -98,6 +101,8 @@ export class DebateEngine {
   private onProgress?: (p: DebateProgress) => void;
   private apiCallCount = 0;
   private totalResponseTimeMs = 0;
+  /** Last computed injection manifest — stored on transcript entries for usage analysis. */
+  private _lastInjectionManifest: ContextInjectionManifest | null = null;
 
   constructor(config: DebateConfig, adapter: AIAdapter, taxonomy: LoadedTaxonomy) {
     this.config = config;
@@ -207,7 +212,7 @@ export class DebateEngine {
     this.progress('generating', undefined, label);
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, this.config.model, {
-      temperature: this.config.temperature ?? 0.5,
+      temperature: this.config.temperature ?? 0.7,
       timeoutMs,
     });
     const elapsed = Date.now() - start;
@@ -277,23 +282,27 @@ export class DebateEngine {
       // If we have embeddings, try to filter — otherwise fall through to unfiltered
       if (matchingVectors.length > 0) {
         const scores = scoreNodeRelevance(matchingVectors[0], this.taxonomy.embeddings);
-        const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3);
-        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3);
-        return formatTaxonomyContext({
+        const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3, 35);
+        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3, 15);
+        const filteredCtx = {
           povNodes: scoredPov.map(s => s.node),
           situationNodes: filteredSit.map(s => s.node),
           policyRegistry: ctx.policyRegistry,
           nodeScores: scores,
-        }, pov);
+        };
+        this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
+        return formatTaxonomyContext(filteredCtx, pov);
       }
     }
 
     // Fallback: unfiltered, top 21 POV + 10 CC
-    return formatTaxonomyContext({
+    const fallbackCtx = {
       povNodes: ctx.povNodes.slice(0, 21),
       situationNodes: ctx.situationNodes.slice(0, 10),
       policyRegistry: ctx.policyRegistry,
-    }, pov);
+    };
+    this._lastInjectionManifest = computeInjectionManifest(fallbackCtx, pov);
+    return formatTaxonomyContext(fallbackCtx, pov);
   }
 
   private formatDebaterEdgeContext(debaterPov: string): string {
@@ -570,6 +579,7 @@ export class DebateEngine {
           move_types: meta.move_types,
           key_assumptions: meta.key_assumptions,
           my_claims: meta.my_claims,
+          injection_manifest: this._lastInjectionManifest ?? undefined,
         },
       });
 
@@ -629,12 +639,42 @@ export class DebateEngine {
       .filter(e => e.argumentation_scheme && e.argumentation_scheme !== 'OTHER')
       .slice(-1)[0]?.argumentation_scheme;
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext, recentScheme);
+    // Metaphor reframing: trigger when debate shows signs of stalling
+    // Conditions: round >= 4 AND (last 3 responses all used CONCEDE+DISTINGUISH, OR convergence detected)
+    let metaphorReframe: ReturnType<typeof selectReframingMetaphor> = null;
+    if (round >= 4) {
+      const last3Moves = this.session.transcript
+        .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+        .slice(-3)
+        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as string[]) ?? []);
+      const concedeDist = last3Moves.filter(m => m === 'CONCEDE').length;
+      const distinguishDist = last3Moves.filter(m => m === 'DISTINGUISH').length;
+      const isStalling = (concedeDist >= 2 && distinguishDist >= 2) || last3Moves.length === 0;
+
+      // Also check if moderator previously detected agreement
+      const recentAgreement = this.session.transcript
+        .filter(e => e.speaker === 'system')
+        .some(e => e.content.includes('agreement'));
+
+      if (isStalling || recentAgreement) {
+        // Collect metaphor sources already used in this debate
+        const usedSources = (an?.edges ?? [])
+          .filter(e => e.argumentation_scheme === 'ARGUMENT_FROM_METAPHOR')
+          .map(e => e.warrant ?? '')
+          .filter(Boolean);
+        metaphorReframe = selectReframingMetaphor(usedSources, round);
+      }
+    }
+
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext, recentScheme, metaphorReframe);
+    const selectionStart = Date.now();
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
+    const selectionElapsed = Date.now() - selectionStart;
 
     let responder: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = 'Continue the discussion';
     let addressing = 'general';
+    let agreementDetected = false;
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -647,8 +687,9 @@ export class DebateEngine {
       responder = labelMap[String(parsed.responder ?? '').toLowerCase()] ?? null;
       focusPoint = parsed.focus_point ?? focusPoint;
       addressing = parsed.addressing ?? 'general';
+      agreementDetected = !!parsed.agreement_detected;
 
-      if (parsed.agreement_detected) {
+      if (agreementDetected) {
         this.addEntry({
           type: 'system',
           speaker: 'system',
@@ -659,6 +700,45 @@ export class DebateEngine {
     } catch (err) {
       this.warn('Parsing moderator responder selection', err, 'Falling back to least-recently-spoken debater');
     }
+
+    // Record moderator deliberation as a system entry with full diagnostics
+    const modEntry = this.addEntry({
+      type: 'system',
+      speaker: 'system',
+      content: `[Round ${round}] Moderator: ${POVER_INFO[responder ?? 'prometheus']?.label ?? responder} → ${addressing} on: ${focusPoint}`,
+      taxonomy_refs: [],
+      metadata: {
+        moderator_trace: {
+          selected: responder,
+          focus_point: focusPoint,
+          addressing,
+          agreement_detected: agreementDetected,
+          recent_scheme: recentScheme ?? null,
+          critical_questions: recentScheme ? (formatCriticalQuestions(recentScheme) || null) : null,
+          metaphor_reframe_offered: metaphorReframe ? metaphorReframe.source : null,
+          metaphor_reframe_used: false, // will be updated from parsed response below
+          argument_network_snapshot: an ? {
+            total_claims: an.nodes.length,
+            total_edges: an.edges.length,
+            unaddressed_claims: an.nodes.filter(n => !an.edges.some(e => e.target === n.id)).length,
+            strongest_unaddressed: an.nodes
+              .filter(n => n.computed_strength != null && !an.edges.some(e => e.target === n.id))
+              .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+              .slice(0, 3)
+              .map(n => ({ id: n.id, speaker: n.speaker, strength: n.computed_strength, text: n.text.slice(0, 100) })),
+          } : null,
+          edge_context_length: edgeContext.length,
+          an_context_length: anContext.length,
+          qbaf_context_length: qbafContext.length,
+        },
+      },
+    });
+    this.recordDiagnostic(modEntry.id, {
+      prompt: selectionPrompt,
+      raw_response: selectionText,
+      model: this.config.model,
+      response_time_ms: selectionElapsed,
+    });
 
     // Fallback: pick pover who spoke least recently
     if (!responder || !this.config.activePovers.includes(responder)) {
@@ -716,6 +796,7 @@ export class DebateEngine {
         move_types: meta.move_types,
         disagreement_type: meta.disagreement_type,
         my_claims: meta.my_claims,
+        injection_manifest: this._lastInjectionManifest ?? undefined,
       },
     });
 
@@ -1037,12 +1118,14 @@ export class DebateEngine {
     }
 
     let text: string;
+    const extractStart = Date.now();
     try {
       text = await this.generate(prompt, 'Claim extraction');
     } catch (err) {
       this.warn(`Claim extraction for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
       return;
     }
+    const extractElapsed = Date.now() - extractStart;
 
     let claims: { text: string; bdi_category?: string; base_strength?: number; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
@@ -1171,6 +1254,15 @@ export class DebateEngine {
 
     this.recordDiagnostic(entryId, {
       extracted_claims: { accepted, rejected },
+      claim_extraction: {
+        prompt,
+        raw_response: text,
+        response_time_ms: extractElapsed,
+        claims_parsed: claims.length,
+        schemes_classified: claims.flatMap(c => c.responds_to ?? [])
+          .filter(r => r.argumentation_scheme)
+          .map(r => r.argumentation_scheme!),
+      },
     });
   }
 }

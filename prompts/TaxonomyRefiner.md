@@ -28,11 +28,13 @@ Label Refinement (3-8 Words): Create a plain-language label that reads like a ne
   GOOD: "Open-Source AI as a Safety Strategy"
   BAD:  "Preemptive Algorithmic Containment Strategies"
 
-Genus-Differentia Description: Write the description using this structure:
-  For POV nodes: "A Belief | A Desire | An Intention within [POV] discourse that [differentia — what makes this node distinct]. Encompasses: [child themes or concrete examples]. Excludes: [what neighboring nodes cover instead]."
-  For situation nodes: "A situation that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+Genus-Differentia Description: Write the description using exactly 3 lines separated by newlines:
+  Line 1 (genus-differentia): "A Belief | A Desire | An Intention within [POV] discourse that [differentia — what makes this node distinct]."
+  Line 2: "Encompasses: [child themes or concrete examples]."
+  Line 3: "Excludes: [what neighboring nodes cover instead]."
+  For situation nodes, Line 1 is: "A situation that [differentia]."
   Rules:
-    - First sentence MUST follow the genus-differentia pattern above.
+    - Each line MUST start with the literal label shown ("Encompasses:", "Excludes:").
     - Name at least one sibling node (by label, not ID) in the Excludes clause.
     - Write at a grade-10 reading level. Short sentences, plain words.
     - 2-4 sentences total. Keep it concise — the Excludes clause does the boundary work.
@@ -54,7 +56,7 @@ Academic Rigor: Use precise, technical language suitable for an evaluative taxon
 
 No Citations:  Do not cite any of the source documents.
 
-References:  Do not reference "this node", Instead use terms "this goal", "this method", "this data"
+References:  Do not reference "this node", Instead use terms "this desire", "this intention", "this belief"
 
 Output: Valid JSON snippet for the single node.
 

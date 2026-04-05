@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
+  closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
@@ -195,6 +196,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File picker
   pickDocumentFile: (): Promise<{ cancelled: boolean; filePath?: string; content?: string }> =>
     ipcRenderer.invoke('pick-document-file'),
+
+  // Taxonomy proposals (for batch approve UI)
+  listProposals: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('list-proposals'),
+  saveProposal: (filename: string, data: unknown): Promise<{ saved?: boolean; error?: string }> =>
+    ipcRenderer.invoke('save-proposal', filename, data),
+
+  // PowerShell prompt files (for Prompt Inspector)
+  readPsPrompt: (promptName: string): Promise<{ text: string | null; error?: string }> =>
+    ipcRenderer.invoke('read-ps-prompt', promptName),
+  listPsPrompts: (): Promise<string[]> =>
+    ipcRenderer.invoke('list-ps-prompts'),
 
   // Clipboard (Electron 40: renderer clipboard API deprecated)
   clipboardWriteText: (text: string): Promise<void> =>

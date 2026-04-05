@@ -9,7 +9,7 @@ import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
-import { DiagnosticsPanel } from './DiagnosticsPanel';
+// DiagnosticsPanel removed — diagnostics always uses popup window
 import { ConvergencePanel } from './ConvergenceRadar';
 import { nodePovFromId } from '@lib/debate';
 import { computeCoverageMap } from '@lib/debate/coverageTracker';
@@ -1218,7 +1218,7 @@ function DebateActions() {
             disabled={disabled}
             title="Number of cross-respond rounds"
           >
-            {[1, 2, 3, 4, 5].map(n => (
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
@@ -1632,8 +1632,7 @@ export function DebateWorkspace() {
         <ConvergencePanel tracker={activeDebate.convergence_tracker} />
       )}
 
-      {/* Diagnostics panel — hidden when popout is open */}
-      {diagnosticsEnabled && !diagPopoutOpen && <DiagnosticsPanel />}
+      {/* Diagnostics always uses popup window — no inline panel */}
 
       {/* Phase 7: Context menu */}
       {contextMenu && (

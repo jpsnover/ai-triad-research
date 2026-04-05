@@ -494,7 +494,7 @@ async function generateViaGemini(
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: _debateTemperature ?? 0.3,
+              temperature: _debateTemperature ?? 0.7,
               maxOutputTokens: 16384,
             },
           }),
@@ -632,6 +632,7 @@ async function generateViaClaude(
       body: JSON.stringify({
         model: apiModel,
         max_tokens: 8192,
+        temperature: _debateTemperature ?? 0.7,
         messages: [{ role: 'user', content: prompt }],
       }),
     }),
@@ -681,7 +682,7 @@ async function generateViaGroq(
       body: JSON.stringify({
         model: apiModel,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
+        temperature: _debateTemperature ?? 0.7,
         max_tokens: 8192,
       }),
     }),
@@ -708,11 +709,11 @@ async function generateViaGroq(
 let _lastLoggedModel: string | null = null;
 let _debateTemperature: number | null = null;
 
-/** Set the temperature for debate AI calls. Pass null to reset to default (0.3). */
+/** Set the temperature for debate AI calls. Pass null to reset to default (0.7). */
 export function setDebateTemperature(temp: number | null): void {
   _debateTemperature = temp;
   if (temp !== null) console.log(`[AI] Debate temperature set to: ${temp}`);
-  else console.log('[AI] Debate temperature reset to default (0.3)');
+  else console.log('[AI] Debate temperature reset to default (0.7)');
 }
 
 export async function generateText(

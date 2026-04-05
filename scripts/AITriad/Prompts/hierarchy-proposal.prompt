@@ -25,9 +25,12 @@ PARENT NODE RULES:
     Labels should read like newspaper headlines, not academic paper titles.
     GOOD: "Open-Source AI as a Safety Strategy"
     BAD:  "Distributed Development Paradigm for Algorithmic Assurance"
-  - The parent description must use genus-differentia form:
-    "A [Desire | Belief | Intention] within [POV] discourse that [differentia]. Encompasses:
-    [list child themes in plain language]. Excludes: [what is NOT covered]."
+  - The parent description must use genus-differentia form with exactly 3 lines
+    separated by "\n" in the JSON string:
+    Line 1: "A [Desire | Belief | Intention] within [POV] discourse that [differentia]."
+    Line 2: "Encompasses: [list child themes in plain language]."
+    Line 3: "Excludes: [what is NOT covered]."
+    Each line MUST start with the literal label shown.
   - The parent inherits the same category as its children.
   - If the POV is situations, omit category references and instead describe
     the thematic area the parent covers.

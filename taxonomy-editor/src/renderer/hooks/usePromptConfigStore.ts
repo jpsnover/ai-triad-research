@@ -12,17 +12,17 @@ import { create } from 'zustand';
 // ── Coded defaults (match current behavior — no change on first load) ──
 
 export const PROMPT_CONFIG_DEFAULTS: Record<string, number | boolean | string> = {
-  'temperature.debate': 0.3,
+  'temperature.debate': 0.7,
   'temperature.factCheck': 0.2,
   'taxonomyNodes.maxTotal': 50,
   'taxonomyNodes.minPerBdi': 3,
-  'taxonomyNodes.threshold': 0.3,
+  'taxonomyNodes.threshold': 0.45,
   'taxonomyNodes.bdiFilter.Beliefs': true,
   'taxonomyNodes.bdiFilter.Desires': true,
   'taxonomyNodes.bdiFilter.Intentions': true,
-  'situationNodes.max': 20,
+  'situationNodes.max': 15,
   'situationNodes.min': 3,
-  'situationNodes.threshold': 0.3,
+  'situationNodes.threshold': 0.45,
   'vulnerabilities.enabled': true,
   'vulnerabilities.max': 10,
   'fallacies.enabled': true,

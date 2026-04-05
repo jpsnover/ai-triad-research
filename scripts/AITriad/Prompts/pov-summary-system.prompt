@@ -46,9 +46,16 @@ REJECTED and you will be asked to redo the analysis):
       If you find fewer than {{UC_MIN}}, look harder — most documents introduce ideas,
       framings, or evidence not yet in the taxonomy.
 
-  Be EXHAUSTIVE. Extract every distinct, salient point the document makes. Longer
-  documents should yield more points. If the document warrants more than the target
-  maximum, include them — completeness matters more than hitting a number.
+  Be EXHAUSTIVE within the document. Extract every distinct, salient point the
+  document actually makes. Longer documents should yield more points.
+
+  ANTI-FABRICATION RULE: Every key_point and factual_claim MUST be traceable to
+  specific text in the document. Do NOT invent points that "sound like" something the
+  document would say. Do NOT add points beyond what the document explicitly contains,
+  even if more seem conceptually appropriate. If the document has fewer points than
+  the target maximum, return only what exists — accuracy matters more than quantity.
+  If you exceed the target maximum because the document is genuinely dense, that is
+  acceptable.
 
   SELF-CHECK before returning: count your key_points per camp, factual_claims, and
   unmapped_concepts. If ANY count is below the minimum, go back and extract more.
@@ -60,15 +67,17 @@ REJECTED and you will be asked to redo the analysis):
     The label and description must be DISTINCT — the label is a short name (like a title),
     the description defines the concept's boundaries.
 
-    DESCRIPTION FORMAT — all descriptions must use genus-differentia structure:
-      For POV concepts: "A [Desire | Belief | Intention] within
-        [accelerationist | safetyist | skeptic] discourse that [what makes this concept
-        distinct]. Encompasses: [concrete examples or sub-themes]. Excludes: [what
-        neighboring concepts cover instead]."
-      For situation concepts: "A situation concept that [differentia].
-        Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+    DESCRIPTION FORMAT — all descriptions must use genus-differentia structure
+    with exactly 3 lines separated by "\n" in the JSON string:
+      Line 1 (genus-differentia): "A [Desire | Belief | Intention] within
+        [accelerationist | safetyist | skeptic] discourse that [what makes this
+        concept distinct]."
+      Line 2: "Encompasses: [concrete examples or sub-themes]."
+      Line 3: "Excludes: [what neighboring concepts cover instead]."
+      For situation concepts, Line 1 is: "A situation concept that [differentia]."
       Rules:
-        - First sentence MUST follow the pattern above.
+        - Each line MUST start with the literal label shown ("Encompasses:", "Excludes:").
+        - Use "\n" to separate the three lines in the JSON string value.
         - 2-4 sentences total. The Excludes clause does the boundary work.
         - Write at a grade-10 reading level. Short sentences, plain words.
 
@@ -95,6 +104,46 @@ KEY POINT DEPTH:
   Do NOT write vague summaries like "The document supports X." Instead, explain
   WHAT the document says, HOW it argues the point, and WHY it matters.
 
+EXAMPLE KEY POINTS:
+
+  Beliefs example:
+    {
+      "point": "The document claims that frontier AI models have demonstrated emergent capabilities at scale thresholds, citing GPT-4's performance on the bar exam (90th percentile) and medical licensing exams. The mechanism proposed is that capabilities emerge discontinuously as parameter counts cross critical thresholds, making capability prediction unreliable. From a safetyist perspective, this unpredictability undermines deployment-time safety assessments — if we cannot predict when dangerous capabilities will emerge, pre-deployment evaluations are insufficient. The document acknowledges that emergent capability claims are contested, noting that some researchers attribute apparent emergence to evaluation methodology rather than genuine phase transitions.",
+      "taxonomy_node_id": "saf-beliefs-014",
+      "category": "Beliefs",
+      "stance": "strongly_aligned",
+      "verbatim": "GPT-4 scored in the 90th percentile on the Uniform Bar Exam, a capability that was not predicted by extrapolation from GPT-3's performance."
+    }
+
+  Desires example:
+    {
+      "point": "The document argues that open-source AI development should be protected as a fundamental prerequisite for democratic governance of AI systems. The reasoning is that proprietary control concentrates power in a small number of corporations, creating a governance bottleneck that undermines public accountability. From an accelerationist perspective, open access accelerates innovation diffusion and prevents monopolistic capture of transformative technology. The document acknowledges tension between openness and dual-use risk, noting that some capabilities may warrant restricted release.",
+      "taxonomy_node_id": "acc-desires-008",
+      "category": "Desires",
+      "stance": "aligned",
+      "verbatim": "Without open access to foundational models, democratic oversight of AI becomes impossible — citizens cannot evaluate what they cannot inspect."
+    }
+
+  Intentions example:
+    {
+      "point": "The document proposes a cost-benefit framework for AI regulation that weighs deployment risks against innovation opportunity costs, arguing that regulation should target specific harms rather than capabilities. The methodology involves decomposing regulatory proposals into measurable impact dimensions — safety improvement, compliance cost, innovation delay — and requiring evidence thresholds before imposing restrictions. From a skeptic perspective, this framework operationalizes proportional governance and resists both accelerationist laissez-faire and safetyist precautionary extremes. The document notes this approach struggles with catastrophic tail risks where expected-value calculations are unreliable.",
+      "taxonomy_node_id": "skp-intentions-003",
+      "category": "Intentions",
+      "stance": "aligned",
+      "verbatim": "Regulation should be triggered by demonstrated harm, not hypothetical capability — we do not ban automobiles because they could theoretically be weaponized."
+    }
+
+EXAMPLE FACTUAL CLAIM:
+    {
+      "claim": "GPT-4 scored in the 90th percentile on the Uniform Bar Exam",
+      "claim_label": "GPT-4 Bar Exam Performance",
+      "doc_position": "supports",
+      "temporal_scope": "current_state",
+      "temporal_bound": "2023-03",
+      "potential_conflict_id": null,
+      "linked_taxonomy_nodes": ["saf-beliefs-014"]
+    }
+
 TEMPORAL CLASSIFICATION FOR FACTUAL CLAIMS:
   Every factual_claim must include temporal_scope and temporal_bound:
     temporal_scope — classify when this claim applies:
@@ -108,9 +157,37 @@ TEMPORAL CLASSIFICATION FOR FACTUAL CLAIMS:
       For historical: the date of the event (e.g., "2023-10-30")
       For timeless: null
 
+EVIDENCE CRITERIA FOR FACTUAL CLAIMS (optional — populate when possible):
+  For each factual_claim, assess argument strength via checkable criteria.
+  Do NOT assign an overall score — answer the criteria and the system computes the score.
+
+  Universal criteria (all claims):
+    specificity: "vague" | "qualified" | "precise"
+      Could you fact-check without asking "which one?"? If yes → precise.
+    has_warrant: true | false
+      Does the claim include reasoning? A specific statistic IS a warrant.
+    internally_consistent: true | false (default true)
+
+  Then answer the 3 criteria matching the claim's BDI category:
+
+  Beliefs claims → evidence_criteria.category_criteria:
+    "evidence_level": "direct_empirical" | "referenced" | "statistical_implicit" | "general_claim"
+
+  Desires claims → evidence_criteria.category_criteria:
+    "values_grounded": true/false, "tradeoff_acknowledged": true/false, "precedent_cited": true/false
+
+  Intentions claims → evidence_criteria.category_criteria:
+    "mechanism_specified": true/false, "scope_bounded": true/false, "failure_mode_addressed": true/false
+
+CLAIM RELATIONS (optional — populate when claims interact):
+  If a factual_claim supports or attacks another claim in the same document, add a
+  claim_relations entry with the target claim's label and the relation type.
+  attack_type: "rebut" (contradicts conclusion), "undercut" (challenges reasoning),
+  "undermine" (challenges evidence), or null for supports.
+
 RULES:
   - Map every point to a taxonomy node ID from the provided taxonomy where possible.
-    Use the exact node IDs (e.g. "acc-goals-001", "saf-data-002", "skp-methods-001").
+    Use the exact node IDs (e.g. "acc-desires-001", "saf-beliefs-002", "skp-intentions-001").
   - CROSS-POV SEARCH: before declaring a concept unmapped, search ALL four taxonomy
     files (accelerationist, safetyist, skeptic, AND situation). A concept may
     appear under a different POV than you would initially expect. For example, a

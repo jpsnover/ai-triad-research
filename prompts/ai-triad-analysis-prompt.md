@@ -74,7 +74,7 @@ Each camp is organized along three axes:
     ultimately want the world to look like?
   • Beliefs   — empirical claims the camp treats as true;
     these are falsifiable and may conflict across camps.
-  • Methods      — how the camp says we should act; policy
+  • Intentions   — how the camp says we should act; policy
     approaches, interpretive frameworks, priorities.
 
 ═══════════════════════════════════════════════════════════════════
@@ -117,9 +117,9 @@ substantive claim, argument, framing, and recommendation.
 For each element you identify:
   → Assign it to one or more camps (Accelerationist, Safetyist,
     Skeptic, Situations, or None/Neutral).
-  → Assign it to one axis (Desires, Beliefs, Methods).
+  → Assign it to one axis (Desires, Beliefs, Intentions).
   → Map it to the closest existing taxonomy node ID (e.g.,
-    "acc-goals-001"). Use the exact IDs from the attached JSON.
+    "acc-desires-001"). Use the exact IDs from the attached JSON.
   → If no node fits, flag it as UNMAPPED and describe what
     it is — this feeds directly into Part 2.
   → Note whether the document SUPPORTS, DISPUTES, or is
@@ -176,7 +176,7 @@ For each element, one row:
 
 | Taxonomy Node ID | Category       | What the document says | Supported / Disputed / Neutral |
 |------------------|----------------|------------------------|-------------------------------|
-| acc-goals-001    | Desires   | [specific claim]       | Supported                     |
+| acc-desires-001  | Desires   | [specific claim]       | Supported                     |
 | UNMAPPED         | Beliefs     | [claim with no node]   | Neutral                       |
 
 ### 🔴 SAFETYIST ELEMENTS
@@ -201,7 +201,7 @@ a node in another camp's Beliefs section:
 
 | Claim in this document | Contradicts node | Other camp's position |
 |------------------------|------------------|-----------------------|
-| [claim]                | saf-data-001     | [opposing claim]      |
+| [claim]                | saf-beliefs-001  | [opposing claim]      |
 
 ---
 
@@ -279,16 +279,17 @@ OUTPUT FORMAT FOR PART 2
 
 ### TYPE A — NEW NODES
 
-#### [Suggested Node ID, e.g., acc-methods-003]
+#### [Suggested Node ID, e.g., acc-intentions-003]
 - **Priority:** HIGH / MEDIUM / LOW
 - **POV camp:** Accelerationist / Safetyist / Skeptic / Situations
 - **Category:** Desire / Belief / Intention
 - **Proposed label:** [Short label, 3–6 words]
-- **Proposed description:** [Use genus-differentia format:
-  "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
-  Encompasses: [examples]. Excludes: [what neighbors cover]."
-  For situations: "A situation that [differentia].
-  Encompasses: ... Excludes: ..." — 2-4 sentences total.]
+- **Proposed description:** [Use genus-differentia format with 3 lines:
+  Line 1: "A Belief / A Desire / An Intention within [POV] discourse that [differentia]."
+  Line 2: "Encompasses: [examples]."
+  Line 3: "Excludes: [what neighbors cover]."
+  For situations, Line 1: "A situation that [differentia]."
+  Each line MUST start with the literal label shown. 2-4 sentences total.]
 - **Evidence from this document:** [Quote or paraphrase the
   specific passage that required this new node]
 - **Why existing nodes don't cover it:** [Name the closest
@@ -306,9 +307,11 @@ OUTPUT FORMAT FOR PART 2
 - **Current description:** [existing description]
 - **Problem:** [Why is this too narrow? What did it fail to
   capture from this document?]
-- **Proposed new description:** [Use genus-differentia format:
-  "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
-  Encompasses: [broadened scope]. Excludes: [boundaries]."
+- **Proposed new description:** [Use genus-differentia format with 3 lines:
+  Line 1: "A Belief / A Desire / An Intention within [POV] discourse that [differentia]."
+  Line 2: "Encompasses: [broadened scope]."
+  Line 3: "Excludes: [boundaries]."
+  Each line MUST start with the literal label shown.
   2-4 sentences total. Name at least one sibling in Excludes.]
 - **Risk of over-broadening:** [What would this revised node
   accidentally absorb that it shouldn't?]
@@ -354,9 +357,9 @@ Rank all suggestions by priority for the taxonomy working group:
 
 | Priority | Type   | Node ID          | One-line description of change |
 |----------|--------|------------------|-------------------------------|
-| HIGH     | NEW    | acc-methods-003  | Add node for ...              |
-| HIGH     | SPLIT  | saf-goals-001    | Split into ... and ...        |
-| MEDIUM   | GENERALIZE | skp-data-001 | Broaden to include ...        |
+| HIGH     | NEW    | acc-intentions-003 | Add node for ...              |
+| HIGH     | SPLIT  | saf-desires-001  | Split into ... and ...        |
+| MEDIUM   | GENERALIZE | skp-beliefs-001 | Broaden to include ...     |
 
 
 ═══════════════════════════════════════════════════════════════════
@@ -391,7 +394,7 @@ Before finalizing your response, check each of these:
 
   ☐ Your proposed new node IDs follow the existing convention:
     [camp-prefix]-[category-prefix]-[3-digit-number]
-    e.g., acc-goals-003, saf-methods-004, skp-data-005, cc-006
+    e.g., acc-desires-003, saf-intentions-004, skp-beliefs-005, sit-006
 
 
 ```

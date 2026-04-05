@@ -334,7 +334,7 @@ async function getRelevantTaxonomyContext(
   pov: string,
   topic: string,
   recentTranscript: string,
-  threshold: number = 0.3,
+  threshold: number = 0.45,
 ): Promise<TaxonomyContext> {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
@@ -375,8 +375,8 @@ async function getRelevantTaxonomyContext(
       }
     }
 
-    const scoredPov = selectRelevantNodes(allPovNodes, scores, threshold);
-    const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold);
+    const scoredPov = selectRelevantNodes(allPovNodes, scores, threshold, 3, 35);
+    const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold, 3, 15);
 
     // Unwrap ScoredPovNode → PovNode and build nodeScores map
     const filteredPov = scoredPov.map(s => s.node);
@@ -707,7 +707,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   activeDebate: null,
   debateLoading: false,
   debateGenerating: null,
-  responseLength: 'medium',
+  responseLength: 'detailed',
   setResponseLength: (length) => set({ responseLength: length }),
   openingOrder: [],
   setOpeningOrder: (order) => set({ openingOrder: order }),
@@ -724,8 +724,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;
     set({ diagnosticsEnabled: enabled });
-    // Broadcast to popout
-    try { window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
     // Initialize diagnostics on the active debate if enabling
     if (enabled && get().activeDebate && !get().activeDebate!.diagnostics) {
       const updated = {
@@ -737,6 +735,18 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         },
       };
       set({ activeDebate: updated });
+    }
+    // Auto-open popup window when enabling; close when disabling
+    if (enabled) {
+      window.electronAPI.openDiagnosticsWindow().then(() => {
+        set({ diagPopoutOpen: true });
+        setTimeout(() => {
+          window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
+        }, 1000);
+      }).catch(() => { /* ignore */ });
+    } else {
+      try { window.electronAPI.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
+      set({ diagPopoutOpen: false });
     }
   },
 

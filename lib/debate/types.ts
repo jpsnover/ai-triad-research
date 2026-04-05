@@ -35,6 +35,8 @@ export type ArgumentationScheme =
   | 'ARGUMENT_FROM_IGNORANCE'
   | 'SLIPPERY_SLOPE'
   | 'ARGUMENT_FROM_RISK'
+  // Figurative
+  | 'ARGUMENT_FROM_METAPHOR'
   | 'OTHER';
 
 export interface TaxonomyRef {

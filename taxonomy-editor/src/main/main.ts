@@ -238,7 +238,7 @@ app.whenReady().then(() => {
       minWidth: 400,
       minHeight: 300,
       title: 'Debate Diagnostics',
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       webPreferences: {
         preload: preloadPath,
         contextIsolation: true,
@@ -258,6 +258,12 @@ app.whenReady().then(() => {
         mainWindow.webContents.send('diagnostics-popout-closed');
       }
     });
+  });
+
+  ipcMain.handle('close-diagnostics-window', () => {
+    if (diagWindow && !diagWindow.isDestroyed()) {
+      diagWindow.close();
+    }
   });
 
   // Relay diagnostics state from main window to diag window

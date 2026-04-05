@@ -538,6 +538,12 @@ const SCHEME_CRITICAL_QUESTIONS: Record<string, string[]> = {
     'Does the proposed caution itself carry significant costs?',
     'Is the risk being compared to the baseline risk of inaction?',
   ],
+  ARGUMENT_FROM_METAPHOR: [
+    'What is the source domain and what structural features are being mapped to the target?',
+    'Where does the metaphor break down — which features of the source domain do NOT transfer?',
+    'Is the metaphor novel (forcing new reasoning) or conventional (compressing an existing assumption)?',
+    'Does the metaphor smuggle in a hidden causal claim, value judgment, or framing that hasn\'t been argued for?',
+  ],
 };
 
 /** Format critical questions for a given argumentation scheme, for moderator injection. */
@@ -547,15 +553,95 @@ export function formatCriticalQuestions(scheme: string): string {
   return `The most recent argument uses ${scheme}. Critical questions to consider:\n${cqs.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
 }
 
+// ── Metaphor Reframing for Convergence Stalls ──────────────────
+// Curated reframing metaphors organized by the conceptual dimension they shift.
+// Each metaphor has a source domain, a prompt question, and notes on what it reveals.
+
+const REFRAMING_METAPHORS: {
+  source: string;
+  prompt: string;
+  reveals: string;
+  challenges: string;
+}[] = [
+  {
+    source: 'garden',
+    prompt: 'What if AI development is not a race or a project but a GARDEN — something that requires cultivation, ecology, patience, and acceptance that not everything can be controlled?',
+    reveals: 'Interdependence between AI systems and their environment; the role of organic growth vs. engineered outcomes; the need for ongoing tending rather than one-time building.',
+    challenges: 'The assumption that AI development has a finish line or a winner.',
+  },
+  {
+    source: 'immune system',
+    prompt: 'What if AI safety is not a wall to build but an IMMUNE SYSTEM to develop — something that learns, adapts, and occasionally overreacts, but protects through distributed response rather than centralized control?',
+    reveals: 'The tradeoff between false positives (blocking beneficial AI) and false negatives (missing harmful AI); the value of distributed, adaptive defense over rigid rules.',
+    challenges: 'The assumption that safety can be achieved through static regulations or one-time alignment.',
+  },
+  {
+    source: 'language',
+    prompt: 'What if AI capability is not a tool we wield but a LANGUAGE we are learning to speak — one that changes how we think, not just what we can do?',
+    reveals: 'How AI reshapes human cognition and culture, not just human productivity; the difference between fluency and understanding.',
+    challenges: 'The assumption that humans remain unchanged by the AI systems they use.',
+  },
+  {
+    source: 'commons',
+    prompt: 'What if AI models are not products owned by companies but a COMMONS — a shared resource that everyone depends on but no one fully controls, like fisheries or the atmosphere?',
+    reveals: 'Tragedy-of-the-commons dynamics; the question of who bears the cost of stewardship; the difference between ownership and governance.',
+    challenges: 'The assumption that market competition produces optimal AI outcomes.',
+  },
+  {
+    source: 'adolescence',
+    prompt: 'What if current AI is not primitive or dangerous but ADOLESCENT — capable and energetic but lacking judgment, needing structure and boundaries while developing independence?',
+    reveals: 'The developmental trajectory matters; too much restriction stunts growth, too little invites disaster; the goal is eventual autonomy, not permanent control.',
+    challenges: 'Both the accelerationist view (let it run free) and the safetyist view (keep it locked down).',
+  },
+  {
+    source: 'infrastructure',
+    prompt: 'What if AI is not a technology but INFRASTRUCTURE — like roads, plumbing, or the electrical grid — something so foundational that its design choices become invisible constraints on everything built on top?',
+    reveals: 'Path dependency; the difference between visible features and invisible assumptions; why early design decisions matter disproportionately.',
+    challenges: 'The assumption that we can iterate and fix AI later without being locked into early choices.',
+  },
+  {
+    source: 'translation',
+    prompt: 'What if AI alignment is not a control problem but a TRANSLATION problem — the challenge is not making AI obey but making human values legible to a fundamentally different kind of intelligence?',
+    reveals: 'The impossibility of perfect translation; what is lost and gained in the process; whether "alignment" assumes a shared frame that may not exist.',
+    challenges: 'The assumption that human values are coherent enough to be specified, let alone translated.',
+  },
+  {
+    source: 'ecosystem invasion',
+    prompt: 'What if AI entering the labor market is not automation but an ECOSYSTEM INVASION — a new species that changes the entire competitive landscape, creating new niches while destroying old ones?',
+    reveals: 'Ecological dynamics: adaptation, extinction, niche creation; the difference between individual displacement and systemic transformation.',
+    challenges: 'The assumption that labor market impacts can be managed with retraining alone.',
+  },
+];
+
+/**
+ * Select a reframing metaphor for convergence stall situations.
+ * Returns a metaphor prompt the moderator can inject to break deadlock.
+ * Avoids metaphors whose source domain matches recently used metaphors in the debate.
+ */
+export function selectReframingMetaphor(
+  usedMetaphorSources: string[],
+  round: number,
+): { source: string; prompt: string; reveals: string; challenges: string } | null {
+  const usedSet = new Set(usedMetaphorSources.map(s => s.toLowerCase()));
+  const available = REFRAMING_METAPHORS.filter(m => !usedSet.has(m.source));
+  if (available.length === 0) return null;
+  // Deterministic selection based on round number for reproducibility
+  return available[round % available.length];
+}
+
 export function crossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
   edgeContext: string = '',
   recentScheme?: string,
+  metaphorReframe?: { source: string; prompt: string; reveals: string; challenges: string } | null,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
     ? `\n\n=== ARGUMENTATION SCHEME ANALYSIS ===\n${cqBlock}\nConsider directing a debater to challenge this argument on one of these critical questions.\n`
+    : '';
+  const metaphorSection = metaphorReframe
+    ? `\n\n=== METAPHOR REFRAMING SUGGESTION ===\nThe debate may benefit from a fresh perspective. Consider asking a debater to engage with this reframing:\n\n"${metaphorReframe.prompt}"\n\nWhat this metaphor reveals: ${metaphorReframe.reveals}\nWhat it challenges: ${metaphorReframe.challenges}\n\nYou may include this in the focus_point if you judge it would be more productive than continuing the current line of argument. Set "metaphor_reframe": true in your response if you use it.\n`
     : '';
 
   return `You are a debate moderator analyzing the current state of a structured debate.
@@ -566,12 +652,12 @@ ${recentTranscript}
 
 === ACTIVE DEBATERS ===
 ${activePovers.join(', ')}
-${edgeContext}${schemeSection}
+${edgeContext}${schemeSection}${metaphorSection}
 
 Identify the most productive next exchange. Which debater should respond, to whom, and about what specific point? Consider:
 - Which disagreement would be most clarified by a direct exchange?
 - Are there structural tensions between positions (shown above) that haven't been addressed?
-- Would a concession, distinction, or reframe be most productive right now?
+- Would a concession, distinction, or reframe be most productive right now?${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
 If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
 
@@ -580,7 +666,8 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "responder": "debater name who should speak next",
   "addressing": "debater name they should address, or 'general'",
   "focus_point": "the specific point or question they should address",
-  "agreement_detected": false
+  "agreement_detected": false,
+  "metaphor_reframe": false
 }`;
 }
 
@@ -717,7 +804,7 @@ Tasks:
    - For each claim, list supports (supported_by) and attacks (attacked_by)
    - Classify attacks: "rebut", "undercut", or "undermine"
    - Note dialectical scheme: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
-   - Classify the argumentation_scheme: ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES, ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES, ARGUMENT_FROM_FAIRNESS, ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, or OTHER
+   - Classify the argumentation_scheme: ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES, ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES, ARGUMENT_FROM_FAIRNESS, ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, ARGUMENT_FROM_METAPHOR, or OTHER
    - For attacks, note which critical_question_addressed (1-4) the attack targets — e.g., challenging an analogy on CQ2 means "important differences prevent transfer"
    - Each claim must be traceable to the transcript${documentAnalysis}
 3. Identify concepts discussed in this debate that are NOT covered by any existing taxonomy node. For each, propose a new node with a label (3-8 words), genus-differentia description, POV, category, and rationale explaining why this debate surfaced a gap. Link to the claim IDs that motivated the proposal.
@@ -829,6 +916,8 @@ Identify:
      "undercut" — accepts the evidence but denies the inference (e.g., DISTINGUISH)
      "undermine" — attacks the credibility or relevance of the claim's source
    - For attacks, note which dialectical scheme was used: CONCEDE, DISTINGUISH, REFRAME, COUNTEREXAMPLE, REDUCE, or ESCALATE
+   - Classify the argumentation_scheme: ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES, ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES, ARGUMENT_FROM_FAIRNESS, ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, ARGUMENT_FROM_METAPHOR, or OTHER
+   - For attacks, note which critical_question_addressed (1-4) the attack targets
    - Each claim must be traceable to something actually said in the transcript
 8. For each area of disagreement, evaluate which position is STRONGER and why.
    Apply these preference criteria (in order of priority):

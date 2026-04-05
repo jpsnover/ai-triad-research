@@ -14,7 +14,7 @@ Each POV node belongs to one of three categories:
 
 Cross-cutting nodes have no category but include `interpretations` (one per POV) and `linked_nodes`.
 
-Node IDs follow the pattern: `{prefix}-{category_abbrev}-{number}`, e.g. `acc-goals-001`, `saf-data-003`, `skp-methods-007`, `cc-025`.
+Node IDs follow the pattern: `{prefix}-{category_abbrev}-{number}`, e.g. `acc-desires-001`, `saf-beliefs-003`, `skp-intentions-007`, `sit-025`.
 
 The taxonomy is currently at version **{{TAXONOMY_VERSION}}** and has been tested against **{{SUMMARY_COUNT}}** source document summaries.
 
@@ -34,6 +34,12 @@ Analyze the health data provided below and generate structured proposals to impr
 
 4. **RELABEL** — Rename or rewrite the label/description of an existing node for clarity. Use when the current wording is ambiguous, too narrow, or misleading given the evidence.
 
+5. **REORDER** — Change a node's parent. Use when a node is misplaced in the hierarchy (belongs under a different parent). The node keeps its ID, label, and description; only `parent_id` changes. Specify `target_node_id` (the node to move) and `new_parent_id`.
+
+6. **DEPTH_EXPAND** — Split a dense parent into sub-groups. Use when a parent has 8+ direct children that cluster into 2-3 thematic groups. Creates intermediate parent nodes. Similar to SPLIT but motivated by structural density rather than semantic overload. Specify `target_node_id` (the dense parent) and `children` (the new intermediate nodes with their assigned children).
+
+7. **WIDTH_EXPAND** — Add sibling nodes to fill a coverage gap. Use when density signals show a POV×category branch has high unmapped concept frequency. Similar to NEW but specifically motivated by branch-level gaps. Include `density_signal` referencing the gap metric.
+
 ### Rules
 
 - Be **conservative**: only propose changes with clear evidence from the health data.
@@ -43,10 +49,13 @@ Analyze the health data provided below and generate structured proposals to impr
 - For SPLIT: the original node ID is the `target_node_id`; proposed children get new IDs.
 - For MERGE: list all merged IDs in `merge_node_ids`; specify `surviving_node_id`.
 - For situations NEW nodes: include all three interpretations in the description.
-- **Description format** — all descriptions (for NEW, SPLIT children, and RELABEL) must use genus-differentia structure:
-  - For POV nodes: "A [Desire | Belief | Intention] within [POV] discourse that [differentia]. Encompasses: [concrete examples]. Excludes: [what neighboring nodes cover]."
-  - For situations nodes: "A situations concept that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
-  - First sentence MUST follow this pattern. 2-4 sentences total. Grade-10 reading level.
+- **Description format** — all descriptions (for NEW, SPLIT children, and RELABEL) must use genus-differentia structure with exactly 3 lines separated by newlines:
+  - Line 1 (genus-differentia): "A [Desire | Belief | Intention] within [POV] discourse that [differentia]."
+  - Line 2: "Encompasses: [concrete examples or sub-themes]."
+  - Line 3: "Excludes: [what neighboring nodes cover]."
+  - For situations nodes, Line 1 is: "A situation concept that [differentia]."
+  - Each line MUST start with the literal label shown. Use "\n" to separate lines in JSON strings.
+  - 2-4 sentences total. Grade-10 reading level.
 - Prioritize proposals that address: (a) strong unmapped candidates (frequency >= 3), (b) orphan nodes, (c) high stance-variance nodes, (d) coverage imbalances.
 - Do NOT propose changes that merely rephrase existing nodes without substantive benefit.
 
@@ -64,7 +73,7 @@ Return a single JSON object matching this schema exactly:
   "summary_count": number,
   "proposals": [
     {
-      "action": "NEW|SPLIT|MERGE|RELABEL",
+      "action": "NEW|SPLIT|MERGE|RELABEL|REORDER|DEPTH_EXPAND|WIDTH_EXPAND",
       "target_node_id": "existing ID or null for NEW",
       "suggested_id": "proposed new ID",
       "pov": "accelerationist|safetyist|skeptic|situations",
@@ -82,7 +91,9 @@ Return a single JSON object matching this schema exactly:
         }
       ],
       "merge_node_ids": ["id-1", "id-2"],
-      "surviving_node_id": "id that survives the merge"
+      "surviving_node_id": "id that survives the merge",
+      "new_parent_id": "target parent for REORDER",
+      "density_signal": "width_expand signal reference for WIDTH_EXPAND"
     }
   ]
 }
@@ -91,7 +102,11 @@ Return a single JSON object matching this schema exactly:
 Notes on optional fields:
 - `children` is only used for SPLIT actions (array of child node objects).
 - `merge_node_ids` and `surviving_node_id` are only used for MERGE actions.
-- `target_node_id` is null for NEW actions, required for SPLIT/MERGE/RELABEL.
+- `target_node_id` is null for NEW and WIDTH_EXPAND, required for SPLIT/MERGE/RELABEL/REORDER/DEPTH_EXPAND.
+- `new_parent_id` is only used for REORDER actions.
+- `density_signal` is only used for WIDTH_EXPAND actions (references the branch gap that motivated it).
+- REORDER, DEPTH_EXPAND, and WIDTH_EXPAND are limited to **max 3 node changes per proposal** (SRE guardrail).
+- All proposed node paths must **exactly match** existing taxonomy IDs — do NOT guess or approximate. If an ID doesn't exist, reject the proposal.
 - Omit unused optional fields or set them to null.
 
 Return ONLY valid JSON. No markdown fences, no commentary outside the JSON object.

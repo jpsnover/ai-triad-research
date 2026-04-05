@@ -6,9 +6,13 @@
  * state updates from the main window via IPC.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
+import { computeQbafStrengths } from '@lib/debate';
+import type { QbafNode, QbafEdge } from '@lib/debate';
+
+const DiagSearchContext = createContext('');
 
 const AIF_TOOLTIPS: Record<string, string> = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -79,6 +83,10 @@ function CopyButton({ text }: { text: string }) {
 
 function Section({ title, children, defaultOpen = false, copyText }: { title: string; children: React.ReactNode; defaultOpen?: boolean; copyText?: string }) {
   const [open, setOpen] = useState(defaultOpen);
+  const sq = useContext(DiagSearchContext);
+  const sectionMatches = sq && copyText ? countMatches(copyText, sq) : 0;
+  // Auto-open sections with search matches
+  const effectiveOpen = open || (sectionMatches > 0);
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -86,11 +94,16 @@ function Section({ title, children, defaultOpen = false, copyText }: { title: st
           onClick={() => setOpen(!open)}
           style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', padding: '4px 0', flex: 1, textAlign: 'left' }}
         >
-          {open ? '▼' : '▶'} {title}
+          {effectiveOpen ? '▼' : '▶'} {title}
+          {sectionMatches > 0 && (
+            <span style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700 }}>
+              {sectionMatches} match{sectionMatches !== 1 ? 'es' : ''}
+            </span>
+          )}
         </button>
-        {copyText && open && <CopyButton text={copyText} />}
+        {copyText && effectiveOpen && <CopyButton text={copyText} />}
       </div>
-      {open && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}
+      {effectiveOpen && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}
     </div>
   );
 }
@@ -266,6 +279,71 @@ function HelpContent() {
   );
 }
 
+/** Highlight search matches within text. Uses DiagSearchContext if query not provided. */
+function Highlight({ text, query: queryProp }: { text: string; query?: string }) {
+  const ctxQuery = useContext(DiagSearchContext);
+  const query = queryProp ?? ctxQuery;
+  if (!query || !text) return <>{text}</>;
+  const parts: { text: string; match: boolean }[] = [];
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  let lastIdx = 0;
+  let idx = lower.indexOf(q);
+  while (idx >= 0) {
+    if (idx > lastIdx) parts.push({ text: text.slice(lastIdx, idx), match: false });
+    parts.push({ text: text.slice(idx, idx + q.length), match: true });
+    lastIdx = idx + q.length;
+    idx = lower.indexOf(q, lastIdx);
+  }
+  if (lastIdx < text.length) parts.push({ text: text.slice(lastIdx), match: false });
+  return <>{parts.map((p, i) => p.match ? <mark key={i} style={{ background: '#f59e0b', color: '#000', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
+}
+
+function SearchBar({ query, setQuery, matchCount }: { query: string; setQuery: (q: string) => void; matchCount: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <input
+        type="text"
+        placeholder="Search diagnostics..."
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        style={{
+          flex: 1, padding: '4px 8px', fontSize: '0.75rem',
+          background: 'var(--bg-primary)', color: 'var(--text-primary)',
+          border: '1px solid var(--border)', borderRadius: 4,
+        }}
+      />
+      {query && (
+        <>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {matchCount} match{matchCount !== 1 ? 'es' : ''}
+          </span>
+          <button
+            onClick={() => setQuery('')}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.65rem' }}
+          >
+            Clear
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Count occurrences of query in text (case-insensitive) */
+function countMatches(text: string, query: string): number {
+  if (!query || !text) return 0;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  let count = 0;
+  let idx = t.indexOf(q);
+  while (idx >= 0) {
+    count++;
+    idx = t.indexOf(q, idx + q.length);
+  }
+  return count;
+}
+
 function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) {
   return (
     <textarea
@@ -291,12 +369,13 @@ function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) 
 }
 
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
-function INodeRow({ node, attacks, supports, allNodes, isSource }: {
+function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
   allNodes: ArgumentNetworkNode[];
   isSource: boolean;
+  computedStrength?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const responded = attacks.length > 0 || supports.length > 0;
@@ -320,10 +399,23 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
           <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
           {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
+          {(() => {
+            const base = node.base_strength ?? 0.5;
+            const computed = computedStrength ?? node.computed_strength ?? base;
+            const band = computed >= 0.8 ? 'Strong' : computed >= 0.5 ? 'Moderate' : computed >= 0.3 ? 'Weak' : 'Very Weak';
+            const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
+            const delta = computed - base;
+            return (
+              <span style={{ marginLeft: 6, fontSize: '0.55rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: `${bandColor}22`, color: bandColor, opacity: 0.3 + computed * 0.7 }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
+                {band} {computed.toFixed(2)}
+                {Math.abs(delta) > 0.01 && <span style={{ color: delta > 0 ? '#22c55e' : '#ef4444', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+              </span>
+            );
+          })()}
           {hasChildren && <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem', marginLeft: 6 }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
         </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
+      <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
 
       {/* Edges — ALWAYS visible (badge + source ID + type + scheme + warrant) */}
       {hasChildren && (
@@ -336,12 +428,12 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                 </div>
-                {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {a.warrant}</div>}
+                {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: <Highlight text={a.warrant} /></div>}
                 {/* Expanded: show debater attribution + full claim text */}
                 {expanded && sourceNode && (
                   <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(239,68,68,0.05)', borderRadius: 3 }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
-                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{sourceNode.text}</div>
+                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
               </div>
@@ -360,7 +452,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
                 {expanded && sourceNode && (
                   <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(34,197,94,0.05)', borderRadius: 3 }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
-                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{sourceNode.text}</div>
+                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
               </div>
@@ -375,24 +467,56 @@ function INodeRow({ node, attacks, supports, allNodes, isSource }: {
 export function DiagnosticsWindow() {
   const [debate, setDebate] = useState<DebateSession | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+  const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsub = window.electronAPI.onDiagnosticsStateUpdate((state) => {
       const s = state as { debate: DebateSession | null; selectedEntry: string | null };
       setDebate(s.debate);
-      setSelectedEntry(s.selectedEntry);
+      // Only sync selectedEntry from main window if the user hasn't locally navigated
+      if (!localOverride) {
+        setSelectedEntry(s.selectedEntry);
+      }
     });
     return unsub;
-  }, []);
+  }, [localOverride]);
 
   const entry = selectedEntry ? debate?.transcript.find(e => e.id === selectedEntry) : null;
   const diag: EntryDiagnostics | undefined = selectedEntry ? debate?.diagnostics?.entries[selectedEntry] : undefined;
   const meta = entry?.metadata as Record<string, unknown> | undefined;
   const an = debate?.argument_network;
   const commitments = debate?.commitments;
+  const sq = searchQuery.trim();
+
+  // Compute total match count across all visible text
+  const matchCount = useMemo(() => {
+    if (!sq || !debate) return 0;
+    let count = 0;
+    // AN nodes
+    if (an) {
+      for (const n of an.nodes) count += countMatches(n.text, sq) + countMatches(n.speaker, sq);
+      for (const e of an.edges) count += countMatches(e.warrant || '', sq);
+    }
+    // Transcript entries
+    for (const e of debate.transcript) count += countMatches(e.content, sq);
+    // Selected entry diagnostics
+    if (diag) {
+      count += countMatches(diag.prompt || '', sq);
+      count += countMatches(diag.raw_response || '', sq);
+      count += countMatches(diag.taxonomy_context || '', sq);
+      count += countMatches(diag.commitment_context || '', sq);
+      if (diag.extracted_claims) {
+        for (const c of diag.extracted_claims.accepted) count += countMatches(c.text, sq);
+        for (const c of diag.extracted_claims.rejected) count += countMatches(c.text, sq);
+      }
+    }
+    return count;
+  }, [sq, debate, an, diag]);
 
   return (
+    <DiagSearchContext.Provider value={sq}>
     <div style={{ padding: 12, height: '100vh', overflow: 'auto', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', flex: 1 }}>Debate Diagnostics</h2>
@@ -403,6 +527,7 @@ export function DiagnosticsWindow() {
           {showHelp ? 'Close Help' : 'Help'}
         </button>
       </div>
+      {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
       {showHelp && <HelpContent />}
       {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
 
@@ -412,27 +537,133 @@ export function DiagnosticsWindow() {
             Click a transcript entry in the main window to inspect it here. Showing overview.
           </p>
 
-          {/* Argument Network */}
+          {/* Argument Network with inline Moderator Deliberations */}
           {an && an.nodes.length > 0 && (() => {
             const caCount = an.edges.filter(e => e.type === 'attacks').length;
             const raCount = an.edges.filter(e => e.type === 'supports').length;
+
+            // Compute QBAF strengths from edges
+            const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+            const qbafEdges: QbafEdge[] = an.edges.map(e => ({
+              source: e.source, target: e.target,
+              type: e.type as 'attacks' | 'supports',
+              weight: e.weight ?? 1.0,
+              attack_type: e.attack_type,
+            }));
+            const qbafResult = computeQbafStrengths(qbafNodes, qbafEdges);
+            const strengthMap = qbafResult.strengths;
+
+            // Build moderator trace lookup: entry ID → trace
+            const modTraceByEntryId = new Map<string, {
+              selected: string; focus_point: string; addressing?: string;
+              excluded_last_speaker?: string | null;
+              selection_reason?: string;
+              recent_scheme?: string | null;
+              convergence_score?: number | null; convergence_triggered?: boolean;
+              candidates?: { debater: string; computed_strength: number | null; rank: number }[];
+              argument_network_snapshot?: { total_claims: number; total_edges: number; unaddressed_claims: number } | null;
+            }>();
+            debate.transcript.forEach(e => {
+              const meta = e.metadata as Record<string, unknown> | undefined;
+              if (meta?.moderator_trace) {
+                modTraceByEntryId.set(e.id, meta.moderator_trace as any);
+              }
+            });
+
+            // Group AN nodes by source_entry_id to interleave with moderator traces
+            const entryGroups: { entryId: string; nodes: typeof an.nodes; trace: ReturnType<typeof modTraceByEntryId.get> }[] = [];
+            const seenEntries = new Set<string>();
+            for (const n of an.nodes) {
+              const eid = n.source_entry_id;
+              if (!seenEntries.has(eid)) {
+                seenEntries.add(eid);
+                entryGroups.push({
+                  entryId: eid,
+                  nodes: an.nodes.filter(x => x.source_entry_id === eid),
+                  trace: modTraceByEntryId.get(eid),
+                });
+              }
+            }
+
+            // Also show moderator traces for entries that produced no AN nodes
+            debate.transcript.forEach(e => {
+              const meta = e.metadata as Record<string, unknown> | undefined;
+              if (meta?.moderator_trace && !seenEntries.has(e.id)) {
+                entryGroups.push({ entryId: e.id, nodes: [], trace: meta.moderator_trace as any });
+              }
+            });
+
+            const modCount = [...modTraceByEntryId.values()].length;
+
             return (
-              <Section title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA-nodes (attacks), ${raCount} RA-nodes (supports)`} defaultOpen>
-                {an.nodes.map(n => {
-                  const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
-                  const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
-                  const isSource = an.edges.some(e => e.source === n.id);
-                  return (
-                    <INodeRow
-                      key={n.id}
-                      node={n}
-                      attacks={attacks}
-                      supports={supports}
-                      allNodes={an.nodes}
-                      isSource={isSource}
-                    />
-                  );
-                })}
+              <Section title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA, ${raCount} RA${modCount > 0 ? ` · ${modCount} moderator decisions` : ''}`} defaultOpen>
+                {entryGroups.map(({ entryId, nodes: groupNodes, trace }) => (
+                  <div key={entryId}>
+                    {/* Moderator deliberation banner */}
+                    {trace && (
+                      <div style={{
+                        margin: '8px 0 4px', padding: '6px 10px', borderRadius: 6,
+                        background: 'rgba(249,115,22,0.08)', borderLeft: '3px solid #f97316',
+                        fontSize: '0.65rem',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, color: '#f97316', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderator</span>
+                          <span style={{ fontWeight: 600 }}>→ {speakerLabel(trace.selected)}</span>
+                          {trace.selection_reason && (
+                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.55rem', fontWeight: 600 }}>
+                              {trace.selection_reason.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          {trace.recent_scheme && (
+                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.55rem', fontWeight: 600 }}>
+                              {trace.recent_scheme}
+                            </span>
+                          )}
+                          {trace.convergence_score != null && (
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              conv: {(trace.convergence_score * 100).toFixed(0)}%
+                              {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 3, fontWeight: 700 }}>triggered</span>}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>
+                          <strong>Focus:</strong> <Highlight text={trace.focus_point} />
+                        </div>
+                        {trace.candidates && trace.candidates.length > 0 && (
+                          <div style={{ marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {trace.candidates.map((c, i) => (
+                              <span key={i} style={{
+                                fontSize: '0.55rem',
+                                opacity: c.debater === trace.selected ? 1 : 0.6,
+                                fontWeight: c.debater === trace.selected ? 700 : 400,
+                              }}>
+                                #{c.rank} {speakerLabel(c.debater)}
+                                {c.computed_strength != null && ` (${c.computed_strength.toFixed(2)})`}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* AN nodes from this entry */}
+                    {groupNodes.map(n => {
+                      const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+                      const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+                      const isSource = an.edges.some(e => e.source === n.id);
+                      return (
+                        <INodeRow
+                          key={n.id}
+                          node={n}
+                          attacks={attacks}
+                          supports={supports}
+                          allNodes={an.nodes}
+                          isSource={isSource}
+                          computedStrength={strengthMap.get(n.id)}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
               </Section>
             );
           })()}
@@ -453,10 +684,10 @@ export function DiagnosticsWindow() {
             {debate.transcript.map(e => (
               <div
                 key={e.id}
-                onClick={() => setSelectedEntry(e.id)}
+                onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
                 style={{ padding: '3px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: 'var(--bg-primary)', fontSize: '0.7rem' }}
               >
-                <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] {e.content.slice(0, 80)}...
+                <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
               </div>
             ))}
           </Section>
@@ -465,7 +696,7 @@ export function DiagnosticsWindow() {
 
       {entry && (
         <>
-          <button onClick={() => setSelectedEntry(null)} style={{ fontSize: '0.7rem', marginBottom: 8, cursor: 'pointer', background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', color: 'var(--text-primary)' }}>
+          <button onClick={() => { setSelectedEntry(null); setLocalOverride(true); }} style={{ fontSize: '0.7rem', marginBottom: 8, cursor: 'pointer', background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', color: 'var(--text-primary)' }}>
             ← Back to Overview
           </button>
           <div style={{ marginBottom: 6 }}>
@@ -500,12 +731,12 @@ export function DiagnosticsWindow() {
             <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
               {diag.extracted_claims.accepted.map((c, i) => (
                 <div key={i} style={{ margin: '3px 0' }}>
-                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> {c.text}
+                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                 </div>
               ))}
               {diag.extracted_claims.rejected.map((c, i) => (
                 <div key={i} style={{ margin: '3px 0' }}>
-                  <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> {c.text}
+                  <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                   <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                 </div>
               ))}
@@ -516,7 +747,7 @@ export function DiagnosticsWindow() {
             <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
               {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
                 <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
-                  <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}
+                  <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
                   {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
                 </div>
               ))}
@@ -586,5 +817,6 @@ export function DiagnosticsWindow() {
         </>
       )}
     </div>
+    </DiagSearchContext.Provider>
   );
 }
