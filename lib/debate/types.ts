@@ -12,10 +12,30 @@ export type DialecticalScheme =
   | 'EMPIRICAL CHALLENGE'
   | 'EXTEND'
   | 'UNDERCUT'
-  // Legacy — accept but don't prompt for these
+  // Legacy dialectical moves — accept but don't prompt for these
   | 'CONCEDE'
   | 'REDUCE'
   | 'ESCALATE';
+
+/** Walton-derived argumentation scheme taxonomy for AI policy discourse (t/183). */
+export type ArgumentationScheme =
+  // Evidence-Based
+  | 'ARGUMENT_FROM_EVIDENCE'
+  | 'ARGUMENT_FROM_EXPERT_OPINION'
+  | 'ARGUMENT_FROM_PRECEDENT'
+  // Reasoning
+  | 'ARGUMENT_FROM_CONSEQUENCES'
+  | 'ARGUMENT_FROM_ANALOGY'
+  | 'PRACTICAL_REASONING'
+  | 'ARGUMENT_FROM_DEFINITION'
+  // Value
+  | 'ARGUMENT_FROM_VALUES'
+  | 'ARGUMENT_FROM_FAIRNESS'
+  // Meta-Argumentative
+  | 'ARGUMENT_FROM_IGNORANCE'
+  | 'SLIPPERY_SLOPE'
+  | 'ARGUMENT_FROM_RISK'
+  | 'OTHER';
 
 export interface TaxonomyRef {
   node_id: string;
@@ -165,6 +185,10 @@ export interface ArgumentNetworkEdge {
   warrant?: string;
   /** QBAF: Attack/support magnitude (0-1). Absent in pre-QBAF debates. */
   weight?: number;
+  /** Walton argumentation scheme classifying the reasoning pattern. Absent in pre-scheme debates. */
+  argumentation_scheme?: ArgumentationScheme;
+  /** Which critical questions (1-indexed) of the scheme were addressed by this edge. */
+  critical_questions_addressed?: number[];
 }
 
 export interface CommitmentStore {

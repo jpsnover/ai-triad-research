@@ -277,8 +277,8 @@ export class DebateEngine {
       // If we have embeddings, try to filter — otherwise fall through to unfiltered
       if (matchingVectors.length > 0) {
         const scores = scoreNodeRelevance(matchingVectors[0], this.taxonomy.embeddings);
-        const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.3, 3);
-        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.3, 3);
+        const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3);
+        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3);
         return formatTaxonomyContext({
           povNodes: scoredPov.map(s => s.node),
           situationNodes: filteredSit.map(s => s.node),
