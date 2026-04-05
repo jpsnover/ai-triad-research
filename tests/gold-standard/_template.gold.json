@@ -1,0 +1,26 @@
+{
+  "doc_id": "<slug>",
+  "annotated_by": "human",
+  "annotated_at": "<ISO timestamp>",
+  "expected_key_points": [
+    {
+      "taxonomy_node_id": "<e.g. acc-desires-001>",
+      "category": "<Beliefs|Desires|Intentions>",
+      "pov": "<accelerationist|safetyist|skeptic>",
+      "point_summary": "<1-2 sentence summary of expected point>",
+      "stance": "<strongly_aligned|aligned|neutral|opposed|strongly_opposed>"
+    }
+  ],
+  "expected_factual_claims": [
+    {
+      "claim_summary": "<1-2 sentence summary>",
+      "linked_taxonomy_nodes": ["<node-id>"]
+    }
+  ],
+  "expected_unmapped_concepts": [
+    {
+      "concept_summary": "<what concept should be detected>",
+      "suggested_pov": "<pov>"
+    }
+  ]
+}
