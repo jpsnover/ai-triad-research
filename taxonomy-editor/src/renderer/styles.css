@@ -5596,6 +5596,51 @@ body {
   flex: 1;
 }
 
+.sit-bdi-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sit-bdi-summary {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.sit-bdi-row {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.sit-bdi-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 4px;
+}
+
+.sit-bdi-edit .form-group {
+  margin-bottom: 8px;
+}
+
+.sit-bdi-field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 3px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sit-bdi-label-belief { color: var(--color-beliefs, #3b82f6); }
+.sit-bdi-label-desire { color: var(--color-desires, #f59e0b); }
+.sit-bdi-label-intention { color: var(--color-intentions, #10b981); }
+
 .sit-pov-evidence {
   flex: 1;
   background: var(--bg-secondary);

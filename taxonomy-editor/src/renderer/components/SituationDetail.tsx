@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SituationNode } from '../types/taxonomy';
+import { interpretationText } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
@@ -265,18 +266,65 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             {/* Left: Interpretation */}
             <div className="sit-pov-interpretation">
               <h3 className="sit-pov-heading">{POV_TITLES[activeTab]}</h3>
-              {readOnly ? (
-                <div className="sit-pov-text">{node.interpretations[activeTab]}</div>
-              ) : (
-                <div className={`form-group ${err(`interpretations.${activeTab}`) ? 'has-error' : ''}`}>
-                  <HighlightedTextarea
-                    value={node.interpretations[activeTab]}
-                    onChange={(v) => updateInterpretation(activeTab, v)}
-                    rows={8}
-                  />
-                  {err(`interpretations.${activeTab}`) && <div className="error-text">{err(`interpretations.${activeTab}`)}</div>}
-                </div>
-              )}
+              {(() => {
+                const interp = node.interpretations[activeTab];
+                const isBdi = typeof interp === 'object' && interp !== null && 'belief' in interp;
+                if (isBdi) {
+                  const bdi = interp as { belief: string; desire: string; intention: string; summary: string };
+                  if (readOnly) {
+                    return (
+                      <div className="sit-pov-text sit-bdi-breakdown">
+                        <div className="sit-bdi-summary">{bdi.summary}</div>
+                        <div className="sit-bdi-row"><span className="sit-bdi-label">Belief:</span> {bdi.belief}</div>
+                        <div className="sit-bdi-row"><span className="sit-bdi-label">Desire:</span> {bdi.desire}</div>
+                        <div className="sit-bdi-row"><span className="sit-bdi-label">Intention:</span> {bdi.intention}</div>
+                      </div>
+                    );
+                  }
+                  const updateBdiField = (field: 'summary' | 'belief' | 'desire' | 'intention', value: string) => {
+                    update({
+                      interpretations: {
+                        ...node.interpretations,
+                        [activeTab]: { ...bdi, [field]: value },
+                      },
+                    });
+                  };
+                  return (
+                    <div className="sit-bdi-breakdown sit-bdi-edit">
+                      <div className="form-group">
+                        <label className="sit-bdi-field-label">Summary</label>
+                        <HighlightedTextarea value={bdi.summary} onChange={(v) => updateBdiField('summary', v)} rows={2} />
+                      </div>
+                      <div className="form-group">
+                        <label className="sit-bdi-field-label sit-bdi-label-belief">Belief</label>
+                        <HighlightedTextarea value={bdi.belief} onChange={(v) => updateBdiField('belief', v)} rows={2} />
+                      </div>
+                      <div className="form-group">
+                        <label className="sit-bdi-field-label sit-bdi-label-desire">Desire</label>
+                        <HighlightedTextarea value={bdi.desire} onChange={(v) => updateBdiField('desire', v)} rows={2} />
+                      </div>
+                      <div className="form-group">
+                        <label className="sit-bdi-field-label sit-bdi-label-intention">Intention</label>
+                        <HighlightedTextarea value={bdi.intention} onChange={(v) => updateBdiField('intention', v)} rows={2} />
+                      </div>
+                    </div>
+                  );
+                }
+                // Legacy plain-string interpretation
+                if (readOnly) {
+                  return <div className="sit-pov-text">{interpretationText(interp)}</div>;
+                }
+                return (
+                  <div className={`form-group ${err(`interpretations.${activeTab}`) ? 'has-error' : ''}`}>
+                    <HighlightedTextarea
+                      value={interpretationText(interp)}
+                      onChange={(v) => updateInterpretation(activeTab, v)}
+                      rows={8}
+                    />
+                    {err(`interpretations.${activeTab}`) && <div className="error-text">{err(`interpretations.${activeTab}`)}</div>}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Right: Supporting Evidence (linked nodes for this POV) */}
