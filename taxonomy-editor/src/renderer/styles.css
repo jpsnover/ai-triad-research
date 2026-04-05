@@ -5254,147 +5254,9 @@ body {
   outline: none;
 }
 
-/* ─── New Debate Model Selector ──────────────────────── */
-.new-debate-model-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.new-debate-model-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.new-debate-model-select {
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 0.8rem;
-}
-.new-debate-model-info {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-/* ─── New Debate Temperature ─────────────────────────── */
-.new-debate-temperature-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.new-debate-temperature-slider {
-  flex: 1;
-  min-width: 120px;
-}
-.new-debate-temperature-input {
-  width: 56px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 0.8rem;
-  text-align: center;
-}
-.new-debate-temperature-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  min-width: 60px;
-}
-
-/* ─── New Debate Potential Topics ─────────────────────── */
-.new-debate-topics-picker {
-  margin-top: 6px;
-}
-.new-debate-topics-summary {
-  font-size: 0.8rem;
-  color: var(--accent);
-  cursor: pointer;
-  font-weight: 600;
-}
-.new-debate-topics-summary:hover {
-  text-decoration: underline;
-}
-.new-debate-topics-list {
-  max-height: 250px;
-  overflow-y: auto;
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.new-debate-topic-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  cursor: pointer;
-  text-align: left;
-  font-size: 0.75rem;
-  transition: border-color 0.15s, background 0.15s;
-}
-.new-debate-topic-item:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 5%, var(--bg-primary));
-}
-.new-debate-topic-item.selected {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-primary));
-}
-.new-debate-topic-type {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-.new-debate-topic-theme {
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: var(--text-primary);
-}
-.new-debate-topic-prop {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
-/* ─── New Debate Protocol Selector ────────────────────── */
-.new-debate-protocol-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.new-debate-protocol-option {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-.new-debate-protocol-option.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
-}
-.new-debate-protocol-option input[type="radio"] { margin-top: 2px; }
-.new-debate-protocol-name { font-weight: 600; }
-.new-debate-protocol-desc {
-  width: 100%;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  margin-left: 20px;
-}
+/* ─── New Debate Dialog (two-column redesign) ────────── */
+/* Old .new-debate-* classes replaced by .ndd-* below.
+   See second block near line ~6735 for the full NDD styles. */
 
 /* ─── Debate Empty State ──────────────────────────────── */
 
@@ -6730,73 +6592,427 @@ body {
   font-size: 0.8rem;
 }
 
-/* ─── New Debate Dialog ───────────────────────────────── */
+/* ─── New Debate Dialog (NDD two-column redesign) ───── */
 
-.new-debate-dialog {
-  width: 480px;
-  max-width: 90vw;
+.ndd-fullpage {
+  width: 90vw;
+  max-width: 1100px;
+  height: 85vh;
+  max-height: 800px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 48px var(--dialog-shadow, rgba(0, 0, 0, 0.35));
 }
 
-.new-debate-label {
+/* ── Header ── */
+.ndd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.ndd-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.ndd-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.ndd-close-btn:hover {
+  background: var(--bg-hover, var(--hover-bg));
+  color: var(--text-primary);
+}
+
+/* ── Two-column body ── */
+.ndd-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.ndd-col-left {
+  width: 40%;
+  min-width: 320px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+}
+.ndd-col-right {
+  width: 60%;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.ndd-section-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.72rem;
+}
+
+.ndd-field-label {
   display: block;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-top: 16px;
+  margin-top: 14px;
   margin-bottom: 6px;
 }
-
-.new-debate-source-types {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+.ndd-field-label:first-of-type {
+  margin-top: 0;
 }
 
-.new-debate-source-option {
+/* ── Source type radios ── */
+.ndd-source-types {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ndd-source-option {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 0.85rem;
   color: var(--text-secondary);
   cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
 }
-
-.new-debate-source-option.active {
+.ndd-source-option.active {
   color: var(--text-primary);
   font-weight: 600;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary));
 }
-
-.new-debate-source-option input[type="radio"] {
+.ndd-source-option input[type="radio"] {
   accent-color: var(--focus-ring);
 }
+.ndd-source-icon {
+  font-size: 1rem;
+}
 
-.new-debate-file-picker {
+/* ── Topic input ── */
+.ndd-topic-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.ndd-topic-input:focus {
+  border-color: var(--focus-ring);
+}
+
+/* ── File picker ── */
+.ndd-file-picker {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
-
-.new-debate-file-info {
+.ndd-file-info {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
 
-.new-debate-url-input {
+/* ── URL input ── */
+.ndd-url-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: var(--bg-input);
+  background: var(--bg-input, var(--bg-primary));
   color: var(--text-primary);
   font-family: inherit;
   outline: none;
   margin-bottom: 8px;
+  box-sizing: border-box;
+}
+.ndd-url-input:focus {
+  border-color: var(--focus-ring);
 }
 
-.new-debate-url-input:focus {
-  border-color: var(--focus-ring);
+/* ── Potential Topics (scrollable situation cards) ── */
+.ndd-potential-topics {
+  max-height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+.ndd-topic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.8rem;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.ndd-topic-card:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-primary));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.ndd-topic-card.selected {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-primary));
+}
+.ndd-topic-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ndd-topic-card-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.ndd-topic-card-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.ndd-topic-card-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Format cards (right column) ── */
+.ndd-format-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ndd-format-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-primary);
+}
+.ndd-format-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-color));
+}
+.ndd-format-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+}
+.ndd-format-card input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--focus-ring);
+  flex-shrink: 0;
+}
+.ndd-format-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ndd-format-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ndd-format-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+.ndd-format-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── AI Model ── */
+.ndd-model-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ndd-model-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.ndd-model-current {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+.ndd-model-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+/* ── Temperature ── */
+.ndd-temperature-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ndd-temperature-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 28px;
+  text-align: center;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+.ndd-temperature-slider {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--accent);
+}
+.ndd-temperature-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 56px;
+  text-align: right;
+}
+
+/* ── Debaters ── */
+.ndd-debaters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ndd-debater-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.ndd-debater-row:hover {
+  background: var(--bg-hover, color-mix(in srgb, var(--text-primary) 4%, var(--bg-secondary)));
+}
+.ndd-debater-row input[type="checkbox"] {
+  accent-color: var(--focus-ring);
+  flex-shrink: 0;
+}
+.ndd-debater-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 90px;
+  justify-content: center;
+}
+.ndd-debater-badge-user {
+  background: var(--accent, #3b82f6);
+}
+.ndd-debater-icon {
+  font-size: 0.85rem;
+}
+.ndd-debater-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.ndd-hint-error {
+  font-size: 0.75rem;
+  color: var(--danger);
+  margin-top: 8px;
+}
+
+/* ── Footer ── */
+.ndd-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.ndd-cancel-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 16px;
+}
+.ndd-cancel-btn:hover {
+  color: var(--text-primary);
+}
+.ndd-start-btn {
+  padding: 8px 28px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ── Responsive: stack columns on narrow screens ── */
+@media (max-width: 700px) {
+  .ndd-body {
+    flex-direction: column;
+  }
+  .ndd-col-left,
+  .ndd-col-right {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+  }
+  .ndd-col-left {
+    border-bottom: 1px solid var(--border-color);
+  }
+  .ndd-fullpage {
+    width: 98vw;
+    height: 95vh;
+  }
 }
 
 /* Debate source panel (Pane 2 for document/URL debates) */
@@ -6968,53 +7184,6 @@ body {
   font-family: inherit;
   flex: 1;
   overflow-y: auto;
-}
-
-.new-debate-topic {
-  width: 100%;
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  resize: vertical;
-  font-family: inherit;
-  outline: none;
-}
-
-.new-debate-topic:focus {
-  border-color: var(--focus-ring);
-}
-
-.new-debate-povers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.new-debate-pover-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.new-debate-pover-name {
-  font-weight: 600;
-  min-width: 80px;
-}
-
-.new-debate-pover-desc {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.new-debate-hint {
-  font-size: 0.75rem;
-  color: var(--danger);
-  margin-top: 8px;
 }
 
 /* ─── Debate Clarification Phase ──────────────────────── */
