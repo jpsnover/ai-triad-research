@@ -40,9 +40,14 @@ function Get-AITSource {
     .EXAMPLE
         Get-AITSource -Title '*safety*', '*risk*'
         # Sources whose title matches either pattern.
+    .PARAMETER Today
+        Return only sources whose date_ingested is today.
     .EXAMPLE
         Get-AITSource -Status pending
         # Sources whose summary is pending.
+    .EXAMPLE
+        Get-AITSource -Today
+        # Sources ingested today.
     #>
     [CmdletBinding()]
     [OutputType('AITSource')]
@@ -58,7 +63,9 @@ function Get-AITSource {
 
         [string]$Status,
 
-        [string]$SourceType
+        [string]$SourceType,
+
+        [switch]$Today
     )
 
     Set-StrictMode -Version Latest
@@ -121,6 +128,10 @@ function Get-AITSource {
         if ($SourceType) {
             if ($Props['source_type']) { $SrcType = $Meta.source_type } else { $SrcType = $null }
             if ($SrcType -ne $SourceType) { continue }
+        }
+        if ($Today) {
+            if ($Props['date_ingested']) { $Ingested = $Meta.date_ingested } else { $Ingested = $null }
+            if ($Ingested -ne (Get-Date -Format 'yyyy-MM-dd')) { continue }
         }
 
         # Build snapshot.md path

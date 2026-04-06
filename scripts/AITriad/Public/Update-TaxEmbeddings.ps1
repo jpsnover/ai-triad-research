@@ -17,7 +17,8 @@ function Update-TaxEmbeddings {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
     if (-not (Test-Path $EmbedScript)) {
         Write-Error "embed_taxonomy.py not found at $EmbedScript"
         return

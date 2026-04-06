@@ -50,7 +50,8 @@ function Get-TextEmbedding {
         return $null
     }
 
-    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
     if (-not (Test-Path $EmbedScript)) {
         Write-Verbose "Get-TextEmbedding: embed_taxonomy.py not found at $EmbedScript"
         return $null

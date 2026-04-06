@@ -100,7 +100,8 @@ function Get-RelevantTaxonomyNodes {
     # ── Get query embedding ───────────────────────────────────────────────────
     # Use the same local model (all-MiniLM-L6-v2) as the cached taxonomy embeddings.
     # Calls embed_taxonomy.py encode — no API key required, dimensions always match.
-    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
     if (-not (Test-Path $EmbedScript)) {
         New-ActionableError -Goal 'compute query embedding' `
             -Problem "embed_taxonomy.py not found at $EmbedScript" `

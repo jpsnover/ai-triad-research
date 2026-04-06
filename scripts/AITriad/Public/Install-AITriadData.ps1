@@ -76,6 +76,32 @@ function Install-AITriadData {
             Write-Info 'Use -Update to pull latest changes'
         }
     }
+    elseif (Test-Path $DataPath) {
+        # Directory exists but is not a git repo — try to init and pull
+        Write-Warn "Directory exists at $DataPath but is not a git repository"
+        Write-Step 'Initialising existing directory as data repo'
+        try {
+            Push-Location $DataPath
+            git init 2>&1 | ForEach-Object { Write-Info $_ }
+            git remote add origin $RepoUrl 2>&1 | ForEach-Object { Write-Info $_ }
+            git fetch origin 2>&1 | ForEach-Object { Write-Info $_ }
+            if ($LASTEXITCODE -ne 0) { throw "git fetch failed (exit code $LASTEXITCODE)" }
+            git checkout -b main origin/main 2>&1 | ForEach-Object { Write-Info $_ }
+            if ($LASTEXITCODE -ne 0) {
+                # Branch may conflict with existing files — try reset
+                git reset --hard origin/main 2>&1 | ForEach-Object { Write-Info $_ }
+            }
+            Write-OK "Initialised and synced to $DataPath"
+        }
+        catch {
+            Write-Fail "Failed to initialise data repo: $_"
+            Write-Info "Remove $DataPath manually and re-run Install-AITriadData"
+            throw
+        }
+        finally {
+            Pop-Location
+        }
+    }
     else {
         # ── Clone the data repo ──
         $ParentDir = Split-Path $DataPath -Parent
@@ -86,8 +112,8 @@ function Install-AITriadData {
 
         Write-Step "Cloning data repository"
         try {
-            $DirName = Split-Path $DataPath -Leaf
             git clone $RepoUrl $DataPath 2>&1 | ForEach-Object { Write-Info $_ }
+            if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit code $LASTEXITCODE)" }
             Write-OK "Cloned to $DataPath"
         }
         catch {

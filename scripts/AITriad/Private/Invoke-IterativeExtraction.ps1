@@ -103,16 +103,30 @@ function Invoke-IterativeExtraction {
         $Summary = $CleanedText.Trim() | ConvertFrom-Json
     }
     catch {
-        Write-Verbose "  Phase 1 FAILED — JSON parse error: $($_.Exception.Message)"
-        # Return raw result for caller to handle parse failure
-        return @{
-            Summary    = $null
-            RawText    = $InitialResult.Text
-            Backend    = $InitialResult.Backend
-            FireStats  = @{
-                mode = 'fire'; phase1_only = $true; parse_failed = $true
-                total_iterations = 0; total_api_calls = 1
-                elapsed_seconds = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)
+        $ParseErr = $_.Exception.Message
+        Write-Verbose "  Phase 1 — initial parse failed: $ParseErr"
+        # Attempt repair via Repair-TruncatedJson (handles truncation, unclosed brackets, trailing commas)
+        $Repaired = Repair-TruncatedJson -Text $InitialResult.Text
+        if ($Repaired) {
+            try {
+                $Summary = $Repaired | ConvertFrom-Json
+                Write-Verbose "  Phase 1 — repaired JSON successfully"
+            }
+            catch {
+                Write-Verbose "  Phase 1 — repair also failed: $($_.Exception.Message)"
+            }
+        }
+        if ($null -eq $Summary) {
+            Write-Verbose "  Phase 1 FAILED — JSON parse error: $ParseErr"
+            return @{
+                Summary    = $null
+                RawText    = $InitialResult.Text
+                Backend    = $InitialResult.Backend
+                FireStats  = @{
+                    mode = 'fire'; phase1_only = $true; parse_failed = $true
+                    total_iterations = 0; total_api_calls = 1
+                    elapsed_seconds = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)
+                }
             }
         }
     }

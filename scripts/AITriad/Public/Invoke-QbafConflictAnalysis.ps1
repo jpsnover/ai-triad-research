@@ -207,7 +207,8 @@ function Invoke-QbafConflictAnalysis {
 
     $QbafResult = $null
     try {
-        $NpxCmd = Get-Command npx -ErrorAction SilentlyContinue
+        $NpxCmd = Get-Command npx.cmd -ErrorAction SilentlyContinue
+        if (-not $NpxCmd) { $NpxCmd = Get-Command npx -ErrorAction SilentlyContinue }
         if (-not $NpxCmd) { throw 'npx not found — install Node.js to enable QBAF propagation' }
         $Process = New-Object System.Diagnostics.Process
         $Process.StartInfo.FileName = $NpxCmd.Source

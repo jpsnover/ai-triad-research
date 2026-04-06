@@ -103,6 +103,7 @@ if (Test-Path $DevConfigPath) {
     }
     if ($DataRoot -and (Test-Path $DataRoot)) {
         $InstalledConfig = @{
+            code_root     = $RepoRoot
             data_root     = $DataRoot
             taxonomy_dir  = $DevConfig.taxonomy_dir
             sources_dir   = $DevConfig.sources_dir

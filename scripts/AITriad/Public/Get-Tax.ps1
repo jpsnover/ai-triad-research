@@ -134,7 +134,8 @@ function Get-Tax {
 
     # -- Overlaps (pairwise similarity) code path ------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Overlaps') {
-        $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+        $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+        if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
         if (-not (Test-Path $EmbedScript)) {
             Write-Error "embed_taxonomy.py not found at $EmbedScript"
             return
@@ -202,7 +203,8 @@ function Get-Tax {
 
     # -- Similar (semantic search) code path ----------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Similar') {
-        $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+        $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+        if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
         if (-not (Test-Path $EmbedScript)) {
             Write-Error "embed_taxonomy.py not found at $EmbedScript"
             return

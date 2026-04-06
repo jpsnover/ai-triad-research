@@ -89,8 +89,9 @@ function Invoke-AITDebate {
         throw "At least 2 debaters are required. Got: $($Debaters -join ', ')"
     }
 
-    # Verify npx is available
-    $NpxCmd = Get-Command npx -ErrorAction SilentlyContinue
+    # Verify npx is available (prefer .cmd on Windows — .ps1 can't be launched via Process.Start)
+    $NpxCmd = Get-Command npx.cmd -ErrorAction SilentlyContinue
+    if (-not $NpxCmd) { $NpxCmd = Get-Command npx -ErrorAction SilentlyContinue }
     if (-not $NpxCmd) {
         throw @"
 npx (Node.js package runner) is not installed.

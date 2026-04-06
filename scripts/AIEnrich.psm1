@@ -591,6 +591,16 @@ function Repair-TruncatedJson {
     $trimmed = $trimmed -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
     $trimmed = $trimmed.Trim()
 
+    # Fix trailing commas before } or ] (common LLM output issue)
+    $commaFixed = $trimmed -replace ',\s*([\]\}])', '$1'
+    if ($commaFixed -ne $trimmed) {
+        try {
+            $null = $commaFixed | ConvertFrom-Json -ErrorAction Stop
+            return $commaFixed
+        } catch { }
+        $trimmed = $commaFixed   # keep the fix for subsequent strategies
+    }
+
     # Walk the string tracking nesting depth
     $inString  = $false
     $escaped   = $false

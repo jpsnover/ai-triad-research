@@ -39,7 +39,8 @@ function Merge-ChunkSummaries {
     # Uses local all-MiniLM-L6-v2 model via embed_taxonomy.py encode (no API key needed)
     $UseEmbeddings = $false
     $EmbeddingCache = @{}  # text hash → vector
-    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+    if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
     if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
     # Closures that capture parent-scope variables
