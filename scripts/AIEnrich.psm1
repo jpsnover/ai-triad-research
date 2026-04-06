@@ -473,7 +473,11 @@ function Get-AIMetadata {
         $Excerpt = $MarkdownText
     }
 
+    # Dev layout: scripts/AITriad/Prompts/; PSGallery: Prompts/ (flat)
     $PromptPath = Join-Path (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'Prompts') 'metadata-extraction.prompt'
+    if (-not (Test-Path $PromptPath)) {
+        $PromptPath = Join-Path (Join-Path $PSScriptRoot 'Prompts') 'metadata-extraction.prompt'
+    }
     $StaticPrompt = (Get-Content -Path $PromptPath -Raw).TrimEnd()
 
     $Prompt = @"
