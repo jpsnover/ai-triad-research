@@ -9,7 +9,7 @@
     CompanyName       = 'Snover International Consulting LLC'
     Copyright         = '(c) 2026 Snover International Consulting LLC. All rights reserved.'
     Description       = 'AI Triad Research — taxonomy queries, document ingestion, POV analysis'
-    PowerShellVersion = '7.0'
+    PowerShellVersion = '5.1'
 
     # Functions exported from this module
     FunctionsToExport = @(
