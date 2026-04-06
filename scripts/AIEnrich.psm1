@@ -510,7 +510,7 @@ $Excerpt
     }
 
     # Validate pov_tags
-    $ValidPovs    = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting')
+    $ValidPovs    = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')
     $FilteredPovs = @()
     if ($Parsed.pov_tags) {
         $FilteredPovs = @($Parsed.pov_tags | Where-Object { $_ -in $ValidPovs })
