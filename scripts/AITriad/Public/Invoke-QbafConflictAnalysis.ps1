@@ -207,9 +207,11 @@ function Invoke-QbafConflictAnalysis {
 
     $QbafResult = $null
     try {
+        $NpxCmd = Get-Command npx -ErrorAction SilentlyContinue
+        if (-not $NpxCmd) { throw 'npx not found — install Node.js to enable QBAF propagation' }
         $Process = New-Object System.Diagnostics.Process
-        $Process.StartInfo.FileName = 'cmd.exe'
-        $Process.StartInfo.Arguments = "/c npx tsx `"$BridgePath`""
+        $Process.StartInfo.FileName = $NpxCmd.Source
+        $Process.StartInfo.Arguments = "tsx `"$BridgePath`""
         $Process.StartInfo.UseShellExecute = $false
         $Process.StartInfo.RedirectStandardInput = $true
         $Process.StartInfo.RedirectStandardOutput = $true
