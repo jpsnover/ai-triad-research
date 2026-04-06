@@ -90,22 +90,36 @@ if (Test-Path $ModelsFile) {
     Write-Host '  + ai-models.json'
 }
 
-# ── Create default .aitriad.json for PSGallery installs ──
-# This uses a placeholder that Resolve-DataPath.ps1 will resolve to the
-# platform-specific default path at runtime.
-$DefaultConfig = @{
-    data_root     = '__PLATFORM_DEFAULT__'
-    taxonomy_dir  = 'taxonomy/Origin'
-    sources_dir   = 'sources'
-    summaries_dir = 'summaries'
-    conflicts_dir = 'conflicts'
-    debates_dir   = 'debates'
-    queue_file    = '.summarise-queue.json'
-    version_file  = 'TAXONOMY_VERSION'
-} | ConvertTo-Json -Depth 5
-
-# Don't bundle .aitriad.json — let Resolve-DataPath use platform defaults
-# for PSGallery installs (no .aitriad.json = use Get-PlatformDataDir)
+# ── Create .aitriad.json with absolute paths for installed modules ──
+# Read the dev config and resolve relative paths so the module works from any $PWD.
+$DevConfigPath = Join-Path $RepoRoot '.aitriad.json'
+if (Test-Path $DevConfigPath) {
+    $DevConfig = Get-Content -Raw -Path $DevConfigPath | ConvertFrom-Json
+    # Resolve data_root to absolute if relative
+    $DataRoot = $DevConfig.data_root
+    if (-not [System.IO.Path]::IsPathRooted($DataRoot)) {
+        $DataRoot = (Resolve-Path (Join-Path $RepoRoot $DataRoot) -ErrorAction SilentlyContinue)
+        if ($DataRoot) { $DataRoot = $DataRoot.Path }
+    }
+    if ($DataRoot -and (Test-Path $DataRoot)) {
+        $InstalledConfig = @{
+            data_root     = $DataRoot
+            taxonomy_dir  = $DevConfig.taxonomy_dir
+            sources_dir   = $DevConfig.sources_dir
+            summaries_dir = $DevConfig.summaries_dir
+            conflicts_dir = $DevConfig.conflicts_dir
+            debates_dir   = $DevConfig.debates_dir
+            queue_file    = $DevConfig.queue_file
+            version_file  = $DevConfig.version_file
+        } | ConvertTo-Json -Depth 5
+        $InstalledConfig | Set-Content -Path (Join-Path $ModuleDir '.aitriad.json') -Encoding UTF8
+        Write-Host "  + .aitriad.json (data_root=$DataRoot)"
+    } else {
+        Write-Warning "  Data root not found — skipping .aitriad.json (set `$env:AI_TRIAD_DATA_ROOT at runtime)"
+    }
+} else {
+    Write-Warning '  .aitriad.json not found in repo root — skipping'
+}
 
 # ── Bundle LICENSE ──
 $License = Join-Path $RepoRoot 'LICENSE'

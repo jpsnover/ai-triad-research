@@ -6,6 +6,7 @@
 # Priority: $env:AI_TRIAD_DATA_ROOT > .aitriad.json > platform default
 
 $script:DataConfig = $null
+$script:DataConfigDir = $null   # directory where .aitriad.json was found
 
 function Get-PlatformDataDir {
     <#
@@ -44,6 +45,7 @@ function Initialize-DataConfig {
         if (Test-Path $ConfigPath) {
             try {
                 $script:DataConfig = Get-Content -Raw -Path $ConfigPath | ConvertFrom-Json
+                $script:DataConfigDir = Split-Path $ConfigPath -Parent
                 Write-Verbose "Data config: loaded from $ConfigPath"
                 return
             }
@@ -126,7 +128,9 @@ function Get-DataRoot {
     if ([System.IO.Path]::IsPathRooted($Root)) {
         return $Root
     }
-    return Join-Path (Get-CodeRoot) $Root
+    # Resolve relative to where .aitriad.json was found, then Get-CodeRoot fallback
+    if ($script:DataConfigDir) { $Anchor = $script:DataConfigDir } else { $Anchor = Get-CodeRoot }
+    return Join-Path $Anchor $Root
 }
 
 function Get-TaxonomyDir {
