@@ -26,14 +26,40 @@ function speakerLabel(speaker: PoverId | 'system' | 'document'): string {
   return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 }
 
+function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement | null> }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        const text = targetRef.current?.innerText ?? '';
+        navigator.clipboard.writeText(text).catch(() => {
+          // fallback for Electron
+          if (window.electronAPI?.clipboardWriteText) window.electronAPI.clipboardWriteText(text);
+        });
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="diag-copy-btn"
+      title="Copy section content to clipboard"
+    >
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
+}
+
 function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
+  const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <div className="diag-section">
-      <button className="diag-section-header" onClick={() => setOpen(!open)}>
-        <span>{open ? '▼' : '▶'}</span> {title}
-      </button>
-      {open && <div className="diag-section-body">{children}</div>}
+      <div className="diag-section-header-row">
+        <button className="diag-section-header" onClick={() => setOpen(!open)}>
+          <span>{open ? '▼' : '▶'}</span> {title}
+        </button>
+        {open && <CopyButton targetRef={bodyRef} />}
+      </div>
+      {open && <div className="diag-section-body" ref={bodyRef}>{children}</div>}
     </div>
   );
 }

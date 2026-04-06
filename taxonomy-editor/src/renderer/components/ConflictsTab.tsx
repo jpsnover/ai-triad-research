@@ -7,9 +7,16 @@ import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { ConflictDetail } from './ConflictDetail';
 import { PinnedPanel } from './PinnedPanel';
+import { LineagePanel } from './LineagePanel';
+import { EdgeBrowser } from './EdgeBrowser';
+import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
+import { PolicyDashboard } from './PolicyDashboard';
+import { TerminalPanel } from './TerminalPanel';
+import { SearchPanel } from './SearchPanel';
+import { FallacyPanel } from './FallacyPanel';
 
 export function ConflictsTab() {
-  const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth } = useTaxonomyStore();
+  const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth, toolbarPanel } = useTaxonomyStore();
   const [showNew, setShowNew] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -48,9 +55,32 @@ export function ConflictsTab() {
     }
   };
 
+  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'console';
+
+  const renderToolbarPane = () => {
+    switch (toolbarPanel) {
+      case 'search': return <SearchPanel onSelectResult={() => {}} />;
+      case 'lineage': return <LineagePanel onSelectValue={() => {}} />;
+      case 'fallacy': return <FallacyPanel onSelectFallacy={() => {}} />;
+      case 'edges': return <EdgeBrowser />;
+      case 'policyAlignment': return <PolicyAlignmentPanel />;
+      case 'policyDashboard': return <PolicyDashboard />;
+      case 'console': return <TerminalPanel />;
+      default: return null;
+    }
+  };
+
   return (
     <div className="two-column">
-      {listCollapsed ? (
+      {isFullWidthPanel ? (
+        <div className="list-panel list-panel-full">
+          {renderToolbarPane()}
+        </div>
+      ) : toolbarPanel ? (
+        <div className="list-panel" style={{ width }}>
+          {renderToolbarPane()}
+        </div>
+      ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">Conflicts</span>
         </div>
@@ -79,8 +109,10 @@ export function ConflictsTab() {
           </div>
         </div>
       )}
-      <div className="resize-handle" onMouseDown={onMouseDown} />
-      {detailCollapsed ? (
+      {!isFullWidthPanel && (
+        <div className="resize-handle" onMouseDown={onMouseDown} />
+      )}
+      {isFullWidthPanel ? null : detailCollapsed ? (
         <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
           <span className="pane-collapsed-label">Detail</span>
         </div>

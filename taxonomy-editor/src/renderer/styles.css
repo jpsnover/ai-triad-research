@@ -5778,6 +5778,11 @@ body {
   font-size: 0.75rem;
 }
 .diag-section { margin-bottom: 6px; }
+.diag-section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .diag-section-header {
   display: flex;
   align-items: center;
@@ -5789,8 +5794,22 @@ body {
   font-weight: 600;
   cursor: pointer;
   padding: 3px 0;
-  width: 100%;
+  flex: 1;
   text-align: left;
+}
+.diag-copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+.diag-copy-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
 }
 .diag-section-body {
   padding: 4px 0 4px 16px;

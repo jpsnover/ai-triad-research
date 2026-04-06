@@ -114,18 +114,23 @@ function TaxonomyNodeCountPreview() {
   const desiresOn = configGet('taxonomyNodes.bdiFilter.Desires') as boolean;
   const intentionsOn = configGet('taxonomyNodes.bdiFilter.Intentions') as boolean;
 
-  // Count nodes per category across all POVs
-  const counts = useTaxonomyStore(s => {
-    const result: Record<string, number> = { Beliefs: 0, Desires: 0, Intentions: 0 };
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-      const file = s[pov];
-      if (!file?.nodes) continue;
-      for (const n of file.nodes) {
-        result[n.category] = (result[n.category] ?? 0) + 1;
+  // Count nodes per category across all POVs (equality fn avoids infinite re-render)
+  const counts = useTaxonomyStore(
+    s => {
+      let beliefs = 0, desires = 0, intentions = 0;
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        const file = s[pov];
+        if (!file?.nodes) continue;
+        for (const n of file.nodes) {
+          if (n.category === 'Beliefs') beliefs++;
+          else if (n.category === 'Desires') desires++;
+          else if (n.category === 'Intentions') intentions++;
+        }
       }
-    }
-    return result;
-  });
+      return { Beliefs: beliefs, Desires: desires, Intentions: intentions };
+    },
+    (a, b) => a.Beliefs === b.Beliefs && a.Desires === b.Desires && a.Intentions === b.Intentions,
+  );
 
   const totalAvailable = (beliefsOn ? counts.Beliefs : 0) + (desiresOn ? counts.Desires : 0) + (intentionsOn ? counts.Intentions : 0);
   const totalAll = counts.Beliefs + counts.Desires + counts.Intentions;
