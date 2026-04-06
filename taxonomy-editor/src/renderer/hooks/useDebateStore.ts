@@ -35,6 +35,7 @@ import {
   probingQuestionsPrompt,
   factCheckPrompt,
   contextCompressionPrompt,
+  entrySummarizationPrompt,
 } from '../prompts/debate';
 import {
   generateId,
@@ -87,6 +88,34 @@ async function generateTextWithProgress(
   } finally {
     unsubscribe();
     set({ debateProgress: null, debateActivity: null });
+  }
+}
+
+/** Post-turn summarization (DT-2): generate brief + medium summaries for a transcript entry. */
+async function summarizeTranscriptEntry(
+  entryId: string,
+  content: string,
+  speaker: string,
+  model: string,
+  get: () => { activeDebate: DebateSession | null },
+  set: (partial: Partial<{ activeDebate: DebateSession | null }>) => void,
+): Promise<void> {
+  try {
+    const prompt = entrySummarizationPrompt(content, speaker);
+    const { text } = await window.electronAPI.generateText(prompt, model, 15000);
+    const cleaned = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned) as { brief?: string; medium?: string };
+    if (parsed.brief && parsed.medium) {
+      const debate = get().activeDebate;
+      if (!debate) return;
+      const entry = debate.transcript.find(e => e.id === entryId);
+      if (entry) {
+        entry.summaries = { brief: parsed.brief, medium: parsed.medium };
+        set({ activeDebate: { ...debate } });
+      }
+    }
+  } catch (err) {
+    console.warn('[debate] summarizeEntry failed:', err);
   }
 }
 
@@ -1358,6 +1387,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         priorStatements.push({ speaker: info.label, statement });
 
+        // Summarize for detail tiers (awaited so summaries persist with save)
+        if (lastEntry) {
+          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
+        }
+
         // Save after each statement so progress persists
         await saveDebate();
 
@@ -1524,6 +1558,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             commitment_context: commitBlock || undefined,
           });
           extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
       } catch (err) {
         addTranscriptEntry({
@@ -1721,6 +1756,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           commitment_context: commitBlock || undefined,
         });
         extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+        // Post-turn summarization (DT-2)
+        await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
       }
     } catch (err) {
       addTranscriptEntry({

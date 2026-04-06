@@ -624,8 +624,8 @@ export class DebateEngine {
       // Extract claims synchronously
       await this.extractClaims(statement, poverId, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
 
-      // Post-turn summarization (DT-2) — fire and forget
-      this.summarizeEntry(entry).catch(() => {});
+      // Post-turn summarization (DT-2)
+      await this.summarizeEntry(entry);
 
       priorStatements.push({ speaker: info.label, statement });
     }

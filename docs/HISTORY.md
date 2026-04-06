@@ -4,6 +4,10 @@ A narrative record of significant decisions, shifts, and milestones. Not a chang
 
 ---
 
+## 2026-04-03 — Debate Detail Tiers — generate once, view at any level
+
+A rethink of how debate response length works (t/184). Previously, the response length parameter (brief/medium/detailed) was baked into the debater prompt — the AI generated at the requested length and that was all you got. The new design flips this: the backend always generates detailed responses, then a post-turn AI summarization pass produces cached brief (2–3 sentences) and medium (1–2 paragraphs) versions. A per-turn tier selector lets users switch instantly between views without re-generating anything. This decouples generation quality from display preference — detailed generation captures all nuance and claims, while the summaries let users skim when they want to. Existing debates get the tier selector disabled (no cached summaries to show). Five tickets (t/185–t/189).
+
 ## 2026-04-03 — QBAF Diagnostics approved
 
 The QBAF engine computes strength scores — now users need to see and explore them (t/167). Four visualization modes: a strength timeline chart showing how claim strengths evolve across debate turns, per-claim detail cards showing the attack/support breakdown, inline delta badges on the transcript (▲/▼ showing net impact per turn), and a What-If mode for counterfactual analysis ("what would happen to this claim's strength if we removed this attacker?"). The key design constraint: no new AI calls. Everything is deterministic DF-QuAD math on the existing QBAF graph — the engine already computed the data, this just makes it visible and explorable. Six tickets (t/168–t/173), all Taxonomy Editor UI work. Per the Computational Linguist's proposal in e/22.
