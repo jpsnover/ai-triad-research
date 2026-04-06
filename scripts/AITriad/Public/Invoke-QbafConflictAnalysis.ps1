@@ -203,7 +203,7 @@ function Invoke-QbafConflictAnalysis {
     }
 
     $InputJson = $QbafInput | ConvertTo-Json -Depth 5 -Compress
-    $BridgePath = Join-Path (Join-Path $script:RepoRoot 'scripts') 'qbaf-bridge.mjs'
+    $BridgePath = Join-Path (Join-Path (Get-CodeRoot) 'scripts') 'qbaf-bridge.mjs'
 
     $QbafResult = $null
     try {
