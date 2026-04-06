@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -19,7 +19,7 @@
     Publish-Module -Path ./build/AITriad -NuGetApiKey $key -Repository PSGallery
 #>
 param(
-    [string]$OutputDir = (Join-Path $PSScriptRoot '..' 'build'),
+    [string]$OutputDir = (Join-Path (Join-Path $PSScriptRoot '..') 'build'),
     [switch]$Clean
 )
 
@@ -41,7 +41,7 @@ if ($Clean -and (Test-Path $OutputDir)) {
 New-Item -ItemType Directory -Path $ModuleDir -Force | Out-Null
 
 # ── Copy module core ──
-$ModuleSrc = Join-Path $RepoRoot 'scripts' 'AITriad'
+$ModuleSrc = Join-Path (Join-Path $RepoRoot 'scripts') 'AITriad'
 Write-Host "Copying module from $ModuleSrc..."
 
 # Core files
@@ -73,7 +73,7 @@ if (Test-Path $FormatsSrc) {
 Write-Host 'Bundling companion modules...'
 $ScriptsDir = Join-Path $RepoRoot 'scripts'
 
-foreach ($Companion in @('AIEnrich.psm1', 'DocConverters.psm1')) {
+foreach ($Companion in @('AIEnrich.psm1', 'DocConverters.psm1', 'PdfOptimizer.psm1')) {
     $Src = Join-Path $ScriptsDir $Companion
     if (Test-Path $Src) {
         Copy-Item $Src $ModuleDir

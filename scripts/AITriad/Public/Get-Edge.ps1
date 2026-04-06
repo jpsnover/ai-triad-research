@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Edge {
@@ -136,7 +136,7 @@ function Get-Edge {
         return
     }
 
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
 
     # ------------------------------------------------------------------
     # Index mode — fast return of a single edge
@@ -173,7 +173,7 @@ function Get-Edge {
         foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
             foreach ($Node in $FileData.nodes) {
                 $NodePovMap[$Node.id] = $PovKey
             }
@@ -212,7 +212,7 @@ function Get-Edge {
 
         # Strength wildcard
         if ($Strength) {
-            $EStrength = if ($E.PSObject.Properties['strength']) { $E.strength } else { '' }
+            if ($E.PSObject.Properties['strength']) { $EStrength = $E.strength } else { $EStrength = '' }
             if ($EStrength -notlike $Strength) { continue }
         }
 
@@ -228,8 +228,8 @@ function Get-Edge {
 
         # POV-based filters
         if ($NodePovMap) {
-            $SPov = if ($NodePovMap.ContainsKey($E.source)) { $NodePovMap[$E.source] } else { 'unknown' }
-            $TPov = if ($NodePovMap.ContainsKey($E.target)) { $NodePovMap[$E.target] } else { 'unknown' }
+            if ($NodePovMap.ContainsKey($E.source)) { $SPov = $NodePovMap[$E.source] } else { $SPov = 'unknown' }
+            if ($NodePovMap.ContainsKey($E.target)) { $TPov = $NodePovMap[$E.target] } else { $TPov = 'unknown' }
 
             if ($SourcePov -and $SPov -ne $SourcePov) { continue }
             if ($TargetPov -and $TPov -ne $TargetPov) { continue }

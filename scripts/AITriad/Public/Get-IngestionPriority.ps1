@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-IngestionPriority {
@@ -53,7 +53,7 @@ function Get-IngestionPriority {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
     }
 
     # ── Step 1: Gather health data ────────────────────────────────────────────
@@ -96,7 +96,7 @@ function Get-IngestionPriority {
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
             try {
-                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             }
             catch { continue }
 
@@ -185,10 +185,10 @@ function Get-IngestionPriority {
         $SourcesDir = Get-SourcesDir
         $DocPovs = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($DId in $NC.DocIds) {
-            $MetaPath = Join-Path $SourcesDir $DId 'metadata.json'
+            $MetaPath = Join-Path (Join-Path $SourcesDir $DId) 'metadata.json'
             if (Test-Path $MetaPath) {
                 try {
-                    $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
+                    $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
                     if ($Meta.pov_tags) {
                         foreach ($PT in $Meta.pov_tags) { [void]$DocPovs.Add($PT) }
                     }
@@ -220,10 +220,10 @@ function Get-IngestionPriority {
         Write-Step 'Generating search queries with AI'
 
         try {
-            $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                       elseif ($Model -match '^claude') { 'claude' }
-                       elseif ($Model -match '^groq')   { 'groq'   }
-                       else                             { 'gemini'  }
+            if     ($Model -match '^gemini') { $Backend = 'gemini' }
+            elseif ($Model -match '^claude') { $Backend = 'claude' }
+            elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+            else                             { $Backend = 'gemini'  }
 
             $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
             if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -250,7 +250,7 @@ function Get-IngestionPriority {
 
                 if ($AIResult -and $AIResult.Text) {
                     $ResponseText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $AIRecommendations = ($ResponseText | ConvertFrom-Json -Depth 20).recommendations
+                    $AIRecommendations = ($ResponseText | ConvertFrom-Json).recommendations
                     Write-OK "AI generated $($AIRecommendations.Count) search recommendations ($($AIResult.Backend))"
                 }
                 else {
@@ -299,7 +299,7 @@ function Get-IngestionPriority {
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
 
     foreach ($G in $ResultGaps) {
-        $ScoreColor = if ($G.score -ge 8) { 'Red' } elseif ($G.score -ge 6) { 'Yellow' } else { 'Gray' }
+        if ($G.score -ge 8) { $ScoreColor = 'Red' } elseif ($G.score -ge 6) { $ScoreColor = 'Yellow' } else { $ScoreColor = 'Gray' }
         Write-Host "`n  [$($G.score.ToString().PadLeft(2))] $($G.type)" -ForegroundColor $ScoreColor -NoNewline
         Write-Host "  ($($G.pov))" -ForegroundColor DarkGray
         Write-Host "       $($G.label)" -ForegroundColor White

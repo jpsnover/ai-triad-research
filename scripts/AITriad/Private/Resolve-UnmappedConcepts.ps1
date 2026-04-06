@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Post-processes AI-generated unmapped concepts by fuzzy-matching them against
@@ -75,13 +75,14 @@ function Resolve-UnmappedConcepts {
     $AllNodes = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($PovKey in $TaxonomyData.Keys) {
         $Entry = $TaxonomyData[$PovKey]
-        $Nodes = if ($Entry.nodes) { $Entry.nodes } else { @() }
+        if ($Entry.nodes) { $Nodes = $Entry.nodes } else { $Nodes = @() }
         foreach ($Node in $Nodes) {
+            if ($Node.PSObject.Properties['category']) { $NodeCat = $Node.category } else { $NodeCat = $null }
             $null = $AllNodes.Add([PSCustomObject]@{
                 POV      = $PovKey
                 Id       = $Node.id
                 Label    = $Node.label
-                Category = if ($Node.PSObject.Properties['category']) { $Node.category } else { $null }
+                Category = $NodeCat
                 Tokens   = Get-WordTokens $Node.label
             })
         }
@@ -92,7 +93,7 @@ function Resolve-UnmappedConcepts {
 
     foreach ($Concept in $UnmappedConcepts) {
         $Props = $Concept.PSObject.Properties
-        $ConceptLabel = if ($Props['suggested_label']) { $Concept.suggested_label } else { '' }
+        if ($Props['suggested_label']) { $ConceptLabel = $Concept.suggested_label } else { $ConceptLabel = '' }
         if (-not $ConceptLabel) {
             $null = $Remaining.Add($Concept)
             continue
@@ -100,7 +101,7 @@ function Resolve-UnmappedConcepts {
 
         $ConceptTokens = Get-WordTokens $ConceptLabel
         # Also tokenize the description for a secondary signal
-        $DescTokens = if ($Props['suggested_description']) { Get-WordTokens $Concept.suggested_description } else { @() }
+        if ($Props['suggested_description']) { $DescTokens = Get-WordTokens $Concept.suggested_description } else { $DescTokens = @() }
 
         $BestScore = 0.0
         $BestNode  = $null
@@ -110,9 +111,9 @@ function Resolve-UnmappedConcepts {
             $LabelScore = Get-JaccardSimilarity $ConceptTokens $Node.Tokens
 
             # Secondary: concept-description vs node-label (weighted lower)
-            $DescScore = if ($DescTokens.Count -gt 0) {
-                (Get-JaccardSimilarity $DescTokens $Node.Tokens) * 0.3
-            } else { 0.0 }
+            if ($DescTokens.Count -gt 0) {
+                $DescScore = (Get-JaccardSimilarity $DescTokens $Node.Tokens) * 0.3
+            } else { $DescScore = 0.0 }
 
             $Combined = [Math]::Max($LabelScore, $LabelScore * 0.7 + $DescScore)
 

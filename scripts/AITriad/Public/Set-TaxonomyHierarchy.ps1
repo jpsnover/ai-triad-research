@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Set-TaxonomyHierarchy {
@@ -32,7 +32,7 @@ function Set-TaxonomyHierarchy {
     }
 
     Write-Step 'Loading hierarchy proposal'
-    $ProposalData = Get-Content -Raw -Path $ProposalFile | ConvertFrom-Json -Depth 30
+    $ProposalData = Get-Content -Raw -Path $ProposalFile | ConvertFrom-Json
     $Buckets = @($ProposalData.buckets)
     Write-OK "Loaded $($Buckets.Count) buckets from proposal"
 
@@ -52,7 +52,7 @@ function Set-TaxonomyHierarchy {
         if (Test-Path $FilePath) {
             $TaxFiles[$PovKey] = @{
                 Path = $FilePath
-                Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+                Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
                 Modified = $false
             }
         }
@@ -79,9 +79,9 @@ function Set-TaxonomyHierarchy {
 
     foreach ($Bucket in $Buckets) {
         $PovKey  = $Bucket.pov
-        $CatLabel = if ($Bucket.PSObject.Properties['category'] -and $Bucket.category) {
-            $Bucket.category
-        } else { '(situations)' }
+        if ($Bucket.PSObject.Properties['category'] -and $Bucket.category) {
+            $CatLabel = $Bucket.category
+        } else { $CatLabel = '(situations)' }
 
         Write-Step "$PovKey / $CatLabel"
 
@@ -238,7 +238,7 @@ function Set-TaxonomyHierarchy {
                 }
 
                 # Set parent_relationship (is_a, part_of, specializes)
-                $Relationship = if ($Child.PSObject.Properties['relationship']) { $Child.relationship } else { $null }
+                if ($Child.PSObject.Properties['relationship']) { $Relationship = $Child.relationship } else { $Relationship = $null }
                 if ($ChildNode.PSObject.Properties['parent_relationship']) {
                     $ChildNode.parent_relationship = $Relationship
                 }
@@ -247,7 +247,7 @@ function Set-TaxonomyHierarchy {
                 }
 
                 # Set parent_rationale
-                $Rationale = if ($Child.PSObject.Properties['rationale']) { $Child.rationale } else { $null }
+                if ($Child.PSObject.Properties['rationale']) { $Rationale = $Child.rationale } else { $Rationale = $null }
                 if ($ChildNode.PSObject.Properties['parent_rationale']) {
                     $ChildNode.parent_rationale = $Rationale
                 }

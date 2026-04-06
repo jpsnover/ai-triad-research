@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -100,9 +100,9 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     }
 
     # Resolve model
-    $ResolvedModel = if ($Model) { $Model }
-                     elseif ($env:AI_MODEL) { $env:AI_MODEL }
-                     else { 'gemini-2.5-flash' }
+    if ($Model) { $ResolvedModel = $Model }
+    elseif ($env:AI_MODEL) { $ResolvedModel = $env:AI_MODEL }
+    else { $ResolvedModel = 'gemini-2.5-flash' }
 
     # ── Resolve output directory ──────────────────────────
     if (-not $OutputDirectory) {
@@ -129,7 +129,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
         'CrossCutting' { "Cross-cutting: $CrossCuttingNodeId" }
     }
 
-    $SlugSource = if ($Name) { $Name } else { $DebateTopic }
+    if ($Name) { $SlugSource = $Name } else { $SlugSource = $DebateTopic }
     $Slug = New-Slug -Text $SlugSource
 
     # ── Build config JSON ─────────────────────────────────
@@ -170,7 +170,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     try {
         # ── Locate CLI ────────────────────────────────────
         $RepoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent | Split-Path -Parent
-        $CliPath  = Join-Path $RepoRoot 'lib' 'debate' 'cli.ts'
+        $CliPath  = Join-Path (Join-Path (Join-Path $RepoRoot 'lib') 'debate') 'cli.ts'
 
         if (-not (Test-Path $CliPath)) {
             throw @"

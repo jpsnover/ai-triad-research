@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -44,15 +44,15 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Module (Join-Path $ScriptDir 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 Import-Module (Join-Path $ScriptDir 'AIEnrich.psm1') -Force -ErrorAction Stop
 
 if (-not $Model) {
-    $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
+    if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
 }
 
 $DataRoot = (Resolve-Path $DataRoot).Path
-$TaxDir = Join-Path $DataRoot 'taxonomy' 'Origin'
+$TaxDir = Join-Path (Join-Path $DataRoot 'taxonomy') 'Origin'
 
 Write-Host "`n  GENUS-DIFFERENTIA DESCRIPTION REWRITE" -ForegroundColor Cyan
 Write-Host "  Model: $Model | Mode: $(if ($DryRun) { 'DRY RUN' } else { 'LIVE' })`n" -ForegroundColor Gray
@@ -81,17 +81,17 @@ foreach ($PovKey in $PovFiles.Keys) {
     $FilePath = Join-Path $TaxDir $PovFiles[$PovKey]
     if (-not (Test-Path $FilePath)) { continue }
 
-    $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+    $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
     $NonCompliant = [System.Collections.Generic.List[PSObject]]::new()
 
     foreach ($Node in $Data.nodes) {
         if (-not $Node.description) { $NonCompliant.Add($Node); continue }
 
-        $IsCompliant = if ($PovKey -eq 'situations') {
-            $Node.description -match '^A\s+situation\s+that\s+'
+        if ($PovKey -eq 'situations') {
+            $IsCompliant = $Node.description -match '^A\s+situation\s+that\s+'
         }
         else {
-            $Node.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
+            $IsCompliant = $Node.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
         }
 
         if (-not $IsCompliant) {
@@ -128,10 +128,10 @@ if ($DryRun) {
 }
 
 # ── Resolve API key ───────────────────────────────────────────────────────────
-$Backend = if ($Model -match '^gemini') { 'gemini' }
-           elseif ($Model -match '^claude') { 'claude' }
-           elseif ($Model -match '^groq') { 'groq' }
-           else { 'gemini' }
+if ($Model -match '^gemini') { $Backend = 'gemini' }
+elseif ($Model -match '^claude') { $Backend = 'claude' }
+elseif ($Model -match '^groq') { $Backend = 'groq' }
+else { $Backend = 'gemini' }
 
 $ApiKey = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 if (-not $ApiKey) {
@@ -152,7 +152,7 @@ foreach ($PovKey in $FilesToFix.Keys) {
         $Batch = $Nodes[$i..([Math]::Min($i + $BatchSize - 1, $Nodes.Count - 1))]
 
         $NodeContext = @($Batch | ForEach-Object {
-            $Cat = if ($_.PSObject.Properties['category']) { $_.category } else { $null }
+            if ($_.PSObject.Properties['category']) { $Cat = $_.category } else { $Cat = $null }
             [ordered]@{
                 id          = $_.id
                 label       = $_.label
@@ -189,7 +189,7 @@ Return ONLY a JSON array:
                 -Temperature 0.2 -MaxTokens 8192 -JsonMode -TimeoutSec 120
 
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
-            $Rewrites = $ResponseText | ConvertFrom-Json -Depth 10
+            $Rewrites = $ResponseText | ConvertFrom-Json
 
             foreach ($R in $Rewrites) {
                 $TargetNode = $Entry.Data.nodes | Where-Object { $_.id -eq $R.id } | Select-Object -First 1

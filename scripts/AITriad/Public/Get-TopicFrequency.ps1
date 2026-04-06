@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TopicFrequency {
@@ -63,7 +63,7 @@ function Get-TopicFrequency {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
     }
 
     # ── Validate environment ─────────────────────────────────────────────────
@@ -88,7 +88,7 @@ function Get-TopicFrequency {
         $Entry = $script:TaxonomyData[$PovKey]
         if (-not $Entry) { continue }
         foreach ($Node in $Entry.nodes) {
-            $Desc = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
+            if ($Node.PSObject.Properties['description']) { $Desc = $Node.description } else { $Desc = '' }
             $NodeIndex[$Node.id] = @{
                 Label       = $Node.label
                 Description = $Desc
@@ -118,7 +118,7 @@ function Get-TopicFrequency {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         }
         catch {
             Write-Warning "Failed to parse $($File.Name): $_"
@@ -183,8 +183,8 @@ function Get-TopicFrequency {
 
     if (Test-Path $EmbeddingsFile) {
         try {
-            $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json -Depth 20
-            $EmbNodes = if ($EmbData.PSObject.Properties['nodes']) { $EmbData.nodes } else { $EmbData }
+            $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json
+            if ($EmbData.PSObject.Properties['nodes']) { $EmbNodes = $EmbData.nodes } else { $EmbNodes = $EmbData }
             foreach ($Prop in $EmbNodes.PSObject.Properties) {
                 $Val = $Prop.Value
                 # Handle both flat arrays and {pov, vector} objects
@@ -208,7 +208,7 @@ function Get-TopicFrequency {
     # ── Step 3: Cluster per POV ──────────────────────────────────────────────
     Write-Step "Clustering cited nodes per POV"
 
-    $TargetCamps = if ($POV -eq 'all') { $CampKeys } else { @($POV) }
+    if ($POV -eq 'all') { $TargetCamps = $CampKeys } else { $TargetCamps = @($POV) }
     $AllTopics   = @{}
 
     foreach ($Camp in $TargetCamps) {
@@ -276,10 +276,10 @@ function Get-TopicFrequency {
         Write-Step "Labeling clusters with AI"
 
         try {
-            $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                       elseif ($Model -match '^claude') { 'claude' }
-                       elseif ($Model -match '^groq')   { 'groq'   }
-                       else                             { 'gemini'  }
+            if     ($Model -match '^gemini') { $Backend = 'gemini' }
+            elseif ($Model -match '^claude') { $Backend = 'claude' }
+            elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+            else                             { $Backend = 'gemini'  }
 
             $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
             if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -298,9 +298,9 @@ function Get-TopicFrequency {
                         [void]$ClusterDescs.AppendLine("POV: $Camp | Citations: $($Cluster.TotalCitations)")
                         [void]$ClusterDescs.AppendLine("Member nodes:")
                         foreach ($NId in $Cluster.Members) {
-                            $Lbl  = if ($NodeIndex.ContainsKey($NId)) { $NodeIndex[$NId].Label } else { $NId }
-                            $Desc = if ($NodeIndex.ContainsKey($NId)) { $NodeIndex[$NId].Description } else { '' }
-                            $Cit  = if ($Citations[$Camp].ContainsKey($NId)) { $Citations[$Camp][$NId].Count } else { 0 }
+                            if ($NodeIndex.ContainsKey($NId)) { $Lbl = $NodeIndex[$NId].Label } else { $Lbl = $NId }
+                            if ($NodeIndex.ContainsKey($NId)) { $Desc = $NodeIndex[$NId].Description } else { $Desc = '' }
+                            if ($Citations[$Camp].ContainsKey($NId)) { $Cit = $Citations[$Camp][$NId].Count } else { $Cit = 0 }
                             [void]$ClusterDescs.AppendLine("  - $NId ($Cit citations): $Lbl — $Desc")
                         }
                         [void]$ClusterDescs.AppendLine()
@@ -324,7 +324,7 @@ function Get-TopicFrequency {
 
                 if ($AIResult -and $AIResult.Text) {
                     $LabelText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $Labels = $LabelText | ConvertFrom-Json -Depth 20
+                    $Labels = $LabelText | ConvertFrom-Json
                     $AILabeled = $true
                     Write-OK "AI labeling complete ($($AIResult.Backend))"
                 }
@@ -361,7 +361,7 @@ function Get-TopicFrequency {
                 $BestNode = $Cluster.Members |
                     Sort-Object { if ($Citations[$Camp].ContainsKey($_)) { $Citations[$Camp][$_].Count } else { 0 } } -Descending |
                     Select-Object -First 1
-                $TopicLabel   = if ($NodeIndex.ContainsKey($BestNode)) { $NodeIndex[$BestNode].Label } else { $BestNode }
+                if ($NodeIndex.ContainsKey($BestNode)) { $TopicLabel = $NodeIndex[$BestNode].Label } else { $TopicLabel = $BestNode }
                 $TopicSummary = ($Cluster.Members | ForEach-Object {
                     if ($NodeIndex.ContainsKey($_)) { $NodeIndex[$_].Label } else { $_ }
                 }) -join ', '

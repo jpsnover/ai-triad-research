@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-RelevantTaxonomyNodes {
@@ -89,7 +89,7 @@ function Get-RelevantTaxonomyNodes {
                 -NextSteps @('Run Update-TaxEmbeddings to generate embeddings') -Throw
         }
         Write-Verbose 'Loading embeddings.json (first call, will be cached)...'
-        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
+        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
         $script:CachedEmbeddings = @{}
         foreach ($Prop in $EmbData.nodes.PSObject.Properties) {
             $script:CachedEmbeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
@@ -100,7 +100,7 @@ function Get-RelevantTaxonomyNodes {
     # ── Get query embedding ───────────────────────────────────────────────────
     # Use the same local model (all-MiniLM-L6-v2) as the cached taxonomy embeddings.
     # Calls embed_taxonomy.py encode — no API key required, dimensions always match.
-    $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
     if (-not (Test-Path $EmbedScript)) {
         New-ActionableError -Goal 'compute query embedding' `
             -Problem "embed_taxonomy.py not found at $EmbedScript" `
@@ -108,10 +108,10 @@ function Get-RelevantTaxonomyNodes {
             -NextSteps @('Verify scripts/embed_taxonomy.py exists in the repo') -Throw
     }
 
-    $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+    if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
     # Truncate query to ~2000 chars (model context limit)
-    $QueryText = if ($Query.Length -gt 2000) { $Query.Substring(0, 2000) } else { $Query }
+    if ($Query.Length -gt 2000) { $QueryText = $Query.Substring(0, 2000) } else { $QueryText = $Query }
 
     try {
         $EmbOutput = & $PythonCmd $EmbedScript encode $QueryText 2>$null
@@ -121,7 +121,7 @@ function Get-RelevantTaxonomyNodes {
                 -Location 'Get-RelevantTaxonomyNodes' `
                 -NextSteps @('Check Python is installed', 'Run: pip install sentence-transformers') -Throw
         }
-        $QueryVector = [double[]]@($EmbOutput | ConvertFrom-Json -Depth 5)
+        $QueryVector = [double[]]@($EmbOutput | ConvertFrom-Json)
     }
     catch {
         New-ActionableError -Goal 'compute query embedding' `
@@ -133,18 +133,18 @@ function Get-RelevantTaxonomyNodes {
     # ── Compute cosine similarity for all nodes ───────────────────────────────
     $Scores = [System.Collections.Generic.List[PSObject]]::new()
 
-    $PovFilter = if ($POV.Count -gt 0) {
-        [System.Collections.Generic.HashSet[string]]::new([string[]]$POV, [System.StringComparer]::OrdinalIgnoreCase)
+    if ($POV.Count -gt 0) {
+        $PovFilter = [System.Collections.Generic.HashSet[string]]::new([string[]]$POV, [System.StringComparer]::OrdinalIgnoreCase)
     }
-    else { $null }
+    else { $PovFilter = $null }
 
     foreach ($NodeId in $script:CachedEmbeddings.Keys) {
         # POV filtering
-        $NodePov = if ($NodeId -match '^acc-') { 'accelerationist' }
-                   elseif ($NodeId -match '^saf-') { 'safetyist' }
-                   elseif ($NodeId -match '^skp-') { 'skeptic' }
-                   elseif ($NodeId -match '^sit-') { 'situations' }
-                   else { 'unknown' }
+        if ($NodeId -match '^acc-') { $NodePov = 'accelerationist' }
+        elseif ($NodeId -match '^saf-') { $NodePov = 'safetyist' }
+        elseif ($NodeId -match '^skp-') { $NodePov = 'skeptic' }
+        elseif ($NodeId -match '^sit-') { $NodePov = 'situations' }
+        else { $NodePov = 'unknown' }
 
         if ($NodePov -eq 'situations' -and -not $IncludeSituations) { continue }
         if ($PovFilter -and -not $PovFilter.Contains($NodePov)) { continue }
@@ -160,13 +160,13 @@ function Get-RelevantTaxonomyNodes {
             $NormB += $NodeVec[$i] * $NodeVec[$i]
         }
         $Denom = [Math]::Sqrt($NormA) * [Math]::Sqrt($NormB)
-        $Similarity = if ($Denom -gt 0) { $DotProduct / $Denom } else { 0.0 }
+        if ($Denom -gt 0) { $Similarity = $DotProduct / $Denom } else { $Similarity = 0.0 }
 
         # Determine BDI category from node ID
-        $Category = if ($NodeId -match '-beliefs-') { 'Beliefs' }
-                    elseif ($NodeId -match '-desires-') { 'Desires' }
-                    elseif ($NodeId -match '-intentions-') { 'Intentions' }
-                    else { 'Situations' }
+        if ($NodeId -match '-beliefs-') { $Category = 'Beliefs' }
+        elseif ($NodeId -match '-desires-') { $Category = 'Desires' }
+        elseif ($NodeId -match '-intentions-') { $Category = 'Intentions' }
+        else { $Category = 'Situations' }
 
         $Scores.Add([PSCustomObject]@{
             NodeId     = $NodeId
@@ -257,10 +257,10 @@ function Get-RelevantTaxonomyNodes {
             foreach ($Group in $GroupedByPov) {
                 [void]$Lines.AppendLine("--- $($Group.Name) ---")
                 foreach ($Node in $Group.Group) {
-                    $CatLabel = if ($Node.Category) { "[$($Node.Category)]" } else { '' }
+                    if ($Node.Category) { $CatLabel = "[$($Node.Category)]" } else { $CatLabel = '' }
                     [void]$Lines.AppendLine("  $($Node.Id) $CatLabel $($Node.Label)")
                     if ($Node.Description) {
-                        $DescShort = if ($Node.Description.Length -gt 200) { $Node.Description.Substring(0, 200) + '...' } else { $Node.Description }
+                        if ($Node.Description.Length -gt 200) { $DescShort = $Node.Description.Substring(0, 200) + '...' } else { $DescShort = $Node.Description }
                         [void]$Lines.AppendLine("    $DescShort")
                     }
                 }

@@ -1,7 +1,7 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-#Requires -Version 7.0
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Document conversion helpers for AI Triad ingestion pipeline.
@@ -404,7 +404,7 @@ function ConvertFrom-Docx {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
         [System.IO.Compression.ZipFile]::ExtractToDirectory($DocxPath, $TempDir)
-        $DocXml = Get-Content (Join-Path $TempDir 'word' 'document.xml') -Raw
+        $DocXml = Get-Content (Join-Path (Join-Path $TempDir 'word') 'document.xml') -Raw
         Remove-Item $TempDir -Recurse -Force
 
         $Paragraphs = [regex]::Matches($DocXml, '(?is)<w:p\b[^>]*>(.*?)</w:p>')

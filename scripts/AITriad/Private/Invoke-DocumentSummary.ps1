@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -159,10 +159,10 @@ function Invoke-ChunkedSummary {
     Write-Host "  `u{2502}  split into $ChunkCount chunks" -ForegroundColor Cyan
 
     # -- Load chunk-specific system prompt ------------------------------------
-    $ChunkSystemPrompt = if ($ChunkSystemPromptTemplate) {
-        $ChunkSystemPromptTemplate
+    if ($ChunkSystemPromptTemplate) {
+        $ChunkSystemPrompt = $ChunkSystemPromptTemplate
     } else {
-        Get-Prompt -Name 'pov-summary-chunk-system'
+        $ChunkSystemPrompt = Get-Prompt -Name 'pov-summary-chunk-system'
     }
     $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
 
@@ -391,9 +391,9 @@ function Build-DocHeader {
         [string]$ThisDocId
     )
 
-    $Title    = if ($Meta.title) { $Meta.title } else { $ThisDocId }
+    if ($Meta.title) { $Title = $Meta.title } else { $Title = $ThisDocId }
     $PovTags  = $Doc.PovTags -join ', '
-    $TopicTags = if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.topic_tags) { $Meta.topic_tags -join ', ' } else { '(none)' }
+    if ($null -ne $Meta.PSObject.Properties['topic_tags'] -and $Meta.topic_tags) { $TopicTags = $Meta.topic_tags -join ', ' } else { $TopicTags = '(none)' }
 
     return @"
 === DOCUMENT: $ThisDocId ===
@@ -414,13 +414,13 @@ function Parse-AIResponse {
     $CleanText = $CleanText.Trim()
 
     try {
-        return ($CleanText | ConvertFrom-Json -Depth 20)
+        return ($CleanText | ConvertFrom-Json)
     } catch {
         Write-Host "  `u{2502}  `u{26A0} JSON parse failed `u{2014} attempting repair" -ForegroundColor Yellow
         $Repaired = Repair-TruncatedJson -Text $RawText
         if ($Repaired) {
             try {
-                return ($Repaired | ConvertFrom-Json -Depth 20)
+                return ($Repaired | ConvertFrom-Json)
             } catch {
                 # fall through
             }
@@ -468,12 +468,12 @@ function Finalize-Summary {
     }
 
     $SoProps = $SummaryObject.PSObject.Properties
-    $FactualClaims  = if ($SoProps['factual_claims'])    { $SummaryObject.factual_claims }    else { @() }
-    $UnmappedConcs  = if ($SoProps['unmapped_concepts']) { $SummaryObject.unmapped_concepts } else { @() }
+    if ($SoProps['factual_claims'])    { $FactualClaims = $SummaryObject.factual_claims }    else { $FactualClaims = @() }
+    if ($SoProps['unmapped_concepts']) { $UnmappedConcs = $SummaryObject.unmapped_concepts } else { $UnmappedConcs = @() }
     $FactualCount   = @($FactualClaims).Count
     $UnmappedCount  = @($UnmappedConcs).Count
 
-    $ChunkLabel = if ($ChunkCount -gt 0) { " ($ChunkCount chunks)" } else { '' }
+    if ($ChunkCount -gt 0) { $ChunkLabel = " ($ChunkCount chunks)" } else { $ChunkLabel = '' }
     Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
 
     # -- Cross-POV fuzzy match on unmapped concepts ----------------------------
@@ -508,14 +508,15 @@ function Finalize-Summary {
         $EstNodeCount = ([regex]::Matches($TaxonomyJson, '"id"\s*:')).Count
     }
 
-    $TaxFilter = if ($ChunkCount -gt 0) { 'rag_per_chunk' } elseif ($IsRagFiltered) { 'rag' } else { 'full' }
+    if ($ChunkCount -gt 0) { $TaxFilter = 'rag_per_chunk' } elseif ($IsRagFiltered) { $TaxFilter = 'rag' } else { $TaxFilter = 'full' }
 
     $UsedFire = $null -ne $FireStats
+    if ($UsedFire) { $ExtractionMode = 'fire' } else { $ExtractionMode = 'single_shot' }
     $ModelInfo = [ordered]@{
         model             = $Model
         temperature       = $Temperature
         max_tokens        = 32768
-        extraction_mode   = if ($UsedFire) { 'fire' } else { 'single_shot' }
+        extraction_mode   = $ExtractionMode
         taxonomy_filter   = $TaxFilter
         taxonomy_nodes    = $EstNodeCount
     }
@@ -538,12 +539,13 @@ function Finalize-Summary {
         $ModelInfo['chunk_count'] = $ChunkCount
     }
 
+    if ($SoProps['pov_summaries']) { $PovSummariesVal = $SummaryObject.pov_summaries } else { $PovSummariesVal = [ordered]@{} }
     $FinalSummary = [ordered]@{
         doc_id            = $ThisDocId
         taxonomy_version  = $TaxonomyVersion
         generated_at      = $Now
         model_info        = $ModelInfo
-        pov_summaries     = if ($SoProps['pov_summaries']) { $SummaryObject.pov_summaries } else { [ordered]@{} }
+        pov_summaries     = $PovSummariesVal
         factual_claims    = @($FactualClaims)
         unmapped_concepts = @($UnmappedConcs)
     }
@@ -560,7 +562,7 @@ function Finalize-Summary {
     # -- Update metadata.json -------------------------------------------------
     try {
         $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-        $MetaUpdated = $MetaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
+        $MetaUpdated = $MetaRaw | ConvertFrom-Json | ConvertTo-Hashtable
         $MetaUpdated['summary_version'] = $TaxonomyVersion
         $MetaUpdated['summary_status']  = 'current'
         $MetaUpdated['summary_updated'] = $Now

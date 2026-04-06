@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Approve-Edge {
@@ -65,7 +65,7 @@ function Approve-Edge {
         return
     }
 
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
 
     if ($Interactive) {
         $Proposed = @()
@@ -164,7 +164,7 @@ function Approve-Edge {
             return
         }
 
-        $NewStatus = if ($Approve) { 'approved' } else { 'rejected' }
+        if ($Approve) { $NewStatus = 'approved' } else { $NewStatus = 'rejected' }
         $E = $EdgesData.edges[$Index]
 
         if ($PSCmdlet.ShouldProcess("Edge $Index ($($E.source) → $($E.target))", "Set status to '$NewStatus'")) {

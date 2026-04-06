@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-ProposalApply {
@@ -39,7 +39,7 @@ function Invoke-ProposalApply {
     }
 
     try {
-        $Raw = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $Raw = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
     } catch {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to parse $FileName`: $_" }
     }
@@ -144,14 +144,16 @@ function Invoke-ProposalApply {
 
             # Create child nodes
             foreach ($Child in $ChildProposals) {
+                if ($Child.PSObject.Properties['category']) { $ChildCat = $Child.category } else { $ChildCat = $Target.category }
+                if ($Target.PSObject.Properties['situation_refs']) { $ChildSitRefs = $Target.situation_refs } else { $ChildSitRefs = @() }
                 $ChildNode = [ordered]@{
                     id                 = $Child.suggested_id
-                    category           = if ($Child.PSObject.Properties['category']) { $Child.category } else { $Target.category }
+                    category           = $ChildCat
                     label              = $Child.label
                     description        = $Child.description
                     parent_id          = $TargetId
                     children           = @()
-                    situation_refs = if ($Target.PSObject.Properties['situation_refs']) { $Target.situation_refs } else { @() }
+                    situation_refs = $ChildSitRefs
                 }
                 $Raw.nodes += $ChildNode
             }
@@ -216,9 +218,10 @@ function Invoke-ProposalApply {
 
             # Create intermediate parent nodes under the dense parent
             foreach ($SubGroup in $SubGroups) {
+                if ($SubGroup.PSObject.Properties['category']) { $SubGrpCat = $SubGroup.category } else { $SubGrpCat = $Target.category }
                 $IntNode = [ordered]@{
                     id          = $SubGroup.suggested_id
-                    category    = if ($SubGroup.PSObject.Properties['category']) { $SubGroup.category } else { $Target.category }
+                    category    = $SubGrpCat
                     label       = $SubGroup.label
                     description = $SubGroup.description
                     parent_id   = $TargetId

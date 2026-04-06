@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Measure-TaxonomyBaseline {
@@ -46,7 +46,7 @@ function Measure-TaxonomyBaseline {
     # ── Load taxonomy ──────────────────────────────────────────────────────
     $AllNodes = @{}
     foreach ($File in (Get-ChildItem $TaxDir -Filter '*.json' | Where-Object { $_.Name -notin 'embeddings.json','edges.json','policy_actions.json','Temp.json','_archived_edges.json' })) {
-        $Data = Get-Content -Raw $File.FullName | ConvertFrom-Json -Depth 20
+        $Data = Get-Content -Raw $File.FullName | ConvertFrom-Json
         foreach ($Node in $Data.nodes) {
             $AllNodes[$Node.id] = $Node
         }
@@ -61,7 +61,7 @@ function Measure-TaxonomyBaseline {
     $Summaries = @{}
     foreach ($F in $SummaryFiles) {
         try {
-            $Summaries[$F.BaseName] = Get-Content -Raw $F.FullName | ConvertFrom-Json -Depth 20
+            $Summaries[$F.BaseName] = Get-Content -Raw $F.FullName | ConvertFrom-Json
         } catch { Write-Warning "Bad JSON: $($F.Name)" }
     }
     Write-Host "  Summaries: $($Summaries.Count)" -ForegroundColor Gray
@@ -70,7 +70,7 @@ function Measure-TaxonomyBaseline {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $Edges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw $EdgesPath | ConvertFrom-Json
         $Edges = $EdgesData.edges
     }
     Write-Host "  Edges: $($Edges.Count)" -ForegroundColor Gray
@@ -79,7 +79,7 @@ function Measure-TaxonomyBaseline {
     $Conflicts = @()
     if (Test-Path $ConflictsDir) {
         foreach ($F in (Get-ChildItem $ConflictsDir -Filter '*.json' -ErrorAction SilentlyContinue)) {
-            try { $Conflicts += Get-Content -Raw $F.FullName | ConvertFrom-Json -Depth 20 } catch {}
+            try { $Conflicts += Get-Content -Raw $F.FullName | ConvertFrom-Json } catch {}
         }
     }
     Write-Host "  Conflicts: $($Conflicts.Count)" -ForegroundColor Gray
@@ -144,7 +144,7 @@ function Measure-TaxonomyBaseline {
 
     foreach ($DocId in $Summaries.Keys) {
         $Sum = $Summaries[$DocId]
-        $SnapPath = Join-Path $SourcesDir $DocId 'snapshot.md'
+        $SnapPath = Join-Path (Join-Path $SourcesDir $DocId) 'snapshot.md'
         $WordCount = 0
         if (Test-Path $SnapPath) {
             $Text = Get-Content -Raw $SnapPath
@@ -153,7 +153,7 @@ function Measure-TaxonomyBaseline {
 
         foreach ($Camp in $Camps) {
             $CampData = $Sum.pov_summaries.$Camp
-            $KPCount = if ($CampData -and $CampData.key_points) { @($CampData.key_points).Count } else { 0 }
+            if ($CampData -and $CampData.key_points) { $KPCount = @($CampData.key_points).Count } else { $KPCount = 0 }
             $DensityRecords.Add([PSCustomObject]@{
                 DocId     = $DocId
                 Camp      = $Camp
@@ -205,8 +205,8 @@ function Measure-TaxonomyBaseline {
         # Policy nodes (pol-*) are in the policy registry, not in $AllNodes — skip orphan check for them
         $SrcIsPolicy = $E.source -match '^pol-'
         $TgtIsPolicy = $E.target -match '^pol-'
-        $SrcNode = if ($SrcIsPolicy) { $true } else { $AllNodes[$E.source] }
-        $TgtNode = if ($TgtIsPolicy) { $true } else { $AllNodes[$E.target] }
+        if ($SrcIsPolicy) { $SrcNode = $true } else { $SrcNode = $AllNodes[$E.source] }
+        if ($TgtIsPolicy) { $TgtNode = $true } else { $TgtNode = $AllNodes[$E.target] }
         if (-not $SrcNode -or -not $TgtNode) {
             $OrphanEdges++
             continue
@@ -214,8 +214,8 @@ function Measure-TaxonomyBaseline {
 
         # Check domain violation: Desires SUPPORTS Beliefs (skip policy nodes)
         if ($SrcIsPolicy -or $TgtIsPolicy) { continue }
-        $SrcCat = if ($SrcNode.PSObject.Properties['category']) { $SrcNode.category } else { $null }
-        $TgtCat = if ($TgtNode.PSObject.Properties['category']) { $TgtNode.category } else { $null }
+        if ($SrcNode.PSObject.Properties['category']) { $SrcCat = $SrcNode.category } else { $SrcCat = $null }
+        if ($TgtNode.PSObject.Properties['category']) { $TgtCat = $TgtNode.category } else { $TgtCat = $null }
         if ($Type -eq 'SUPPORTS' -and $SrcCat -eq 'Desires' -and $TgtCat -eq 'Beliefs') {
             $GoalSupportsData++
         }
@@ -265,7 +265,7 @@ function Measure-TaxonomyBaseline {
     $FallacyTypeCounts = @{}
 
     foreach ($Node in $AllNodes.Values) {
-        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+        if ($Node.PSObject.Properties['graph_attributes']) { $GA = $Node.graph_attributes } else { $GA = $null }
         $HasFallacies = $GA -and $GA.PSObject.Properties['possible_fallacies'] -and $GA.possible_fallacies
         if ($HasFallacies) {
             $Fallacies = @($GA.possible_fallacies)
@@ -373,7 +373,7 @@ function Measure-TaxonomyBaseline {
 
     foreach ($Node in $AllNodes.Values) {
         # node_scope coverage
-        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+        if ($Node.PSObject.Properties['graph_attributes']) { $GA = $Node.graph_attributes } else { $GA = $null }
         if ($GA -and $GA.PSObject.Properties['node_scope'] -and $GA.node_scope) {
             $NodeScopeCount++
         }
@@ -386,7 +386,7 @@ function Measure-TaxonomyBaseline {
     # Fallacy tier coverage (fallacies with 'type' field)
     $FallacyWithTier = 0
     foreach ($Node in $AllNodes.Values) {
-        $GA = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+        if ($Node.PSObject.Properties['graph_attributes']) { $GA = $Node.graph_attributes } else { $GA = $null }
         if ($GA -and $GA.PSObject.Properties['possible_fallacies'] -and $GA.possible_fallacies) {
             foreach ($F in @($GA.possible_fallacies)) {
                 if ($F.PSObject.Properties['type'] -and $F.type) { $FallacyWithTier++ }
@@ -415,7 +415,7 @@ function Measure-TaxonomyBaseline {
     if (Test-Path $DebatesDir) {
         foreach ($DebFile in Get-ChildItem -Path $DebatesDir -Filter '*.json' -File -ErrorAction SilentlyContinue) {
             try {
-                $Debate = Get-Content -Raw -Path $DebFile.FullName | ConvertFrom-Json -Depth 20
+                $Debate = Get-Content -Raw -Path $DebFile.FullName | ConvertFrom-Json
                 $TotalDebates++
 
                 # argument_map coverage

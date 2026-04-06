@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-Conflict {
@@ -55,7 +55,7 @@ function Find-Conflict {
     }
 
     try {
-        $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+        $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
     }
     catch {
         throw "Failed to parse summary file ${SummaryPath}: $($_.Exception.Message)"
@@ -99,7 +99,7 @@ function Find-Conflict {
         }
 
         # Normalize stance value
-        $stance = if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $docPosition } else { 'neutral' }
+        if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $stance = $docPosition } else { $stance = 'neutral' }
 
         $newInstance = [ordered]@{
             doc_id       = $DocId
@@ -131,7 +131,7 @@ function Find-Conflict {
 
             if (Test-Path $existingPath) {
                 try {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
                 }
                 catch {
                     Write-Warning "Skipping corrupt conflict file $($existingPath): $($_.Exception.Message)"
@@ -181,7 +181,7 @@ function Find-Conflict {
 
             if ($existingMatch) {
                 try {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json | ConvertTo-Hashtable
                 }
                 catch {
                     Write-Warning "Skipping corrupt conflict file $($existingMatch.FullName): $($_.Exception.Message)"

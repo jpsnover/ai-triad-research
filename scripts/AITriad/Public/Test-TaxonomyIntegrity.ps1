@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-TaxonomyIntegrity {
@@ -48,7 +48,7 @@ function Test-TaxonomyIntegrity {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         foreach ($Node in $FileData.nodes) {
             [void]$AllNodeIds.Add($Node.id)
@@ -58,7 +58,7 @@ function Test-TaxonomyIntegrity {
 
             $SeenIds = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                $Pid = if ($PA.PSObject.Properties['policy_id']) { $PA.policy_id } else { $null }
+                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
                 if (-not $Pid) {
                     $MissingPolicyId += [PSCustomObject]@{ NodeId = $Node.id; POV = $PovKey; Action = $PA.action }
                     continue
@@ -84,7 +84,7 @@ function Test-TaxonomyIntegrity {
     $Checks++
     $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
         $RegistryIds = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($Pol in $Registry.policies) { [void]$RegistryIds.Add($Pol.id) }
 
@@ -105,7 +105,7 @@ function Test-TaxonomyIntegrity {
         $Checks++
         $CountMismatches = 0
         foreach ($Pol in $Registry.policies) {
-            $Actual = if ($ActualCounts.ContainsKey($Pol.id)) { $ActualCounts[$Pol.id] } else { 0 }
+            if ($ActualCounts.ContainsKey($Pol.id)) { $Actual = $ActualCounts[$Pol.id] } else { $Actual = 0 }
             if ($Pol.member_count -ne $Actual) { $CountMismatches++ }
         }
         if ($CountMismatches -gt 0) {
@@ -133,7 +133,7 @@ function Test-TaxonomyIntegrity {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $BadEdges = 0
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
         if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
 
@@ -152,7 +152,7 @@ function Test-TaxonomyIntegrity {
     $EmbPath = Join-Path $TaxDir 'embeddings.json'
     $MissingEmb = 0
     if (Test-Path $EmbPath) {
-        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
+        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
         $EmbIds = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($Prop in $EmbData.nodes.PSObject.Properties) { [void]$EmbIds.Add($Prop.Name) }
 
@@ -184,7 +184,7 @@ function Test-TaxonomyIntegrity {
     if ($Issues.Count -gt 0) {
         Write-Host ''
         foreach ($Issue in $Issues) {
-            $Color = if ($Issue.Severity -eq 'Error') { 'Red' } else { 'Yellow' }
+            if ($Issue.Severity -eq 'Error') { $Color = 'Red' } else { $Color = 'Yellow' }
             Write-Host "  [$($Issue.Severity)] $($Issue.Check): $($Issue.Detail)" -ForegroundColor $Color
         }
     }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Repair-UnmappedConcepts {
@@ -72,7 +72,7 @@ function Repair-UnmappedConcepts {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to parse $($File.Name): $_"

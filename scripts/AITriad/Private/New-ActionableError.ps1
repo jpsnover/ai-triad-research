@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Standardized actionable error helper.
@@ -46,7 +46,7 @@ function New-ActionableError {
     )
 
     $StepList = ($NextSteps | ForEach-Object { $i = [int]($NextSteps.IndexOf($_)) + 1; "   $i. $_" }) -join "`n"
-    $InnerDetail = if ($InnerError) { "`n   Inner error: $($InnerError.Exception.Message)" } else { '' }
+    if ($InnerError) { $InnerDetail = "`n   Inner error: $($InnerError.Exception.Message)" } else { $InnerDetail = '' }
 
     $Message = @"
 

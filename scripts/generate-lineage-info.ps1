@@ -1,12 +1,12 @@
-# One-shot script: generate intellectualLineageInfo.ts entries for missing values
-#Requires -Version 7.0
+﻿# One-shot script: generate intellectualLineageInfo.ts entries for missing values
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
 
-Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force
+Import-Module (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'AITriad.psd1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
+$TaxDir   = Join-Path (Join-Path $RepoRoot 'taxonomy') 'Origin'
 
 # Get all lineage values from taxonomy
 $allLineage = [System.Collections.Generic.HashSet[string]]::new()
@@ -22,7 +22,7 @@ foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
 }
 
 # Get existing keys from intellectualLineageInfo.ts
-$tsFile = Join-Path $RepoRoot 'taxonomy-editor' 'src' 'renderer' 'data' 'intellectualLineageInfo.ts'
+$tsFile = Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $RepoRoot 'taxonomy-editor') 'src') 'renderer') 'data') 'intellectualLineageInfo.ts'
 $tsContent = Get-Content $tsFile -Raw
 $existingKeys = [System.Collections.Generic.HashSet[string]]::new()
 foreach ($m in [regex]::Matches($tsContent, '(?m)^"([^"]+)":\s*\{')) {
@@ -78,7 +78,7 @@ for ($batchStart = 0; $batchStart -lt $missing.Count; $batchStart += $BatchSize)
         continue
     }
 
-    $responseText = if ($response -is [string]) { $response } elseif ($response.Text) { $response.Text } else { "$response" }
+    if ($response -is [string]) { $responseText = $response } elseif ($response.Text) { $responseText = $response.Text } else { $responseText = "$response" }
     $cleaned = ($responseText -replace '(?s)^```json\s*', '' -replace '```\s*$', '').Trim()
 
     try {
@@ -125,7 +125,7 @@ foreach ($item in $AllResults) {
     $tsLines.Add("},")
 }
 
-$outputPath = Join-Path $RepoRoot 'scripts' 'lineage-info-additions.ts'
+$outputPath = Join-Path (Join-Path $RepoRoot 'scripts') 'lineage-info-additions.ts'
 $tsLines | Set-Content -Path $outputPath -Encoding UTF8
 Write-Host "`nGenerated TypeScript fragment: $outputPath"
 Write-Host "Entries: $($AllResults.Count)"

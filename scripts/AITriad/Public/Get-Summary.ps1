@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Summary {
@@ -67,7 +67,7 @@ function Get-Summary {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         }
         catch {
             Write-Warning "Failed to parse $($File.Name): $_"
@@ -78,10 +78,10 @@ function Get-Summary {
 
         # Load title from source metadata
         $Title = $null
-        $MetaPath = Join-Path $SourcesDir $Summary.doc_id 'metadata.json'
+        $MetaPath = Join-Path (Join-Path $SourcesDir $Summary.doc_id) 'metadata.json'
         if (Test-Path $MetaPath) {
             try {
-                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
+                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
                 $Title = $Meta.title
             }
             catch {

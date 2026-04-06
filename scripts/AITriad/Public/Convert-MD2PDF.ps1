@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -112,7 +112,7 @@ function Convert-MD2PDF {
 
                 # Determine output path
                 $BaseName = [System.IO.Path]::GetFileNameWithoutExtension($SourceItem.Name)
-                $OutDir = if ($OutputDirectory) { Resolve-Path $OutputDirectory } else { $SourceItem.DirectoryName }
+                if ($OutputDirectory) { $OutDir = Resolve-Path $OutputDirectory } else { $OutDir = $SourceItem.DirectoryName }
                 $PdfPath = Join-Path $OutDir "$BaseName.pdf"
 
                 try {
@@ -201,7 +201,7 @@ function Convert-MD2PDF {
                         $Result
                     }
                     else {
-                        $EngineInfo = if ($UseFallback) { 'cupsfilter (HTML fallback)' } else { $PdfEngine }
+                        if ($UseFallback) { $EngineInfo = 'cupsfilter (HTML fallback)' } else { $EngineInfo = $PdfEngine }
                         Write-Error @"
 PDF conversion failed for: $SourcePath
   Engine: $EngineInfo

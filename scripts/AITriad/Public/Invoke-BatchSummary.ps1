@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-BatchSummary {
@@ -111,10 +111,10 @@ function Invoke-BatchSummary {
     # -- STEP 0 — Validate environment ---------------------------------------
     Write-Step "Validating environment"
 
-    $Backend = if     ($Model -match '^gemini') { 'gemini' }
-               elseif ($Model -match '^claude') { 'claude' }
-               elseif ($Model -match '^groq')   { 'groq'   }
-               else                             { 'gemini'  }
+    if     ($Model -match '^gemini') { $Backend = 'gemini' }
+    elseif ($Model -match '^claude') { $Backend = 'claude' }
+    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+    else                             { $Backend = 'gemini'  }
     $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
         $EnvHint = switch ($Backend) {
@@ -160,7 +160,7 @@ function Invoke-BatchSummary {
             Write-Fail "Taxonomy file missing: $FilePath"
             throw "Taxonomy file missing: $FileName"
         }
-        $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json -Depth 20
+        $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
         $NodeCount = $TaxonomyContext[$FileName].nodes.Count
         Write-OK "  $FileName ($NodeCount nodes)"
     }
@@ -245,7 +245,7 @@ function Invoke-BatchSummary {
     $DocsToSkip     = [System.Collections.Generic.List[hashtable]]::new()
 
     foreach ($MetaFile in $AllMetaFiles) {
-        $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json -Depth 20
+        $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json
         $ThisDocId = $Meta.id
 
         if ($HasDocFilter -and $ThisDocId -notin $DocIdFilter) { continue }
@@ -261,7 +261,7 @@ function Invoke-BatchSummary {
             continue
         }
 
-        $DocPovTags = if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { @($Meta.pov_tags) } else { @() }
+        if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { $DocPovTags = @($Meta.pov_tags) } else { $DocPovTags = @() }
         $Intersects = $ForceAll -or
                       $HasDocFilter -or
                       @($DocPovTags | Where-Object { $_ -in $AffectedCamps }).Count -gt 0
@@ -321,7 +321,7 @@ function Invoke-BatchSummary {
     foreach ($Doc in $DocsToSkip) {
         try {
             $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-            $MetaUpdated = $MetaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
+            $MetaUpdated = $MetaRaw | ConvertFrom-Json | ConvertTo-Hashtable
             $MetaUpdated['summary_version'] = $TaxonomyVersion
             $MetaUpdated['summary_status']  = 'current'
             $MetaUpdated['summary_updated'] = $Now
@@ -343,7 +343,7 @@ function Invoke-BatchSummary {
     if (Test-Path $HarvestsDir) {
         foreach ($ManifestFile in (Get-ChildItem $HarvestsDir -Filter '*.json' -ErrorAction SilentlyContinue)) {
             try {
-                $Manifest = Get-Content $ManifestFile.FullName -Raw | ConvertFrom-Json -Depth 10
+                $Manifest = Get-Content $ManifestFile.FullName -Raw | ConvertFrom-Json
                 $DebateTitle = $Manifest.debate_title
                 foreach ($Item in $Manifest.items) {
                     if ($Item.type -eq 'debate_ref' -and $Item.status -eq 'applied') {
@@ -387,7 +387,7 @@ function Invoke-BatchSummary {
     $UsePOVSummaryPath = $IterativeExtraction -or $AutoFire
 
     if ($UsePOVSummaryPath) {
-        $FireMode = if ($IterativeExtraction) { '-IterativeExtraction' } else { '-AutoFire' }
+        if ($IterativeExtraction) { $FireMode = '-IterativeExtraction' } else { $FireMode = '-AutoFire' }
         Write-Info "Using Invoke-POVSummary path ($FireMode) for each document"
 
         foreach ($Doc in $DocsToProcess) {
@@ -408,15 +408,15 @@ function Invoke-BatchSummary {
                 $Elapsed = (Get-Date) - $StartTime
                 # Read back the summary to get stats for the report
                 $SumPath = Join-Path $SummariesDir "$($Doc.DocId).json"
-                $SumData = if (Test-Path $SumPath) { Get-Content -Raw $SumPath | ConvertFrom-Json -Depth 20 } else { $null }
+                if (Test-Path $SumPath) { $SumData = Get-Content -Raw $SumPath | ConvertFrom-Json } else { $SumData = $null }
                 $TotalPts = 0
                 foreach ($c in @('accelerationist','safetyist','skeptic')) {
                     if ($SumData -and $SumData.pov_summaries.$c -and $SumData.pov_summaries.$c.key_points) {
                         $TotalPts += @($SumData.pov_summaries.$c.key_points).Count
                     }
                 }
-                $FcCount = if ($SumData -and $SumData.factual_claims) { @($SumData.factual_claims).Count } else { 0 }
-                $UcCount = if ($SumData -and $SumData.unmapped_concepts) { @($SumData.unmapped_concepts).Count } else { 0 }
+                if ($SumData -and $SumData.factual_claims) { $FcCount = @($SumData.factual_claims).Count } else { $FcCount = 0 }
+                if ($SumData -and $SumData.unmapped_concepts) { $UcCount = @($SumData.unmapped_concepts).Count } else { $UcCount = 0 }
 
                 $Results.Add(@{
                     Success       = $true

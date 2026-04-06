@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -25,7 +25,7 @@
     Minimum average-linkage cosine similarity required to merge two clusters.
     Merging stops if the best pair falls below this threshold.  Defaults to 0.55.
 .EXAMPLE
-    $Embeddings = (Get-Content embeddings.json -Raw | ConvertFrom-Json -AsHashtable)
+    $Embeddings = (Get-Content embeddings.json -Raw | ConvertFrom-Json | ConvertTo-Hashtable)
     $Clusters = Get-EmbeddingClusters -NodeIds @('acc-1','acc-2','acc-3') -Embeddings $Embeddings
 
     Clusters three accelerationist nodes by semantic similarity.
@@ -80,7 +80,7 @@ function Get-EmbeddingClusters {
     for ($i = 0; $i -lt $Ids.Count; $i++) {
         for ($j = $i + 1; $j -lt $Ids.Count; $j++) {
             $A = $Ids[$i]; $B = $Ids[$j]
-            $Key = if ($A -lt $B) { "$A|$B" } else { "$B|$A" }
+            if ($A -lt $B) { $Key = "$A|$B" } else { $Key = "$B|$A" }
             $SimCache[$Key] = & $CosineSim $Embeddings[$A] $Embeddings[$B]
         }
     }
@@ -100,7 +100,7 @@ function Get-EmbeddingClusters {
         $Count = 0
         foreach ($A in $C1) {
             foreach ($B in $C2) {
-                $Key = if ($A -lt $B) { "$A|$B" } else { "$B|$A" }
+                if ($A -lt $B) { $Key = "$A|$B" } else { $Key = "$B|$A" }
                 if ($Cache.ContainsKey($Key)) {
                     $Total += $Cache[$Key]
                 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-AITSource {
@@ -85,7 +85,7 @@ function Get-AITSource {
         if (-not (Test-Path $MetaPath)) { continue }
 
         try {
-            $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
+            $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
         }
         catch {
             Write-Warning "Failed to parse ${MetaPath}: $_"
@@ -98,7 +98,7 @@ function Get-AITSource {
         # --- Filters ---
         if ($DocId -and $Meta.id -notlike $DocId) { continue }
         if ($Title) {
-            $SrcTitle = if ($Props['title']) { $Meta.title } else { $null }
+            if ($Props['title']) { $SrcTitle = $Meta.title } else { $SrcTitle = $null }
             if (-not $SrcTitle) { continue }
             $TitleMatch = $false
             foreach ($Pattern in $Title) {
@@ -107,32 +107,32 @@ function Get-AITSource {
             if (-not $TitleMatch) { continue }
         }
         if ($Pov) {
-            $PovArr = if ($Props['pov_tags']) { $Meta.pov_tags } else { @() }
+            if ($Props['pov_tags']) { $PovArr = $Meta.pov_tags } else { $PovArr = @() }
             if ($PovArr -notcontains $Pov) { continue }
         }
         if ($Topic) {
-            $TopicArr = if ($Props['topic_tags']) { $Meta.topic_tags } else { @() }
+            if ($Props['topic_tags']) { $TopicArr = $Meta.topic_tags } else { $TopicArr = @() }
             if ($TopicArr -notcontains $Topic) { continue }
         }
         if ($Status) {
-            $SumStatus = if ($Props['summary_status']) { $Meta.summary_status } else { $null }
+            if ($Props['summary_status']) { $SumStatus = $Meta.summary_status } else { $SumStatus = $null }
             if ($SumStatus -ne $Status) { continue }
         }
         if ($SourceType) {
-            $SrcType = if ($Props['source_type']) { $Meta.source_type } else { $null }
+            if ($Props['source_type']) { $SrcType = $Meta.source_type } else { $SrcType = $null }
             if ($SrcType -ne $SourceType) { continue }
         }
 
         # Build snapshot.md path
         $SnapshotPath = Join-Path $Folder.FullName 'snapshot.md'
-        $MDPath = if (Test-Path $SnapshotPath) { $SnapshotPath } else { $null }
+        if (Test-Path $SnapshotPath) { $MDPath = $SnapshotPath } else { $MDPath = $null }
 
         # Load summary file (needed for ModelInfo and fallback stats)
         $Summary     = $null
         $SummaryPath = Join-Path $SummariesDir "$($Meta.id).json"
         if (Test-Path $SummaryPath) {
             try {
-                $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json -Depth 20
+                $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json
             }
             catch {
                 Write-Verbose "Could not parse summary for $($Meta.id): $($_.Exception.Message)"
@@ -148,8 +148,8 @@ function Get-AITSource {
         if ($Props['total_claims']) {
             # Stats cached in metadata (written by Invoke-POVSummary)
             $TotalClaims      = [int]$Meta.total_claims
-            $TotalFacts       = if ($Props['total_facts']) { [int]$Meta.total_facts } else { 0 }
-            $UnmappedConcepts = if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { [int]$Meta.unmapped_concepts } else { 0 }
+            if ($Props['total_facts']) { $TotalFacts = [int]$Meta.total_facts } else { $TotalFacts = 0 }
+            if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { $UnmappedConcepts = [int]$Meta.unmapped_concepts } else { $UnmappedConcepts = 0 }
             if ($Props['claims_by_pov'] -and $Meta.claims_by_pov) {
                 $Cbp = $Meta.claims_by_pov
                 $CbpProps = $Cbp.PSObject.Properties

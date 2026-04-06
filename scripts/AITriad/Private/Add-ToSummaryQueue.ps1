@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -28,7 +28,7 @@ function Add-ToSummaryQueue {
     $Queue = @()
     if (Test-Path $QueueFile) {
         try {
-            $Raw = Get-Content $QueueFile -Raw | ConvertFrom-Json -Depth 20
+            $Raw = Get-Content $QueueFile -Raw | ConvertFrom-Json
             $Queue = @($Raw)
         }
         catch {

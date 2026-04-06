@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Shared dependency checking engine used by Install-AIDependencies and Test-Dependencies.
@@ -64,7 +64,7 @@ function Invoke-DependencyCheck {
     # ─── Platform ─────────────────────────────────────────────────────────────
     $OnMac   = $IsMacOS -or ($PSVersionTable.OS -match 'Darwin')
     $OnLinux = $IsLinux -or ($PSVersionTable.OS -match 'Linux')
-    $Platform = if ($OnMac) { 'macOS' } elseif ($OnLinux) { 'Linux' } else { 'Windows' }
+    if ($OnMac) { $Platform = 'macOS' } elseif ($OnLinux) { $Platform = 'Linux' } else { $Platform = 'Windows' }
 
     function Get-PkgMgr {
         if ($OnMac)    { if (Get-Command brew    -ErrorAction SilentlyContinue) { return 'brew' } }
@@ -102,7 +102,7 @@ function Invoke-DependencyCheck {
     }
 
     # ═══════════════════════════════════════════════════════════════════════════
-    $TitleVerb = if ($IsTestMode) { 'Dependency Test' } else { 'Dependency Check' }
+    if ($IsTestMode) { $TitleVerb = 'Dependency Test' } else { $TitleVerb = 'Dependency Check' }
     Write-Host "`n$('═' * 60)" -ForegroundColor Cyan
     Write-Host "  AI Triad Research — $TitleVerb" -ForegroundColor White
     Write-Host "  Platform: $Platform  |  Mode: $Mode$(if ($Fix) { ' (fix)' })" -ForegroundColor Gray
@@ -220,7 +220,7 @@ function Invoke-DependencyCheck {
                 $Major = [int]($NodeVer -replace '^v', '' -split '\.' | Select-Object -First 1)
                 if ($Major -ge 20) {
                     $NodeResult = node -e "console.log(JSON.stringify({ok:true,version:process.version}))" 2>&1
-                    $NodeJson = $NodeResult | ConvertFrom-Json -Depth 20
+                    $NodeJson = $NodeResult | ConvertFrom-Json
                     if ($NodeJson.ok) {
                         DPass "Node.js $($NodeJson.version) (>= v20 required)"
                         $HasNode = $true
@@ -267,7 +267,7 @@ function Invoke-DependencyCheck {
                         $OutdatedRaw = npm outdated --json 2>$null
                         Pop-Location
                         if ($OutdatedRaw) {
-                            $Outdated = $OutdatedRaw | ConvertFrom-Json -Depth 20
+                            $Outdated = $OutdatedRaw | ConvertFrom-Json
                             $OutdatedCount = $Outdated.PSObject.Properties.Count
                             if ($OutdatedCount -gt 0) {
                                 DStale "$App — $OutdatedCount outdated package(s) (run 'npm update' in $App/ to update)"
@@ -276,8 +276,8 @@ function Invoke-DependencyCheck {
                                 foreach ($Prop in $Outdated.PSObject.Properties) {
                                     if ($Shown -ge 3) { break }
                                     $Pkg = $Prop.Value
-                                    $CurVer = if ($Pkg.PSObject.Properties['current']) { $Pkg.current } else { '?' }
-                                    $WantVer = if ($Pkg.PSObject.Properties['wanted']) { $Pkg.wanted } else { '?' }
+                                    if ($Pkg.PSObject.Properties['current']) { $CurVer = $Pkg.current } else { $CurVer = '?' }
+                                    if ($Pkg.PSObject.Properties['wanted']) { $WantVer = $Pkg.wanted } else { $WantVer = '?' }
                                     Write-Host "         $($Prop.Name): $CurVer -> $WantVer" -ForegroundColor DarkGray
                                     $Shown++
                                 }
@@ -372,7 +372,7 @@ function Invoke-DependencyCheck {
                     $PyMajor = [int](("$PyVer" -replace 'Python ', '') -split '\.' | Select-Object -First 1)
                     if ($PyMajor -ge 3) {
                         $PyTest = & $Cmd -c "import json; print(json.dumps({'ok': True}))" 2>&1
-                        $PyJson = $PyTest | ConvertFrom-Json -Depth 20
+                        $PyJson = $PyTest | ConvertFrom-Json
                         if ($PyJson.ok) { $PythonCmd = $Cmd; DPass "$Cmd — $PyVer"; break }
                     }
                 }
@@ -390,7 +390,7 @@ function Invoke-DependencyCheck {
             }
         }
         else {
-            $ReqFile = Join-Path $RepoRoot 'scripts' 'requirements.txt'
+            $ReqFile = Join-Path (Join-Path $RepoRoot 'scripts') 'requirements.txt'
             if (Test-Path $ReqFile) {
                 try {
                     $ImportTest = & $PythonCmd -c "import sentence_transformers; print(sentence_transformers.__version__)" 2>$null
@@ -402,7 +402,7 @@ function Invoke-DependencyCheck {
                             try {
                                 $PipOutdated = & $PythonCmd -m pip list --outdated --format=json 2>$null
                                 if ($LASTEXITCODE -eq 0 -and $PipOutdated) {
-                                    $OutdatedPkgs = $PipOutdated | ConvertFrom-Json -Depth 20
+                                    $OutdatedPkgs = $PipOutdated | ConvertFrom-Json
                                     # Filter to packages in our requirements.txt
                                     $ReqNames = @(Get-Content $ReqFile | Where-Object { $_ -match '^\w' } | ForEach-Object { ($_ -split '[>=<]')[0].Trim().ToLower() })
                                     $Relevant = @($OutdatedPkgs | Where-Object { $_.name.ToLower() -in $ReqNames })
@@ -447,8 +447,8 @@ function Invoke-DependencyCheck {
             $EmbFile = Get-TaxonomyDir 'embeddings.json'
             if (Test-Path $EmbFile) {
                 try {
-                    $EmbData = Get-Content -Raw -Path $EmbFile | ConvertFrom-Json -Depth 3
-                    $EmbCount = if ($EmbData.PSObject.Properties['node_count']) { $EmbData.node_count } else { '?' }
+                    $EmbData = Get-Content -Raw -Path $EmbFile | ConvertFrom-Json
+                    if ($EmbData.PSObject.Properties['node_count']) { $EmbCount = $EmbData.node_count } else { $EmbCount = '?' }
                     DPass "embeddings.json present ($EmbCount node embeddings)"
 
                     # Test mode: check if embeddings are stale (more taxonomy nodes than embeddings)
@@ -464,8 +464,12 @@ function Invoke-DependencyCheck {
                     }
                 }
                 catch {
-                    $EmbSize = [Math]::Round((Get-Item $EmbFile).Length / 1MB, 1)
-                    DPass "embeddings.json present (${EmbSize}MB)"
+                    $EmbItem = Get-Item $EmbFile -ErrorAction SilentlyContinue
+                    if ($EmbItem -and $EmbItem -is [System.IO.FileInfo]) {
+                        $EmbSize = [Math]::Round($EmbItem.Length / 1MB, 1)
+                        DPass "embeddings.json present (${EmbSize}MB)"
+                    }
+                    else { DWarn "embeddings.json exists but could not be parsed" }
                 }
             }
             else { DSkip 'embeddings.json not yet generated — run Update-TaxEmbeddings' }
@@ -512,7 +516,7 @@ function Invoke-DependencyCheck {
     foreach ($TF in $TaxFiles) {
         $TFPath = Join-Path $TaxDir $TF
         if (Test-Path $TFPath) {
-            try { $TData = Get-Content -Raw -Path $TFPath | ConvertFrom-Json -Depth 20; $TotalNodes += @($TData.nodes).Count }
+            try { $TData = Get-Content -Raw -Path $TFPath | ConvertFrom-Json; $TotalNodes += @($TData.nodes).Count }
             catch { DFail "$TF — failed to parse JSON" }
         }
         else { DFail "$TF — not found in taxonomy/Origin/" }
@@ -521,7 +525,7 @@ function Invoke-DependencyCheck {
 
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {
-        try { $EData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20; DPass "edges.json valid ($(@($EData.edges).Count) edges)" }
+        try { $EData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json; DPass "edges.json valid ($(@($EData.edges).Count) edges)" }
         catch { DFail 'edges.json — failed to parse' }
     }
     else { DSkip 'edges.json not yet generated' }

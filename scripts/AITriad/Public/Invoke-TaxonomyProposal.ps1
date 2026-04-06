@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-TaxonomyProposal {
@@ -64,10 +64,10 @@ function Invoke-TaxonomyProposal {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             $EnvHint = switch ($Backend) {
@@ -196,7 +196,7 @@ $CoverageBalanceJson
     if ($IncludeHarvestQueue) {
         $HarvestQueuePath = Join-Path (Get-DataRoot) 'harvest-queue.json'
         if (Test-Path $HarvestQueuePath) {
-            $QueueData = Get-Content $HarvestQueuePath -Raw | ConvertFrom-Json -Depth 10
+            $QueueData = Get-Content $HarvestQueuePath -Raw | ConvertFrom-Json
             $QueuedItems = @($QueueData.items | Where-Object { $_.status -eq 'queued' })
             if ($QueuedItems.Count -gt 0) {
                 $QueueBlock = ($QueuedItems | ForEach-Object {
@@ -280,7 +280,7 @@ $QueueBlock
     $CleanedText = $CleanedText.Trim()
 
     try {
-        $ProposalObject = $CleanedText | ConvertFrom-Json -Depth 20
+        $ProposalObject = $CleanedText | ConvertFrom-Json
         Write-OK "Valid JSON received"
     }
     catch {
@@ -288,7 +288,7 @@ $QueueBlock
         $Repaired = Repair-TruncatedJson -Text $RawText
         if ($Repaired) {
             try {
-                $ProposalObject = $Repaired | ConvertFrom-Json -Depth 20
+                $ProposalObject = $Repaired | ConvertFrom-Json
                 Write-OK "JSON repaired successfully"
             }
             catch {
@@ -296,8 +296,8 @@ $QueueBlock
             }
         }
         if ($null -eq $ProposalObject) {
-            $DebugPath = Join-Path $RepoRoot 'taxonomy' 'proposals' "proposal-debug-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-            $ProposalsDir = Join-Path $RepoRoot 'taxonomy' 'proposals'
+            $DebugPath = Join-Path (Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals') "proposal-debug-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+            $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
             if (-not (Test-Path $ProposalsDir)) { New-Item -ItemType Directory -Path $ProposalsDir -Force | Out-Null }
             Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
             Write-Fail "AI returned invalid JSON. Raw response saved: $DebugPath"
@@ -317,7 +317,7 @@ $QueueBlock
     # ── 9. Write proposal file ─────────────────────────────────────────────────
     Write-Step "Writing proposal file"
 
-    $ProposalsDir = Join-Path $RepoRoot 'taxonomy' 'proposals'
+    $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
     if (-not (Test-Path $ProposalsDir)) {
         New-Item -ItemType Directory -Path $ProposalsDir -Force | Out-Null
     }
@@ -368,14 +368,14 @@ $QueueBlock
         Write-Host "`n  [$Action] ($($Group.Count))" -ForegroundColor $ActionColor
 
         foreach ($P in $Group) {
-            $IdStr = if ($P.suggested_id) { "[$($P.suggested_id)]" } else { '' }
-            $TargetStr = if ($P.target_node_id) { " (target: $($P.target_node_id))" } else { '' }
+            if ($P.suggested_id) { $IdStr = "[$($P.suggested_id)]" } else { $IdStr = '' }
+            if ($P.target_node_id) { $TargetStr = " (target: $($P.target_node_id))" } else { $TargetStr = '' }
             Write-Host "    $IdStr $($P.label)$TargetStr" -ForegroundColor White
             Write-Host "      POV: $($P.pov)  |  Category: $($P.category)" -ForegroundColor Gray
             if ($P.rationale) {
-                $RatSnippet = if ($P.rationale.Length -gt 120) {
-                    $P.rationale.Substring(0, 120) + '...'
-                } else { $P.rationale }
+                if ($P.rationale.Length -gt 120) {
+                    $RatSnippet = $P.rationale.Substring(0, 120) + '...'
+                } else { $RatSnippet = $P.rationale }
                 Write-Host "      Rationale: $RatSnippet" -ForegroundColor DarkGray
             }
             if ($P.PSObject.Properties['children'] -and $P.children.Count -gt 0) {

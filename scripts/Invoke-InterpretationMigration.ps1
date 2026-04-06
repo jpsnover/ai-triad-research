@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Migrates situation node interpretations from plain strings to BDI-decomposed objects.
@@ -21,15 +21,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psm1') -Force
+Import-Module (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'AITriad.psm1') -Force
 # AIEnrich is dot-sourced by AITriad — but Invoke-AIApi may not be exported.
 # Import AIEnrich directly to ensure Invoke-AIApi is available.
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
 # Resolve data path
-$dataRoot = (Get-Content (Join-Path $PSScriptRoot '..' '.aitriad.json') -Raw | ConvertFrom-Json).data_root
-$dataRoot = Join-Path $PSScriptRoot '..' $dataRoot
-$sitFile = Join-Path $dataRoot 'taxonomy' 'Origin' 'situations.json'
+$dataRoot = (Get-Content (Join-Path (Join-Path $PSScriptRoot '..') '.aitriad.json') -Raw | ConvertFrom-Json).data_root
+$dataRoot = Join-Path (Join-Path $PSScriptRoot '..') $dataRoot
+$sitFile = Join-Path (Join-Path (Join-Path $dataRoot 'taxonomy') 'Origin') 'situations.json'
 
 if (-not (Test-Path $sitFile)) {
     throw "Situations file not found: $sitFile"

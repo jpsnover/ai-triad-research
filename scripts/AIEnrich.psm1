@@ -1,7 +1,7 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-#Requires -Version 7.0
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Multi-backend AI API helper functions for AI Triad document enrichment.
@@ -32,7 +32,7 @@ if (-not (Test-Path $_aiModelsPath)) {
 
 if (Test-Path $_aiModelsPath) {
     try {
-        $_aiConfig = Get-Content -Raw -Path $_aiModelsPath | ConvertFrom-Json -Depth 20
+        $_aiConfig = Get-Content -Raw -Path $_aiModelsPath | ConvertFrom-Json
         foreach ($_m in $_aiConfig.models) {
             $script:ModelRegistry[$_m.id] = @{
                 Backend    = $_m.backend
@@ -334,7 +334,7 @@ function Invoke-AIApi {
             $StatusCode = $_.Exception.Response.StatusCode.value__
 
             if ($StatusCode -in @(429, 503, 529) -and $Attempt -lt ($MaxRetries - 1)) {
-                $Delay = if ($Attempt -lt $RetryDelays.Count) { $RetryDelays[$Attempt] } else { $RetryDelays[-1] }
+                if ($Attempt -lt $RetryDelays.Count) { $Delay = $RetryDelays[$Attempt] } else { $Delay = $RetryDelays[-1] }
                 Write-Warning "$($Backend): HTTP $StatusCode — retrying in ${Delay}s (attempt $($Attempt + 1)/$MaxRetries)"
                 Start-Sleep -Seconds $Delay
             } else {
@@ -344,7 +344,7 @@ function Invoke-AIApi {
     }
 
     if ($null -ne $LastError -or $null -eq $Response) {
-        $StatusCode = if ($LastError) { $LastError.Exception.Response.StatusCode.value__ } else { '?' }
+        if ($LastError) { $StatusCode = $LastError.Exception.Response.StatusCode.value__ } else { $StatusCode = '?' }
         $Hint = switch ($StatusCode) {
             401     { 'Check your API key — it may be invalid or expired.' }
             403     { 'Access denied — verify your API key has the required permissions.' }
@@ -467,13 +467,13 @@ function Get-AIMetadata {
 
     # Truncate to ~6,000 words to keep token cost low
     $Words   = $MarkdownText -split '\s+'
-    $Excerpt = if ($Words.Count -gt 6000) {
-        ($Words[0..5999] -join ' ') + "`n`n[... truncated for metadata extraction ...]"
+    if ($Words.Count -gt 6000) {
+        $Excerpt = ($Words[0..5999] -join ' ') + "`n`n[... truncated for metadata extraction ...]"
     } else {
-        $MarkdownText
+        $Excerpt = $MarkdownText
     }
 
-    $PromptPath = Join-Path $PSScriptRoot 'AITriad' 'Prompts' 'metadata-extraction.prompt'
+    $PromptPath = Join-Path (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'Prompts') 'metadata-extraction.prompt'
     $StaticPrompt = (Get-Content -Path $PromptPath -Raw).TrimEnd()
 
     $Prompt = @"
@@ -498,7 +498,7 @@ $Excerpt
         | ForEach-Object { $_.Trim() }
 
     try {
-        $Parsed = $CleanJson | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+        $Parsed = $CleanJson | ConvertFrom-Json -ErrorAction Stop
     } catch {
         Write-Warning "$($AIResult.Backend): response was not valid JSON — metadata enrichment skipped"
         Write-Verbose "Raw AI response: $RawText"
@@ -579,7 +579,7 @@ function Repair-TruncatedJson {
 
     # Already valid?
     try {
-        $null = $trimmed | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+        $null = $trimmed | ConvertFrom-Json -ErrorAction Stop
         return $trimmed
     } catch { }
 
@@ -661,7 +661,7 @@ function Repair-TruncatedJson {
             $repaired += $reStack.Pop()
         }
         try {
-            $null = $repaired | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+            $null = $repaired | ConvertFrom-Json -ErrorAction Stop
             return $repaired
         } catch { }
     }
@@ -671,7 +671,7 @@ function Repair-TruncatedJson {
     if ($lastGood -gt 0) {
         $candidate = $trimmed.Substring(0, $lastGood + 1)
         try {
-            $null = $candidate | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+            $null = $candidate | ConvertFrom-Json -ErrorAction Stop
             return $candidate
         } catch { }
     }

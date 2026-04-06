@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Update-Snapshot {
@@ -174,7 +174,7 @@ function Update-Snapshot {
             $SnapshotPath = Join-Path $DocDir.FullName 'snapshot.md'
             $Header = Get-SnapshotHeader -SnapshotPath $SnapshotPath
 
-            $FinalContent = if ($Header) { $Header + "`n" + $NewMarkdown } else { $NewMarkdown }
+            if ($Header) { $FinalContent = $Header + "`n" + $NewMarkdown } else { $FinalContent = $NewMarkdown }
 
             Set-Content -Path $SnapshotPath -Value $FinalContent -Encoding UTF8 -ErrorAction Stop
             Write-Host "   snapshot.md updated ($([int]$FinalContent.Length) chars)" -ForegroundColor Green

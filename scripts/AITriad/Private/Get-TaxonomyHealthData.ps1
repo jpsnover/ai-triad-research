@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TaxonomyHealthData {
@@ -34,13 +34,15 @@ function Get-TaxonomyHealthData {
         $Entry = $script:TaxonomyData[$PovKey]
         if (-not $Entry) { continue }
         foreach ($Node in $Entry.nodes) {
+            if ($PovKey -eq 'situations') { $NodeCategory = 'Situations' }
+            elseif ($Node.PSObject.Properties['category']) { $NodeCategory = $Node.category }
+            else { $NodeCategory = '' }
+            if ($Node.PSObject.Properties['description']) { $NodeDescription = $Node.description } else { $NodeDescription = '' }
             $NodeIndex[$Node.id] = @{
                 POV              = $PovKey
-                Category         = if ($PovKey -eq 'situations') { 'Situations' }
-                                   elseif ($Node.PSObject.Properties['category']) { $Node.category }
-                                   else { '' }
+                Category         = $NodeCategory
                 Label            = $Node.label
-                Description      = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
+                Description      = $NodeDescription
                 Citations        = 0
                 DocIds           = [System.Collections.Generic.List[string]]::new()
                 Stances          = [System.Collections.Generic.List[string]]::new()
@@ -50,9 +52,9 @@ function Get-TaxonomyHealthData {
 
     # ── 2. Read TAXONOMY_VERSION ───────────────────────────────────────────────
     $VersionFile = Get-VersionFile
-    $TaxonomyVersion = if (Test-Path $VersionFile) {
-        (Get-Content $VersionFile -Raw).Trim()
-    } else { 'unknown' }
+    if (Test-Path $VersionFile) {
+        $TaxonomyVersion = (Get-Content $VersionFile -Raw).Trim()
+    } else { $TaxonomyVersion = 'unknown' }
 
     # ── 3. Scan every summaries/*.json ─────────────────────────────────────────
     $SummariesDir = Get-SummariesDir
@@ -68,7 +70,7 @@ function Get-TaxonomyHealthData {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         }
         catch {
             Write-Warning "Get-TaxonomyHealthData: failed to parse $($File.Name): $_"
@@ -106,11 +108,11 @@ function Get-TaxonomyHealthData {
         if ($Summary.unmapped_concepts) {
             foreach ($Concept in $Summary.unmapped_concepts) {
                 $DocUnmapped++
-                $ConceptText = if ($Concept.PSObject.Properties['concept']) { $Concept.concept } else { "$Concept" }
+                if ($Concept.PSObject.Properties['concept']) { $ConceptText = $Concept.concept } else { $ConceptText = "$Concept" }
                 $NormKey = ($ConceptText -replace '\s+', ' ').Trim().ToLower()
                 if (-not $NormKey) { continue }
-                $SugPov = if ($Concept.PSObject.Properties['suggested_pov'])      { $Concept.suggested_pov }      else { $null }
-                $SugCat = if ($Concept.PSObject.Properties['suggested_category']) { $Concept.suggested_category } else { $null }
+                if ($Concept.PSObject.Properties['suggested_pov'])      { $SugPov = $Concept.suggested_pov }      else { $SugPov = $null }
+                if ($Concept.PSObject.Properties['suggested_category']) { $SugCat = $Concept.suggested_category } else { $SugCat = $null }
                 if (-not $UnmappedAgg.ContainsKey($NormKey)) {
                     $UnmappedAgg[$NormKey] = @{
                         Concept           = $ConceptText
@@ -126,7 +128,7 @@ function Get-TaxonomyHealthData {
                 if ($DocId -notin $UnmappedAgg[$NormKey].ContributingDocs) {
                     $UnmappedAgg[$NormKey].ContributingDocs.Add($DocId)
                 }
-                $ReasonText = if ($Concept.PSObject.Properties['reason']) { $Concept.reason } else { $null }
+                if ($Concept.PSObject.Properties['reason']) { $ReasonText = $Concept.reason } else { $ReasonText = $null }
                 if ($ReasonText -and $ReasonText -notin $UnmappedAgg[$NormKey].Reasons) {
                     $UnmappedAgg[$NormKey].Reasons.Add($ReasonText)
                 }
@@ -140,10 +142,10 @@ function Get-TaxonomyHealthData {
 
         # Load title from metadata if available
         $Title = $null
-        $MetaPath = Join-Path $SourcesDir $DocId 'metadata.json'
+        $MetaPath = Join-Path (Join-Path $SourcesDir $DocId) 'metadata.json'
         if (Test-Path $MetaPath) {
             try {
-                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json -Depth 20
+                $Meta  = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
                 $Title = $Meta.title
             }
             catch { }
@@ -460,9 +462,9 @@ function Get-TaxonomyHealthData {
     $TotalKeyPoints  = ($SummaryStats | Measure-Object -Property KeyPoints -Sum).Sum
     $TotalClaims     = ($SummaryStats | Measure-Object -Property FactualClaims -Sum).Sum
     $TotalUnmapped   = ($SummaryStats | Measure-Object -Property UnmappedCount -Sum).Sum
-    $AvgKeyPoints    = if ($SummaryStats.Count -gt 0) {
-        [math]::Round($TotalKeyPoints / $SummaryStats.Count, 1)
-    } else { 0 }
+    if ($SummaryStats.Count -gt 0) {
+        $AvgKeyPoints = [math]::Round($TotalKeyPoints / $SummaryStats.Count, 1)
+    } else { $AvgKeyPoints = 0 }
 
     $MaxDoc = $SummaryStats | Sort-Object { $_.KeyPoints } -Descending | Select-Object -First 1
     $MinDoc = $SummaryStats | Sort-Object { $_.KeyPoints } | Select-Object -First 1
@@ -488,7 +490,7 @@ function Get-TaxonomyHealthData {
             Write-Warning "Get-TaxonomyHealthData: edges.json not found — GraphMode metrics unavailable"
         }
         else {
-            $EdgesData    = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+            $EdgesData    = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
             $ApprovedEdges = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
 
             # Build POV lookup for each node
@@ -515,14 +517,15 @@ function Get-TaxonomyHealthData {
                         if ($Edge.type -eq 'CONTRADICTS') { $SamePovContradicts++ }
                     }
                 }
+                if ($SamePovContradicts -gt 0) {
+                    $EchoRatio = [Math]::Round($SamePovSupports / $SamePovContradicts, 2)
+                } else {
+                    if ($SamePovSupports -gt 0) { $EchoRatio = [double]::PositiveInfinity } else { $EchoRatio = 0.0 }
+                }
                 $EchoChamberScores[$PovKey] = [ordered]@{
                     SamePovSupports    = $SamePovSupports
                     SamePovContradicts = $SamePovContradicts
-                    Ratio              = if ($SamePovContradicts -gt 0) {
-                        [Math]::Round($SamePovSupports / $SamePovContradicts, 2)
-                    } else {
-                        if ($SamePovSupports -gt 0) { [double]::PositiveInfinity } else { 0.0 }
-                    }
+                    Ratio              = $EchoRatio
                 }
             }
 
@@ -536,9 +539,9 @@ function Get-TaxonomyHealthData {
                     $CrossPovEdgeCount++
                 }
             }
-            $CrossPovPct = if ($TotalEdgeCount -gt 0) {
-                [Math]::Round(($CrossPovEdgeCount / $TotalEdgeCount) * 100, 1)
-            } else { 0.0 }
+            if ($TotalEdgeCount -gt 0) {
+                $CrossPovPct = [Math]::Round(($CrossPovEdgeCount / $TotalEdgeCount) * 100, 1)
+            } else { $CrossPovPct = 0.0 }
 
             # ── Edge orphans (nodes with 0 edges) ──
             $EdgedNodes = [System.Collections.Generic.HashSet[string]]::new()
@@ -580,7 +583,7 @@ function Get-TaxonomyHealthData {
                 $SPov = $NodePovLookup[$Edge.source]
                 $TPov = $NodePovLookup[$Edge.target]
                 if ($SPov -and $TPov -and $SPov -ne $TPov) {
-                    $PairKey = if ($Edge.source -lt $Edge.target) { "$($Edge.source)|$($Edge.target)" } else { "$($Edge.target)|$($Edge.source)" }
+                    if ($Edge.source -lt $Edge.target) { $PairKey = "$($Edge.source)|$($Edge.target)" } else { $PairKey = "$($Edge.target)|$($Edge.source)" }
                     if ($Edge.type -eq 'SUPPORTS')    { [void]$CrossPovSupports.Add($PairKey) }
                     if ($Edge.type -eq 'CONTRADICTS') { [void]$CrossPovContradicts.Add($PairKey) }
                 }
@@ -609,6 +612,8 @@ function Get-TaxonomyHealthData {
                 (-not $NodeCrossPovContradicts.ContainsKey($_) -or $NodeCrossPovContradicts[$_] -eq 0)
             } | Sort-Object { $NodeSupportsCount[$_] } -Descending)
 
+            if ($Degrees.Count -gt 0) { $MaxDeg = $Degrees[-1] } else { $MaxDeg = 0 }
+            if ($Degrees.Count -gt 0) { $MedDeg = $Degrees[[Math]::Floor($Degrees.Count / 2)] } else { $MedDeg = 0 }
             $GraphHealth = [ordered]@{
                 EchoChamberScores    = $EchoChamberScores
                 CrossPovConnectivity = [ordered]@{
@@ -620,8 +625,8 @@ function Get-TaxonomyHealthData {
                 EdgeOrphanCount      = $EdgeOrphans.Count
                 HubConcentration     = [ordered]@{
                     GiniCoefficient = $GiniCoeff
-                    MaxDegree       = if ($Degrees.Count -gt 0) { $Degrees[-1] } else { 0 }
-                    MedianDegree    = if ($Degrees.Count -gt 0) { $Degrees[[Math]::Floor($Degrees.Count / 2)] } else { 0 }
+                    MaxDegree       = $MaxDeg
+                    MedianDegree    = $MedDeg
                 }
                 MissingEdgeTypePairs = [ordered]@{
                     SupportsNoContradicts = $MissingContradicts

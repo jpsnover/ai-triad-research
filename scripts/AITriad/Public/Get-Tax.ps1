@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Tax {
@@ -134,7 +134,7 @@ function Get-Tax {
 
     # -- Overlaps (pairwise similarity) code path ------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Overlaps') {
-        $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+        $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
         if (-not (Test-Path $EmbedScript)) {
             Write-Error "embed_taxonomy.py not found at $EmbedScript"
             return
@@ -146,7 +146,7 @@ function Get-Tax {
             return
         }
 
-        $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+        if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
         $PyArgs = @('find-overlaps', '--threshold', $Threshold)
         if ($POV -ne '*') {
             $PyArgs += @('--pov', $POV)
@@ -164,7 +164,7 @@ function Get-Tax {
             return
         }
 
-        $Results = $PyResult | ConvertFrom-Json -Depth 20
+        $Results = $PyResult | ConvertFrom-Json
 
         if (-not $Results -or $Results.Count -eq 0) {
             Write-Host "No overlapping node pairs found above threshold $Threshold." -ForegroundColor Yellow
@@ -183,8 +183,8 @@ function Get-Tax {
         foreach ($Pair in $Results) {
             $InfoA = $NodeLookup[$Pair.node_a]
             $InfoB = $NodeLookup[$Pair.node_b]
-            $LabelA = if ($InfoA) { $InfoA.Node.label } else { $Pair.node_a }
-            $LabelB = if ($InfoB) { $InfoB.Node.label } else { $Pair.node_b }
+            if ($InfoA) { $LabelA = $InfoA.Node.label } else { $LabelA = $Pair.node_a }
+            if ($InfoB) { $LabelB = $InfoB.Node.label } else { $LabelB = $Pair.node_b }
 
             [PSCustomObject]@{
                 PSTypeName = 'TaxonomyNode.Overlap'
@@ -202,7 +202,7 @@ function Get-Tax {
 
     # -- Similar (semantic search) code path ----------------------------------
     if ($PSCmdlet.ParameterSetName -eq 'Similar') {
-        $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+        $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
         if (-not (Test-Path $EmbedScript)) {
             Write-Error "embed_taxonomy.py not found at $EmbedScript"
             return
@@ -220,14 +220,14 @@ function Get-Tax {
             $PyArgs += @('--pov', $POV)
         }
 
-        $PythonCmd2 = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+        if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd2 = 'python' } else { $PythonCmd2 = 'python3' }
         $PyResult = & $PythonCmd2 $EmbedScript @PyArgs 2>$null
         if ($LASTEXITCODE -ne 0) {
             Write-Error "embed_taxonomy.py query failed (exit code $LASTEXITCODE). Is sentence-transformers installed?"
             return
         }
 
-        $Results = $PyResult | ConvertFrom-Json -Depth 20
+        $Results = $PyResult | ConvertFrom-Json
 
         if (-not $Results -or $Results.Count -eq 0) {
             Write-Warning "No similar nodes found."

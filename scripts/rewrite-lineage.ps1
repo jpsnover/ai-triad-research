@@ -1,12 +1,12 @@
-# One-shot script: add "(about ...)" context to bare intellectual_lineage entries
-#Requires -Version 7.0
+﻿# One-shot script: add "(about ...)" context to bare intellectual_lineage entries
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
 
-Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force
+Import-Module (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'AITriad.psd1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$TaxDir   = Join-Path $RepoRoot 'taxonomy' 'Origin'
+$TaxDir   = Join-Path (Join-Path $RepoRoot 'taxonomy') 'Origin'
 
 # Collect all bare lineage entries (no parenthetical context)
 $Items = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -89,7 +89,7 @@ for ($batchStart = 0; $batchStart -lt $Items.Count; $batchStart += $BatchSize) {
         continue
     }
 
-    $responseText = if ($response -is [string]) { $response } elseif ($response.Text) { $response.Text } else { "$response" }
+    if ($response -is [string]) { $responseText = $response } elseif ($response.Text) { $responseText = $response.Text } else { $responseText = "$response" }
 
     $cleaned = ($responseText -replace '(?s)^```json\s*', '' -replace '```\s*$', '').Trim()
     try {

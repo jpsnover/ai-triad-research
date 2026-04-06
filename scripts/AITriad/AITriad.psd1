@@ -84,6 +84,7 @@
     # Aliases exported from this module
     AliasesToExport   = @(
         'Import-Document'
+        'Install-AITdependencies'
         'TaxonomyEditor'
         'POViewer'
         'SummaryViewer'

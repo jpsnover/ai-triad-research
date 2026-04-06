@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Renames 26 bad-prefix orphan nodes to correct BDI-compliant IDs.
@@ -23,16 +23,16 @@ $ErrorActionPreference = 'Stop'
 
 # Resolve data root
 if (-not $DataRoot) {
-    $configFile = Join-Path $PSScriptRoot '..' '.aitriad.json'
+    $configFile = Join-Path (Join-Path $PSScriptRoot '..') '.aitriad.json'
     if (Test-Path $configFile) {
         $config = Get-Content $configFile -Raw | ConvertFrom-Json
         $DataRoot = Join-Path (Split-Path $configFile) $config.data_root
     } else {
-        $DataRoot = Join-Path $PSScriptRoot '..' '..' 'ai-triad-data'
+        $DataRoot = Join-Path (Join-Path $PSScriptRoot '..') (Join-Path '..' 'ai-triad-data')
     }
 }
 
-$TaxDir = Join-Path $DataRoot 'taxonomy' 'Origin'
+$TaxDir = Join-Path (Join-Path $DataRoot 'taxonomy') 'Origin'
 
 # ── Rename Map ──────────────────────────────────────────────
 # Each entry: old_id → new_id

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-OntologyCompliance {
@@ -85,7 +85,7 @@ function Test-OntologyCompliance {
         $FilePath = Join-Path $TaxDir $PovFiles[$PovKey]
         if (Test-Path $FilePath) {
             try {
-                $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+                $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
                 foreach ($Node in $Data.nodes) {
                     $AllNodes[$Node.id] = @{ Node = $Node; POV = $PovKey }
                 }
@@ -102,7 +102,7 @@ function Test-OntologyCompliance {
     $AllEdges = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
             $AllEdges = @($EdgesData.edges)
         }
         catch {
@@ -227,11 +227,11 @@ function Test-OntologyCompliance {
         $N = $Entry.Node; $Pov = $Entry.POV
         if (-not $N.description) { $GenusFail++; continue }
 
-        $IsGenus = if ($Pov -eq 'situations') {
-            $N.description -match '^A\s+situation\s+that\s+'
+        if ($Pov -eq 'situations') {
+            $IsGenus = $N.description -match '^A\s+situation\s+that\s+'
         }
         else {
-            $N.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
+            $IsGenus = $N.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
         }
 
         if ($IsGenus) { $GenusOk++ }
@@ -359,7 +359,7 @@ function Test-OntologyCompliance {
     $ScopeCount = 0
     foreach ($Entry in $AllNodes.Values) {
         $N = $Entry.Node
-        $GA = if ($N.PSObject.Properties['graph_attributes']) { $N.graph_attributes } else { $null }
+        if ($N.PSObject.Properties['graph_attributes']) { $GA = $N.graph_attributes } else { $GA = $null }
         if ($GA -and $GA.PSObject.Properties['node_scope'] -and $GA.node_scope) {
             $ScopeCount++
         }

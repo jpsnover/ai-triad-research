@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-SummaryViewer {
@@ -16,7 +16,7 @@ function Show-SummaryViewer {
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
-    $AppDir = Join-Path $script:RepoRoot 'summary-viewer'
+    $AppDir = Join-Path (Get-CodeRoot) 'summary-viewer'
     if (-not (Test-Path $AppDir)) {
         Write-Fail "App directory not found: $AppDir"
         return

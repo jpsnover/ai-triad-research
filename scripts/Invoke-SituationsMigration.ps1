@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -46,14 +46,14 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 try {
-    Import-Module (Join-Path $ScriptDir 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+    Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 }
 catch {
     Write-Error "Failed to load AITriad module — $($_.Exception.Message)"
     return
 }
 
-. (Join-Path $ScriptDir 'AITriad' 'Private' 'New-ActionableError.ps1')
+. (Join-Path (Join-Path (Join-Path $ScriptDir 'AITriad') 'Private') 'New-ActionableError.ps1')
 
 # ── Validate data root ────────────────────────────────────────────────────────
 if (-not (Test-Path $DataRoot)) {
@@ -223,7 +223,7 @@ Write-Host "  Collecting files..." -ForegroundColor Yellow
 $FileSets = [ordered]@{}
 
 # 1. Taxonomy — all POV files + situations/cross-cutting file + edges
-$TaxDir = Join-Path $DataRoot 'taxonomy' 'Origin'
+$TaxDir = Join-Path (Join-Path $DataRoot 'taxonomy') 'Origin'
 if (Test-Path $TaxDir) {
     $TaxFiles = @(Get-ChildItem -Path $TaxDir -Filter '*.json' -File |
         Where-Object { $_.Name -in @('accelerationist.json', 'safetyist.json', 'skeptic.json',
@@ -269,7 +269,7 @@ if (Test-Path $HarDir) {
 }
 
 # 7. Proposals
-$ProDir = Join-Path $DataRoot 'taxonomy' 'proposals'
+$ProDir = Join-Path (Join-Path $DataRoot 'taxonomy') 'proposals'
 if (Test-Path $ProDir) {
     $ProFiles = @(Get-ChildItem -Path $ProDir -Filter '*.json' -File | Sort-Object FullName)
     if ($ProFiles.Count -gt 0) { $FileSets['proposals'] = $ProFiles }
@@ -392,7 +392,7 @@ foreach ($SetName in $FileSets.Keys) {
 
         try {
             $RawJson = Get-Content -Raw -Path $File.FullName -Encoding UTF8
-            $Data = $RawJson | ConvertFrom-Json -Depth 30
+            $Data = $RawJson | ConvertFrom-Json
         }
         catch {
             Write-Warning "  Skipping $RelPath — JSON parse failed: $($_.Exception.Message)"
@@ -576,7 +576,7 @@ if (-not $DryRun) {
         foreach ($File in $FileSets['taxonomy']) {
             if ($File.Name -eq 'edges.json') { continue }
             try {
-                $Data = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 30
+                $Data = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
                 if ($Data.PSObject.Properties['nodes']) {
                     foreach ($Node in $Data.nodes) {
                         if ($Node.PSObject.Properties['cross_cutting_refs']) {

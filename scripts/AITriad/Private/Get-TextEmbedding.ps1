@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -50,17 +50,17 @@ function Get-TextEmbedding {
         return $null
     }
 
-    $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
+    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
     if (-not (Test-Path $EmbedScript)) {
         Write-Verbose "Get-TextEmbedding: embed_taxonomy.py not found at $EmbedScript"
         return $null
     }
 
-    $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+    if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
     # Build batch-encode input: [{"id": "...", "text": "..."}]
     $Items = for ($i = 0; $i -lt $Texts.Count; $i++) {
-        $Trunc = if ($Texts[$i].Length -gt 2000) { $Texts[$i].Substring(0, 2000) } else { $Texts[$i] }
+        if ($Texts[$i].Length -gt 2000) { $Trunc = $Texts[$i].Substring(0, 2000) } else { $Trunc = $Texts[$i] }
         [ordered]@{ id = $Ids[$i]; text = $Trunc }
     }
     $InputJson = @($Items) | ConvertTo-Json -Depth 5 -Compress
@@ -72,7 +72,7 @@ function Get-TextEmbedding {
             return $null
         }
 
-        $Parsed = $Output | ConvertFrom-Json -Depth 5 -AsHashtable
+        $Parsed = $Output | ConvertFrom-Json | ConvertTo-Hashtable
         # Convert arrays to [double[]] for cosine computation
         $Result = @{}
         foreach ($Key in $Parsed.Keys) {

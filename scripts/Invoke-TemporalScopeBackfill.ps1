@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -40,11 +40,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Module (Join-Path $ScriptDir 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 Import-Module (Join-Path $ScriptDir 'AIEnrich.psm1') -Force -ErrorAction Stop
 
 if (-not $Model) {
-    $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
+    if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
 }
 
 $DataRoot = (Resolve-Path $DataRoot).Path
@@ -59,7 +59,7 @@ $TotalMissing = 0
 
 foreach ($File in (Get-ChildItem -Path $SummariesDir -Filter '*.json' -File | Sort-Object Name)) {
     try {
-        $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+        $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
     }
     catch { continue }
 
@@ -94,10 +94,10 @@ if ($TotalMissing -eq 0) {
 }
 
 # ── Resolve API key ───────────────────────────────────────────────────────────
-$Backend = if ($Model -match '^gemini') { 'gemini' }
-           elseif ($Model -match '^claude') { 'claude' }
-           elseif ($Model -match '^groq') { 'groq' }
-           else { 'gemini' }
+if ($Model -match '^gemini') { $Backend = 'gemini' }
+elseif ($Model -match '^claude') { $Backend = 'claude' }
+elseif ($Model -match '^groq') { $Backend = 'groq' }
+else { $Backend = 'gemini' }
 
 $ApiKey = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 if (-not $ApiKey) {
@@ -114,7 +114,7 @@ foreach ($Entry in $FilesToFix) {
 
     $ClaimTexts = @($Entry.Missing | ForEach-Object {
         $C = $_.Claim
-        $Label = if ($C.PSObject.Properties['claim_label']) { $C.claim_label } else { '' }
+        if ($C.PSObject.Properties['claim_label']) { $Label = $C.claim_label } else { $Label = '' }
         [ordered]@{
             index = $_.Index
             label = $Label
@@ -159,7 +159,7 @@ Return ONLY a JSON array like:
                 -Temperature 0.1 -MaxTokens 4096 -JsonMode -TimeoutSec 60
 
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
-            $Classifications = $ResponseText | ConvertFrom-Json -Depth 10
+            $Classifications = $ResponseText | ConvertFrom-Json
 
             foreach ($C in $Classifications) {
                 $ClaimIdx = $C.index
@@ -173,7 +173,7 @@ Return ONLY a JSON array like:
                         $TargetClaim | Add-Member -NotePropertyName 'temporal_scope' -NotePropertyValue $C.temporal_scope -Force
                     }
 
-                    $Bound = if ($C.PSObject.Properties['temporal_bound']) { $C.temporal_bound } else { $null }
+                    if ($C.PSObject.Properties['temporal_bound']) { $Bound = $C.temporal_bound } else { $Bound = $null }
                     if ($TargetClaim.PSObject.Properties['temporal_bound']) {
                         $TargetClaim.temporal_bound = $Bound
                     }

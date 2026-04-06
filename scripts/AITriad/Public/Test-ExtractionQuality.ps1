@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-ExtractionQuality {
@@ -37,7 +37,7 @@ function Test-ExtractionQuality {
     $ErrorActionPreference = 'Stop'
 
     if ([string]::IsNullOrWhiteSpace($GoldDir)) {
-        $GoldDir = Join-Path $script:RepoRoot 'tests' 'gold-standard'
+        $GoldDir = Join-Path (Join-Path $script:RepoRoot 'tests') 'gold-standard'
     }
 
     if (-not (Test-Path $GoldDir)) {
@@ -50,7 +50,7 @@ function Test-ExtractionQuality {
     $SummariesDir = Get-SummariesDir
 
     # ── Collect gold files ────────────────────────────────────────────────────
-    $GoldFiles = if ($DocId) {
+    if ($DocId) {
         $Path = Join-Path $GoldDir "$DocId.gold.json"
         if (-not (Test-Path $Path)) {
             New-ActionableError -Goal "load gold standard for $DocId" `
@@ -58,10 +58,10 @@ function Test-ExtractionQuality {
                 -Location 'Test-ExtractionQuality' `
                 -NextSteps @("Create $Path from _template.gold.json") -Throw
         }
-        @(Get-Item $Path)
+        $GoldFiles = @(Get-Item $Path)
     }
     elseif ($All) {
-        @(Get-ChildItem -Path $GoldDir -Filter '*.gold.json' -File |
+        $GoldFiles = @(Get-ChildItem -Path $GoldDir -Filter '*.gold.json' -File |
             Where-Object { $_.Name -ne '_template.gold.json' } |
             Sort-Object Name)
     }
@@ -70,7 +70,7 @@ function Test-ExtractionQuality {
             -Problem 'Specify -DocId or -All' `
             -Location 'Test-ExtractionQuality' `
             -NextSteps @('Use -DocId <slug> for one document', 'Use -All for all gold-standard documents') -Throw
-        @()
+        $GoldFiles = @()
     }
 
     if ($GoldFiles.Count -eq 0) {
@@ -86,7 +86,7 @@ function Test-ExtractionQuality {
 
     foreach ($GoldFile in $GoldFiles) {
         $GoldDocId = $GoldFile.BaseName -replace '\.gold$', ''
-        $Gold = Get-Content -Raw -Path $GoldFile.FullName | ConvertFrom-Json -Depth 20
+        $Gold = Get-Content -Raw -Path $GoldFile.FullName | ConvertFrom-Json
 
         # Load actual summary
         $SumPath = Join-Path $SummariesDir "$GoldDocId.json"
@@ -95,7 +95,7 @@ function Test-ExtractionQuality {
             continue
         }
 
-        $Summary = Get-Content -Raw -Path $SumPath | ConvertFrom-Json -Depth 20
+        $Summary = Get-Content -Raw -Path $SumPath | ConvertFrom-Json
 
         # ── Key Point Recall & Precision ──────────────────────────────────
         $ExpectedKP = @($Gold.expected_key_points)
@@ -116,23 +116,23 @@ function Test-ExtractionQuality {
         $MatchedExpected = @($ExpectedNodeIds | Where-Object { $_ -in $ActualKP })
         $MatchedActual = @($ActualKP | Where-Object { $_ -in $ExpectedNodeIds })
 
-        $KPRecall    = if ($ExpectedNodeIds.Count -gt 0) { [Math]::Round($MatchedExpected.Count / $ExpectedNodeIds.Count * 100, 1) } else { 0 }
-        $KPPrecision = if ($ActualKP.Count -gt 0) { [Math]::Round($MatchedActual.Count / $ActualKP.Count * 100, 1) } else { 0 }
+        if ($ExpectedNodeIds.Count -gt 0) { $KPRecall = [Math]::Round($MatchedExpected.Count / $ExpectedNodeIds.Count * 100, 1) } else { $KPRecall = 0 }
+        if ($ActualKP.Count -gt 0) { $KPPrecision = [Math]::Round($MatchedActual.Count / $ActualKP.Count * 100, 1) } else { $KPPrecision = 0 }
 
         # ── Mapping Accuracy ──────────────────────────────────────────────
         $CorrectMappings = $MatchedActual.Count
-        $MappingAccuracy = if ($ActualKP.Count -gt 0) { [Math]::Round($CorrectMappings / $ActualKP.Count * 100, 1) } else { 0 }
+        if ($ActualKP.Count -gt 0) { $MappingAccuracy = [Math]::Round($CorrectMappings / $ActualKP.Count * 100, 1) } else { $MappingAccuracy = 0 }
 
         # ── Factual Claim Recall ──────────────────────────────────────────
         $ExpectedClaims = @($Gold.expected_factual_claims)
-        $ActualClaims = if ($Summary.factual_claims) { @($Summary.factual_claims) } else { @() }
+        if ($Summary.factual_claims) { $ActualClaims = @($Summary.factual_claims) } else { $ActualClaims = @() }
 
         $ClaimMatches = 0
         foreach ($EC in $ExpectedClaims) {
             $ECNodes = @($EC.linked_taxonomy_nodes)
             # Match if any actual claim shares linked taxonomy nodes
             foreach ($AC in $ActualClaims) {
-                $ACNodes = if ($AC.PSObject.Properties['linked_taxonomy_nodes']) { @($AC.linked_taxonomy_nodes) } else { @() }
+                if ($AC.PSObject.Properties['linked_taxonomy_nodes']) { $ACNodes = @($AC.linked_taxonomy_nodes) } else { $ACNodes = @() }
                 $Overlap = @($ECNodes | Where-Object { $_ -in $ACNodes })
                 if ($Overlap.Count -gt 0) {
                     $ClaimMatches++
@@ -141,18 +141,18 @@ function Test-ExtractionQuality {
             }
         }
 
-        $ClaimRecall = if ($ExpectedClaims.Count -gt 0) { [Math]::Round($ClaimMatches / $ExpectedClaims.Count * 100, 1) } else { 0 }
+        if ($ExpectedClaims.Count -gt 0) { $ClaimRecall = [Math]::Round($ClaimMatches / $ExpectedClaims.Count * 100, 1) } else { $ClaimRecall = 0 }
 
         # ── Unmapped Concept Recall ───────────────────────────────────────
         $ExpectedUnmapped = @($Gold.expected_unmapped_concepts)
-        $ActualUnmapped = if ($Summary.unmapped_concepts) { @($Summary.unmapped_concepts) } else { @() }
+        if ($Summary.unmapped_concepts) { $ActualUnmapped = @($Summary.unmapped_concepts) } else { $ActualUnmapped = @() }
 
         $UnmappedMatches = 0
         foreach ($EU in $ExpectedUnmapped) {
             $ExpPov = $EU.suggested_pov
             # Match if any actual unmapped concept has the same suggested POV
             foreach ($AU in $ActualUnmapped) {
-                $ActPov = if ($AU.PSObject.Properties['suggested_pov']) { $AU.suggested_pov } else { '' }
+                if ($AU.PSObject.Properties['suggested_pov']) { $ActPov = $AU.suggested_pov } else { $ActPov = '' }
                 if ($ActPov -eq $ExpPov) {
                     $UnmappedMatches++
                     break
@@ -160,11 +160,11 @@ function Test-ExtractionQuality {
             }
         }
 
-        $UnmappedRecall = if ($ExpectedUnmapped.Count -gt 0) { [Math]::Round($UnmappedMatches / $ExpectedUnmapped.Count * 100, 1) } else { 0 }
+        if ($ExpectedUnmapped.Count -gt 0) { $UnmappedRecall = [Math]::Round($UnmappedMatches / $ExpectedUnmapped.Count * 100, 1) } else { $UnmappedRecall = 0 }
 
         # ── Display ───────────────────────────────────────────────────────
         Write-Host "`n  $GoldDocId`:" -ForegroundColor White
-        $KPColor = if ($KPRecall -ge 70) { 'Green' } elseif ($KPRecall -ge 50) { 'Yellow' } else { 'Red' }
+        if ($KPRecall -ge 70) { $KPColor = 'Green' } elseif ($KPRecall -ge 50) { $KPColor = 'Yellow' } else { $KPColor = 'Red' }
         Write-Host "    KP Recall:         $KPRecall% ($($MatchedExpected.Count)/$($ExpectedNodeIds.Count))" -ForegroundColor $KPColor
         Write-Host "    KP Precision:      $KPPrecision% ($($MatchedActual.Count)/$($ActualKP.Count))" -ForegroundColor $KPColor
         Write-Host "    Mapping Accuracy:  $MappingAccuracy%" -ForegroundColor $(if ($MappingAccuracy -ge 70) { 'Green' } else { 'Yellow' })

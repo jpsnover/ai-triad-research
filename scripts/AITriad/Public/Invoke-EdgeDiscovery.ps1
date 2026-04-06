@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-EdgeDiscovery {
@@ -130,10 +130,10 @@ function Invoke-EdgeDiscovery {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -154,7 +154,7 @@ function Invoke-EdgeDiscovery {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         foreach ($Node in $FileData.nodes) {
             $AllNodes.Add($Node)
             $NodePovMap[$Node.id] = $PovKey
@@ -166,7 +166,7 @@ function Invoke-EdgeDiscovery {
     # ── Step 3: Load existing edges ──
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
     } else {
         $EdgesData = [PSCustomObject]@{
             _schema_version = '1.0.0'
@@ -234,7 +234,7 @@ function Invoke-EdgeDiscovery {
         $EmbeddingsPath = Join-Path $TaxDir 'embeddings.json'
         if (Test-Path $EmbeddingsPath) {
             try {
-                $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json -Depth 20
+                $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json
                 foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
                     $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
                 }
@@ -418,8 +418,8 @@ $SchemaPrompt
                     continue
                 }
 
-                $Bidir    = if ($Edge.PSObject.Properties['bidirectional']) { [bool]$Edge.bidirectional } else { $false }
-                $Rationale = if ($Edge.PSObject.Properties['rationale'])    { $Edge.rationale }           else { '' }
+                if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
+                if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target
@@ -474,7 +474,7 @@ $SchemaPrompt
         Write-Info "Running $MaxConcurrent parallel workers"
 
         $DiscFnBody   = (Get-Command Invoke-NodeEdgeDiscovery).ScriptBlock.ToString()
-        $AIEnrichPath = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
+        $AIEnrichPath = Join-Path (Join-Path $script:ModuleRoot '..') 'AIEnrich.psm1'
         $ParallelBag  = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
         $NodesToProcess | ForEach-Object -Parallel {
@@ -523,8 +523,8 @@ $SchemaPrompt
                 $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"
                 if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
 
-                $Bidir    = if ($Edge.PSObject.Properties['bidirectional']) { [bool]$Edge.bidirectional } else { $false }
-                $Rationale = if ($Edge.PSObject.Properties['rationale'])    { $Edge.rationale }           else { '' }
+                if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
+                if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
                 $EdgeObj  = [ordered]@{
                     source        = $Disc.NodeId
                     target        = $Edge.target

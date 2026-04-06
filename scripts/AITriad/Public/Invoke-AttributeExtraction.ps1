@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-AttributeExtraction {
@@ -117,7 +117,7 @@ function Invoke-AttributeExtraction {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         # Identify nodes needing attributes
         $AllNodes = @($FileData.nodes)
@@ -237,12 +237,12 @@ $SchemaPrompt
             # ── Parse response ──
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             try {
-                $Attributes = $ResponseText | ConvertFrom-Json -Depth 20
+                $Attributes = $ResponseText | ConvertFrom-Json
             } catch {
                 Write-Warn "JSON parse failed, attempting repair..."
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
                 try {
-                    $Attributes = $Repaired | ConvertFrom-Json -Depth 20
+                    $Attributes = $Repaired | ConvertFrom-Json
                 } catch {
                     Write-Fail "Could not parse API response for batch $BatchNum ($($Batch.Count) nodes) after JSON repair: $($_.Exception.Message)"
                     Write-Info 'The AI model returned malformed JSON. Try re-running the batch or using a different -Model.'

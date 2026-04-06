@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-SchemaMigration {
@@ -65,7 +65,7 @@ function Invoke-SchemaMigration {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         foreach ($Node in $FileData.nodes) {
             $TotalNodes++
@@ -85,14 +85,14 @@ function Invoke-SchemaMigration {
     }
 
     # Determine detected version
-    $DetectedVersion = if ($NodesWithActions -eq 0) {
-        '0.x'
+    if ($NodesWithActions -eq 0) {
+        $DetectedVersion = '0.x'
     }
     elseif ($NodesWithoutPolicyId -gt 0) {
-        '1.0.0'
+        $DetectedVersion = '1.0.0'
     }
     else {
-        '1.1.0'
+        $DetectedVersion = '1.1.0'
     }
 
     Write-OK "Total nodes scanned   : $TotalNodes"
@@ -103,11 +103,11 @@ function Invoke-SchemaMigration {
     Write-OK "Target schema         : $TargetVersion"
 
     # -- Read current taxonomy version -----------------------------------------
-    $CurrentTaxVersion = if (Test-Path $VersionFile) {
-        (Get-Content -Path $VersionFile -Raw).Trim()
+    if (Test-Path $VersionFile) {
+        $CurrentTaxVersion = (Get-Content -Path $VersionFile -Raw).Trim()
     }
     else {
-        '0.0.0'
+        $CurrentTaxVersion = '0.0.0'
     }
     Write-OK "Current TAXONOMY_VERSION: $CurrentTaxVersion"
 

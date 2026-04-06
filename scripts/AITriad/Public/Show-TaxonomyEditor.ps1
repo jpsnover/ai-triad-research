@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-TaxonomyEditor {
@@ -20,7 +20,7 @@ function Show-TaxonomyEditor {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    $AppDir = Join-Path $script:RepoRoot 'taxonomy-editor'
+    $AppDir = Join-Path (Get-CodeRoot) 'taxonomy-editor'
     if (-not (Test-Path $AppDir)) {
         Write-Fail "App directory not found: $AppDir"
         return

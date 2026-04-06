@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Set-Edge {
@@ -88,7 +88,7 @@ function Set-Edge {
             return
         }
 
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         $MaxIndex  = $EdgesData.edges.Count - 1
 
         # Track whether any modifications were made
@@ -110,14 +110,14 @@ function Set-Edge {
 
     process {
         # Determine edge index
-        $EdgeIndex = if ($PSCmdlet.ParameterSetName -eq 'ByPipeline') {
+        if ($PSCmdlet.ParameterSetName -eq 'ByPipeline') {
             if (-not $InputObject.PSObject.Properties['Index']) {
                 Write-Fail 'Pipeline object has no Index property. Pipe from Get-Edge.'
                 return
             }
-            $InputObject.Index
+            $EdgeIndex = $InputObject.Index
         } else {
-            $Index
+            $EdgeIndex = $Index
         }
 
         if ($EdgeIndex -lt 0 -or $EdgeIndex -gt $MaxIndex) {

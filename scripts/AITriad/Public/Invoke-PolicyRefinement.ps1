@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-PolicyRefinement {
@@ -46,7 +46,7 @@ function Invoke-PolicyRefinement {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-2.5-flash' }
     }
 
     # -- Validate environment --------------------------------------------------
@@ -61,10 +61,10 @@ function Invoke-PolicyRefinement {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -75,7 +75,7 @@ function Invoke-PolicyRefinement {
     # -- Load registry and taxonomy files --------------------------------------
     Write-Step 'Loading policy registry and taxonomy'
 
-    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
+    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
     Write-OK "Registry loaded: $($Registry.policies.Count) policies"
 
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
@@ -83,7 +83,7 @@ function Invoke-PolicyRefinement {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (Test-Path $FilePath) {
-            $TaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $TaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         }
     }
 
@@ -118,7 +118,7 @@ function Invoke-PolicyRefinement {
             if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
 
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                $Pid = if ($PA.PSObject.Properties['policy_id']) { $PA.policy_id } else { $null }
+                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
                 if (-not $Pid) { continue }
 
                 if (-not $PolicyFramings.ContainsKey($Pid)) {
@@ -226,7 +226,7 @@ INSTRUCTIONS:
                 continue
             }
 
-            $Parsed = $JsonMatch.Value | ConvertFrom-Json -Depth 20
+            $Parsed = $JsonMatch.Value | ConvertFrom-Json
 
             if (-not $Parsed.PSObject.Properties['refined_action'] -or [string]::IsNullOrWhiteSpace($Parsed.refined_action)) {
                 Write-Warn "$Pid`: LLM returned empty or missing refined_action"

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -39,8 +39,8 @@ function Merge-ChunkSummaries {
     # Uses local all-MiniLM-L6-v2 model via embed_taxonomy.py encode (no API key needed)
     $UseEmbeddings = $false
     $EmbeddingCache = @{}  # text hash → vector
-    $EmbedScript = Join-Path $script:ModuleRoot '..' 'embed_taxonomy.py'
-    $PythonCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+    $EmbedScript = Join-Path (Join-Path $script:ModuleRoot '..') 'embed_taxonomy.py'
+    if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
 
     # Closures that capture parent-scope variables
     $GetTextEmbedding = {
@@ -49,10 +49,10 @@ function Merge-ChunkSummaries {
         if ($EmbeddingCache.ContainsKey($Hash)) { return $EmbeddingCache[$Hash] }
 
         try {
-            $TruncText = if ($Text.Length -gt 1000) { $Text.Substring(0, 1000) } else { $Text }
+            if ($Text.Length -gt 1000) { $TruncText = $Text.Substring(0, 1000) } else { $TruncText = $Text }
             $Output = & $PythonCmd $EmbedScript encode $TruncText 2>$null
             if ($LASTEXITCODE -ne 0) { return $null }
-            $Vector = [double[]]@($Output | ConvertFrom-Json -Depth 5)
+            $Vector = [double[]]@($Output | ConvertFrom-Json)
             $EmbeddingCache[$Hash] = $Vector
             return $Vector
         }
@@ -122,7 +122,7 @@ function Merge-ChunkSummaries {
 
                 # Fallback: string-prefix dedup
                 if (-not $IsDuplicate) {
-                    $PointPrefix = if ($kp.point.Length -gt 80) { $kp.point.Substring(0, 80) } else { $kp.point }
+                    if ($kp.point.Length -gt 80) { $PointPrefix = $kp.point.Substring(0, 80) } else { $PointPrefix = $kp.point }
                     $DedupKey = "$($kp.taxonomy_node_id)|$($PointPrefix.ToLowerInvariant().Trim())"
 
                     if ($SeenKeys.Add($DedupKey)) {
@@ -146,12 +146,12 @@ function Merge-ChunkSummaries {
 
         foreach ($Claim in $Chunk.factual_claims) {
             # Dedup on claim_label (lowercased)
-            $ClaimKey = if ($Claim.claim_label) {
-                $Claim.claim_label.ToLowerInvariant().Trim()
+            if ($Claim.claim_label) {
+                $ClaimKey = $Claim.claim_label.ToLowerInvariant().Trim()
             } else {
                 # Fallback: first 60 chars of claim text
-                $ClaimText = if ($Claim.claim.Length -gt 60) { $Claim.claim.Substring(0, 60) } else { $Claim.claim }
-                $ClaimText.ToLowerInvariant().Trim()
+                if ($Claim.claim.Length -gt 60) { $ClaimText = $Claim.claim.Substring(0, 60) } else { $ClaimText = $Claim.claim }
+                $ClaimKey = $ClaimText.ToLowerInvariant().Trim()
             }
 
             if ($SeenClaimLabels.Add($ClaimKey)) {
@@ -169,10 +169,10 @@ function Merge-ChunkSummaries {
 
         foreach ($Concept in $Chunk.unmapped_concepts) {
             $HasLabel = $Concept.PSObject.Properties['suggested_label'] -and $Concept.suggested_label
-            $LabelKey = if ($HasLabel) {
-                $Concept.suggested_label.ToLowerInvariant().Trim()
+            if ($HasLabel) {
+                $LabelKey = $Concept.suggested_label.ToLowerInvariant().Trim()
             } else {
-                "unknown-$($AllUnmapped.Count)"
+                $LabelKey = "unknown-$($AllUnmapped.Count)"
             }
 
             if ($SeenLabels.Add($LabelKey)) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -22,7 +22,7 @@
     ./scripts/Install-AIDependencies.ps1 -Fix
 #>
 
-#Requires -Version 7.0
+#Requires -Version 5.1
 
 [CmdletBinding()]
 param(
@@ -33,7 +33,7 @@ param(
 )
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-Import-Module (Join-Path $RepoRoot 'scripts' 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+Import-Module (Join-Path (Join-Path (Join-Path $RepoRoot 'scripts') 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 
 $Params = @{}
 if ($Fix)        { $Params['Fix'] = $true }

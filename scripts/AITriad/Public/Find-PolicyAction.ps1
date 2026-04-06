@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-PolicyAction {
@@ -75,7 +75,7 @@ function Find-PolicyAction {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-2.5-flash' }
     }
 
     # ── Validate environment ──
@@ -88,10 +88,10 @@ function Find-PolicyAction {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -114,7 +114,7 @@ function Find-PolicyAction {
     $Registry = $null
     $RegistrySummary = ''
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
         Write-OK "Policy registry loaded: $($Registry.policies.Count) policies"
         # Build compact summary for prompt context (ID + action only, no vectors)
         $RegistrySummary = ($Registry.policies | ForEach-Object {
@@ -139,7 +139,7 @@ function Find-PolicyAction {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         $AllNodes = @($FileData.nodes)
 
@@ -279,13 +279,13 @@ $SchemaPrompt
             # ── Parse response ──
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             try {
-                $ActionData = $ResponseText | ConvertFrom-Json -Depth 20
+                $ActionData = $ResponseText | ConvertFrom-Json
             }
             catch {
                 Write-Warn 'JSON parse failed, attempting repair...'
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
                 try {
-                    $ActionData = $Repaired | ConvertFrom-Json -Depth 20
+                    $ActionData = $Repaired | ConvertFrom-Json
                 }
                 catch {
                     Write-Fail "Could not parse API response for batch $BatchNum ($($Batch.Count) nodes) after JSON repair: $($_.Exception.Message)"

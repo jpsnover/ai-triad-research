@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -44,14 +44,14 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 try {
-    Import-Module (Join-Path $ScriptDir 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+    Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 }
 catch {
     Write-Error "Failed to load AITriad module — $($_.Exception.Message)"
     return
 }
 
-. (Join-Path $ScriptDir 'AITriad' 'Private' 'New-ActionableError.ps1')
+. (Join-Path (Join-Path (Join-Path $ScriptDir 'AITriad') 'Private') 'New-ActionableError.ps1')
 
 # ── Validate data root ────────────────────────────────────────────────────────
 if (-not (Test-Path $DataRoot)) {
@@ -71,7 +71,7 @@ Write-Host "══════════════════════�
 # ── Step 1: Build ID map from taxonomy files ──────────────────────────────────
 Write-Host "  Building ID map from taxonomy..." -ForegroundColor Yellow
 
-$TaxDir = Join-Path $DataRoot 'taxonomy' 'Origin'
+$TaxDir = Join-Path (Join-Path $DataRoot 'taxonomy') 'Origin'
 
 # Slug mappings: old category slug → new category slug
 $SlugMap = @{
@@ -86,7 +86,7 @@ $IdMap = [ordered]@{}  # old ID → new ID
 foreach ($PovFile in @('accelerationist.json', 'safetyist.json', 'skeptic.json')) {
     $FilePath = Join-Path $TaxDir $PovFile
     if (-not (Test-Path $FilePath)) { continue }
-    $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+    $Data = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
     foreach ($Node in $Data.nodes) {
         $OldId = $Node.id
         # Match pattern: (acc|saf|skp)-(goals|data|methods)-NNN
@@ -104,7 +104,7 @@ foreach ($PovFile in @('accelerationist.json', 'safetyist.json', 'skeptic.json')
 # Situation nodes: cc-NNN → sit-NNN
 $SitFile = Join-Path $TaxDir 'situations.json'
 if (Test-Path $SitFile) {
-    $SitData = Get-Content -Raw -Path $SitFile | ConvertFrom-Json -Depth 20
+    $SitData = Get-Content -Raw -Path $SitFile | ConvertFrom-Json
     foreach ($Node in $SitData.nodes) {
         $OldId = $Node.id
         if ($OldId -match '^cc-(\d{3})$') {
@@ -152,7 +152,7 @@ foreach ($DirInfo in @(
     @{ Name = 'conflicts'; Dir = Join-Path $DataRoot 'conflicts' }
     @{ Name = 'debates';   Dir = Join-Path $DataRoot 'debates' }
     @{ Name = 'harvests';  Dir = Join-Path $DataRoot 'harvests' }
-    @{ Name = 'proposals'; Dir = Join-Path $DataRoot 'taxonomy' 'proposals' }
+    @{ Name = 'proposals'; Dir = Join-Path (Join-Path $DataRoot 'taxonomy') 'proposals' }
 )) {
     if (Test-Path $DirInfo.Dir) {
         $Recurse = $DirInfo.Name -eq 'sources'
@@ -263,7 +263,7 @@ $PreCounts = [ordered]@{}
 # Embeddings key count
 $EmbPath = Join-Path $TaxDir 'embeddings.json'
 if (Test-Path $EmbPath) {
-    $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
+    $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
     $PreCounts['embeddings_keys'] = @($EmbData.nodes.PSObject.Properties).Count
     $EmbData = $null  # Free memory
 }
@@ -271,7 +271,7 @@ if (Test-Path $EmbPath) {
 # Edge count
 $EdgePath = Join-Path $TaxDir 'edges.json'
 if (Test-Path $EdgePath) {
-    $EdgeData = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json -Depth 20
+    $EdgeData = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json
     $PreCounts['edge_count'] = @($EdgeData.edges).Count
     $EdgeData = $null
 }
@@ -281,7 +281,7 @@ $NodeCount = 0
 foreach ($PovFile in @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json')) {
     $P = Join-Path $TaxDir $PovFile
     if (Test-Path $P) {
-        $D = Get-Content -Raw -Path $P | ConvertFrom-Json -Depth 20
+        $D = Get-Content -Raw -Path $P | ConvertFrom-Json
         $NodeCount += @($D.nodes).Count
         $D = $null
     }
@@ -334,7 +334,7 @@ foreach ($SetName in $FileSets.Keys) {
 
         try {
             $RawJson = Get-Content -Raw -Path $File.FullName -Encoding UTF8
-            $Data = $RawJson | ConvertFrom-Json -Depth 30
+            $Data = $RawJson | ConvertFrom-Json
         }
         catch {
             Write-Warning "  Skipping $RelPath — JSON parse failed: $($_.Exception.Message)"
@@ -443,7 +443,7 @@ if (-not $DryRun) {
     foreach ($PovFile in @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json')) {
         $P = Join-Path $TaxDir $PovFile
         if (Test-Path $P) {
-            $D = Get-Content -Raw -Path $P | ConvertFrom-Json -Depth 20
+            $D = Get-Content -Raw -Path $P | ConvertFrom-Json
             $PostNodeCount += @($D.nodes).Count; $D = $null
         }
     }
@@ -453,7 +453,7 @@ if (-not $DryRun) {
     else { Write-Host "    Node count: $PostNodeCount (unchanged)" -ForegroundColor Green }
 
     if (Test-Path $EdgePath) {
-        $PostEdges = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json -Depth 20
+        $PostEdges = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json
         $PostEdgeCount = @($PostEdges.edges).Count
         if ($PostEdgeCount -ne $PreCounts['edge_count']) {
             $ValidationErrors.Add("Edge count changed: $($PreCounts['edge_count']) → $PostEdgeCount")
@@ -463,7 +463,7 @@ if (-not $DryRun) {
     }
 
     if (Test-Path $EmbPath) {
-        $PostEmb = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
+        $PostEmb = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
         $PostEmbKeys = @($PostEmb.nodes.PSObject.Properties).Count
         if ($PostEmbKeys -ne $PreCounts['embeddings_keys']) {
             $ValidationErrors.Add("Embeddings key count changed: $($PreCounts['embeddings_keys']) → $PostEmbKeys")
@@ -473,7 +473,7 @@ if (-not $DryRun) {
         # FM-2: Spot-check 5 random vectors
         $AllKeys = @($PostEmb.nodes.PSObject.Properties.Name)
         $SpotKeys = $AllKeys | Get-Random -Count ([Math]::Min(5, $AllKeys.Count))
-        $BackupEmb = Get-Content -Raw -Path (Join-Path $BackupDir 'taxonomy' 'Origin' 'embeddings.json') | ConvertFrom-Json -Depth 20
+        $BackupEmb = Get-Content -Raw -Path (Join-Path (Join-Path (Join-Path $BackupDir 'taxonomy') 'Origin') 'embeddings.json') | ConvertFrom-Json
         foreach ($Key in $SpotKeys) {
             $NewVec = ($PostEmb.nodes.$Key.vector | ConvertTo-Json -Compress)
             # Find the old key
@@ -522,7 +522,7 @@ if (-not $DryRun) {
     foreach ($PovFile in @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json')) {
         $P = Join-Path $TaxDir $PovFile
         if (Test-Path $P) {
-            $D = Get-Content -Raw -Path $P | ConvertFrom-Json -Depth 20
+            $D = Get-Content -Raw -Path $P | ConvertFrom-Json
             foreach ($Node in $D.nodes) { [void]$AllNewNodes.Add($Node.id) }
             $D = $null
         }
@@ -530,7 +530,7 @@ if (-not $DryRun) {
 
     # Check edges
     if (Test-Path $EdgePath) {
-        $PostEdges = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json -Depth 20
+        $PostEdges = Get-Content -Raw -Path $EdgePath | ConvertFrom-Json
         $BrokenEdgeRefs = 0
         foreach ($Edge in $PostEdges.edges) {
             $SrcOk = $AllNewNodes.Contains($Edge.source) -or $Edge.source -match '^pol-'

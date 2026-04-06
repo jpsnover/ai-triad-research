@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Install-AITriadData {
@@ -99,7 +99,7 @@ function Install-AITriadData {
     # ── Update .aitriad.json if custom path was specified ──
     $ConfigPath = Join-Path $script:RepoRoot '.aitriad.json'
     if (Test-Path $ConfigPath) {
-        $Config = Get-Content -Raw $ConfigPath | ConvertFrom-Json -Depth 20
+        $Config = Get-Content -Raw $ConfigPath | ConvertFrom-Json
 
         # Compute relative path from code repo to data
         $RelativePath = [System.IO.Path]::GetRelativePath($script:RepoRoot, $DataPath)
@@ -116,9 +116,10 @@ function Install-AITriadData {
     }
 
     # ── Verify ──
-    $TaxDir = Join-Path $DataPath ($script:DataConfig ?? @{ taxonomy_dir = 'taxonomy/Origin' }).taxonomy_dir
+    if ($script:DataConfig) { $_cfgForTax = $script:DataConfig } else { $_cfgForTax = @{ taxonomy_dir = 'taxonomy/Origin' } }
+    $TaxDir = Join-Path $DataPath $_cfgForTax.taxonomy_dir
     if (-not (Test-Path $TaxDir)) {
-        $TaxDir = Join-Path $DataPath 'taxonomy' 'Origin'
+        $TaxDir = Join-Path (Join-Path $DataPath 'taxonomy') 'Origin'
     }
 
     if (Test-Path $TaxDir) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Per-node edge discovery API call, factored out for parallel execution support.
@@ -64,12 +64,12 @@ function Invoke-NodeEdgeDiscovery {
 
     $Discovery = $null
     try {
-        $Discovery = $ResponseText | ConvertFrom-Json -Depth 20
+        $Discovery = $ResponseText | ConvertFrom-Json
     } catch {
         # Attempt JSON repair for truncated responses
         $Repaired = Repair-TruncatedJson -Text $ResponseText
         try {
-            $Discovery = $Repaired | ConvertFrom-Json -Depth 20
+            $Discovery = $Repaired | ConvertFrom-Json
         } catch {
             $Result.Error = 'JSON parse failed (repair also failed)'
             return $Result

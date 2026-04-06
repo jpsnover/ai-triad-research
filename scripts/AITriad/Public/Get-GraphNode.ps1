@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-GraphNode {
@@ -54,7 +54,7 @@ function Get-GraphNode {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
@@ -76,7 +76,7 @@ function Get-GraphNode {
     $Edges = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
             $Edges = @($EdgesData.edges)
         }
         catch {
@@ -124,7 +124,7 @@ function Get-GraphNode {
             if ($EdgeType -and $Edge.type -ne $EdgeType) { continue }
             if ($Status -and $Edge.status -ne $Status) { continue }
 
-            $NeighborId = if ($IsOutbound) { $Edge.target } else { $Edge.source }
+            if ($IsOutbound) { $NeighborId = $Edge.target } else { $NeighborId = $Edge.source }
 
             $ResultEdges.Add($Edge)
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Register-AIBackend {
@@ -455,7 +455,7 @@ init();
 
                     'GET /api/reveal' {
                         $Query   = $Request.Url.Query
-                        $Backend = if ($Query -match 'backend=(\w+)') { $Matches[1] } else { '' }
+                        if ($Query -match 'backend=(\w+)') { $Backend = $Matches[1] } else { $Backend = '' }
                         $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY' }
                         $RealKey = ''
                         if ($KeyMap.ContainsKey($Backend)) {
@@ -470,7 +470,7 @@ init();
 
                     'POST /api/test' {
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
-                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json -Depth 20
+                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
                         $Reader.Close()
 
                         $TestBackend = $Body.backend
@@ -542,7 +542,7 @@ init();
 
                     'POST /api/save' {
                         $Reader = [System.IO.StreamReader]::new($Request.InputStream)
-                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json -Depth 20
+                        $Body   = $Reader.ReadToEnd() | ConvertFrom-Json
                         $Reader.Close()
 
                         $SaveResult = @{ ok = $true; message = '' }

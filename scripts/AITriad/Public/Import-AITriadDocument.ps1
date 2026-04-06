@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Import-AITriadDocument {
@@ -95,10 +95,10 @@ function Import-AITriadDocument {
     $InboxDir   = Join-Path $SourcesDir '_inbox'
 
     # -- AI API key (read once; absence is non-fatal) -------------------------
-    $Backend = if     ($Model -match '^gemini') { 'gemini' }
-               elseif ($Model -match '^claude') { 'claude' }
-               elseif ($Model -match '^groq')   { 'groq'   }
-               else                             { 'gemini'  }
+    if     ($Model -match '^gemini') { $Backend = 'gemini' }
+    elseif ($Model -match '^claude') { $Backend = 'claude' }
+    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+    else                             { $Backend = 'gemini'  }
     $AIApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
     # =========================================================================
@@ -141,7 +141,7 @@ function Import-AITriadDocument {
             }
 
             $Meta    = Get-HtmlMeta -Html $HtmlContent
-            $Title   = if ($Meta.Title) { $Meta.Title } else { $SourceUrl }
+            if ($Meta.Title) { $Title = $Meta.Title } else { $Title = $SourceUrl }
             $Authors = $Meta.Author
 
             $MarkdownText = ConvertFrom-Html -Html $HtmlContent -SourceUrl $SourceUrl
@@ -186,12 +186,12 @@ function Import-AITriadDocument {
                     $SourceType   = 'web_article'
                     $HtmlContent  = [System.IO.File]::ReadAllText($ResolvedFile)
                     $Meta         = Get-HtmlMeta -Html $HtmlContent
-                    $Title        = if ($Meta.Title) { $Meta.Title } else {
-                        [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) }
+                    if ($Meta.Title) { $Title = $Meta.Title } else {
+                        $Title = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) }
                     $Authors      = $Meta.Author
                     # Prefer markitdown for HTML (better semantic extraction)
                     $MidMd = ConvertFrom-MarkItDown -FilePath $ResolvedFile
-                    $MarkdownText = if ($MidMd) { $MidMd } else { ConvertFrom-Html -Html $HtmlContent }
+                    if ($MidMd) { $MarkdownText = $MidMd } else { $MarkdownText = ConvertFrom-Html -Html $HtmlContent }
                 }
                 { $_ -in '.pptx', '.ppt' } {
                     $SourceType   = 'presentation'
@@ -209,7 +209,7 @@ function Import-AITriadDocument {
                     $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
                 }
                 { $_ -in '.md', '.txt' } {
-                    $SourceType   = if ($Ext -eq '.md') { 'markdown' } else { 'plaintext' }
+                    if ($Ext -eq '.md') { $SourceType = 'markdown' } else { $SourceType = 'plaintext' }
                     $MarkdownText = [System.IO.File]::ReadAllText($ResolvedFile)
                     $Title        = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedFile) -replace '[-_]', ' '
                     $H1Match = [regex]::Match($MarkdownText, '(?m)^#\s+(.+)$')
@@ -279,9 +279,9 @@ function Import-AITriadDocument {
         }
 
         # -- Generate doc-id --------------------------------------------------
-        $SlugSource = if ($IsUrl) { $Title } else { $Title }
+        $SlugSource = $Title
         if ([string]::IsNullOrWhiteSpace($SlugSource)) {
-            $SlugSource = if ($IsUrl) { $SourceUrl } else { [System.IO.Path]::GetFileNameWithoutExtension($SourceFile) }
+            if ($IsUrl) { $SlugSource = $SourceUrl } else { $SlugSource = [System.IO.Path]::GetFileNameWithoutExtension($SourceFile) }
         }
         $BaseSlug = New-Slug -Text $SlugSource
         $DocId    = Resolve-DocId -BaseSlug $BaseSlug
@@ -295,10 +295,10 @@ function Import-AITriadDocument {
         Write-OK "Created: sources/$DocId/"
 
         # -- Save raw file ----------------------------------------------------
-        $RawFilename = if ($IsUrl) {
-            'original' + $RawExtension
+        if ($IsUrl) {
+            $RawFilename = 'original' + $RawExtension
         } else {
-            [System.IO.Path]::GetFileName($SourceFile)
+            $RawFilename = [System.IO.Path]::GetFileName($SourceFile)
         }
         $RawPath = Join-Path $RawDir $RawFilename
 
@@ -398,8 +398,14 @@ function Import-AITriadDocument {
 
         'ByInbox' {
             if (-not (Test-Path $InboxDir)) {
-                Write-Fail "Inbox directory not found: $InboxDir"
-                throw "Inbox directory not found: $InboxDir"
+                throw (New-ActionableError `
+                    -Goal      'Process inbox documents' `
+                    -Problem   "Inbox directory not found: $InboxDir" `
+                    -Location  'Import-AITriadDocument -Inbox' `
+                    -NextSteps @(
+                        "Create the inbox directory: New-Item -ItemType Directory -Path '$InboxDir'"
+                        'Drop files into sources/_inbox/ and re-run with -Inbox'
+                    ))
             }
 
             $InboxFiles = @(Get-ChildItem -Path $InboxDir -File |
@@ -427,9 +433,9 @@ function Import-AITriadDocument {
 
                 if (Test-Path $SidecarPath) {
                     try {
-                        $Sidecar     = Get-Content $SidecarPath -Raw | ConvertFrom-Json -Depth 20
-                        $SidecarPov  = if ($Sidecar.pov_tags)   { $Sidecar.pov_tags }   else { @() }
-                        $SidecarTopic= if ($Sidecar.topic_tags) { $Sidecar.topic_tags } else { @() }
+                        $Sidecar     = Get-Content $SidecarPath -Raw | ConvertFrom-Json
+                        if ($Sidecar.pov_tags)   { $SidecarPov   = $Sidecar.pov_tags }   else { $SidecarPov   = @() }
+                        if ($Sidecar.topic_tags) { $SidecarTopic = $Sidecar.topic_tags } else { $SidecarTopic = @() }
                         Write-Info "Sidecar found: pov=$($SidecarPov -join ',')  topics=$($SidecarTopic -join ',')"
                     } catch {
                         Write-Warn "Sidecar parse failed, ignoring: $SidecarPath"

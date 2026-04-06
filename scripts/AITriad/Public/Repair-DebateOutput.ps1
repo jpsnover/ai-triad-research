@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -33,7 +33,7 @@ Required to run the repair script. Install Node.js from https://nodejs.org (v18+
         }
 
         $RepoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent | Split-Path -Parent
-        $CliScript = Join-Path $RepoRoot 'lib' 'debate' 'repairTranscript.ts'
+        $CliScript = Join-Path (Join-Path (Join-Path $RepoRoot 'lib') 'debate') 'repairTranscript.ts'
 
         if (-not (Test-Path $CliScript)) {
             throw @"

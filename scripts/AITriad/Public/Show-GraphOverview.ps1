@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-GraphOverview {
@@ -40,7 +40,7 @@ function Show-GraphOverview {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
@@ -58,7 +58,7 @@ function Show-GraphOverview {
     $Edges = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to load edges.json — $($_.Exception.Message)"
@@ -75,7 +75,7 @@ function Show-GraphOverview {
     $NodeCount = $AllNodes.Count
     $EdgeCount = $Edges.Count
     $MaxPossibleEdges = $NodeCount * ($NodeCount - 1)
-    $Density = if ($MaxPossibleEdges -gt 0) { [Math]::Round($EdgeCount / $MaxPossibleEdges, 4) } else { 0 }
+    if ($MaxPossibleEdges -gt 0) { $Density = [Math]::Round($EdgeCount / $MaxPossibleEdges, 4) } else { $Density = 0 }
 
     # Edge type distribution
     $TypeCounts = [ordered]@{}
@@ -119,16 +119,16 @@ function Show-GraphOverview {
 
     # Orphans (no edges at all)
     $Orphans = @(foreach ($NId in $AllNodes.Keys) {
-        $In  = if ($InDegree.Contains($NId))  { $InDegree[$NId] }  else { 0 }
-        $Out = if ($OutDegree.Contains($NId)) { $OutDegree[$NId] } else { 0 }
+        if ($InDegree.Contains($NId))  { $In  = $InDegree[$NId] }  else { $In  = 0 }
+        if ($OutDegree.Contains($NId)) { $Out = $OutDegree[$NId] } else { $Out = 0 }
         if ($In -eq 0 -and $Out -eq 0) { $NId }
     })
 
     # Hubs (top 5 by total degree)
     $TotalDegree = @{}
     foreach ($NId in $AllNodes.Keys) {
-        $In  = if ($InDegree.Contains($NId))  { $InDegree[$NId] }  else { 0 }
-        $Out = if ($OutDegree.Contains($NId)) { $OutDegree[$NId] } else { 0 }
+        if ($InDegree.Contains($NId))  { $In  = $InDegree[$NId] }  else { $In  = 0 }
+        if ($OutDegree.Contains($NId)) { $Out = $OutDegree[$NId] } else { $Out = 0 }
         $TotalDegree[$NId] = $In + $Out
     }
     $Hubs = $TotalDegree.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 5

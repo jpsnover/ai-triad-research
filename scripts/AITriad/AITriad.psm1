@@ -1,8 +1,40 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-#Requires -Version 7.0
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PowerShell 5.1 compatibility shims
+# ─────────────────────────────────────────────────────────────────────────────
+if (-not (Get-Variable IsWindows -Scope Global -ErrorAction SilentlyContinue)) {
+    # PS 5.1 is Windows-only, so these are always fixed values
+    Set-Variable -Name IsWindows -Value $true  -Scope Global -Option ReadOnly -Force
+    Set-Variable -Name IsMacOS   -Value $false -Scope Global -Option ReadOnly -Force
+    Set-Variable -Name IsLinux   -Value $false -Scope Global -Option ReadOnly -Force
+}
+
+function script:ConvertTo-Hashtable {
+    <# .SYNOPSIS Recursively converts PSCustomObject to ordered hashtable (5.1 compat for -AsHashtable). #>
+    [CmdletBinding()]
+    param([Parameter(ValueFromPipeline)] $InputObject)
+    process {
+        if ($null -eq $InputObject) { return $null }
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+            $list = [System.Collections.ArrayList]::new()
+            foreach ($item in $InputObject) { $null = $list.Add((ConvertTo-Hashtable $item)) }
+            return ,$list
+        }
+        if ($InputObject -is [PSObject] -and $InputObject -isnot [ValueType] -and $InputObject -isnot [string]) {
+            $hash = [ordered]@{}
+            foreach ($prop in $InputObject.PSObject.Properties) {
+                $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
+            }
+            return $hash
+        }
+        return $InputObject
+    }
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Module root paths
@@ -11,7 +43,8 @@ Set-StrictMode -Version Latest
 $script:ModuleRoot = $PSScriptRoot
 
 # Detect if we're in a dev repo (scripts/AITriad/) or a PSGallery install
-$_candidateRepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..' '..') -ErrorAction SilentlyContinue)?.Path
+$_resolvedParent = Resolve-Path (Join-Path (Join-Path $PSScriptRoot '..') '..') -ErrorAction SilentlyContinue
+if ($_resolvedParent) { $_candidateRepoRoot = $_resolvedParent.Path } else { $_candidateRepoRoot = $null }
 if ($_candidateRepoRoot -and (Test-Path (Join-Path $_candidateRepoRoot '.aitriad.json'))) {
     $script:RepoRoot = $_candidateRepoRoot
     $script:IsDevInstall = $true
@@ -124,7 +157,7 @@ if (-not (Test-Path $AIModelsPath)) {
 }
 if (Test-Path $AIModelsPath) {
     try {
-        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json -Depth 20
+        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json
         $script:ValidModelIds = @($script:AIModelConfig.models | ForEach-Object { $_.id })
         Write-Verbose "AI Models: loaded $($script:ValidModelIds.Count) models from ai-models.json"
     }
@@ -183,7 +216,7 @@ if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json') { continue }
         try {
-            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             $PovName = $File.BaseName.ToLower()
             $script:TaxonomyData[$PovName] = $Json
             Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
@@ -203,7 +236,7 @@ $script:PolicyRegistry = $null
 $RegistryFile = Join-Path $TaxonomyDir 'policy_actions.json'
 if (Test-Path $RegistryFile) {
     try {
-        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json -Depth 20
+        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json
         Write-Verbose "Policy registry: loaded $($script:PolicyRegistry.policy_count) policies"
     }
     catch {
@@ -219,6 +252,7 @@ Set-Alias -Name 'TaxonomyEditor'   -Value 'Show-TaxonomyEditor'    -Scope Global
 Set-Alias -Name 'POViewer'         -Value 'Show-POViewer'           -Scope Global
 Set-Alias -Name 'SummaryViewer'    -Value 'Show-SummaryViewer'      -Scope Global
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
+Set-Alias -Name 'Install-AITdependencies' -Value 'Install-AIDependencies' -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Deprecation wrappers — old cmdlet names delegate to new names

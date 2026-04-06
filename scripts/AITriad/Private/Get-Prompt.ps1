@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Prompt {
@@ -34,7 +34,7 @@ function Get-Prompt {
     }
 
     if (-not $script:PromptCache.ContainsKey($Name)) {
-        $PromptPath = Join-Path $script:ModuleRoot 'Prompts' "$Name.prompt"
+        $PromptPath = Join-Path (Join-Path $script:ModuleRoot 'Prompts') "$Name.prompt"
         if (-not (Test-Path $PromptPath)) {
             throw "Prompt file not found: $PromptPath"
         }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-DebateDiagnostics {
@@ -27,10 +27,10 @@ function Show-DebateDiagnostics {
     Write-Host "[diagnostics] Opening: $ResolvedPath" -ForegroundColor Cyan
 
     # Launch the taxonomy editor in diagnostics-file mode
-    $TaxEditorDir = Join-Path $script:ModuleRoot '..' '..' 'taxonomy-editor'
+    $TaxEditorDir = Join-Path (Join-Path $script:ModuleRoot '..') (Join-Path '..' 'taxonomy-editor')
 
     # Ensure production build exists
-    $RendererIndex = Join-Path $TaxEditorDir 'dist' 'renderer' 'index.html'
+    $RendererIndex = Join-Path (Join-Path (Join-Path $TaxEditorDir 'dist') 'renderer') 'index.html'
     if (-not (Test-Path $RendererIndex)) {
         Write-Host "[diagnostics] Building taxonomy editor (first time only)..." -ForegroundColor Yellow
         Push-Location $TaxEditorDir
@@ -38,7 +38,7 @@ function Show-DebateDiagnostics {
         Pop-Location
     }
 
-    $Electron = Join-Path $TaxEditorDir 'node_modules' '.bin' 'electron'
+    $Electron = Join-Path (Join-Path (Join-Path $TaxEditorDir 'node_modules') '.bin') 'electron'
 
     if (-not (Test-Path $Electron)) {
         # Try npx electron

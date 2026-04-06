@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Install-AIDependencies {
@@ -40,11 +40,15 @@ function Install-AIDependencies {
         [switch]$SkipNode,
         [switch]$SkipPython,
         [switch]$PassThru,
+        [Parameter(Position = 0)]
         [string]$RepoRoot = $script:RepoRoot
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # Resolve relative paths (e.g. ".") to absolute so downstream Join-Path calls work
+    $RepoRoot = (Resolve-Path $RepoRoot).Path
 
     $Result = Invoke-DependencyCheck -Mode install -Fix:$Fix -Quiet:$Quiet `
         -SkipNode:$SkipNode -SkipPython:$SkipPython -RepoRoot $RepoRoot

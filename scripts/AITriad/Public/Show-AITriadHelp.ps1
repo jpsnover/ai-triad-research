@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-AITriadHelp {
@@ -31,7 +31,7 @@ function Show-AITriadHelp {
     $ErrorActionPreference = 'Stop'
 
     # Read module version from manifest
-    $ManifestPath = Join-Path $PSScriptRoot '..' 'AITriad.psd1'
+    $ManifestPath = Join-Path (Join-Path $PSScriptRoot '..') 'AITriad.psd1'
     $ManifestData = Import-PowerShellDataFile -Path $ManifestPath
     $Version      = $ManifestData.ModuleVersion
     $Generated    = Get-Date -Format 'yyyy-MM-dd HH:mm'
@@ -1470,7 +1470,7 @@ Show-AITriadHelp -PassThru
     Set-Content -Path $TempPath -Value $Html -Encoding utf8
 
     # Copy hero image alongside HTML so the relative src works
-    $HeroSource = Join-Path $script:RepoRoot 'docs' 'AITriad-Module.png'
+    $HeroSource = Join-Path (Join-Path $script:RepoRoot 'docs') 'AITriad-Module.png'
     if (Test-Path $HeroSource) {
         Copy-Item -Path $HeroSource -Destination (Join-Path $TempDir 'AITriad-Module.png') -Force
     }

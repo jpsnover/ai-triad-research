@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Shared pipeline worker for POV summary extraction.
@@ -86,7 +86,7 @@ function Invoke-SummaryPipeline {
         $TaxDir = Get-TaxonomyDir
         foreach ($F in $TaxFiles) {
             $P = Join-Path $TaxDir $F
-            if (Test-Path $P) { $TaxContext[$F] = Get-Content $P -Raw | ConvertFrom-Json -Depth 20 }
+            if (Test-Path $P) { $TaxContext[$F] = Get-Content $P -Raw | ConvertFrom-Json }
         }
         $TaxonomyJson = $TaxContext | ConvertTo-Json -Depth 20 -Compress:$false
         Write-Verbose "Pipeline: full taxonomy injected"
@@ -111,7 +111,7 @@ function Invoke-SummaryPipeline {
             $TaxDir = Get-TaxonomyDir
             foreach ($F in $TaxFiles) {
                 $P = Join-Path $TaxDir $F
-                if (Test-Path $P) { $TaxContext[$F] = Get-Content $P -Raw | ConvertFrom-Json -Depth 20 }
+                if (Test-Path $P) { $TaxContext[$F] = Get-Content $P -Raw | ConvertFrom-Json }
             }
             $TaxonomyJson = $TaxContext | ConvertTo-Json -Depth 20 -Compress:$false
         }
@@ -119,7 +119,7 @@ function Invoke-SummaryPipeline {
 
     # ── Stage 2: AutoFire Stage 1 — pre-extraction sniff (always runs) ───────
     if (-not $IterativeExtraction) {
-        $SourceType = if ($Metadata.PSObject.Properties['source_type']) { $Metadata.source_type } else { 'unknown' }
+        if ($Metadata.PSObject.Properties['source_type']) { $SourceType = $Metadata.source_type } else { $SourceType = 'unknown' }
         $Sniff1 = Test-FireRequired -WordCount $WordCount -IsChunked:($EstimatedTokens -gt 20000) -SourceType $SourceType
         if ($Sniff1.ShouldFire) {
             Write-Verbose "Pipeline AutoFire Stage 1: $($Sniff1.Reason) — switching to FIRE"
@@ -135,7 +135,7 @@ function Invoke-SummaryPipeline {
     $PolicyPath = Join-Path (Get-TaxonomyDir) 'policy_actions.json'
     if (Test-Path $PolicyPath) {
         try {
-            $PolicyReg = Get-Content -Raw -Path $PolicyPath | ConvertFrom-Json -Depth 20
+            $PolicyReg = Get-Content -Raw -Path $PolicyPath | ConvertFrom-Json
             if ($PolicyReg.policies -and $PolicyReg.policies.Count -gt 0) {
                 $PolicyLines = $PolicyReg.policies | ForEach-Object { "$($_.id): $($_.action)" }
                 $PB = $PolicyLines -join "`n"
@@ -146,9 +146,9 @@ function Invoke-SummaryPipeline {
         catch { }
     }
 
-    $PovTagLine = if ($Metadata.PSObject.Properties['pov_tags']) { $Metadata.pov_tags -join ', ' } else { '' }
-    $TopicTagLine = if ($Metadata.PSObject.Properties['topic_tags']) { $Metadata.topic_tags -join ', ' } else { '' }
-    $TitleLine = if ($Metadata.PSObject.Properties['title']) { $Metadata.title } else { $DocId }
+    if ($Metadata.PSObject.Properties['pov_tags']) { $PovTagLine = $Metadata.pov_tags -join ', ' } else { $PovTagLine = '' }
+    if ($Metadata.PSObject.Properties['topic_tags']) { $TopicTagLine = $Metadata.topic_tags -join ', ' } else { $TopicTagLine = '' }
+    if ($Metadata.PSObject.Properties['title']) { $TitleLine = $Metadata.title } else { $TitleLine = $DocId }
 
     $FullPrompt = @"
 $SystemPrompt
@@ -217,12 +217,12 @@ $SnapshotText
 
             $CleanedText = $AiResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
             try {
-                $SummaryObject = $CleanedText.Trim() | ConvertFrom-Json -Depth 20
+                $SummaryObject = $CleanedText.Trim() | ConvertFrom-Json
             }
             catch {
                 # Try repair
                 $Repaired = Repair-TruncatedJson -Text $CleanedText
-                try { $SummaryObject = $Repaired | ConvertFrom-Json -Depth 20 } catch { $SummaryObject = $null }
+                try { $SummaryObject = $Repaired | ConvertFrom-Json } catch { $SummaryObject = $null }
             }
 
             if ($null -eq $SummaryObject) {
@@ -286,8 +286,8 @@ $SnapshotText
             $NullNodes += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
         }
     }
-    $FactualCount = if ($SummaryObject.factual_claims) { @($SummaryObject.factual_claims).Count } else { 0 }
-    $UnmappedCount = if ($SummaryObject.unmapped_concepts) { @($SummaryObject.unmapped_concepts).Count } else { 0 }
+    if ($SummaryObject.factual_claims) { $FactualCount = @($SummaryObject.factual_claims).Count } else { $FactualCount = 0 }
+    if ($SummaryObject.unmapped_concepts) { $UnmappedCount = @($SummaryObject.unmapped_concepts).Count } else { $UnmappedCount = 0 }
 
     return @{
         Success        = $true

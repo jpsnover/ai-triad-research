@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-HierarchyProposal {
@@ -47,17 +47,17 @@ function Invoke-HierarchyProposal {
     $TaxDir = Get-TaxonomyDir
 
     if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-        $OutputDir = Join-Path (Get-DataRoot) 'taxonomy' 'hierarchy-proposals'
+        $OutputDir = Join-Path (Join-Path (Get-DataRoot) 'taxonomy') 'hierarchy-proposals'
     }
     if (-not (Test-Path $OutputDir)) {
         $null = New-Item -Path $OutputDir -ItemType Directory -Force
     }
 
     # ── Resolve API key ──────────────────────────────────────────────────────
-    $Backend = if ($Model -match '^gemini') { 'gemini' }
-               elseif ($Model -match '^claude') { 'claude' }
-               elseif ($Model -match '^groq')   { 'groq' }
-               else { 'gemini' }
+    if ($Model -match '^gemini') { $Backend = 'gemini' }
+    elseif ($Model -match '^claude') { $Backend = 'claude' }
+    elseif ($Model -match '^groq')   { $Backend = 'groq' }
+    else { $Backend = 'gemini' }
 
     $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
     if (-not $ResolvedKey) {
@@ -79,7 +79,7 @@ function Invoke-HierarchyProposal {
     foreach ($PovKey in $PovFileMap.Keys) {
         $FilePath = Join-Path $TaxDir $PovFileMap[$PovKey]
         if (Test-Path $FilePath) {
-            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
             Write-OK "$PovKey`: $($AllTaxData[$PovKey].nodes.Count) nodes"
         }
     }
@@ -90,7 +90,7 @@ function Invoke-HierarchyProposal {
     $EmbeddingsPath = Join-Path $TaxDir 'embeddings.json'
     if (Test-Path $EmbeddingsPath) {
         try {
-            $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json -Depth 20
+            $EmbJson = Get-Content -Raw -Path $EmbeddingsPath | ConvertFrom-Json
             foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
                 $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
             }
@@ -110,7 +110,7 @@ function Invoke-HierarchyProposal {
     $AllEdges  = @()
     if (Test-Path $EdgesPath) {
         try {
-            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
             $AllEdges  = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
             Write-OK "Loaded $($AllEdges.Count) approved edges"
         }
@@ -124,7 +124,7 @@ function Invoke-HierarchyProposal {
 
     $Buckets = [System.Collections.Generic.List[PSObject]]::new()
 
-    $PovList = if ($POV) { @($POV) } else { @('accelerationist', 'safetyist', 'skeptic', 'situations') }
+    if ($POV) { $PovList = @($POV) } else { $PovList = @('accelerationist', 'safetyist', 'skeptic', 'situations') }
 
     foreach ($PovKey in $PovList) {
         if (-not $AllTaxData.ContainsKey($PovKey)) { continue }
@@ -141,7 +141,7 @@ function Invoke-HierarchyProposal {
             }
         }
         else {
-            $Categories = if ($Category) { @($Category) } else { @('Beliefs', 'Desires', 'Intentions') }
+            if ($Category) { $Categories = @($Category) } else { $Categories = @('Beliefs', 'Desires', 'Intentions') }
             foreach ($Cat in $Categories) {
                 $CatNodes = @($Nodes | Where-Object { $_.category -eq $Cat })
                 if ($CatNodes.Count -ge 2) {
@@ -157,7 +157,7 @@ function Invoke-HierarchyProposal {
 
     Write-OK "$($Buckets.Count) buckets to process"
     foreach ($B in $Buckets) {
-        $CatLabel = if ($B.Category) { $B.Category } else { '(all)' }
+        if ($B.Category) { $CatLabel = $B.Category } else { $CatLabel = '(all)' }
         Write-Info "$($B.POV) / $CatLabel`: $($B.Nodes.Count) nodes"
     }
 
@@ -171,7 +171,7 @@ function Invoke-HierarchyProposal {
 
     foreach ($Bucket in $Buckets) {
         $BucketNum++
-        $CatLabel = if ($Bucket.Category) { $Bucket.Category } else { '(all)' }
+        if ($Bucket.Category) { $CatLabel = $Bucket.Category } else { $CatLabel = '(all)' }
         Write-Step "Bucket $BucketNum/$($Buckets.Count): $($Bucket.POV) / $CatLabel ($($Bucket.Nodes.Count) nodes)"
 
         # ── Phase 1.1: Cluster ───────────────────────────────────────────────
@@ -181,10 +181,10 @@ function Invoke-HierarchyProposal {
         $Clusters = @()
         if ($HasEmbeddings -ge 2) {
             # Scale MaxClusters by bucket size
-            $MaxClusters = if ($Bucket.Nodes.Count -lt 10) { 2 }
-                           elseif ($Bucket.Nodes.Count -lt 20) { 4 }
-                           elseif ($Bucket.Nodes.Count -lt 40) { 6 }
-                           else { 8 }
+            if ($Bucket.Nodes.Count -lt 10) { $MaxClusters = 2 }
+            elseif ($Bucket.Nodes.Count -lt 20) { $MaxClusters = 4 }
+            elseif ($Bucket.Nodes.Count -lt 40) { $MaxClusters = 6 }
+            else { $MaxClusters = 8 }
 
             $Clusters = Get-EmbeddingClusters `
                 -NodeIds       $NodeIds `
@@ -220,13 +220,14 @@ function Invoke-HierarchyProposal {
             }
 
             # Cohesion score: (supportive edges) / (possible pairs)
-            $SupportiveCount = ($IntraEdges['SUPPORTS'] ?? 0) +
-                               ($IntraEdges['ASSUMES'] ?? 0) +
-                               ($IntraEdges['SUPPORTED_BY'] ?? 0)
+            if ($IntraEdges['SUPPORTS'])    { $_sup = $IntraEdges['SUPPORTS'] }    else { $_sup = 0 }
+            if ($IntraEdges['ASSUMES'])     { $_asm = $IntraEdges['ASSUMES'] }     else { $_asm = 0 }
+            if ($IntraEdges['SUPPORTED_BY']) { $_sby = $IntraEdges['SUPPORTED_BY'] } else { $_sby = 0 }
+            $SupportiveCount = $_sup + $_asm + $_sby
             $PossiblePairs   = $ClusterIds.Count * ($ClusterIds.Count - 1)
-            $Cohesion        = if ($PossiblePairs -gt 0) {
-                [Math]::Round($SupportiveCount / $PossiblePairs, 2)
-            } else { 0.0 }
+            if ($PossiblePairs -gt 0) {
+                $Cohesion = [Math]::Round($SupportiveCount / $PossiblePairs, 2)
+            } else { $Cohesion = 0.0 }
 
             # ── Phase 1.3: Enrich with graph attribute patterns ──────────────
             $SharedEpistemicType   = $null
@@ -273,9 +274,9 @@ function Invoke-HierarchyProposal {
                         $Matches++
                     }
                 }
-                $AttributeCoherence = if ($Total -gt 0) {
-                    [Math]::Round($Matches / $Total, 2)
-                } else { 0.0 }
+                if ($Total -gt 0) {
+                    $AttributeCoherence = [Math]::Round($Matches / $Total, 2)
+                } else { $AttributeCoherence = 0.0 }
             }
 
             $ClusterData.Add([PSCustomObject]@{
@@ -329,7 +330,7 @@ function Invoke-HierarchyProposal {
         $NodeJson    = $NodeContext    | ConvertTo-Json -Depth 10 -Compress:$false
         $ClusterJson = $ClusterContext | ConvertTo-Json -Depth 10 -Compress:$false
 
-        $CatLine = if ($Bucket.Category) { "Category: $($Bucket.Category)" } else { 'Category: (none — situations)' }
+        if ($Bucket.Category) { $CatLine = "Category: $($Bucket.Category)" } else { $CatLine = 'Category: (none — situations)' }
 
         $UserPrompt = @"
 POV: $($Bucket.POV)
@@ -380,13 +381,13 @@ $SchemaPrompt
         $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
         $Proposal = $null
         try {
-            $Proposal = $ResponseText | ConvertFrom-Json -Depth 20
+            $Proposal = $ResponseText | ConvertFrom-Json
         }
         catch {
             Write-Warn 'JSON parse failed, attempting repair...'
             $Repaired = Repair-TruncatedJson -Text $ResponseText
             try {
-                $Proposal = $Repaired | ConvertFrom-Json -Depth 20
+                $Proposal = $Repaired | ConvertFrom-Json
             }
             catch {
                 Write-Fail "Could not parse response for $($Bucket.POV)/$CatLabel"
@@ -480,9 +481,9 @@ $SchemaPrompt
 
     foreach ($Proposal in $AllProposals) {
         $PovLabel = $Proposal.pov
-        $CatLabel = if ($Proposal.PSObject.Properties['category'] -and $Proposal.category) {
-            $Proposal.category
-        } else { '(situations)' }
+        if ($Proposal.PSObject.Properties['category'] -and $Proposal.category) {
+            $CatLabel = $Proposal.category
+        } else { $CatLabel = '(situations)' }
 
         [void]$Md.AppendLine("---")
         [void]$Md.AppendLine('')
@@ -493,7 +494,7 @@ $SchemaPrompt
             $ParentIdx = 0
             foreach ($Parent in @($Proposal.parents)) {
                 $ParentIdx++
-                $ParentLabel = if ($Parent.promoted_from) {
+                if ($Parent.promoted_from) {
                     $PromotedNode = $null
                     foreach ($PovKey in $PovFileMap.Keys) {
                         if ($AllTaxData.ContainsKey($PovKey)) {
@@ -503,12 +504,12 @@ $SchemaPrompt
                             if ($PromotedNode) { break }
                         }
                     }
-                    if ($PromotedNode) { "$($PromotedNode.label) ($($Parent.promoted_from))" }
-                    else { $Parent.promoted_from }
+                    if ($PromotedNode) { $ParentLabel = "$($PromotedNode.label) ($($Parent.promoted_from))" }
+                    else { $ParentLabel = $Parent.promoted_from }
                 }
-                else { $Parent.label }
+                else { $ParentLabel = $Parent.label }
 
-                $StatusTag = if ($Parent.promoted_from) { 'PROMOTED' } else { 'NEW' }
+                if ($Parent.promoted_from) { $StatusTag = 'PROMOTED' } else { $StatusTag = 'NEW' }
 
                 [void]$Md.AppendLine("### Parent $ParentIdx`: $ParentLabel [$StatusTag]")
                 [void]$Md.AppendLine('')

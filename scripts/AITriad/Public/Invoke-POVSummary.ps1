@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-POVSummary {
@@ -84,8 +84,8 @@ function Invoke-POVSummary {
         ConflictsDir = Get-ConflictsDir
         VersionFile  = Get-VersionFile
         DocDir       = Join-Path (Get-SourcesDir) $DocId
-        SnapshotFile = Join-Path (Get-SourcesDir) $DocId "snapshot.md"
-        MetadataFile = Join-Path (Get-SourcesDir) $DocId "metadata.json"
+        SnapshotFile = Join-Path (Join-Path (Get-SourcesDir) $DocId) "snapshot.md"
+        MetadataFile = Join-Path (Join-Path (Get-SourcesDir) $DocId) "metadata.json"
         SummaryFile  = Join-Path (Get-SummariesDir) "$DocId.json"
     }
 
@@ -110,7 +110,7 @@ function Invoke-POVSummary {
         throw "metadata.json not found for $DocId"
     }
 
-    $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json -Depth 20
+    $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json
     if ((-not $Force) -and (-not $DryRun) -and ($metadata.summary_status -eq "current")) {
         Write-Warn "Summary is already current (taxonomy v$($metadata.summary_version))."
         Write-Info "Use -Force to re-process anyway."
@@ -122,10 +122,10 @@ function Invoke-POVSummary {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             $EnvHint = switch ($Backend) {
@@ -180,7 +180,7 @@ function Invoke-POVSummary {
         foreach ($file in $taxonomyFiles) {
             $filePath = Join-Path $paths.TaxonomyDir $file
             if (Test-Path $filePath) {
-                $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json -Depth 20
+                $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json
             }
         }
         $taxonomyJson = $taxonomyContext | ConvertTo-Json -Depth 20 -Compress:$false
@@ -336,7 +336,7 @@ function Invoke-POVSummary {
 
     try {
         $metaRaw     = Get-Content $paths.MetadataFile -Raw
-        $metaUpdated = $metaRaw | ConvertFrom-Json -Depth 20 -AsHashtable
+        $metaUpdated = $metaRaw | ConvertFrom-Json | ConvertTo-Hashtable
 
         $metaUpdated["summary_version"] = $taxonomyVersion
         $metaUpdated["summary_status"]  = "current"
@@ -386,10 +386,10 @@ function Invoke-POVSummary {
             $claimLabel  = $claim.claim_label
             $docPosition = $claim.doc_position
             $hintId      = $claim.potential_conflict_id
-            $linkedNodes = if ($null -ne $claim.linked_taxonomy_nodes) { ,@($claim.linked_taxonomy_nodes) } else { ,@() }
+            if ($null -ne $claim.linked_taxonomy_nodes) { $linkedNodes = ,@($claim.linked_taxonomy_nodes) } else { $linkedNodes = ,@() }
 
             # Normalize stance value
-            $stance = if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $docPosition } else { 'neutral' }
+            if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $stance = $docPosition } else { $stance = 'neutral' }
 
             $newInstance = [ordered]@{
                 doc_id       = $DocId
@@ -402,7 +402,7 @@ function Invoke-POVSummary {
                 $existingPath = Join-Path $paths.ConflictsDir "$hintId.json"
 
                 if (Test-Path $existingPath) {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if ($alreadyLogged) {
                         Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
@@ -440,7 +440,7 @@ function Invoke-POVSummary {
                     Select-Object -First 1
 
                 if ($existingMatch) {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -Depth 20 -AsHashtable
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json | ConvertTo-Hashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if (-not $alreadyLogged) {
                         $conflictData["instances"] += $newInstance
@@ -494,8 +494,8 @@ function Invoke-POVSummary {
             foreach ($group in $byCategory) {
                 Write-Host "    $($group.Name):" -ForegroundColor White
                 foreach ($pt in $group.Group) {
-                    $nodeTag = if ($pt.taxonomy_node_id) { "[$($pt.taxonomy_node_id)]" } else { "[UNMAPPED]" }
-                    $ptStance = if ($pt.stance) { $pt.stance } else { 'neutral' }
+                    if ($pt.taxonomy_node_id) { $nodeTag = "[$($pt.taxonomy_node_id)]" } else { $nodeTag = "[UNMAPPED]" }
+                    if ($pt.stance) { $ptStance = $pt.stance } else { $ptStance = 'neutral' }
                     Write-Host "      $nodeTag ($ptStance) $($pt.point)" -ForegroundColor Gray
                     if ($pt.verbatim) {
                         Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
@@ -512,9 +512,9 @@ function Invoke-POVSummary {
         foreach ($concept in $summaryObject.unmapped_concepts) {
             $cProps = $concept.PSObject.Properties
             $povCat  = "[$( if ($cProps['suggested_pov']) { $concept.suggested_pov } else { '?' } ) / $( if ($cProps['suggested_category']) { $concept.suggested_category } else { '?' } )]"
-            $label   = if ($cProps['suggested_label']) { $concept.suggested_label } elseif ($cProps['concept']) { $concept.concept } else { '(no label)' }
-            $desc    = if ($cProps['concept']) { $concept.concept } elseif ($cProps['suggested_description']) { $concept.suggested_description } else { '' }
-            $reason  = if ($cProps['reason']) { $concept.reason } else { '' }
+            if ($cProps['suggested_label']) { $label = $concept.suggested_label } elseif ($cProps['concept']) { $label = $concept.concept } else { $label = '(no label)' }
+            if ($cProps['concept']) { $desc = $concept.concept } elseif ($cProps['suggested_description']) { $desc = $concept.suggested_description } else { $desc = '' }
+            if ($cProps['reason']) { $reason = $concept.reason } else { $reason = '' }
             Write-Host "    $povCat" -ForegroundColor Magenta
             if ($desc) { Write-Host "    $desc" -ForegroundColor Gray }
             if ($reason) { Write-Host "    Reason: $reason" -ForegroundColor DarkGray }

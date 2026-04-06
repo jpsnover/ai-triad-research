@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-ConflictEvolution {
@@ -62,7 +62,7 @@ function Get-ConflictEvolution {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = $Node
             $NodePovMap[$Node.id] = $PovKey
@@ -73,7 +73,7 @@ function Get-ConflictEvolution {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $AllEdges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         $AllEdges = @($EdgesData.edges)
     }
 
@@ -89,7 +89,7 @@ function Get-ConflictEvolution {
 
     foreach ($File in $ConflictFiles) {
         try {
-            $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             if ($Id -and $Conflict.claim_id -ne $Id) { continue }
             $Conflicts.Add($Conflict)
         } catch {
@@ -266,10 +266,10 @@ $ConflictJson
 
             $ResponseText = $AIResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             try {
-                $Analysis = $ResponseText | ConvertFrom-Json -Depth 20
+                $Analysis = $ResponseText | ConvertFrom-Json
             } catch {
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
-                $Analysis = $Repaired | ConvertFrom-Json -Depth 20
+                $Analysis = $Repaired | ConvertFrom-Json
             }
 
             $ConflictContext | Add-Member -NotePropertyName 'analysis' -NotePropertyValue $Analysis

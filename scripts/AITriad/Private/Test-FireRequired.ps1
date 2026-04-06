@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Two-stage FIRE sniff: determines whether iterative extraction is worth the cost.
@@ -125,14 +125,14 @@ function Test-FireRequired {
         }
     }
 
-    $AllClaims = if ($SummaryObject.factual_claims) { @($SummaryObject.factual_claims) } else { @() }
+    if ($SummaryObject.factual_claims) { $AllClaims = @($SummaryObject.factual_claims) } else { $AllClaims = @() }
     $TotalKP = $AllKeyPoints.Count
     $TotalClaims = $AllClaims.Count
 
     # Signal 1: Low-confidence rate
     if ($TotalClaims -gt 0) {
         $LowConf = @($AllClaims | Where-Object {
-            $FC = if ($_.PSObject.Properties['fire_confidence']) { $_.fire_confidence } else { 0.5 }
+            if ($_.PSObject.Properties['fire_confidence']) { $FC = $_.fire_confidence } else { $FC = 0.5 }
             $FC -lt 0.5
         }).Count
         $LowConfRate = $LowConf / $TotalClaims
@@ -207,15 +207,16 @@ function Test-FireRequired {
         Write-Verbose 'FIRE sniff Stage 2: no signals fired — single-shot quality is adequate'
     }
 
+    if ($ShouldFire) {
+        $ReasonMsg = "Stage 2: $($Stage2Signals.Count) signals fired (>=$($T['min_signals_required']) required) — $($Stage2Signals -join '; ')"
+    }
+    else {
+        $ReasonMsg = "Stage 2: $($Stage2Signals.Count) signal(s) fired (<$($T['min_signals_required']) required) — single-shot adequate"
+    }
     return [PSCustomObject][ordered]@{
         ShouldFire = $ShouldFire
         Stage      = 2
         Signals    = @($Stage2Signals)
-        Reason     = if ($ShouldFire) {
-            "Stage 2: $($Stage2Signals.Count) signals fired (>=$($T['min_signals_required']) required) — $($Stage2Signals -join '; ')"
-        }
-        else {
-            "Stage 2: $($Stage2Signals.Count) signal(s) fired (<$($T['min_signals_required']) required) — single-shot adequate"
-        }
+        Reason     = $ReasonMsg
     }
 }

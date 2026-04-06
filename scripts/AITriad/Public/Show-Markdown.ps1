@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             Write-Warning "glow failed to render $FilePath : $_"
                             if ($PandocPath) {
                                 Write-Warning 'Falling back to pandoc plain-text output'
-                                $Cols = if ($Width -gt 0) { $Width } else { 80 }
+                                if ($Width -gt 0) { $Cols = $Width } else { $Cols = 80 }
                                 & $PandocPath $FilePath -t plain --wrap=auto "--columns=$Cols"
                             } else {
                                 Write-Warning 'No fallback available — showing raw Markdown'
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     elseif ($PandocPath) {
-                        $Cols = if ($Width -gt 0) { $Width } else { 80 }
+                        if ($Width -gt 0) { $Cols = $Width } else { $Cols = 80 }
                         & $PandocPath $FilePath -t plain --wrap=auto "--columns=$Cols"
                     }
                 }
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         Write-Verbose "Opened: $TempHtml"
                     }
                     else {
-                        $ErrDetail = if ($PandocErrors.Count -gt 0) { $PandocErrors -join '; ' } else { 'unknown reason' }
+                        if ($PandocErrors.Count -gt 0) { $ErrDetail = $PandocErrors -join '; ' } else { $ErrDetail = 'unknown reason' }
                         Write-Error "Failed to generate HTML for '$FilePath': $ErrDetail`nVerify the Markdown is valid: pandoc '$FilePath' -t plain | Select-Object -First 5"
                     }
                 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-QbafConflictAnalysis {
@@ -59,7 +59,7 @@ function Invoke-QbafConflictAnalysis {
     # ── Step 1: Load claims from summaries ────────────────────────────────────
     Write-Step 'Loading factual claims'
 
-    $SummaryFiles = if ($DocId) {
+    if ($DocId) {
         $Path = Join-Path $SummariesDir "$DocId.json"
         if (-not (Test-Path $Path)) {
             New-ActionableError -Goal "load summary for $DocId" `
@@ -67,10 +67,10 @@ function Invoke-QbafConflictAnalysis {
                 -Location 'Invoke-QbafConflictAnalysis' `
                 -NextSteps @("Verify doc ID: $DocId", 'Run Invoke-POVSummary first') -Throw
         }
-        @(Get-Item $Path)
+        $SummaryFiles = @(Get-Item $Path)
     }
     else {
-        @(Get-ChildItem -Path $SummariesDir -Filter '*.json' -File | Sort-Object Name)
+        $SummaryFiles = @(Get-ChildItem -Path $SummariesDir -Filter '*.json' -File | Sort-Object Name)
     }
 
     $AllClaims = [System.Collections.Generic.List[PSObject]]::new()
@@ -78,7 +78,7 @@ function Invoke-QbafConflictAnalysis {
 
     foreach ($File in $SummaryFiles) {
         try {
-            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+            $Summary = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
         }
         catch { continue }
 
@@ -86,10 +86,10 @@ function Invoke-QbafConflictAnalysis {
 
         foreach ($Claim in @($Summary.factual_claims)) {
             $ClaimIdx++
-            $ClaimText = if ($Claim.PSObject.Properties['claim']) { $Claim.claim } else { '' }
-            $Label = if ($Claim.PSObject.Properties['claim_label']) { $Claim.claim_label } else { "claim-$ClaimIdx" }
-            $Nodes = if ($Claim.PSObject.Properties['linked_taxonomy_nodes']) { @($Claim.linked_taxonomy_nodes) } else { @() }
-            $Position = if ($Claim.PSObject.Properties['doc_position']) { $Claim.doc_position } else { 'neutral' }
+            if ($Claim.PSObject.Properties['claim']) { $ClaimText = $Claim.claim } else { $ClaimText = '' }
+            if ($Claim.PSObject.Properties['claim_label']) { $Label = $Claim.claim_label } else { $Label = "claim-$ClaimIdx" }
+            if ($Claim.PSObject.Properties['linked_taxonomy_nodes']) { $Nodes = @($Claim.linked_taxonomy_nodes) } else { $Nodes = @() }
+            if ($Claim.PSObject.Properties['doc_position']) { $Position = $Claim.doc_position } else { $Position = 'neutral' }
 
             # Determine BDI category from linked nodes
             $Category = 'Beliefs'  # Default for factual claims
@@ -100,7 +100,7 @@ function Invoke-QbafConflictAnalysis {
             }
 
             # Extract evidence_criteria if present (from Q-11 prompt changes)
-            $EvidenceCriteria = if ($Claim.PSObject.Properties['evidence_criteria']) { $Claim.evidence_criteria } else { $null }
+            if ($Claim.PSObject.Properties['evidence_criteria']) { $EvidenceCriteria = $Claim.evidence_criteria } else { $EvidenceCriteria = $null }
 
             # Compute base_strength from evidence_criteria or use default
             $BaseStrength = 0.5  # Default (Beliefs placeholder for hybrid scoring)
@@ -203,7 +203,7 @@ function Invoke-QbafConflictAnalysis {
     }
 
     $InputJson = $QbafInput | ConvertTo-Json -Depth 5 -Compress
-    $BridgePath = Join-Path $script:RepoRoot 'scripts' 'qbaf-bridge.mjs'
+    $BridgePath = Join-Path (Join-Path $script:RepoRoot 'scripts') 'qbaf-bridge.mjs'
 
     $QbafResult = $null
     try {
@@ -229,7 +229,7 @@ function Invoke-QbafConflictAnalysis {
             $QbafResult = $null
         }
         else {
-            $QbafResult = $StdOut | ConvertFrom-Json -Depth 5
+            $QbafResult = $StdOut | ConvertFrom-Json
             Write-OK "QBAF computed: $($QbafResult.iterations) iterations, converged=$($QbafResult.converged)"
         }
     }
@@ -254,7 +254,7 @@ function Invoke-QbafConflictAnalysis {
         qbaf_converged = if ($QbafResult) { $QbafResult.converged } else { $false }
         qbaf_iterations = if ($QbafResult) { $QbafResult.iterations } else { 0 }
         claims = @($AllClaims | ForEach-Object {
-            $CS = if ($StrengthMap.ContainsKey($_.Id)) { $StrengthMap[$_.Id] } else { $_.BaseStrength }
+            if ($StrengthMap.ContainsKey($_.Id)) { $CS = $StrengthMap[$_.Id] } else { $CS = $_.BaseStrength }
             [ordered]@{
                 id               = $_.Id
                 doc_id           = $_.DocId
@@ -299,12 +299,13 @@ function Get-BaseStrengthFromCriteria {
     $SpW = @{ vague = 0; qualified = 0.08; precise = 0.15 }
 
     $Score = 0.1  # floor
-    $Sp = if ($Criteria.PSObject.Properties['specificity']) { $Criteria.specificity } else { 'vague' }
-    $Score += if ($SpW.ContainsKey($Sp)) { $SpW[$Sp] } else { 0 }
+    if ($Criteria.PSObject.Properties['specificity']) { $Sp = $Criteria.specificity } else { $Sp = 'vague' }
+    if ($SpW.ContainsKey($Sp)) { $SpIncrement = $SpW[$Sp] } else { $SpIncrement = 0 }
+    $Score += $SpIncrement
     if ($Criteria.PSObject.Properties['has_warrant'] -and $Criteria.has_warrant) { $Score += 0.15 }
     if ($Criteria.PSObject.Properties['internally_consistent'] -and $Criteria.internally_consistent) { $Score += 0.10 }
 
-    $CatCriteria = if ($Criteria.PSObject.Properties['category_criteria']) { $Criteria.category_criteria } else { $null }
+    if ($Criteria.PSObject.Properties['category_criteria']) { $CatCriteria = $Criteria.category_criteria } else { $CatCriteria = $null }
     if ($CatCriteria) {
         switch ($Category) {
             'Desires' {

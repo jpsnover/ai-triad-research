@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-TaxonomyHealth {
@@ -155,7 +155,7 @@ function Get-TaxonomyHealth {
     }
 
     # ── 6. Unmapped Concept Frequency ─────────────────────────────────────────
-    $DisplayLimit = if ($Detailed) { $Health.UnmappedConcepts.Count } else { 20 }
+    if ($Detailed) { $DisplayLimit = $Health.UnmappedConcepts.Count } else { $DisplayLimit = 20 }
 
     Write-Host "`n  UNMAPPED CONCEPTS (top $DisplayLimit by frequency)" -ForegroundColor White
     Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
@@ -164,8 +164,8 @@ function Get-TaxonomyHealth {
     foreach ($UC in $Health.UnmappedConcepts) {
         if ($Shown -ge $DisplayLimit) { break }
         $FreqStr = $UC.Frequency.ToString().PadLeft(2)
-        $PovTag  = if ($UC.SuggestedPov) { "[$($UC.SuggestedPov)]" } else { '' }
-        $Color   = if ($UC.Frequency -ge 3) { 'Red' } else { 'Yellow' }
+        if ($UC.SuggestedPov) { $PovTag = "[$($UC.SuggestedPov)]" } else { $PovTag = '' }
+        if ($UC.Frequency -ge 3) { $Color = 'Red' } else { $Color = 'Yellow' }
         Write-Host "   ${FreqStr}x  $PovTag $($UC.Concept)" -ForegroundColor $Color
         $Shown++
     }
@@ -209,24 +209,24 @@ function Get-TaxonomyHealth {
         Write-Host "`n  Echo Chamber Scores (intra-POV SUPPORTS:CONTRADICTS):" -ForegroundColor Cyan
         foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
             $EC = $GH.EchoChamberScores[$PovKey]
-            $RatioStr = if ($EC.Ratio -eq [double]::PositiveInfinity) { 'Inf (no contradicts)' } else { "$($EC.Ratio):1" }
-            $Color = if ($EC.Ratio -ge 10 -or $EC.Ratio -eq [double]::PositiveInfinity) { 'Red' }
-                     elseif ($EC.Ratio -ge 5) { 'Yellow' }
-                     else { 'Green' }
+            if ($EC.Ratio -eq [double]::PositiveInfinity) { $RatioStr = 'Inf (no contradicts)' } else { $RatioStr = "$($EC.Ratio):1" }
+            if ($EC.Ratio -ge 10 -or $EC.Ratio -eq [double]::PositiveInfinity) { $Color = 'Red' }
+            elseif ($EC.Ratio -ge 5) { $Color = 'Yellow' }
+            else { $Color = 'Green' }
             Write-Host "    $($PovKey.PadRight(18)) $($EC.SamePovSupports) supports / $($EC.SamePovContradicts) contradicts = $RatioStr" -ForegroundColor $Color
         }
 
         # Cross-POV connectivity
         Write-Host "`n  Cross-POV Connectivity:" -ForegroundColor Cyan
         $CPov = $GH.CrossPovConnectivity
-        $ConnColor = if ($CPov.Percentage -ge 50) { 'Green' } elseif ($CPov.Percentage -ge 30) { 'Yellow' } else { 'Red' }
+        if ($CPov.Percentage -ge 50) { $ConnColor = 'Green' } elseif ($CPov.Percentage -ge 30) { $ConnColor = 'Yellow' } else { $ConnColor = 'Red' }
         Write-Info "$($CPov.CrossPovEdges) / $($CPov.TotalEdges) edges cross POV boundaries ($($CPov.Percentage)%)"
 
         # Edge orphans
         if ($GH.EdgeOrphanCount -gt 0) {
             Write-Host "`n  Edge Orphans ($($GH.EdgeOrphanCount) nodes with zero edges):" -ForegroundColor Yellow
             foreach ($OId in $GH.EdgeOrphans | Select-Object -First 10) {
-                $OLabel = if ($NodeLabelMap.ContainsKey($OId)) { $NodeLabelMap[$OId] } else { $OId }
+                if ($NodeLabelMap.ContainsKey($OId)) { $OLabel = $NodeLabelMap[$OId] } else { $OLabel = $OId }
                 Write-Host "    $OId — $OLabel" -ForegroundColor DarkGray
             }
             if ($GH.EdgeOrphanCount -gt 10) {
@@ -239,7 +239,7 @@ function Get-TaxonomyHealth {
 
         # Hub concentration
         $HC = $GH.HubConcentration
-        $GiniColor = if ($HC.GiniCoefficient -ge 0.5) { 'Yellow' } else { 'Green' }
+        if ($HC.GiniCoefficient -ge 0.5) { $GiniColor = 'Yellow' } else { $GiniColor = 'Green' }
         Write-Host "`n  Hub Concentration:" -ForegroundColor Cyan
         Write-Host "    Gini coefficient : $($HC.GiniCoefficient)" -ForegroundColor $GiniColor
         Write-Info "Max degree: $($HC.MaxDegree)  |  Median degree: $($HC.MedianDegree)"
@@ -259,7 +259,7 @@ function Get-TaxonomyHealth {
         if ($GH.EchoChamberNodeCount -gt 0) {
             Write-Host "`n  Echo Chamber Nodes ($($GH.EchoChamberNodeCount) with 3+ SUPPORTS, 0 cross-POV CONTRADICTS):" -ForegroundColor Yellow
             foreach ($ECId in $GH.EchoChamberNodes | Select-Object -First 10) {
-                $ECLabel = if ($NodeLabelMap.ContainsKey($ECId)) { $NodeLabelMap[$ECId] } else { $ECId }
+                if ($NodeLabelMap.ContainsKey($ECId)) { $ECLabel = $NodeLabelMap[$ECId] } else { $ECLabel = $ECId }
                 Write-Host "    $ECId — $ECLabel" -ForegroundColor DarkGray
             }
             if ($GH.EchoChamberNodeCount -gt 10) {
@@ -297,7 +297,7 @@ function Get-TaxonomyHealth {
         if ($Imbalances.Count -gt 0) {
             Write-Host "  POV imbalances (normalized, $($Imbalances.Count)):" -ForegroundColor Yellow
             foreach ($S in $Imbalances) {
-                $Color = if ($S.signal -eq 'pov_imbalance_under') { 'Red' } else { 'Yellow' }
+                if ($S.signal -eq 'pov_imbalance_under') { $Color = 'Red' } else { $Color = 'Yellow' }
                 Write-Host "    $($S.detail)" -ForegroundColor $Color
             }
         }
@@ -316,7 +316,7 @@ function Get-TaxonomyHealth {
             Write-Host "  $('─' * 40)" -ForegroundColor DarkGray
 
             # Load most recent analysis
-            $Latest = Get-Content -Raw -Path $QbafFiles[0].FullName | ConvertFrom-Json -Depth 10
+            $Latest = Get-Content -Raw -Path $QbafFiles[0].FullName | ConvertFrom-Json
 
             if ($Latest.PSObject.Properties['claims'] -and $Latest.claims) {
                 $Strengths = @($Latest.claims | ForEach-Object { $_.computed_strength })
@@ -375,7 +375,7 @@ function Get-TaxonomyHealth {
 
         $PerDoc = $Stats.PerDoc | Sort-Object { $_.KeyPoints } -Descending
         foreach ($Doc in $PerDoc) {
-            $TitleStr = if ($Doc.Title) { $Doc.Title } else { $Doc.DocId }
+            if ($Doc.Title) { $TitleStr = $Doc.Title } else { $TitleStr = $Doc.DocId }
             Write-Host "   $($Doc.KeyPoints.ToString().PadLeft(3)) pts  $($Doc.FactualClaims.ToString().PadLeft(2)) claims  $($Doc.UnmappedCount.ToString().PadLeft(2)) unmapped  $TitleStr" -ForegroundColor Gray
         }
     }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Update-PolicyRegistry {
@@ -41,7 +41,7 @@ function Update-PolicyRegistry {
     $Registry = $null
     $ExistingPolicies = @{}
     if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
+        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
         foreach ($Pol in $Registry.policies) {
             $ExistingPolicies[$Pol.id] = $Pol
         }
@@ -59,14 +59,14 @@ function Update-PolicyRegistry {
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         foreach ($Node in $FileData.nodes) {
             if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
             if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
 
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                $Pid = if ($PA.PSObject.Properties['policy_id']) { $PA.policy_id } else { $null }
+                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
 
                 if (-not $Pid) {
                     $Unregistered.Add([PSCustomObject]@{
@@ -158,7 +158,7 @@ function Update-PolicyRegistry {
 
                 # Update the node in the taxonomy file
                 $FilePath = Join-Path $TaxDir "$($U.POV).json"
-                $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+                $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
                 foreach ($Node in $FileData.nodes) {
                     if ($Node.id -ne $U.NodeId) { continue }
                     foreach ($PA in $Node.graph_attributes.policy_actions) {
@@ -179,12 +179,12 @@ function Update-PolicyRegistry {
         foreach ($PovKey in $PovFiles) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
                 foreach ($PA in $Node.graph_attributes.policy_actions) {
-                    $Pid = if ($PA.PSObject.Properties['policy_id']) { $PA.policy_id } else { $null }
+                    if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
                     if (-not $Pid) { continue }
                     if (-not $FinalRefs.ContainsKey($Pid)) {
                         $FinalRefs[$Pid] = @{ Count = 0; POVs = [System.Collections.Generic.HashSet[string]]::new() }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-SituationCandidates {
@@ -82,7 +82,7 @@ function Find-SituationCandidates {
     }
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-3.1-flash-lite-preview' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
     }
 
     # ── Step 1: Build node index ──────────────────────────────────────────────
@@ -96,10 +96,12 @@ function Find-SituationCandidates {
         foreach ($Node in $Entry.nodes) {
             $NodeIndex[$Node.id] = @{
                 Label       = $Node.label
-                Description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
+                Description = $null
                 POV         = $PovKey
-                GraphAttrs  = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
+                GraphAttrs  = $null
             }
+            if ($Node.PSObject.Properties['description']) { $NodeIndex[$Node.id].Description = $Node.description } else { $NodeIndex[$Node.id].Description = '' }
+            if ($Node.PSObject.Properties['graph_attributes']) { $NodeIndex[$Node.id].GraphAttrs = $Node.graph_attributes } else { $NodeIndex[$Node.id].GraphAttrs = $null }
         }
     }
     Write-OK "Indexed $($NodeIndex.Count) nodes"
@@ -114,8 +116,8 @@ function Find-SituationCandidates {
         throw 'embeddings.json required for situation candidate discovery'
     }
 
-    $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json -Depth 20
-    $EmbNodes = if ($EmbData.PSObject.Properties['nodes']) { $EmbData.nodes } else { $EmbData }
+    $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json
+    if ($EmbData.PSObject.Properties['nodes']) { $EmbNodes = $EmbData.nodes } else { $EmbNodes = $EmbData }
     foreach ($Prop in $EmbNodes.PSObject.Properties) {
         $Val = $Prop.Value
         if ($Val -is [array]) {
@@ -134,11 +136,11 @@ function Find-SituationCandidates {
     $EdgePairs = @{}  # "nodeA|nodeB" → list of edge types
 
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         foreach ($Edge in $EdgesData.edges) {
-            $EdgeStatus = if ($Edge.PSObject.Properties['status']) { $Edge.status } else { '' }
+            if ($Edge.PSObject.Properties['status']) { $EdgeStatus = $Edge.status } else { $EdgeStatus = '' }
             if ($EdgeStatus -ne 'approved') { continue }
-            $PairKey = if ($Edge.source -lt $Edge.target) { "$($Edge.source)|$($Edge.target)" } else { "$($Edge.target)|$($Edge.source)" }
+            if ($Edge.source -lt $Edge.target) { $PairKey = "$($Edge.source)|$($Edge.target)" } else { $PairKey = "$($Edge.target)|$($Edge.source)" }
             if (-not $EdgePairs.ContainsKey($PairKey)) {
                 $EdgePairs[$PairKey] = [System.Collections.Generic.List[string]]::new()
             }
@@ -152,8 +154,8 @@ function Find-SituationCandidates {
     $CcLinkedPairs = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($PairKey in $EdgePairs.Keys) {
         $Parts = $PairKey -split '\|'
-        $Pov0 = if ($NodeIndex.ContainsKey($Parts[0])) { $NodeIndex[$Parts[0]].POV } else { '' }
-        $Pov1 = if ($NodeIndex.ContainsKey($Parts[1])) { $NodeIndex[$Parts[1]].POV } else { '' }
+        if ($NodeIndex.ContainsKey($Parts[0])) { $Pov0 = $NodeIndex[$Parts[0]].POV } else { $Pov0 = '' }
+        if ($NodeIndex.ContainsKey($Parts[1])) { $Pov1 = $NodeIndex[$Parts[1]].POV } else { $Pov1 = '' }
         if ($Pov0 -eq 'situations' -or $Pov1 -eq 'situations') {
             [void]$CcLinkedPairs.Add($PairKey)
         }
@@ -198,7 +200,7 @@ function Find-SituationCandidates {
             if ($Sim -lt $MinSimilarity) { continue }
 
             # Check if already linked via cc-node
-            $PairKey = if ($IdA -lt $IdB) { "$IdA|$IdB" } else { "$IdB|$IdA" }
+            if ($IdA -lt $IdB) { $PairKey = "$IdA|$IdB" } else { $PairKey = "$IdB|$IdA" }
             if ($CcLinkedPairs.Contains($PairKey)) { continue }
 
             # Boost score
@@ -216,8 +218,8 @@ function Find-SituationCandidates {
             if ($null -ne $AttrsA -and $null -ne $AttrsB) {
                 $SharedAttr = $false
                 foreach ($AttrName in @('assumes', 'intellectual_lineage')) {
-                    $RawA = if ($AttrsA.PSObject.Properties[$AttrName]) { $AttrsA.$AttrName } else { $null }
-                    $RawB = if ($AttrsB.PSObject.Properties[$AttrName]) { $AttrsB.$AttrName } else { $null }
+                    if ($AttrsA.PSObject.Properties[$AttrName]) { $RawA = $AttrsA.$AttrName } else { $RawA = $null }
+                    if ($AttrsB.PSObject.Properties[$AttrName]) { $RawB = $AttrsB.$AttrName } else { $RawB = $null }
                     if ($null -eq $RawA -or $null -eq $RawB) { continue }
                     $ListA = [string[]]@($RawA)
                     $ListB = [string[]]@($RawB)
@@ -246,14 +248,14 @@ function Find-SituationCandidates {
     if (-not $NoNLI -and $SimilarPairs.Count -gt 0) {
         Write-Step 'Running NLI cross-encoder classification'
 
-        $EmbedScript = Join-Path $RepoRoot 'scripts' 'embed_taxonomy.py'
+        $EmbedScript = Join-Path (Join-Path $RepoRoot 'scripts') 'embed_taxonomy.py'
         # Frame each node as a POV-attributed proposition so the NLI model
         # can distinguish agreement from opposition on the same topic.
         $NliInput = @($SimilarPairs | ForEach-Object {
             $InfoA = $NodeIndex[$_.IdA]
             $InfoB = $NodeIndex[$_.IdB]
-            $DescA = if ([string]::IsNullOrWhiteSpace($InfoA.Description)) { $InfoA.Label } else { $InfoA.Description }
-            $DescB = if ([string]::IsNullOrWhiteSpace($InfoB.Description)) { $InfoB.Label } else { $InfoB.Description }
+            if ([string]::IsNullOrWhiteSpace($InfoA.Description)) { $DescA = $InfoA.Label } else { $DescA = $InfoA.Description }
+            if ([string]::IsNullOrWhiteSpace($InfoB.Description)) { $DescB = $InfoB.Label } else { $DescB = $InfoB.Description }
             @{
                 text_a = "The $($InfoA.POV) position is: $($InfoA.Label) — $DescA"
                 text_b = "The $($InfoB.POV) position is: $($InfoB.Label) — $DescB"
@@ -263,7 +265,7 @@ function Find-SituationCandidates {
         $NliJson = $NliInput | ConvertTo-Json -Depth 5 -Compress
         try {
             $NliResult = $NliJson | python3 $EmbedScript nli-classify 2>$null
-            $NliParsed = $NliResult | ConvertFrom-Json -Depth 20
+            $NliParsed = $NliResult | ConvertFrom-Json
 
             for ($i = 0; $i -lt $SimilarPairs.Count; $i++) {
                 if ($i -lt $NliParsed.Count) {
@@ -366,10 +368,10 @@ function Find-SituationCandidates {
         if ($SimCount -gt 0) { $AvgSim = [Math]::Round($AvgSim / $SimCount, 4) }
 
         $NliTotal = $NliCounts.Values | Measure-Object -Sum | Select-Object -ExpandProperty Sum
-        $DominantNli = if ($DomLabel) { $DomLabel }
-                       elseif ($NliTotal -gt 0) {
-                           ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
-                       } else { $null }
+        if ($DomLabel) { $DominantNli = $DomLabel }
+        elseif ($NliTotal -gt 0) {
+            $DominantNli = ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+        } else { $DominantNli = $null }
 
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
 
@@ -398,7 +400,7 @@ function Find-SituationCandidates {
         $Members = @($Pair.IdA, $Pair.IdB)
         $PovsRepresented = @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
         if ($PovsRepresented.Count -lt 2) { continue }
-        $NliLabel = if ($Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) { $Pair.NliLabel } else { 'entailment' }
+        if ($Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel) { $NliLabel = $Pair.NliLabel } else { $NliLabel = 'entailment' }
         $NliCounts = @{ entailment = 0; neutral = 0; contradiction = 0 }
         $NliCounts[$NliLabel]++
         $AllScoredGroups.Add([PSCustomObject]@{
@@ -544,10 +546,10 @@ function Find-SituationCandidates {
         Write-Step 'Generating situation proposals with AI'
 
         try {
-            $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                       elseif ($Model -match '^claude') { 'claude' }
-                       elseif ($Model -match '^groq')   { 'groq'   }
-                       else                             { 'gemini'  }
+            if     ($Model -match '^gemini') { $Backend = 'gemini' }
+            elseif ($Model -match '^claude') { $Backend = 'claude' }
+            elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+            else                             { $Backend = 'gemini'  }
 
             $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
             if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -558,11 +560,11 @@ function Find-SituationCandidates {
                 $ClusterText = [System.Text.StringBuilder]::new()
                 for ($i = 0; $i -lt $ScoredGroups.Count; $i++) {
                     $G = $ScoredGroups[$i]
-                    $NliTag = if ($G.DominantNli) { ", nli_relationship: $($G.DominantNli)" } else { '' }
-                    $NliDetail = if ($G.DominantNli) {
+                    if ($G.DominantNli) { $NliTag = ", nli_relationship: $($G.DominantNli)" } else { $NliTag = '' }
+                    if ($G.DominantNli) {
                         $C = $G.NliCounts
-                        ", nli_breakdown: entailment=$($C.entailment) neutral=$($C.neutral) contradiction=$($C.contradiction)"
-                    } else { '' }
+                        $NliDetail = ", nli_breakdown: entailment=$($C.entailment) neutral=$($C.neutral) contradiction=$($C.contradiction)"
+                    } else { $NliDetail = '' }
                     [void]$ClusterText.AppendLine("--- cluster-$i (avg similarity: $($G.AvgSimilarity), POVs: $($G.PovsRepresented -join ', ')$NliTag$NliDetail) ---")
                     foreach ($MId in $G.Members) {
                         $NInfo = $NodeIndex[$MId]
@@ -588,7 +590,7 @@ function Find-SituationCandidates {
 
                 if ($AIResult -and $AIResult.Text) {
                     $ResponseText = $AIResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-                    $AILabels = ($ResponseText | ConvertFrom-Json -Depth 20).candidates
+                    $AILabels = ($ResponseText | ConvertFrom-Json).candidates
                     Write-OK "AI proposed $($AILabels.Count) situation concepts ($($AIResult.Backend))"
                 }
                 else {
@@ -652,7 +654,7 @@ function Find-SituationCandidates {
                         $Curr = $Queue.Dequeue()
                         $CC   = $Color[$Curr]
                         foreach ($Edge in $Adj[$Curr]) {
-                            $Expected = if ($Edge.Same) { $CC } else { 1 - $CC }
+                            if ($Edge.Same) { $Expected = $CC } else { $Expected = 1 - $CC }
                             if ($Color.ContainsKey($Edge.Neighbor)) {
                                 if ($Color[$Edge.Neighbor] -ne $Expected) { $Conflict = $true }
                             }
@@ -710,7 +712,7 @@ function Find-SituationCandidates {
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
 
     foreach ($C in $ResultCandidates) {
-        $Label = if ($C.PSObject.Properties['proposed_label']) { $C.proposed_label } else { $C.cluster_id }
+        if ($C.PSObject.Properties['proposed_label']) { $Label = $C.proposed_label } else { $Label = $C.cluster_id }
         Write-Host "`n  $($C.cluster_id): $Label" -ForegroundColor White
         $NliDisplayName = switch ($C.nli_relationship) {
             'entailment'    { 'shared' }
@@ -718,7 +720,7 @@ function Find-SituationCandidates {
             'neutral'       { 'unclear' }
             default         { $null }
         }
-        $NliStr = if ($NliDisplayName) { " | $NliDisplayName" } else { '' }
+        if ($NliDisplayName) { $NliStr = " | $NliDisplayName" } else { $NliStr = '' }
         Write-Host "    Similarity: $($C.avg_similarity) | POVs: $($C.povs_represented -join ', ')$NliStr" -ForegroundColor Gray
         if ($NliDisplayName) {
             $NliColor = switch ($C.nli_relationship) {

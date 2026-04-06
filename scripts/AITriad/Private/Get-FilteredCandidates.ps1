@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Embedding-based candidate pre-filtering for edge discovery.
@@ -57,17 +57,17 @@ function Get-FilteredCandidates {
     }
 
     $SrcVec = $Embeddings[$SourceId]
-    $SrcPov = if ($NodePovMap.ContainsKey($SourceId)) { $NodePovMap[$SourceId] } else { '' }
+    if ($NodePovMap.ContainsKey($SourceId)) { $SrcPov = $NodePovMap[$SourceId] } else { $SrcPov = '' }
 
     # Score every candidate
     $Scored = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($Node in $AllNodes) {
         if ($Node.id -eq $SourceId) { continue }
-        $NodePov = if ($NodePovMap.ContainsKey($Node.id)) { $NodePovMap[$Node.id] } else { '' }
-        $Sim = if ($Embeddings.ContainsKey($Node.id)) {
-            Get-CosineSimilarity -A $SrcVec -B $Embeddings[$Node.id]
+        if ($NodePovMap.ContainsKey($Node.id)) { $NodePov = $NodePovMap[$Node.id] } else { $NodePov = '' }
+        if ($Embeddings.ContainsKey($Node.id)) {
+            $Sim = Get-CosineSimilarity -A $SrcVec -B $Embeddings[$Node.id]
         } else {
-            -1.0    # no embedding — lowest priority but not excluded
+            $Sim = -1.0    # no embedding — lowest priority but not excluded
         }
         [void]$Scored.Add([PSCustomObject]@{ Node = $Node; Sim = $Sim; Pov = $NodePov })
     }
@@ -84,13 +84,13 @@ function Get-FilteredCandidates {
         if ($Selected.Count -ge $TopK) { break }
         [void]$Selected.Add($Entry.Node)
         [void]$SelectedIds.Add($Entry.Node.id)
-        $PovCounts[$Entry.Pov] = ($PovCounts[$Entry.Pov] ?? 0) + 1
+        if ($null -ne $PovCounts[$Entry.Pov]) { $PovCounts[$Entry.Pov] = $PovCounts[$Entry.Pov] + 1 } else { $PovCounts[$Entry.Pov] = 1 }
     }
 
     # Cross-POV diversity floor: guarantee MinPerOtherPov from every non-source POV
     $OtherPovs = @($NodePovMap.Values | Where-Object { $_ -ne $SrcPov } | Select-Object -Unique)
     foreach ($Pov in $OtherPovs) {
-        $Have = if ($PovCounts.ContainsKey($Pov)) { $PovCounts[$Pov] } else { 0 }
+        if ($PovCounts.ContainsKey($Pov)) { $Have = $PovCounts[$Pov] } else { $Have = 0 }
         if ($Have -ge $MinPerOtherPov) { continue }
 
         $Need  = $MinPerOtherPov - $Have

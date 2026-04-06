@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-GraphPath {
@@ -57,7 +57,7 @@ function Find-GraphPath {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to load $PovKey.json — $($_.Exception.Message)"
@@ -84,7 +84,7 @@ function Find-GraphPath {
         Write-Warn 'No edges.json found. Run Invoke-EdgeDiscovery first.'
         return
     }
-    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+    $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
 
     # Build adjacency: nodeId → list of (neighbor, edge)
     $Adjacency = @{}

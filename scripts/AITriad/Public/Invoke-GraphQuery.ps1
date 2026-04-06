@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-GraphQuery {
@@ -69,10 +69,10 @@ function Invoke-GraphQuery {
     # ── Step 1: Validate environment ──
     Write-Step 'Validating environment'
 
-    $Backend = if     ($Model -match '^gemini') { 'gemini' }
-               elseif ($Model -match '^claude') { 'claude' }
-               elseif ($Model -match '^groq')   { 'groq'   }
-               else                             { 'gemini'  }
+    if     ($Model -match '^gemini') { $Backend = 'gemini' }
+    elseif ($Model -match '^claude') { $Backend = 'claude' }
+    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+    else                             { $Backend = 'gemini'  }
     $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
     if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
         Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -92,7 +92,7 @@ function Invoke-GraphQuery {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         foreach ($Node in $FileData.nodes) {
             $NodeEntry = [ordered]@{
                 id          = $Node.id
@@ -120,7 +120,7 @@ function Invoke-GraphQuery {
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     $GraphEdges = @()
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         if ($StatusFilter -eq 'all') {
             $GraphEdges = @($EdgesData.edges)
         } else {
@@ -137,7 +137,7 @@ function Invoke-GraphQuery {
         if (Test-Path $ConflictDir) {
             foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
                 try {
-                    $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+                    $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
                     $ConflictData += [ordered]@{
                         claim_id             = $Conflict.claim_id
                         claim_label          = $Conflict.claim_label
@@ -234,12 +234,12 @@ $SchemaPrompt
     # ── Step 8: Parse response ──
     $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
     try {
-        $Response = $ResponseText | ConvertFrom-Json -Depth 20
+        $Response = $ResponseText | ConvertFrom-Json
     } catch {
         Write-Warn 'JSON parse failed, attempting repair...'
         $Repaired = Repair-TruncatedJson -Text $ResponseText
         try {
-            $Response = $Repaired | ConvertFrom-Json -Depth 20
+            $Response = $Repaired | ConvertFrom-Json
         } catch {
             Write-Fail 'Could not parse response'
             Write-Host $ResponseText -ForegroundColor DarkGray
@@ -268,7 +268,7 @@ $SchemaPrompt
     # Confidence
     if ($Response.PSObject.Properties['confidence']) {
         $ConfPct = [Math]::Round($Response.confidence * 100)
-        $ConfColor = if ($ConfPct -ge 80) { 'Green' } elseif ($ConfPct -ge 50) { 'Yellow' } else { 'Red' }
+        if ($ConfPct -ge 80) { $ConfColor = 'Green' } elseif ($ConfPct -ge 50) { $ConfColor = 'Yellow' } else { $ConfColor = 'Red' }
         Write-Host "  Confidence: $ConfPct%" -ForegroundColor $ConfColor
     }
 
@@ -278,9 +278,9 @@ $SchemaPrompt
         Write-Host '  Referenced Nodes:' -ForegroundColor Cyan
         foreach ($Ref in @($Response.referenced_nodes)) {
             # Guard against missing properties (LLM response format varies)
-            $RefPov   = if ($Ref.PSObject.Properties['pov'])   { $Ref.pov }   else { '' }
-            $RefId    = if ($Ref.PSObject.Properties['id'])    { $Ref.id }    else { '?' }
-            $RefLabel = if ($Ref.PSObject.Properties['label']) { $Ref.label } else { '' }
+            if ($Ref.PSObject.Properties['pov'])   { $RefPov   = $Ref.pov }   else { $RefPov   = '' }
+            if ($Ref.PSObject.Properties['id'])    { $RefId    = $Ref.id }    else { $RefId    = '?' }
+            if ($Ref.PSObject.Properties['label']) { $RefLabel = $Ref.label } else { $RefLabel = '' }
 
             $PovColor = switch ($RefPov) {
                 'accelerationist' { 'Blue' }
@@ -305,16 +305,16 @@ $SchemaPrompt
             Write-Host ''
             Write-Host '  Paths Traced:' -ForegroundColor Cyan
             foreach ($Path in $Paths) {
-                $PathDesc = if ($Path.PSObject.Properties['description']) { $Path.description } else { '' }
+                if ($Path.PSObject.Properties['description']) { $PathDesc = $Path.description } else { $PathDesc = '' }
                 Write-Host "    $PathDesc" -ForegroundColor White
                 if ($Path.PSObject.Properties['nodes'] -and $Path.nodes) {
                     $NodeIds = @($Path.nodes)
-                    $EdgeTypes = if ($Path.PSObject.Properties['edge_types']) { @($Path.edge_types) } else { @() }
+                    if ($Path.PSObject.Properties['edge_types']) { $EdgeTypes = @($Path.edge_types) } else { $EdgeTypes = @() }
                     $PathStr = ''
                     for ($i = 0; $i -lt $NodeIds.Count; $i++) {
                         $PathStr += $NodeIds[$i]
                         if ($i -lt $NodeIds.Count - 1) {
-                            $EdgeLabel = if ($i -lt $EdgeTypes.Count) { $EdgeTypes[$i] } else { '?' }
+                            if ($i -lt $EdgeTypes.Count) { $EdgeLabel = $EdgeTypes[$i] } else { $EdgeLabel = '?' }
                             $PathStr += " --[$EdgeLabel]--> "
                         }
                     }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Compare-Taxonomy {
@@ -41,7 +41,7 @@ function Compare-Taxonomy {
         foreach ($File in $Files) {
             if ($File.Name -in @('embeddings.json', 'situations.json')) { continue }
             try {
-                $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+                $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
                 foreach ($Node in $Json.nodes) {
                     $Nodes[$Node.id] = [PSCustomObject]@{
                         Id          = $Node.id
@@ -117,8 +117,8 @@ function Compare-Taxonomy {
     # Build changed-node cards
     $CardHtml = [System.Text.StringBuilder]::new()
     foreach ($N in $ChangedNodes) {
-        $LabelClass = if ($N.LabelDiff) { 'diff' } else { 'same' }
-        $DescClass  = if ($N.DescDiff)  { 'diff' } else { 'same' }
+        if ($N.LabelDiff) { $LabelClass = 'diff' } else { $LabelClass = 'same' }
+        if ($N.DescDiff)  { $DescClass = 'diff' }  else { $DescClass = 'same' }
 
         [void]$CardHtml.AppendLine("<div class=`"card`">")
         [void]$CardHtml.AppendLine("  <div class=`"card-header`">")

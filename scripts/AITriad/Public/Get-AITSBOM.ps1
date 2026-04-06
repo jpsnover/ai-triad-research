@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-AITSBOM {
@@ -61,11 +61,11 @@ function Get-AITSBOM {
             $Manifest = Import-PowerShellDataFile -Path $ManifestPath
             if ($Manifest.ContainsKey('RequiredModules') -and $Manifest.RequiredModules) {
                 foreach ($Req in $Manifest.RequiredModules) {
-                    $ModName = if ($Req -is [string]) { $Req } else { $Req.ModuleName }
-                    $ModVer  = if ($Req -is [hashtable] -and $Req.ModuleVersion) { $Req.ModuleVersion } else { $null }
+                    if ($Req -is [string]) { $ModName = $Req } else { $ModName = $Req.ModuleName }
+                    if ($Req -is [hashtable] -and $Req.ModuleVersion) { $ModVer = $Req.ModuleVersion } else { $ModVer = $null }
                     if (-not $ModVer) {
                         $Installed = Get-Module -ListAvailable -Name $ModName -ErrorAction SilentlyContinue | Select-Object -First 1
-                        $ModVer = if ($Installed) { $Installed.Version.ToString() } else { 'not installed' }
+                        if ($Installed) { $ModVer = $Installed.Version.ToString() } else { $ModVer = 'not installed' }
                     }
                     $Entries.Add([PSCustomObject]@{
                         Name          = $ModName
@@ -86,7 +86,7 @@ function Get-AITSBOM {
 
     # Companion modules
     foreach ($Companion in @('AIEnrich', 'DocConverters', 'PdfOptimizer')) {
-        $CompPath = Join-Path $script:ModuleRoot '..' "$Companion.psm1"
+        $CompPath = Join-Path (Join-Path $script:ModuleRoot '..') "$Companion.psm1"
         $CompVer = 'present'
         if (Test-Path $CompPath) {
             $PsdPath = $CompPath -replace '\.psm1$', '.psd1'
@@ -122,18 +122,18 @@ function Get-AITSBOM {
     if (Test-Path $RootPkg) { $AppDirs = @('') + $AppDirs }
 
     foreach ($AppDir in $AppDirs) {
-        $PkgPath = if ($AppDir) { Join-Path $RepoRoot $AppDir 'package.json' } else { $RootPkg }
+        if ($AppDir) { $PkgPath = Join-Path (Join-Path $RepoRoot $AppDir) 'package.json' } else { $PkgPath = $RootPkg }
         if (-not (Test-Path $PkgPath)) { continue }
 
-        $SourceLabel = if ($AppDir) { "$AppDir/package.json" } else { 'package.json' }
+        if ($AppDir) { $SourceLabel = "$AppDir/package.json" } else { $SourceLabel = 'package.json' }
         try {
-            $Pkg = Get-Content -Raw -Path $PkgPath | ConvertFrom-Json -Depth 10
+            $Pkg = Get-Content -Raw -Path $PkgPath | ConvertFrom-Json
 
             foreach ($DepType in @('dependencies', 'devDependencies')) {
                 if (-not $Pkg.PSObject.Properties[$DepType]) { continue }
                 foreach ($Prop in $Pkg.$DepType.PSObject.Properties) {
                     $CleanVer = $Prop.Value -replace '[\^~>=<]', ''
-                    $PkgType  = if ($DepType -eq 'devDependencies') { 'npm-dev' } else { 'npm' }
+                    if ($DepType -eq 'devDependencies') { $PkgType = 'npm-dev' } else { $PkgType = 'npm' }
                     $Entries.Add([PSCustomObject]@{
                         Name          = $Prop.Name
                         Version       = $CleanVer
@@ -154,7 +154,7 @@ function Get-AITSBOM {
     # ── 3. Python packages ────────────────────────────────────────────────────
     Write-Verbose 'Scanning Python packages...'
 
-    $ReqPath = Join-Path $RepoRoot 'scripts' 'requirements.txt'
+    $ReqPath = Join-Path (Join-Path $RepoRoot 'scripts') 'requirements.txt'
     if (Test-Path $ReqPath) {
         $Lines = Get-Content -Path $ReqPath
         foreach ($Line in $Lines) {
@@ -163,7 +163,7 @@ function Get-AITSBOM {
             # Parse: package>=version or package[extras]>=version
             if ($Line -match '^([a-zA-Z0-9_.\-]+(?:\[[^\]]+\])?)(?:[><=!~]+(.+))?$') {
                 $PkgName = $Matches[1]
-                $PkgVer  = if ($Matches[2]) { $Matches[2] } else { 'any' }
+                if ($Matches[2]) { $PkgVer = $Matches[2] } else { $PkgVer = 'any' }
                 $Entries.Add([PSCustomObject]@{
                     Name          = $PkgName
                     Version       = $PkgVer
@@ -184,8 +184,8 @@ function Get-AITSBOM {
         @{ Name = 'git';       VersionCmd = { (git --version) -replace 'git version\s*', '' } }
         @{ Name = 'node';      VersionCmd = { (node --version) -replace '^v', '' } }
         @{ Name = 'npm';       VersionCmd = { npm --version } }
-        @{ Name = 'python';    VersionCmd = { $Cmd = if (Get-Command python -EA SilentlyContinue) { 'python' } else { 'python3' }; (& $Cmd --version 2>&1) -replace 'Python\s*', '' } }
-        @{ Name = 'pip';       VersionCmd = { $Cmd = if (Get-Command pip -EA SilentlyContinue) { 'pip' } else { 'pip3' }; (& $Cmd --version 2>&1) -replace 'pip\s+(\S+).*', '$1' } }
+        @{ Name = 'python';    VersionCmd = { if (Get-Command python -EA SilentlyContinue) { $Cmd = 'python' } else { $Cmd = 'python3' }; (& $Cmd --version 2>&1) -replace 'Python\s*', '' } }
+        @{ Name = 'pip';       VersionCmd = { if (Get-Command pip -EA SilentlyContinue) { $Cmd = 'pip' } else { $Cmd = 'pip3' }; (& $Cmd --version 2>&1) -replace 'pip\s+(\S+).*', '$1' } }
         @{ Name = 'pandoc';    VersionCmd = { pandoc --version | Select-Object -First 1 | ForEach-Object { $_ -replace 'pandoc\s*', '' } } }
         @{ Name = 'markitdown'; VersionCmd = { 'present' } }
     )
@@ -215,7 +215,7 @@ function Get-AITSBOM {
     $ModelsPath = Join-Path $RepoRoot 'ai-models.json'
     if (Test-Path $ModelsPath) {
         try {
-            $ModelConfig = Get-Content -Raw -Path $ModelsPath | ConvertFrom-Json -Depth 10
+            $ModelConfig = Get-Content -Raw -Path $ModelsPath | ConvertFrom-Json
             foreach ($Model in $ModelConfig.models) {
                 $Entries.Add([PSCustomObject]@{
                     Name          = $Model.id
@@ -236,12 +236,12 @@ function Get-AITSBOM {
     # ── 6. Schemas ────────────────────────────────────────────────────────────
     Write-Verbose 'Scanning schemas...'
 
-    $SchemaDir = Join-Path $RepoRoot 'taxonomy' 'schemas'
+    $SchemaDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'schemas'
     if (Test-Path $SchemaDir) {
         foreach ($SchemaFile in Get-ChildItem -Path $SchemaDir -Filter '*.schema.json' -File) {
             $SchemaVer = 'unknown'
             try {
-                $Schema = Get-Content -Raw -Path $SchemaFile.FullName | ConvertFrom-Json -Depth 5
+                $Schema = Get-Content -Raw -Path $SchemaFile.FullName | ConvertFrom-Json
                 if ($Schema.PSObject.Properties['version']) { $SchemaVer = $Schema.version }
                 elseif ($Schema.PSObject.Properties['$schema']) { $SchemaVer = 'json-schema' }
             }
@@ -294,7 +294,7 @@ function Get-AITSBOM {
                 'python' {
                     try {
                         $PkgName = $Entry.Name -replace '\[.*\]', ''  # Strip extras
-                        $PyCmd = if (Get-Command pip -EA SilentlyContinue) { 'pip' } else { 'pip3' }
+                        if (Get-Command pip -EA SilentlyContinue) { $PyCmd = 'pip' } else { $PyCmd = 'pip3' }
                         $Info = & $PyCmd index versions $PkgName 2>$null
                         if ($Info -match 'Available versions:\s*(.+)') {
                             $Latest = ($Matches[1] -split ',\s*')[0].Trim()
@@ -350,7 +350,7 @@ function Get-AITSBOM {
                             { $_ -in @('npm', 'npm-dev') } {
                                 # Determine which app dir
                                 $AppDir = ($Pkg.Source -split '/')[0]
-                                $WorkDir = if ($AppDir -eq 'package.json') { $RepoRoot } else { Join-Path $RepoRoot $AppDir }
+                                if ($AppDir -eq 'package.json') { $WorkDir = $RepoRoot } else { $WorkDir = Join-Path $RepoRoot $AppDir }
                                 if ($PSCmdlet.ShouldProcess($Pkg.Name, "npm update in $AppDir")) {
                                     Push-Location $WorkDir
                                     npm update $Pkg.Name 2>&1 | Out-Null
@@ -360,7 +360,7 @@ function Get-AITSBOM {
                             }
                             'python' {
                                 $PkgName = $Pkg.Name -replace '\[.*\]', ''
-                                $PyCmd = if (Get-Command pip -EA SilentlyContinue) { 'pip' } else { 'pip3' }
+                                if (Get-Command pip -EA SilentlyContinue) { $PyCmd = 'pip' } else { $PyCmd = 'pip3' }
                                 if ($PSCmdlet.ShouldProcess($PkgName, 'pip install --upgrade')) {
                                     & $PyCmd install --upgrade $PkgName 2>&1 | Out-Null
                                     Write-Host "    Updated $PkgName" -ForegroundColor Green
@@ -392,11 +392,11 @@ function Get-AITSBOM {
     }
 
     # ── Output formatting ─────────────────────────────────────────────────────
-    $OutputEntries = if ($CheckUpdates) {
-        $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Source, License
+    if ($CheckUpdates) {
+        $OutputEntries = $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Source, License
     }
     else {
-        $Entries | Select-Object Name, Version, Type, Source, License
+        $OutputEntries = $Entries | Select-Object Name, Version, Type, Source, License
     }
 
     switch ($Format) {

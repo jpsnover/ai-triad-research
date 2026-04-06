@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Find-PossibleFallacy {
@@ -86,7 +86,7 @@ function Find-PossibleFallacy {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-2.5-flash' }
     }
 
     # ── Validate environment ──
@@ -99,10 +99,10 @@ function Find-PossibleFallacy {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
+        if     ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -134,7 +134,7 @@ function Find-PossibleFallacy {
         }
 
         Write-Step "Loading $PovKey"
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         $AllNodes = @($FileData.nodes)
 
@@ -267,13 +267,13 @@ $SchemaPrompt
             # ── Parse response ──
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             try {
-                $FallacyData = $ResponseText | ConvertFrom-Json -Depth 20
+                $FallacyData = $ResponseText | ConvertFrom-Json
             }
             catch {
                 Write-Warn 'JSON parse failed, attempting repair...'
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
                 try {
-                    $FallacyData = $Repaired | ConvertFrom-Json -Depth 20
+                    $FallacyData = $Repaired | ConvertFrom-Json
                 }
                 catch {
                     Write-Fail "Could not parse response for batch $BatchNum"

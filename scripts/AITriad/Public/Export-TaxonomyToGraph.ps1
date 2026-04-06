@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Export-TaxonomyToGraph {
@@ -56,7 +56,7 @@ function Export-TaxonomyToGraph {
     if ($Credential) {
         $Pair = "$($Credential.UserName):$($Credential.GetNetworkCredential().Password)"
     } else {
-        $Neo4jPwd = if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }
+        if ($env:NEO4J_PASSWORD) { $Neo4jPwd = $env:NEO4J_PASSWORD } else { $Neo4jPwd = 'aitriad2026' }
         $Pair = "neo4j:$Neo4jPwd"
     }
     $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)
@@ -133,7 +133,7 @@ function Export-TaxonomyToGraph {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
 
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         foreach ($Node in $FileData.nodes) {
             $Props = @{
                 id          = $Node.id
@@ -183,7 +183,7 @@ function Export-TaxonomyToGraph {
     $EdgeFailCount = 0
 
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
 
         foreach ($Edge in $EdgesData.edges) {
             $EdgeProps = @{
@@ -238,7 +238,7 @@ SET $SetParts
     if (Test-Path $ConflictDir) {
         foreach ($File in Get-ChildItem -Path $ConflictDir -Filter '*.json' -File) {
             try {
-                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+                $Conflict = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
 
                 $ConflictProps = @{
                     claim_id       = $Conflict.claim_id
@@ -287,7 +287,7 @@ MERGE (c)-[:LINKED_TO]->(n)
         $EmbCount = 0
 
         if (Test-Path $EmbPath) {
-            $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json -Depth 20
+            $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
             foreach ($Entry in $EmbData.PSObject.Properties) {
                 $NodeId = $Entry.Name
                 $Vector = @($Entry.Value)

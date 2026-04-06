@@ -1,10 +1,10 @@
-# One-shot script: rewrite all unmapped concept labels/descriptions to plain-language style
+﻿# One-shot script: rewrite all unmapped concept labels/descriptions to plain-language style
 # Also rewrites taxonomy nodes that were added from unmapped concepts.
 
-#Requires -Version 7.0
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
 
-Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force
+Import-Module (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'AITriad.psd1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AIEnrich.psm1') -Force
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -42,7 +42,7 @@ foreach ($f in Get-ChildItem (Join-Path $SummariesDir '*.json')) {
     }
 }
 
-$TaxDir = Join-Path $RepoRoot 'taxonomy' 'Origin'
+$TaxDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'Origin'
 foreach ($taxFile in Get-ChildItem (Join-Path $TaxDir '*.json') -Exclude 'embeddings.json','edges.json') {
     $tax = Get-Content $taxFile.FullName -Raw | ConvertFrom-Json
     foreach ($node in $tax.nodes) {
@@ -67,8 +67,8 @@ Write-Host "Items to rewrite: $($Items.Count) ($unmappedCount unmapped + $taxCou
 $entries = [System.Collections.Generic.List[string]]::new()
 for ($i = 0; $i -lt $Items.Count; $i++) {
     $item = $Items[$i]
-    $lbl  = if ($item.label) { $item.label } else { '(no label)' }
-    $desc = if ($item.description) { $item.description } else { '(no description)' }
+    if ($item.label) { $lbl = $item.label } else { $lbl = '(no label)' }
+    if ($item.description) { $desc = $item.description } else { $desc = '(no description)' }
     $entries.Add("[$i] LABEL: $lbl`nDESCRIPTION: $desc")
 }
 
@@ -100,7 +100,7 @@ if (-not $response) {
 }
 
 # Extract text — Invoke-AIApi may return string or object
-$responseText = if ($response -is [string]) { $response } elseif ($response.Text) { $response.Text } else { "$response" }
+if ($response -is [string]) { $responseText = $response } elseif ($response.Text) { $responseText = $response.Text } else { $responseText = "$response" }
 
 # Parse response
 $cleaned = ($responseText -replace '(?s)^```json\s*', '' -replace '```\s*$', '').Trim()

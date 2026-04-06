@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-CypherQuery {
@@ -49,7 +49,7 @@ function Invoke-CypherQuery {
     if ($Credential) {
         $Pair = "$($Credential.UserName):$($Credential.GetNetworkCredential().Password)"
     } else {
-        $Neo4jPwd = if ($env:NEO4J_PASSWORD) { $env:NEO4J_PASSWORD } else { 'aitriad2026' }
+        if ($env:NEO4J_PASSWORD) { $Neo4jPwd = $env:NEO4J_PASSWORD } else { $Neo4jPwd = 'aitriad2026' }
         $Pair = "neo4j:$Neo4jPwd"
     }
     $Bytes = [System.Text.Encoding]::ASCII.GetBytes($Pair)

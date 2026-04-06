@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Compute cosine similarity distribution across taxonomy node embeddings
@@ -7,12 +7,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psm1') -Force
+Import-Module (Join-Path (Join-Path $PSScriptRoot 'AITriad') 'AITriad.psm1') -Force
 
 # Load embeddings
-$dataRoot = (Get-Content (Join-Path $PSScriptRoot '..' '.aitriad.json') -Raw | ConvertFrom-Json).data_root
-$dataRoot = Join-Path $PSScriptRoot '..' $dataRoot
-$embFile = Join-Path $dataRoot 'taxonomy' 'Origin' 'embeddings.json'
+$dataRoot = (Get-Content (Join-Path (Join-Path $PSScriptRoot '..') '.aitriad.json') -Raw | ConvertFrom-Json).data_root
+$dataRoot = Join-Path (Join-Path $PSScriptRoot '..') $dataRoot
+$embFile = Join-Path (Join-Path (Join-Path $dataRoot 'taxonomy') 'Origin') 'embeddings.json'
 $emb = Get-Content $embFile -Raw | ConvertFrom-Json
 
 # Get node embeddings only

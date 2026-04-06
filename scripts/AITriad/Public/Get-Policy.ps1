@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Policy {
@@ -54,7 +54,7 @@ function Get-Policy {
         return
     }
 
-    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json -Depth 20
+    $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
     $Policies = @($Registry.policies)
 
     # ── Filter ──
@@ -86,7 +86,7 @@ function Get-Policy {
         foreach ($PovKey in $PovFiles) {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }

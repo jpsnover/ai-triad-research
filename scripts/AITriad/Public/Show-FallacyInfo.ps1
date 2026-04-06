@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-FallacyInfo {
@@ -63,13 +63,13 @@ function Show-FallacyInfo {
     $ErrorActionPreference = 'Stop'
 
     # ── Load catalog ──
-    $CatalogPath = Join-Path $script:ModuleRoot 'Private' 'fallacy-catalog.json'
+    $CatalogPath = Join-Path (Join-Path $script:ModuleRoot 'Private') 'fallacy-catalog.json'
     if (-not (Test-Path $CatalogPath)) {
         Write-Fail "Fallacy catalog not found: $CatalogPath"
         throw 'Fallacy catalog not found'
     }
 
-    $Catalog = (Get-Content -Raw -Path $CatalogPath | ConvertFrom-Json -Depth 20).fallacies
+    $Catalog = (Get-Content -Raw -Path $CatalogPath | ConvertFrom-Json).fallacies
 
     # ── List mode ──
     if ($List) {
@@ -165,7 +165,7 @@ function Show-FallacyInfo {
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if (-not (Test-Path $FilePath)) { continue }
 
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
             foreach ($Node in $FileData.nodes) {
                 if (-not $Node.PSObject.Properties['graph_attributes']) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['possible_fallacies']) { continue }

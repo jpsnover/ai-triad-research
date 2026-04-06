@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -35,11 +35,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Module (Join-Path $ScriptDir 'AITriad' 'AITriad.psm1') -Force -ErrorAction Stop
+Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 Import-Module (Join-Path $ScriptDir 'AIEnrich.psm1') -Force -ErrorAction Stop
 
 if (-not $Model) {
-    $Model = if ($env:AI_MODEL) { $env:AI_MODEL } else { 'gemini-2.5-flash' }
+    if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-2.5-flash' }
 }
 
 $DataRoot = (Resolve-Path $DataRoot).Path
@@ -58,7 +58,7 @@ if (-not (Test-Path $DebatesDir)) {
 
 foreach ($File in (Get-ChildItem -Path $DebatesDir -Filter '*.json' -File | Sort-Object Name)) {
     try {
-        $Debate = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json -Depth 20
+        $Debate = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
     }
     catch { continue }
 
@@ -82,8 +82,8 @@ if ($DebatesToFix.Count -eq 0) {
 
 if ($DryRun) {
     foreach ($D in $DebatesToFix) {
-        $Topic = if ($D.Debate.PSObject.Properties['topic']) { $D.Debate.topic } else { $D.File.BaseName }
-        $Entries = if ($D.Debate.PSObject.Properties['entries']) { @($D.Debate.entries).Count } else { 0 }
+        if ($D.Debate.PSObject.Properties['topic']) { $Topic = $D.Debate.topic } else { $Topic = $D.File.BaseName }
+        if ($D.Debate.PSObject.Properties['entries']) { $Entries = @($D.Debate.entries).Count } else { $Entries = 0 }
         Write-Host "  [DRY RUN] $($D.File.Name) — topic: $Topic, entries: $Entries" -ForegroundColor Yellow
     }
     Write-Host "`n  Would process $($DebatesToFix.Count) debates" -ForegroundColor Yellow
@@ -91,10 +91,10 @@ if ($DryRun) {
 }
 
 # ── Resolve API key ───────────────────────────────────────────────────────────
-$Backend = if ($Model -match '^gemini') { 'gemini' }
-           elseif ($Model -match '^claude') { 'claude' }
-           elseif ($Model -match '^groq') { 'groq' }
-           else { 'gemini' }
+if ($Model -match '^gemini') { $Backend = 'gemini' }
+elseif ($Model -match '^claude') { $Backend = 'claude' }
+elseif ($Model -match '^groq') { $Backend = 'groq' }
+else { $Backend = 'gemini' }
 
 $ApiKey = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 if (-not $ApiKey) {
@@ -108,15 +108,15 @@ $Errors = 0
 
 foreach ($Entry in $DebatesToFix) {
     $Debate = $Entry.Debate
-    $Topic = if ($Debate.PSObject.Properties['topic']) { $Debate.topic } else { 'unknown' }
+    if ($Debate.PSObject.Properties['topic']) { $Topic = $Debate.topic } else { $Topic = 'unknown' }
     Write-Host "  $($Entry.File.BaseName): $Topic..." -ForegroundColor Gray -NoNewline
 
     # Build transcript excerpt for AI
     $TranscriptLines = [System.Collections.Generic.List[string]]::new()
     if ($Debate.PSObject.Properties['entries']) {
         foreach ($E in @($Debate.entries)) {
-            $Role = if ($E.PSObject.Properties['role']) { $E.role } else { 'unknown' }
-            $Content = if ($E.PSObject.Properties['content']) { $E.content } else { '' }
+            if ($E.PSObject.Properties['role']) { $Role = $E.role } else { $Role = 'unknown' }
+            if ($E.PSObject.Properties['content']) { $Content = $E.content } else { $Content = '' }
             $TranscriptLines.Add("[$Role]: $($Content.Substring(0, [Math]::Min(500, $Content.Length)))")
         }
     }
@@ -174,7 +174,7 @@ Return ONLY valid JSON.
             -Temperature 0.2 -MaxTokens 8192 -JsonMode -TimeoutSec 120
 
         $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
-        $ArgMap = $ResponseText | ConvertFrom-Json -Depth 10
+        $ArgMap = $ResponseText | ConvertFrom-Json
 
         # Write argument_map to debate
         if ($Debate.PSObject.Properties['argument_map']) {
@@ -189,7 +189,7 @@ Return ONLY valid JSON.
         Set-Content -Path $TmpPath -Value $NewJson -Encoding UTF8 -NoNewline
         Move-Item -Path $TmpPath -Destination $Entry.File.FullName -Force
 
-        $ClaimCount = if ($ArgMap.PSObject.Properties['claims']) { @($ArgMap.claims).Count } else { 0 }
+        if ($ArgMap.PSObject.Properties['claims']) { $ClaimCount = @($ArgMap.claims).Count } else { $ClaimCount = 0 }
         Write-Host " $ClaimCount claims" -ForegroundColor Green
         $Processed++
     }

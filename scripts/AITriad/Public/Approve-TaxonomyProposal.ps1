@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Approve-TaxonomyProposal {
@@ -52,7 +52,7 @@ function Approve-TaxonomyProposal {
         return
     }
 
-    $ProposalData = Get-Content -Raw -Path $Path | ConvertFrom-Json -Depth 20
+    $ProposalData = Get-Content -Raw -Path $Path | ConvertFrom-Json
 
     if (-not $ProposalData.proposals -or $ProposalData.proposals.Count -eq 0) {
         Write-OK 'No proposals in file.'
@@ -80,7 +80,7 @@ function Approve-TaxonomyProposal {
         Write-Host "    Label:    $($P.label)" -ForegroundColor White
 
         # Truncate description for display
-        $Desc = if ($P.description.Length -gt 150) { $P.description.Substring(0, 150) + '...' } else { $P.description }
+        if ($P.description.Length -gt 150) { $Desc = $P.description.Substring(0, 150) + '...' } else { $Desc = $P.description }
         Write-Host "    Desc:     $Desc" -ForegroundColor Gray
 
         if ($P.target_node_id) {
@@ -88,7 +88,7 @@ function Approve-TaxonomyProposal {
         }
 
         # Rationale
-        $Rat = if ($P.rationale.Length -gt 200) { $P.rationale.Substring(0, 200) + '...' } else { $P.rationale }
+        if ($P.rationale.Length -gt 200) { $Rat = $P.rationale.Substring(0, 200) + '...' } else { $Rat = $P.rationale }
         Write-Host "    Reason:   $Rat" -ForegroundColor Gray
 
         # Evidence

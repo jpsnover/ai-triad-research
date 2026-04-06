@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-TriadDialogue {
@@ -52,10 +52,10 @@ function Show-TriadDialogue {
     # ── Step 1: Validate environment ──────────────────────────────────────────
     Write-Step 'Validating environment'
 
-    $Backend = if     ($Model -match '^gemini') { 'gemini' }
-               elseif ($Model -match '^claude') { 'claude' }
-               elseif ($Model -match '^groq')   { 'groq'   }
-               else                             { 'gemini'  }
+    if     ($Model -match '^gemini') { $Backend = 'gemini' }
+    elseif ($Model -match '^claude') { $Backend = 'claude' }
+    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+    else                             { $Backend = 'gemini'  }
     $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
     if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
         Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
@@ -97,7 +97,7 @@ function Show-TriadDialogue {
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json -Depth 20
+        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
         foreach ($Node in $FileData.nodes) {
             $AllNodes[$Node.id] = @{
                 POV         = $PovKey
@@ -113,7 +113,7 @@ function Show-TriadDialogue {
     $AllEdges  = @()
     $NodeDegree = @{}
     if (Test-Path $EdgesPath) {
-        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json -Depth 20
+        $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
         $AllEdges  = @($EdgesData.edges | Where-Object { $_.status -eq 'approved' })
         foreach ($Edge in $AllEdges) {
             if (-not $NodeDegree.ContainsKey($Edge.source)) { $NodeDegree[$Edge.source] = 0 }
@@ -179,7 +179,7 @@ function Show-TriadDialogue {
         # Load top 20 policies for this POV from the policy registry
         $PolicyRegistryPath = Join-Path $TaxDir 'policy_actions.json'
         if (Test-Path $PolicyRegistryPath) {
-            $PolicyReg = Get-Content -Raw -Path $PolicyRegistryPath | ConvertFrom-Json -Depth 20
+            $PolicyReg = Get-Content -Raw -Path $PolicyRegistryPath | ConvertFrom-Json
             if ($PolicyReg.policies) {
                 $PovPolicies = @($PolicyReg.policies |
                     Where-Object { $_.source_povs -contains $PovKey } |
@@ -232,13 +232,13 @@ function Show-TriadDialogue {
 
         $ResponseText = $TurnResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
         try {
-            return $ResponseText | ConvertFrom-Json -Depth 20
+            return $ResponseText | ConvertFrom-Json
         }
         catch {
             Write-Warn "Failed to parse $AgentSpeaker response — attempting repair"
             try {
                 $Repaired = Repair-TruncatedJson -Text $ResponseText
-                return $Repaired | ConvertFrom-Json -Depth 20
+                return $Repaired | ConvertFrom-Json
             }
             catch {
                 Write-Warn "Repair failed for $AgentSpeaker"
@@ -294,7 +294,7 @@ function Show-TriadDialogue {
         $Summary = [System.Text.StringBuilder]::new()
         [void]$Summary.AppendLine("[Earlier discussion summary]")
         foreach ($T in $Earlier) {
-            $Snippet = if ($T.content.Length -gt 100) { $T.content.Substring(0, 100) + '...' } else { $T.content }
+            if ($T.content.Length -gt 100) { $Snippet = $T.content.Substring(0, 100) + '...' } else { $Snippet = $T.content }
             [void]$Summary.AppendLine("  $($T.speaker): $Snippet")
         }
         [void]$Summary.AppendLine()
@@ -322,8 +322,8 @@ function Show-TriadDialogue {
         $Response = & $InvokeTurn $Agent.Speaker $SystemPrompts[$Agent.Speaker] $TranscriptText 'opening'
 
         if ($Response) {
-            $Content = if ($Response.PSObject.Properties['content']) { $Response.content } else { "$Response" }
-            $TaxRefs = if ($Response.PSObject.Properties['taxonomy_refs']) { @($Response.taxonomy_refs) } else { @() }
+            if ($Response.PSObject.Properties['content']) { $Content = $Response.content } else { $Content = "$Response" }
+            if ($Response.PSObject.Properties['taxonomy_refs']) { $TaxRefs = @($Response.taxonomy_refs) } else { $TaxRefs = @() }
 
             $Entry = [ordered]@{
                 type          = 'opening'
@@ -364,8 +364,8 @@ function Show-TriadDialogue {
             $Response = & $InvokeTurn $Agent.Speaker $SystemPrompts[$Agent.Speaker] $TranscriptText 'argument'
 
             if ($Response) {
-                $Content = if ($Response.PSObject.Properties['content']) { $Response.content } else { "$Response" }
-                $TaxRefs = if ($Response.PSObject.Properties['taxonomy_refs']) { @($Response.taxonomy_refs) } else { @() }
+                if ($Response.PSObject.Properties['content']) { $Content = $Response.content } else { $Content = "$Response" }
+                if ($Response.PSObject.Properties['taxonomy_refs']) { $TaxRefs = @($Response.taxonomy_refs) } else { $TaxRefs = @() }
 
                 $Entry = [ordered]@{
                     type          = 'statement'
@@ -421,7 +421,7 @@ function Show-TriadDialogue {
 
         if ($SynthResult -and $SynthResult.Text) {
             $SynthText = $SynthResult.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-            $Synthesis = $SynthText | ConvertFrom-Json -Depth 20
+            $Synthesis = $SynthText | ConvertFrom-Json
             Write-OK 'Synthesis complete'
         }
     }
@@ -488,14 +488,14 @@ function Show-TriadDialogue {
     }
 
     # Write to file
-    $TargetFile = if ($OutputFile) { $OutputFile }
-                  else {
-                      $DebatesDir = Get-DebatesDir
-                      if (-not (Test-Path $DebatesDir)) {
-                          $null = New-Item -ItemType Directory -Path $DebatesDir -Force
-                      }
-                      Join-Path $DebatesDir "debate-$DebateId.json"
-                  }
+    if ($OutputFile) { $TargetFile = $OutputFile }
+    else {
+        $DebatesDir = Get-DebatesDir
+        if (-not (Test-Path $DebatesDir)) {
+            $null = New-Item -ItemType Directory -Path $DebatesDir -Force
+        }
+        $TargetFile = Join-Path $DebatesDir "debate-$DebateId.json"
+    }
 
     try {
         $Json = $DebateData | ConvertTo-Json -Depth 20
