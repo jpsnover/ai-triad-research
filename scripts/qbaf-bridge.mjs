@@ -12,7 +12,7 @@
  * Usage: echo '{"nodes":[...],"edges":[...]}' | node scripts/qbaf-bridge.mjs
  */
 
-import { computeQbafStrengths } from '../lib/debate/qbaf.js';
+import { computeQbafStrengths } from '../lib/debate/qbaf.ts';
 
 let input = '';
 process.stdin.setEncoding('utf8');

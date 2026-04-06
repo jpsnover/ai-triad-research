@@ -208,8 +208,8 @@ function Invoke-QbafConflictAnalysis {
     $QbafResult = $null
     try {
         $Process = New-Object System.Diagnostics.Process
-        $Process.StartInfo.FileName = 'node'
-        $Process.StartInfo.Arguments = $BridgePath
+        $Process.StartInfo.FileName = 'npx'
+        $Process.StartInfo.Arguments = "tsx `"$BridgePath`""
         $Process.StartInfo.UseShellExecute = $false
         $Process.StartInfo.RedirectStandardInput = $true
         $Process.StartInfo.RedirectStandardOutput = $true
