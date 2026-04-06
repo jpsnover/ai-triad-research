@@ -6047,6 +6047,40 @@ body {
   font-size: 0.9rem;
 }
 
+/* ─── Detail Tier Pills (DT-3) ────────────────────────── */
+
+.debate-tier-pills {
+  display: inline-flex;
+  gap: 1px;
+  margin-left: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.debate-tier-pill {
+  background: var(--bg-primary);
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: background 0.1s, color 0.1s;
+}
+
+.debate-tier-pill:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.debate-tier-pill-active {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+}
+
 .debate-generating {
   opacity: 0.7;
 }

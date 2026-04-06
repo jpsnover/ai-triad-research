@@ -643,6 +643,8 @@ interface DebateStore {
   debateError: string | null;
   responseLength: 'brief' | 'medium' | 'detailed';
   setResponseLength: (length: 'brief' | 'medium' | 'detailed') => void;
+  /** Set display tier for a specific transcript entry (DT-3). */
+  setEntryDisplayTier: (entryId: string, tier: 'brief' | 'medium' | 'detailed') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
@@ -709,6 +711,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateGenerating: null,
   responseLength: 'detailed',
   setResponseLength: (length) => set({ responseLength: length }),
+  setEntryDisplayTier: (entryId, tier) => {
+    const debate = get().activeDebate;
+    if (!debate) return;
+    const entry = debate.transcript.find(e => e.id === entryId);
+    if (!entry) return;
+    entry.display_tier = tier;
+    set({ activeDebate: { ...debate } });
+  },
   openingOrder: [],
   setOpeningOrder: (order) => set({ openingOrder: order }),
   debateError: null,

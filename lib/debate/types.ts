@@ -64,6 +64,13 @@ export interface TranscriptEntry {
   policy_refs?: (string | { policy_id: string; relevance: string })[];
   metadata?: Record<string, unknown>;
   addressing?: PoverId | 'all';
+  /** Cached AI-generated summaries at different detail tiers (DT-2). */
+  summaries?: {
+    brief: string;   // 2-3 sentences: core claim + strongest reasoning
+    medium: string;  // 1-2 paragraphs: main argument + key evidence
+  };
+  /** Which detail tier to display by default. Absent = show full content. */
+  display_tier?: 'brief' | 'medium' | 'detailed';
 }
 
 export interface ContextSummary {

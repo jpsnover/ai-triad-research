@@ -53,8 +53,6 @@ function highlightTemplate(template: string): React.ReactNode[] {
 }
 
 const ALL_MODELS = Object.values(MODELS_BY_BACKEND).flat();
-const RESPONSE_LENGTHS: ('brief' | 'medium' | 'detailed')[] = ['brief', 'medium', 'detailed'];
-const DEBATE_GROUPS = new Set<PromptGroup>(['debate-setup', 'debate-turns', 'debate-analysis', 'moderator']);
 
 /** Simple line-based diff: returns lines tagged as 'same', 'added', or 'removed'. */
 function computeLineDiff(
@@ -123,9 +121,6 @@ function SettingsControls({ promptId, group }: { promptId: string; group: Prompt
   const temperature = configGet(`temperature.${promptId}`) as number | undefined
     ?? configGet(group.startsWith('debate') ? 'temperature.debate' : 'temperature.debate') as number;
   const model = configGet(`model.${promptId}`) as string | undefined ?? debateModel ?? '';
-  const responseLength = configGet('responseLength') as string ?? 'medium';
-  const isDebate = DEBATE_GROUPS.has(group);
-
   return (
     <div className="pi-settings-grid">
       <label className="pi-control">
@@ -154,22 +149,6 @@ function SettingsControls({ promptId, group }: { promptId: string; group: Prompt
         />
         <span className="pi-control-value">{temperature.toFixed(1)}</span>
       </label>
-      {isDebate && (
-        <div className="pi-control">
-          <span className="pi-control-label">Response length</span>
-          <div className="pi-pills">
-            {RESPONSE_LENGTHS.map(len => (
-              <button
-                key={len}
-                className={`pi-pill ${responseLength === len ? 'pi-pill-active' : ''}`}
-                onClick={() => setSession('responseLength', len)}
-              >
-                {len}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

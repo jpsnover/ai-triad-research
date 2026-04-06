@@ -456,11 +456,22 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
   const activeDebate = useDebateStore(s => s.activeDebate);
+  const defaultTier = useDebateStore(s => s.responseLength);
+  const setEntryDisplayTier = useDebateStore(s => s.setEntryDisplayTier);
   const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
   )?.id ?? null;
   const netDelta = (entry.metadata as Record<string, unknown> | undefined)?.qbaf_net_delta as number | undefined;
+
+  // Tier display logic (DT-3)
+  const hasSummaries = entry.summaries != null;
+  const activeTier = entry.display_tier ?? defaultTier;
+  const displayContent = hasSummaries && activeTier === 'brief' ? entry.summaries!.brief
+    : hasSummaries && activeTier === 'medium' ? entry.summaries!.medium
+    : entry.content;
+  const showTierPills = hasSummaries && ['opening', 'statement', 'fact-check'].includes(entry.type);
+
   return (
     <div
       className={`debate-statement debate-speaker-${entry.speaker} debate-type-${entry.type}`}
@@ -475,6 +486,20 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
           {entry.type}
           {anNodeId && <span className="debate-an-id"> · {anNodeId}</span>}
         </span>
+        {showTierPills && (
+          <span className="debate-tier-pills">
+            {(['brief', 'medium', 'detailed'] as const).map(tier => (
+              <button
+                key={tier}
+                className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
+                onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
+                title={tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : 'Full response'}
+              >
+                {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+              </button>
+            ))}
+          </span>
+        )}
         {qbafEnabled && netDelta != null && Math.abs(netDelta) > 0.01 && (
           <span
             className={`qbaf-net-delta ${netDelta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}
@@ -486,8 +511,8 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       </div>
       <div className="debate-statement-content markdown-body">
         {findQuery
-          ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown>{entry.content}</Markdown>}
+          ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+          : <Markdown>{displayContent}</Markdown>}
       </div>
       <TaxonomyRefsSection
         refs={entry.taxonomy_refs}
@@ -883,7 +908,7 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, responseLength, setResponseLength, openingOrder, setOpeningOrder } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder } = useDebateStore();
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -946,16 +971,6 @@ function OpeningActions() {
           </div>
         )}
         <div className="debate-action-bar-inner">
-          <select
-            className="debate-length-select"
-            value={responseLength}
-            onChange={(e) => setResponseLength(e.target.value as 'brief' | 'medium' | 'detailed')}
-            title="Opening statement depth"
-          >
-            <option value="brief">Brief</option>
-            <option value="medium">Medium</option>
-            <option value="detailed">Detailed</option>
-          </select>
           <button className="btn btn-primary" onClick={() => runOpeningStatements()}>
             Begin Opening Statements
           </button>
@@ -1058,7 +1073,7 @@ function DebaterToggles() {
 }
 
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, responseLength, setResponseLength } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions } = useDebateStore();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -1184,16 +1199,6 @@ function DebateActions() {
             </div>
           )}
         </div>
-        <select
-          className="debate-length-select"
-          value={responseLength}
-          onChange={(e) => setResponseLength(e.target.value as 'brief' | 'medium' | 'detailed')}
-          title="Response depth"
-        >
-          <option value="brief">Brief</option>
-          <option value="medium">Medium</option>
-          <option value="detailed">Detailed</option>
-        </select>
         <button
           className="btn btn-primary debate-send-btn"
           onClick={handleSend}

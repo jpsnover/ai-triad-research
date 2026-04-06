@@ -40,6 +40,7 @@ import {
   synthEvaluatePrompt,
   probingQuestionsPrompt,
   contextCompressionPrompt,
+  entrySummarizationPrompt,
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
@@ -237,6 +238,34 @@ export class DebateEngine {
     const warning = `[WARNING] ${operation}: ${msg}. Recovery: ${recovery}`;
     process.stderr.write(`[debate-engine] ${warning}\n`);
     this.onProgress?.({ phase: 'warning', message: warning });
+  }
+
+  /** Post-turn summarization (DT-2): generate brief + medium summaries. Non-blocking — failure is logged, not thrown. */
+  private async summarizeEntry(entry: TranscriptEntry): Promise<void> {
+    // Only summarize substantive entries (openings, statements, fact-checks)
+    if (!['opening', 'statement', 'fact-check'].includes(entry.type)) return;
+    // Skip if already summarized
+    if (entry.summaries) return;
+
+    try {
+      const speaker = POVER_INFO[entry.speaker as PoverId]?.label ?? entry.speaker;
+      const prompt = entrySummarizationPrompt(entry.content, speaker);
+      const raw = await this.adapter.generateText(prompt, this.config.model, {
+        temperature: 0.3, // Low temp for faithful summarization
+        maxTokens: 500,
+        timeoutMs: 15000,
+      });
+      this.apiCallCount++;
+
+      // Parse JSON response
+      const cleaned = raw.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+      const parsed = JSON.parse(cleaned) as { brief?: string; medium?: string };
+      if (parsed.brief && parsed.medium) {
+        entry.summaries = { brief: parsed.brief, medium: parsed.medium };
+      }
+    } catch (err) {
+      this.warn('summarizeEntry', err, 'Entry will display at full detail only');
+    }
   }
 
   private addEntry(entry: Omit<TranscriptEntry, 'id' | 'timestamp'>): TranscriptEntry {
@@ -595,6 +624,9 @@ export class DebateEngine {
       // Extract claims synchronously
       await this.extractClaims(statement, poverId, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
 
+      // Post-turn summarization (DT-2) — fire and forget
+      this.summarizeEntry(entry).catch(() => {});
+
       priorStatements.push({ speaker: info.label, statement });
     }
 
@@ -822,6 +854,9 @@ export class DebateEngine {
 
     // Extract claims
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
+
+    // Post-turn summarization (DT-2) — fire and forget
+    this.summarizeEntry(entry).catch(() => {});
   }
 
   // ── Probing questions ──────────────────────────────────────

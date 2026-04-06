@@ -1177,3 +1177,19 @@ For each question, generate 3-5 answer options that cover the reasonable answer 
 Respond ONLY with a JSON object in this exact format (no markdown, no code fences):
 {"questions": [{"question": "your clarifying question", "options": ["option 1 text", "option 2 text", "option 3 text"]}]}`;
 }
+
+// ── Post-turn summarization (DT-2) ────────────────────────
+
+export function entrySummarizationPrompt(statementText: string, speaker: string): string {
+  return `Summarize this debate statement by ${speaker} at two compression levels.
+
+STATEMENT:
+${statementText}
+
+BRIEF (2-3 sentences): The core claim and strongest piece of reasoning or evidence. Omit secondary points, assumptions, and steelman content.
+
+MEDIUM (1-2 paragraphs): The main argument with key supporting evidence. Include the steelman if present. Omit rhetorical flourishes and minor supporting points.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{"brief": "...", "medium": "..."}`;
+}
