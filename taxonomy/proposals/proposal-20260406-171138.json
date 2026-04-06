@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-04-06T17:11:38Z",
+  "model": "gemini-3.1-flash-lite-preview",
+  "taxonomy_version": "3.1.0",
+  "summary_count": 178,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "sit-128",
+      "pov": "situations",
+      "category": "Intentions",
+      "label": "Security Failure as Fair Use Liability",
+      "description": "A situation concept that the adequacy of security measures to prevent verbatim output is a critical factor in determining fair use.\nEncompasses: Market harm analysis, security as a legal safeguard, liability for inadequate protection.\nExcludes: General copyright infringement or technical alignment research.",
+      "rationale": "High frequency (61) unmapped concept linking technical security failures to legal liability frameworks, representing a distinct intersection of safety and legal discourse.",
+      "evidence_doc_ids": [
+        "doc-sec-001",
+        "doc-leg-044"
+      ],
+      "evidence_count": 61,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "acc-desires-021",
+      "pov": "accelerationist",
+      "category": "Desires",
+      "label": "Sovereign AI as Strategic Independence",
+      "description": "A Desire within accelerationist discourse that nations should develop AI capabilities with minimal reliance on external actors.\nEncompasses: National security, economic competitiveness, control over systems and data.\nExcludes: Global open-source democratization or international collaboration.",
+      "rationale": "Repeatedly cited (4) as a strategic necessity for national security and competitiveness, distinct from general 'AI for everyone' desires.",
+      "evidence_doc_ids": [
+        "doc-sov-001",
+        "doc-sov-002"
+      ],
+      "evidence_count": 4,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "saf-desires-016",
+      "pov": "safetyist",
+      "category": "Desires",
+      "label": "Law-Following AI (LFAI)",
+      "description": "A Desire within safetyist discourse that AI agents are built to rigorously comply with a broad set of legal requirements.\nEncompasses: Natural-language law reasoning, policy-driven design, compliance-first architecture.\nExcludes: Hard-coded rule sets or simple output filtering.",
+      "rationale": "Distinct from existing safety nodes; focuses on reasoning about natural-language law rather than hard-coded constraints.",
+      "evidence_doc_ids": [
+        "doc-lfai-001",
+        "doc-lfai-002"
+      ],
+      "evidence_count": 3,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null,
+      "status": "approved"
+    }
+  ]
+}

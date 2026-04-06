@@ -7,8 +7,18 @@
  */
 
 import type { DocumentAnalysis } from './types';
+import { POVER_INFO } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
 import { interpretationText } from './taxonomyTypes';
+
+/** Build a line describing each debater the current speaker is debating against. */
+function otherDebaters(currentLabel: string): string {
+  const others = Object.values(POVER_INFO)
+    .filter(c => c.label !== currentLabel)
+    .map(c => `- ${c.label}, representing the ${c.pov} perspective (${c.personality})`)
+    .join('\n');
+  return `You are debating:\n${others}`;
+}
 
 const READING_LEVEL = 'Write your statement text at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
 
@@ -353,6 +363,7 @@ export function openingStatementPrompt(
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
+${otherDebaters(label)}
 ${READING_LEVEL}
 ${DETAIL_INSTRUCTION}
 
@@ -408,6 +419,7 @@ export function debateResponsePrompt(
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
+${otherDebaters(label)}
 ${READING_LEVEL}
 ${DETAIL_INSTRUCTION}
 
@@ -676,6 +688,7 @@ export function crossRespondPrompt(
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
+${otherDebaters(label)}
 ${READING_LEVEL}
 ${DETAIL_INSTRUCTION}
 
@@ -1181,14 +1194,14 @@ Respond ONLY with a JSON object in this exact format (no markdown, no code fence
 // ── Post-turn summarization (DT-2) ────────────────────────
 
 export function entrySummarizationPrompt(statementText: string, speaker: string): string {
-  return `Summarize this debate statement by ${speaker} at two compression levels.
+  return `Condense this debate statement by ${speaker} at two compression levels. CRITICAL: Write as ${speaker} in first person, preserving their voice, tone, and rhetorical style. Do NOT switch to third-person narration (e.g., never write "${speaker} argues that…").
 
 STATEMENT:
 ${statementText}
 
-BRIEF (2-3 sentences): The core claim and strongest piece of reasoning or evidence. Omit secondary points, assumptions, and steelman content.
+BRIEF (2-3 sentences): The core claim and strongest piece of reasoning or evidence, in ${speaker}'s own voice. Omit secondary points, assumptions, and steelman content.
 
-MEDIUM (1-2 paragraphs): The main argument with key supporting evidence. Include the steelman if present. Omit rhetorical flourishes and minor supporting points.
+MEDIUM (1-2 paragraphs): The main argument with key supporting evidence, in ${speaker}'s own voice. Include the steelman if present. Omit rhetorical flourishes and minor supporting points.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {"brief": "...", "medium": "..."}`;

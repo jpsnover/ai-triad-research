@@ -19,8 +19,12 @@ function Approve-TaxonomyProposal {
         Set the proposal status to approved and apply it (with -Index).
     .PARAMETER Reject
         Set the proposal status to rejected (with -Index).
+    .PARAMETER ApproveAll
+        Approve and apply all pending proposals without interactive prompts.
     .PARAMETER DryRun
         Show what each proposal would do without writing changes.
+    .EXAMPLE
+        Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -ApproveAll
     .EXAMPLE
         Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Interactive
     .EXAMPLE
@@ -40,6 +44,8 @@ function Approve-TaxonomyProposal {
         [switch]$Approve,
 
         [switch]$Reject,
+
+        [switch]$ApproveAll,
 
         [switch]$DryRun
     )
@@ -80,7 +86,8 @@ function Approve-TaxonomyProposal {
         Write-Host "    Label:    $($P.label)" -ForegroundColor White
 
         # Truncate description for display
-        if ($P.description.Length -gt 150) { $Desc = $P.description.Substring(0, 150) + '...' } else { $Desc = $P.description }
+        $DescRaw = if ($P.PSObject.Properties['description'] -and $P.description) { $P.description } else { '' }
+        if ($DescRaw.Length -gt 150) { $Desc = $DescRaw.Substring(0, 150) + '...' } else { $Desc = $DescRaw }
         Write-Host "    Desc:     $Desc" -ForegroundColor Gray
 
         if ($P.target_node_id) {
@@ -88,7 +95,8 @@ function Approve-TaxonomyProposal {
         }
 
         # Rationale
-        if ($P.rationale.Length -gt 200) { $Rat = $P.rationale.Substring(0, 200) + '...' } else { $Rat = $P.rationale }
+        $RatRaw = if ($P.PSObject.Properties['rationale'] -and $P.rationale) { $P.rationale } else { '' }
+        if ($RatRaw.Length -gt 200) { $Rat = $RatRaw.Substring(0, 200) + '...' } else { $Rat = $RatRaw }
         Write-Host "    Reason:   $Rat" -ForegroundColor Gray
 
         # Evidence
@@ -116,7 +124,56 @@ function Approve-TaxonomyProposal {
         Write-Host ''
     }
 
-    if ($Interactive) {
+    if ($ApproveAll) {
+        $Pending = @()
+        for ($i = 0; $i -lt $ProposalData.proposals.Count; $i++) {
+            $P = $ProposalData.proposals[$i]
+            $HasStatus = $P.PSObject.Properties['status']
+            if (-not $HasStatus -or $P.status -eq 'pending') {
+                $Pending += [PSCustomObject]@{ Index = $i; Proposal = $P }
+            }
+        }
+
+        if ($Pending.Count -eq 0) {
+            Write-OK 'No pending proposals to approve.'
+            return
+        }
+
+        Write-Host ''
+        Write-Host "=== Approving all $($Pending.Count) pending proposals ===" -ForegroundColor Cyan
+        Write-Host ''
+
+        $ApprovedCount = 0
+        $FailedCount   = 0
+
+        foreach ($Item in $Pending) {
+            Show-Proposal -Idx $Item.Index -P $Item.Proposal
+
+            if ($DryRun) {
+                Write-Info "DRY RUN: Would apply $($Item.Proposal.action) for $($Item.Proposal.suggested_id)"
+                $ProposalData.proposals[$Item.Index] |
+                    Add-Member -NotePropertyName 'status' -NotePropertyValue 'approved' -Force
+                $ApprovedCount++
+            } elseif ($PSCmdlet.ShouldProcess("Proposal $($Item.Index) ($($Item.Proposal.action) $($Item.Proposal.suggested_id))", 'Apply')) {
+                $Result = Invoke-ProposalApply -Proposal $Item.Proposal
+                if ($Result.Success) {
+                    Write-OK "Applied: $($Item.Proposal.action) $($Item.Proposal.suggested_id)"
+                    $ProposalData.proposals[$Item.Index] |
+                        Add-Member -NotePropertyName 'status' -NotePropertyValue 'approved' -Force
+                    $ApprovedCount++
+                } else {
+                    Write-Fail "Failed: $($Result.Error)"
+                    $ProposalData.proposals[$Item.Index] |
+                        Add-Member -NotePropertyName 'status' -NotePropertyValue 'failed' -Force
+                    $FailedCount++
+                }
+            }
+        }
+
+        Write-Host ''
+        Write-Host "Batch approve complete: $ApprovedCount approved, $FailedCount failed" -ForegroundColor Cyan
+
+    } elseif ($Interactive) {
         # Collect pending proposals
         $Pending = @()
         for ($i = 0; $i -lt $ProposalData.proposals.Count; $i++) {
@@ -224,7 +281,7 @@ function Approve-TaxonomyProposal {
             Write-Info 'Rejected'
         }
     } else {
-        Write-Fail 'Specify -Interactive, or -Index with -Approve/-Reject.'
+        Write-Fail 'Specify -ApproveAll, -Interactive, or -Index with -Approve/-Reject.'
         return
     }
 
