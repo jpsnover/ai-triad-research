@@ -100,64 +100,60 @@ function Invoke-TaxonomyProposal {
     # ── 3. Build compact data representations ──────────────────────────────────
     Write-Step "Building prompt context"
 
-    # Taxonomy nodes (compact: id, pov, category, label, description only)
+    # Taxonomy nodes (ultra-compact: id, label only — grouped by pov/category header)
     $CompactNodes = @()
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $Entry = $script:TaxonomyData[$PovKey]
         if (-not $Entry) { continue }
         foreach ($Node in $Entry.nodes) {
             $CompactNodes += @{
-                id          = $Node.id
-                pov         = $PovKey
-                category    = if ($PovKey -eq 'situations') { 'Situations' } else { $Node.category }
-                label       = $Node.label
-                description = $Node.description
+                id    = $Node.id
+                label = $Node.label
             }
         }
     }
-    $TaxonomyNodesJson = $CompactNodes | ConvertTo-Json -Depth 10 -Compress
+    $TaxonomyNodesJson = $CompactNodes | ConvertTo-Json -Depth 5 -Compress
 
-    # Unmapped concepts (freq >= 2, or top 30)
+    # Unmapped concepts (freq >= 2, or top 30) — compact: drop full doc lists and reasons
     $UnmappedForPrompt = @($HealthData.UnmappedConcepts |
         Where-Object { $_.Frequency -ge 2 } |
         ForEach-Object {
             @{
-                concept           = $_.Concept
-                frequency         = $_.Frequency
-                suggested_pov     = $_.SuggestedPov
+                concept            = $_.Concept
+                frequency          = $_.Frequency
+                suggested_pov      = $_.SuggestedPov
                 suggested_category = $_.SuggestedCategory
-                contributing_docs = $_.ContributingDocs
-                reasons           = $_.Reasons
+                doc_count          = $_.ContributingDocs.Count
             }
         })
     if ($UnmappedForPrompt.Count -eq 0) {
         $UnmappedForPrompt = @($HealthData.UnmappedConcepts | Select-Object -First 30 |
             ForEach-Object {
                 @{
-                    concept           = $_.Concept
-                    frequency         = $_.Frequency
-                    suggested_pov     = $_.SuggestedPov
+                    concept            = $_.Concept
+                    frequency          = $_.Frequency
+                    suggested_pov      = $_.SuggestedPov
                     suggested_category = $_.SuggestedCategory
-                    contributing_docs = $_.ContributingDocs
-                    reasons           = $_.Reasons
+                    doc_count          = $_.ContributingDocs.Count
                 }
             })
     }
-    $UnmappedJson = $UnmappedForPrompt | ConvertTo-Json -Depth 10 -Compress
+    $UnmappedJson = $UnmappedForPrompt | ConvertTo-Json -Depth 5 -Compress
 
-    # Citation stats: orphans, most-cited, high-variance
+    # Citation stats: orphans (capped at 50), most-cited (top 10), high-variance
     $CitationStats = @{
-        orphan_nodes = @($HealthData.OrphanNodes | ForEach-Object {
-            @{ id = $_.Id; pov = $_.POV; category = $_.Category; label = $_.Label }
+        orphan_count = $HealthData.OrphanNodes.Count
+        orphan_nodes = @($HealthData.OrphanNodes | Select-Object -First 50 | ForEach-Object {
+            @{ id = $_.Id; label = $_.Label }
         })
-        most_cited = @($HealthData.MostCited | ForEach-Object {
-            @{ id = $_.Id; pov = $_.POV; label = $_.Label; citations = $_.Citations; doc_count = $_.DocIds.Count }
+        most_cited = @($HealthData.MostCited | Select-Object -First 10 | ForEach-Object {
+            @{ id = $_.Id; label = $_.Label; citations = $_.Citations }
         })
         high_variance = @($HealthData.HighVarianceNodes | ForEach-Object {
-            @{ id = $_.Id; pov = $_.POV; label = $_.Label; total_stances = $_.TotalStances; distribution = $_.Distribution }
+            @{ id = $_.Id; label = $_.Label; total_stances = $_.TotalStances }
         })
     }
-    $CitationStatsJson = $CitationStats | ConvertTo-Json -Depth 10 -Compress
+    $CitationStatsJson = $CitationStats | ConvertTo-Json -Depth 5 -Compress
 
     # Coverage balance
     $CoverageBalanceJson = $HealthData.CoverageBalance | ConvertTo-Json -Depth 10 -Compress

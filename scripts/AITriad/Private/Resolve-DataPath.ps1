@@ -94,13 +94,15 @@ function Get-CodeRoot {
         return $script:RepoRoot
     }
 
-    # 2b. Check code_root from bundled .aitriad.json (set by Build-Module.ps1)
-    Initialize-DataConfig
-    if ($script:DataConfig -and $script:DataConfig.PSObject.Properties['code_root']) {
-        $CodeRoot = $script:DataConfig.code_root
-        if ($CodeRoot -and (Test-Path $CodeRoot)) {
-            return $CodeRoot
-        }
+    # 2b. Check code_root from bundled .aitriad.json (read directly to avoid circular call with Initialize-DataConfig)
+    $BundledConfig = Join-Path $script:ModuleRoot '.aitriad.json'
+    if (Test-Path $BundledConfig) {
+        try {
+            $Cfg = Get-Content -Raw -Path $BundledConfig | ConvertFrom-Json
+            if ($Cfg.PSObject.Properties['code_root'] -and $Cfg.code_root -and (Test-Path $Cfg.code_root)) {
+                return $Cfg.code_root
+            }
+        } catch { }
     }
 
     # 3. Walk up from $PWD looking for .aitriad.json (user is likely cd'd into repo)
