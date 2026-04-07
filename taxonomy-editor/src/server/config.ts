@@ -22,7 +22,21 @@ interface AiTriadConfig {
   version_file: string;
 }
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+// In source: __dirname = .../taxonomy-editor/src/server (3 levels to monorepo root)
+// Compiled:  __dirname = .../taxonomy-editor/dist/server (3 levels to monorepo root)
+// Container: __dirname = /app/dist/server (only 2 levels to /app which has scripts/)
+// Resolve by checking which ancestor has .aitriad.json or scripts/
+const PROJECT_ROOT = (() => {
+  const threeUp = path.resolve(__dirname, '../../..');
+  if (fs.existsSync(path.join(threeUp, '.aitriad.json')) || fs.existsSync(path.join(threeUp, 'scripts'))) {
+    return threeUp;
+  }
+  const twoUp = path.resolve(__dirname, '../..');
+  if (fs.existsSync(path.join(twoUp, '.aitriad.json')) || fs.existsSync(path.join(twoUp, 'scripts'))) {
+    return twoUp;
+  }
+  return threeUp; // fallback
+})();
 
 const DEFAULT_CONFIG: AiTriadConfig = {
   data_root: '.',

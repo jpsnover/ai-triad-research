@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup, type DataSourceId } from '../data/promptCatalog';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
@@ -115,6 +115,8 @@ function computeLineDiff(
 }
 
 function SettingsControls({ promptId, group }: { promptId: string; group: PromptGroup }) {
+  const sc = useRef(0); sc.current++;
+  if (sc.current <= 3 || sc.current % 10 === 0) console.log(`[SettingsControls] render #${sc.current}`);
   const configGet = usePromptConfigStore(s => s.get);
   const setSession = usePromptConfigStore(s => s.setSession);
   const debateModel = useDebateStore(s => s.debateModel);
@@ -155,6 +157,12 @@ function SettingsControls({ promptId, group }: { promptId: string; group: Prompt
 }
 
 export function PromptInspector() {
+  const renderCount = useRef(0);
+  renderCount.current++;
+  if (renderCount.current <= 5 || renderCount.current % 10 === 0) {
+    console.log(`[PromptInspector] render #${renderCount.current}`);
+  }
+
   const [selectedId, setSelectedId] = useState<string>(PROMPT_CATALOG[0]?.id ?? '');
   const [showTemplate, setShowTemplate] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
