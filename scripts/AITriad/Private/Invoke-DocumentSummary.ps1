@@ -154,7 +154,7 @@ function Invoke-ChunkedSummary {
     $SnapshotText = Get-Content $Doc.SnapshotFile -Raw
 
     # -- Split into chunks ----------------------------------------------------
-    $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 15000 -MinChunkTokens 2000)
+    $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 8000 -MinChunkTokens 1500)
     $ChunkCount = $Chunks.Count
     Write-Host "  `u{2502}  split into $ChunkCount chunks" -ForegroundColor Cyan
 
