@@ -8,8 +8,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
-import { execFile } from 'child_process';
 import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
@@ -190,7 +188,8 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
  * Convert HTML string to Markdown using markitdown via a temp file.
  */
 export async function htmlToMarkdown(html: string): Promise<string> {
-  const tmpFile = path.join(os.tmpdir(), `aitriad-${Date.now()}.html`);
+  const { tmpdir } = await import('os');
+  const tmpFile = path.join(tmpdir(), `aitriad-${Date.now()}.html`);
   try {
     fs.writeFileSync(tmpFile, html, 'utf-8');
     return await runMarkitdown(tmpFile);
@@ -202,9 +201,10 @@ export async function htmlToMarkdown(html: string): Promise<string> {
   }
 }
 
-function runMarkitdown(filePath: string): Promise<string> {
+async function runMarkitdown(filePath: string): Promise<string> {
+  const { execFile } = await import('child_process');
   return new Promise((resolve, reject) => {
-    execFile('markitdown', [filePath], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('markitdown', [filePath], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
       if (err) return reject(err);
       resolve(stdout);
     });
