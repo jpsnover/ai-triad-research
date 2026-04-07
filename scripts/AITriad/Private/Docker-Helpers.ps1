@@ -200,7 +200,8 @@ function Test-ContainerVersionCompat {
     try {
         $health = Invoke-RestMethod -Uri "http://localhost:$Port/health" -TimeoutSec 3 -ErrorAction SilentlyContinue
         if ($health.version) {
-            $moduleVersion = (Get-Module AITriad -ErrorAction SilentlyContinue)?.Version?.ToString()
+            $mod = Get-Module AITriad -ErrorAction SilentlyContinue
+            $moduleVersion = if ($mod) { $mod.Version.ToString() } else { $null }
             if (-not $moduleVersion) {
                 $moduleVersion = (Import-PowerShellDataFile -Path (Join-Path $PSScriptRoot '../AITriad.psd1')).ModuleVersion
             }

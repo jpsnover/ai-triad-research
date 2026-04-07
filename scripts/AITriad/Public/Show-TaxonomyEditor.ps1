@@ -260,7 +260,8 @@ function Start-ContainerMode {
         }
     }
 
-    $DataPath = (Resolve-Path -Path $DataPath -ErrorAction SilentlyContinue)?.Path
+    $resolved = Resolve-Path -Path $DataPath -ErrorAction SilentlyContinue
+    $DataPath = if ($resolved) { $resolved.Path } else { $null }
     if (-not $DataPath -or -not (Test-Path $DataPath)) {
         Write-Warn "Data directory not found: $DataPath"
         Write-Info  'The editor will show the First Run dialog to set up data.'
