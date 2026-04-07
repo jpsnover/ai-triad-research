@@ -170,7 +170,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
 
     try {
         # ── Locate CLI ────────────────────────────────────
-        $RepoRoot = Split-Path $PSScriptRoot -Parent | Split-Path -Parent | Split-Path -Parent
+        $RepoRoot = Get-CodeRoot
         $CliPath  = Join-Path (Join-Path (Join-Path $RepoRoot 'lib') 'debate') 'cli.ts'
 
         if (-not (Test-Path $CliPath)) {
