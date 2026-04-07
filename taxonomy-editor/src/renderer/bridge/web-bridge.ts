@@ -1,0 +1,304 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
+ * Used when the app runs in a browser served by the container.
+ */
+import type { AppAPI } from './types';
+
+// ── HTTP helpers ──
+
+async function get<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  return res.json();
+}
+
+async function post<T = unknown>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`PUT ${path} failed: ${res.status}`);
+  return res.json();
+}
+
+async function del<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(path, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+  return res.json();
+}
+
+// ── WebSocket event bus ──
+
+type EventCallback = (data: unknown) => void;
+const eventListeners = new Map<string, Set<EventCallback>>();
+let eventWs: WebSocket | null = null;
+
+function ensureEventSocket(): void {
+  if (eventWs && eventWs.readyState === WebSocket.OPEN) return;
+
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  eventWs = new WebSocket(`${protocol}//${location.host}/ws/events`);
+
+  eventWs.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data) as { type: string; data: unknown };
+      const listeners = eventListeners.get(msg.type);
+      if (listeners) {
+        for (const cb of listeners) cb(msg.data);
+      }
+    } catch { /* ignore */ }
+  };
+
+  eventWs.onclose = () => {
+    // Reconnect after delay
+    setTimeout(ensureEventSocket, 2000);
+  };
+}
+
+function addEventListener(type: string, callback: EventCallback): () => void {
+  ensureEventSocket();
+  if (!eventListeners.has(type)) eventListeners.set(type, new Set());
+  eventListeners.get(type)!.add(callback);
+  return () => { eventListeners.get(type)?.delete(callback); };
+}
+
+// ── Terminal WebSocket ──
+
+let terminalWs: WebSocket | null = null;
+const terminalDataCallbacks = new Set<(data: string) => void>();
+const terminalExitCallbacks = new Set<() => void>();
+
+function ensureTerminalSocket(): WebSocket {
+  if (terminalWs && terminalWs.readyState === WebSocket.OPEN) return terminalWs;
+
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  terminalWs = new WebSocket(`${protocol}//${location.host}/ws/terminal`);
+
+  terminalWs.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data) as { type: string; data?: string };
+      if (msg.type === 'data' && msg.data) {
+        for (const cb of terminalDataCallbacks) cb(msg.data);
+      } else if (msg.type === 'exit') {
+        for (const cb of terminalExitCallbacks) cb();
+      }
+    } catch { /* ignore */ }
+  };
+
+  terminalWs.onclose = () => {
+    terminalWs = null;
+    for (const cb of terminalExitCallbacks) cb();
+  };
+
+  return terminalWs;
+}
+
+// ── Diagnostics state (cross-tab via BroadcastChannel) ──
+
+const diagChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('aitriad-diagnostics')
+  : null;
+
+const diagCallbacks = new Set<(state: unknown) => void>();
+const diagClosedCallbacks = new Set<() => void>();
+
+// Receive diagnostics state from the main tab (or from this tab if inline)
+diagChannel?.addEventListener('message', (event) => {
+  const msg = event.data as { type: string; payload?: unknown };
+  if (msg.type === 'diagnostics-state' && msg.payload) {
+    for (const cb of diagCallbacks) cb(msg.payload);
+  } else if (msg.type === 'diagnostics-closed') {
+    for (const cb of diagClosedCallbacks) cb();
+  }
+});
+
+// ── The bridge ──
+
+export const api: AppAPI = {
+  // Taxonomy directories
+  getTaxonomyDirs: () => get('/api/taxonomy-dirs'),
+  getActiveTaxonomyDir: () => get('/api/taxonomy-dir/active'),
+  setTaxonomyDir: (dirName) => put('/api/taxonomy-dir/active', { dirName }).then(() => {}),
+
+  // Taxonomy CRUD
+  loadTaxonomyFile: (pov) => get(`/api/taxonomy/${encodeURIComponent(pov)}`),
+  saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
+  loadPolicyRegistry: () => get('/api/policy-registry'),
+  loadEdges: () => get('/api/edges'),
+  updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
+  bulkUpdateEdges: (indices, status) => put('/api/edges/bulk-status', { indices, status }),
+  buildNodeSourceIndex: () => get('/api/node-source-index'),
+  buildPolicySourceIndex: () => get('/api/policy-source-index'),
+
+  // Conflict CRUD
+  loadConflictFiles: () => get('/api/conflicts'),
+  saveConflictFile: (id, data) => put(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
+  createConflictFile: (id, data) => post(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
+  deleteConflictFile: (id) => del(`/api/conflicts/${encodeURIComponent(id)}`).then(() => {}),
+
+  // Data management
+  isDataAvailable: () => get('/api/data/available'),
+  getDataRoot: () => get('/api/data/root'),
+  cloneDataRepo: (targetPath) => post('/api/data/clone', { targetPath }),
+  checkDataUpdates: () => post('/api/data/check-updates'),
+  pullDataUpdates: () => post('/api/data/pull'),
+
+  // AI models & keys
+  loadAIModels: () => get('/api/models'),
+  refreshAIModels: () => post('/api/models/refresh'),
+  setApiKey: (key, backend) => post('/api/keys', { key, backend }).then(() => {}),
+  hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
+
+  // AI generation
+  generateText: (prompt, model, timeout) =>
+    post('/api/ai/generate', { prompt, model, timeout }),
+  generateTextWithSearch: (prompt, model) =>
+    post('/api/ai/search', { prompt, model }),
+  setDebateTemperature: (temp) => post('/api/ai/temperature', { temp }).then(() => {}),
+
+  // Embeddings & NLI
+  computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }),
+  updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => {}),
+  computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
+  nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
+
+  // Debate sessions
+  listDebateSessions: () => get('/api/debates'),
+  loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
+  saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
+  deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
+  exportDebateToFile: async (session) => {
+    const result = await post<{ content: string; filename: string }>('/api/debates/export', session);
+    // Trigger browser download
+    const blob = new Blob([result.content], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = result.filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    return { cancelled: false, filePath: result.filename };
+  },
+
+  // Chat sessions
+  listChatSessions: () => get('/api/chats'),
+  loadChatSession: (id) => get(`/api/chats/${encodeURIComponent(id)}`),
+  saveChatSession: (session) => put('/api/chats', session).then(() => {}),
+  deleteChatSession: (id) => del(`/api/chats/${encodeURIComponent(id)}`).then(() => {}),
+
+  // Harvest
+  harvestCreateConflict: (conflict) => post('/api/harvest/conflict', conflict),
+  harvestAddDebateRef: (nodeId, debateId) => post('/api/harvest/debate-ref', { nodeId, debateId }),
+  harvestUpdateSteelman: (nodeId, attackerPov, newText) => post('/api/harvest/steelman', { nodeId, attackerPov, newText }),
+  harvestAddVerdict: (conflictId, verdict) => post('/api/harvest/verdict', { conflictId, verdict }),
+  harvestQueueConcept: (concept) => post('/api/harvest/concept', concept),
+  harvestSaveManifest: (manifest) => post('/api/harvest/manifest', manifest),
+
+  // Proposals
+  listProposals: () => get('/api/proposals'),
+  saveProposal: (filename, data) => put(`/api/proposals/${encodeURIComponent(filename)}`, data),
+
+  // PowerShell prompts
+  readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
+  listPsPrompts: () => get('/api/ps-prompts'),
+
+  // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
+  openDiagnosticsWindow: async () => {
+    // Open diagnostics in a new browser tab using the hash the App checks for
+    window.open(`${location.origin}/#diagnostics-window`, '_blank');
+  },
+  closeDiagnosticsWindow: async () => {
+    diagChannel?.postMessage({ type: 'diagnostics-closed' });
+  },
+  sendDiagnosticsState: (state) => {
+    // Broadcast to same-window listeners AND cross-tab via BroadcastChannel
+    for (const cb of diagCallbacks) cb(state);
+    diagChannel?.postMessage({ type: 'diagnostics-state', payload: state });
+  },
+  getCliFileArg: async () => null, // No CLI mode in browser
+
+  // Terminal — via WebSocket
+  terminalSpawn: async () => { ensureTerminalSocket(); },
+  terminalWrite: async (data) => {
+    if (terminalWs?.readyState === WebSocket.OPEN) {
+      terminalWs.send(JSON.stringify({ type: 'write', data }));
+    }
+  },
+  terminalResize: async (cols, rows) => {
+    if (terminalWs?.readyState === WebSocket.OPEN) {
+      terminalWs.send(JSON.stringify({ type: 'resize', cols, rows }));
+    }
+  },
+  terminalKill: async () => {
+    if (terminalWs?.readyState === WebSocket.OPEN) {
+      terminalWs.send(JSON.stringify({ type: 'kill' }));
+    }
+    terminalWs?.close();
+    terminalWs = null;
+  },
+
+  // File operations
+  fetchUrlContent: (url) => post('/api/fetch-url', { url }),
+  pickDocumentFile: async () => {
+    // Use browser file picker
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.docx,.html,.htm,.txt,.md';
+      input.onchange = async () => {
+        if (!input.files?.length) { resolve({ cancelled: true }); return; }
+        const file = input.files[0];
+        const content = await file.text();
+        resolve({ cancelled: false, filePath: file.name, content });
+      };
+      input.oncancel = () => resolve({ cancelled: true });
+      input.click();
+    });
+  },
+  clipboardWriteText: async (text) => {
+    await navigator.clipboard.writeText(text);
+  },
+
+  // Window control — no-ops in browser
+  growWindow: async () => {},
+  shrinkWindow: async () => {},
+  isMaximized: async () => false,
+  openExternal: async (url) => { window.open(url, '_blank'); },
+
+  // Event listeners
+  onDiagnosticsStateUpdate: (cb) => {
+    diagCallbacks.add(cb);
+    return () => { diagCallbacks.delete(cb); };
+  },
+  onDiagnosticsPopoutClosed: (cb) => {
+    diagClosedCallbacks.add(cb);
+    return () => { diagClosedCallbacks.delete(cb); };
+  },
+  onGenerateTextProgress: (cb) => addEventListener('generate-text-progress', cb as EventCallback),
+  onReloadTaxonomy: (cb) => addEventListener('reload-taxonomy', cb as EventCallback),
+  onFocusNode: (cb) => addEventListener('focus-node', (d) => cb((d as { nodeId: string }).nodeId)),
+  onTerminalData: (cb) => {
+    terminalDataCallbacks.add(cb);
+    return () => { terminalDataCallbacks.delete(cb); };
+  },
+  onTerminalExit: (cb) => {
+    terminalExitCallbacks.add(cb);
+    return () => { terminalExitCallbacks.delete(cb); };
+  },
+};

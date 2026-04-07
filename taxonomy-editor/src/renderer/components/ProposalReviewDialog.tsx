@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { api } from '@bridge';
 
 interface Proposal {
   action: string;
@@ -63,7 +64,7 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
 
   useEffect(() => {
     setLoading(true);
-    window.electronAPI.listProposals().then((data: unknown[]) => {
+    api.listProposals().then((data: unknown[]) => {
       setFiles(data as ProposalFile[]);
     }).finally(() => setLoading(false));
   }, []);
@@ -88,7 +89,7 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
     setSaveResult(null);
     try {
       const { filename, ...data } = selectedFile;
-      const result = await window.electronAPI.saveProposal(filename, data);
+      const result = await api.saveProposal(filename, data);
       setSaveResult(result.error ?? 'Saved');
     } catch (err) {
       setSaveResult(String(err));

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useRef, useState } from 'react';
+import { api } from '@bridge';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -54,29 +55,29 @@ export function TerminalPanel() {
 
     // Send user input to the pty
     term.onData((data) => {
-      window.electronAPI.terminalWrite(data);
+      api.terminalWrite(data);
     });
 
     // Receive pty output
-    const unsubData = window.electronAPI.onTerminalData((data) => {
+    const unsubData = api.onTerminalData((data) => {
       term.write(data);
     });
 
     // Handle pty exit
-    const unsubExit = window.electronAPI.onTerminalExit(() => {
+    const unsubExit = api.onTerminalExit(() => {
       term.writeln('\r\n\x1b[90m[Process exited]\x1b[0m');
       setStarted(false);
     });
 
     // Spawn the pty
-    window.electronAPI.terminalSpawn().then(() => setStarted(true));
+    api.terminalSpawn().then(() => setStarted(true));
 
     // Resize handling
     const resizeObserver = new ResizeObserver(() => {
       if (fitRef.current) {
         fitRef.current.fit();
         if (termRef.current) {
-          window.electronAPI.terminalResize(termRef.current.cols, termRef.current.rows);
+          api.terminalResize(termRef.current.cols, termRef.current.rows);
         }
       }
     });

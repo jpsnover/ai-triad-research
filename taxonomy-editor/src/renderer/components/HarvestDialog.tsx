@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
+import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ArgumentNetworkNode } from '../types/debate';
@@ -248,7 +249,7 @@ Return ONLY JSON (no markdown):
 }
 
 IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxonomy_nodes or any node IDs.`;
-        const { text } = await window.electronAPI.generateText(prompt, model);
+        const { text } = await api.generateText(prompt, model);
         const cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
         const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
         const parsed = JSON.parse(fb >= 0 && lb > fb ? cleaned.slice(fb, lb + 1) : cleaned);
@@ -298,7 +299,7 @@ Original argument by ${item.attackerPov}:
 "${item.sourceExcerpt}"
 
 Return ONLY the condensed steelman text, no JSON, no quotes.`;
-        const { text } = await window.electronAPI.generateText(prompt, model);
+        const { text } = await api.generateText(prompt, model);
         const condensed = text.trim().replace(/^["']|["']$/g, '');
         const warnings = validateCondensedSteelman(condensed, item.sourceExcerpt, item.attackerPov);
 
@@ -339,7 +340,7 @@ Generate:
 Return ONLY JSON (no markdown):
 {"label": "...", "description": "...", "category": "Desires or Beliefs or Intentions", "node_scope": "claim or scheme or bridging"}`;
 
-        const { text } = await window.electronAPI.generateText(prompt, model);
+        const { text } = await api.generateText(prompt, model);
         let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
         const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
         if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
@@ -383,7 +384,7 @@ Return ONLY JSON (no markdown):
       }
       const conflictId = generateConflictSlug(item.generatedLabel || item.point, activeDebate.id);
       try {
-        await window.electronAPI.harvestCreateConflict({
+        await api.harvestCreateConflict({
           claim_id: conflictId,
           claim_label: item.generatedLabel || item.point.slice(0, 60),
           description: item.generatedDescription || item.point,
@@ -413,7 +414,7 @@ Return ONLY JSON (no markdown):
         continue;
       }
       try {
-        await window.electronAPI.harvestUpdateSteelman(item.targetNodeId, item.attackerPov, item.proposedSteelman);
+        await api.harvestUpdateSteelman(item.targetNodeId, item.attackerPov, item.proposedSteelman);
         manifest.push({ type: 'steelman', action: 'updated', id: `${item.targetNodeId}:from_${item.attackerPov}`, status: 'applied' });
         applied++;
       } catch {
@@ -426,7 +427,7 @@ Return ONLY JSON (no markdown):
     for (const item of debateRefs) {
       if (!item.checked) continue;
       try {
-        await window.electronAPI.harvestAddDebateRef(item.nodeId, activeDebate.id);
+        await api.harvestAddDebateRef(item.nodeId, activeDebate.id);
         manifest.push({ type: 'debate_ref', action: 'added', id: item.nodeId, status: 'applied' });
         applied++;
       } catch {
@@ -444,7 +445,7 @@ Return ONLY JSON (no markdown):
       // If this verdict corresponds to a conflict we just created, attach to it
       const conflictSlug = item.targetConflictId || generateConflictSlug(item.conflict, activeDebate.id);
       try {
-        await window.electronAPI.harvestAddVerdict(conflictSlug, {
+        await api.harvestAddVerdict(conflictSlug, {
           prevails: item.prevails,
           criterion: item.criterion,
           rationale: item.rationale,
@@ -467,7 +468,7 @@ Return ONLY JSON (no markdown):
         continue;
       }
       try {
-        await window.electronAPI.harvestQueueConcept({
+        await api.harvestQueueConcept({
           label: item.suggestedLabel,
           description: item.suggestedDescription,
           suggested_pov: item.suggestedPov,
@@ -484,7 +485,7 @@ Return ONLY JSON (no markdown):
     }
 
     // Save manifest
-    await window.electronAPI.harvestSaveManifest({
+    await api.harvestSaveManifest({
       debate_id: activeDebate.id,
       debate_title: activeDebate.title,
       harvested_at: new Date().toISOString(),

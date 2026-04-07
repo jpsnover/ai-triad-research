@@ -50,6 +50,7 @@ import {
 import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta } from '@lib/debate/helpers';
 import { usePromptConfigStore } from './usePromptConfigStore';
+import { api } from '@bridge';
 
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
@@ -79,11 +80,11 @@ async function generateTextWithProgress(
   timeoutMs?: number,
 ): Promise<{ text: string }> {
   set({ debateActivity: activity, debateProgress: null });
-  const unsubscribe = window.electronAPI.onGenerateTextProgress((progress: Record<string, unknown>) => {
+  const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
     set({ debateProgress: progress });
   });
   try {
-    const result = await window.electronAPI.generateText(prompt, model, timeoutMs);
+    const result = await api.generateText(prompt, model, timeoutMs);
     return result;
   } finally {
     unsubscribe();
@@ -102,7 +103,7 @@ async function summarizeTranscriptEntry(
 ): Promise<void> {
   try {
     const prompt = entrySummarizationPrompt(content, speaker);
-    const { text } = await window.electronAPI.generateText(prompt, model, 15000);
+    const { text } = await api.generateText(prompt, model, 15000);
     const cleaned = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
     const parsed = JSON.parse(cleaned) as { brief?: string; medium?: string };
     if (parsed.brief && parsed.medium) {
@@ -168,7 +169,7 @@ function recordDiagnostic(
   set({ activeDebate: updatedDebate });
 
   // Broadcast to popout window
-  try { window.electronAPI.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
+  try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
 }
 
 /**
@@ -200,7 +201,7 @@ async function extractClaimsAndUpdateAN(
     const prompt = debaterClaims && debaterClaims.length > 0
       ? classifyClaimsPrompt(statement, speakerLabel, debaterClaims, priorClaims)
       : extractClaimsPrompt(statement, speakerLabel, priorClaims);
-    const { text } = await window.electronAPI.generateText(prompt, model);
+    const { text } = await api.generateText(prompt, model);
     let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
     const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
@@ -319,7 +320,7 @@ async function extractClaimsAndUpdateAN(
     });
 
     // Broadcast updated state to popout
-    try { window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
+    try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
   }
@@ -346,7 +347,7 @@ let _nodeEmbeddingsCache: Record<string, { pov: string; vector: number[] }> | nu
 async function loadNodeEmbeddings(): Promise<Record<string, { pov: string; vector: number[] }>> {
   if (_nodeEmbeddingsCache) return _nodeEmbeddingsCache;
   try {
-    const raw = await window.electronAPI.loadEdges(); // Reuse the data loading path
+    const raw = await api.loadEdges(); // Reuse the data loading path
     // Actually we need a separate IPC — but for now, use computeEmbeddings as a fallback
     // The embeddings are in the file but not exposed via IPC. Fall back to null.
     return {};
@@ -375,12 +376,12 @@ async function getRelevantTaxonomyContext(
     const query = buildRelevanceQuery(topic, recentTranscript);
 
     // Get query embedding
-    const { vector: queryVector } = await window.electronAPI.computeQueryEmbedding(query);
+    const { vector: queryVector } = await api.computeQueryEmbedding(query);
 
     // Get embeddings for all POV nodes
     const nodeTexts = allPovNodes.map(n => `${n.label}: ${n.description}`);
     const nodeIds = allPovNodes.map(n => n.id);
-    const { vectors } = await window.electronAPI.computeEmbeddings(nodeTexts, nodeIds);
+    const { vectors } = await api.computeEmbeddings(nodeTexts, nodeIds);
 
     // Build scores map
     const scores = new Map<string, number>();
@@ -395,7 +396,7 @@ async function getRelevantTaxonomyContext(
     const ccTexts = allCCNodes.map(n => `${n.label}: ${n.description}`);
     const ccIds = allCCNodes.map(n => n.id);
     if (ccTexts.length > 0) {
-      const { vectors: ccVectors } = await window.electronAPI.computeEmbeddings(ccTexts, ccIds);
+      const { vectors: ccVectors } = await api.computeEmbeddings(ccTexts, ccIds);
       for (let i = 0; i < ccIds.length; i++) {
         const dot = queryVector.reduce((s, v, j) => s + v * ccVectors[i][j], 0);
         const normQ = Math.sqrt(queryVector.reduce((s, v) => s + v * v, 0));
@@ -777,14 +778,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
     // Auto-open popup window when enabling; close when disabling
     if (enabled) {
-      window.electronAPI.openDiagnosticsWindow().then(() => {
+      api.openDiagnosticsWindow().then(() => {
         set({ diagPopoutOpen: true });
         setTimeout(() => {
-          window.electronAPI.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
+          api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
         }, 1000);
       }).catch(() => { /* ignore */ });
     } else {
-      try { window.electronAPI.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
+      try { api.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
       set({ diagPopoutOpen: false });
     }
   },
@@ -811,7 +812,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Broadcast to popout diagnostics window
     try {
       const debate = get().activeDebate;
-      window.electronAPI.sendDiagnosticsState({ debate, selectedEntry: entryId });
+      api.sendDiagnosticsState({ debate, selectedEntry: entryId });
     } catch { /* popout may not exist */ }
   },
 
@@ -820,7 +821,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   loadSessions: async () => {
     set({ sessionsLoading: true });
     try {
-      const raw = await window.electronAPI.listDebateSessions();
+      const raw = await api.listDebateSessions();
       set({ sessions: raw as DebateSessionSummary[], sessionsLoading: false });
     } catch {
       set({ sessionsLoading: false });
@@ -854,9 +855,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       protocol_id: protocolId || 'structured',
       debate_temperature: debateTemperature ?? undefined,
     };
-    await window.electronAPI.saveDebateSession(session);
+    await api.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
-    window.electronAPI.setDebateTemperature(debateTemperature ?? null);
+    api.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
     return id;
   },
@@ -915,7 +916,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   loadDebate: async (id) => {
     set({ debateLoading: true, debateError: null });
     try {
-      const raw = await window.electronAPI.loadDebateSession(id);
+      const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
       // BDI migration shim: normalize legacy bdi_layer values in synthesis entries
       for (const entry of session.transcript) {
@@ -936,7 +937,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
       // Set temperature on the main process
-      window.electronAPI.setDebateTemperature(session.debate_temperature ?? null);
+      api.setDebateTemperature(session.debate_temperature ?? null);
     } catch (err) {
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
@@ -944,7 +945,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
   deleteDebate: async (id) => {
     try {
-      await window.electronAPI.deleteDebateSession(id);
+      await api.deleteDebateSession(id);
       const { activeDebateId } = get();
       if (activeDebateId === id) {
         set({ activeDebateId: null, activeDebate: null, debateModel: null });
@@ -957,11 +958,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
   renameDebate: async (id, newTitle) => {
     try {
-      const raw = await window.electronAPI.loadDebateSession(id);
+      const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
       session.title = newTitle;
       session.updated_at = nowISO();
-      await window.electronAPI.saveDebateSession(session);
+      await api.saveDebateSession(session);
       // Update active debate if it's the one being renamed
       if (get().activeDebateId === id) {
         set({ activeDebate: session });
@@ -974,7 +975,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
   closeDebate: () => {
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null });
-    window.electronAPI.setDebateTemperature(null);
+    api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
   },
 
@@ -1057,7 +1058,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (Object.keys(promptConfig).length > 0) {
         (activeDebate as Record<string, unknown>).prompt_config = promptConfig;
       }
-      await window.electronAPI.saveDebateSession(activeDebate);
+      await api.saveDebateSession(activeDebate);
       set((state) => ({
         sessions: state.sessions.map((s) =>
           s.id === activeDebate.id
@@ -2063,7 +2064,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     let webContext = '';
     let searchQueries: string[] = [];
     try {
-      const searchResult = await window.electronAPI.generateTextWithSearch(
+      const searchResult = await api.generateTextWithSearch(
         `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
         model,
       );

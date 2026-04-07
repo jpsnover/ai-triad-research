@@ -24,6 +24,7 @@ import { PolicyDashboard } from './PolicyDashboard';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 import { nodeTypeFromId } from '@lib/debate';
+import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -134,7 +135,7 @@ export function DebateTab() {
   const handleExport = async () => {
     if (!activeDebate) return;
     try {
-      const result = await window.electronAPI.exportDebateToFile(activeDebate);
+      const result = await api.exportDebateToFile(activeDebate);
       if (!result.cancelled && result.filePath) {
         setExportStatus(`Exported to ${result.filePath}`);
         setTimeout(() => setExportStatus(null), 4000);

@@ -12,6 +12,7 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { generateConflictResearchPrompt } from '../utils/researchPrompt';
+import { api } from '@bridge';
 
 interface ConflictDetailProps {
   conflict: ConflictFile;
@@ -54,7 +55,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       conflict.description,
       instances,
     );
-    await window.electronAPI.clipboardWriteText(prompt);
+    await api.clipboardWriteText(prompt);
     setClipboardState('copied');
     setTimeout(() => setClipboardState('idle'), 3000);
   }, [conflict.claim_label, conflict.description, conflict.instances]);

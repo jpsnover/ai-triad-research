@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
+import { api } from '@bridge';
 
 export interface PolicySourceReference {
   docId: string;
@@ -29,7 +30,7 @@ async function getPolicySourceIndex(): Promise<PolicySourceIndex> {
   }
   _policyIndexLoading = true;
   try {
-    _policyIndexCache = (await window.electronAPI.buildPolicySourceIndex()) as PolicySourceIndex;
+    _policyIndexCache = (await api.buildPolicySourceIndex()) as PolicySourceIndex;
   } catch (err) {
     console.error('[PolicySourcesPanel] Failed to build index:', err);
     _policyIndexCache = {};

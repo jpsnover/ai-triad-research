@@ -8,6 +8,7 @@ import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { generatePromptPreview } from '../utils/promptPreview';
 import { DataSourceCard } from './DataSourceCard';
 import { usePromptConfigStore } from '../hooks/usePromptConfigStore';
+import { api } from '@bridge';
 import type { PromptPreviewResult } from '@lib/debate';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
@@ -194,7 +195,7 @@ export function PromptInspector() {
     setPsPromptLoading(true);
     Promise.all(
       filesToLoad.map(async (name) => {
-        const result = await window.electronAPI.readPsPrompt(name);
+        const result = await api.readPsPrompt(name);
         return [name, result.text ?? `(Error: ${result.error})`] as [string, string];
       })
     ).then(results => {

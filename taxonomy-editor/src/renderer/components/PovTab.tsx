@@ -28,6 +28,7 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { nodeTypeFromId } from '@lib/debate';
+import { api } from '@bridge';
 
 interface PovTabProps {
   pov: Pov;
@@ -171,10 +172,10 @@ export function PovTab({ pov }: PovTabProps) {
     prevShowAnalysis.current = showAnalysisPanel;
     if (showAnalysisPanel === wasShowing) return;
     const delta = pane3Width + 4;
-    window.electronAPI.isMaximized().then((max) => {
+    api.isMaximized().then((max) => {
       if (max) return;
-      if (showAnalysisPanel) window.electronAPI.growWindow(delta);
-      else window.electronAPI.shrinkWindow(delta);
+      if (showAnalysisPanel) api.growWindow(delta);
+      else api.shrinkWindow(delta);
     });
   }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -188,10 +189,10 @@ export function PovTab({ pov }: PovTabProps) {
     if (toolbarPanel === 'related') return;
     if (relatedNodeId && !toolbarPanel) return; // NodeDetail Related tab is active
     const delta = edgeDetailWidth + 4;
-    window.electronAPI.isMaximized().then((max) => {
+    api.isMaximized().then((max) => {
       if (max) return;
-      if (showEdgeDetail) window.electronAPI.growWindow(delta);
-      else window.electronAPI.shrinkWindow(delta);
+      if (showEdgeDetail) api.growWindow(delta);
+      else api.shrinkWindow(delta);
     });
   }, [showEdgeDetail, toolbarPanel, relatedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -404,7 +405,9 @@ export function PovTab({ pov }: PovTabProps) {
                   <span className="webview-pane-url">{lineageLinkUrl}</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)}>&times;</button>
                 </div>
-                <webview src={lineageLinkUrl} className="webview-frame" />
+                {import.meta.env.VITE_TARGET === 'web'
+                  ? <iframe src={lineageLinkUrl} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
+                  : <webview src={lineageLinkUrl} className="webview-frame" />}
               </div>
             </>
           )}

@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate';
@@ -65,7 +66,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={(e) => {
         e.stopPropagation();
-        window.electronAPI.clipboardWriteText(text);
+        api.clipboardWriteText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
@@ -121,7 +122,7 @@ function HelpContent() {
       <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
         Reference: Chesnevar, C., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., & Willmott, S. (2006).
         "Towards an Argument Interchange Format." <em>The Knowledge Engineering Review</em>, 21(4), 293-316.
-        [<a href="#" onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
+        [<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
       </p>
       <p>The core building blocks are:</p>
       <ul>
@@ -472,7 +473,7 @@ export function DiagnosticsWindow() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const unsub = window.electronAPI.onDiagnosticsStateUpdate((state) => {
+    const unsub = api.onDiagnosticsStateUpdate((state) => {
       const s = state as { debate: DebateSession | null; selectedEntry: string | null };
       setDebate(s.debate);
       // Only sync selectedEntry from main window if the user hasn't locally navigated

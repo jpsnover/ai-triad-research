@@ -16,6 +16,7 @@ import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
 import { nodeTypeFromId } from '@lib/debate';
+import { api } from '@bridge';
 
 interface MoveTarget {
   label: string;
@@ -160,7 +161,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   const handleResearchCopy = async () => {
     try {
-      await window.electronAPI.clipboardWriteText(researchText);
+      await api.clipboardWriteText(researchText);
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
     } catch { /* ignore */ }
@@ -448,7 +449,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                               key={li}
                               className="lineage-inline-link"
                               href="#"
-                              onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal(link.url); }}
+                              onClick={(e) => { e.preventDefault(); api.openExternal(link.url); }}
                               title={link.url}
                             >
                               {link.label}

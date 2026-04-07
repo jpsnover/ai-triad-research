@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { api } from '@bridge';
 
 interface FirstRunDialogProps {
   dataRoot: string;
@@ -17,7 +18,7 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
     setStatus('downloading');
     setMessage('Cloning research data from GitHub...');
     try {
-      const result = await window.electronAPI.cloneDataRepo(dataRoot);
+      const result = await api.cloneDataRepo(dataRoot);
       if (result.success) {
         setStatus('done');
         setMessage('Data downloaded successfully!');

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
@@ -610,13 +611,13 @@ function DebateContextMenu({
   }, [onClose]);
 
   const handleCopy = () => {
-    window.electronAPI.clipboardWriteText(menu.selectedText);
+    api.clipboardWriteText(menu.selectedText);
     onClose();
   };
 
   const handleSearchGoogle = () => {
     const query = encodeURIComponent(menu.selectedText.slice(0, 200));
-    window.electronAPI.openExternal(`https://www.google.com/search?q=${query}`);
+    api.openExternal(`https://www.google.com/search?q=${query}`);
     onClose();
   };
 
@@ -1325,7 +1326,7 @@ export function DebateWorkspace() {
 
   // Listen for diagnostics popout window closing
   useEffect(() => {
-    const unsub = window.electronAPI.onDiagnosticsPopoutClosed(() => {
+    const unsub = api.onDiagnosticsPopoutClosed(() => {
       setDiagPopoutOpen(false);
     });
     return unsub;

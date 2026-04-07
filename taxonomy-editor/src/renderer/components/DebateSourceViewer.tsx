@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { api } from '@bridge';
 
 type SearchMode = 'raw' | 'wildcard' | 'similar';
 
@@ -101,8 +102,8 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
 
       // Compute embeddings for all sentences + the query
       const [{ vectors }, { vector: queryVec }] = await Promise.all([
-        window.electronAPI.computeEmbeddings(texts, ids),
-        window.electronAPI.computeQueryEmbedding(query),
+        api.computeEmbeddings(texts, ids),
+        api.computeQueryEmbedding(query),
       ]);
 
       // Cosine similarity
@@ -254,7 +255,9 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
 
       {/* Content area */}
       {viewMode === 'web' ? (
-        <webview src={sourceRef} className="webview-frame" />
+        import.meta.env.VITE_TARGET === 'web'
+          ? <iframe src={sourceRef} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
+          : <webview src={sourceRef} className="webview-frame" />
       ) : (
         <pre className="debate-source-content" ref={contentRef}>
           {typeof highlightedContent === 'string' ? (

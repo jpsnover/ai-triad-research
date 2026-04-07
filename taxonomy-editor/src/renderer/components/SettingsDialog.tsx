@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect } from 'react';
+import { api } from '@bridge';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ColorScheme, AIBackend, AIModel } from '../hooks/useTaxonomyStore';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../hooks/useTaxonomyStore';
@@ -108,7 +109,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   useEffect(() => {
     Promise.all(
       AI_BACKENDS.map(async (b) => {
-        const has = await window.electronAPI.hasApiKey(b.value);
+        const has = await api.hasApiKey(b.value);
         return [b.value, has] as [string, boolean];
       }),
     ).then((results) => setHasKey(Object.fromEntries(results)));
@@ -120,7 +121,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     setKeyError(null);
     setKeySuccess(null);
     try {
-      await window.electronAPI.setApiKey(keyInput.trim(), aiBackend);
+      await api.setApiKey(keyInput.trim(), aiBackend);
       setKeyInput('');
       setKeySuccess(`${AI_BACKENDS.find(b => b.value === aiBackend)?.label} key saved`);
     } catch (err) {
@@ -135,7 +136,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     setRefreshResult(null);
     setRefreshError(null);
     try {
-      const result = await window.electronAPI.refreshAIModels() as RefreshResult;
+      const result = await api.refreshAIModels() as RefreshResult;
       // Reload the in-memory model catalog from the updated file
       await initAIModels();
       setRefreshResult(result);

@@ -38,6 +38,7 @@ import { normalizeNodeProperties, validateTaxonomy, nodeTypeFromId } from '@lib/
 import type { ValidationResult } from '@lib/debate';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
+import { api } from '@bridge';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
@@ -136,7 +137,7 @@ interface AIModelsConfig {
 /** Load ai-models.json from main process and update the in-memory catalogs */
 export async function initAIModels(): Promise<void> {
   try {
-    const config = await window.electronAPI.loadAIModels() as AIModelsConfig | null;
+    const config = await api.loadAIModels() as AIModelsConfig | null;
     if (!config?.models?.length) return;
 
     // Rebuild backends
@@ -475,7 +476,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           set({ clusterLoading: false, clusterError: 'No embeddings available' });
           return;
         }
-        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
+        const { vectors } = await api.computeEmbeddings(texts, ids);
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
           cache.set(ids[i], vectors[i]);
@@ -504,7 +505,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       let labels: string[];
       if (clustersForPrompt.length > 0) {
         const prompt = buildClusterLabelPrompt(clustersForPrompt);
-        const { text } = await window.electronAPI.generateText(prompt);
+        const { text } = await api.generateText(prompt);
         try {
           const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
           labels = JSON.parse(cleaned);
@@ -567,7 +568,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         }
 
         if (nliPairs.length > 0) {
-          const { results } = await window.electronAPI.nliClassify(nliPairs);
+          const { results } = await api.nliClassify(nliPairs);
 
           // Per-node contradiction counts within each cluster
           // nodeId → { agrees: number, contradicts: number }
@@ -671,14 +672,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
     const prompt = distinctionAnalysisPrompt(elementA, elementB);
 
-    const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {
+    const unsubscribe = api.onGenerateTextProgress((progress) => {
       set({ analysisRetry: progress });
     });
 
     try {
       // Step 3: Sending to Gemini AI
       set({ analysisStep: 3 });
-      const { text } = await window.electronAPI.generateText(prompt, model);
+      const { text } = await api.generateText(prompt, model);
 
       // Step 4: Processing response
       set({ analysisStep: 4, analysisRetry: null });
@@ -812,13 +813,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       policyRegistryJson,
     });
 
-    const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {
+    const unsubscribe = api.onGenerateTextProgress((progress) => {
       set({ analysisRetry: progress });
     });
 
     try {
       set({ analysisStep: 3 });
-      const { text } = await window.electronAPI.generateText(prompt, model);
+      const { text } = await api.generateText(prompt, model);
       set({ analysisStep: 4, analysisRetry: null });
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0 });
     } catch (err) {
@@ -830,7 +831,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   checkApiKey: async () => {
     try {
-      const has = await window.electronAPI.hasApiKey();
+      const has = await api.hasApiKey();
       set({ hasApiKey: has });
     } catch {
       set({ hasApiKey: false });
@@ -902,7 +903,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           return;
         }
         console.log('[semantic-search] Computing embeddings...');
-        const result = await window.electronAPI.computeEmbeddings(texts, ids);
+        const result = await api.computeEmbeddings(texts, ids);
         console.log('[semantic-search] computeEmbeddings returned:', result ? `vectors: ${result.vectors?.length}` : 'null/undefined');
         const { vectors } = result;
         cache = new Map();
@@ -913,7 +914,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
 
       console.log(`[semantic-search] Computing query embedding for: "${query}"`);
-      const qResult = await window.electronAPI.computeQueryEmbedding(query);
+      const qResult = await api.computeQueryEmbedding(query);
       console.log('[semantic-search] computeQueryEmbedding returned:', qResult ? `vector length: ${qResult.vector?.length}` : 'null/undefined');
       const { vector } = qResult;
       const results = rankBySimilarity(vector, cache, 0.3, 25);
@@ -952,7 +953,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           return;
         }
         set({ similarStep: `Computing embeddings for ${texts.length} nodes...` });
-        const { vectors } = await window.electronAPI.computeEmbeddings(texts, ids);
+        const { vectors } = await api.computeEmbeddings(texts, ids);
         cache = new Map();
         for (let i = 0; i < ids.length; i++) {
           cache.set(ids[i], vectors[i]);
@@ -961,7 +962,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
 
       set({ similarStep: 'Computing query embedding...' });
-      const { vector } = await window.electronAPI.computeQueryEmbedding(queryText);
+      const { vector } = await api.computeQueryEmbedding(queryText);
       set({ similarStep: 'Ranking results...' });
       // Use a low threshold (0.3) to get many results; the slider filters in UI
       const results = rankBySimilarity(vector, cache, 0.3, 200);
@@ -981,12 +982,12 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     set({ loading: true });
     try {
       const [acc, saf, skp, cc, conflicts, polReg] = await Promise.all([
-        window.electronAPI.loadTaxonomyFile('accelerationist'),
-        window.electronAPI.loadTaxonomyFile('safetyist'),
-        window.electronAPI.loadTaxonomyFile('skeptic'),
-        window.electronAPI.loadTaxonomyFile('situations'),
-        window.electronAPI.loadConflictFiles(),
-        window.electronAPI.loadPolicyRegistry(),
+        api.loadTaxonomyFile('accelerationist'),
+        api.loadTaxonomyFile('safetyist'),
+        api.loadTaxonomyFile('skeptic'),
+        api.loadTaxonomyFile('situations'),
+        api.loadConflictFiles(),
+        api.loadPolicyRegistry(),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       // Situations migration shim: normalize cross_cutting_refs → situation_refs on POV nodes
@@ -1090,17 +1091,17 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         if (key === 'accelerationist' || key === 'safetyist' || key === 'skeptic') {
           const file = state[key];
           if (file) {
-            promises.push(window.electronAPI.saveTaxonomyFile(key, file));
+            promises.push(api.saveTaxonomyFile(key, file));
           }
         } else if (key === 'situations') {
           const file = state.situations;
           if (file) {
-            promises.push(window.electronAPI.saveTaxonomyFile('situations', file));
+            promises.push(api.saveTaxonomyFile('situations', file));
           }
         } else if (key.startsWith('conflict-')) {
           const conflict = state.conflicts.find(c => c.claim_id === key);
           if (conflict) {
-            promises.push(window.electronAPI.saveConflictFile(key, conflict));
+            promises.push(api.saveConflictFile(key, conflict));
           }
         }
       }
@@ -1133,7 +1134,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         // Conflicts are not included in embeddings.json (separate system)
       }
       if (nodesToEmbed.length > 0) {
-        window.electronAPI.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
+        api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
           console.warn('[save] Failed to update embeddings:', err);
         });
       }
@@ -1804,7 +1805,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     if (get().edgesFile) return; // already loaded
     set({ edgesLoading: true });
     try {
-      const raw = await window.electronAPI.loadEdges();
+      const raw = await api.loadEdges();
       set({ edgesFile: raw as EdgesFile | null, edgesLoading: false });
     } catch {
       set({ edgesLoading: false });

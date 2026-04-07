@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { api } from '@bridge';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate';
 import type { Edge, EdgeType, EdgeStatus } from '../types/taxonomy';
@@ -151,7 +152,7 @@ export function EdgeBrowser() {
     const indices = filteredEdges.map((e) => e.index);
     if (indices.length === 0) return;
     try {
-      await (window.electronAPI as any).bulkUpdateEdges(indices, status);
+      await api.bulkUpdateEdges(indices, status);
       loadEdges(); // Reload to pick up changes
     } catch (err) {
       console.error('Bulk update failed:', err);
@@ -160,7 +161,7 @@ export function EdgeBrowser() {
 
   const handleStatusUpdate = useCallback(async (index: number, status: EdgeStatus) => {
     try {
-      await (window.electronAPI as any).updateEdgeStatus(index, status);
+      await api.updateEdgeStatus(index, status);
       loadEdges();
     } catch (err) {
       console.error('Status update failed:', err);

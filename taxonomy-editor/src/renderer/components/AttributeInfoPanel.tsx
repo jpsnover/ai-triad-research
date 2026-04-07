@@ -8,6 +8,7 @@ import { EPISTEMIC_TYPES } from '../data/epistemicTypeInfo';
 import { EMOTIONAL_REGISTERS } from '../data/emotionalRegisterInfo';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import type { AttributeInfo } from '../data/epistemicTypeInfo';
+import { api } from '@bridge';
 
 interface AttributeInfoPanelProps {
   width?: number;
@@ -98,7 +99,7 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
                   <li key={i}>
                     <button
                       className="strategy-info-link"
-                      onClick={() => window.electronAPI.openExternal(link.url)}
+                      onClick={() => api.openExternal(link.url)}
                       title={link.url}
                     >
                       {link.label}

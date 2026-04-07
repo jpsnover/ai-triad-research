@@ -5,12 +5,21 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+const isWeb = process.env.VITE_TARGET === 'web';
+
 export default defineConfig({
   plugins: [react()],
   root: 'src/renderer',
   base: './',
+  define: {
+    // Expose build target to renderer code
+    'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
+  },
   resolve: {
     alias: {
+      '@bridge': isWeb
+        ? path.resolve(__dirname, 'src/renderer/bridge/web-bridge.ts')
+        : path.resolve(__dirname, 'src/renderer/bridge/index.ts'),
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
       // Allow lib/debate/ files to resolve zod from taxonomy-editor's node_modules

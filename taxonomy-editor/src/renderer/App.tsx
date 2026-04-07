@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
@@ -16,6 +17,34 @@ import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 20, fontFamily: 'monospace' }}>
+          <h2 style={{ color: '#ef4444' }}>Something went wrong</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', color: '#f97316' }}>{this.state.error.message}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#94a3b8', marginTop: 8 }}>
+            {this.state.error.stack}
+          </pre>
+          <button onClick={() => this.setState({ error: null })} style={{ marginTop: 12, padding: '6px 12px' }}>
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface DataUpdateInfo {
   available: boolean;
   behindCount: number;
@@ -28,7 +57,7 @@ function FileViewerApp() {
 
   useEffect(() => {
     console.log('[FileViewer] Requesting CLI file arg...');
-    window.electronAPI.getCliFileArg().then((arg) => {
+    api.getCliFileArg().then((arg) => {
       console.log('[FileViewer] Got CLI arg:', arg ? { type: arg.type, path: arg.path, hasData: !!arg.data, dataKeys: arg.data ? Object.keys(arg.data as Record<string, unknown>) : [] } : null);
       setFileArg(arg as { type: string; path: string; data?: unknown; error?: string } | null);
       setLoading(false);
@@ -82,18 +111,18 @@ function FileViewerApp() {
 export function App() {
   // If this window was opened as a diagnostics popout, render only that
   if (window.location.hash === '#diagnostics-window') {
-    return <DiagnosticsWindow />;
+    return <ErrorBoundary><DiagnosticsWindow /></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app
-  return <AppRouter />;
+  return <ErrorBoundary><AppRouter /></ErrorBoundary>;
 }
 
 /** Handles CLI-mode detection — hooks are always called in same order */
 function AppRouter() {
   const [cliMode, setCliMode] = useState<boolean | null>(null);
   useEffect(() => {
-    window.electronAPI.getCliFileArg().then(arg => setCliMode(!!arg));
+    api.getCliFileArg().then(arg => setCliMode(!!arg));
   }, []);
 
   if (cliMode === null) return null; // loading
@@ -113,8 +142,8 @@ function MainApp() {
   useEffect(() => {
     // Check if data is available before loading
     Promise.all([
-      window.electronAPI.isDataAvailable(),
-      window.electronAPI.getDataRoot(),
+      api.isDataAvailable(),
+      api.getDataRoot(),
     ]).then(([available, root]) => {
       setDataRoot(root);
       if (!available) {
@@ -128,7 +157,7 @@ function MainApp() {
   // Check for data updates after initial load
   useEffect(() => {
     if (loading) return;
-    window.electronAPI.checkDataUpdates()
+    api.checkDataUpdates()
       .then((status: unknown) => {
         const s = status as DataUpdateInfo;
         if (s.available) {
@@ -142,7 +171,7 @@ function MainApp() {
     setPulling(true);
     setPullResult(null);
     try {
-      const result = await window.electronAPI.pullDataUpdates() as { success: boolean; message: string };
+      const result = await api.pullDataUpdates() as { success: boolean; message: string };
       if (result.success) {
         setPullResult('Updated successfully. Reloading...');
         setDataUpdate(null);
@@ -165,7 +194,7 @@ function MainApp() {
 
   // Listen for menu-triggered taxonomy reload
   useEffect(() => {
-    const unsub = window.electronAPI.onReloadTaxonomy(() => {
+    const unsub = api.onReloadTaxonomy(() => {
       useTaxonomyStore.getState().loadAll();
     });
     return unsub;
@@ -173,7 +202,7 @@ function MainApp() {
 
   // Listen for external focus-node requests (e.g. from summary-viewer)
   useEffect(() => {
-    const unsub = window.electronAPI.onFocusNode((nodeId: string) => {
+    const unsub = api.onFocusNode((nodeId: string) => {
       const store = useTaxonomyStore.getState();
       // Determine which tab to navigate to based on node ID prefix
       let tab: Parameters<typeof store.navigateToNode>[0];

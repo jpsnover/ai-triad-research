@@ -21,7 +21,11 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import type { PromptCatalogEntry } from '../data/promptCatalog';
+import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { nodeTypeFromId } from '@lib/debate';
+import { api } from '@bridge';
 
 export function SituationsTab() {
   const {
@@ -37,6 +41,8 @@ export function SituationsTab() {
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
   const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
+  const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
   const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-edge-detail-width',
@@ -56,10 +62,10 @@ export function SituationsTab() {
     prevShowEdgeDetail.current = showEdgeDetail;
     if (showEdgeDetail === wasShowing) return;
     const delta = edgeDetailWidth + 4;
-    window.electronAPI.isMaximized().then((max) => {
+    api.isMaximized().then((max) => {
       if (max) return;
-      if (showEdgeDetail) window.electronAPI.growWindow(delta);
-      else window.electronAPI.shrinkWindow(delta);
+      if (showEdgeDetail) api.growWindow(delta);
+      else api.shrinkWindow(delta);
     });
   }, [showEdgeDetail]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -201,6 +207,8 @@ export function SituationsTab() {
         return <LineagePanel onSelectValue={setLineagePreviewValue} />;
       case 'fallacy':
         return <FallacyPanel onSelectFallacy={setSelectedFallacyKey} />;
+      case 'prompts':
+        return <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />;
       case 'console':
         return <TerminalPanel />;
       case 'edges':
@@ -217,7 +225,7 @@ export function SituationsTab() {
   return (
     <div className="two-column">
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? (
+      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -253,7 +261,7 @@ export function SituationsTab() {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage preview, or normal detail) */}
@@ -269,8 +277,12 @@ export function SituationsTab() {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? null
-      : toolbarPanel === 'fallacy' ? (
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
+      : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+        <div className="detail-panel">
+          <PromptDetailPanel entry={selectedPromptEntry} />
+        </div>
+      ) : toolbarPanel === 'fallacy' ? (
         <div className="detail-panel">
           <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
         </div>
@@ -287,7 +299,9 @@ export function SituationsTab() {
                   <span className="webview-pane-url">{lineageLinkUrl}</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLineageLinkUrl(null)}>&times;</button>
                 </div>
-                <webview src={lineageLinkUrl} className="webview-frame" />
+                {import.meta.env.VITE_TARGET === 'web'
+                  ? <iframe src={lineageLinkUrl} className="webview-frame" sandbox="allow-scripts allow-same-origin" />
+                  : <webview src={lineageLinkUrl} className="webview-frame" />}
               </div>
             </>
           )}

@@ -4,6 +4,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup } from '../data/promptCatalog';
+import { api } from '@bridge';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
   'debate-setup': 'Debate Setup',
@@ -179,7 +180,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
     setCopied(false);
     // Auto-copy and focus textarea when Research generates a real prompt
     if (entry?.id === 'research' && selectedNode && text && !text.startsWith('(')) {
-      window.electronAPI.clipboardWriteText(text).then(() => {
+      api.clipboardWriteText(text).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }).catch(() => {});
@@ -189,7 +190,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
 
   const handleCopy = async () => {
     try {
-      await window.electronAPI.clipboardWriteText(editText);
+      await api.clipboardWriteText(editText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { api } from '@bridge';
 
 interface ApiKeyDialogProps {
   onClose: () => void;
@@ -17,7 +18,7 @@ export function ApiKeyDialog({ onClose }: ApiKeyDialogProps) {
     setSaving(true);
     setError(null);
     try {
-      await window.electronAPI.setApiKey(key.trim());
+      await api.setApiKey(key.trim());
       onClose();
     } catch (err) {
       setError(String(err));

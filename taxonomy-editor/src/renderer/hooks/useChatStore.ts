@@ -13,6 +13,7 @@ import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
+import { api } from '@bridge';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import {
@@ -47,11 +48,11 @@ async function generateTextWithProgress(
   set: (partial: Partial<ChatStore>) => void,
 ): Promise<{ text: string }> {
   set({ chatActivity: activity, chatProgress: null });
-  const unsubscribe = window.electronAPI.onGenerateTextProgress((progress) => {
+  const unsubscribe = api.onGenerateTextProgress((progress) => {
     set({ chatProgress: progress as ChatStore['chatProgress'] });
   });
   try {
-    return await window.electronAPI.generateText(prompt, model);
+    return await api.generateText(prompt, model);
   } finally {
     unsubscribe();
     set({ chatProgress: null, chatActivity: null });
@@ -154,7 +155,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadSessions: async () => {
     set({ sessionsLoading: true });
     try {
-      const raw = await window.electronAPI.listChatSessions();
+      const raw = await api.listChatSessions();
       set({ sessions: raw as ChatSessionSummary[] });
     } catch (err) {
       console.error('[chat] Failed to load sessions:', err);
@@ -177,8 +178,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       transcript: [],
       chat_model: chatModel,
     };
-    await window.electronAPI.saveChatSession(session);
-    const sessions = await window.electronAPI.listChatSessions();
+    await api.saveChatSession(session);
+    const sessions = await api.listChatSessions();
     set({ sessions: sessions as ChatSessionSummary[] });
     return id;
   },
@@ -186,7 +187,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadChat: async (id) => {
     set({ chatLoading: true, chatError: null });
     try {
-      const raw = await window.electronAPI.loadChatSession(id);
+      const raw = await api.loadChatSession(id);
       const session = raw as ChatSession;
       set({
         activeChatId: session.id,
@@ -202,12 +203,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   deleteChat: async (id) => {
     try {
-      await window.electronAPI.deleteChatSession(id);
+      await api.deleteChatSession(id);
       const { activeChatId } = get();
       if (activeChatId === id) {
         set({ activeChatId: null, activeChat: null, chatModel: null });
       }
-      const sessions = await window.electronAPI.listChatSessions();
+      const sessions = await api.listChatSessions();
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
       set({ chatError: `Failed to delete chat: ${err}` });
@@ -219,15 +220,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (activeChat && activeChat.id === id) {
       const updated = { ...activeChat, title: newTitle, updated_at: nowISO() };
       set({ activeChat: updated });
-      await window.electronAPI.saveChatSession(updated);
+      await api.saveChatSession(updated);
     } else {
       // Load, rename, save
       try {
-        const raw = await window.electronAPI.loadChatSession(id);
+        const raw = await api.loadChatSession(id);
         const session = raw as ChatSession;
         session.title = newTitle;
         session.updated_at = nowISO();
-        await window.electronAPI.saveChatSession(session);
+        await api.saveChatSession(session);
       } catch (err) {
         console.error('[chat] Rename failed:', err);
       }
@@ -243,9 +244,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!activeChat) return;
     const updated = { ...activeChat, mode, updated_at: nowISO() };
     set({ activeChat: updated });
-    await window.electronAPI.saveChatSession(updated);
+    await api.saveChatSession(updated);
     // Update session list
-    const sessions = await window.electronAPI.listChatSessions();
+    const sessions = await api.listChatSessions();
     set({ sessions: sessions as ChatSessionSummary[] });
   },
 
@@ -254,7 +255,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!activeChat) return;
     const updated = { ...activeChat, updated_at: nowISO() };
     set({ activeChat: updated });
-    await window.electronAPI.saveChatSession(updated);
+    await api.saveChatSession(updated);
   },
 
   generateOpening: async () => {
@@ -271,7 +272,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
 
       // Set per-mode temperature before generating
-      await window.electronAPI.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
+      await api.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
 
       const systemBlock = chatSystemPrompt(
         info.label, info.pov, info.personality,
@@ -302,10 +303,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         updated_at: nowISO(),
       };
       set({ activeChat: updated });
-      await window.electronAPI.saveChatSession(updated);
+      await api.saveChatSession(updated);
 
       // Update session list
-      const sessions = await window.electronAPI.listChatSessions();
+      const sessions = await api.listChatSessions();
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
       set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}` });
@@ -344,7 +345,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const model = getConfiguredModel();
 
       // Set per-mode temperature before generating
-      await window.electronAPI.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
+      await api.setDebateTemperature(CHAT_MODE_TEMPERATURE[activeChat.mode]);
 
       const systemBlock = chatSystemPrompt(
         info.label, info.pov, info.personality,
@@ -387,10 +388,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         updated_at: nowISO(),
       };
       set({ activeChat: updated });
-      await window.electronAPI.saveChatSession(updated);
+      await api.saveChatSession(updated);
 
       // Update session list
-      const sessions = await window.electronAPI.listChatSessions();
+      const sessions = await api.listChatSessions();
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
       if (!isStillValid()) return;

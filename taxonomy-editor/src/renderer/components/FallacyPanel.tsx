@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { FALLACY_CATALOG, type FallacyEntry } from '../data/fallacyInfo';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { api } from '@bridge';
 
 const CATEGORY_LABELS: Record<string, string> = {
   informal: 'Informal',
@@ -219,7 +220,7 @@ export function FallacyDetailPanel({ fallacyKey }: { fallacyKey: string | null }
           <a
             className="fallacy-detail-wiki"
             href="#"
-            onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal(entry.wikiUrl); }}
+            onClick={(e) => { e.preventDefault(); api.openExternal(entry.wikiUrl); }}
           >
             Wikipedia
           </a>

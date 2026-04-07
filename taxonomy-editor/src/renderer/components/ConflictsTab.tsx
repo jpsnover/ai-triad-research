@@ -13,7 +13,11 @@ import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { TerminalPanel } from './TerminalPanel';
 import { SearchPanel } from './SearchPanel';
-import { FallacyPanel } from './FallacyPanel';
+import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
+import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import type { PromptCatalogEntry } from '../data/promptCatalog';
+import { PROMPT_CATALOG } from '../data/promptCatalog';
 
 export function ConflictsTab() {
   const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth, toolbarPanel } = useTaxonomyStore();
@@ -21,6 +25,10 @@ export function ConflictsTab() {
   const [newLabel, setNewLabel] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
+  const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
+  const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
+  const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
 
   const orderedIds = useMemo(
@@ -55,13 +63,46 @@ export function ConflictsTab() {
     }
   };
 
-  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'console';
+  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'console' || (toolbarPanel === 'prompts' && promptInspectorActive);
+
+  const renderLineagePreview = () => {
+    if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
+    const info = INTELLECTUAL_LINEAGES[lineagePreviewValue]
+      ?? Object.entries(INTELLECTUAL_LINEAGES).find(([k]) => k.toLowerCase() === lineagePreviewValue.toLowerCase())?.[1]
+      ?? null;
+    if (!info) return (
+      <div className="lineage-detail">
+        <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
+        <div className="lineage-detail-section">
+          <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
+        </div>
+      </div>
+    );
+    return (
+      <div className="lineage-detail">
+        <h2 className="lineage-detail-title">{info.label}</h2>
+        <div className="lineage-detail-section">
+          <div className="lineage-detail-label">Summary</div>
+          <p className="lineage-detail-text">{info.summary}</p>
+        </div>
+        <div className="lineage-detail-section">
+          <div className="lineage-detail-label">Example</div>
+          <p className="lineage-detail-text">{info.example}</p>
+        </div>
+        <div className="lineage-detail-section">
+          <div className="lineage-detail-label">Frequency</div>
+          <p className="lineage-detail-text">{info.frequency}</p>
+        </div>
+      </div>
+    );
+  };
 
   const renderToolbarPane = () => {
     switch (toolbarPanel) {
       case 'search': return <SearchPanel onSelectResult={() => {}} />;
-      case 'lineage': return <LineagePanel onSelectValue={() => {}} />;
-      case 'fallacy': return <FallacyPanel onSelectFallacy={() => {}} />;
+      case 'lineage': return <LineagePanel onSelectValue={setLineagePreviewValue} />;
+      case 'fallacy': return <FallacyPanel onSelectFallacy={setSelectedFallacyKey} />;
+      case 'prompts': return <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />;
       case 'edges': return <EdgeBrowser />;
       case 'policyAlignment': return <PolicyAlignmentPanel />;
       case 'policyDashboard': return <PolicyDashboard />;
@@ -112,7 +153,19 @@ export function ConflictsTab() {
       {!isFullWidthPanel && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
-      {isFullWidthPanel ? null : detailCollapsed ? (
+      {isFullWidthPanel ? null : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+        <div className="detail-panel">
+          <PromptDetailPanel entry={selectedPromptEntry} />
+        </div>
+      ) : toolbarPanel === 'lineage' ? (
+        <div className="detail-panel">
+          {renderLineagePreview()}
+        </div>
+      ) : toolbarPanel === 'fallacy' ? (
+        <div className="detail-panel">
+          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
+        </div>
+      ) : detailCollapsed ? (
         <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
           <span className="pane-collapsed-label">Detail</span>
         </div>

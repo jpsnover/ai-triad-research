@@ -7,6 +7,7 @@ import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSourceType } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
+import { api } from '@bridge';
 
 interface NewDebateDialogProps {
   onClose: () => void;
@@ -69,7 +70,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   };
 
   const handlePickFile = async () => {
-    const result = await window.electronAPI.pickDocumentFile();
+    const result = await api.pickDocumentFile();
     if (result.cancelled || !result.filePath || !result.content) return;
     setSourceRef(result.filePath);
     setSourceContent(result.content);
@@ -102,7 +103,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     if (sourceType === 'url') {
       if (!finalTopic) finalTopic = `Discuss: ${sourceRef.trim()}`;
       try {
-        const result = await window.electronAPI.fetchUrlContent(sourceRef.trim());
+        const result = await api.fetchUrlContent(sourceRef.trim());
         if (result.error) {
           finalContent = `[Failed to fetch URL content: ${result.error}]`;
         } else {

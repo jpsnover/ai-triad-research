@@ -6,6 +6,7 @@ import type { GraphAttributes, PossibleFallacy } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { PolicyRegistryEntry } from '../hooks/useTaxonomyStore';
 import { FALLACY_CATALOG } from '../data/fallacyInfo';
+import { api } from '@bridge';
 
 interface GraphAttributesPanelProps {
   attrs: GraphAttributes;
@@ -472,7 +473,7 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                         {info && (
                           <button
                             className="ga-fallacy-about"
-                            onClick={() => window.electronAPI.openExternal(info.wikiUrl)}
+                            onClick={() => api.openExternal(info.wikiUrl)}
                             title={`Open Wikipedia article: ${label}`}
                           >
                             About

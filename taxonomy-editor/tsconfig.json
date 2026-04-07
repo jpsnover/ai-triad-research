@@ -13,6 +13,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
+      "@bridge": ["src/renderer/bridge/index.ts"],
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
       "@lib/debate/*": ["../lib/debate/*"],

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
+import { api } from '@bridge';
 
 export interface SourceReference {
   docId: string;
@@ -32,7 +33,7 @@ async function getNodeSourceIndex(): Promise<NodeSourceIndex> {
   }
   _indexLoading = true;
   try {
-    _indexCache = (await window.electronAPI.buildNodeSourceIndex()) as NodeSourceIndex;
+    _indexCache = (await api.buildNodeSourceIndex()) as NodeSourceIndex;
   } catch (err) {
     console.error('[SourcesPanel] Failed to build index:', err);
     _indexCache = {};
@@ -139,7 +140,7 @@ export function SourcesPanel({ nodeId }: SourcesPanelProps) {
                   <a
                     className="sources-panel-doc-url"
                     href="#"
-                    onClick={(e) => { e.preventDefault(); window.electronAPI.openExternal(first.url!); }}
+                    onClick={(e) => { e.preventDefault(); api.openExternal(first.url!); }}
                     title={first.url}
                   >
                     {first.url.replace(/^https?:\/\//, '').slice(0, 60)}...

@@ -1,0 +1,44 @@
+# Build artifacts and dependencies
+node_modules
+dist
+release
+build/
+
+# Git and editor
+.git
+.gitignore
+*.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# Electron-specific (not needed in container)
+src/main/main.ts
+src/main/preload.ts
+src/main/ipcHandlers.ts
+src/main/debateIO.ts
+src/main/chatIO.ts
+src/main/fileIO.ts
+electron-builder.yml
+
+# Tests
+**/*.test.ts
+**/*.spec.ts
+vitest.config.*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml

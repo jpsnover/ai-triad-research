@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useCallback, useMemo } from 'react';
+import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
@@ -35,7 +36,7 @@ function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement |
         const text = targetRef.current?.innerText ?? '';
         navigator.clipboard.writeText(text).catch(() => {
           // fallback for Electron
-          if (window.electronAPI?.clipboardWriteText) window.electronAPI.clipboardWriteText(text);
+          api.clipboardWriteText(text);
         });
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -1102,12 +1103,12 @@ export function DiagnosticsPanel() {
               </button>
             )}
             <button className="btn btn-sm" onClick={async () => {
-              await window.electronAPI.openDiagnosticsWindow();
+              await api.openDiagnosticsWindow();
               useDebateStore.getState().setDiagPopoutOpen(true);
               const debate = useDebateStore.getState().activeDebate;
               const entry = useDebateStore.getState().selectedDiagEntry;
               setTimeout(() => {
-                window.electronAPI.sendDiagnosticsState({ debate, selectedEntry: entry });
+                api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
             }} style={{ fontSize: '0.65rem' }} title="Open in separate window">
               Popout
