@@ -455,20 +455,9 @@ export function loadAIModels(): unknown {
 
 export async function fetchUrlContent(url: string): Promise<{ content: string; error?: string }> {
   try {
-    const resp = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    const html = await resp.text();
-    // Strip tags for a text-only version
-    const text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return { content: text };
+    const { fetchUrlContent: fetchAndConvert } = await import('../../../lib/debate/taxonomyLoader');
+    const markdown = await fetchAndConvert(url);
+    return { content: markdown };
   } catch (err) {
     return { content: '', error: String(err) };
   }

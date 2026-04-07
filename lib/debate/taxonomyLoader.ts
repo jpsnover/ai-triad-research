@@ -8,6 +8,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
+import { execFile } from 'child_process';
 import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
@@ -159,14 +161,80 @@ export function loadConflicts(repoRoot: string): ConflictFile[] {
   return files.map(f => loadJsonSafe<ConflictFile>(path.join(conflictsDir, f), null as unknown as ConflictFile)).filter(Boolean);
 }
 
+// ── Markdown conversion via markitdown ──────────────────
+
+/**
+ * Convert a file to Markdown using Microsoft's markitdown CLI.
+ * Falls back to raw content if markitdown is not installed.
+ */
+export async function convertToMarkdown(filePath: string): Promise<string> {
+  const resolved = path.resolve(filePath);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`File not found: ${resolved}`);
+  }
+
+  // For .md files, just read directly
+  if (resolved.endsWith('.md')) {
+    return fs.readFileSync(resolved, 'utf-8');
+  }
+
+  try {
+    return await runMarkitdown(resolved);
+  } catch {
+    process.stderr.write(`[taxonomy-loader] markitdown not available, reading raw content\n`);
+    return fs.readFileSync(resolved, 'utf-8');
+  }
+}
+
+/**
+ * Convert HTML string to Markdown using markitdown via a temp file.
+ */
+export async function htmlToMarkdown(html: string): Promise<string> {
+  const tmpFile = path.join(os.tmpdir(), `aitriad-${Date.now()}.html`);
+  try {
+    fs.writeFileSync(tmpFile, html, 'utf-8');
+    return await runMarkitdown(tmpFile);
+  } catch {
+    process.stderr.write(`[taxonomy-loader] markitdown not available, stripping HTML tags\n`);
+    return stripHtmlFallback(html);
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+  }
+}
+
+function runMarkitdown(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile('markitdown', [filePath], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) return reject(err);
+      resolve(stdout);
+    });
+  });
+}
+
+function stripHtmlFallback(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // ── Source content loading ───────────────────────────────
 
-export function loadSourceContent(filePath: string): string {
-  return fs.readFileSync(path.resolve(filePath), 'utf-8');
+export async function loadSourceContent(filePath: string): Promise<string> {
+  return convertToMarkdown(filePath);
 }
 
 export async function fetchUrlContent(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
-  return response.text();
+  const html = await response.text();
+  return htmlToMarkdown(html);
 }

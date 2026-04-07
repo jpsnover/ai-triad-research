@@ -111,7 +111,7 @@ async function main(): Promise<void> {
   if (config.docPath) {
     sourceType = 'document';
     sourceRef = config.docPath;
-    sourceContent = loadSourceContent(config.docPath);
+    sourceContent = await loadSourceContent(config.docPath);
     if (!topic) topic = `Debate grounded in: ${path.basename(config.docPath)}`;
     log(`Loaded document: ${config.docPath} (${sourceContent.length} chars)`);
   } else if (config.url) {
