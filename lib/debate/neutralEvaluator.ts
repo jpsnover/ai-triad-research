@@ -272,15 +272,14 @@ export async function runNeutralEvaluation(
   const prompt = neutralEvaluatorPrompt(checkpoint, config.topic, strippedTranscript);
 
   const startMs = Date.now();
-  const result = await config.adapter.generate(prompt, {
-    model: config.model,
+  const result = await config.adapter.generateText(prompt, config.model, {
     temperature: 0.2, // Low temperature for consistent analytical assessment
     maxTokens: 8192,
     jsonMode: true,
   });
   const elapsedMs = Date.now() - startMs;
 
-  const rawText = stripCodeFences(result.text ?? result);
+  const rawText = stripCodeFences(result);
   let parsed: NeutralEvaluation;
   try {
     parsed = parseJsonRobust(rawText) as NeutralEvaluation;

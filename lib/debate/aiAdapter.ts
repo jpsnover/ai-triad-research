@@ -109,7 +109,14 @@ async function withRetry<T>(
       return await fn();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      const isRetryable = msg.includes('429') || msg.includes('503') || msg.includes('rate') || msg.includes('unavailable');
+      const lower = msg.toLowerCase();
+      const isRetryable =
+        msg.includes('429') || msg.includes('503') ||
+        lower.includes('rate') || lower.includes('unavailable') ||
+        lower.includes('fetch failed') || lower.includes('econnreset') ||
+        lower.includes('etimedout') || lower.includes('enotfound') ||
+        lower.includes('socket hang up') || lower.includes('network') ||
+        lower.includes('timed out');
       if (!isRetryable || attempt === maxRetries) throw err;
       const delay = delays[attempt - 1] ?? 45;
       process.stderr.write(`[retry] ${label} attempt ${attempt}/${maxRetries} failed (${msg.slice(0, 80)}), waiting ${delay}s...\n`);
