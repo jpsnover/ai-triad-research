@@ -7,7 +7,9 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
 
 // ── Taxonomy directories ──
@@ -455,10 +457,42 @@ export function loadAIModels(): unknown {
 
 export async function fetchUrlContent(url: string): Promise<{ content: string; error?: string }> {
   try {
-    const { fetchUrlContent: fetchAndConvert } = await import('../../../lib/debate/taxonomyLoader');
-    const markdown = await fetchAndConvert(url);
+    const resp = await fetch(url);
+    if (!resp.ok) return { content: '', error: `HTTP ${resp.status}` };
+    const html = await resp.text();
+    const markdown = await htmlToMarkdown(html);
     return { content: markdown };
   } catch (err) {
     return { content: '', error: String(err) };
   }
+}
+
+function htmlToMarkdown(html: string): Promise<string> {
+  const tmpFile = path.join(os.tmpdir(), `aitriad-${Date.now()}.html`);
+  fs.writeFileSync(tmpFile, html, 'utf-8');
+  return new Promise((resolve) => {
+    execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      if (err) {
+        // Fallback: strip HTML tags
+        resolve(stripHtmlFallback(html));
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+function stripHtmlFallback(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
