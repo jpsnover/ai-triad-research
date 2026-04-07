@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
@@ -25,6 +25,57 @@ import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 import { nodeTypeFromId } from '@lib/debate';
 import { api } from '@bridge';
+
+type ExportFormat = 'json' | 'markdown' | 'text' | 'pdf';
+
+const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
+  { id: 'json', label: 'JSON' },
+  { id: 'markdown', label: 'Markdown' },
+  { id: 'text', label: 'Plain Text' },
+  { id: 'pdf', label: 'PDF' },
+];
+
+function ExportButton({ onExport, showMenu, setShowMenu }: {
+  onExport: (format: ExportFormat) => void;
+  showMenu: boolean;
+  setShowMenu: (v: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu, setShowMenu]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        className="btn btn-sm"
+        onClick={() => setShowMenu(!showMenu)}
+        title="Export debate"
+      >
+        Export &#9662;
+      </button>
+      {showMenu && (
+        <div className="export-format-menu">
+          {EXPORT_FORMATS.map(f => (
+            <button
+              key={f.id}
+              className="export-format-item"
+              onClick={() => onExport(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
@@ -132,10 +183,13 @@ export function DebateTab() {
     setConfirmDeleteId(null);
   };
 
-  const handleExport = async () => {
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const handleExport = async (format: 'json' | 'markdown' | 'text' | 'pdf' = 'json') => {
     if (!activeDebate) return;
+    setShowExportMenu(false);
     try {
-      const result = await api.exportDebateToFile(activeDebate);
+      const result = await api.exportDebateToFile(activeDebate, format);
       if (!result.cancelled && result.filePath) {
         setExportStatus(`Exported to ${result.filePath}`);
         setTimeout(() => setExportStatus(null), 4000);
@@ -349,7 +403,7 @@ export function DebateTab() {
                   {exportStatus && (
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
                   )}
-                  <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+                  <ExportButton onExport={handleExport} showMenu={showExportMenu} setShowMenu={setShowExportMenu} />
                 </div>
                 <DebateWorkspace />
               </div>
@@ -367,7 +421,7 @@ export function DebateTab() {
                     {exportStatus && (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
                     )}
-                    <button className="btn btn-sm" onClick={handleExport} title="Export debate">Export</button>
+                    <ExportButton onExport={handleExport} showMenu={showExportMenu} setShowMenu={setShowExportMenu} />
                     <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
                   </div>
                   <DebateWorkspace />
@@ -388,9 +442,7 @@ export function DebateTab() {
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{exportStatus}</span>
                     )}
                     {activeDebateId && (
-                      <button className="btn btn-sm" onClick={handleExport} title="Export debate to a JSON file">
-                        Export
-                      </button>
+                      <ExportButton onExport={handleExport} showMenu={showExportMenu} setShowMenu={setShowExportMenu} />
                     )}
                     <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
                   </div>

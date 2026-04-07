@@ -173,7 +173,7 @@ For situation nodes: "A situation that [differentia]. Encompasses: [what it cove
 Rules:
 - First sentence MUST follow the pattern exactly
 - 2-4 sentences total
-- Grade-10 reading level, plain language
+- Write for a policy reporter — active voice, named actors, concrete examples, quotable sentences. No nominalizations or hedge stacking. Technical terms fine when load-bearing; define on first use.
 - The Excludes clause does the boundary work
 - Preserve all factual content from the original description
 

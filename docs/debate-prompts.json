@@ -2,7 +2,7 @@
   "title": "POV Debater — AI Prompt Catalog",
   "description": "All AI prompts used by the taxonomy-editor debate feature. Source: taxonomy-editor/src/renderer/prompts/debate.ts",
   "shared_directives": {
-    "reading_level": "Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.",
+    "reading_level": "Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. Avoid nominalizations, hedge stacking, and sentences that require re-reading. Technical terms are fine when load-bearing; define them briefly on first use.",
     "length_instructions": {
       "brief": "Be concise. Keep your response brief and focused — 2-3 sentences maximum. Get straight to the point.",
       "medium": "Provide a moderately detailed response — 1-2 paragraphs. Cover the key points without excessive elaboration.",

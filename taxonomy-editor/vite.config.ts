@@ -29,6 +29,7 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
+    minify: isWeb ? false : true, // unminified for web/container to get readable errors
   },
   server: {
     port: 5173,

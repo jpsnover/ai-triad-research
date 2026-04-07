@@ -184,16 +184,50 @@ export const api: AppAPI = {
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
   saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
-  exportDebateToFile: async (session) => {
-    const result = await post<{ content: string; filename: string }>('/api/debates/export', session);
-    // Trigger browser download
-    const blob = new Blob([result.content], { type: 'application/json' });
+  exportDebateToFile: async (session, format = 'json') => {
+    const { debateToText, debateToMarkdown, debateToHtml, debateExportFilename } = await import('@lib/debate/debateExport');
+    const debate = session as Parameters<typeof debateToText>[0];
+    let content: string;
+    let mimeType: string;
+    let ext: string;
+
+    switch (format) {
+      case 'markdown':
+        content = debateToMarkdown(debate);
+        mimeType = 'text/markdown';
+        ext = 'md';
+        break;
+      case 'text':
+        content = debateToText(debate);
+        mimeType = 'text/plain';
+        ext = 'txt';
+        break;
+      case 'pdf': {
+        // Open styled HTML in a new tab and trigger browser print dialog
+        const html = debateToHtml(debate);
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.addEventListener('load', () => printWindow.print());
+        }
+        return { cancelled: false, filePath: debateExportFilename(debate.title, 'pdf') };
+      }
+      default:
+        content = JSON.stringify(debate, null, 2);
+        mimeType = 'application/json';
+        ext = 'json';
+        break;
+    }
+
+    const filename = debateExportFilename(debate.title, ext);
+    const blob = new Blob([content], { type: mimeType });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = result.filename;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
-    return { cancelled: false, filePath: result.filename };
+    return { cancelled: false, filePath: filename };
   },
 
   // Chat sessions

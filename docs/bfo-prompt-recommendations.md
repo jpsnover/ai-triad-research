@@ -206,8 +206,7 @@ Genus-Differentia Description (3-6 Sentences):
 
   Sentence 6 (optional): Note any edge cases or borderline situations.
 
-  IMPORTANT: Write at a grade-10 reading level. The genus-differentia structure
-  should be clear but the language should remain conversational.
+  IMPORTANT: Write for a policy reporter or congressional staffer — active voice, named actors, one idea per sentence, concrete examples over abstractions. Every sentence quotable without rewriting. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use. The genus-differentia structure should be clear but the language should remain conversational.
 
   Example:
     BEFORE: "The best way to make AI smarter is to give it more computing
@@ -231,7 +230,7 @@ In `pov-summary-system.prompt`, add to unmapped concept instructions:
     existing node is and why this concept is distinct from it.
 ```
 
-**Style Risk:** The grade-10 reading level convention and newspaper-headline style must be preserved. Genus-differentia structure should organize the content but not make it read like a textbook. The example above demonstrates this balance. Validate with the prompt: "Could a non-specialist understand this description?"
+**Style Risk:** The "write for a policy reporter" convention and newspaper-headline style must be preserved. Genus-differentia structure should organize the content but not make it read like a textbook. The example above demonstrates this balance. Validate with the prompt: "Could a reporter quote this sentence without rewriting it?"
 
 **Measurement:** Compare `descriptions.genus_differentia_pct` (currently 5.8%), `node_mapping.category_inconsistencies` (currently 14), and `node_mapping.unreferenced_node_count` (currently 294) before and after.
 

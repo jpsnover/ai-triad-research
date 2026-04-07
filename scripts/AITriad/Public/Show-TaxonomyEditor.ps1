@@ -295,6 +295,15 @@ function Start-ContainerMode {
     # ── Build docker run arguments ────────────────────────────────────────
     $envArgs = Get-ApiKeyEnvArgs
 
+    # UID/GID for bind mount and tmpfs ownership
+    $uid = $null
+    $gid = $null
+    if ($IsLinux -or $IsMacOS) {
+        $uid = id -u 2>$null
+        $gid = id -g 2>$null
+    }
+    $tmpfsUidOpt = if ($uid -and $gid) { ",uid=$uid,gid=$gid" } else { '' }
+
     $runArgs = @(
         'run', '--rm'
         '--name', $ContainerName
@@ -303,21 +312,20 @@ function Start-ContainerMode {
         # Security hardening
         '--cap-drop', 'ALL'
         '--read-only'
-        '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m'
-        '--tmpfs', '/app/.cache:rw,noexec,nosuid,size=512m'
+        '--tmpfs', "/tmp:rw,noexec,nosuid,size=256m${tmpfsUidOpt}"
+        '--tmpfs', "/app/.cache:rw,noexec,nosuid,size=512m${tmpfsUidOpt}"
+        # Writable home for PowerShell config/cache (needed with --read-only)
+        '--tmpfs', "/home/aitriad:rw,noexec,nosuid,size=64m${tmpfsUidOpt}"
+        '-e', 'HOME=/home/aitriad'
         # Resource limits
         '--memory', '4g'
         '--cpus', '2'
     )
 
     # UID/GID matching — prevent file permission mismatches on the bind mount
-    if ($IsLinux -or $IsMacOS) {
-        $uid = id -u 2>$null
-        $gid = id -g 2>$null
-        if ($uid -and $gid) {
-            $runArgs += '--user'
-            $runArgs += "${uid}:${gid}"
-        }
+    if ($uid -and $gid) {
+        $runArgs += '--user'
+        $runArgs += "${uid}:${gid}"
     }
 
     $runArgs += $envArgs
@@ -331,10 +339,33 @@ function Start-ContainerMode {
     # ── Launch ────────────────────────────────────────────────────────────
     if ($Detach) {
         Write-Step 'Starting Taxonomy Editor (detached)'
-        docker @runArgs 2>&1 | Out-Null
+        $dockerOutput = docker @runArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
+            $errorText = ($dockerOutput | Out-String).Trim()
             Write-Fail "Failed to start container (exit code $LASTEXITCODE)."
-            Write-Info "Try: docker logs $ContainerName"
+            if ($errorText -match 'port is already allocated|address already in use') {
+                Write-Warn "Port $Port is already in use by another process."
+                Write-Info "Fix: Stop whatever is using port ${Port}:"
+                Write-Info "  docker ps                          # find the container"
+                Write-Info "  docker stop <container-id>         # stop it"
+                Write-Info "  lsof -i :$Port                     # or find non-Docker process"
+                Write-Info "Or use a different port: Show-TaxonomyEditor -Port 8080"
+            }
+            elseif ($errorText -match 'is already in use by container') {
+                Write-Warn "A container named '$ContainerName' already exists."
+                Write-Info "Fix: Remove the stale container and retry:"
+                Write-Info "  docker rm $ContainerName"
+                Write-Info "  Show-TaxonomyEditor"
+            }
+            elseif ($errorText -match 'No such image') {
+                Write-Warn 'Docker image not found locally.'
+                Write-Info "Fix: Pull the image first:"
+                Write-Info "  Show-TaxonomyEditor -Pull"
+            }
+            else {
+                Write-Info "Docker error: $errorText"
+                Write-Info "Try: docker logs $ContainerName"
+            }
             return
         }
 
@@ -356,10 +387,33 @@ function Start-ContainerMode {
         # Insert -d flag before the image name (last element)
         $fgArgs = @($fgArgs[0..($fgArgs.Count - 2)]) + @('-d') + @($fgArgs[-1])
 
-        docker @fgArgs 2>&1 | Out-Null
+        $dockerOutput = docker @fgArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
+            $errorText = ($dockerOutput | Out-String).Trim()
             Write-Fail "Failed to start container (exit code $LASTEXITCODE)."
-            Write-Info "Try: docker logs $ContainerName"
+            if ($errorText -match 'port is already allocated|address already in use') {
+                Write-Warn "Port $Port is already in use by another process."
+                Write-Info "Fix: Stop whatever is using port ${Port}:"
+                Write-Info "  docker ps                          # find the container"
+                Write-Info "  docker stop <container-id>         # stop it"
+                Write-Info "  lsof -i :$Port                     # or find non-Docker process"
+                Write-Info "Or use a different port: Show-TaxonomyEditor -Port 8080"
+            }
+            elseif ($errorText -match 'is already in use by container') {
+                Write-Warn "A container named '$ContainerName' already exists."
+                Write-Info "Fix: Remove the stale container and retry:"
+                Write-Info "  docker rm $ContainerName"
+                Write-Info "  Show-TaxonomyEditor"
+            }
+            elseif ($errorText -match 'No such image') {
+                Write-Warn 'Docker image not found locally.'
+                Write-Info "Fix: Pull the image first:"
+                Write-Info "  Show-TaxonomyEditor -Pull"
+            }
+            else {
+                Write-Info "Docker error: $errorText"
+                Write-Info "Try: docker logs $ContainerName"
+            }
             return
         }
 

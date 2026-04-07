@@ -60,7 +60,7 @@ export interface ElectronAPI {
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
-  exportDebateToFile: (session: unknown) => Promise<{ cancelled: boolean; filePath?: string }>;
+  exportDebateToFile: (session: unknown, format?: string) => Promise<{ cancelled: boolean; filePath?: string }>;
   fetchUrlContent: (url: string) => Promise<{ content: string; error?: string }>;
   pickDocumentFile: () => Promise<{ cancelled: boolean; filePath?: string; content?: string }>;
   terminalSpawn: () => Promise<void>;

@@ -17,25 +17,42 @@ import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 
+// Build fingerprint — changes every build to verify deployment
+const BUILD_FINGERPRINT = `build-${Date.now()}`;
+console.log(`[App] BUILD_FINGERPRINT: ${BUILD_FINGERPRINT}`);
+
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { error: Error | null }
+  { error: Error | null; componentStack: string | null }
 > {
-  state = { error: null as Error | null };
+  state = { error: null as Error | null, componentStack: null as string | null };
   static getDerivedStateFromError(error: Error) { return { error }; }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    console.error('[ErrorBoundary] error:', error.message);
+    console.error('[ErrorBoundary] componentStack:', info.componentStack);
+    console.error('[ErrorBoundary] stack:', error.stack);
+    this.setState({ componentStack: info.componentStack ?? null });
   }
   render() {
     if (this.state.error) {
       return (
         <div style={{ padding: 20, fontFamily: 'monospace' }}>
           <h2 style={{ color: '#ef4444' }}>Something went wrong</h2>
+          <div style={{ color: '#666', fontSize: '0.7rem', marginBottom: 8 }}>Build: {BUILD_FINGERPRINT}</div>
           <pre style={{ whiteSpace: 'pre-wrap', color: '#f97316' }}>{this.state.error.message}</pre>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#94a3b8', marginTop: 8 }}>
+          {this.state.componentStack && (
+            <>
+              <h3 style={{ color: '#94a3b8', marginTop: 12 }}>Component Stack:</h3>
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#60a5fa', marginTop: 4 }}>
+                {this.state.componentStack}
+              </pre>
+            </>
+          )}
+          <h3 style={{ color: '#94a3b8', marginTop: 12 }}>Error Stack:</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
             {this.state.error.stack}
           </pre>
-          <button onClick={() => this.setState({ error: null })} style={{ marginTop: 12, padding: '6px 12px' }}>
+          <button onClick={() => this.setState({ error: null, componentStack: null })} style={{ marginTop: 12, padding: '6px 12px' }}>
             Try Again
           </button>
         </div>

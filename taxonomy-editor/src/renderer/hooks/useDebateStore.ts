@@ -16,9 +16,9 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis } from '../types/debate';
-import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
+import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker, swapIssue } from '../utils/convergenceScoring';
 import {
@@ -36,6 +36,7 @@ import {
   factCheckPrompt,
   contextCompressionPrompt,
   entrySummarizationPrompt,
+  missingArgumentsPrompt,
 } from '../prompts/debate';
 import {
   generateId,
@@ -101,12 +102,20 @@ async function summarizeTranscriptEntry(
   get: () => { activeDebate: DebateSession | null },
   set: (partial: Partial<{ activeDebate: DebateSession | null }>) => void,
 ): Promise<void> {
-  try {
-    const prompt = entrySummarizationPrompt(content, speaker);
-    const { text } = await api.generateText(prompt, model, 15000);
-    const cleaned = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
-    const parsed = JSON.parse(cleaned) as { brief?: string; medium?: string };
-    if (parsed.brief && parsed.medium) {
+  const MAX_RETRIES = 2;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const prompt = entrySummarizationPrompt(content, speaker);
+      const { text } = await api.generateText(prompt, model, 15000);
+      const parsed = parseAIJson<{ brief?: string; medium?: string }>(text);
+      if (!parsed) {
+        console.warn(`[debate] summarizeEntry: parseAIJson returned null (attempt ${attempt + 1}/${MAX_RETRIES}). Raw response:`, text.slice(0, 500));
+        continue;
+      }
+      if (!parsed.brief || !parsed.medium) {
+        console.warn(`[debate] summarizeEntry: missing brief/medium (attempt ${attempt + 1}/${MAX_RETRIES}). Parsed:`, parsed);
+        continue;
+      }
       const debate = get().activeDebate;
       if (!debate) return;
       const entry = debate.transcript.find(e => e.id === entryId);
@@ -114,10 +123,12 @@ async function summarizeTranscriptEntry(
         entry.summaries = { brief: parsed.brief, medium: parsed.medium };
         set({ activeDebate: { ...debate } });
       }
+      return; // success
+    } catch (err) {
+      console.warn(`[debate] summarizeEntry failed (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);
     }
-  } catch (err) {
-    console.warn('[debate] summarizeEntry failed:', err);
   }
+  console.warn(`[debate] summarizeEntry: all ${MAX_RETRIES} attempts failed for entry ${entryId}. Detail level pills will be unavailable for this entry.`);
 }
 
 /**
@@ -207,7 +218,7 @@ async function extractClaimsAndUpdateAN(
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
-    const parsed = JSON.parse(cleaned) as { claims?: { text: string; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; warrant?: string }[] }[] };
+    const parsed = JSON.parse(cleaned) as { claims?: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
     if (!parsed.claims || !Array.isArray(parsed.claims)) return;
 
     const turnNumber = debate.transcript.length;
@@ -243,6 +254,13 @@ async function extractClaimsAndUpdateAN(
         source_entry_id: entryId,
         taxonomy_refs: taxonomyRefs,
         turn_number: turnNumber,
+        base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
+        scoring_method: typeof claim.base_strength === 'number'
+          ? 'ai_rubric'
+          : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+        bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
+        specificity: claim.specificity as ArgumentNetworkNode['specificity'],
+        steelman_of: claim.steelman_of || undefined,
       });
 
       // Track as asserted
@@ -263,6 +281,7 @@ async function extractClaimsAndUpdateAN(
           target: resp.prior_claim_id,
           type: resp.relationship === 'attacks' ? 'attacks' : 'supports',
           warrant: resp.warrant || undefined,
+          argumentation_scheme: resp.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
         };
         if (resp.relationship === 'attacks') {
           edge.attack_type = (resp.attack_type as 'rebut' | 'undercut' | 'undermine') || 'rebut';
@@ -312,6 +331,87 @@ async function extractClaimsAndUpdateAN(
         getLabelForId,
       );
       set({ activeDebate: { ...updatedDebate, convergence_tracker: ct } });
+    }
+
+    // Update unanswered claims ledger
+    const postLedgerDebate = get().activeDebate;
+    if (postLedgerDebate?.argument_network) {
+      const ledger = updateUnansweredLedger(
+        postLedgerDebate.unanswered_claims_ledger ?? [],
+        postLedgerDebate.argument_network.nodes,
+        postLedgerDebate.argument_network.edges,
+        postLedgerDebate.transcript.length,
+      );
+      set({ activeDebate: { ...postLedgerDebate, unanswered_claims_ledger: ledger } });
+    }
+
+    // Steelman validation (non-blocking)
+    const steelmanNodes = newNodes.filter(n => n.steelman_of);
+    if (steelmanNodes.length > 0) {
+      try {
+        for (const sNode of steelmanNodes) {
+          const targetPover = sNode.steelman_of!;
+          const targetCommits = (get().activeDebate?.commitments?.[targetPover] as CommitmentStore | undefined);
+          if (!targetCommits || targetCommits.asserted.length === 0) continue;
+
+          const pairs = targetCommits.asserted.slice(-10).map(assertion => ({
+            text_a: sNode.text,
+            text_b: assertion,
+          }));
+          const nliResult = await api.nliClassify(pairs);
+          const maxEntailment = Math.max(...nliResult.results.map((r: any) => r.nli_entailment ?? 0));
+
+          if (maxEntailment < 0.6) {
+            const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
+            const speakerLbl = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+            const topAssertions = targetCommits.asserted.slice(-3).map(a => `"${a}"`).join('; ');
+
+            const addEntry = get().addTranscriptEntry;
+            if (addEntry) {
+              addEntry({
+                type: 'system',
+                speaker: 'system',
+                content: `[Steelman check] ${speakerLbl}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
+                taxonomy_refs: [],
+              });
+            }
+          }
+        }
+      } catch (nliErr) {
+        console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
+      }
+    }
+
+    // Inline empirical claim verification (non-blocking)
+    const preciseBeliefs = newNodes.filter(n => n.bdi_category === 'belief' && n.specificity === 'precise');
+    for (const pNode of preciseBeliefs.slice(0, 2)) {
+      try {
+        const verifyPrompt = `Verify this empirical claim using web search evidence.\n\nClaim: "${pNode.text}"\n\nReturn ONLY JSON:\n{"verdict": "verified" or "disputed" or "unverifiable", "evidence": "1-2 sentence summary"}`;
+        const { text: vText } = await api.generateTextWithSearch(verifyPrompt, getConfiguredModel());
+        const vParsed = parseAIJson(vText) as any;
+        if (vParsed?.verdict) {
+          pNode.verification_status = vParsed.verdict;
+          pNode.verification_evidence = vParsed.evidence;
+          // Update in session
+          const currentDebate = get().activeDebate;
+          if (currentDebate) set({ activeDebate: { ...currentDebate } });
+
+          if (vParsed.verdict === 'disputed') {
+            const addEntry = get().addTranscriptEntry;
+            if (addEntry) {
+              addEntry({
+                type: 'system',
+                speaker: 'system',
+                content: `[Fact-check] Claim ${pNode.id} disputed by web evidence: ${vParsed.evidence}`,
+                taxonomy_refs: [],
+              });
+            }
+          }
+        }
+      } catch (verifyErr) {
+        console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
+        pNode.verification_status = 'pending';
+      }
     }
 
     // Record claim extraction diagnostics
@@ -593,6 +693,8 @@ function buildCrossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
   argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] },
+  unansweredLedger?: import('@lib/debate/types').UnansweredClaimEntry[],
+  round?: number,
 ): string {
   const edgeContext = formatEdgeContext(activePovers);
   const anContext = argumentNetwork
@@ -601,7 +703,13 @@ function buildCrossRespondSelectionPrompt(
         argumentNetwork.edges,
       )
     : '';
-  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext + anContext);
+  const ledgerHint = (round != null && unansweredLedger)
+    ? formatUnansweredClaimsHint(unansweredLedger, round)
+    : '';
+  const specifyHint = argumentNetwork
+    ? formatSpecifyHint(argumentNetwork.nodes, argumentNetwork.edges)
+    : '';
+  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext + anContext + ledgerHint + specifyHint);
 }
 
 function buildCrossRespondPrompt(
@@ -1424,6 +1532,30 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       });
     }
 
+    // Cache opening embeddings for position drift detection (non-blocking)
+    try {
+      const currentDebate = get().activeDebate;
+      if (currentDebate) {
+        const openingEmbeddings: Record<string, number[]> = {};
+        for (const entry of currentDebate.transcript) {
+          if (entry.type !== 'opening' || entry.speaker === 'system') continue;
+          try {
+            const result = await api.computeQueryEmbedding(entry.content.slice(0, 1000));
+            openingEmbeddings[entry.speaker] = result.vector;
+          } catch { /* non-critical */ }
+        }
+        // Store on session metadata for cross-respond access
+        if (Object.keys(openingEmbeddings).length > 0) {
+          const d = get().activeDebate;
+          if (d) {
+            if (!(d as any).metadata) (d as any).metadata = {};
+            (d as any).metadata._openingEmbeddings = openingEmbeddings;
+            set({ activeDebate: { ...d } });
+          }
+        }
+      }
+    } catch { /* non-critical */ }
+
     await saveDebate();
   },
 
@@ -1603,7 +1735,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Step 1: Ask the LLM which POVer should respond to whom
     set({ debateGenerating: aiPovers[0] }); // Show some activity
 
-    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels, activeDebate.argument_network);
+    // Estimate current round from cross-respond statement count
+    const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels, activeDebate.argument_network, activeDebate.unanswered_claims_ledger, crossRespondRound);
 
     let responderPover: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = '';
@@ -1759,6 +1893,43 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         // Post-turn summarization (DT-2)
         await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
+
+        // Position drift detection (non-blocking)
+        try {
+          const currentD = get().activeDebate;
+          const openingEmbeds = (currentD as any)?.metadata?._openingEmbeddings as Record<string, number[]> | undefined;
+          if (openingEmbeds && openingEmbeds[responderPover]) {
+            const responseEmbed = await api.computeQueryEmbedding(statement.slice(0, 1000));
+            const selfSim = cosineSimilarity(responseEmbed.vector, openingEmbeds[responderPover]);
+            const opponentSims: Record<string, number> = {};
+            for (const [pov, embed] of Object.entries(openingEmbeds)) {
+              if (pov !== responderPover) opponentSims[pov] = cosineSimilarity(responseEmbed.vector, embed);
+            }
+            const drift = currentD?.position_drift ?? [];
+            drift.push({ round: crossRespondRound, speaker: responderPover, self_similarity: selfSim, opponent_similarities: opponentSims });
+            set({ activeDebate: { ...currentD!, position_drift: drift } });
+
+            // Sycophancy detection
+            const speakerDrift = drift.filter(d => d.speaker === responderPover);
+            if (speakerDrift.length >= 3) {
+              const recent = speakerDrift.slice(-3);
+              const selfDecreasing = recent.every((d, i) => i === 0 || d.self_similarity < recent[i - 1].self_similarity);
+              const opponents = Object.keys(recent[0].opponent_similarities);
+              const driftingToward = opponents.find(opp =>
+                recent.every((d, i) => i === 0 || (d.opponent_similarities[opp] ?? 0) > (recent[i - 1].opponent_similarities[opp] ?? 0)),
+              );
+              const concessions = currentD?.commitments?.[responderPover]?.conceded ?? [];
+              if (selfDecreasing && driftingToward && concessions.length === 0) {
+                const opLabel = POVER_INFO[driftingToward as Exclude<PoverId, 'user'>]?.label ?? driftingToward;
+                addTranscriptEntry({
+                  type: 'system', speaker: 'system',
+                  content: `[Sycophancy guard] ${info.label} appears to be drifting toward ${opLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}.`,
+                  taxonomy_refs: [],
+                });
+              }
+            }
+          }
+        } catch { /* non-critical */ }
       }
     } catch (err) {
       addTranscriptEntry({
@@ -1924,6 +2095,33 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: taxonomyCoverage,
         metadata: { synthesis },
       });
+
+      // Missing arguments pass — fire after synthesis, non-blocking
+      try {
+        const synthText = lines.join('\n').slice(0, 4000);
+        const summaryLines: string[] = [];
+        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+          const ctx = getTaxonomyContext(pov);
+          for (const n of ctx.povNodes) {
+            summaryLines.push(`[${n.id}] ${n.label} (${(n as any).category ?? 'unknown'}) — ${pov}`);
+          }
+        }
+        const maPrompt = missingArgumentsPrompt(
+          activeDebate.topic.final,
+          summaryLines.slice(0, 80).join('\n'),
+          synthText,
+        );
+        const { text: maText } = await api.generateText(maPrompt, model);
+        const maParsed = parseAIJson(maText) as any;
+        if (maParsed?.missing_arguments && Array.isArray(maParsed.missing_arguments)) {
+          const currentDebate = get().activeDebate;
+          if (currentDebate) {
+            set({ activeDebate: { ...currentDebate, missing_arguments: maParsed.missing_arguments.slice(0, 5) } });
+          }
+        }
+      } catch (maErr) {
+        console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
+      }
     } catch (err) {
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {

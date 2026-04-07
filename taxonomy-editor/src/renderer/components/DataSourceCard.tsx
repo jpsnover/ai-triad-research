@@ -6,16 +6,22 @@
  * Phase B: reads/writes from usePromptConfigStore.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { DataSourceId } from '../data/promptCatalog';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import type { Category } from '../types/taxonomy';
 
 interface DataSourceCardProps {
   dsId: DataSourceId;
   disabled?: boolean;
   disabledReason?: string;
+}
+
+/** Resolve a config value using the store state directly (no getState() call). */
+function resolveConfig(s: { sessionOverrides: Record<string, number | boolean | string>; workspaceDefaults: Record<string, number | boolean | string> }, key: string): number | boolean | string {
+  if (key in s.sessionOverrides) return s.sessionOverrides[key];
+  if (key in s.workspaceDefaults) return s.workspaceDefaults[key];
+  return PROMPT_CONFIG_DEFAULTS[key] ?? 0;
 }
 
 function Slider({ label, configKey, min, max, step = 1 }: {
@@ -25,7 +31,7 @@ function Slider({ label, configKey, min, max, step = 1 }: {
   max: number;
   step?: number;
 }) {
-  const value = usePromptConfigStore(s => s.get(configKey)) as number;
+  const value = usePromptConfigStore(s => resolveConfig(s, configKey)) as number;
   const setSession = usePromptConfigStore(s => s.setSession);
   return (
     <label className="pi-control">
@@ -45,7 +51,7 @@ function Slider({ label, configKey, min, max, step = 1 }: {
 }
 
 function Toggle({ label, configKey }: { label: string; configKey: string }) {
-  const value = usePromptConfigStore(s => s.get(configKey)) as boolean;
+  const value = usePromptConfigStore(s => resolveConfig(s, configKey)) as boolean;
   const setSession = usePromptConfigStore(s => s.setSession);
   return (
     <label className="pi-control pi-control-toggle">
@@ -64,7 +70,7 @@ function Dropdown({ label, configKey, options }: {
   configKey: string;
   options: { value: string; label: string }[];
 }) {
-  const value = usePromptConfigStore(s => s.get(configKey)) as string;
+  const value = usePromptConfigStore(s => resolveConfig(s, configKey)) as string;
   const setSession = usePromptConfigStore(s => s.setSession);
   return (
     <label className="pi-control">
@@ -106,31 +112,42 @@ const DATA_SOURCE_LABELS: Record<DataSourceId, string> = {
   establishedPoints: 'Established Points',
 };
 
-/** Live node selection preview for RAG parameter visibility (RAG-4) */
-function TaxonomyNodeCountPreview() {
-  const configGet = usePromptConfigStore(s => s.get);
-  const maxTotal = configGet('taxonomyNodes.maxTotal') as number;
-  const beliefsOn = configGet('taxonomyNodes.bdiFilter.Beliefs') as boolean;
-  const desiresOn = configGet('taxonomyNodes.bdiFilter.Desires') as boolean;
-  const intentionsOn = configGet('taxonomyNodes.bdiFilter.Intentions') as boolean;
+/** Count BDI nodes from a taxonomy store snapshot (pure function, no hooks). */
+function computeNodeCounts(s: ReturnType<typeof useTaxonomyStore.getState>) {
+  let beliefs = 0, desires = 0, intentions = 0;
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    const file = s[pov];
+    if (!file?.nodes) continue;
+    for (const n of file.nodes) {
+      if (n.category === 'Beliefs') beliefs++;
+      else if (n.category === 'Desires') desires++;
+      else if (n.category === 'Intentions') intentions++;
+    }
+  }
+  return { Beliefs: beliefs, Desires: desires, Intentions: intentions };
+}
 
-  // Count nodes per category across all POVs (equality fn avoids infinite re-render)
-  const counts = useTaxonomyStore(
-    s => {
-      let beliefs = 0, desires = 0, intentions = 0;
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-        const file = s[pov];
-        if (!file?.nodes) continue;
-        for (const n of file.nodes) {
-          if (n.category === 'Beliefs') beliefs++;
-          else if (n.category === 'Desires') desires++;
-          else if (n.category === 'Intentions') intentions++;
-        }
-      }
-      return { Beliefs: beliefs, Desires: desires, Intentions: intentions };
-    },
-    (a, b) => a.Beliefs === b.Beliefs && a.Desires === b.Desires && a.Intentions === b.Intentions,
-  );
+/** Live node selection preview for RAG parameter visibility (RAG-4).
+ *  Uses manual subscription instead of useSyncExternalStore to avoid
+ *  tearing loops when taxonomy data loads asynchronously (web build). */
+function TaxonomyNodeCountPreview() {
+  const maxTotal = usePromptConfigStore(s => resolveConfig(s, 'taxonomyNodes.maxTotal')) as number;
+  const beliefsOn = usePromptConfigStore(s => resolveConfig(s, 'taxonomyNodes.bdiFilter.Beliefs')) as boolean;
+  const desiresOn = usePromptConfigStore(s => resolveConfig(s, 'taxonomyNodes.bdiFilter.Desires')) as boolean;
+  const intentionsOn = usePromptConfigStore(s => resolveConfig(s, 'taxonomyNodes.bdiFilter.Intentions')) as boolean;
+
+  // Manual snapshot + subscribe to avoid useSyncExternalStore tearing during async loads
+  const [counts, setCounts] = useState(() => computeNodeCounts(useTaxonomyStore.getState()));
+  useEffect(() => {
+    // Update when taxonomy store changes (debounce-safe: setState with same values is a no-op)
+    return useTaxonomyStore.subscribe(s => {
+      const next = computeNodeCounts(s);
+      setCounts(prev =>
+        prev.Beliefs === next.Beliefs && prev.Desires === next.Desires && prev.Intentions === next.Intentions
+          ? prev : next
+      );
+    });
+  }, []);
 
   const totalAvailable = (beliefsOn ? counts.Beliefs : 0) + (desiresOn ? counts.Desires : 0) + (intentionsOn ? counts.Intentions : 0);
   const totalAll = counts.Beliefs + counts.Desires + counts.Intentions;

@@ -55,7 +55,7 @@ Analyze the health data provided below and generate structured proposals to impr
   - Line 3: "Excludes: [what neighboring nodes cover]."
   - For situations nodes, Line 1 is: "A situation concept that [differentia]."
   - Each line MUST start with the literal label shown. Use "\n" to separate lines in JSON strings.
-  - 2-4 sentences total. Grade-10 reading level.
+  - 2-4 sentences total. Write for a policy reporter — active voice, concrete examples, quotable sentences. No nominalizations or hedge stacking.
 - Prioritize proposals that address: (a) strong unmapped candidates (frequency >= 3), (b) orphan nodes, (c) high stance-variance nodes, (d) coverage imbalances.
 - Do NOT propose changes that merely rephrase existing nodes without substantive benefit.
 

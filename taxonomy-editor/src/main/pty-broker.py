@@ -7,7 +7,15 @@ Uses only Python stdlib (pty, os, select, sys).
 
 import pty, os, sys, select, signal, struct, fcntl, termios
 
-SHELL = os.environ.get('SHELL_PWSH', '/usr/local/microsoft/powershell/7/pwsh')
+SHELL = os.environ.get('SHELL_PWSH', None)
+if SHELL is None:
+    # Auto-detect pwsh location
+    for candidate in ['/usr/local/bin/pwsh', '/opt/microsoft/powershell/7/pwsh', '/usr/local/microsoft/powershell/7/pwsh']:
+        if os.path.isfile(candidate):
+            SHELL = candidate
+            break
+    if SHELL is None:
+        SHELL = 'pwsh'  # fall back to PATH lookup
 COLS = int(os.environ.get('PTY_COLS', '120'))
 ROWS = int(os.environ.get('PTY_ROWS', '30'))
 

@@ -13,7 +13,7 @@ For each cluster, propose a situation concept that captures the shared theme. Pr
    Line 1: "A situation concept that [differentia]."
    Line 2: "Encompasses: [what it covers]."
    Line 3: "Excludes: [what is NOT covered]."
-   Each line MUST start with the literal label shown. For contradiction clusters, note that POVs take opposing positions. 2-4 sentences total, grade-10 reading level.
+   Each line MUST start with the literal label shown. For contradiction clusters, note that POVs take opposing positions. 2-4 sentences total. Write for a policy reporter — active voice, concrete examples, quotable sentences.
 3. `relationship_type` — one of: "shared_concept" (entailment), "contested_topic" (contradiction), or "related_theme" (neutral).
 4. `interpretations` — how each POV interprets this concept, structured as a BDI-decomposed object per POV:
    ```

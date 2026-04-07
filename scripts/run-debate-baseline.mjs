@@ -183,7 +183,7 @@ function tryParseJson(text) {
 
 // ── Prompt templates (mirrors debate.ts) ──────────────────
 
-const READING_LEVEL = 'Write at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context.';
+const READING_LEVEL = 'Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. Avoid nominalizations (say "regulators decided" not "the regulatory decision"), hedge stacking ("may potentially" → pick one), and sentences that require re-reading. Technical terms are fine when they are load-bearing; define them briefly on first use.';
 
 const TAXONOMY_USAGE = `Your taxonomy context is organized into BDI sections — Beliefs, Values, and Reasoning Approach — that structure your worldview:
 

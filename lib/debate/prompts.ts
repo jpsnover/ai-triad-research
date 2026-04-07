@@ -20,7 +20,7 @@ function otherDebaters(currentLabel: string): string {
   return `You are debating:\n${others}`;
 }
 
-const READING_LEVEL = 'Write your statement text at a 10th-grade reading level. Use clear, direct language. Avoid jargon unless you define it in context. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
+const READING_LEVEL = 'Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. Avoid nominalizations (say "regulators decided" not "the regulatory decision"), hedge stacking ("may potentially" → pick one), and sentences that require re-reading. Technical terms are fine when they\'re load-bearing; define them briefly on first use. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
 
 // ── Length-scaled instructions ──────────────────────────────
 // Each length tier specifies both the size constraint AND which
@@ -53,11 +53,24 @@ STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
 - Warrant: WHY the evidence supports the claim (the reasoning link)
 An argument without a warrant is just an assertion. An argument without evidence is speculation.
 
-EVALUATE EVIDENCE QUALITY. Not all evidence is equal:
-- Strong: peer-reviewed studies, large-scale empirical data, historical precedent with clear parallels
-- Moderate: expert consensus, case studies, logical deduction from established principles
-- Weak: anecdotes, analogies without structural similarity, predictions without methodology
-When citing evidence, acknowledge its strength level. When attacking evidence, target its weakest link.
+EVALUATE EVIDENCE QUALITY. Different claim types require different evidence standards:
+
+For EMPIRICAL claims (factual assertions about how the world is):
+- Strong: peer-reviewed studies, large-scale empirical data, replicated findings
+- Moderate: expert consensus, case studies, institutional reports with disclosed methodology
+- Weak: anecdotes, predictions without methodology, statistics without sourcing
+
+For NORMATIVE claims (arguments about what should happen):
+- Strong: coherent with stated principles, consistent with analogous cases the advocate accepts, acknowledges tradeoffs
+- Moderate: grounded in articulated values, cites relevant precedent or institutional practice
+- Weak: appeals to emotion without principled grounding, ignores obvious tradeoffs, fails the generalization test ("does this principle, applied consistently, produce results the advocate would accept?")
+
+For DEFINITIONAL claims (arguments about what terms mean or how to frame the issue):
+- Strong: precise criteria distinguishing what falls inside vs. outside the definition, accounts for contested cases
+- Moderate: cites established usage or institutional definitions, explains why this framing matters
+- Weak: stipulative definitions presented as obvious, definitions that conveniently include/exclude to suit the argument
+
+When citing evidence, match it to the claim type. When attacking evidence, target the mismatch: an empirical claim supported only by normative reasoning is underdefended; a normative claim attacked only with empirical data misses the point.
 
 PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose based on:
 - Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
@@ -204,6 +217,16 @@ const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical 
   USE WHEN: The opponent's evidence is real and their conclusion may be right, but their
   reasoning for WHY the evidence supports the conclusion is flawed.
   THE KEY: Show that even accepting the evidence, the conclusion doesn't follow by THIS logic.
+
+- SPECIFY: Demand that the opponent operationalize their position — what specific evidence,
+  outcome, or condition would falsify their claim? Force testable predictions.
+  USE WHEN: The opponent makes a strong claim but has never stated what would count as
+  evidence against it. Especially productive when two high-strength positions coexist
+  with no direct engagement between them (debaters talking past each other).
+  THE KEY: Ask a concrete question that forces a falsifiable commitment. Not "what do you
+  think about X?" but "what specific outcome in the next 5 years would make you abandon
+  this position?" The goal is to surface hidden assumptions and make the disagreement
+  resolvable in principle.
 
 MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
 conceded last turn, lead with a challenge or reframe this turn. If you distinguished
@@ -444,7 +467,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT
+  "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
   ],
@@ -649,7 +672,8 @@ ${edgeContext}${schemeSection}${metaphorSection}
 Identify the most productive next exchange. Which debater should respond, to whom, and about what specific point? Consider:
 - Which disagreement would be most clarified by a direct exchange?
 - Are there structural tensions between positions (shown above) that haven't been addressed?
-- Would a concession, distinction, or reframe be most productive right now?${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
+- Would a concession, distinction, or reframe be most productive right now?
+- If a SPECIFY OPPORTUNITY is flagged above, strongly consider directing a debater to operationalize their claim — ask what specific evidence would falsify it.${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
 If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
 
@@ -713,7 +737,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
   ],
-  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT
+  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
@@ -1205,4 +1229,53 @@ MEDIUM (1-2 paragraphs): The main argument with key supporting evidence, in ${sp
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {"brief": "...", "medium": "..."}`;
+}
+
+// ── Missing Arguments Pass ──────────────────────────────
+
+/**
+ * Post-synthesis prompt for a fresh LLM with no transcript context.
+ * Identifies the strongest arguments that were never raised during the debate.
+ */
+export function missingArgumentsPrompt(
+  topic: string,
+  taxonomyNodesSummary: string,
+  synthesisText: string,
+): string {
+  return `You have NOT seen the debate transcript. You receive only:
+1. The debate topic
+2. A summary of available positions from the taxonomy
+3. The synthesis of what was actually discussed
+
+Your job: identify 3-5 strongest arguments on ANY side that do NOT appear in the synthesis.
+A "missing argument" is one that a well-prepared debater would have raised but nobody did.
+
+TOPIC:
+${topic}
+
+AVAILABLE POSITIONS (each position belongs to one of three perspectives — accelerationist, safetyist, or skeptic — and one BDI category — Belief, Desire, or Intention):
+${taxonomyNodesSummary}
+
+SYNTHESIS OF WHAT WAS DISCUSSED:
+${synthesisText}
+
+For each missing argument:
+- "argument": State the argument in 1-2 sentences, as a debater would actually make it
+- "side": Which perspective this strengthens ("accelerationist", "safetyist", or "skeptic")
+- "why_strong": Why this argument is compelling and hard to dismiss (1 sentence)
+- "bdi_layer": "belief" (empirical claim), "desire" (normative claim), or "intention" (strategic claim)
+
+${READING_LEVEL}
+
+Return ONLY JSON (no markdown, no code fences):
+{
+  "missing_arguments": [
+    {
+      "argument": "...",
+      "side": "accelerationist or safetyist or skeptic",
+      "why_strong": "...",
+      "bdi_layer": "belief or desire or intention"
+    }
+  ]
+}`;
 }

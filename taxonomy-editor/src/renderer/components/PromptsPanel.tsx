@@ -29,21 +29,25 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
   const [panelTab, setPanelTab] = useState<PromptsPanelTab>('catalog');
 
   const switchTab = (tab: PromptsPanelTab) => {
+    console.error(`[PromptsPanel] switchTab: ${tab}`);
     setPanelTab(tab);
     onInspectorToggle?.(tab === 'inspector');
   };
-  const { selectedNodeId, activeTab } = useTaxonomyStore();
-  const selectedNode = useTaxonomyStore((s) => {
-    if (!selectedNodeId) return null;
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
-      const file = s[pov] as { nodes: Array<{ id: string; label: string; description: string }> } | null;
-      if (file) {
-        const node = file.nodes.find(n => n.id === selectedNodeId);
-        if (node) return node;
+  const selectedNode = useTaxonomyStore(
+    (s) => {
+      const nodeId = s.selectedNodeId;
+      if (!nodeId) return null;
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+        const file = s[pov] as { nodes: Array<{ id: string; label: string; description: string }> } | null;
+        if (file) {
+          const node = file.nodes.find(n => n.id === nodeId);
+          if (node) return node;
+        }
       }
-    }
-    return null;
-  });
+      return null;
+    },
+    (a, b) => a?.id === b?.id,
+  );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectionTick, setSelectionTick] = useState(0);
@@ -69,10 +73,12 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
   }, [entries.length]);
 
   // Notify parent of selection (selectionTick forces re-fire on re-click)
+  // Only fire when catalog tab is active — inspector doesn't need prompt selection
   useEffect(() => {
+    if (panelTab !== 'catalog') return;
     const entry = entries[selectedIndex] ?? null;
     onSelectPrompt(entry);
-  }, [selectedIndex, selectionTick, entries, onSelectPrompt]);
+  }, [selectedIndex, selectionTick, entries, onSelectPrompt, panelTab]);
 
   // Auto-focus
   useEffect(() => {

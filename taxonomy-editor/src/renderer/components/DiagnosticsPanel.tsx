@@ -6,7 +6,7 @@ import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../types/debate';
+import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument } from '../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
@@ -910,7 +910,17 @@ function OverviewView() {
                     ) : null;
                   })()}
                 </div>
-                <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>{n.text}</div>
+                {n.verification_status && (
+                  <span className={`diag-badge diag-verification-${n.verification_status}`} title={n.verification_evidence || n.verification_status}>
+                    {n.verification_status === 'verified' ? 'V' : n.verification_status === 'disputed' ? 'X' : '?'}
+                  </span>
+                )}
+                <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>
+                  {n.text}
+                  {n.verification_evidence && n.verification_status === 'disputed' && (
+                    <div style={{ color: '#ef4444', fontSize: '0.6rem', marginTop: 2 }}>Evidence: {n.verification_evidence}</div>
+                  )}
+                </div>
                 {attacks.map(a => (
                   <div key={a.id} className="diag-an-edge diag-an-attack">
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
@@ -1028,6 +1038,72 @@ function OverviewView() {
                 </div>
               ))}
             </div>
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Unanswered Claims Ledger */}
+      {activeDebate.unanswered_claims_ledger && activeDebate.unanswered_claims_ledger.length > 0 && (
+        <CollapsibleSection title={`Unanswered Claims — ${activeDebate.unanswered_claims_ledger.filter(c => !c.addressed_round).length} open`}>
+          {activeDebate.unanswered_claims_ledger.map(claim => (
+            <div key={claim.claim_id} className={`diag-ledger-entry ${claim.addressed_round ? 'diag-ledger-addressed' : ''}`}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                <span className="diag-an-id">{claim.claim_id}</span>
+                <span className="diag-an-speaker">({speakerLabel(claim.speaker as PoverId)})</span>
+                <span className="diag-badge" style={{ fontSize: '0.5rem', background: claim.addressed_round ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: claim.addressed_round ? '#22c55e' : '#ef4444' }}>
+                  {claim.addressed_round ? `addressed R${claim.addressed_round}` : `since R${claim.first_unanswered_round}`}
+                </span>
+              </div>
+              <div style={{ paddingLeft: 8, fontSize: '0.65rem' }}>{claim.claim_text}</div>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Missing Arguments */}
+      {activeDebate.missing_arguments && activeDebate.missing_arguments.length > 0 && (
+        <CollapsibleSection title={`Missing Arguments — ${activeDebate.missing_arguments.length} identified`}>
+          {activeDebate.missing_arguments.map((arg, i) => (
+            <div key={i} className="diag-missing-arg">
+              <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{arg.side}</span>
+                <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{arg.bdi_layer}</span>
+              </div>
+              <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{arg.argument}</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{arg.why_strong}</div>
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Position Drift (Sycophancy Guard) */}
+      {activeDebate.position_drift && activeDebate.position_drift.length > 0 && (() => {
+        const drift = activeDebate.position_drift!;
+        const speakers = [...new Set(drift.map(d => d.speaker))];
+        return (
+          <CollapsibleSection title={`Position Drift — ${drift.length} snapshots`}>
+            {speakers.map(speaker => {
+              const speakerDrift = drift.filter(d => d.speaker === speaker);
+              const latest = speakerDrift[speakerDrift.length - 1];
+              const first = speakerDrift[0];
+              const selfDelta = latest.self_similarity - first.self_similarity;
+              return (
+                <div key={speaker} className="diag-drift-speaker">
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                    <strong>{speakerLabel(speaker as PoverId)}</strong>
+                    <span className="diag-muted">self-sim: {latest.self_similarity.toFixed(3)}</span>
+                    <span className={`diag-badge ${selfDelta < -0.05 ? 'diag-drift-warning' : ''}`} style={{ fontSize: '0.5rem' }}>
+                      {selfDelta > 0 ? '+' : ''}{selfDelta.toFixed(3)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, fontSize: '0.6rem', paddingLeft: 8 }}>
+                    {Object.entries(latest.opponent_similarities).map(([opp, sim]) => (
+                      <span key={opp}>→ {speakerLabel(opp as PoverId)}: {sim.toFixed(3)}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </CollapsibleSection>
         );
       })()}

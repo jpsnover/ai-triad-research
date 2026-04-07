@@ -21,7 +21,7 @@ PARENT NODE RULES:
     Test: every child's description should be a specific case of the parent's
     description.
   - The parent label must be 3-8 words — a thematic heading, not a sentence.
-  - Write at a grade-10 reading level. Use plain, everyday language.
+  - Write for a policy reporter — active voice, named actors, one idea per sentence, concrete examples over abstractions. Every sentence quotable without rewriting. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use.
     Labels should read like newspaper headlines, not academic paper titles.
     GOOD: "Open-Source AI as a Safety Strategy"
     BAD:  "Distributed Development Paradigm for Algorithmic Assurance"

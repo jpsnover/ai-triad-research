@@ -154,7 +154,7 @@ GENUS-DIFFERENTIA FORMAT:
   Then 1-3 more sentences covering:
     - Encompasses: what concrete sub-themes or examples this node covers
     - Excludes: what neighboring nodes (name them by label) cover instead
-  Total: 2-4 sentences. Grade-10 reading level. Plain language, no jargon.
+  Total: 2-4 sentences. Write for a policy reporter — active voice, named actors, concrete examples, quotable sentences. No nominalizations or hedge stacking. Technical terms fine when load-bearing; define on first use.
 
 RULES:
   - The FIRST sentence must follow the pattern exactly: "A ${node.category} within ${pov} discourse that ..."
@@ -190,7 +190,7 @@ GENUS-DIFFERENTIA FORMAT:
   Then 1-3 more sentences covering:
     - Encompasses: what this concept covers across the three perspectives
     - Excludes: what neighboring nodes (name them by label) cover instead
-  Total: 2-4 sentences. Grade-10 reading level. Plain language.
+  Total: 2-4 sentences. Write for a policy reporter — active voice, concrete examples, quotable sentences. No nominalizations or hedge stacking.
 
 RULES:
   - The FIRST sentence must start with "A cross-cutting concept that ..."

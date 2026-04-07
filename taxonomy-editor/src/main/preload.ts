@@ -186,8 +186,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteDebateSession: (id: string): Promise<void> =>
     ipcRenderer.invoke('delete-debate-session', id),
 
-  exportDebateToFile: (session: unknown): Promise<{ cancelled: boolean; filePath?: string }> =>
-    ipcRenderer.invoke('export-debate-to-file', session),
+  exportDebateToFile: (session: unknown, format?: string): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-debate-to-file', session, format),
 
   // URL fetch (from main process to avoid CSP)
   fetchUrlContent: (url: string): Promise<{ content: string; error?: string }> =>

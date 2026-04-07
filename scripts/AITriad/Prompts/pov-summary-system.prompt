@@ -79,10 +79,10 @@ REJECTED and you will be asked to redo the analysis):
         - Each line MUST start with the literal label shown ("Encompasses:", "Excludes:").
         - Use "\n" to separate the three lines in the JSON string value.
         - 2-4 sentences total. The Excludes clause does the boundary work.
-        - Write at a grade-10 reading level. Short sentences, plain words.
+        - Write for a policy reporter — active voice, named actors, one idea per sentence, concrete examples over abstractions. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use.
 
     STYLE — labels must match the existing taxonomy's voice:
-      • Write at a grade-10 reading level. Use plain, everyday language.
+      • Write for a policy reporter — active voice, concrete examples, every sentence quotable without rewriting.
       • Labels should read like newspaper headlines, not academic paper titles.
         GOOD: "New Tech Takes Time to Spread", "Attacks That Break AI Safety Rules"
         BAD:  "Innovation-Diffusion Lag", "Denial-of-Governance Attacks"

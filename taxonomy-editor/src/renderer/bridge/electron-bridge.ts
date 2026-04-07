@@ -58,7 +58,7 @@ export const api: AppAPI = {
   loadDebateSession: (id) => window.electronAPI.loadDebateSession(id),
   saveDebateSession: (s) => window.electronAPI.saveDebateSession(s),
   deleteDebateSession: (id) => window.electronAPI.deleteDebateSession(id),
-  exportDebateToFile: (s) => window.electronAPI.exportDebateToFile(s),
+  exportDebateToFile: (s, format) => window.electronAPI.exportDebateToFile(s, format),
 
   // Chat sessions
   listChatSessions: () => window.electronAPI.listChatSessions(),

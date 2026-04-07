@@ -1422,7 +1422,7 @@ For new edges: append to the edges array with `status: "proposed"`, `discovered_
 
 When the user checks a new concept item, the AI generates a genus-differentia description following the project's conventions.
 
-**Prompt:** "Propose a taxonomy node for this concept observed in a debate. Follow genus-differentia format: 'A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' Use plain language, grade-10 reading level."
+**Prompt:** "Propose a taxonomy node for this concept observed in a debate. Follow genus-differentia format: 'A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ...' Write for a policy reporter — active voice, concrete examples, quotable sentences."
 
 **Verification — V-H4.2: Validate proposed concept**
 

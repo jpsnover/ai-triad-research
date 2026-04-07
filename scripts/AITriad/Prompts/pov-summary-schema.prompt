@@ -60,7 +60,7 @@
   },
   "factual_claims": [
     {
-      "claim": "<a specific empirical or factual claim made in the document. 2-5 sentences in plain language (grade-10 level)>",
+      "claim": "<a specific empirical or factual claim made in the document. 2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences)>",
       "claim_label": "<5-10 word short title, e.g. 'AGI Timeline Estimates'>",
       "doc_position": "<supports | disputes | neutral | qualifies>",
       "temporal_scope": "<current_state | predictive | historical | timeless>",
@@ -86,7 +86,7 @@
   "unmapped_concepts": [
     {
       "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
-      "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
+      "suggested_description": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
       "suggested_category": "Desires",
@@ -94,7 +94,7 @@
     },
     {
       "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
-      "suggested_description": "<2-5 sentences in plain language (grade-10 level): what this concept is, why it matters, and how it connects to the document's argument>",
+      "suggested_description": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): what this concept is, why it matters, and how it connects to the document's argument>",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "safetyist",
       "suggested_category": "Intentions",
@@ -104,9 +104,9 @@
       "suggested_pov": "situations",
       "suggested_category": "Beliefs",
       "reason": "<why this concept deserves a new taxonomy node>",
-      "Accelerationist Interpretation": "<2-5 sentences in plain language (grade-10 level): how accelerationists would interpret or use this concept>",
-      "Safetyist Interpretation": "<2-5 sentences in plain language (grade-10 level): how safetyists would interpret or use this concept>",
-      "Skeptic Interpretation": "<2-5 sentences in plain language (grade-10 level): how skeptics would interpret or use this concept>"
+      "Accelerationist Interpretation": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): how accelerationists would interpret or use this concept>",
+      "Safetyist Interpretation": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): how safetyists would interpret or use this concept>",
+      "Skeptic Interpretation": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): how skeptics would interpret or use this concept>"
     },
     { "...": "repeat for ALL unmapped concepts. Include interpretations ONLY for situations concepts." }
   ]

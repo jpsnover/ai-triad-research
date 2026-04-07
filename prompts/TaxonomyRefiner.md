@@ -36,7 +36,7 @@ Genus-Differentia Description: Write the description using exactly 3 lines separ
   Rules:
     - Each line MUST start with the literal label shown ("Encompasses:", "Excludes:").
     - Name at least one sibling node (by label, not ID) in the Excludes clause.
-    - Write at a grade-10 reading level. Short sentences, plain words.
+    - Write for a policy reporter — active voice, named actors, one idea per sentence, concrete examples over abstractions. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use.
     - 2-4 sentences total. Keep it concise — the Excludes clause does the boundary work.
 
 Structural Framework:

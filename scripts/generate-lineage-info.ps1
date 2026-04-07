@@ -43,7 +43,7 @@ You are generating reference content for an AI policy taxonomy tool's "About" pa
 For each intellectual lineage item below, produce a JSON object with these fields:
   - "key": the EXACT string as provided (case-sensitive)
   - "label": title-cased display name
-  - "summary": 2-4 sentences explaining what this tradition/framework/thinker is and how it connects to AI policy. Write at a grade-10 level. Be specific and informative.
+  - "summary": 2-4 sentences explaining what this tradition/framework/thinker is and how it connects to AI policy. Write for a policy reporter — active voice, concrete examples, quotable sentences. Be specific and informative.
   - "example": 1 sentence starting with "A node tagged with this attribute..." showing how this appears in the taxonomy.
   - "frequency": 1 sentence like "Appears in [POV] nodes discussing [topic area]."
   - "links": array of 1-2 objects with "label" and "url" (Wikipedia preferred, use real URLs only)

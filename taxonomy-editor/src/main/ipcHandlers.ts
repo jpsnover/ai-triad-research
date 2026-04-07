@@ -448,7 +448,7 @@ export function registerIpcHandlers(): void {
     deleteChatSession(id);
   });
 
-  ipcMain.handle('export-debate-to-file', async (event, session: unknown) => {
+  ipcMain.handle('export-debate-to-file', async (event, session: unknown, format?: string) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return { cancelled: true };
 
@@ -459,15 +459,26 @@ export function registerIpcHandlers(): void {
       .replace(/^-|-$/g, '')
       .substring(0, 60);
 
+    // Map format to default extension for the save dialog
+    const formatExtMap: Record<string, string> = { json: 'json', markdown: 'md', text: 'txt', pdf: 'pdf' };
+    const defaultExt = formatExtMap[format || 'json'] || 'json';
+
+    // Put the requested format first in the filter list
+    const allFilters = [
+      { name: 'JSON', extensions: ['json'] },
+      { name: 'Markdown', extensions: ['md'] },
+      { name: 'Plain Text', extensions: ['txt'] },
+      { name: 'PDF', extensions: ['pdf'] },
+    ];
+    const selectedIdx = allFilters.findIndex(f => f.extensions[0] === defaultExt);
+    const filters = selectedIdx > 0
+      ? [allFilters[selectedIdx], ...allFilters.filter((_, i) => i !== selectedIdx)]
+      : allFilters;
+
     const result = await dialog.showSaveDialog(win, {
       title: 'Export Debate',
-      defaultPath: `${defaultName}.json`,
-      filters: [
-        { name: 'JSON', extensions: ['json'] },
-        { name: 'Markdown', extensions: ['md'] },
-        { name: 'Plain Text', extensions: ['txt'] },
-        { name: 'PDF', extensions: ['pdf'] },
-      ],
+      defaultPath: `${defaultName}.${defaultExt}`,
+      filters,
     });
 
     if (result.canceled || !result.filePath) {

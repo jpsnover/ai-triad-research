@@ -12,6 +12,7 @@ export type DialecticalScheme =
   | 'EMPIRICAL CHALLENGE'
   | 'EXTEND'
   | 'UNDERCUT'
+  | 'SPECIFY'
   // Legacy dialectical moves — accept but don't prompt for these
   | 'CONCEDE'
   | 'REDUCE'
@@ -125,6 +126,16 @@ export interface DebateSession {
   qbaf_timeline?: QbafTimelineEntry[];
   /** Coverage tracking — which source claims have been discussed. Absent for topic-only debates or pre-coverage debates. */
   claim_coverage?: ClaimCoverageEntry[];
+  /** Persona-free neutral evaluations at up to 3 checkpoints. Absent in pre-evaluator debates. */
+  neutral_evaluations?: import('./neutralEvaluator').NeutralEvaluation[];
+  /** Speaker mapping used for neutral evaluator (randomized per debate). Absent in pre-evaluator debates. */
+  neutral_speaker_mapping?: import('./neutralEvaluator').SpeakerMapping;
+  /** Unanswered claims ledger — persistent tracking across the 8-entry compression window. */
+  unanswered_claims_ledger?: UnansweredClaimEntry[];
+  /** Position drift snapshots per round — embedding similarity tracking for sycophancy detection. */
+  position_drift?: DriftSnapshot[];
+  /** Missing arguments identified post-synthesis by a fresh LLM with no transcript context. */
+  missing_arguments?: MissingArgument[];
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
@@ -182,6 +193,16 @@ export interface ArgumentNetworkNode {
   computed_strength?: number;
   /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5). */
   scoring_method?: 'ai_rubric' | 'human' | 'default_pending';
+  /** BDI classification from claim extraction. */
+  bdi_category?: 'belief' | 'desire' | 'intention';
+  /** Claim specificity — precise Belief claims are auto-fact-checked. */
+  specificity?: 'precise' | 'general' | 'abstract';
+  /** If this claim is a steelman of an opponent's position, the opponent's PoverId. */
+  steelman_of?: string;
+  /** Inline verification status from web search (Intervention 2). */
+  verification_status?: 'verified' | 'disputed' | 'unverifiable' | 'pending';
+  /** Evidence summary from inline verification. */
+  verification_evidence?: string;
 }
 
 export interface ArgumentNetworkEdge {
@@ -365,6 +386,36 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
     personality: 'Wry, pragmatic, challenges assumptions from both sides',
   },
 };
+
+// ── Intervention types ──────────────────────────────────
+
+/** Unanswered Claims Ledger entry — tracks claims that remain unresponded to across the debate. */
+export interface UnansweredClaimEntry {
+  claim_id: string;
+  claim_text: string;
+  speaker: string;
+  first_unanswered_round: number;
+  addressed_round?: number;
+  addressed_by?: string;
+}
+
+/** Per-round embedding similarity snapshot for position drift / sycophancy detection. */
+export interface DriftSnapshot {
+  round: number;
+  speaker: string;
+  /** Cosine similarity of current response vs speaker's own opening statement. */
+  self_similarity: number;
+  /** Cosine similarity of current response vs each opponent's opening statement. */
+  opponent_similarities: Record<string, number>;
+}
+
+/** Argument that was never raised during the debate — identified post-synthesis by a fresh LLM. */
+export interface MissingArgument {
+  argument: string;
+  side: string;
+  why_strong: string;
+  bdi_layer: 'belief' | 'desire' | 'intention';
+}
 
 // ── Prompt Inspector types (Phase A: type definition only) ──────────
 

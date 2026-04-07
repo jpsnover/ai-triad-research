@@ -21,6 +21,17 @@ export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
 }
 
+/**
+ * Extended adapter with optional capabilities for interventions that need
+ * web search, NLI, or embeddings. CLI adapters may not implement these —
+ * consumers must check availability before calling.
+ */
+export interface ExtendedAIAdapter extends AIAdapter {
+  generateTextWithSearch?(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }>;
+  nliClassify?(pairs: { text_a: string; text_b: string }[]): Promise<{ results: { nli_label: string; nli_entailment: number }[] }>;
+  computeQueryEmbedding?(text: string): Promise<{ vector: number[] }>;
+}
+
 // ── Model registry ───────────────────────────────────────
 
 interface ModelEntry {

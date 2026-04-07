@@ -26,7 +26,7 @@ PLACEMENT RULES:
   - Provide a 1-2 sentence rationale for each placement.
   - A new parent follows the same rules as hierarchy-proposal.prompt: 3-8 word label,
     genus-differentia description (3 lines: genus-differentia, "Encompasses: ...",
-    "Excludes: ..."), grade-10 reading level. Use "\n" to separate lines in JSON.
+    "Excludes: ..."). Write for a policy reporter — active voice, concrete examples, quotable sentences. Use "\n" to separate lines in JSON.
 
 RULES:
   - Every orphan must appear exactly once in the output — in "placements", "new_parents",

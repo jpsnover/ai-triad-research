@@ -69,7 +69,7 @@ export interface AppAPI {
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
-  exportDebateToFile: (session: unknown) => Promise<{ cancelled: boolean; filePath?: string }>;
+  exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf') => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // --- Chat sessions ---
   listChatSessions: () => Promise<unknown[]>;

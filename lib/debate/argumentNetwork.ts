@@ -60,6 +60,8 @@ For each claim, also classify:
   For desire claims: consider whether it explicitly grounds in values (+), acknowledges tradeoffs (+), cites precedent (+)
   For intention claims: consider whether it specifies a mechanism (+), bounds its scope (+), addresses failure modes (+)
   Do NOT assign an overall holistic judgment — score based on these checkable features.
+- "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
+- "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
 Return ONLY JSON (no markdown):
 {
@@ -68,6 +70,8 @@ Return ONLY JSON (no markdown):
       "text": "near-verbatim claim from the statement",
       "bdi_category": "belief or desire or intention",
       "base_strength": 0.5,
+      "specificity": "precise or general or abstract",
+      "steelman_of": null,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
@@ -123,7 +127,7 @@ For each claim:
    - "supports" with a warrant (WHY it supports — the reasoning pattern)
    - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the
      inference, "undermine" = attacks premise credibility) and scheme (COUNTEREXAMPLE,
-     DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE)
+     DISTINGUISH, REDUCE, REFRAME, CONCEDE, ESCALATE, SPECIFY)
    - "argumentation_scheme": classify the reasoning pattern (ARGUMENT_FROM_EVIDENCE,
      ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES,
      ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES,
@@ -134,6 +138,8 @@ For each claim:
 Also classify each claim:
 - "bdi_category": "belief" (empirical/factual), "desire" (normative/value), or "intention" (strategic/methodological)
 - "base_strength": 0.0-1.0 — for beliefs assign 0.5, for desires/intentions score based on checkable features (values grounding, tradeoff acknowledgment, mechanism specificity, scope bounding)
+- "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
+- "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
 Return ONLY JSON (no markdown):
 {
@@ -142,6 +148,8 @@ Return ONLY JSON (no markdown):
       "text": "the debater's claim text (unchanged)",
       "bdi_category": "belief or desire or intention",
       "base_strength": 0.5,
+      "specificity": "precise or general or abstract",
+      "steelman_of": null,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
@@ -319,4 +327,130 @@ the same logic with different words.
 CONSISTENCY RULE: Do not contradict your prior assertions without explicitly acknowledging
 the change. If you now believe differently, say "I previously argued X, but on reflection..."
 — do not silently flip.\n`;
+}
+
+// ── Unanswered Claims Ledger ────────────────────────────
+
+import type { UnansweredClaimEntry, ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
+
+/**
+ * Update the unanswered claims ledger after claim extraction.
+ * Tracks claims with base_strength > 0.4 that have no incoming edges (not responded to).
+ * Complements the 8-entry compression window (tactical) with a debate-wide view (strategic).
+ */
+export function updateUnansweredLedger(
+  ledger: UnansweredClaimEntry[],
+  nodes: ArgumentNetworkNode[],
+  edges: ArgumentNetworkEdge[],
+  currentRound: number,
+): UnansweredClaimEntry[] {
+  const updated = [...ledger];
+  const targeted = new Set(edges.map(e => e.target));
+  const ledgerIds = new Set(updated.map(e => e.claim_id));
+
+  for (const node of nodes) {
+    if ((node.base_strength ?? 0) <= 0.4) continue;
+
+    const isAddressed = targeted.has(node.id);
+    const existing = updated.find(e => e.claim_id === node.id);
+
+    if (existing) {
+      // Already tracked — check if now addressed
+      if (isAddressed && !existing.addressed_round) {
+        // Find who addressed it
+        const addressingEdge = edges.find(e => e.target === node.id);
+        const addressingNode = addressingEdge
+          ? nodes.find(n => n.id === addressingEdge.source)
+          : undefined;
+        existing.addressed_round = currentRound;
+        existing.addressed_by = addressingNode?.speaker as string | undefined;
+      }
+    } else if (!isAddressed && !ledgerIds.has(node.id)) {
+      // New unanswered claim
+      updated.push({
+        claim_id: node.id,
+        claim_text: node.text,
+        speaker: node.speaker as string,
+        first_unanswered_round: currentRound,
+      });
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Format a moderator hint for the oldest unanswered claim.
+ * Returns a hint string every 3 rounds, empty string otherwise.
+ */
+export function formatUnansweredClaimsHint(
+  ledger: UnansweredClaimEntry[],
+  currentRound: number,
+): string {
+  if (currentRound % 3 !== 0) return '';
+
+  const unanswered = ledger
+    .filter(e => !e.addressed_round)
+    .sort((a, b) => a.first_unanswered_round - b.first_unanswered_round);
+
+  if (unanswered.length === 0) return '';
+
+  const oldest = unanswered[0];
+  const age = currentRound - oldest.first_unanswered_round;
+
+  return `\n\nSTRATEGIC NOTE: ${unanswered.length} claim(s) remain unanswered across the debate. ` +
+    `The oldest (${age} rounds unanswered, from round ${oldest.first_unanswered_round}) is by ${oldest.speaker}: ` +
+    `"${oldest.claim_text}". Consider directing the next responder to address it.`;
+}
+
+/**
+ * Detect isolated high-strength claims from different speakers with no edges between them.
+ * This pattern — strong positions coexisting without engagement — signals debaters talking
+ * past each other. The fix is a SPECIFY move: force one side to state what would falsify
+ * their position, making the disagreement testable.
+ */
+export function formatSpecifyHint(
+  nodes: { id: string; text: string; speaker: string; base_strength?: number; computed_strength?: number }[],
+  edges: { source: string; target: string }[],
+): string {
+  const strongNodes = nodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) >= 0.6);
+  if (strongNodes.length < 2) return '';
+
+  // Build edge adjacency (undirected — any edge between two nodes counts as engagement)
+  const connected = new Set<string>();
+  for (const e of edges) {
+    connected.add(`${e.source}|${e.target}`);
+    connected.add(`${e.target}|${e.source}`);
+  }
+
+  // Find pairs of strong claims from different speakers with no edge between them
+  const isolatedPairs: { a: typeof strongNodes[0]; b: typeof strongNodes[0] }[] = [];
+  for (let i = 0; i < strongNodes.length; i++) {
+    for (let j = i + 1; j < strongNodes.length; j++) {
+      const a = strongNodes[i], b = strongNodes[j];
+      if (a.speaker === b.speaker) continue;
+      if (!connected.has(`${a.id}|${b.id}`)) {
+        isolatedPairs.push({ a, b });
+      }
+    }
+  }
+
+  if (isolatedPairs.length === 0) return '';
+
+  // Pick the pair with the highest combined strength
+  isolatedPairs.sort((x, y) => {
+    const xStr = (x.a.computed_strength ?? x.a.base_strength ?? 0.5) + (x.b.computed_strength ?? x.b.base_strength ?? 0.5);
+    const yStr = (y.a.computed_strength ?? y.a.base_strength ?? 0.5) + (y.b.computed_strength ?? y.b.base_strength ?? 0.5);
+    return yStr - xStr;
+  });
+
+  const best = isolatedPairs[0];
+  const aStr = (best.a.computed_strength ?? best.a.base_strength ?? 0.5).toFixed(2);
+  const bStr = (best.b.computed_strength ?? best.b.base_strength ?? 0.5).toFixed(2);
+
+  return `\n\nSPECIFY OPPORTUNITY: ${best.a.id} (${best.a.speaker}, strength ${aStr}) and ` +
+    `${best.b.id} (${best.b.speaker}, strength ${bStr}) are both strong claims with NO direct ` +
+    `engagement between them — the debaters may be talking past each other. Consider using ` +
+    `a SPECIFY move: direct one debater to state what specific evidence or outcome would ` +
+    `falsify their position. This forces testable predictions and makes the disagreement resolvable.`;
 }

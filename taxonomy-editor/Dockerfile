@@ -94,10 +94,16 @@ ENV PORT=7862
 ENV PYTHONUNBUFFERED=1
 
 # Non-root user for security
-RUN groupadd -r aitriad && useradd -r -g aitriad -d /app aitriad
+RUN groupadd -r aitriad && useradd -r -g aitriad -d /app -m aitriad
 RUN chown -R aitriad:aitriad /app
 # Ensure the ML model cache is readable
 RUN chown -R aitriad:aitriad /opt/ml-env
+# PowerShell needs writable cache/config dirs (default /.cache is root-owned)
+RUN mkdir -p /home/aitriad/.cache /home/aitriad/.config /home/aitriad/.local/share \
+    && chown -R aitriad:aitriad /home/aitriad
+ENV XDG_CACHE_HOME=/home/aitriad/.cache
+ENV XDG_CONFIG_HOME=/home/aitriad/.config
+ENV XDG_DATA_HOME=/home/aitriad/.local/share
 USER aitriad
 
 EXPOSE 7862

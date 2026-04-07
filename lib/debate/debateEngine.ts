@@ -6,7 +6,7 @@
  * Runs a full structured debate using the AIAdapter interface.
  */
 
-import type { AIAdapter } from './aiAdapter';
+import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter';
 import type { LoadedTaxonomy } from './taxonomyLoader';
 import type {
   DebateSession,
@@ -41,13 +41,17 @@ import {
   probingQuestionsPrompt,
   contextCompressionPrompt,
   entrySummarizationPrompt,
+  missingArgumentsPrompt,
 } from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints } from './argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
 import type { ContextInjectionManifest } from './taxonomyContext';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
 import type { DocumentAnalysis } from './types';
+import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator';
+import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator';
 import {
+  cosineSimilarity,
   scoreNodeRelevance,
   selectRelevantNodes,
   selectRelevantSituationNodes,
@@ -104,8 +108,14 @@ export class DebateEngine {
   private totalResponseTimeMs = 0;
   /** Last computed injection manifest — stored on transcript entries for usage analysis. */
   private _lastInjectionManifest: ContextInjectionManifest | null = null;
+  /** Speaker mapping for neutral evaluator — built once, reused across checkpoints. */
+  private _neutralMapping: SpeakerMapping | null = null;
+  /** Whether the midpoint neutral evaluation has already run this debate. */
+  private _midpointEvalDone = false;
+  /** Cached opening statement embeddings for position drift detection. */
+  private _openingEmbeddings = new Map<string, number[]>();
 
-  constructor(config: DebateConfig, adapter: AIAdapter, taxonomy: LoadedTaxonomy) {
+  constructor(config: DebateConfig, adapter: AIAdapter | ExtendedAIAdapter, taxonomy: LoadedTaxonomy) {
     this.config = config;
     this.adapter = adapter;
     this.taxonomy = taxonomy;
@@ -128,10 +138,23 @@ export class DebateEngine {
     // Phase 2: Opening statements
     await this.runOpeningStatements();
 
+    // Cache opening embeddings for position drift detection
+    await this.cacheOpeningEmbeddings();
+
+    // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
+    await this.runNeutralCheckpoint('baseline');
+
     // Phase 3: Cross-respond rounds
+    const midpointRound = Math.min(3, Math.ceil(this.config.rounds / 2));
     for (let round = 1; round <= this.config.rounds; round++) {
       this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds}`, round);
       await this.runCrossRespondRound(round);
+
+      // Neutral evaluator: midpoint checkpoint
+      if (round === midpointRound && !this._midpointEvalDone) {
+        await this.runNeutralCheckpoint('midpoint');
+        this._midpointEvalDone = true;
+      }
 
       // Probing questions every N rounds
       if (this.config.enableProbing && this.config.probingInterval &&
@@ -145,8 +168,14 @@ export class DebateEngine {
       }
     }
 
-    // Phase 4: Synthesis
-    await this.runSynthesis();
+    // Phase 4: Synthesis + final neutral evaluation in parallel
+    await Promise.all([
+      this.runSynthesis(),
+      this.runNeutralCheckpoint('final'),
+    ]);
+
+    // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
+    await this.runMissingArgumentsPass();
 
     // Finalize
     this.session.updated_at = nowISO();
@@ -622,7 +651,15 @@ export class DebateEngine {
       });
 
       // Extract claims synchronously
+      const anNodesBefore2 = this.session.argument_network!.nodes.length;
       await this.extractClaims(statement, poverId, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
+      const newNodes2 = this.session.argument_network!.nodes.slice(anNodesBefore2);
+
+      // Post-extraction interventions (non-blocking)
+      if (newNodes2.length > 0) {
+        this.validateSteelmans(newNodes2, poverId).catch(() => {});
+        this.verifyPreciseClaims(newNodes2).catch(() => {});
+      }
 
       // Post-turn summarization (DT-2)
       await this.summarizeEntry(entry);
@@ -698,7 +735,13 @@ export class DebateEngine {
       }
     }
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext, recentScheme, metaphorReframe);
+    // Unanswered claims ledger hint (every 3 rounds)
+    const ledgerHint = formatUnansweredClaimsHint(this.session.unanswered_claims_ledger ?? [], round);
+
+    // SPECIFY hint — detect isolated high-strength claims that need falsifiability probing
+    const specifyHint = an ? formatSpecifyHint(an.nodes, an.edges) : '';
+
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe);
     const selectionStart = Date.now();
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
     const selectionElapsed = Date.now() - selectionStart;
@@ -853,7 +896,18 @@ export class DebateEngine {
     }
 
     // Extract claims
+    const anNodesBefore = this.session.argument_network!.nodes.length;
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
+    const newNodes = this.session.argument_network!.nodes.slice(anNodesBefore);
+
+    // Post-extraction interventions (non-blocking, fire and forget)
+    if (newNodes.length > 0) {
+      this.validateSteelmans(newNodes, responder).catch(() => {});
+      this.verifyPreciseClaims(newNodes).catch(() => {});
+    }
+
+    // Position drift detection (non-blocking)
+    this.trackPositionDrift(responder, statement, round).catch(() => {});
 
     // Post-turn summarization (DT-2) — fire and forget
     this.summarizeEntry(entry).catch(() => {});
@@ -931,6 +985,49 @@ export class DebateEngine {
         taxonomy_refs: [],
         metadata: { questions },
       });
+    }
+  }
+
+  // ── Neutral evaluator ────────────────────────────────────
+
+  /**
+   * Run a persona-free neutral evaluation at the specified checkpoint.
+   * Results are stored on the session — they never feed back into the debate.
+   */
+  private async runNeutralCheckpoint(checkpoint: 'baseline' | 'midpoint' | 'final'): Promise<NeutralEvaluation | null> {
+    try {
+      this.progress('evaluation', undefined, `Neutral evaluation: ${checkpoint}`);
+
+      // Build speaker mapping once and reuse for consistency
+      if (!this._neutralMapping) {
+        this._neutralMapping = buildSpeakerMapping(
+          this.config.activePovers as Exclude<PoverId, 'user'>[],
+        );
+        this.session.neutral_speaker_mapping = this._neutralMapping;
+      }
+
+      const evaluation = await runNeutralEvaluation(checkpoint, {
+        adapter: this.adapter,
+        topic: this.session.topic.final || this.session.topic.original,
+        transcript: this.session.transcript,
+        contextSummaries: this.session.context_summaries,
+        activePovers: this.config.activePovers,
+        model: this.config.model,
+        speakerMapping: this._neutralMapping,
+      });
+
+      // Store on session
+      if (!this.session.neutral_evaluations) {
+        this.session.neutral_evaluations = [];
+      }
+      this.session.neutral_evaluations.push(evaluation);
+
+      return evaluation;
+    } catch (err) {
+      // Neutral evaluation failure should never abort the debate
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`Neutral evaluation (${checkpoint}) failed: ${errorMsg}`);
+      return null;
     }
   }
 
@@ -1129,6 +1226,267 @@ export class DebateEngine {
     });
   }
 
+  // ── Missing arguments pass ─────────────────────────────────
+
+  /**
+   * Post-synthesis pass: a fresh LLM (no transcript context) identifies
+   * the 3-5 strongest arguments that were never raised during the debate.
+   * Failure never blocks synthesis.
+   */
+  private async runMissingArgumentsPass(): Promise<void> {
+    try {
+      // Wait briefly for synthesis to produce data we can reference
+      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
+      const synthesisText = synthEntry?.content ?? '';
+      if (!synthesisText) return; // No synthesis yet — will be called after synthesis completes
+
+      // Build compact taxonomy summary (labels + BDI categories)
+      const summaryLines: string[] = [];
+      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        const povData = this.taxonomy[povKey];
+        if (!povData?.nodes) continue;
+        for (const node of povData.nodes) {
+          const cat = (node as any).category ?? 'unknown';
+          summaryLines.push(`[${node.id}] ${node.label} (${cat}) — ${povKey}`);
+        }
+      }
+      const taxonomySummary = summaryLines.slice(0, 80).join('\n'); // Cap at ~80 nodes
+
+      const prompt = missingArgumentsPrompt(
+        this.session.topic.final,
+        taxonomySummary,
+        synthesisText.slice(0, 4000), // Cap synthesis text
+      );
+
+      const text = await this.generate(prompt, 'Missing arguments pass');
+      const parsed = parseJsonRobust(text) as any;
+      if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
+        this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
+      }
+    } catch (err) {
+      this.warn('Missing arguments pass', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Position drift detection (sycophancy guard) ────────────
+
+  /**
+   * Cache opening statement embeddings for drift comparison.
+   * Called once after all opening statements are generated.
+   */
+  private async cacheOpeningEmbeddings(): Promise<void> {
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding) return;
+
+    for (const entry of this.session.transcript) {
+      if (entry.type !== 'opening' || entry.speaker === 'system') continue;
+      try {
+        const result = await adapter.computeQueryEmbedding(entry.content.slice(0, 1000));
+        this._openingEmbeddings.set(entry.speaker, result.vector);
+      } catch {
+        // Non-critical — drift detection will be unavailable for this speaker
+      }
+    }
+  }
+
+  /**
+   * Track position drift: compare current response embedding against
+   * the speaker's opening and each opponent's opening.
+   */
+  private async trackPositionDrift(
+    speaker: Exclude<PoverId, 'user'>,
+    responseText: string,
+    round: number,
+  ): Promise<void> {
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding || this._openingEmbeddings.size === 0) return;
+
+    const selfOpening = this._openingEmbeddings.get(speaker);
+    if (!selfOpening) return;
+
+    try {
+      const responseEmbed = await adapter.computeQueryEmbedding(responseText.slice(0, 1000));
+
+      const selfSim = cosineSimilarity(responseEmbed.vector, selfOpening);
+      const opponentSims: Record<string, number> = {};
+      for (const [pover, embed] of this._openingEmbeddings.entries()) {
+        if (pover !== speaker) {
+          opponentSims[pover] = cosineSimilarity(responseEmbed.vector, embed);
+        }
+      }
+
+      if (!this.session.position_drift) this.session.position_drift = [];
+      this.session.position_drift.push({
+        round,
+        speaker,
+        self_similarity: selfSim,
+        opponent_similarities: opponentSims,
+      });
+
+      // Check for sycophancy
+      this.detectSycophancy(speaker, round);
+    } catch (err) {
+      this.warn('Position drift tracking', err, 'Non-critical — drift data unavailable this turn');
+    }
+  }
+
+  /**
+   * Detect sycophancy: if self_similarity decreased monotonically for 3+ turns
+   * AND opponent_similarity increased monotonically for any opponent for 3+ turns
+   * AND no concessions were made during those turns.
+   */
+  private detectSycophancy(speaker: Exclude<PoverId, 'user'>, round: number): void {
+    const drift = this.session.position_drift ?? [];
+    const speakerDrift = drift.filter(d => d.speaker === speaker);
+    if (speakerDrift.length < 3) return;
+
+    const recent = speakerDrift.slice(-3);
+
+    // Check monotonic self_similarity decrease
+    const selfDecreasing = recent.every((d, i) =>
+      i === 0 || d.self_similarity < recent[i - 1].self_similarity,
+    );
+    if (!selfDecreasing) return;
+
+    // Check if any opponent similarity is monotonically increasing
+    const opponents = Object.keys(recent[0].opponent_similarities);
+    const driftingToward = opponents.find(opp =>
+      recent.every((d, i) =>
+        i === 0 || (d.opponent_similarities[opp] ?? 0) > (recent[i - 1].opponent_similarities[opp] ?? 0),
+      ),
+    );
+    if (!driftingToward) return;
+
+    // Check no concessions in those turns
+    const concessions = this.session.commitments?.[speaker]?.conceded ?? [];
+    // If recent concessions exist, this might be genuine agreement
+    if (concessions.length > 0) {
+      // Check if any concessions were made in the drift window (heuristic: recent concessions)
+      const recentRounds = new Set(recent.map(d => d.round));
+      // Can't precisely match concession to round, so skip flag if ANY concessions exist recently
+      return;
+    }
+
+    const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
+    const opponentLabel = POVER_INFO[driftingToward as Exclude<PoverId, 'user'>]?.label ?? driftingToward;
+
+    this.session.transcript.push({
+      id: generateId(),
+      timestamp: nowISO(),
+      type: 'system',
+      speaker: 'system',
+      content: `[Sycophancy guard] ${speakerLabel} appears to be drifting toward ${opponentLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}. Consider whether this represents genuine agreement or accommodation.`,
+      taxonomy_refs: [],
+    });
+  }
+
+  // ── Steelman validation ────────────────────────────────────
+
+  /**
+   * After claim extraction, check if any claims are steelmans of opponents.
+   * Uses NLI to compare steelman text against opponent's actual assertions.
+   * If max entailment < 0.6, inserts a system warning.
+   */
+  private async validateSteelmans(
+    newNodes: ArgumentNetworkNode[],
+    speaker: Exclude<PoverId, 'user'>,
+  ): Promise<void> {
+    const adapter = this.adapter as any;
+    if (!adapter.nliClassify) return; // NLI not available in CLI adapter
+
+    const steelmanNodes = newNodes.filter(n => n.steelman_of);
+    if (steelmanNodes.length === 0) return;
+
+    for (const node of steelmanNodes) {
+      try {
+        const targetPover = node.steelman_of!;
+        const targetCommitments = this.session.commitments?.[targetPover];
+        if (!targetCommitments || targetCommitments.asserted.length === 0) continue;
+
+        // Compare steelman against opponent's actual assertions
+        const pairs = targetCommitments.asserted.slice(-10).map(assertion => ({
+          text_a: node.text,
+          text_b: assertion,
+        }));
+
+        const result = await adapter.nliClassify(pairs);
+        const maxEntailment = Math.max(...result.results.map((r: any) => r.nli_entailment ?? 0));
+
+        if (maxEntailment < 0.6) {
+          const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
+          const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
+          const topAssertions = targetCommitments.asserted.slice(-3).map(a => `"${a}"`).join('; ');
+
+          this.session.transcript.push({
+            id: generateId(),
+            timestamp: nowISO(),
+            type: 'system',
+            speaker: 'system',
+            content: `[Steelman check] ${speakerLabel}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
+            taxonomy_refs: [],
+          });
+        }
+      } catch (err) {
+        this.warn(`Steelman validation for ${POVER_INFO[speaker].label}`, err, 'Non-critical — skipping validation');
+      }
+    }
+  }
+
+  // ── Inline empirical verification ─────────────────────────
+
+  /**
+   * After claim extraction, auto-fact-check precise Belief claims via web search.
+   * Cap at 2 per turn. Updates node verification_status and inserts system warning if disputed.
+   */
+  private async verifyPreciseClaims(newNodes: ArgumentNetworkNode[]): Promise<void> {
+    const adapter = this.adapter as any;
+    if (!adapter.generateTextWithSearch) return; // Search not available in CLI adapter
+
+    const preciseBeliefs = newNodes.filter(
+      n => n.bdi_category === 'belief' && n.specificity === 'precise',
+    );
+    if (preciseBeliefs.length === 0) return;
+
+    for (const node of preciseBeliefs.slice(0, 2)) {
+      try {
+        const prompt = `Verify this empirical claim using web search evidence.
+
+Claim: "${node.text}"
+
+Assess whether available evidence supports, disputes, or cannot verify this claim.
+
+Return ONLY JSON (no markdown, no code fences):
+{
+  "verdict": "verified" or "disputed" or "unverifiable",
+  "evidence": "1-2 sentence summary of the most relevant evidence found",
+  "confidence": "high" or "medium" or "low"
+}`;
+
+        const result = await adapter.generateTextWithSearch(prompt, this.config.model);
+        const parsed = parseJsonRobust(result.text) as any;
+
+        if (parsed.verdict) {
+          node.verification_status = parsed.verdict;
+          node.verification_evidence = parsed.evidence;
+
+          if (parsed.verdict === 'disputed') {
+            this.session.transcript.push({
+              id: generateId(),
+              timestamp: nowISO(),
+              type: 'system',
+              speaker: 'system',
+              content: `[Fact-check] Claim ${node.id} disputed by web evidence: ${parsed.evidence}`,
+              taxonomy_refs: [],
+            });
+          }
+        }
+      } catch (err) {
+        this.warn(`Inline verification for ${node.id}`, err, 'Non-critical — claim unverified');
+        node.verification_status = 'pending';
+      }
+    }
+  }
+
   // ── Claim extraction ───────────────────────────────────────
 
   private async extractClaims(
@@ -1162,7 +1520,7 @@ export class DebateEngine {
     }
     const extractElapsed = Date.now() - extractStart;
 
-    let claims: { text: string; bdi_category?: string; base_strength?: number; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
+    let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
@@ -1202,6 +1560,9 @@ export class DebateEngine {
         scoring_method: typeof claim.base_strength === 'number'
           ? 'ai_rubric'
           : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+        bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
+        specificity: claim.specificity as ArgumentNetworkNode['specificity'],
+        steelman_of: claim.steelman_of || undefined,
       });
 
       // Track commitment
@@ -1299,5 +1660,13 @@ export class DebateEngine {
           .map(r => r.argumentation_scheme!),
       },
     });
+
+    // Update unanswered claims ledger
+    this.session.unanswered_claims_ledger = updateUnansweredLedger(
+      this.session.unanswered_claims_ledger ?? [],
+      an.nodes,
+      an.edges,
+      turnNumber,
+    );
   }
 }

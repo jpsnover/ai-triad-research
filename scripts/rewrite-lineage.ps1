@@ -45,7 +45,7 @@ Add a SHORT parenthetical "(about ...)" that explains what it is in plain langua
 
 RULES:
 - Keep the original name EXACTLY as-is. Only append "(about ...)".
-- The parenthetical should be 5-15 words, plain language, grade-10 level.
+- The parenthetical should be 5-15 words, plain language — a policy reporter should understand it without context.
 - Focus on WHAT IT IS, not why it matters.
 - If the entry already contains enough context, add a minimal clarification.
 

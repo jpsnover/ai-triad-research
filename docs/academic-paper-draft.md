@@ -1,8 +1,10 @@
 # BDI-Grounded Argumentation for Multi-Perspective AI Policy Analysis: Integrating QBAF, FIRE, and Ontological Framing in a Living Taxonomy
 
+**Jeffrey Snover**
+
 ## Abstract
 
-AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. We present an integrated system for multi-perspective discourse analysis that combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. Our system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection, classifies arguments using a 12-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), and feeds debate findings back into the taxonomy through concession harvesting. We evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry we attribute to the self-contained vs. externally-verifiable nature of different claim types. We also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
+AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. I present an integrated system for multi-perspective discourse analysis that combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. The system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection instrumented for utilization tracking, classifies arguments using a 13-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), employs metaphor reframing to break rhetorical stalls, and feeds debate findings back into the taxonomy through concession harvesting. I evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry I attribute to the self-contained vs. externally-verifiable nature of different claim types. I also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
 
 ## 1. Introduction
 
@@ -18,11 +20,11 @@ This projection problem (Ebrahimi et al., 2022) is not a labeling error — it i
 
 ### 1.2 Contributions
 
-We present a system that addresses the projection problem through three integrated layers:
+I present a system that addresses the projection problem through three integrated layers:
 
-1. **Ontological grounding.** A composite ontology using DOLCE D&S for perspectival multiplicity (multiple descriptions of shared situations), BDI for agent characterization (separating empirical beliefs from normative desires and strategic intentions), and AIF for argumentation structure (typed attack/support relationships with formal scheme vocabulary). We adopt ontological *vocabulary* in JSON structures rather than OWL/RDF formal reasoning — a design choice we term "vocabulary over formalism."
+1. **Ontological grounding.** A composite ontology using DOLCE D&S for perspectival multiplicity (multiple descriptions of shared situations), BDI for agent characterization (separating empirical beliefs from normative desires and strategic intentions), and AIF for argumentation structure (typed attack/support relationships with formal scheme vocabulary). I adopt ontological *vocabulary* in JSON structures rather than OWL/RDF formal reasoning — a design choice I term "vocabulary over formalism."
 
-2. **Formal argumentation with BDI-aware scoring.** A QBAF implementation using DF-QuAD gradual semantics (Rago et al., 2016) with a novel BDI-aware base score calibration. Through iterative calibration (Q-0), we discovered that different BDI layers require fundamentally different scoring approaches: normative and strategic claims can be AI-scored via decomposed evidence criteria, while empirical claims require human judgment — a finding we attribute to the self-contained vs. externally-verifiable nature of different claim types.
+2. **Formal argumentation with BDI-aware scoring.** A QBAF implementation using DF-QuAD gradual semantics (Rago et al., 2016) with a novel BDI-aware base score calibration. Through iterative calibration (Q-0), I discovered that different BDI layers require fundamentally different scoring approaches: normative and strategic claims can be AI-scored via decomposed evidence criteria, while empirical claims require human judgment — a finding I attribute to the self-contained vs. externally-verifiable nature of different claim types.
 
 3. **Confidence-gated iterative extraction (FIRE).** A replacement for single-shot claim extraction that assesses per-claim confidence through evidence criteria heuristics and iteratively refines uncertain claims through targeted follow-up queries. FIRE addresses three identified failure modes of single-shot extraction: specificity collapse, warrant deficit, and claim clustering.
 
@@ -34,13 +36,13 @@ The system is deployed and actively used for AI policy research, operating on 17
 
 Argument mining has progressed from identifying argumentative discourse units (Stab and Gurevych, 2017) to end-to-end claim extraction and relation classification (Lauscher et al., 2022; Mayer et al., 2020). Recent work leverages LLMs for claim extraction (Törnberg, 2024), achieving strong performance on standard benchmarks. However, most argument mining pipelines stop at extraction — they identify claims and classify attack/support relationships but do not compute formal argument strength or propagate that strength through an argument network.
 
-Our system extends the extraction pipeline with two innovations: (1) FIRE adds confidence-gated verification to the extraction step, distinguishing reliably extracted claims from potential hallucinations; and (2) QBAF integration propagates base scores through the extracted argument network via DF-QuAD gradual semantics, producing computed strength values that reflect the full attack/support context rather than isolated claim quality.
+This system extends the extraction pipeline with two innovations: (1) FIRE adds confidence-gated verification to the extraction step, distinguishing reliably extracted claims from potential hallucinations; and (2) QBAF integration propagates base scores through the extracted argument network via DF-QuAD gradual semantics, producing computed strength values that reflect the full attack/support context rather than isolated claim quality.
 
 ### 2.2 Stance Detection and Multi-Dimensional Opinion
 
 Binary stance detection (Mohammad et al., 2016; ALDayel and Magdy, 2021) classifies text as Favor/Against a target. While effective for simple targets, binary classification fails on complex policy topics where opinions span multiple independent dimensions. Recent work acknowledges this limitation: Li et al. (2023) propose multi-dimensional stance analysis, and Luo et al. (2024) decompose stance into sub-components. However, these approaches use ad-hoc dimensional decompositions without principled grounding in argumentation theory or cognitive science.
 
-We propose BDI decomposition (Bratman, 1987; Rao and Georgeff, 1991) as a principled alternative. BDI originates in philosophy of mind and was formalized for agent-based systems. Applied to discourse analysis, it separates empirical claims (Beliefs), normative commitments (Desires), and strategic reasoning (Intentions). This decomposition is not ad-hoc — each category has a disambiguation test: "Could this be proven true or false with evidence?" (Belief), "Is this about what ought to happen?" (Desire), "Is this about how to achieve a goal?" (Intention). The categories are exhaustive for policy discourse and mutually exclusive when disambiguation tests are applied.
+I propose BDI decomposition (Bratman, 1987; Rao and Georgeff, 1991) as a principled alternative. BDI originates in philosophy of mind and was formalized for agent-based systems. Applied to discourse analysis, it separates empirical claims (Beliefs), normative commitments (Desires), and strategic reasoning (Intentions). This decomposition is not ad-hoc — each category has a disambiguation test: "Could this be proven true or false with evidence?" (Belief), "Is this about what ought to happen?" (Desire), "Is this about how to achieve a goal?" (Intention). The categories are exhaustive for policy discourse and mutually exclusive when disambiguation tests are applied.
 
 ### 2.3 Computational Argumentation Frameworks
 
@@ -48,19 +50,25 @@ Abstract argumentation frameworks (Dung, 1995) compute argument acceptability fr
 
 The Argument Interchange Format (AIF, Chesnevar et al., 2006; Rahwan et al., 2007) provides a standardized vocabulary for representing arguments: I-nodes (information — claims), S-nodes (scheme — reasoning patterns), and CA-nodes (conflict — attacks). Tools like OVA (Janier and Reed, 2014) and AIFdb (Lawrence et al., 2012) implement AIF for manual and semi-automated annotation.
 
-Our contribution is twofold: (1) we apply QBAF to real policy discourse at scale with calibrated base scores (existing QBAF work primarily uses synthetic data or small-scale experiments), and (2) we discover and address a BDI-layer-dependent asymmetry in base score calibration that has not been reported in prior work.
+My contribution is twofold: (1) I apply QBAF to real policy discourse at scale with calibrated base scores (existing QBAF work primarily uses synthetic data or small-scale experiments), and (2) I discover and address a BDI-layer-dependent asymmetry in base score calibration that has not been reported in prior work.
 
 ### 2.4 Ontology-Grounded NLP
 
 Ontologies have been used in NLP for knowledge representation (Guarino et al., 2009), entity typing (Ling and Weld, 2012), and domain-specific information extraction (Jonnalagadda et al., 2012). DOLCE (Masolo et al., 2003) has been applied to discourse analysis through its Descriptions and Situations (D&S) extension, which models how the same situation can receive different descriptions from different perspectives. BFO (Smith et al., 2015) dominates biomedical ontology but assumes a mind-independent reality that is ill-suited to perspectival discourse analysis.
 
-We adopt a composite ontology: DOLCE D&S provides the perspectival framework (three POV "descriptions" of shared "situations"), BDI provides agent characterization (structuring each perspective's internal reasoning), and AIF provides argumentation vocabulary (formalizing how perspectives interact). Critically, we adopt ontological *vocabulary* — naming conventions, category tests, and description patterns — rather than formal OWL/RDF triples. This "vocabulary over formalism" approach provides sufficient grounding for discourse analysis without the engineering overhead of formal ontology reasoning.
+I adopt a composite ontology: DOLCE D&S provides the perspectival framework (three POV "descriptions" of shared "situations"), BDI provides agent characterization (structuring each perspective's internal reasoning), and AIF provides argumentation vocabulary (formalizing how perspectives interact). Critically, I adopt ontological *vocabulary* — naming conventions, category tests, and description patterns — rather than formal OWL/RDF triples. This "vocabulary over formalism" approach provides sufficient grounding for discourse analysis without the engineering overhead of formal ontology reasoning.
 
 ### 2.5 LLM-as-Debater and Multi-Agent Argumentation
 
 Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks.
 
-A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. Our system addresses rhetorical rigidity through three mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, and (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution.
+A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002).
+
+### 2.6 Metaphor and Analogical Reasoning in Argumentation
+
+Conceptual metaphor theory (Lakoff and Johnson, 1980) demonstrates that metaphors are not mere rhetorical decoration but foundational cognitive structures that shape reasoning about abstract domains. In policy discourse, competing metaphors ("AI as tool" vs. "AI as agent" vs. "AI as infrastructure") frame the problem space differently and license different conclusions. Thibodeau and Boroditsky (2011) show that even brief metaphorical framing significantly shifts policy preferences in experimental settings.
+
+Analogical reasoning has been studied as a mechanism for creative problem-solving (Gentner and Markman, 1997) and for bridging conceptual gaps in multi-agent negotiation (Holyoak and Thagard, 1995). I build on this literature by introducing curated metaphors into multi-agent debate at moments of convergence stall, providing novel conceptual frames that can break repetitive argumentation patterns.
 
 ## 3. System Architecture
 
@@ -68,11 +76,11 @@ The system implements a five-stage pipeline: **ingest** (document conversion and
 
 ### 3.1 Ontological Grounding Layer
 
-Our composite ontology layers three frameworks, each addressing a distinct aspect of multi-perspective discourse:
+The composite ontology layers three frameworks, each addressing a distinct aspect of multi-perspective discourse:
 
 **DOLCE D&S (perspectival multiplicity).** Situation nodes represent contested concepts that all three POVs engage with but interpret differently. Each situation node carries three interpretation fields — one per POV — describing how that perspective understands the concept. For example, "AI Governance" is interpreted by accelerationists as a potential innovation bottleneck, by safetyists as essential gating for high-risk systems, and by skeptics as a capture risk requiring independent oversight. This structure forces debate agents to engage with how other perspectives see the same concept, preventing agents from talking past each other.
 
-We extend the D&S mechanism with **BDI-decomposed interpretations**: each POV's interpretation can be structured into its empirical claim (Belief), normative commitment (Desire), and strategic reasoning (Intention) components, plus a summary for display. For example, the accelerationist interpretation of "AGI Timelines" decomposes into: *Belief* — "AGI is likely arriving within the next decade"; *Desire* — "the priority must be building it fast"; *Intention* — "ensuring democratic nations lead through speed, not caution." This decomposition enables debate agents to target specific BDI layers within an interpretation ("I challenge your empirical timeline claim, but share your desire for democratic leadership") rather than treating each interpretation as an undifferentiated paragraph. The schema accepts both plain-string (legacy) and BDI-decomposed formats via a union type, enabling incremental migration.
+I extend the D&S mechanism with **BDI-decomposed interpretations**: each POV's interpretation is structured into its empirical claim (Belief), normative commitment (Desire), and strategic reasoning (Intention) components, plus a summary for display. For example, the accelerationist interpretation of "AGI Timelines" decomposes into: *Belief* — "AGI is likely arriving within the next decade"; *Desire* — "the priority must be building it fast"; *Intention* — "ensuring democratic nations lead through speed, not caution." This decomposition enables debate agents to target specific BDI layers within an interpretation ("I challenge your empirical timeline claim, but share your desire for democratic leadership") rather than treating each interpretation as an undifferentiated paragraph. All 133 situation nodes have been migrated to the BDI-decomposed format via an AI-assisted batch migration process with human review.
 
 **BDI (agent characterization).** Each POV's taxonomy nodes are classified into three BDI categories using explicit disambiguation tests:
 - **Beliefs** (empirical grounding): "Could this be proven true or false with evidence?" Claims about how the world is.
@@ -89,7 +97,7 @@ The taxonomy contains 565 nodes (v3.1.0) organized into four POVs:
 - **Accelerationist** (prefix `acc-`): positions emphasizing AI capability growth, scaling, and transformative potential
 - **Safetyist** (prefix `saf-`): positions emphasizing alignment, existential risk, and deployment caution
 - **Skeptic** (prefix `skp-`): positions emphasizing immediate harms, bias, labor displacement, and institutional accountability
-- **Situations** (prefix `sit-`): shared concepts that all three POVs engage with, carrying three interpretation fields
+- **Situations** (prefix `sit-`): shared concepts that all three POVs engage with, carrying three BDI-decomposed interpretation fields
 
 Node descriptions follow a DOLCE-derived genus-differentia format: "A [Belief|Desire|Intention] within [POV] discourse that [differentia]. Encompasses: [what it covers]. Excludes: [boundaries]." This format enforces semantic precision — the genus (BDI category + POV) classifies the node, the differentia distinguishes it from neighbors, and the Encompasses/Excludes clauses define boundaries.
 
@@ -99,13 +107,27 @@ Each node carries optional graph attributes populated organically through AI-ass
 
 A critical design choice is how taxonomy context is presented to AI debate agents. Flat injection — dumping all relevant nodes as a list — causes attention dilution: the model treats all nodes equally, and instruction-following degrades as context length increases.
 
-Our `formatTaxonomyContext` function implements three strategies to combat attention dilution:
+The `formatTaxonomyContext` function implements three strategies to combat attention dilution:
 
 1. **BDI grouping.** Nodes are organized into three sections with framing headers that teach the agent what each category means and how to use it. This structure prevents the agent from treating empirical facts and normative commitments interchangeably.
 
 2. **Relevance tiering.** When embedding-based relevance scores are available (via cosine similarity against the debate topic using all-MiniLM-L6-v2 embeddings, threshold 0.45), the top-5 nodes per BDI category are marked as primary (★) with explicit instruction to prioritize them. Supporting nodes provide broader context but should not dominate the response. The threshold was empirically calibrated: analysis of pairwise similarity distributions across 565 nodes showed the original threshold (0.3) admitted 93.3% of all node pairs — effectively no filtering. At 0.45, approximately 70% of pairs pass, providing meaningful filtering while preserving diversity through the `minPerCategory=3` floor. Notably, the embedding model discriminates by POV (intra-POV mean similarity 0.58 vs cross-POV 0.47) but weakly by BDI category (0.54 vs 0.49), indicating that BDI-aware relevance must be enforced at the prompt level rather than the embedding level.
 
 3. **CHESS dynamic branch injection.** For large taxonomies, only nodes within relevant taxonomy branches are injected at full depth; other branches contribute only top-level nodes as a "safety margin." This bounds context size while preserving coverage.
+
+**Node caps.** To prevent context bloat, the system enforces hard caps on injected context: a maximum of 35 POV nodes and 15 situation nodes per debate agent. These caps were introduced after observing that uncapped injection could inject 130+ situation nodes, overwhelming the agent's attention budget. The caps are applied after relevance scoring, ensuring that the most relevant nodes are retained.
+
+### 3.4 Context Injection Instrumentation
+
+A recurring question in ontology-grounded AI systems is whether injected context is actually utilized by the model. To move from intuition to data, I instrument the context injection pipeline with a **context injection manifest** that records:
+
+- **Injected nodes**: all taxonomy nodes included in the agent's context, with their POV, BDI category, relevance score, and tiering status (primary ★ vs. supporting)
+- **Referenced nodes**: after the agent responds, nodes that appear to have been referenced in the response (detected via node ID and label matching)
+- **Utilization rate**: the ratio of referenced to injected nodes, broken down by POV, BDI category, and tiering status
+
+The manifest is attached to each debate entry and displayed in the diagnostics panel as a "Context Usage Analysis" section. This enables empirical answers to questions like: "Are primary (★) nodes referenced more often than supporting nodes?" "Do agents ignore certain BDI categories?" "Is the 35-node cap too generous or too tight?"
+
+The instrumentation is lightweight (string matching, no additional AI calls) and operates transparently alongside the existing pipeline. Over time, the utilization data will inform threshold tuning, cap adjustment, and relevance algorithm improvements.
 
 ## 4. FIRE: Confidence-Gated Iterative Claim Extraction
 
@@ -148,7 +170,7 @@ Four termination guardrails prevent unbounded iteration: max 5 iterations per cl
 
 ### 4.4 The FIRE Sniff: Automatic Triggering
 
-Not all documents benefit from iterative extraction. We implement a two-stage decision mechanism:
+Not all documents benefit from iterative extraction. I implement a two-stage decision mechanism:
 
 **Stage 1 (pre-extraction, zero API cost):** Three deterministic document-level signals trigger automatic FIRE: word count > 8,000 (context window degradation risk), chunked processing required (merge artifacts), or complex PDF layout (noisy conversion). If any signal fires, FIRE runs directly.
 
@@ -160,17 +182,17 @@ The cost model averages ~2.6 API calls per document (vs. 1.0 for single-shot, 8-
 
 [RESULTS PENDING]
 
-**Methodology.** We will construct a gold-standard claim set (PP-1) from 25 documents spanning all three POVs and varying in length (2,000-15,000 words), domain complexity, and document type (academic papers, policy reports, opinion pieces). Two annotators will independently identify factual claims and classify their evidence criteria. Inter-annotator agreement will be measured via Cohen's kappa.
+**Methodology.** I will construct a gold-standard claim set (PP-1) from 25 documents spanning all three POVs and varying in length (2,000-15,000 words), domain complexity, and document type (academic papers, policy reports, opinion pieces). Two annotators will independently identify factual claims and classify their evidence criteria. Inter-annotator agreement will be measured via Cohen's kappa.
 
-Each document will be processed under three conditions: (1) single-shot extraction, (2) FIRE iterative extraction, and (3) FIRE with the two-stage sniff. Metrics: claim-level precision (are extracted claims real?), recall (are gold-standard claims found?), and F1. Additionally, we will compute mean absolute error on evidence criteria (specificity, has_warrant, internally_consistent) between AI-assigned and human-annotated values.
+Each document will be processed under three conditions: (1) single-shot extraction, (2) FIRE iterative extraction, and (3) FIRE with the two-stage sniff. Metrics: claim-level precision (are extracted claims real?), recall (are gold-standard claims found?), and F1. Additionally, I will compute mean absolute error on evidence criteria (specificity, has_warrant, internally_consistent) between AI-assigned and human-annotated values.
 
-**Expected results.** We expect FIRE to improve precision (fewer hallucinated claims due to the verification loop) with modest recall improvement (targeted refinement may surface claims missed in the initial pass). The improvement should be largest on long, complex documents where single-shot extraction is most prone to specificity collapse and claim clustering.
+**Expected results.** I expect FIRE to improve precision (fewer hallucinated claims due to the verification loop) with modest recall improvement (targeted refinement may surface claims missed in the initial pass). The improvement should be largest on long, complex documents where single-shot extraction is most prone to specificity collapse and claim clustering.
 
 ## 5. QBAF: Formal Argument Strength in Multi-POV Discourse
 
 ### 5.1 DF-QuAD Gradual Semantics
 
-We implement DF-QuAD (Rago et al., 2016) for computing argument strength from base scores and attack/support relationships. Given a set of arguments with base strengths b(a) in [0,1] and typed relationships (supports/attacks), DF-QuAD iteratively computes:
+I implement DF-QuAD (Rago et al., 2016) for computing argument strength from base scores and attack/support relationships. Given a set of arguments with base strengths b(a) in [0,1] and typed relationships (supports/attacks), DF-QuAD iteratively computes:
 
 For each argument *a* with attackers *Att(a)* and supporters *Sup(a)*:
 
@@ -184,15 +206,15 @@ The engine is pure computation — it does not depend on how base scores are sou
 
 ### 5.2 BDI-Aware Base Score Calibration
 
-The Q-0 calibration benchmark tests whether AI-assigned base scores correlate with human expert scores. Our calibration journey revealed a fundamental finding about the nature of different claim types.
+The Q-0 calibration benchmark tests whether AI-assigned base scores correlate with human expert scores. The calibration journey revealed a fundamental finding about the nature of different claim types.
 
-**Iteration 1: Holistic scoring.** We prompted the AI to assign a single "how strong is this argument?" score (0-1). Result: Pearson r = -0.12 against human scores — essentially uncorrelated. The AI clustered all scores in the 0.7-0.9 range, failing to discriminate between weak and strong arguments.
+**Iteration 1: Holistic scoring.** I prompted the AI to assign a single "how strong is this argument?" score (0-1). Result: Pearson r = -0.12 against human scores — essentially uncorrelated. The AI clustered all scores in the 0.7-0.9 range, failing to discriminate between weak and strong arguments.
 
-**Iteration 2: Decomposed rubric.** Following evidence that LLMs perform better on checkable sub-criteria than holistic judgment (Wei et al., 2022), we decomposed "argument strength" into six boolean/categorical criteria: cites_source, source_quality, falsifiable, quantitative, source_consistent, and contested. Base strength was computed deterministically from criterion responses.
+**Iteration 2: Decomposed rubric.** Following evidence that LLMs perform better on checkable sub-criteria than holistic judgment (Wei et al., 2022), I decomposed "argument strength" into six boolean/categorical criteria: cites_source, source_quality, falsifiable, quantitative, source_consistent, and contested. Base strength was computed deterministically from criterion responses.
 
 **Discovery: BDI-blind bias.** Analysis revealed that 4 of 6 criteria rewarded only empirical evidence (citations, source quality, falsifiability). A strong normative argument ("Nations should establish an AI safety body modeled on the IAEA, because catastrophic-potential technologies require multilateral oversight") scored at the 0.1 floor because it has no peer-reviewed source to cite, is not falsifiable, and contains no quantitative data. The rubric equated "argument strength" with "evidential grounding" — a category error that systematically underscored two of three BDI layers.
 
-**Iteration 3: BDI-aware rubric.** We designed a rubric with three universal criteria (specificity, has_warrant, internally_consistent) and three BDI-specific criteria per layer:
+**Iteration 3: BDI-aware rubric.** I designed a rubric with three universal criteria (specificity, has_warrant, internally_consistent) and three BDI-specific criteria per layer:
 
 - **Beliefs:** cites_source, source_quality, source_consistent
 - **Desires:** values_grounded, tradeoff_acknowledged, precedent_cited
@@ -218,7 +240,7 @@ The Beliefs calibration failure is not a prompt engineering problem — it refle
 
 **Beliefs claims require external verification.** Whether an empirical claim accurately represents its cited source, whether the source is peer-reviewed, and whether the claim is consistent with the broader evidence base requires access to information outside the claim text — the actual source document, the journal database, the state of scientific consensus. The AI lacks reliable access to this external information and defaults to assessing surface features (assertive language, hedging words) rather than evidential quality.
 
-This asymmetry generalizes beyond our system: any automated argumentation system that attempts to score argument strength must contend with the fact that empirical claims require fundamentally different assessment infrastructure than normative or strategic claims.
+This asymmetry generalizes beyond this system: any automated argumentation system that attempts to score argument strength must contend with the fact that empirical claims require fundamentally different assessment infrastructure than normative or strategic claims.
 
 ### 5.4 Evaluation (E2)
 
@@ -247,7 +269,7 @@ Each debate agent receives its POV's taxonomy nodes organized by BDI category, w
 
 ### 6.2 Dialectical Move Taxonomy and Diversity
 
-We define six dialectical moves available to debate agents:
+I define six dialectical moves available to debate agents:
 
 1. **COUNTEREXAMPLE** — provide a specific case challenging the opponent's general claim
 2. **DISTINGUISH** — accept the opponent's evidence but show it doesn't apply to this context
@@ -256,13 +278,13 @@ We define six dialectical moves available to debate agents:
 5. **ESCALATE** — connect the specific disagreement to a deeper principle
 6. **CONCEDE** — acknowledge a valid point from the opponent
 
-**The rhetorical rigidity problem.** In our initial implementation, 27 of 30 post-opening responses used the move pair [CONCEDE, DISTINGUISH], and every response began with the literal phrase "I concede." Analysis identified three compounding causes:
+**The rhetorical rigidity problem.** In the initial implementation, 27 of 30 post-opening responses used the move pair [CONCEDE, DISTINGUISH], and every response began with the literal phrase "I concede." Analysis identified three compounding causes:
 
 1. *Primacy bias in move ordering.* CONCEDE was listed first in the dialectical moves instruction block. LLMs disproportionately favor the first item in any enumerated list.
 2. *JSON example anchoring.* The example JSON in the response prompt showed `"move_types": ["CONCEDE", "DISTINGUISH"]`, directly anchoring the model's output to this exact pair.
 3. *No move diversity enforcement.* The model had no memory of its prior moves — it couldn't know it had already conceded three turns in a row.
 
-**Mitigation (implemented).** We applied five prompt-level interventions, each targeting a specific cause:
+**Mitigation (implemented).** I applied five prompt-level interventions, each targeting a specific cause:
 
 1. *Move reordering* — COUNTEREXAMPLE first, CONCEDE last (addresses primacy bias)
 2. *JSON example change* — example shows `["COUNTEREXAMPLE", "REFRAME"]` instead of `["CONCEDE", "DISTINGUISH"]` (addresses anchoring)
@@ -270,7 +292,7 @@ We define six dialectical moves available to debate agents:
 4. *Move history injection* — the model sees its last N move_types with explicit instruction to vary if it has conceded recently
 5. *Temperature increase* — debate default raised from 0.3 to 0.5 (addresses sampling-level rigidity)
 
-The temperature finding is independently significant: a systematic audit of temperature parameters across the pipeline revealed that debate agents were configured at 0.3 (optimal for extraction tasks) rather than 0.5-0.7 (appropriate for deliberative reasoning). Low temperature compounds with primacy bias — the model samples the highest-probability move (CONCEDE) more deterministically. We also introduced per-mode temperature for chat: brainstorm (0.7), inform (0.4), decide (0.3), matching the cognitive demands of each mode.
+The temperature finding is independently significant: a systematic audit of temperature parameters across the pipeline revealed that debate agents were configured at 0.3 (optimal for extraction tasks) rather than 0.5-0.7 (appropriate for deliberative reasoning). Low temperature compounds with primacy bias — the model samples the highest-probability move (CONCEDE) more deterministically. I also introduced per-mode temperature for chat: brainstorm (0.7), inform (0.4), decide (0.3), matching the cognitive demands of each mode.
 
 ### 6.3 Commitment Tracking and Concession Harvesting
 
@@ -294,16 +316,16 @@ The synthesis also produces an AIF-aligned argument map: claims with IDs, near-v
 
 ### 6.5 Argumentation Scheme Classification
 
-Beyond the dialectical moves (what rhetorical action is taken) and attack types (what kind of challenge is made), we classify the *argumentation scheme* — the reasoning pattern underlying each argument. Drawing from Walton, Reed, and Macagno (2008), we define 12 schemes organized into four families:
+Beyond the dialectical moves (what rhetorical action is taken) and attack types (what kind of challenge is made), I classify the *argumentation scheme* — the reasoning pattern underlying each argument. Drawing from Walton, Reed, and Macagno (2008), I define 13 schemes organized into four families:
 
 | Family | Schemes | BDI Affinity |
 |--------|---------|-------------|
 | **Evidence-Based** | ARGUMENT_FROM_EVIDENCE, ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT | Beliefs |
 | **Reasoning** | ARGUMENT_FROM_CONSEQUENCES, ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION | Intentions, Desires |
 | **Value** | ARGUMENT_FROM_VALUES, ARGUMENT_FROM_FAIRNESS | Desires |
-| **Meta-Argumentative** | ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK | Mixed |
+| **Meta-Argumentative** | ARGUMENT_FROM_IGNORANCE, SLIPPERY_SLOPE, ARGUMENT_FROM_RISK, ARGUMENT_FROM_METAPHOR | Mixed |
 
-Each scheme has four critical questions that identify the conditions under which the argument fails. For example, ARGUMENT_FROM_ANALOGY is challenged by: (1) Are the compared cases genuinely similar? (2) Are there important differences? (3) Is the analogy illuminating or substituting for evidence? (4) Does the analogy break down at the conclusion?
+Each scheme has four critical questions that identify the conditions under which the argument fails. For example, ARGUMENT_FROM_ANALOGY is challenged by: (1) Are the compared cases genuinely similar? (2) Are there important differences? (3) Is the analogy illuminating or substituting for evidence? (4) Does the analogy break down at the conclusion? The 13th scheme, ARGUMENT_FROM_METAPHOR, is challenged by: (1) Does the metaphor illuminate or substitute for evidence? (2) What aspects of the source domain don't map to the target? (3) Does the metaphor smuggle in unstated assumptions? (4) Is there a competing metaphor that leads to opposite conclusions?
 
 The system uses scheme classification in three ways:
 
@@ -315,7 +337,30 @@ The system uses scheme classification in three ways:
 
 This integration makes the debate system scheme-aware at every stage — extraction, steering, and synthesis — without requiring formal scheme ontology reasoning.
 
-### 6.6 Disagreement Typing
+### 6.6 Metaphor Reframing
+
+Multi-agent debates can fall into convergence stalls — extended exchanges where agents recycle the same arguments without generating new insight. Research in conceptual metaphor theory (Lakoff and Johnson, 1980) and analogical reasoning (Gentner and Markman, 1997) suggests that introducing a novel conceptual frame can break such stalls by restructuring how agents reason about the topic.
+
+I implement a two-level metaphor reframing mechanism:
+
+**Level 1: Curated metaphor library.** Eight domain-specific metaphors are curated, each offering a distinct conceptual frame for AI policy discourse:
+
+| Metaphor | Frame | What it highlights |
+|----------|-------|--------------------|
+| AI as Infrastructure | Public utility / shared resource | Governance parallels with electricity, roads, telecommunications |
+| AI as Ecosystem | Biological system with niches and predators | Emergence, adaptation, unintended consequences |
+| AI as Mirror | Reflection of human biases and assumptions | Whose values are encoded, whose are invisible |
+| AI as Apprentice | Learner requiring mentorship and boundaries | Human responsibility, gradual trust-building |
+| AI as Weapon | Dual-use technology with offensive potential | Arms race dynamics, proliferation risks |
+| AI as Language | New communication medium | Literacy requirements, cultural impact, translation gaps |
+| AI as Territory | Contested space requiring governance | Sovereignty, colonization, indigenous displacement |
+| AI as Experiment | Ongoing trial with uncertain outcomes | Informed consent, reversibility, control groups |
+
+**Level 2: Stall detection and injection.** The moderator tracks argument diversity across recent turns. When it detects a convergence stall (repeated schemes, diminishing novelty), it selects a metaphor relevant to the current debate topic and injects it as a reframing prompt: "Consider this debate through the lens of [metaphor]: [description]. How does this reframing change the analysis?" The selected metaphor is recorded in the debate diagnostics as a `metaphor_reframe` entry, enabling post-hoc analysis of which metaphors produce the most productive reframings.
+
+Arguments produced through metaphor reframing are classified under the ARGUMENT_FROM_METAPHOR scheme, with the four critical questions guiding subsequent challenges. This ensures metaphorical arguments receive the same analytical treatment as other argument types.
+
+### 6.7 Disagreement Typing
 
 Each disagreement is classified into one of three types that map to BDI layers:
 
@@ -327,11 +372,11 @@ Each disagreement is classified into one of three types that map to BDI layers:
 
 This classification determines the appropriate resolution strategy: empirical disagreements call for evidence gathering, values disagreements call for tradeoff analysis, and definitional disagreements call for term disambiguation before substantive debate can proceed.
 
-### 6.7 Evaluation (E3)
+### 6.8 Evaluation (E3)
 
 [RESULTS PENDING]
 
-**Methodology.** We will conduct an A/B test comparing BDI-structured context injection against flat context injection. 20 debates will be generated on the same 10 topics: 10 with BDI-structured taxonomy context (nodes grouped by Beliefs/Desires/Intentions with framing headers, ★-tiered by relevance) and 10 with flat context (same nodes presented as an unstructured list without BDI grouping or relevance tiering).
+**Methodology.** I will conduct an A/B test comparing BDI-structured context injection against flat context injection. 20 debates will be generated on the same 10 topics: 10 with BDI-structured taxonomy context (nodes grouped by Beliefs/Desires/Intentions with framing headers, ★-tiered by relevance) and 10 with flat context (same nodes presented as an unstructured list without BDI grouping or relevance tiering).
 
 Three human evaluators will rate each debate on four dimensions using a 5-point Likert scale:
 1. **Argument quality:** Are claims well-structured (claim + evidence + warrant)?
@@ -341,7 +386,7 @@ Three human evaluators will rate each debate on four dimensions using a 5-point 
 
 Inter-rater reliability will be measured via Krippendorff's alpha. Statistical significance will be assessed via paired t-test or Wilcoxon signed-rank test.
 
-**Expected results.** We expect BDI-structured context to produce significantly higher scores on disagreement identification (agents taught the BDI framework should classify disagreements more accurately) and perspective-taking (agents seeing opposing interpretations via situation nodes should engage more directly). We expect modest improvement on argument quality (BDI framing encourages structured reasoning) and taxonomy grounding (★-tiering directs attention to relevant nodes).
+**Expected results.** I expect BDI-structured context to produce significantly higher scores on disagreement identification (agents taught the BDI framework should classify disagreements more accurately) and perspective-taking (agents seeing opposing interpretations via situation nodes should engage more directly). I expect modest improvement on argument quality (BDI framing encourages structured reasoning) and taxonomy grounding (★-tiering directs attention to relevant nodes).
 
 ## 7. Cross-POV Conflict Detection and Resolution
 
@@ -371,15 +416,15 @@ Fallacy detection classifies potential reasoning errors into four tiers: formal 
 
 ### 8.1 Vocabulary Over Formalism
 
-A recurring design decision throughout this system is the adoption of ontological *vocabulary* — naming conventions, category tests, description patterns, and typed relationships — rather than formal ontological *reasoning* in OWL/RDF. We chose this approach because:
+A recurring design decision throughout this system is the adoption of ontological *vocabulary* — naming conventions, category tests, description patterns, and typed relationships — rather than formal ontological *reasoning* in OWL/RDF. I chose this approach because:
 
 1. **The domain is discourse, not reality.** DOLCE was designed for how humans organize experience; BFO was designed for mind-independent reality. AI policy discourse is inherently perspectival — there is no "correct" ontological classification of whether "AI regulation should be proportional" is a Desire or an Intention. The category tests provide principled disambiguation without requiring formal subsumption reasoning.
 
-2. **LLM prompts operate on vocabulary, not triples.** When we instruct a debate agent "YOUR EMPIRICAL GROUNDING (Beliefs): these are the factual claims you take as true," the ontological vocabulary shapes the agent's reasoning through natural language instruction. Encoding this as OWL triples would require a separate reasoning engine with no direct benefit to prompt quality.
+2. **LLM prompts operate on vocabulary, not triples.** When I instruct a debate agent "YOUR EMPIRICAL GROUNDING (Beliefs): these are the factual claims you take as true," the ontological vocabulary shapes the agent's reasoning through natural language instruction. Encoding this as OWL triples would require a separate reasoning engine with no direct benefit to prompt quality.
 
 3. **JSON structures are auditable and evolvable.** A taxonomy node with `category: "Desires"` and a genus-differentia description is immediately readable by human analysts. An OWL class hierarchy with rdfs:subClassOf relationships requires specialized tooling to inspect and modify.
 
-This design choice has a cost: without formal reasoning, subsumption relationships, category membership, and constraint satisfaction must be enforced through prompt instructions and runtime validation (regex patterns, enum checks). For our use case — discourse analysis, not biomedical knowledge engineering — this tradeoff favors accessibility over formal completeness.
+This design choice has a cost: without formal reasoning, subsumption relationships, category membership, and constraint satisfaction must be enforced through prompt instructions and runtime validation (regex patterns, enum checks). For this use case — discourse analysis, not biomedical knowledge engineering — this tradeoff favors accessibility over formal completeness.
 
 ### 8.2 The Human-AI Scoring Boundary
 
@@ -393,13 +438,21 @@ The hybrid approach (AI for Desires/Intentions, human for Beliefs) is not a fail
 
 The rhetorical rigidity problem (Section 6.2) illustrates a broader principle: prompt engineering and parameter calibration are complementary interventions, not substitutes. The prompt-level fixes (move reordering, anti-repetition, move history) address *what the model is instructed to do*. The temperature increase (0.3 → 0.5) addresses *how the model samples from its output distribution*. Neither alone fully resolves the problem — low temperature makes even well-instructed models deterministic, while high temperature without clear instructions produces incoherent variation.
 
-More broadly, our systematic audit revealed that the pipeline had accumulated temperature defaults appropriate for extraction (0.1-0.2) applied to deliberative tasks that benefit from moderate creativity (0.5-0.7). The mismatch between task type and sampling parameter was invisible in individual interactions but produced systematic quality degradation across debates. We recommend that multi-stage NLP pipelines explicitly calibrate temperature per task type rather than inheriting a single default.
+More broadly, a systematic audit revealed that the pipeline had accumulated temperature defaults appropriate for extraction (0.1-0.2) applied to deliberative tasks that benefit from moderate creativity (0.5-0.7). The mismatch between task type and sampling parameter was invisible in individual interactions but produced systematic quality degradation across debates. I recommend that multi-stage NLP pipelines explicitly calibrate temperature per task type rather than inheriting a single default.
 
 The embedding similarity threshold calibration (Section 3.3) reveals a similar principle: the original threshold (0.3) was chosen without empirical validation and admitted 93.3% of node pairs — effectively no filtering. Empirical distribution analysis produced a principled threshold (0.45) that meaningfully filters while preserving diversity. The general lesson: hardcoded thresholds in NLP systems should be validated against their actual data distributions, not set by intuition.
 
-### 8.4 Limitations
+### 8.4 Metaphor as Cognitive Reset
 
-**Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface because unmapped concept deduplication uses exact string matching rather than semantic similarity. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (designed but not yet implemented) would address this limitation.
+The metaphor reframing mechanism (Section 6.6) addresses a limitation of pure logical argumentation: when agents have exhausted their repertoire of evidence-based and reasoning-based moves, introducing a novel conceptual frame can restructure the problem space. This is consistent with Lakoff and Johnson's (1980) observation that metaphors are not decorative but constitutive — they determine which aspects of a problem are salient and which are invisible.
+
+The curated metaphor library represents a deliberate design choice: rather than allowing the AI to generate arbitrary metaphors (which risks incoherent or misleading frames), I provide eight carefully selected metaphors that each highlight genuine aspects of AI policy discourse. The stall detection mechanism ensures metaphors are introduced only when the debate has genuinely converged, preventing gratuitous reframing that could derail productive exchanges.
+
+Early observations suggest that metaphor reframing is most productive when it bridges BDI layers — e.g., the "AI as Experiment" metaphor naturally connects empirical questions (Beliefs: what are the outcomes?) with normative questions (Desires: was informed consent given?) and strategic questions (Intentions: how do we ensure reversibility?). This cross-BDI bridging may explain why metaphorical arguments are classified as "Mixed" BDI affinity in the scheme taxonomy.
+
+### 8.5 Limitations
+
+**Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
 **Three-POV simplification.** The accelerationist/safetyist/skeptic trichotomy is a deliberate simplification. Real AI policy discourse includes many more perspectives (industry, government, civil society, Global South, labor, etc.). The three-POV structure provides sufficient perspectival multiplicity for demonstrating the system's capabilities while remaining manageable.
 
@@ -411,7 +464,11 @@ The embedding similarity threshold calibration (Section 3.3) reveals a similar p
 
 **Concession harvesting scale.** The concession harvesting mechanism has been designed and implemented but not yet validated at scale. Meaningful validation requires concession data accumulated across 20+ debates — a volume that has not yet been reached.
 
-### 8.4 Ethical Considerations
+**Metaphor reframing validation.** The curated metaphor library and stall detection mechanism have been implemented but not yet formally evaluated. Systematic evaluation requires tracking which metaphors produce novel arguments (vs. superficial restatements) across a large debate corpus.
+
+**Context utilization measurement.** The injection instrumentation uses string matching for reference detection, which may miss paraphrased references and false-positive on coincidental term overlap. More sophisticated reference detection (e.g., NLI-based similarity between injected node content and response text) would improve accuracy.
+
+### 8.6 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -425,23 +482,27 @@ This system analyzes discourse about AI policy — a politically sensitive domai
 
 ## 9. Conclusion
 
-We have presented an integrated system for multi-perspective AI policy discourse analysis that addresses the fundamental limitation of flat, single-label stance detection. Our three-layer approach — ontological grounding (DOLCE D&S + BDI + AIF), formal argumentation (QBAF with BDI-aware calibration), and confidence-gated extraction (FIRE) — demonstrates that respecting the multi-dimensional structure of policy disagreements produces richer, more auditable analysis than compressing opinions into binary labels.
+I have presented an integrated system for multi-perspective AI policy discourse analysis that addresses the fundamental limitation of flat, single-label stance detection. The three-layer approach — ontological grounding (DOLCE D&S + BDI + AIF), formal argumentation (QBAF with BDI-aware calibration), and confidence-gated extraction (FIRE) — demonstrates that respecting the multi-dimensional structure of policy disagreements produces richer, more auditable analysis than compressing opinions into binary labels.
 
-Our key findings include:
+Key findings include:
 
-1. **BDI decomposition is principled and practical.** Separating empirical claims from normative commitments and strategic reasoning, using explicit disambiguation tests, improves both AI debate quality and argument strength calibration. The decomposition is not ad-hoc — it derives from established work in philosophy of mind and agent-based systems.
+1. **BDI decomposition is principled and practical.** Separating empirical claims from normative commitments and strategic reasoning, using explicit disambiguation tests, improves both AI debate quality and argument strength calibration. The decomposition is not ad-hoc — it derives from established work in philosophy of mind and agent-based systems. Extending BDI decomposition to situation node interpretations (all 133 nodes now carry belief/desire/intention/summary per POV) enables debate agents to target specific layers within each perspective's understanding of shared concepts.
 
-2. **Different claim types require different assessment infrastructure.** The Q-0 calibration outcome (AI succeeds on Desires/Intentions, fails on Beliefs) reveals a fundamental asymmetry traceable to the self-contained vs. externally-verifiable nature of different claim types. This finding generalizes beyond our system to any automated argumentation pipeline.
+2. **Different claim types require different assessment infrastructure.** The Q-0 calibration outcome (AI succeeds on Desires/Intentions, fails on Beliefs) reveals a fundamental asymmetry traceable to the self-contained vs. externally-verifiable nature of different claim types. This finding generalizes beyond this system to any automated argumentation pipeline.
 
 3. **Ontological vocabulary suffices for discourse analysis.** Adopting DOLCE/BDI/AIF naming conventions in JSON structures — without formal OWL/RDF reasoning — provides sufficient grounding to shape AI reasoning through prompt instructions and runtime validation. The "vocabulary over formalism" approach makes the system accessible and evolvable while preserving ontological rigor.
 
 4. **Multi-agent debate requires active diversity management.** Without explicit move diversity enforcement, LLM debate agents converge on repetitive rhetorical patterns. The solution requires both prompt-level interventions (move ordering, anti-repetition, move history) AND parameter-level calibration (temperature appropriate to the task type). Neither alone suffices.
 
-5. **Argumentation scheme classification enriches debate analysis.** Classifying the reasoning pattern behind each argument (12 Walton-derived schemes with scheme-specific critical questions) enables the moderator to steer debates toward specific vulnerabilities and the synthesis to produce machine-readable argument maps that explain not just *what* was attacked but *how* and *on what grounds*.
+5. **Argumentation scheme classification enriches debate analysis.** Classifying the reasoning pattern behind each argument (13 Walton-derived schemes with scheme-specific critical questions) enables the moderator to steer debates toward specific vulnerabilities and the synthesis to produce machine-readable argument maps that explain not just *what* was attacked but *how* and *on what grounds*.
 
 6. **Parameter calibration is an empirical discipline, not an intuition.** Thresholds and temperatures set without validation against actual data distributions produce systematic quality degradation that is invisible in individual interactions but measurable in aggregate. The embedding similarity threshold (0.3 → 0.45) and debate temperature (0.3 → 0.5) were both corrected through empirical analysis rather than guesswork.
 
-Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, NLI-based semantic deduplication of unmapped concepts, cross-lingual extension, and integration with retrieval-augmented generation to address the Beliefs scoring gap.
+7. **Metaphor reframing addresses convergence stalls.** When logical argumentation exhausts its repertoire, curated conceptual metaphors provide novel frames that restructure the problem space. Integrating metaphorical arguments into the scheme taxonomy (ARGUMENT_FROM_METAPHOR with four critical questions) ensures they receive the same analytical rigor as other argument types.
+
+8. **Instrumentation enables data-driven optimization.** Context injection instrumentation — tracking which injected nodes are actually referenced by the model — transforms context engineering from intuition-based tuning to empirical optimization. The lightweight manifest approach (string matching, no additional AI calls) demonstrates that useful instrumentation need not be expensive.
+
+Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, and systematic evaluation of metaphor reframing effectiveness across debate corpora.
 
 ## References
 
@@ -463,13 +524,21 @@ Dung, P. M. (1995). On the acceptability of arguments and its fundamental role i
 
 Ebrahimi, J., Dou, D., and Lowd, D. (2022). A survey of stance detection in online texts. *ACM Computing Surveys*, 54(3):1-37.
 
+Fauconnier, G. and Turner, M. (2002). *The Way We Think: Conceptual Blending and the Mind's Hidden Complexities*. Basic Books.
+
+Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similarity. *American Psychologist*, 52(1):45-56.
+
 Guarino, N., Oberle, D., and Staab, S. (2009). What is an ontology? In *Handbook on Ontologies*, pages 1-17. Springer.
+
+Holyoak, K. J. and Thagard, P. (1995). *Mental Leaps: Analogy in Creative Thought*. MIT Press.
 
 Janier, M. and Reed, C. (2014). OVA+: An argument analysis interface. *Proceedings of the 5th International Conference on Computational Models of Argument (COMMA)*.
 
 Jonnalagadda, S., Cohen, T., Wu, S., and Gonzalez, G. (2012). Enhancing clinical concept extraction with distributional semantics. *Journal of Biomedical Informatics*, 45(1):129-140.
 
 Khan, A., Hughes, J., Valentine, D., Ruis, L., Sachan, M., and Perez, E. (2024). Debating with more persuasive LLMs leads to more truthful answers. *arXiv preprint arXiv:2402.06782*.
+
+Lakoff, G. and Johnson, M. (1980). *Metaphors We Live By*. University of Chicago Press.
 
 Lauscher, A., Ng, L., Napoles, C., and Tetreault, J. (2022). Rhetoric, logic, and dialectic: Advancing theory-based argument quality assessment. *Proceedings of the 29th International Conference on Computational Linguistics (COLING)*.
 
@@ -498,6 +567,8 @@ Rao, A. S. and Georgeff, M. P. (1991). Modeling rational agents within a BDI-arc
 Smith, B., Ashburner, M., Rosse, C., et al. (2015). The OBO Foundry: coordinated evolution of ontologies to support biomedical data integration. *Nature Biotechnology*, 25(11):1251-1255.
 
 Stab, C. and Gurevych, I. (2017). Parsing argumentation structures in persuasive essays. *Computational Linguistics*, 43(3):619-659.
+
+Thibodeau, P. H. and Boroditsky, L. (2011). Metaphors we think with: The role of metaphor in reasoning. *PLoS ONE*, 6(2):e16782.
 
 Törnberg, P. (2024). How to use LLMs for text analysis. *Proceedings of the National Academy of Sciences (PNAS)*, 121(24).
 

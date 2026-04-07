@@ -12,6 +12,7 @@ import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
 // DiagnosticsPanel removed — diagnostics always uses popup window
 import { ConvergencePanel } from './ConvergenceRadar';
+import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
 import { nodePovFromId } from '@lib/debate';
 import { computeCoverageMap } from '@lib/debate/coverageTracker';
 import type { CoverageMap } from '@lib/debate/coverageTracker';
@@ -1636,6 +1637,14 @@ export function DebateWorkspace() {
       {/* Convergence radar panel */}
       {showConvergence && activeDebate.convergence_tracker && (
         <ConvergencePanel tracker={activeDebate.convergence_tracker} />
+      )}
+
+      {/* Neutral evaluation panel — shown when evaluations exist */}
+      {activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
+        <NeutralEvaluationPanel
+          evaluations={activeDebate.neutral_evaluations}
+          speakerMapping={activeDebate.neutral_speaker_mapping}
+        />
       )}
 
       {/* Diagnostics always uses popup window — no inline panel */}

@@ -7,7 +7,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { generatePromptPreview } from '../utils/promptPreview';
 import { DataSourceCard } from './DataSourceCard';
-import { usePromptConfigStore } from '../hooks/usePromptConfigStore';
+import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
 import { api } from '@bridge';
 import type { PromptPreviewResult } from '@lib/debate';
 
@@ -114,16 +114,24 @@ function computeLineDiff(
   return diff.reverse();
 }
 
+/** Resolve a config value using the store state directly (no getState() call). */
+function resolveConfig(s: { sessionOverrides: Record<string, number | boolean | string>; workspaceDefaults: Record<string, number | boolean | string> }, key: string): number | boolean | string {
+  if (key in s.sessionOverrides) return s.sessionOverrides[key];
+  if (key in s.workspaceDefaults) return s.workspaceDefaults[key];
+  return PROMPT_CONFIG_DEFAULTS[key] ?? 0;
+}
+
 function SettingsControls({ promptId, group }: { promptId: string; group: PromptGroup }) {
-  const sc = useRef(0); sc.current++;
-  if (sc.current <= 3 || sc.current % 10 === 0) console.log(`[SettingsControls] render #${sc.current}`);
-  const configGet = usePromptConfigStore(s => s.get);
+  const _sc = useRef(0); _sc.current++;
+  console.error(`[SettingsControls] render #${_sc.current} promptId=${promptId}`);
+  const temperature = usePromptConfigStore(s =>
+    (resolveConfig(s, `temperature.${promptId}`) as number | undefined)
+    ?? resolveConfig(s, 'temperature.debate') as number
+  );
+  const modelOverride = usePromptConfigStore(s => resolveConfig(s, `model.${promptId}`)) as string | undefined;
   const setSession = usePromptConfigStore(s => s.setSession);
   const debateModel = useDebateStore(s => s.debateModel);
-
-  const temperature = configGet(`temperature.${promptId}`) as number | undefined
-    ?? configGet(group.startsWith('debate') ? 'temperature.debate' : 'temperature.debate') as number;
-  const model = configGet(`model.${promptId}`) as string | undefined ?? debateModel ?? '';
+  const model = modelOverride || debateModel || '';
   return (
     <div className="pi-settings-grid">
       <label className="pi-control">
@@ -157,12 +165,12 @@ function SettingsControls({ promptId, group }: { promptId: string; group: Prompt
 }
 
 export function PromptInspector() {
-  const renderCount = useRef(0);
-  renderCount.current++;
-  if (renderCount.current <= 5 || renderCount.current % 10 === 0) {
-    console.log(`[PromptInspector] render #${renderCount.current}`);
+  const _renderCount = useRef(0);
+  _renderCount.current++;
+  console.error(`[PromptInspector] render #${_renderCount.current}`);
+  if (_renderCount.current > 100) {
+    throw new Error(`LOOP: PromptInspector rendered ${_renderCount.current} times. This is the infinite loop.`);
   }
-
   const [selectedId, setSelectedId] = useState<string>(PROMPT_CATALOG[0]?.id ?? '');
   const [showTemplate, setShowTemplate] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
@@ -175,9 +183,15 @@ export function PromptInspector() {
   const activeDebate = useDebateStore((s) => s.activeDebate);
   const hasActiveSession = !!activeDebate;
 
-  // Subscribe to config changes so preview auto-updates when knobs are tweaked
-  const configOverrides = usePromptConfigStore(s => s.sessionOverrides);
-  const configDefaults = usePromptConfigStore(s => s.workspaceDefaults);
+  // Subscribe to config change counts so preview auto-updates when knobs are tweaked
+  // Use key counts + values as a stable primitive to avoid object-reference re-renders
+  const configVersion = usePromptConfigStore(s => {
+    const so = s.sessionOverrides;
+    const wd = s.workspaceDefaults;
+    const soKeys = Object.keys(so);
+    const wdKeys = Object.keys(wd);
+    return `${soKeys.length}:${soKeys.map(k => `${k}=${so[k]}`).join(',')}|${wdKeys.length}:${wdKeys.map(k => `${k}=${wd[k]}`).join(',')}`;
+  });
 
   const grouped = useMemo(() => {
     const map = new Map<PromptGroup, PromptCatalogEntry[]>();
@@ -226,9 +240,9 @@ export function PromptInspector() {
     } catch {
       return null;
     }
-    // configOverrides/configDefaults included to re-trigger when config knobs change
+    // configVersion included to re-trigger when config knobs change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, hasActiveSession, activeDebate, configOverrides, configDefaults]);
+  }, [selected, hasActiveSession, activeDebate, configVersion]);
 
   // Clear baseline when switching prompts
   useEffect(() => {

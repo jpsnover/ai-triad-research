@@ -76,7 +76,7 @@ $prompt = @'
 You are rewriting taxonomy labels and descriptions to match a plain-language style.
 
 STYLE RULES:
-- Grade-10 reading level. Use everyday words, not academic jargon.
+- Write for a policy reporter — active voice, named actors, one idea per sentence, concrete examples over abstractions. Every sentence quotable without rewriting. No nominalizations or hedge stacking. Technical terms fine when load-bearing; define on first use.
 - Labels: 3-8 words, like a newspaper headline. Simple and direct.
   GOOD: "New Tech Takes Time to Spread", "Attacks That Break AI Safety Rules", "AIs Don't Follow Their Rules"
   BAD:  "Innovation-Diffusion Lag", "Denial-of-Governance Attacks", "AI Goal Misalignment"
