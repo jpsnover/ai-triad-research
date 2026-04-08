@@ -90,34 +90,26 @@ if (Test-Path $ModelsFile) {
     Write-Host '  + ai-models.json'
 }
 
-# ── Create .aitriad.json with absolute paths for installed modules ──
-# Read the dev config and resolve relative paths so the module works from any $PWD.
+# ── Create .aitriad.json for installed modules ──
+# Bundle directory structure hints but NOT machine-specific absolute paths.
+# code_root and data_root are resolved at runtime via env vars, $PWD walk-up,
+# or Install-AITriadData. Baking the build machine's paths would break on
+# every other machine (the root cause of Show-SummaryViewer / Show-TaxonomyEditor
+# failures on PSGallery installs).
 $DevConfigPath = Join-Path $RepoRoot '.aitriad.json'
 if (Test-Path $DevConfigPath) {
     $DevConfig = Get-Content -Raw -Path $DevConfigPath | ConvertFrom-Json
-    # Resolve data_root to absolute if relative
-    $DataRoot = $DevConfig.data_root
-    if (-not [System.IO.Path]::IsPathRooted($DataRoot)) {
-        $DataRoot = (Resolve-Path (Join-Path $RepoRoot $DataRoot) -ErrorAction SilentlyContinue)
-        if ($DataRoot) { $DataRoot = $DataRoot.Path }
-    }
-    if ($DataRoot -and (Test-Path $DataRoot)) {
-        $InstalledConfig = @{
-            code_root     = $RepoRoot
-            data_root     = $DataRoot
-            taxonomy_dir  = $DevConfig.taxonomy_dir
-            sources_dir   = $DevConfig.sources_dir
-            summaries_dir = $DevConfig.summaries_dir
-            conflicts_dir = $DevConfig.conflicts_dir
-            debates_dir   = $DevConfig.debates_dir
-            queue_file    = $DevConfig.queue_file
-            version_file  = $DevConfig.version_file
-        } | ConvertTo-Json -Depth 5
-        $InstalledConfig | Set-Content -Path (Join-Path $ModuleDir '.aitriad.json') -Encoding UTF8
-        Write-Host "  + .aitriad.json (data_root=$DataRoot)"
-    } else {
-        Write-Warning "  Data root not found — skipping .aitriad.json (set `$env:AI_TRIAD_DATA_ROOT at runtime)"
-    }
+    $InstalledConfig = @{
+        taxonomy_dir  = $DevConfig.taxonomy_dir
+        sources_dir   = $DevConfig.sources_dir
+        summaries_dir = $DevConfig.summaries_dir
+        conflicts_dir = $DevConfig.conflicts_dir
+        debates_dir   = $DevConfig.debates_dir
+        queue_file    = $DevConfig.queue_file
+        version_file  = $DevConfig.version_file
+    } | ConvertTo-Json -Depth 5
+    $InstalledConfig | Set-Content -Path (Join-Path $ModuleDir '.aitriad.json') -Encoding UTF8
+    Write-Host '  + .aitriad.json (directory structure only — no machine-specific paths)'
 } else {
     Write-Warning '  .aitriad.json not found in repo root — skipping'
 }

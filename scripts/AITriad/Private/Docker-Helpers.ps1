@@ -76,7 +76,7 @@ function Pull-TaxonomyEditorImage {
         Pulls the latest Taxonomy Editor Docker image.
     #>
     [CmdletBinding()]
-    param([string]$ImageName = 'aitriad/taxonomy-editor:latest')
+    param([string]$ImageName = 'ghcr.io/jpsnover/taxonomy-editor:latest')
 
     Write-Step "Pulling Taxonomy Editor image ($ImageName)"
     Write-Info 'This is a one-time download (~1.4 GB). Subsequent starts are instant.'
@@ -88,7 +88,8 @@ function Pull-TaxonomyEditorImage {
             -Location 'Pull-TaxonomyEditorImage' `
             -NextSteps @(
                 'Check your internet connection'
-                'Verify Docker Hub is accessible: docker pull hello-world'
+                'Verify Docker is working: docker pull hello-world'
+                'Verify GHCR is accessible: docker pull ghcr.io/jpsnover/taxonomy-editor:latest'
                 'If behind a proxy, configure Docker proxy settings'
             ))
     }
@@ -224,14 +225,14 @@ function Get-ApiKeyEnvArgs {
     [CmdletBinding()]
     param()
 
-    $args = @()
+    $envArgs = @()
     $keyVars = @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'AI_API_KEY', 'AI_MODEL')
     foreach ($var in $keyVars) {
         $val = [System.Environment]::GetEnvironmentVariable($var)
         if ($val) {
-            $args += '--env'
-            $args += "$var=$val"
+            $envArgs += '--env'
+            $envArgs += "$var=$val"
         }
     }
-    return $args
+    return $envArgs
 }

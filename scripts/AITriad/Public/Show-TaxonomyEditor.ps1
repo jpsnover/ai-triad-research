@@ -141,7 +141,19 @@ function Start-LegacyElectronMode {
     [CmdletBinding()]
     param([switch]$NoBrowser)
 
-    $AppDir = Join-Path (Get-CodeRoot) 'taxonomy-editor'
+    $CodeRoot = Get-CodeRoot
+    if (-not $CodeRoot) {
+        throw (New-ActionableError `
+            -Goal 'Launch Taxonomy Editor (dev mode)' `
+            -Problem 'Cannot find the ai-triad-research code repository' `
+            -Location 'Start-LegacyElectronMode' `
+            -NextSteps @(
+                'Set $env:AI_TRIAD_CODE_ROOT to the path where you cloned ai-triad-research'
+                'Or cd into the ai-triad-research directory before running this command'
+                'Or clone the repo: git clone https://github.com/jsnov/ai-triad-research'
+            ))
+    }
+    $AppDir = Join-Path $CodeRoot 'taxonomy-editor'
     if (-not (Test-Path $AppDir)) {
         Write-Fail "App directory not found: $AppDir"
         return
@@ -239,7 +251,7 @@ function Start-ContainerMode {
         [switch]$Detach
     )
 
-    $ImageName     = 'aitriad/taxonomy-editor:latest'
+    $ImageName     = 'ghcr.io/jpsnover/taxonomy-editor:latest'
     $ContainerName = Get-ContainerName -Port $Port
 
     # ── Resolve data path ─────────────────────────────────────────────────
@@ -253,9 +265,13 @@ function Start-ContainerMode {
                 $DataPath = Resolve-DataPath '.'
             }
             catch {
-                # Last resort: sibling directory
+                # Last resort: sibling directory of code repo, or platform default
                 $CodeRoot = Get-CodeRoot
-                $DataPath = Join-Path (Split-Path $CodeRoot -Parent) 'ai-triad-data'
+                if ($CodeRoot) {
+                    $DataPath = Join-Path (Split-Path $CodeRoot -Parent) 'ai-triad-data'
+                } else {
+                    $DataPath = Get-PlatformDataDir
+                }
             }
         }
     }
@@ -266,8 +282,10 @@ function Start-ContainerMode {
         Write-Warn "Data directory not found: $DataPath"
         Write-Info  'The editor will show the First Run dialog to set up data.'
         # Create the directory so Docker can mount it
+        $CodeRoot = Get-CodeRoot
         $DataPath = if ($env:AI_TRIAD_DATA_ROOT) { $env:AI_TRIAD_DATA_ROOT }
-                    else { Join-Path (Split-Path (Get-CodeRoot) -Parent) 'ai-triad-data' }
+                    elseif ($CodeRoot) { Join-Path (Split-Path $CodeRoot -Parent) 'ai-triad-data' }
+                    else { Get-PlatformDataDir }
         $null = New-Item -ItemType Directory -Path $DataPath -Force -ErrorAction SilentlyContinue
     }
 

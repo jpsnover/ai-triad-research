@@ -16,7 +16,19 @@ function Show-SummaryViewer {
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
-    $AppDir = Join-Path (Get-CodeRoot) 'summary-viewer'
+    $CodeRoot = Get-CodeRoot
+    if (-not $CodeRoot) {
+        throw (New-ActionableError `
+            -Goal 'Launch Summary Viewer' `
+            -Problem 'Cannot find the ai-triad-research code repository' `
+            -Location 'Show-SummaryViewer' `
+            -NextSteps @(
+                'Set $env:AI_TRIAD_CODE_ROOT to the path where you cloned ai-triad-research'
+                'Or cd into the ai-triad-research directory before running this command'
+                'Or clone the repo: git clone https://github.com/jsnov/ai-triad-research'
+            ))
+    }
+    $AppDir = Join-Path $CodeRoot 'summary-viewer'
     if (-not (Test-Path $AppDir)) {
         Write-Fail "App directory not found: $AppDir"
         return

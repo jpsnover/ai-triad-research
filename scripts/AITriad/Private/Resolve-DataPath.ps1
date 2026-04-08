@@ -38,8 +38,10 @@ function Initialize-DataConfig {
     $ConfigPaths = @(
         (Join-Path $script:RepoRoot '.aitriad.json')
         (Join-Path $script:ModuleRoot '.aitriad.json')
-        (Join-Path $CodeRoot '.aitriad.json')
     )
+    if ($CodeRoot) {
+        $ConfigPaths += (Join-Path $CodeRoot '.aitriad.json')
+    }
 
     foreach ($ConfigPath in $ConfigPaths) {
         if (Test-Path $ConfigPath) {
@@ -117,8 +119,14 @@ function Get-CodeRoot {
         $Dir = $Parent
     }
 
-    # 4. Fallback
-    return $script:RepoRoot
+    # 4. For dev installs, the repo root IS the code root
+    if ($script:IsDevInstall) {
+        return $script:RepoRoot
+    }
+
+    # 5. PSGallery install — code root is unknown; return $null so callers
+    #    can provide an actionable error instead of a confusing path.
+    return $null
 }
 
 function Get-DataRoot {
