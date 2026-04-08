@@ -4,6 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Azure Container Apps deployment for Taxonomy Editor
 //
+// BYOK (Bring Your Own Key) model: API keys are NOT passed at deployment time.
+// Users enter their own Gemini/Claude/Groq API keys through the app UI.
+// Keys are encrypted (AES-256-GCM) and stored on the Azure Files data volume.
+//
 // Resources created:
 //   - Container Apps Environment (serverless, scale-to-zero)
 //   - Container App (the Taxonomy Editor)
@@ -11,8 +15,7 @@
 //   - Log Analytics Workspace (diagnostics)
 //
 // Usage:
-//   az deployment group create -g ai-triad -f main.bicep \
-//     --parameters geminiApiKey=<key>
+//   az deployment group create -g ai-triad -f main.bicep
 // ═══════════════════════════════════════════════════════════════════════════════
 
 @description('Azure region for all resources')
@@ -20,18 +23,6 @@ param location string = resourceGroup().location
 
 @description('Container image (ghcr.io/jpsnover/taxonomy-editor:latest)')
 param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
-
-@description('Gemini API key for AI operations')
-@secure()
-param geminiApiKey string
-
-@description('Anthropic API key (optional)')
-@secure()
-param anthropicApiKey string = ''
-
-@description('Groq API key (optional)')
-@secure()
-param groqApiKey string = ''
 
 @description('Unique suffix for globally unique resource names')
 param uniqueSuffix string = uniqueString(resourceGroup().id)
@@ -117,18 +108,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'auto' // supports both HTTP and WebSocket
         allowInsecure: false
       }
-      secrets: [
-        { name: 'gemini-key', value: geminiApiKey }
-        { name: 'anthropic-key', value: anthropicApiKey }
-        { name: 'groq-key', value: groqApiKey }
-      ]
-      registries: [
-        {
-          server: 'ghcr.io'
-          // Public image — no credentials needed for read access
-          // If private, add: username + passwordSecretRef
-        }
-      ]
     }
     template: {
       containers: [
@@ -141,12 +120,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: [
             { name: 'AI_TRIAD_DATA_ROOT', value: '/data' }
-            { name: 'GEMINI_API_KEY', secretRef: 'gemini-key' }
-            { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-key' }
-            { name: 'GROQ_API_KEY', secretRef: 'groq-key' }
             { name: 'ALLOWED_ORIGINS', value: '' } // Set after deployment: https://<app-fqdn>
             { name: 'HOME', value: '/home/aitriad' }
             { name: 'NODE_ENV', value: 'production' }
+            // No API keys here — BYOK model: users enter keys via the app UI.
+            // Keys are encrypted (AES-256-GCM) and stored on the data volume.
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }

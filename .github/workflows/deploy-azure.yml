@@ -44,9 +44,6 @@ jobs:
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: deploy/azure/main.bicep
           parameters: >-
-            geminiApiKey=${{ secrets.GEMINI_API_KEY }}
-            anthropicApiKey=${{ secrets.ANTHROPIC_API_KEY }}
-            groqApiKey=${{ secrets.GROQ_API_KEY }}
             containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Update CORS with app URL
@@ -60,6 +57,7 @@ jobs:
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
           echo "Deployed to: $APP_URL"
+          echo "API keys: BYOK — users enter via app UI"
 
           # Wait for container to start (scale from zero)
           for i in $(seq 1 12); do
