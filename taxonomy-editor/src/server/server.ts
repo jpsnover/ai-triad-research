@@ -520,6 +520,13 @@ function getCorsOrigin(req: http.IncomingMessage): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
 }
 
+// User allowlist from ALLOWED_USERS env var (comma-separated GitHub usernames).
+// Azure Easy Auth sends the authenticated username in X-MS-CLIENT-PRINCIPAL-NAME.
+// When set, only listed users can access the app. Unset = no restriction.
+const ALLOWED_USERS = process.env.ALLOWED_USERS
+  ? new Set(process.env.ALLOWED_USERS.split(',').map(u => u.trim().toLowerCase()).filter(Boolean))
+  : null;
+
 const server = http.createServer(async (req, res) => {
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
@@ -528,6 +535,19 @@ const server = http.createServer(async (req, res) => {
   if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  // User allowlist check — Azure Easy Auth sets X-MS-CLIENT-PRINCIPAL-NAME
+  if (ALLOWED_USERS) {
+    const principalName = (req.headers['x-ms-client-principal-name'] as string || '').toLowerCase();
+    // Allow health check and static assets without auth (Easy Auth handles login redirect)
+    const url_path = req.url?.split('?')[0] || '';
+    const isPublicPath = url_path === '/health' || url_path === '/.auth/login/github/callback';
+    if (!isPublicPath && principalName && !ALLOWED_USERS.has(principalName)) {
+      res.writeHead(403, { 'Content-Type': 'text/html' });
+      res.end(`<h1>Access Denied</h1><p>User <strong>${principalName}</strong> is not authorized. Contact the administrator.</p>`);
+      return;
+    }
+  }
 
   const url = new URL(req.url!, 'http://localhost');
   const route = matchRoute(req.method!, url.pathname);
