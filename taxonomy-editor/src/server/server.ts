@@ -508,11 +508,24 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 
 // ── HTTP server ──
 
+// Resolve allowed CORS origins from ALLOWED_ORIGINS env var (comma-separated).
+// Falls back to '*' for local development.
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : null; // null = allow all (development mode)
+
+function getCorsOrigin(req: http.IncomingMessage): string {
+  if (!ALLOWED_ORIGINS) return '*';
+  const origin = req.headers.origin || '';
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
 const server = http.createServer(async (req, res) => {
-  // CORS headers for development
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
+  res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
+  if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
