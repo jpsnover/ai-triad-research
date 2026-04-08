@@ -48,6 +48,11 @@ function Initialize-DataConfig {
             try {
                 $script:DataConfig = Get-Content -Raw -Path $ConfigPath | ConvertFrom-Json
                 $script:DataConfigDir = Split-Path $ConfigPath -Parent
+                # Ensure data_root exists — PSGallery-built configs strip it
+                if (-not ($script:DataConfig | Get-Member -Name 'data_root' -MemberType NoteProperty)) {
+                    $DefaultRoot = if ($script:IsDevInstall) { '.' } else { Get-PlatformDataDir }
+                    $script:DataConfig | Add-Member -NotePropertyName 'data_root' -NotePropertyValue $DefaultRoot
+                }
                 Write-Verbose "Data config: loaded from $ConfigPath"
                 return
             }

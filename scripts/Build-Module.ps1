@@ -114,6 +114,24 @@ if (Test-Path $DevConfigPath) {
     Write-Warning '  .aitriad.json not found in repo root — skipping'
 }
 
+# ── Re-encode PS files as UTF-8 with BOM (PS 5.1 compatibility) ──
+# Without a BOM, Windows PowerShell 5.1 reads files using the system's ANSI
+# codepage, which garbles any non-ASCII characters (box-drawing, em dashes in
+# comments) and can cause parse errors.
+Write-Host 'Re-encoding PS files as UTF-8 with BOM...'
+$Utf8Bom = [System.Text.UTF8Encoding]::new($true)
+$reencoded = 0
+Get-ChildItem -Path $ModuleDir -Recurse -Include '*.ps1','*.psm1','*.psd1' | ForEach-Object {
+    $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+    $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    if (-not $hasBom) {
+        $content = [System.IO.File]::ReadAllText($_.FullName, [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::WriteAllText($_.FullName, $content, $Utf8Bom)
+        $reencoded++
+    }
+}
+Write-Host "  Re-encoded $reencoded file(s)"
+
 # ── Bundle LICENSE ──
 $License = Join-Path $RepoRoot 'LICENSE'
 if (Test-Path $License) {

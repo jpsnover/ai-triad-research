@@ -8,7 +8,13 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist/main",
-    "rootDir": "src/main"
+    "rootDir": "../"
   },
-  "include": ["src/main/**/*"]
+  "include": [
+    "src/main/**/*",
+    "../lib/debate/debateExport.ts",
+    "../lib/debate/taxonomyLoader.ts",
+    "../lib/debate/taxonomyTypes.ts",
+    "../lib/debate/taxonomyContext.ts"
+  ]
 }

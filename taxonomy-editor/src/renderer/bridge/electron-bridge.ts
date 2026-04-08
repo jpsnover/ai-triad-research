@@ -33,6 +33,8 @@ export const api: AppAPI = {
   isDataAvailable: () => window.electronAPI.isDataAvailable(),
   getDataRoot: () => window.electronAPI.getDataRoot(),
   cloneDataRepo: (p) => window.electronAPI.cloneDataRepo(p),
+  setDataRoot: (p) => window.electronAPI.setDataRoot(p),
+  pickDirectory: (defaultPath) => window.electronAPI.pickDirectory(defaultPath),
   checkDataUpdates: () => window.electronAPI.checkDataUpdates(),
   pullDataUpdates: () => window.electronAPI.pullDataUpdates(),
 

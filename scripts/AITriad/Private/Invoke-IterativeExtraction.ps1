@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # FIRE — Confidence-gated iterative claim extraction.
@@ -217,12 +217,12 @@ function Invoke-IterativeExtraction {
 
         if ($Confidence -ge $ConfidenceThreshold) {
             $ClaimsConfident++
-            Write-Verbose "${LabelPadded}${ConfStr} `u{2713}"
+            Write-Verbose "${LabelPadded}${ConfStr} ✓"
             continue
         }
 
         # ── Uncertain claim: iterate ──────────────────────────────────────
-        Write-Verbose "${LabelPadded}${ConfStr} `u{2192} iterating"
+        Write-Verbose "${LabelPadded}${ConfStr} → iterating"
         Write-Verbose "${Indent}`"$ClaimShort`""
         $ClaimIter = 0
         $OriginalText = $ClaimText
@@ -283,7 +283,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
                                 foreach ($P in @('specificity', 'has_warrant', 'internally_consistent')) {
                                     if ($OldEC.PSObject.Properties[$P]) { $OldVal = $OldEC.$P } else { $OldVal = '?' }
                                     if ($NewEC.PSObject.Properties[$P]) { $NewVal = $NewEC.$P } else { $NewVal = '?' }
-                                    if ("$OldVal" -ne "$NewVal") { $Changes.Add("${P}: $OldVal`u{2192}$NewVal") }
+                                    if ("$OldVal" -ne "$NewVal") { $Changes.Add("${P}: $OldVal→$NewVal") }
                                 }
                                 $Claim.evidence_criteria = $NewEC
                             }
@@ -304,17 +304,17 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
                         if ($Refined.PSObject.Properties['verified'] -and -not $Refined.verified) {
                             $Claim.fire_confidence = 0.1
                             $Confidence = 0.1
-                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: verified=false `u{2192} 0.10, stopped"
+                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: verified=false → 0.10, stopped"
                             break
                         }
 
                         # Log iteration result
                         if ($Changes.Count -gt 0) { $ChangeStr = "  ($($Changes -join ', '))" } else { $ChangeStr = '' }
                         if ($Confidence -ge $ConfidenceThreshold) {
-                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: $([Math]::Round($BeforeConf, 2)) `u{2192} $([Math]::Round($Confidence, 2)) `u{2713}$ChangeStr"
+                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: $([Math]::Round($BeforeConf, 2)) → $([Math]::Round($Confidence, 2)) ✓$ChangeStr"
                         }
                         else {
-                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: $([Math]::Round($BeforeConf, 2)) `u{2192} $([Math]::Round($Confidence, 2))$ChangeStr"
+                            Write-Verbose "${Indent}iter $ClaimIter/$MaxIterPerClaim`: $([Math]::Round($BeforeConf, 2)) → $([Math]::Round($Confidence, 2))$ChangeStr"
                         }
                     }
                     catch {
@@ -333,7 +333,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
         # Log claim text change if it was refined
         if ($ClaimText -ne $OriginalText) {
             if ($ClaimText.Length -gt 70) { $NewShort = $ClaimText.Substring(0, 70) + '...' } else { $NewShort = $ClaimText }
-            Write-Verbose "${Indent}`u{2192} `"$NewShort`""
+            Write-Verbose "${Indent}→ `"$NewShort`""
         }
 
         # Warn if claim exhausted iterations without reaching threshold

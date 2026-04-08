@@ -282,9 +282,24 @@ body {
   margin-bottom: 2px;
 }
 
+.first-run-path-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .first-run-path-value {
   font-size: 0.82rem;
   word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.first-run-browse-btn {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
 
 .first-run-actions {
@@ -296,6 +311,38 @@ body {
 
 .first-run-btn {
   min-width: 140px;
+}
+
+.first-run-section {
+  margin-bottom: 12px;
+}
+
+.first-run-section-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.first-run-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.first-run-divider::before,
+.first-run-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border-color);
+}
+
+.first-run-btn-skip {
+  min-width: auto;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
 
 .first-run-hint {

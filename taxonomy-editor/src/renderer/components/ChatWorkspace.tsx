@@ -9,6 +9,7 @@ import type { ChatEntry, ChatMode } from '../types/chat';
 import { CHAT_MODE_INFO } from '../types/chat';
 import { nodePovFromId } from '@lib/debate';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ function ChatMessage({ entry }: { entry: ChatEntry }) {
         </span>
       </div>
       <div className="chat-message-content markdown-body">
-        <Markdown>{entry.content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
       </div>
       <TaxonomyRefsSection refs={entry.taxonomy_refs} />
     </div>

@@ -17,6 +17,7 @@ import { nodePovFromId } from '@lib/debate';
 import { computeCoverageMap } from '@lib/debate/coverageTracker';
 import type { CoverageMap } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -446,7 +447,7 @@ function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
         <span className="debate-statement-type">{entry.type}</span>
       </div>
       <div className="debate-statement-content markdown-body">
-        <Markdown>{entry.content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
       </div>
     </div>
   );
@@ -514,7 +515,7 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown>{displayContent}</Markdown>}
+          : <Markdown remarkPlugins={[remarkGfm]}>{displayContent}</Markdown>}
       </div>
       <TaxonomyRefsSection
         refs={entry.taxonomy_refs}
@@ -704,14 +705,14 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown>{entry.content}</Markdown>}
+          : <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>}
       </div>
       {showWebEvidence && (
         <div className="debate-fact-check-web-evidence">
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
             {factCheck?.web_search_evidence ? (
-              <Markdown>{factCheck.web_search_evidence}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm]}>{factCheck.web_search_evidence}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 {factCheck?.web_search_used

@@ -157,6 +157,8 @@ export const api: AppAPI = {
   isDataAvailable: () => get('/api/data/available'),
   getDataRoot: () => get('/api/data/root'),
   cloneDataRepo: (targetPath) => post('/api/data/clone', { targetPath }),
+  setDataRoot: (newRoot) => post('/api/data/set-root', { newRoot }),
+  pickDirectory: () => Promise.resolve({ cancelled: true }),
   checkDataUpdates: () => post('/api/data/check-updates'),
   pullDataUpdates: () => post('/api/data/pull'),
 

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-BatchSummary {
@@ -456,7 +456,7 @@ function Invoke-BatchSummary {
                 $Results.Add($Result)
             }
             catch {
-                Write-Warn "  `u{2717} $($Doc.DocId) — $($_.Exception.Message)"
+                Write-Warn "  ✗ $($Doc.DocId) — $($_.Exception.Message)"
                 $Results.Add(@{ Success = $false; DocId = $Doc.DocId; Error = $_.Exception.Message })
             }
         }
@@ -527,7 +527,7 @@ function Invoke-BatchSummary {
     if ($Failed.Count -gt 0) {
         Write-Host "`n  FAILED ($($Failed.Count)):" -ForegroundColor Red
         foreach ($F in $Failed) {
-            Write-Host "    `u{2717} $($F.DocId)  — $($F.Error)" -ForegroundColor Red
+            Write-Host "    ✗ $($F.DocId)  — $($F.Error)" -ForegroundColor Red
         }
         Write-Host "`n  Re-run failed documents individually:" -ForegroundColor Yellow
         foreach ($F in $Failed) {

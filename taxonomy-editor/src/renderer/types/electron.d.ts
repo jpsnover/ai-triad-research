@@ -15,6 +15,8 @@ export interface ElectronAPI {
   isDataAvailable: () => Promise<boolean>;
   getDataRoot: () => Promise<string>;
   cloneDataRepo: (targetPath: string) => Promise<{ success: boolean; message: string }>;
+  setDataRoot: (newRoot: string) => Promise<void>;
+  pickDirectory: (defaultPath?: string) => Promise<{ cancelled: boolean; path?: string }>;
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
   loadAIModels: () => Promise<unknown>;

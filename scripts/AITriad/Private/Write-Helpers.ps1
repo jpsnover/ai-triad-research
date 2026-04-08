@@ -25,9 +25,9 @@
 
     Produces themed console output during a pipeline step.
 #>
-function Write-Step  { param([string]$M) Write-Host "`n`u{25B6}  $M"    -ForegroundColor Cyan   }
-function Write-OK    { param([string]$M) Write-Host "   `u{2713}  $M"   -ForegroundColor Green  }
-function Write-Warn  { param([string]$M) Write-Host "   `u{26A0}  $M"   -ForegroundColor Yellow }
-function Write-Fail  { param([string]$M) Write-Host "   `u{2717}  $M"   -ForegroundColor Red    }
-function Write-Info  { param([string]$M) Write-Host "   `u{2192}  $M"   -ForegroundColor Gray   }
+function Write-Step  { param([string]$M) Write-Host "`n▶  $M"    -ForegroundColor Cyan   }
+function Write-OK    { param([string]$M) Write-Host "   ✓  $M"   -ForegroundColor Green  }
+function Write-Warn  { param([string]$M) Write-Host "   ⚠  $M"   -ForegroundColor Yellow }
+function Write-Fail  { param([string]$M) Write-Host "   ✗  $M"   -ForegroundColor Red    }
+function Write-Info  { param([string]$M) Write-Host "   →  $M"   -ForegroundColor Gray   }
 function Write-Label { param([string]$M) Write-Host "   $M"             -ForegroundColor White  }

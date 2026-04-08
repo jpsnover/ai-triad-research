@@ -7,12 +7,12 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import { PROJECT_ROOT } from './fileIO';
 
 let brokerProcess: ChildProcess | null = null;
 
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
-const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, '..', 'scripts');
-const BROKER_SCRIPT = path.resolve(__dirname, '..', '..', 'src', 'main', 'pty-broker.py');
+const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, 'scripts');
+const BROKER_SCRIPT = path.resolve(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'pty-broker.py');
 
 export function registerTerminalHandlers(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('terminal:spawn', () => {

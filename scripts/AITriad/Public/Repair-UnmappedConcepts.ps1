@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Repair-UnmappedConcepts {
@@ -99,7 +99,7 @@ function Repair-UnmappedConcepts {
         if ($ResolvedList.Count -eq 0) { continue }
 
         $DocName = $File.BaseName
-        Write-Info "`u{2192} $DocName — $($Unmapped.Count) unmapped, $($ResolvedList.Count) matched existing nodes, $($RemainingList.Count) still unmapped"
+        Write-Info "→ $DocName — $($Unmapped.Count) unmapped, $($ResolvedList.Count) matched existing nodes, $($RemainingList.Count) still unmapped"
 
         foreach ($R in $ResolvedList) {
             Write-OK "   Removing '$($R.ConceptLabel)' — already exists as $($R.MatchedNodeId) '$($R.MatchedNodeLabel)' [$($R.MatchedPOV)] (similarity $($R.Score))"

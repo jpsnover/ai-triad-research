@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -77,21 +77,21 @@ function Invoke-DocumentSummary {
     $Meta      = $Doc.Meta
     $ChunkThresholdTokens = 20000   # Documents above this get chunked
 
-    Write-Host "`n  `u{250C}`u{2500} $ThisDocId" -ForegroundColor White
-    Write-Host "  `u{2502}  pov: $($Doc.PovTags -join ', ')  |  model: $Model" -ForegroundColor Gray
+    Write-Host "`n  ┌─ $ThisDocId" -ForegroundColor White
+    Write-Host "  │  pov: $($Doc.PovTags -join ', ')  |  model: $Model" -ForegroundColor Gray
 
     # -- Load snapshot --------------------------------------------------------
     $SnapshotText = Get-Content $Doc.SnapshotFile -Raw
     if ([string]::IsNullOrWhiteSpace($SnapshotText)) {
-        Write-Host "  `u{2514}`u{2500} SKIP $ThisDocId `u{2014} snapshot.md is empty" -ForegroundColor Yellow
+        Write-Host "  └─ SKIP $ThisDocId — snapshot.md is empty" -ForegroundColor Yellow
         return @{ Success = $false; DocId = $ThisDocId; Error = 'EmptySnapshot' }
     }
     $EstimatedTokens = [int]($SnapshotText.Length / 4)
-    Write-Host "  `u{2502}  snapshot: $($SnapshotText.Length) chars (~$EstimatedTokens tokens est.)" -ForegroundColor Gray
+    Write-Host "  │  snapshot: $($SnapshotText.Length) chars (~$EstimatedTokens tokens est.)" -ForegroundColor Gray
 
     # -- Decide: single-call or chunked pipeline ------------------------------
     if ($EstimatedTokens -gt $ChunkThresholdTokens) {
-        Write-Host "  `u{2502}  `u{2728} Large document — using chunked pipeline" -ForegroundColor Cyan
+        Write-Host "  │  ✨ Large document — using chunked pipeline" -ForegroundColor Cyan
         return Invoke-ChunkedSummary @PSBoundParameters
     }
 
@@ -99,7 +99,7 @@ function Invoke-DocumentSummary {
     # SINGLE-CALL PATH (small documents) — delegates to shared pipeline
     # ========================================================================
 
-    Write-Host "  `u{2502}  Running extraction pipeline..." -ForegroundColor Gray
+    Write-Host "  │  Running extraction pipeline..." -ForegroundColor Gray
 
     $PipelineResult = Invoke-SummaryPipeline `
         -SnapshotText          $SnapshotText `
@@ -115,12 +115,12 @@ function Invoke-DocumentSummary {
         -AutoFire:$AutoFire
 
     if (-not $PipelineResult.Success) {
-        Write-Host "  `u{2514}`u{2500} `u{2717} FAILED: $ThisDocId — $($PipelineResult.Error)" -ForegroundColor Red
+        Write-Host "  └─ ✗ FAILED: $ThisDocId — $($PipelineResult.Error)" -ForegroundColor Red
         return @{ Success = $false; DocId = $ThisDocId; Error = $PipelineResult.Error }
     }
 
     $Elapsed = [TimeSpan]::FromSeconds($PipelineResult.ElapsedSeconds)
-    Write-Host "  `u{2502}  `u{2713} Pipeline complete ($($PipelineResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
+    Write-Host "  │  ✓ Pipeline complete ($($PipelineResult.Backend)): $([int]$Elapsed.TotalSeconds)s" -ForegroundColor Green
 
     return Finalize-Summary -SummaryObject $PipelineResult.Summary -ThisDocId $ThisDocId `
         -TaxonomyVersion $TaxonomyVersion -Model $Model -Temperature $Temperature `
@@ -156,7 +156,7 @@ function Invoke-ChunkedSummary {
     # -- Split into chunks ----------------------------------------------------
     $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 8000 -MinChunkTokens 1500)
     $ChunkCount = $Chunks.Count
-    Write-Host "  `u{2502}  split into $ChunkCount chunks" -ForegroundColor Cyan
+    Write-Host "  │  split into $ChunkCount chunks" -ForegroundColor Cyan
 
     # -- Load chunk-specific system prompt ------------------------------------
     if ($ChunkSystemPromptTemplate) {
@@ -176,7 +176,7 @@ function Invoke-ChunkedSummary {
         $ChunkText = $Chunks[$i]
         $ChunkTokens = [int]($ChunkText.Length / 4)
 
-        Write-Host "  `u{2502}  chunk $ChunkNum/$ChunkCount (~$ChunkTokens tokens)..." -ForegroundColor Gray -NoNewline
+        Write-Host "  │  chunk $ChunkNum/$ChunkCount (~$ChunkTokens tokens)..." -ForegroundColor Gray -NoNewline
 
         # Per-chunk relevance filtering: use chunk text as query for better node selection
         $ChunkTaxonomy = $TaxonomyJson
@@ -221,14 +221,14 @@ $ChunkText
                 -RetryDelays @(5, 15, 45)
 
             if ($null -eq $AIResult) {
-                Write-Host " `u{2717} null response" -ForegroundColor Red
+                Write-Host " ✗ null response" -ForegroundColor Red
                 $FailedChunks++
                 continue
             }
 
             $ChunkObj = Parse-AIResponse -RawText $AIResult.Text -ThisDocId "$ThisDocId-chunk$ChunkNum" -SummariesDir $SummariesDir
             if ($null -eq $ChunkObj) {
-                Write-Host " `u{2717} bad JSON" -ForegroundColor Red
+                Write-Host " ✗ bad JSON" -ForegroundColor Red
                 $FailedChunks++
                 continue
             }
@@ -240,10 +240,10 @@ $ChunkText
                     $ChunkPts += @($ChunkObj.pov_summaries.$c.key_points).Count
                 }
             }
-            Write-Host " `u{2713} $ChunkPts points" -ForegroundColor Green
+            Write-Host " ✓ $ChunkPts points" -ForegroundColor Green
 
         } catch {
-            Write-Host " `u{2717} $_" -ForegroundColor Red
+            Write-Host " ✗ $_" -ForegroundColor Red
             $FailedChunks++
         }
     }
@@ -251,29 +251,29 @@ $ChunkText
     $Elapsed = (Get-Date) - $StartTime
 
     if ($ChunkResults.Count -eq 0) {
-        Write-Host "  `u{2514}`u{2500} `u{2717} All $ChunkCount chunks failed" -ForegroundColor Red
+        Write-Host "  └─ ✗ All $ChunkCount chunks failed" -ForegroundColor Red
         return @{ Success = $false; DocId = $ThisDocId; Error = "All $ChunkCount chunks failed" }
     }
 
     if ($FailedChunks -gt 0) {
-        Write-Host "  `u{2502}  `u{26A0} $FailedChunks/$ChunkCount chunks failed (proceeding with $($ChunkResults.Count) successful)" -ForegroundColor Yellow
+        Write-Host "  │  ⚠ $FailedChunks/$ChunkCount chunks failed (proceeding with $($ChunkResults.Count) successful)" -ForegroundColor Yellow
     }
 
     # -- Merge chunk results --------------------------------------------------
-    Write-Host "  `u{2502}  merging $($ChunkResults.Count) chunk results..." -ForegroundColor Cyan
+    Write-Host "  │  merging $($ChunkResults.Count) chunk results..." -ForegroundColor Cyan
     $MergedObject = Merge-ChunkSummaries -ChunkResults @($ChunkResults)
 
     # Convert ordered hashtable to PSCustomObject for consistent downstream handling
     $SummaryObject = [PSCustomObject]$MergedObject
 
-    Write-Host "  `u{2502}  `u{2713} Merged ($([int]$Elapsed.TotalSeconds)s total, $ChunkCount chunks)" -ForegroundColor Green
+    Write-Host "  │  ✓ Merged ($([int]$Elapsed.TotalSeconds)s total, $ChunkCount chunks)" -ForegroundColor Green
 
     # -- Density check on merged result (warn only, no retry for chunked) ----
     $WordCount = ($SnapshotText -split '\s+').Count
     $DensityFloors = Get-DensityFloors -WordCount $WordCount
     $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
     if (-not $DensityCheck.Pass) {
-        Write-Host "  `u{2502}  `u{26A0} Merged density below floor: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
+        Write-Host "  │  ⚠ Merged density below floor: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
     }
 
     return Finalize-Summary -SummaryObject $SummaryObject -ThisDocId $ThisDocId `
@@ -372,7 +372,7 @@ function Build-DensityScaledPrompt {
     $ucMin = $Floors.UcMin
     $ucMax = [Math]::Max(5,  [int]($WordCount / 800))
 
-    Write-Host "  `u{2502}  ~$WordCount words `u{2192} key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax" -ForegroundColor Gray
+    Write-Host "  │  ~$WordCount words → key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax" -ForegroundColor Gray
 
     return $Template `
         -replace '{{WORD_COUNT}}', $WordCount `
@@ -416,7 +416,7 @@ function Parse-AIResponse {
     try {
         return ($CleanText | ConvertFrom-Json)
     } catch {
-        Write-Host "  `u{2502}  `u{26A0} JSON parse failed `u{2014} attempting repair" -ForegroundColor Yellow
+        Write-Host "  │  ⚠ JSON parse failed — attempting repair" -ForegroundColor Yellow
         $Repaired = Repair-TruncatedJson -Text $RawText
         if ($Repaired) {
             try {
@@ -427,7 +427,7 @@ function Parse-AIResponse {
         }
         $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
         Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
-        Write-Host "  `u{2502}  `u{2717} Invalid JSON. Raw saved: $DebugPath" -ForegroundColor Red
+        Write-Host "  │  ✗ Invalid JSON. Raw saved: $DebugPath" -ForegroundColor Red
         return $null
     }
 }
@@ -474,7 +474,7 @@ function Finalize-Summary {
     $UnmappedCount  = @($UnmappedConcs).Count
 
     if ($ChunkCount -gt 0) { $ChunkLabel = " ($ChunkCount chunks)" } else { $ChunkLabel = '' }
-    Write-Host "  `u{2502}  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
+    Write-Host "  │  points: $TotalPoints ($NullNodes unmapped)  factual: $FactualCount  new_concepts: $UnmappedCount$ChunkLabel" -ForegroundColor Gray
 
     # -- Cross-POV fuzzy match on unmapped concepts ----------------------------
     if ($UnmappedCount -gt 0) {
@@ -482,7 +482,7 @@ function Finalize-Summary {
             $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
             if (@($Resolution.Resolved).Count -gt 0) {
                 foreach ($R in @($Resolution.Resolved)) {
-                    Write-Host "  `u{2502}  `u{2714} Resolved: '$($R.ConceptLabel)' `u{2192} $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
+                    Write-Host "  │  ✔ Resolved: '$($R.ConceptLabel)' → $($R.MatchedNodeId) (score $($R.Score))" -ForegroundColor Green
                 }
                 $UnmappedConcs = @($Resolution.Remaining)
                 if ($SoProps['unmapped_concepts']) {
@@ -494,7 +494,7 @@ function Finalize-Summary {
             }
         }
         catch {
-            Write-Host "  `u{2502}  `u{26A0} Unmapped concept resolution failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "  │  ⚠ Unmapped concept resolution failed: $($_.Exception.Message)" -ForegroundColor Yellow
         }
     }
 
@@ -555,7 +555,7 @@ function Finalize-Summary {
         Set-Content -Path $SummaryPath -Value ($FinalSummary | ConvertTo-Json -Depth 20) -Encoding UTF8
     }
     catch {
-        Write-Host "  `u{2514}`u{2500} `u{2717} Failed to write summary: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  └─ ✗ Failed to write summary: $($_.Exception.Message)" -ForegroundColor Red
         return @{ Success = $false; DocId = $ThisDocId; Error = "Failed to write summary file: $($_.Exception.Message)" }
     }
 
@@ -586,10 +586,10 @@ function Finalize-Summary {
         Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
     }
     catch {
-        Write-Host "  `u{2502}  `u{26A0} Summary written but metadata update failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "  │  ⚠ Summary written but metadata update failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
-    Write-Host "  `u{2514}`u{2500} `u{2713} Done: summaries/$ThisDocId.json" -ForegroundColor Green
+    Write-Host "  └─ ✓ Done: summaries/$ThisDocId.json" -ForegroundColor Green
 
     return @{
         Success       = $true

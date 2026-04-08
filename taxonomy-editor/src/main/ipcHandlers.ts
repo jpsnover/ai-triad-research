@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ipcMain, shell, dialog, BrowserWindow, clipboard } from 'electron';
+import { app, ipcMain, shell, dialog, BrowserWindow, clipboard } from 'electron';
 import fs from 'fs';
 import { execFile } from 'child_process';
 import {
@@ -34,15 +34,13 @@ import {
 } from './chatIO';
 import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { isDataAvailable, getDataRootPath, loadDataConfig } from './fileIO';
+import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import { diagnosePythonEmbeddings } from './diagnosePython';
 import type { NodeEmbeddingInput, NliPair } from './embeddings';
 import path from 'path';
-
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
@@ -100,6 +98,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('get-data-root', () => {
     return getDataRootPath();
+  });
+
+  ipcMain.handle('set-data-root', (_event, newRoot: string) => {
+    setDataRootPath(newRoot);
+    // Relaunch so module-level cached paths are re-derived from the updated config
+    app.relaunch();
+    app.quit();
   });
 
   ipcMain.handle('clone-data-repo', async (_event, targetPath: string) => {
@@ -519,7 +524,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('fetch-url-content', async (_event, url: string) => {
     try {
-      const { fetchUrlContent } = await import('@lib/debate/taxonomyLoader');
+      const { fetchUrlContent } = await import('../../../lib/debate/taxonomyLoader');
       const markdown = await fetchUrlContent(url);
       return { content: markdown };
     } catch (err) {
@@ -543,5 +548,17 @@ export function registerIpcHandlers(): void {
     const fs = await import('fs');
     const content = fs.readFileSync(filePath, 'utf-8');
     return { cancelled: false, filePath, content };
+  });
+
+  ipcMain.handle('pick-directory', async (_event, defaultPath?: string) => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { cancelled: true };
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select research data directory',
+      defaultPath: defaultPath || undefined,
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return { cancelled: true };
+    return { cancelled: false, path: result.filePaths[0] };
   });
 }

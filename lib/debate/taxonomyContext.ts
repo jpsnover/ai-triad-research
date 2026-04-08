@@ -19,6 +19,8 @@ export interface TaxonomyContext {
   povNodes: PovNode[];
   situationNodes: SituationNode[];
   policyRegistry?: PolicyRef[];
+  /** Positional vulnerability entries extracted from steelman_vulnerability attributes. */
+  vulnerabilities?: { nodeId: string; label: string; text: string; score: number }[];
   /** Relevance scores by node ID. When present, enables primary/supporting tiering. */
   nodeScores?: Map<string, number>;
 }

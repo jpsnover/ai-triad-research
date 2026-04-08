@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SituationNode } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -11,9 +11,10 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
-import { generateResearchPrompt } from '../utils/researchPrompt';
+import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
 import { nodeTypeFromId } from '@lib/debate';
+import { api } from '@bridge';
 
 interface SituationDetailProps {
   node: SituationNode;
@@ -24,12 +25,13 @@ interface SituationDetailProps {
   chipDepth?: number;
 }
 
-type SitTab = 'overview' | 'attributes' | 'sources' | 'accelerationist' | 'safetyist' | 'skeptic';
+type SitTab = 'overview' | 'attributes' | 'sources' | 'research' | 'accelerationist' | 'safetyist' | 'skeptic';
 
 const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
   { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
   { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
+  { id: 'research', label: 'Research', color: 'var(--text-primary)' },
   { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
   { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
   { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
@@ -45,7 +47,26 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
   const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, getLabelForId } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
+  const [researchText, setResearchText] = useState('');
+  const [researchCopied, setResearchCopied] = useState(false);
+  const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Generate research prompt when tab is selected or node changes
+  useEffect(() => {
+    if (activeTab === 'research') {
+      setResearchText(researchPrompt(node.label, node.description));
+      setResearchCopied(false);
+    }
+  }, [activeTab, node.id, node.label, node.description]);
+
+  const handleResearchCopy = async () => {
+    try {
+      await api.clipboardWriteText(researchText);
+      setResearchCopied(true);
+      setTimeout(() => setResearchCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
 
   const allPovIds = getAllNodeIds().filter(id => nodeTypeFromId(id) !== 'situation');
   const allConflictIds = getAllConflictIds();
@@ -259,6 +280,27 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
 
         {activeTab === 'sources' && (
           <SourcesPanel nodeId={node.id} />
+        )}
+
+        {activeTab === 'research' && (
+          <div className="node-detail-research">
+            <div className="node-detail-research-header">
+              <span className="node-detail-research-desc">Research prompt for this situation. Edit as needed, then copy to clipboard.</span>
+              <button
+                className={`btn btn-sm${researchCopied ? '' : ' btn-ghost'}`}
+                onClick={handleResearchCopy}
+              >
+                {researchCopied ? '\u2713 Copied' : 'Copy'}
+              </button>
+            </div>
+            <textarea
+              ref={researchTextareaRef}
+              className="node-detail-research-textarea"
+              value={researchText}
+              onChange={(e) => setResearchText(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
         )}
 
         {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (

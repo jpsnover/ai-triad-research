@@ -6,7 +6,20 @@ import path from 'path';
 
 import { app } from 'electron';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+/** Walk up from __dirname to find the repo root (where .aitriad.json or scripts/ lives). */
+function findRepoRoot(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, '.aitriad.json')) || fs.existsSync(path.join(dir, 'scripts', 'AITriad'))) {
+      return dir;
+    }
+    dir = path.dirname(dir);
+  }
+  // Fallback for packaged builds
+  return path.dirname(app.getAppPath());
+}
+
+const PROJECT_ROOT = findRepoRoot();
 const IS_PACKAGED = app?.isPackaged ?? false;
 
 // ── Platform-specific default data directory ──
@@ -88,6 +101,20 @@ export function isDataAvailable(): boolean {
 
 export function getDataRootPath(): string {
   return resolveDataPath('.');
+}
+
+/** Persist a new data_root into .aitriad.json. Caller should relaunch the app afterward. */
+export function setDataRootPath(newRoot: string): void {
+  const configPath = path.join(PROJECT_ROOT, '.aitriad.json');
+  let existing: Record<string, unknown> = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch { /* start fresh */ }
+  existing.data_root = newRoot;
+  fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
+  console.log(`[fileIO] Updated .aitriad.json data_root → ${newRoot}`);
 }
 
 const _config = loadDataConfig();

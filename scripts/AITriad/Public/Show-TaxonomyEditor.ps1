@@ -33,6 +33,7 @@ function Show-TaxonomyEditor {
         Show whether a Taxonomy Editor container is running.
     .PARAMETER Dev
         Force legacy Electron dev mode (npm run dev) instead of container mode.
+        Alias: -NoDocker.
     .EXAMPLE
         Show-TaxonomyEditor
         # Opens in browser via Docker container
@@ -46,6 +47,9 @@ function Show-TaxonomyEditor {
     .EXAMPLE
         Show-TaxonomyEditor -Dev
         # Legacy Electron desktop app (requires Node.js)
+    .EXAMPLE
+        Show-TaxonomyEditor -NoDocker
+        # Same as -Dev — skip Docker, use Electron directly
     #>
     [CmdletBinding(DefaultParameterSetName = 'Run')]
     param(
@@ -73,6 +77,7 @@ function Show-TaxonomyEditor {
         [switch]$Status,
 
         [Parameter(ParameterSetName = 'Dev')]
+        [Alias('NoDocker')]
         [switch]$Dev
     )
 
@@ -90,47 +95,236 @@ function Show-TaxonomyEditor {
     }
 
     # ── Decide launch mode ────────────────────────────────────────────────────
-    $UseDocker = $false
     if ($Dev) {
-        # Forced legacy mode
-        $UseDocker = $false
-    }
-    elseif (Get-Command docker -ErrorAction SilentlyContinue) {
-        # Docker available — try it
-        try {
-            $null = docker info 2>&1
-            if ($LASTEXITCODE -eq 0) {
-                $UseDocker = $true
-            }
-        }
-        catch { }
-    }
-
-    if (-not $UseDocker -and -not $Dev) {
-        # Docker not available — check if we can fall back to dev mode
-        if (Get-Command npm -ErrorAction SilentlyContinue) {
-            Write-Info 'Docker not available. Falling back to Electron dev mode.'
-            $Dev = $true
-        }
-        else {
-            throw (New-ActionableError `
-                -Goal 'Launch Taxonomy Editor' `
-                -Problem 'Neither Docker nor Node.js/npm is available' `
-                -Location 'Show-TaxonomyEditor' `
-                -NextSteps @(
-                    'Install Docker Desktop: https://www.docker.com/products/docker-desktop/'
-                    'Or install Node.js: https://nodejs.org/'
-                ))
-        }
-    }
-
-    # ── Legacy Electron dev mode ──────────────────────────────────────────────
-    if ($Dev) {
+        # Forced legacy Electron dev mode — needs Node.js, npm, code repo
         Start-LegacyElectronMode -NoBrowser:$NoBrowser
         return
     }
 
-    # ── Container mode ────────────────────────────────────────────────────────
+    # ── Container mode: check if Docker is already working first ────────────
+    $DockerReady = $false
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+        try {
+            $null = docker info 2>&1
+            if ($LASTEXITCODE -eq 0) { $DockerReady = $true }
+        }
+        catch { }
+    }
+
+    # Only check Windows prerequisites if Docker isn't already working
+    if (-not $DockerReady -and $IsWindows) {
+        # 1. Windows Containers feature must be enabled first
+        $ContainersEnabled = $false
+        try {
+            $Feature = Get-WindowsOptionalFeature -Online -FeatureName Containers -ErrorAction SilentlyContinue
+            if ($Feature -and $Feature.State -eq 'Enabled') { $ContainersEnabled = $true }
+        }
+        catch { }
+
+        if (-not $ContainersEnabled) {
+            Write-Warn 'The Windows Containers feature is not enabled. This is required before WSL or Docker can be installed.'
+            $Choice = $Host.UI.PromptForChoice(
+                'Enable Containers',
+                'Would you like to enable the Windows Containers feature now? (requires admin privileges and a restart)',
+                @('&Yes', '&No'),
+                0
+            )
+            if ($Choice -eq 0) {
+                Write-Step 'Enabling Windows Containers feature'
+                try {
+                    Enable-WindowsOptionalFeature -Online -FeatureName Containers -All -NoRestart 2>&1 | ForEach-Object { Write-Info "$_" }
+                    Write-OK 'Containers feature enabled'
+                    Write-Warn 'A restart is required. After restarting, run: Show-TaxonomyEditor'
+                }
+                catch {
+                    Write-Fail "Failed to enable Containers feature: $_"
+                    Write-Info 'Try running from an elevated (Admin) terminal:'
+                    Write-Info '  Enable-WindowsOptionalFeature -Online -FeatureName Containers -All'
+                }
+            }
+            else {
+                Write-Info 'Enable it manually from an Admin terminal:'
+                Write-Info '  Enable-WindowsOptionalFeature -Online -FeatureName Containers -All'
+            }
+        }
+
+        # 2. WSL must be installed
+        $WslReady = $false
+        try {
+            $WslOutput = wsl --status 2>&1
+            if ($LASTEXITCODE -eq 0) { $WslReady = $true }
+        }
+        catch { }
+
+        if (-not $WslReady) {
+            Write-Warn 'WSL (Windows Subsystem for Linux) is required for Docker Desktop on Windows.'
+            $Choice = $Host.UI.PromptForChoice(
+                'Install WSL',
+                'Would you like to install WSL now? (requires admin privileges and a restart)',
+                @('&Yes', '&No'),
+                0
+            )
+            if ($Choice -eq 0) {
+                Write-Step 'Installing WSL'
+                try {
+                    wsl --install --no-distribution 2>&1 | ForEach-Object { Write-Info $_ }
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-OK 'WSL installed'
+                        Write-Warn 'A restart may be required before Docker can use WSL 2.'
+                        Write-Info 'After restarting, run: Show-TaxonomyEditor'
+                    }
+                    else {
+                        Write-Fail 'WSL installation returned a non-zero exit code.'
+                        Write-Info 'Try running "wsl --install" from an elevated (Admin) terminal.'
+                    }
+                }
+                catch {
+                    Write-Fail "WSL installation failed: $_"
+                    Write-Info 'Try running "wsl --install" from an elevated (Admin) terminal.'
+                }
+            }
+            else {
+                Write-Info 'WSL is required for Docker. Install it with: wsl --install'
+            }
+        }
+    }
+
+    if (-not $DockerReady) {
+        $DockerInstalled = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+
+        if ($DockerInstalled) {
+            # Docker installed but daemon not running — offer to start it
+            Write-Warn 'Docker is installed but the daemon is not running.'
+            $Choice = $Host.UI.PromptForChoice(
+                'Start Docker',
+                'Would you like to start Docker Desktop now?',
+                @('&Yes', '&No'),
+                0
+            )
+            if ($Choice -eq 0) {
+                Write-Step 'Starting Docker Desktop'
+                if ($IsWindows) {
+                    $DockerExe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+                    if (-not (Test-Path $DockerExe)) {
+                        # Try common alternate location
+                        $DockerExe = Join-Path ${env:ProgramFiles(x86)} 'Docker\Docker\Docker Desktop.exe'
+                    }
+                    if (Test-Path $DockerExe) {
+                        Start-Process $DockerExe
+                    }
+                    else {
+                        # Fall back to searching PATH
+                        Start-Process 'Docker Desktop' -ErrorAction SilentlyContinue
+                    }
+                }
+                elseif ($IsMacOS) {
+                    open -a Docker 2>&1 | Out-Null
+                }
+
+                # Wait for the daemon to become ready
+                Write-Info 'Waiting for Docker daemon to start...'
+                $Timeout = 60
+                $Elapsed = 0
+                while ($Elapsed -lt $Timeout) {
+                    Start-Sleep -Seconds 3
+                    $Elapsed += 3
+                    try {
+                        $null = docker info 2>&1
+                        if ($LASTEXITCODE -eq 0) { $DockerReady = $true; break }
+                    }
+                    catch { }
+                    Write-Host '.' -NoNewline
+                }
+                Write-Host ''
+                if ($DockerReady) {
+                    Write-OK 'Docker daemon is running'
+                }
+                else {
+                    Write-Warn "Docker daemon did not start within $Timeout seconds."
+                    Write-Info 'Start Docker Desktop manually and try again.'
+                }
+            }
+        }
+        else {
+            # Docker not installed — offer to install it
+            Write-Warn 'Docker is not installed. It is the only dependency needed to run the Taxonomy Editor.'
+            $Choice = $Host.UI.PromptForChoice(
+                'Install Docker',
+                'Would you like to install Docker Desktop now?',
+                @('&Yes', '&No'),
+                0
+            )
+            if ($Choice -eq 0) {
+                $PM = $null
+                if ($IsWindows) {
+                    if     (Get-Command winget -ErrorAction SilentlyContinue) { $PM = 'winget' }
+                    elseif (Get-Command choco  -ErrorAction SilentlyContinue) { $PM = 'choco' }
+                } elseif ($IsMacOS) {
+                    if (Get-Command brew -ErrorAction SilentlyContinue) { $PM = 'brew' }
+                }
+                if ($PM) {
+                    Write-Step "Installing Docker via $PM"
+                    switch ($PM) {
+                        'winget' { winget install --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements 2>&1 | ForEach-Object { Write-Info $_ } }
+                        'choco'  { choco install docker-desktop -y 2>&1 | ForEach-Object { Write-Info $_ } }
+                        'brew'   { brew install --cask docker 2>&1 | ForEach-Object { Write-Info $_ } }
+                    }
+                    Write-Info 'You may need to restart your terminal and start Docker Desktop before continuing.'
+                }
+                else {
+                    Write-Info 'No package manager found. Download Docker Desktop from:'
+                    Write-Info '  https://www.docker.com/products/docker-desktop/'
+                }
+            }
+        }
+
+        if (-not $DockerReady) {
+            # Fall back to dev mode if npm is available
+            if (Get-Command npm -ErrorAction SilentlyContinue) {
+                Write-Info 'Falling back to Electron dev mode (npm detected).'
+                Start-LegacyElectronMode -NoBrowser:$NoBrowser
+                return
+            }
+
+            throw (New-ActionableError `
+                -Goal 'Launch Taxonomy Editor' `
+                -Problem 'Docker is not available' `
+                -Location 'Show-TaxonomyEditor' `
+                -NextSteps @(
+                    'Start Docker Desktop, then try: Show-TaxonomyEditor'
+                ))
+        }
+    }
+
+    # ── Ensure data is available (clone from GitHub if needed) ────────────────
+    $ResolvedData = $DataPath
+    if (-not $ResolvedData) {
+        try { $ResolvedData = Get-DataRoot } catch { $ResolvedData = $null }
+    }
+    $TaxDir = $null
+    if ($ResolvedData) {
+        $TaxDir = Join-Path $ResolvedData (Join-Path 'taxonomy' 'Origin')
+    }
+    if (-not $TaxDir -or -not (Test-Path (Join-Path $TaxDir 'accelerationist.json') -ErrorAction SilentlyContinue)) {
+        Write-Warn 'AI Triad data not found.'
+        $Choice = $Host.UI.PromptForChoice(
+            'Missing Data',
+            'Would you like to download the data from GitHub now?',
+            @('&Yes', '&No'),
+            0
+        )
+        if ($Choice -eq 0) {
+            if (Get-Command git -ErrorAction SilentlyContinue) {
+                Install-AITriadData
+            }
+            else {
+                Write-Warn 'git is not available to clone the data repository.'
+                Write-Info 'Install git, then run: Install-AITriadData'
+            }
+        }
+    }
+
+    # ── Launch container ─────────────────────────────────────────────────────
     Start-ContainerMode -Port $Port -DataPath $DataPath -NoBrowser:$NoBrowser `
         -Pull:$Pull -Detach:$Detach
 }

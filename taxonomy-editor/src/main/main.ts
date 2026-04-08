@@ -8,6 +8,7 @@ import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 import { registerTerminalHandlers, cleanupTerminal } from './terminal';
 import { warmupEmbeddingModel } from './embeddings';
+import { PROJECT_ROOT } from './fileIO';
 
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
@@ -116,7 +117,7 @@ function createWindow(): void {
     console.log('[main] Loading dev URL: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    const filePath = path.join(__dirname, '../renderer/index.html');
+    const filePath = path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html');
     console.log('[main] Loading production build:', filePath);
     mainWindow.loadFile(filePath);
   }
@@ -249,7 +250,7 @@ app.whenReady().then(() => {
     if (isDev) {
       diagWindow.loadURL('http://localhost:5173#diagnostics-window');
     } else {
-      diagWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'diagnostics-window' });
+      diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
     }
     diagWindow.on('closed', () => {
       diagWindow = null;

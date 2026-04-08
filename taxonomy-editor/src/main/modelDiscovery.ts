@@ -4,8 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 import { loadApiKey } from './apiKeyStore';
+import { PROJECT_ROOT } from './fileIO';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_PATH = path.join(PROJECT_ROOT, 'ai-models.json');
 
 interface ModelEntry {

@@ -1,10 +1,26 @@
 # Debate System Overview
 
-**Status:** Current as of 2026-04-07. For review.
+**Status:** Current as of 2026-04-08. For review.
 
 ## Purpose
 
 The debate system stages structured multi-agent debates between three AI agents representing distinct AI policy perspectives (accelerationist, safetyist, skeptic). Each agent receives ontology-grounded context organized by BDI category. A moderator steers the debate using argument network analysis. A persona-free evaluator provides an independent neutral reading at three checkpoints. Debate findings feed back into the taxonomy through concession harvesting.
+
+## Computational Dialectics and Argumentation Theory
+
+This system draws on three intersecting fields:
+
+**Computational dialectics** studies how structured disagreement can be modeled, evaluated, and resolved by formal systems. Rather than treating argument as rhetoric aimed at persuasion, computational dialectics treats it as a reasoning process with explicit commitments, burdens of proof, and dialogue rules. Our debate engine implements a commitment-based dialogue game where agents assert, challenge, and concede claims under consistency constraints.
+
+**Computational linguistics** provides the NLP infrastructure: embedding-based relevance scoring (all-MiniLM-L6-v2) for taxonomy node selection, NLI cross-encoders for steelman validation, and LLM-driven claim extraction with argumentation scheme classification. These techniques bridge the gap between the formal argumentation structures and the natural-language debate transcripts.
+
+### Core Frameworks
+
+**BDI (Belief–Desire–Intention)** is an agent architecture from Bratman (1987) and Rao & Georgeff (1995). Beliefs represent the agent's empirical model of the world; Desires represent its normative commitments (what it argues should happen); Intentions represent its reasoning strategies for connecting beliefs to desires. We use BDI to structure both the taxonomy (every node is categorized as B, D, or I) and the debate agents' context injection, ensuring agents argue from a coherent epistemic stance rather than a bag of talking points.
+
+**QBAF (Quantitative Bipolar Argumentation Framework)** extends Dung's abstract argumentation with weighted support and attack relations. We use the DF-QuAD gradual semantics (Rago et al., 2016) to propagate strength scores through the argument network: each claim receives a base score (BDI-aware rubric), and attacks (rebut, undercut, undermine) reduce the effective strength of targeted claims. QBAF provides a principled way to answer "which arguments are actually winning?" at any point in the debate.
+
+**AIF (Argument Interchange Format)** is a W3C-adjacent standard for representing argument structures as directed graphs of information nodes (I-nodes: claims and premises) connected by scheme nodes (S-nodes: inference, conflict, preference). Our synthesis phase produces an AIF-compatible argument map with Walton-derived scheme classification. AIF provides the interoperability layer — debate findings can be exported, visualized, and compared across sessions.
 
 ## Architecture
 
@@ -195,7 +211,7 @@ Injected via `formatCommitments()` with two rules:
 
 Accumulated across debates. Threshold (default 3.0 across 2+ debates) triggers harvest candidate.
 
-## Persona-Free Evaluator (NEW)
+## Persona-Free Evaluator
 
 ### Design
 An independent evaluator reads the debate with persona labels stripped (Speaker A/B/C, randomized assignment). It receives no POV taxonomy, no personality descriptions, no reference to Prometheus/Sentinel/Cassandra.
@@ -306,8 +322,8 @@ DebateSession {
   diagnostics: DebateDiagnostics
   qbaf_timeline: QbafTimelineEntry[]
   claim_coverage: ClaimCoverageEntry[]
-  neutral_evaluations: NeutralEvaluation[]        // NEW
-  neutral_speaker_mapping: SpeakerMapping          // NEW
+  neutral_evaluations: NeutralEvaluation[]
+  neutral_speaker_mapping: SpeakerMapping
 }
 ```
 
@@ -368,25 +384,3 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 ## Style Guide
 
 All debate output follows the policy-reporter style: active voice, named actors, one idea per sentence, concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; defined on first use.
-
-## Key Files
-
-| Area | File |
-|------|------|
-| Engine | `lib/debate/debateEngine.ts` |
-| Types | `lib/debate/types.ts` |
-| Prompts | `lib/debate/prompts.ts` |
-| Argument network | `lib/debate/argumentNetwork.ts` |
-| Taxonomy context | `lib/debate/taxonomyContext.ts` |
-| Taxonomy relevance | `lib/debate/taxonomyRelevance.ts` |
-| QBAF engine | `lib/debate/qbaf.ts` |
-| AI adapter | `lib/debate/aiAdapter.ts` |
-| Neutral evaluator | `lib/debate/neutralEvaluator.ts` |
-| Coverage tracker | `lib/debate/coverageTracker.ts` |
-| Helpers | `lib/debate/helpers.ts` |
-| UI: workspace | `taxonomy-editor/src/renderer/components/DebateWorkspace.tsx` |
-| UI: diagnostics | `taxonomy-editor/src/renderer/components/DiagnosticsPanel.tsx` |
-| UI: neutral eval | `taxonomy-editor/src/renderer/components/NeutralEvaluationPanel.tsx` |
-| UI: convergence | `taxonomy-editor/src/renderer/components/ConvergenceRadar.tsx` |
-| UI: harvest | `taxonomy-editor/src/renderer/components/HarvestDialog.tsx` |
-| Store | `taxonomy-editor/src/renderer/hooks/useDebateStore.ts` |

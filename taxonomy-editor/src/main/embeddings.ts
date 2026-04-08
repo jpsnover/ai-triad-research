@@ -6,8 +6,8 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
+import { PROJECT_ROOT } from './fileIO';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 
 // ---------- Warm-up: preload sentence_transformers model ----------

@@ -13,16 +13,33 @@ interface FirstRunDialogProps {
 export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogProps) {
   const [status, setStatus] = useState<'prompt' | 'downloading' | 'done' | 'error'>('prompt');
   const [message, setMessage] = useState('');
+  const [downloadPath, setDownloadPath] = useState(dataRoot);
+
+  const handleLocateData = async () => {
+    const result = await api.pickDirectory(dataRoot);
+    if (!result.cancelled && result.path) {
+      // Point the app at the selected directory and relaunch
+      await api.setDataRoot(result.path);
+    }
+  };
+
+  const handleBrowseDownloadPath = async () => {
+    const result = await api.pickDirectory(downloadPath);
+    if (!result.cancelled && result.path) {
+      setDownloadPath(result.path);
+    }
+  };
 
   const handleDownload = async () => {
     setStatus('downloading');
     setMessage('Cloning research data from GitHub...');
     try {
-      const result = await api.cloneDataRepo(dataRoot);
+      const result = await api.cloneDataRepo(downloadPath);
       if (result.success) {
         setStatus('done');
         setMessage('Data downloaded successfully!');
-        setTimeout(onComplete, 1500);
+        // Point the app at the downloaded data and relaunch
+        await api.setDataRoot(downloadPath);
       } else {
         setStatus('error');
         setMessage(result.message);
@@ -45,20 +62,45 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
               The Taxonomy Editor needs research data to operate. This includes taxonomy definitions,
               source documents, summaries, and conflict analyses (~410 MB).
             </p>
-            <div className="first-run-path">
-              <span className="first-run-path-label">Download to:</span>
-              <code className="first-run-path-value">{dataRoot}</code>
+
+            <div className="first-run-section">
+              <p className="first-run-section-label">Already have the data?</p>
+              <button className="btn btn-primary first-run-btn" onClick={handleLocateData}>
+                Locate Existing Data...
+              </button>
             </div>
-            <div className="first-run-actions">
-              <button className="btn btn-primary first-run-btn" onClick={handleDownload}>
+
+            <div className="first-run-divider">
+              <span>or</span>
+            </div>
+
+            <div className="first-run-section">
+              <p className="first-run-section-label">Download from GitHub</p>
+              <div className="first-run-path">
+                <span className="first-run-path-label">Download to:</span>
+                <div className="first-run-path-row">
+                  <code className="first-run-path-value">{downloadPath}</code>
+                  <button
+                    className="btn btn-sm first-run-browse-btn"
+                    onClick={handleBrowseDownloadPath}
+                    title="Choose a different directory"
+                  >
+                    Browse...
+                  </button>
+                </div>
+              </div>
+              <button className="btn first-run-btn" onClick={handleDownload}>
                 Download Data
               </button>
-              <button className="btn first-run-btn" onClick={onSkip}>
+            </div>
+
+            <div className="first-run-actions">
+              <button className="btn first-run-btn first-run-btn-skip" onClick={onSkip}>
                 Skip for Now
               </button>
             </div>
             <p className="first-run-hint">
-              You can download the data later from Settings or by running
+              You can configure the data location later from Settings or by running{' '}
               <code>Install-AITriadData</code> in PowerShell.
             </p>
           </>

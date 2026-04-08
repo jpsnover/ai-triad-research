@@ -71,13 +71,51 @@ function Convert-MD2PDF {
             }
         }
         if (-not $PdfEngine) {
-            # macOS fallback: pandoc → HTML → PDF via cupsfilter or textutil
             if ($IsMacOS -and (Test-Path '/usr/sbin/cupsfilter')) {
+                # macOS fallback: pandoc → HTML → PDF via cupsfilter
                 $UseFallback = $true
+                $FallbackEngine = 'cupsfilter'
                 Write-Verbose 'No dedicated PDF engine found — using pandoc → HTML → cupsfilter fallback'
             }
+            elseif ($IsWindows) {
+                # Windows fallback: pandoc → HTML → PDF via Edge or Chrome headless
+                $BrowserPath = $null
+                # Edge (ships with Windows 10/11)
+                $EdgePath = Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'
+                if (-not (Test-Path $EdgePath)) {
+                    $EdgePath = Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'
+                }
+                if (Test-Path $EdgePath) { $BrowserPath = $EdgePath }
+                # Chrome fallback
+                if (-not $BrowserPath) {
+                    $ChromePath = Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'
+                    if (-not (Test-Path $ChromePath)) {
+                        $ChromePath = Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'
+                    }
+                    if (Test-Path $ChromePath) { $BrowserPath = $ChromePath }
+                }
+                if ($BrowserPath) {
+                    $UseFallback = $true
+                    $FallbackEngine = 'browser'
+                    Write-Verbose "No dedicated PDF engine found — using pandoc → HTML → browser fallback ($BrowserPath)"
+                }
+                else {
+                    throw @"
+No PDF engine found. Install one of:
+  - typst:       winget install typst.typst
+  - wkhtmltopdf: winget install wkhtmltopdf
+  - weasyprint:  pip install weasyprint
+  - MiKTeX:      winget install MiKTeX.MiKTeX
+"@
+                }
+            }
             else {
-                throw 'No PDF engine found. Install one of: typst (brew install typst), MacTeX (brew install --cask mactex-no-gui), or weasyprint (pip install weasyprint).'
+                throw @"
+No PDF engine found. Install one of:
+  - typst:       brew install typst  (macOS) / cargo install typst-cli (Linux)
+  - weasyprint:  pip install weasyprint
+  - LaTeX:       brew install --cask mactex-no-gui  (macOS) / apt install texlive-xetex (Linux)
+"@
             }
         }
 
@@ -117,8 +155,13 @@ function Convert-MD2PDF {
 
                 try {
                     if ($UseFallback) {
-                        # Fallback: pandoc → standalone HTML → cupsfilter → PDF
+                        # Fallback: pandoc → standalone HTML → platform tool → PDF
                         $TempHtml = [System.IO.Path]::GetTempFileName() + '.html'
+                        $CssBody = if ($IsWindows) {
+                            'body{font-family:Segoe UI,sans-serif;max-width:48em;margin:auto;padding:2em;font-size:11pt}pre{background:%23f5f5f5;padding:1em;overflow-x:auto}code{font-family:Cascadia Code,Consolas,monospace;font-size:0.9em}'
+                        } else {
+                            'body{font-family:Helvetica Neue,sans-serif;max-width:48em;margin:auto;padding:2em;font-size:11pt}pre{background:%23f5f5f5;padding:1em;overflow-x:auto}code{font-family:Menlo,monospace;font-size:0.9em}'
+                        }
                         $HtmlArgs = @(
                             $SourcePath
                             '-o', $TempHtml
@@ -126,7 +169,7 @@ function Convert-MD2PDF {
                             '--self-contained'
                             '--highlight-style', 'tango'
                             '--metadata', "title=$BaseName"
-                            '-c', 'data:text/css,body{font-family:Helvetica Neue,sans-serif;max-width:48em;margin:auto;padding:2em;font-size:11pt}pre{background:%23f5f5f5;padding:1em;overflow-x:auto}code{font-family:Menlo,monospace;font-size:0.9em}'
+                            '-c', "data:text/css,$CssBody"
                         )
                         if ($TableOfContents) { $HtmlArgs += '--toc' }
 
@@ -136,8 +179,24 @@ function Convert-MD2PDF {
                         }
 
                         if (Test-Path $TempHtml) {
-                            Write-Verbose "cupsfilter → PDF"
-                            & /bin/bash -c "/usr/sbin/cupsfilter '$TempHtml' > '$PdfPath' 2>/dev/null"
+                            if ($FallbackEngine -eq 'browser') {
+                                # Windows: Edge or Chrome headless --print-to-pdf
+                                $TempHtmlUri = ([Uri]::new($TempHtml)).AbsoluteUri
+                                $BrowserArgs = @(
+                                    '--headless'
+                                    '--disable-gpu'
+                                    "--print-to-pdf=$PdfPath"
+                                    "--print-to-pdf-no-header"
+                                    $TempHtmlUri
+                                )
+                                Write-Verbose "browser → PDF: $BrowserPath $($BrowserArgs -join ' ')"
+                                & $BrowserPath @BrowserArgs 2>&1 | Out-Null
+                            }
+                            else {
+                                # macOS: cupsfilter
+                                Write-Verbose "cupsfilter → PDF"
+                                & /bin/bash -c "/usr/sbin/cupsfilter '$TempHtml' > '$PdfPath' 2>/dev/null"
+                            }
                             Remove-Item $TempHtml -ErrorAction SilentlyContinue
                         }
                     }
@@ -201,7 +260,7 @@ function Convert-MD2PDF {
                         $Result
                     }
                     else {
-                        if ($UseFallback) { $EngineInfo = 'cupsfilter (HTML fallback)' } else { $EngineInfo = $PdfEngine }
+                        if ($UseFallback) { $EngineInfo = "$FallbackEngine (HTML fallback)" } else { $EngineInfo = $PdfEngine }
                         Write-Error @"
 PDF conversion failed for: $SourcePath
   Engine: $EngineInfo

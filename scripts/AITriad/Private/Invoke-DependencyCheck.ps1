@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Shared dependency checking engine used by Install-AIDependencies and Test-Dependencies.
@@ -50,20 +50,23 @@ function Invoke-DependencyCheck {
 
     # ─── Output helpers ───────────────────────────────────────────────────────
     # These need to close over $Quiet and $Ctx, so define as scriptblocks
-    function DPass  { param([string]$M) $Ctx.Passed++;  if (-not $Quiet) { Write-Host "   `u{2713}  $M" -ForegroundColor Green }; $Ctx.Results.Add([PSCustomObject]@{ Status='pass'; Message=$M }) }
-    function DWarn  { param([string]$M) $Ctx.Warned++;  Write-Host "   `u{26A0}  $M" -ForegroundColor Yellow; $Ctx.Results.Add([PSCustomObject]@{ Status='warn'; Message=$M }) }
-    function DFail  { param([string]$M) $Ctx.Failed++;  Write-Host "   `u{2717}  $M" -ForegroundColor Red;    $Ctx.Results.Add([PSCustomObject]@{ Status='fail'; Message=$M }) }
-    function DSkip  { param([string]$M) if (-not $Quiet) { Write-Host "   `u{2192}  $M" -ForegroundColor DarkGray } }
-    function DFix   { param([string]$M) Write-Host "   `u{1F527}  $M" -ForegroundColor Cyan }
-    function DStale { param([string]$M) $Ctx.Outdated++; Write-Host "   `u{2B06}  $M" -ForegroundColor Yellow; $Ctx.Results.Add([PSCustomObject]@{ Status='outdated'; Message=$M }) }
+    function DPass  { param([string]$M) $Ctx.Passed++;  if (-not $Quiet) { Write-Host "   ✓  $M" -ForegroundColor Green }; $Ctx.Results.Add([PSCustomObject]@{ Status='pass'; Message=$M }) }
+    function DWarn  { param([string]$M) $Ctx.Warned++;  Write-Host "   ⚠  $M" -ForegroundColor Yellow; $Ctx.Results.Add([PSCustomObject]@{ Status='warn'; Message=$M }) }
+    function DFail  { param([string]$M) $Ctx.Failed++;  Write-Host "   ✗  $M" -ForegroundColor Red;    $Ctx.Results.Add([PSCustomObject]@{ Status='fail'; Message=$M }) }
+    function DSkip  { param([string]$M) if (-not $Quiet) { Write-Host "   →  $M" -ForegroundColor DarkGray } }
+    function DFix   { param([string]$M) Write-Host "   🔧  $M" -ForegroundColor Cyan }
+    function DStale { param([string]$M) $Ctx.Outdated++; Write-Host "   ⬆  $M" -ForegroundColor Yellow; $Ctx.Results.Add([PSCustomObject]@{ Status='outdated'; Message=$M }) }
     function DSection { param([string]$M) Write-Host "`n  $M" -ForegroundColor White; Write-Host "  $('─' * 50)" -ForegroundColor DarkGray }
 
     $IsTestMode    = $Mode -eq 'test'
     $IsInstallMode = $Mode -eq 'install'
 
     # ─── Platform ─────────────────────────────────────────────────────────────
-    $OnMac   = $IsMacOS -or ($PSVersionTable.OS -match 'Darwin')
-    $OnLinux = $IsLinux -or ($PSVersionTable.OS -match 'Linux')
+    # PS 5.1 lacks $PSVersionTable.OS (added in PS 6); $IsWindows/$IsMacOS/$IsLinux
+    # are shimmed in AITriad.psm1 so they're safe to use directly.
+    $HasOSProp = $PSVersionTable.PSObject.Properties.Match('OS').Count -gt 0
+    $OnMac   = $IsMacOS -or ($HasOSProp -and ($PSVersionTable.OS -match 'Darwin'))
+    $OnLinux = $IsLinux -or ($HasOSProp -and ($PSVersionTable.OS -match 'Linux'))
     if ($OnMac) { $Platform = 'macOS' } elseif ($OnLinux) { $Platform = 'Linux' } else { $Platform = 'Windows' }
 
     function Get-PkgMgr {
@@ -71,7 +74,7 @@ function Invoke-DependencyCheck {
         if ($OnLinux)  { if (Get-Command apt-get  -ErrorAction SilentlyContinue) { return 'apt' }
                          if (Get-Command dnf      -ErrorAction SilentlyContinue) { return 'dnf' }
                          if (Get-Command yum      -ErrorAction SilentlyContinue) { return 'yum' } }
-        if ($IsWindows){ if (Get-Command winget   -ErrorAction SilentlyContinue) { return 'winget' }
+        if ($Platform -eq 'Windows'){ if (Get-Command winget   -ErrorAction SilentlyContinue) { return 'winget' }
                          if (Get-Command choco    -ErrorAction SilentlyContinue) { return 'choco' }
                          if (Get-Command scoop    -ErrorAction SilentlyContinue) { return 'scoop' } }
         return $null
@@ -116,7 +119,7 @@ function Invoke-DependencyCheck {
         DPass "PowerShell $PsVer"
     }
     else {
-        DFail "PowerShell 7+ required (found $PsVer). Install from https://aka.ms/powershell"
+        DWarn "PowerShell $PsVer — PS 7+ recommended for full features. Install from https://aka.ms/powershell"
     }
 
     # Module check — we're already running inside the module, just verify commands exist
@@ -480,7 +483,51 @@ function Invoke-DependencyCheck {
         DSkip 'Skipped via -SkipPython'
     }
 
-    # ── 7. DOCKER & NEO4J ────────────────────────────────────────────────────
+    # ── 7a. WINDOWS CONTAINERS & WSL (Windows only — required for Docker) ──
+    if ($Platform -eq 'Windows') {
+        DSection 'WINDOWS CONTAINERS & WSL (required for Docker)'
+
+        # Containers feature
+        $ContainersEnabled = $false
+        try {
+            $Feature = Get-WindowsOptionalFeature -Online -FeatureName Containers -ErrorAction SilentlyContinue
+            if ($Feature -and $Feature.State -eq 'Enabled') { $ContainersEnabled = $true; DPass 'Windows Containers feature enabled' }
+        }
+        catch { }
+        if (-not $ContainersEnabled) {
+            DFail 'Windows Containers feature is not enabled'
+            if ($IsInstallMode -and $Fix) {
+                DFix 'Enabling Windows Containers feature...'
+                try {
+                    Enable-WindowsOptionalFeature -Online -FeatureName Containers -All -NoRestart 2>&1 | Out-Null
+                    $Ctx.Fixed++; DPass 'Containers feature enabled (restart may be required)'
+                }
+                catch { DFail "Failed to enable Containers: $_ — try from an Admin terminal" }
+            }
+        }
+
+        # WSL
+        $WslReady = $false
+        try {
+            $WslOutput = wsl --status 2>&1
+            if ($LASTEXITCODE -eq 0) { $WslReady = $true; DPass 'WSL enabled' }
+        }
+        catch { }
+        if (-not $WslReady) {
+            DFail 'WSL is not enabled'
+            if ($IsInstallMode -and $Fix) {
+                DFix 'Installing WSL...'
+                try {
+                    wsl --install --no-distribution 2>&1 | Out-Null
+                    if ($LASTEXITCODE -eq 0) { $Ctx.Fixed++; DPass 'WSL installed (restart may be required)' }
+                    else { DFail 'WSL install returned non-zero exit code — try "wsl --install" from an Admin terminal' }
+                }
+                catch { DFail "WSL install failed: $_ — try 'wsl --install' from an Admin terminal" }
+            }
+        }
+    }
+
+    # ── 7b. DOCKER & NEO4J ───────────────────────────────────────────────────
     DSection 'DOCKER & NEO4J (optional — graph database)'
 
     if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -504,7 +551,12 @@ function Invoke-DependencyCheck {
         catch { DWarn "Docker smoke test failed: $_" }
     }
     else {
-        DSkip 'Docker not installed (only needed for Neo4j graph database)'
+        DWarn 'Docker not installed (needed for Taxonomy Editor container mode and Neo4j)'
+        if ($IsInstallMode) {
+            Install-Pkg -Name 'docker' -PackageNames @{
+                brew = 'docker'; winget = 'Docker.DockerDesktop'; choco = 'docker-desktop'
+            }
+        }
     }
 
     # ── 8. DATA INTEGRITY ────────────────────────────────────────────────────
@@ -513,15 +565,32 @@ function Invoke-DependencyCheck {
     $TaxDir    = Get-TaxonomyDir
     $TaxFiles  = @('accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json')
     $TotalNodes = 0
+    $MissingTax = 0
     foreach ($TF in $TaxFiles) {
         $TFPath = Join-Path $TaxDir $TF
         if (Test-Path $TFPath) {
             try { $TData = Get-Content -Raw -Path $TFPath | ConvertFrom-Json; $TotalNodes += @($TData.nodes).Count }
             catch { DFail "$TF — failed to parse JSON" }
         }
-        else { DFail "$TF — not found in taxonomy/Origin/" }
+        else { DFail "$TF — not found in taxonomy/Origin/"; $MissingTax++ }
     }
     if ($TotalNodes -gt 0) { DPass "Taxonomy valid ($TotalNodes nodes across $($TaxFiles.Count) POVs)" }
+
+    # If taxonomy data is missing and we're in install+fix mode, clone it from GitHub
+    if ($MissingTax -gt 0 -and $IsInstallMode -and $Fix) {
+        if (Get-Command git -ErrorAction SilentlyContinue) {
+            DFix 'Downloading AI Triad data from GitHub...'
+            try {
+                Install-AITriadData
+                $Ctx.Fixed++
+                DPass 'AI Triad data installed'
+            }
+            catch { DFail "Data clone failed: $_" }
+        }
+        else {
+            DFail 'Cannot clone data — git is not installed'
+        }
+    }
 
     $EdgesPath = Join-Path $TaxDir 'edges.json'
     if (Test-Path $EdgesPath) {

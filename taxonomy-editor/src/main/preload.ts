@@ -43,6 +43,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cloneDataRepo: (targetPath: string): Promise<{ success: boolean; message: string }> =>
     ipcRenderer.invoke('clone-data-repo', targetPath),
 
+  setDataRoot: (newRoot: string): Promise<void> =>
+    ipcRenderer.invoke('set-data-root', newRoot),
+
+  pickDirectory: (defaultPath?: string): Promise<{ cancelled: boolean; path?: string }> =>
+    ipcRenderer.invoke('pick-directory', defaultPath),
+
   checkDataUpdates: (): Promise<unknown> =>
     ipcRenderer.invoke('check-data-updates'),
 

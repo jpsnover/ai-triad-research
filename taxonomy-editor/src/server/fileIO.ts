@@ -139,9 +139,16 @@ export function deleteConflictFile(claimId: string): void {
 
 export function readPolicyRegistry(): unknown | null {
   try {
-    const p = resolveDataPath('policy_actions.json');
-    return JSON.parse(fs.readFileSync(p, 'utf-8'));
-  } catch {
+    // policy_actions.json lives in the active taxonomy directory, not the data root
+    const taxDir = getTaxonomyDir();
+    const p = path.join(taxDir, 'policy_actions.json');
+    console.log(`[fileIO] readPolicyRegistry: taxDir=${taxDir}, path=${p}, exists=${fs.existsSync(p)}`);
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    const count = (data as { policies?: unknown[] })?.policies?.length ?? 0;
+    console.log(`[fileIO] readPolicyRegistry: loaded ${count} policies`);
+    return data;
+  } catch (err) {
+    console.error(`[fileIO] readPolicyRegistry failed:`, err);
     return null;
   }
 }
@@ -189,41 +196,194 @@ export function bulkUpdateEdges(edges: unknown, indices: number[], status: strin
 
 // ── Node/Policy source index ──
 
-export function buildNodeSourceIndex(): Record<string, string[]> {
+interface SourceReference {
+  docId: string;
+  title: string;
+  pov: string;
+  stance: string;
+  point: string;
+  verbatim: string;
+  excerptContext: string;
+  url: string | null;
+  sourceType: string;
+  datePublished: string;
+}
+
+type NodeSourceIndex = Record<string, SourceReference[]>;
+
+/**
+ * Scan all summary JSON files and build a reverse index:
+ * nodeId → list of source references that mapped to it.
+ */
+export function buildNodeSourceIndex(): NodeSourceIndex {
   const config = loadDataConfig();
+  const summariesDir = resolveDataPath(config.summaries_dir);
   const sourcesDir = resolveDataPath(config.sources_dir);
-  const index: Record<string, string[]> = {};
-  if (!fs.existsSync(sourcesDir)) return index;
-  for (const docId of fs.readdirSync(sourcesDir)) {
-    const metaPath = path.join(sourcesDir, docId, 'metadata.json');
-    try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      for (const tag of (meta.pov_tags || [])) {
-        (index[tag] ??= []).push(docId);
-      }
-      for (const tag of (meta.topic_tags || [])) {
-        (index[tag] ??= []).push(docId);
-      }
-    } catch { /* skip */ }
+  const index: NodeSourceIndex = {};
+
+  if (!fs.existsSync(summariesDir)) return index;
+
+  // Pre-load source metadata for titles/URLs
+  const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
+  if (fs.existsSync(sourcesDir)) {
+    for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
+      try {
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          metaCache[entry.name] = {
+            title: meta.title || entry.name,
+            url: meta.url || null,
+            sourceType: meta.source_type || 'unknown',
+            datePublished: meta.date_published || meta.source_time || '',
+          };
+        }
+      } catch { /* skip */ }
+    }
   }
+
+  // Scan all summary files
+  for (const file of fs.readdirSync(summariesDir)) {
+    if (!file.endsWith('.json')) continue;
+    const docId = file.replace(/\.json$/, '');
+
+    let summary: {
+      pov_summaries?: Record<string, {
+        key_points?: Array<{
+          taxonomy_node_id?: string | null;
+          point?: string;
+          stance?: string;
+          verbatim?: string;
+          excerpt_context?: string;
+        }>;
+      }>;
+    };
+
+    try {
+      summary = JSON.parse(fs.readFileSync(path.join(summariesDir, file), 'utf-8'));
+    } catch { continue; }
+
+    const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
+
+    for (const [pov, povData] of Object.entries(summary.pov_summaries || {})) {
+      for (const kp of povData.key_points || []) {
+        const nodeId = kp.taxonomy_node_id;
+        if (!nodeId) continue;
+
+        if (!index[nodeId]) index[nodeId] = [];
+        index[nodeId].push({
+          docId,
+          title: meta.title,
+          pov,
+          stance: kp.stance || 'neutral',
+          point: kp.point || '',
+          verbatim: kp.verbatim || '',
+          excerptContext: kp.excerpt_context || '',
+          url: meta.url,
+          sourceType: meta.sourceType,
+          datePublished: meta.datePublished,
+        });
+      }
+    }
+  }
+
   return index;
 }
 
-export function buildPolicySourceIndex(): Record<string, string[]> {
+interface PolicySourceReference {
+  docId: string;
+  title: string;
+  dateIngested: string;
+  sourceTime: string;
+  stance: string;
+  nodeId: string;
+  pov: string;
+}
+
+type PolicySourceIndex = Record<string, PolicySourceReference[]>;
+
+const POV_NAMES = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+/**
+ * For each policy in policy_actions.json, find all nodes that reference it
+ * (by scanning policy_actions in POV files), then use the node-source index
+ * to find which sources reference those nodes.
+ */
+export function buildPolicySourceIndex(): PolicySourceIndex {
+  const result: PolicySourceIndex = {};
   const config = loadDataConfig();
   const sourcesDir = resolveDataPath(config.sources_dir);
-  const index: Record<string, string[]> = {};
-  if (!fs.existsSync(sourcesDir)) return index;
-  for (const docId of fs.readdirSync(sourcesDir)) {
-    const metaPath = path.join(sourcesDir, docId, 'metadata.json');
-    try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      for (const ref of (meta.policy_refs || [])) {
-        (index[ref] ??= []).push(docId);
-      }
-    } catch { /* skip */ }
+
+  // 1. Load policy registry to get all policy IDs
+  const regRaw = readPolicyRegistry() as { policies?: { id: string }[] } | null;
+  if (!regRaw?.policies) return result;
+  for (const pol of regRaw.policies) {
+    result[pol.id] = [];
   }
-  return index;
+
+  // 2. Build node → policy mapping by scanning all POV files
+  const nodeToPolicies = new Map<string, string[]>();
+  for (const pov of POV_NAMES) {
+    try {
+      const file = readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
+      if (!file?.nodes) continue;
+      for (const node of file.nodes) {
+        const actions = node.graph_attributes?.policy_actions;
+        if (!actions) continue;
+        for (const action of actions) {
+          if (!action.policy_id) continue;
+          if (!nodeToPolicies.has(node.id)) nodeToPolicies.set(node.id, []);
+          nodeToPolicies.get(node.id)!.push(action.policy_id);
+        }
+      }
+    } catch { /* skip unavailable POV files */ }
+  }
+
+  // 3. Build node-source index
+  const nodeSourceIdx = buildNodeSourceIndex();
+
+  // 4. Pre-load source metadata for dateIngested / sourceTime
+  const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
+  if (fs.existsSync(sourcesDir)) {
+    for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
+      try {
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          metaCache[entry.name] = {
+            dateIngested: meta.date_ingested || meta.date_published || '',
+            sourceTime: meta.source_time || '',
+          };
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // 5. For each node that has sources, map those sources to the node's policies
+  for (const [nodeId, policyIds] of nodeToPolicies) {
+    const sourceRefs = nodeSourceIdx[nodeId];
+    if (!sourceRefs) continue;
+
+    for (const polId of policyIds) {
+      if (!result[polId]) result[polId] = [];
+      for (const ref of sourceRefs) {
+        const meta = metaCache[ref.docId] || { dateIngested: ref.datePublished, sourceTime: '' };
+        result[polId].push({
+          docId: ref.docId,
+          title: ref.title,
+          dateIngested: meta.dateIngested,
+          sourceTime: meta.sourceTime,
+          stance: ref.stance,
+          nodeId,
+          pov: ref.pov,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 // ── Debate sessions ──
