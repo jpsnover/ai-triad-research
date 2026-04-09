@@ -136,6 +136,8 @@ export interface DebateSession {
   position_drift?: DriftSnapshot[];
   /** Missing arguments identified post-synthesis by a fresh LLM with no transcript context. */
   missing_arguments?: MissingArgument[];
+  /** Post-debate taxonomy refinement suggestions with before/after descriptions. */
+  taxonomy_suggestions?: TaxonomySuggestion[];
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
@@ -415,6 +417,24 @@ export interface MissingArgument {
   side: string;
   why_strong: string;
   bdi_layer: 'belief' | 'desire' | 'intention';
+}
+
+/** Post-debate suggestion for revising a taxonomy node based on debate evidence. */
+export interface TaxonomySuggestion {
+  /** The taxonomy node targeted for revision. */
+  node_id: string;
+  node_label: string;
+  node_pov: string;
+  /** What kind of change is suggested. */
+  suggestion_type: 'narrow' | 'broaden' | 'clarify' | 'split' | 'qualify' | 'retire' | 'new_node';
+  /** Current node description (for before/after comparison). Absent for new_node. */
+  current_description?: string;
+  /** Proposed revised description (or new node description for new_node). */
+  proposed_description: string;
+  /** Why this change is warranted — references specific debate evidence. */
+  rationale: string;
+  /** Which debate claims or synthesis points support this suggestion. */
+  evidence_claim_ids?: string[];
 }
 
 // ── Prompt Inspector types (Phase A: type definition only) ──────────

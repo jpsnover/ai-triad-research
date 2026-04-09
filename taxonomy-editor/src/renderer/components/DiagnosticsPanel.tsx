@@ -6,7 +6,7 @@ import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument } from '../types/debate';
+import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
@@ -1107,6 +1107,40 @@ function OverviewView() {
           </CollapsibleSection>
         );
       })()}
+
+      {/* Taxonomy Suggestions */}
+      {activeDebate.taxonomy_suggestions && activeDebate.taxonomy_suggestions.length > 0 && (
+        <CollapsibleSection title={`Taxonomy Suggestions — ${activeDebate.taxonomy_suggestions.length} revisions`} defaultOpen>
+          {activeDebate.taxonomy_suggestions.map((sug, i) => (
+            <div key={i} className="diag-taxo-suggestion">
+              <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <span className="diag-an-id">{sug.node_id}</span>
+                <strong style={{ fontSize: '0.7rem' }}>{sug.node_label}</strong>
+                <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{sug.node_pov}</span>
+                <span className={`diag-badge diag-suggestion-${sug.suggestion_type}`} style={{ fontSize: '0.5rem' }}>{sug.suggestion_type}</span>
+              </div>
+              {sug.current_description && (
+                <div className="diag-taxo-before">
+                  <span className="diag-k">Before:</span>
+                  <div className="diag-taxo-desc">{sug.current_description}</div>
+                </div>
+              )}
+              <div className="diag-taxo-after">
+                <span className="diag-k">After:</span>
+                <div className="diag-taxo-desc diag-taxo-desc-proposed">{sug.proposed_description}</div>
+              </div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
+                {sug.rationale}
+              </div>
+              {sug.evidence_claim_ids && sug.evidence_claim_ids.length > 0 && (
+                <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Evidence: {sug.evidence_claim_ids.join(', ')}
+                </div>
+              )}
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
 
       {/* Overview Stats */}
       {diag && (

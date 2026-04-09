@@ -4,7 +4,7 @@
 
 ## Abstract
 
-AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. I present an integrated system for multi-perspective discourse analysis that combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. The system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection instrumented for utilization tracking, classifies arguments using a 13-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), employs metaphor reframing to break rhetorical stalls, and feeds debate findings back into the taxonomy through concession harvesting. I evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry I attribute to the self-contained vs. externally-verifiable nature of different claim types. I also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
+AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. I present an integrated system for multi-perspective discourse analysis that combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. The system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection instrumented for utilization tracking, classifies arguments using a 13-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), employs metaphor reframing to break rhetorical stalls, and feeds debate findings back into the taxonomy through concession harvesting. A persona-free neutral evaluator reads debate transcripts with speaker identities stripped, producing independent claim assessments at three checkpoints (baseline, midpoint, final) whose divergence from the persona-grounded synthesis surfaces evaluation bias. Five targeted interventions address LLM-specific debate failure modes: an unanswered claims ledger that persists across the compression window, inline empirical verification via web search, NLI-based steelman validation, embedding-based sycophancy detection, and a post-synthesis missing arguments pass. I evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry I attribute to the self-contained vs. externally-verifiable nature of different claim types. I also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
 
 ## 1. Introduction
 
@@ -63,6 +63,8 @@ I adopt a composite ontology: DOLCE D&S provides the perspectival framework (thr
 Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks.
 
 A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002).
+
+Beyond rhetorical rigidity, LLM-based debate agents exhibit failure modes absent in human debate: sycophantic position drift (accommodating opponents without argued concession), hallucinated evidence (fabricating citations or statistics), steelman fabrication (misrepresenting opponent positions while appearing to steelman), and compression-window blindness (forgetting early claims as context is compressed). My system introduces five targeted interventions for these LLM-specific failures, each non-blocking and designed for graceful degradation when required capabilities (web search, NLI, embeddings) are unavailable. Additionally, a persona-free neutral evaluator independently assesses claims with speaker identities stripped, providing a bias-detection layer analogous to blinded peer review.
 
 ### 2.6 Metaphor and Analogical Reasoning in Argumentation
 
@@ -269,14 +271,20 @@ Each debate agent receives its POV's taxonomy nodes organized by BDI category, w
 
 ### 6.2 Dialectical Move Taxonomy and Diversity
 
-I define six dialectical moves available to debate agents:
+I define eight canonical dialectical moves available to debate agents:
 
-1. **COUNTEREXAMPLE** — provide a specific case challenging the opponent's general claim
-2. **DISTINGUISH** — accept the opponent's evidence but show it doesn't apply to this context
-3. **REFRAME** — shift the framing to reveal what the current frame hides
-4. **REDUCE** — show the opponent's logic leads to an absurd or unacceptable conclusion
-5. **ESCALATE** — connect the specific disagreement to a deeper principle
-6. **CONCEDE** — acknowledge a valid point from the opponent
+1. **DISTINGUISH** — accept the opponent's evidence but show it doesn't apply to this context
+2. **COUNTEREXAMPLE** — provide a specific case challenging the opponent's general claim
+3. **CONCEDE-AND-PIVOT** — acknowledge a valid point, then redirect to what it misses (genuine concession required, not "Great point, but..." empty flattery)
+4. **REFRAME** — shift the framing to reveal what the current frame hides
+5. **EMPIRICAL CHALLENGE** — dispute the factual basis of a claim with specific counter-evidence
+6. **EXTEND** — build on another debater's point to strengthen or expand it
+7. **UNDERCUT** — attack the warrant (reasoning link) rather than the evidence or conclusion
+8. **SPECIFY** — demand that the opponent operationalize their position: what specific evidence, outcome, or condition would falsify their claim?
+
+Three legacy moves (REDUCE, ESCALATE, CONCEDE) remain accepted in the classification pipeline for backward compatibility but are not prompted for.
+
+The SPECIFY move merits particular attention. It is the only move that forces *falsifiability* into the open — requiring a debater to state what would change their mind. Its absence from the initial move taxonomy allowed debates to run for multiple rounds with neither side ever committing to testable predictions. The moderator is biased toward selecting SPECIFY when the argument network contains two high-strength claims from different speakers with no edges between them — a pattern that signals debaters talking past each other rather than engaging. The `formatSpecifyHint()` function detects this pattern and injects a "SPECIFY OPPORTUNITY" flag into the moderator's context.
 
 **The rhetorical rigidity problem.** In the initial implementation, 27 of 30 post-opening responses used the move pair [CONCEDE, DISTINGUISH], and every response began with the literal phrase "I concede." Analysis identified three compounding causes:
 
@@ -360,7 +368,41 @@ I implement a two-level metaphor reframing mechanism:
 
 Arguments produced through metaphor reframing are classified under the ARGUMENT_FROM_METAPHOR scheme, with the four critical questions guiding subsequent challenges. This ensures metaphorical arguments receive the same analytical treatment as other argument types.
 
-### 6.7 Disagreement Typing
+### 6.7 Persona-Free Neutral Evaluator
+
+A structural risk in multi-agent debate is *persona contamination*: the evaluator inherits framing from the agents it judges. If synthesis knows that "Prometheus" represents accelerationism, it may unconsciously weigh arguments through that lens rather than assessing reasoning quality neutrally.
+
+I introduce a persona-free neutral evaluator that reads the debate transcript with all persona labels stripped. Speaker names are replaced with randomized neutral labels (Speaker A/B/C, shuffled per debate to prevent positional bias). The evaluator receives no POV taxonomy, no personality descriptions, and no framing about which perspectives the speakers represent.
+
+The evaluator runs at three checkpoints: **baseline** (after opening statements — establishes the initial neutral reading), **midpoint** (after round 3 or the debate midpoint — detects whether the debate is engaging cruxes or drifting), and **final** (parallel with synthesis — produces the definitive neutral verdict). Each checkpoint is independent — no memory of prior checkpoints.
+
+At each checkpoint, the evaluator produces:
+
+1. **Cruxes** — core disagreements that, if resolved, would change conclusions, classified by disagreement type (empirical/values/definitional) and status (addressed/partially_addressed/unaddressed)
+2. **Claim assessments** — per-claim neutral verdict (well_supported, plausible_but_underdefended, contested_unresolved, refuted, or off_topic) with confidence level and reasoning
+3. **Overall assessment** — whether the debate is engaging real disagreement vs. performing disagreement, plus the single strongest unaddressed claim
+
+The highest-value output is the **divergence view**: programmatic comparison of the final neutral evaluation against the persona synthesis. This surfaces cases where the synthesis marked a claim as resolved but the evaluator marked it contested, cruxes the evaluator flagged that the synthesis omitted, or status mismatches where synthesis says "agreed" but the evaluator says "unaddressed." These divergences indicate where persona framing may have biased the synthesis.
+
+Critically, the neutral evaluator never influences the debate: it does not affect moderator selection, debater prompts, or synthesis output. It operates as a parallel assessment channel — users see both views and draw their own conclusions from any divergence.
+
+### 6.8 LLM Failure Mode Interventions
+
+LLM debate agents exhibit failure modes qualitatively different from human debaters. Human debaters may argue in bad faith, but they do not hallucinate evidence, fabricate opponent positions while sincerely attempting to steelman, or unconsciously drift toward their opponent's position through token-level accommodation. Five targeted interventions address these LLM-specific failures. All are non-blocking — failure in any intervention never aborts the debate — and all degrade gracefully when required capabilities are unavailable.
+
+**1. Unanswered Claims Ledger.** The 8-entry context compression window is tactical: claims from early rounds disappear from the moderator's view. The moderator can only prioritize what it can see. The unanswered claims ledger tracks all claims with `base_strength > 0.4` persistently across the debate. After each claim extraction, `updateUnansweredLedger()` marks claims as addressed when edges target them. Every 3 rounds, `formatUnansweredClaimsHint()` surfaces the oldest unanswered claim in the moderator's context, ensuring that strong early claims cannot be silently abandoned.
+
+**2. Inline Empirical Claim Verification.** LLMs hallucinate evidence — fabricating statistics, misattributing studies, or inventing institutional positions. After claim extraction, Belief claims with `specificity: 'precise'` (containing specific numbers, dates, or named entities) are auto-fact-checked via web search (Gemini's `google_search` tool). Results are stored on the argument network node as `verification_status` (verified/disputed/unverifiable) and `verification_evidence`. Disputed claims inject a `[Fact-check]` system entry before the next turn. A cap of 2 verifications per turn bounds API cost. When web search is unavailable (CLI adapter), verification silently skips.
+
+**3. Steelman Validation.** The steelman instruction ("present the strongest version of the opponent's position") is one of the most important debate prompts, but LLMs frequently fabricate plausible-sounding positions that no opponent actually holds. Claim extraction now outputs `steelman_of` (opponent name or null). When a steelman is detected, NLI cross-encoder comparison against the opponent's actual committed assertions (up to 10 most recent) checks whether the steelman entails what the opponent actually said. If max entailment falls below 0.6, a `[Steelman check]` system entry surfaces the opponent's actual top-3 assertions. When NLI is unavailable, validation silently skips.
+
+**4. Position Drift Detection (Sycophancy Guard).** LLMs exhibit sycophantic accommodation — gradually shifting toward an interlocutor's position without explicit concession or argued agreement. After opening statements, each speaker's opening embedding is cached. After each cross-respond, the current response embedding is compared against the speaker's own opening (`self_similarity`) and each opponent's opening (`opponent_similarities`). If `self_similarity` decreases monotonically for 3+ turns AND any `opponent_similarity` increases monotonically for 3+ turns AND no explicit concessions were made, a `[Sycophancy guard]` system entry flags the drift. When embedding computation is unavailable, drift tracking silently skips.
+
+**5. Missing Arguments Pass.** Multi-agent debates converge on the arguments that happen to be raised, with no record of what was never said. Post-synthesis, a fresh LLM (receiving no transcript context) is given only the debate topic, a compact taxonomy summary (node labels + BDI categories), and the synthesis text. It identifies 3-5 strongest arguments on any side that were never raised during the debate, with BDI layer classification and explanation of why each argument is strong. This surfaces structural gaps in the debate's coverage.
+
+The graceful degradation architecture is deliberate: the CLI engine's `AIAdapter` exposes only `generateText`, while the UI's bridge API provides `generateTextWithSearch`, `nliClassify`, and `computeQueryEmbedding` as optional extensions via the `ExtendedAIAdapter` interface. Each intervention checks for capability availability before executing and silently skips if unavailable. This means the full intervention suite runs in the Taxonomy Editor UI (which has access to all APIs) while the CLI engine gets a reduced set (unanswered claims ledger and missing arguments pass only), with no code path changes required.
+
+### 6.9 Disagreement Typing
 
 Each disagreement is classified into one of three types that map to BDI layers:
 
@@ -372,7 +414,7 @@ Each disagreement is classified into one of three types that map to BDI layers:
 
 This classification determines the appropriate resolution strategy: empirical disagreements call for evidence gathering, values disagreements call for tradeoff analysis, and definitional disagreements call for term disambiguation before substantive debate can proceed.
 
-### 6.8 Evaluation (E3)
+### 6.10 Evaluation (E3)
 
 [RESULTS PENDING]
 
@@ -450,7 +492,21 @@ The curated metaphor library represents a deliberate design choice: rather than 
 
 Early observations suggest that metaphor reframing is most productive when it bridges BDI layers — e.g., the "AI as Experiment" metaphor naturally connects empirical questions (Beliefs: what are the outcomes?) with normative questions (Desires: was informed consent given?) and strategic questions (Intentions: how do we ensure reversibility?). This cross-BDI bridging may explain why metaphorical arguments are classified as "Mixed" BDI affinity in the scheme taxonomy.
 
-### 8.5 Limitations
+### 8.5 LLM Failure Modes as a Design Category
+
+The five interventions (Section 6.8) represent a design category distinct from both prompt engineering and parameter calibration: *runtime monitoring and correction* of LLM-specific behavioral failures. Prompt engineering shapes what the model is instructed to do; parameter calibration shapes how it samples; runtime interventions detect and respond to failures *after they occur*.
+
+This distinction matters because some LLM failure modes are not preventable through instruction. Sycophantic drift is not caused by unclear instructions — the model "knows" it should maintain its position but accommodates at the token level. Hallucinated evidence is not caused by missing instructions to be truthful — the model generates fabricated statistics with the same confidence as accurate ones. These failures require detection infrastructure (embeddings for drift, web search for verification, NLI for steelman checking) that operates outside the prompt.
+
+The graceful degradation architecture — where each intervention checks for capability availability and silently skips if unavailable — reflects a pragmatic reality: not all deployment contexts provide all capabilities. The CLI adapter lacks web search, NLI, and embedding computation; the UI bridge provides all three. Rather than requiring a uniform capability set, the system adapts its intervention suite to what is available.
+
+### 8.6 Falsifiability as a Structural Gap
+
+The SPECIFY move addresses what may be the single most important structural gap in LLM debate: the absence of falsifiability commitments. In human academic debate, demanding "what would change your mind?" is recognized as the most truth-productive move because it forces hidden assumptions into the open and makes disagreements resolvable in principle. Its absence from the initial dialectical taxonomy — which included seven moves for challenging, conceding, and reframing positions — meant that debates could run for five rounds with neither side ever stating what would count as evidence against their position.
+
+The moderator bias mechanism (triggered by isolated high-strength claims with no edges between them) targets the specific argument network topology that signals the need for falsifiability demands: when two debaters have built strong, well-supported positions that simply do not engage with each other, the productive move is not another counterexample or distinction but a demand that one side operationalize their position.
+
+### 8.7 Limitations
 
 **Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
@@ -468,7 +524,13 @@ Early observations suggest that metaphor reframing is most productive when it br
 
 **Context utilization measurement.** The injection instrumentation uses string matching for reference detection, which may miss paraphrased references and false-positive on coincidental term overlap. More sophisticated reference detection (e.g., NLI-based similarity between injected node content and response text) would improve accuracy.
 
-### 8.6 Ethical Considerations
+**Neutral evaluator independence.** The neutral evaluator uses the same underlying LLM as the debate agents. While persona stripping removes explicit identity cues, the LLM may still recognize argument patterns associated with particular perspectives (e.g., scaling-focused arguments as "accelerationist"), partially undermining the blinding. True independence would require a different model family or human evaluators.
+
+**Intervention threshold sensitivity.** The LLM failure mode interventions use fixed thresholds: base_strength > 0.4 for ledger inclusion, entailment < 0.6 for steelman rejection, 3 turns for sycophancy detection. These thresholds were set by judgment rather than empirical calibration. Systematic sensitivity analysis across debate corpora has not been conducted.
+
+**SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.
+
+### 8.8 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -502,7 +564,13 @@ Key findings include:
 
 8. **Instrumentation enables data-driven optimization.** Context injection instrumentation — tracking which injected nodes are actually referenced by the model — transforms context engineering from intuition-based tuning to empirical optimization. The lightweight manifest approach (string matching, no additional AI calls) demonstrates that useful instrumentation need not be expensive.
 
-Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, and systematic evaluation of metaphor reframing effectiveness across debate corpora.
+9. **LLM debate agents require LLM-specific interventions.** Hallucinated evidence, steelman fabrication, sycophantic drift, and compression-window blindness are failure modes absent in human debate that require targeted countermeasures. The intervention architecture demonstrates that these can be addressed non-blockingly — each intervention degrades gracefully when required capabilities are unavailable, and failure in any intervention never aborts the debate.
+
+10. **Persona-free evaluation surfaces framing bias.** The neutral evaluator — reading the same debate with speaker identities stripped — provides a bias-detection layer analogous to blinded peer review. Divergence between the persona synthesis and the neutral evaluation indicates where persona framing may have biased the assessment, giving users two independent perspectives on the same debate rather than a single potentially contaminated verdict.
+
+11. **Falsifiability demands are the most truth-productive debate move.** The SPECIFY move — requiring a debater to state what specific evidence would change their mind — addresses a structural gap in the dialectical taxonomy. Without it, debates can run for multiple rounds with neither side ever committing to testable predictions. The moderator bias toward SPECIFY when the argument network shows isolated high-strength claims (strong positions with no direct engagement) targets the precise conditions where falsifiability demands are most productive.
+
+Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, systematic evaluation of metaphor reframing effectiveness across debate corpora, and longitudinal analysis of neutral evaluator divergence patterns to identify which persona framings most frequently bias synthesis.
 
 ## References
 

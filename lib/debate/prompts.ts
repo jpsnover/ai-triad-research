@@ -1279,3 +1279,71 @@ Return ONLY JSON (no markdown, no code fences):
   ]
 }`;
 }
+
+/**
+ * Post-debate taxonomy refinement prompt.
+ * Receives the synthesis, argument map, and the actual taxonomy nodes that were
+ * referenced during the debate. Produces before/after suggestions for node revisions.
+ */
+export function taxonomyRefinementPrompt(
+  topic: string,
+  synthesisText: string,
+  referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[],
+  argumentMapSummary: string,
+): string {
+  const nodesBlock = referencedNodes.map(n =>
+    `[${n.id}] (${n.pov}/${n.category}) ${n.label}\n  Description: "${n.description}"`
+  ).join('\n\n');
+
+  return `You are a taxonomy editor reviewing the outcome of a structured debate. Your job is to
+identify taxonomy nodes whose descriptions should be revised based on what the debate revealed.
+
+${READING_LEVEL}
+
+DEBATE TOPIC:
+${topic}
+
+SYNTHESIS (what was argued, agreed, and disagreed):
+${synthesisText}
+
+ARGUMENT MAP (claims and their relationships):
+${argumentMapSummary}
+
+TAXONOMY NODES REFERENCED IN THIS DEBATE:
+${nodesBlock}
+
+For each node above, assess whether the debate revealed that its description should change.
+A node needs revision when:
+- It was TOO VAGUE to defend — debaters couldn't make specific claims from it → CLARIFY (add specifics)
+- It was TOO BROAD — debaters could only engage with part of it → NARROW (tighten scope)
+- It was TOO NARROW — the debate surfaced valid points the node excludes → BROADEN (expand scope)
+- It should be SPLIT — the debate revealed it conflates two distinct positions → SPLIT
+- It was effectively REFUTED — strong counterarguments with no adequate defense → QUALIFY (add caveats) or RETIRE
+- A strong position was argued that NO existing node represents → NEW_NODE
+
+For each suggestion:
+- Write the COMPLETE proposed_description, not just a diff. Follow the genus-differentia format:
+  POV nodes: "A [Belief|Desire|Intention] within [POV] discourse that [differentia]. Encompasses: [what it covers]. Excludes: [boundaries]."
+  New nodes should follow the same pattern.
+- The rationale must cite specific debate evidence (claims, counterarguments, concessions).
+- Only suggest changes with clear debate evidence. Do NOT suggest changes based on general knowledge.
+- Suggest 0 items if no changes are warranted — do not force suggestions.
+
+Return ONLY JSON (no markdown, no code fences):
+{
+  "taxonomy_suggestions": [
+    {
+      "node_id": "acc-beliefs-003",
+      "node_label": "Current label",
+      "node_pov": "accelerationist",
+      "suggestion_type": "clarify",
+      "current_description": "The current description text (copy exactly from above)",
+      "proposed_description": "The complete revised description in genus-differentia format",
+      "rationale": "During the debate, [specific evidence]. This reveals that the current description...",
+      "evidence_claim_ids": ["AN-5", "AN-12"]
+    }
+  ]
+}
+
+For new_node suggestions, omit current_description and use the node_id format of the relevant POV (e.g., "acc-beliefs-NEW", "saf-desires-NEW").`;
+}

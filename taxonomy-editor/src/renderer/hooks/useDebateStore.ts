@@ -37,6 +37,7 @@ import {
   contextCompressionPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
+  taxonomyRefinementPrompt,
 } from '../prompts/debate';
 import {
   generateId,
@@ -2121,6 +2122,75 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (maErr) {
         console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
+      }
+
+      // Taxonomy refinement pass — suggest node revisions based on debate evidence
+      try {
+        const currentD = get().activeDebate;
+        if (currentD) {
+          const synthText = lines.join('\n').slice(0, 4000);
+
+          // Collect all referenced node IDs from transcript
+          const refIds = new Set<string>();
+          for (const entry of currentD.transcript) {
+            for (const ref of entry.taxonomy_refs ?? []) {
+              refIds.add(ref.node_id);
+            }
+          }
+
+          if (refIds.size > 0) {
+            // Resolve to full node data
+            const referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[] = [];
+            for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+              const ctx = getTaxonomyContext(pov);
+              for (const n of ctx.povNodes) {
+                if (refIds.has(n.id)) {
+                  referencedNodes.push({
+                    id: n.id,
+                    label: n.label,
+                    pov,
+                    category: (n as any).category ?? 'unknown',
+                    description: n.description,
+                  });
+                }
+              }
+            }
+
+            if (referencedNodes.length > 0) {
+              // Build argument map summary
+              const an = currentD.argument_network;
+              let anSummary = '(no argument network)';
+              if (an && an.nodes.length > 0) {
+                const anLines = an.nodes.slice(0, 30).map(n => {
+                  const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+                  const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+                  let line = `${n.id} (${n.speaker}): "${n.text}"`;
+                  if (attacks.length) line += ` [attacked ${attacks.length}x]`;
+                  if (supports.length) line += ` [supported ${supports.length}x]`;
+                  return line;
+                });
+                anSummary = anLines.join('\n');
+              }
+
+              const trPrompt = taxonomyRefinementPrompt(
+                currentD.topic.final,
+                synthText,
+                referencedNodes.slice(0, 25),
+                anSummary,
+              );
+              const { text: trText } = await api.generateText(trPrompt, model);
+              const trParsed = parseAIJson(trText) as any;
+              if (trParsed?.taxonomy_suggestions && Array.isArray(trParsed.taxonomy_suggestions)) {
+                const latestD = get().activeDebate;
+                if (latestD) {
+                  set({ activeDebate: { ...latestD, taxonomy_suggestions: trParsed.taxonomy_suggestions.slice(0, 10) } });
+                }
+              }
+            }
+          }
+        }
+      } catch (trErr) {
+        console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
       }
     } catch (err) {
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });

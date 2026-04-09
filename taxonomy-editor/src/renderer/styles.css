@@ -5943,6 +5943,19 @@ body {
 .diag-drift-speaker { margin: 6px 0; }
 .diag-drift-warning { background: rgba(239,68,68,0.15); color: #ef4444; }
 
+/* Taxonomy suggestions */
+.diag-taxo-suggestion { margin: 8px 0; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.diag-taxo-before, .diag-taxo-after { margin-top: 4px; }
+.diag-taxo-desc { font-size: 0.65rem; padding: 4px 6px; background: var(--bg-secondary); border-radius: 3px; margin-top: 2px; line-height: 1.4; }
+.diag-taxo-desc-proposed { background: rgba(34,197,94,0.08); border-left: 2px solid #22c55e; }
+.diag-suggestion-narrow { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.diag-suggestion-broaden { background: rgba(168,85,247,0.15); color: #a855f7; }
+.diag-suggestion-clarify { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.diag-suggestion-split { background: rgba(236,72,153,0.15); color: #ec4899; }
+.diag-suggestion-qualify { background: rgba(239,68,68,0.15); color: #ef4444; }
+.diag-suggestion-retire { background: rgba(107,114,128,0.15); color: #6b7280; }
+.diag-suggestion-new_node { background: rgba(34,197,94,0.15); color: #22c55e; }
+
 .debate-turns-select {
   padding: 5px 4px;
   border: 1px solid var(--border);

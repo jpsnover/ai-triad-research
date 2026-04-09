@@ -42,6 +42,7 @@ import {
   contextCompressionPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
+  taxonomyRefinementPrompt,
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
@@ -176,6 +177,9 @@ export class DebateEngine {
 
     // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
     await this.runMissingArgumentsPass();
+
+    // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
+    await this.runTaxonomyRefinementPass();
 
     // Finalize
     this.session.updated_at = nowISO();
@@ -1265,6 +1269,78 @@ export class DebateEngine {
       }
     } catch (err) {
       this.warn('Missing arguments pass', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Taxonomy refinement pass ───────────────────────────────
+
+  /**
+   * Post-debate pass: analyze debate outcomes against referenced taxonomy nodes
+   * and suggest description revisions with before/after text.
+   */
+  private async runTaxonomyRefinementPass(): Promise<void> {
+    try {
+      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
+      const synthesisText = synthEntry?.content ?? '';
+      if (!synthesisText) return;
+
+      // Collect all taxonomy node IDs referenced during the debate
+      const refIds = new Set<string>();
+      for (const entry of this.session.transcript) {
+        for (const ref of entry.taxonomy_refs ?? []) {
+          refIds.add(ref.node_id);
+        }
+      }
+      if (refIds.size === 0) return;
+
+      // Resolve referenced nodes to their full descriptions from loaded taxonomy
+      const referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[] = [];
+      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        const povData = this.taxonomy[povKey];
+        if (!povData?.nodes) continue;
+        for (const node of povData.nodes) {
+          if (refIds.has(node.id)) {
+            referencedNodes.push({
+              id: node.id,
+              label: node.label,
+              pov: povKey,
+              category: (node as any).category ?? 'unknown',
+              description: node.description,
+            });
+          }
+        }
+      }
+      if (referencedNodes.length === 0) return;
+
+      // Build argument map summary from AN
+      const an = this.session.argument_network;
+      let anSummary = '(no argument network)';
+      if (an && an.nodes.length > 0) {
+        const lines = an.nodes.slice(0, 30).map(n => {
+          const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+          const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+          let line = `${n.id} (${n.speaker}): "${n.text}"`;
+          if (attacks.length) line += ` [attacked ${attacks.length}x]`;
+          if (supports.length) line += ` [supported ${supports.length}x]`;
+          return line;
+        });
+        anSummary = lines.join('\n');
+      }
+
+      const prompt = taxonomyRefinementPrompt(
+        this.session.topic.final,
+        synthesisText.slice(0, 4000),
+        referencedNodes.slice(0, 25), // Cap nodes sent to prompt
+        anSummary,
+      );
+
+      const text = await this.generate(prompt, 'Taxonomy refinement pass');
+      const parsed = parseJsonRobust(text) as any;
+      if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
+        this.session.taxonomy_suggestions = parsed.taxonomy_suggestions.slice(0, 10);
+      }
+    } catch (err) {
+      this.warn('Taxonomy refinement pass', err, 'Non-critical — debate results unaffected');
     }
   }
 
