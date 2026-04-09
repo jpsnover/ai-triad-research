@@ -1,0 +1,40 @@
+# Default: let Git auto-detect text files and normalize line endings
+* text=auto
+
+# PowerShell scripts: always CRLF in the working tree.
+# Windows PowerShell 5.1 is picky about line endings and also requires a
+# UTF-8 BOM when files contain non-ASCII characters — see the CI job
+# "Validate PowerShell file encoding" in .github/workflows/ci.yml which
+# enforces the BOM requirement (Git itself has no `bom` attribute).
+*.ps1    text eol=crlf
+*.psm1   text eol=crlf
+*.psd1   text eol=crlf
+*.ps1xml text eol=crlf
+
+# Shell scripts: LF only (broken by CRLF)
+*.sh  text eol=lf
+
+# Web / config: LF
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+
+# Binary files — never normalize
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.icns  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
