@@ -463,7 +463,7 @@ function Get-AIMetadata {
     $ModelInfo = $script:ModelRegistry[$Model]
     if ($ModelInfo) { $BackendLabel = "$($ModelInfo.Backend)/$Model" }
 
-    Write-Host "`n`u{25B6}  Calling AI for metadata enrichment ($BackendLabel)" -ForegroundColor Cyan
+    Write-Host "`n▶  Calling AI for metadata enrichment ($BackendLabel)" -ForegroundColor Cyan
 
     # Truncate to ~6,000 words to keep token cost low
     $Words   = $MarkdownText -split '\s+'
@@ -528,7 +528,7 @@ $Excerpt
         } | Where-Object { $_ })
     }
 
-    Write-Host "   `u{2713}  AI metadata: title='$($Parsed.title)'  povs=[$($FilteredPovs -join ',')]  topics=[$($NormTopics -join ',')]" -ForegroundColor Green
+    Write-Host "   ✓  AI metadata: title='$($Parsed.title)'  povs=[$($FilteredPovs -join ',')]  topics=[$($NormTopics -join ',')]" -ForegroundColor Green
 
     return @{
         title          = if ($Parsed.title)          { $Parsed.title }           else { $FallbackTitle }

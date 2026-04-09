@@ -303,7 +303,9 @@ function Import-AITriadDocument {
         $RawPath = Join-Path $RawDir $RawFilename
 
         if ($RawContent -is [byte[]]) {
-            Set-Content -Path $RawPath -Value $RawContent -AsByteStream
+            # Use .NET directly — Set-Content -AsByteStream is PS 6+ only, and
+            # WriteAllBytes is symmetric with the ReadAllBytes used to load it.
+            [System.IO.File]::WriteAllBytes($RawPath, $RawContent)
         } else {
             Set-Content -Path $RawPath -Value $RawContent -Encoding UTF8
         }
