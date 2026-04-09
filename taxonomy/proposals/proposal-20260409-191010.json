@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-04-09T19:10:10Z",
+  "model": "gemini-3.1-flash-lite-preview",
+  "taxonomy_version": "3.1.0",
+  "summary_count": 199,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "sit-139",
+      "pov": "situations",
+      "category": "Beliefs",
+      "label": "Procedure Fetish in AI Governance",
+      "description": "A situation concept that describes the tendency of regulatory bodies to prioritize procedural compliance over substantive safety outcomes.\nEncompasses: The risk of 'runaway bureaucracy' where process becomes the goal.\nExcludes: Effective, outcome-based safety regulation.",
+      "rationale": "This concept describes a specific, recurring failure mode in AI governance that is distinct from general regulatory inertia, appearing in multiple policy critiques.",
+      "evidence_doc_ids": [
+        "doc-142"
+      ],
+      "evidence_count": 1,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "sit-140",
+      "pov": "situations",
+      "category": "Beliefs",
+      "label": "Introspection as AI Capability",
+      "description": "A situation concept that refers to the degree to which an AI system can monitor and report on its own internal states or reasoning processes.\nEncompasses: Self-reflection, internal state monitoring, and recursive self-improvement potential.\nExcludes: General alignment or capability testing.",
+      "rationale": "Introspection is a distinct, measurable capability debated across all three POVs with divergent interpretations regarding its utility and risk.",
+      "evidence_doc_ids": [
+        "doc-108"
+      ],
+      "evidence_count": 1,
+      "status": "approved"
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "saf-beliefs-055",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "label": "Representational Risk in Self-Supervised Learning",
+      "description": "A Belief within safetyist discourse that defects encoded in the learned geometry of a model during training are fundamentally unfixable post-hoc.\nEncompasses: Inherent biases or structural flaws in latent space that persist despite fine-tuning.\nExcludes: Surface-level output biases or alignment failures.",
+      "rationale": "This concept identifies a specific technical risk that necessitates upstream liability and design changes, distinct from standard alignment failures.",
+      "evidence_doc_ids": [
+        "doc-092"
+      ],
+      "evidence_count": 1,
+      "status": "approved"
+    }
+  ]
+}
