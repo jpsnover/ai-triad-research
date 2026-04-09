@@ -1,4 +1,4 @@
-# Copyright (c) 2026 2026 Snover International Consulting LLC. All rights reserved.
+﻿# Copyright (c) 2026 2026 Snover International Consulting LLC. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 @{
