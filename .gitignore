@@ -20,6 +20,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Machine-local app config (contains absolute paths)
+taxonomy-editor/.aitriad.json
+
 # Secrets — never commit API keys
 .env
 *.env
