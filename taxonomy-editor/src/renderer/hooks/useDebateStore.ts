@@ -19,6 +19,7 @@ import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
+import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker, swapIssue } from '../utils/convergenceScoring';
 import {
@@ -207,20 +208,79 @@ async function extractClaimsAndUpdateAN(
   const priorClaims = an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker }));
   const speakerLabel = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 
+  const extractStartedAt = Date.now();
+  trace(TraceEventName.AN_EXTRACT_START, {
+    debate_id: debate.id,
+    turn_id: entryId,
+    speaker,
+    prior_claim_count: priorClaims.length,
+    has_debater_claims: !!(debaterClaims && debaterClaims.length > 0),
+  });
+
   try {
     // Hybrid approach: if debater supplied claims, use classifyClaimsPrompt (lighter).
     // Otherwise fall back to full extractClaimsPrompt (backward compat with older models).
     const prompt = debaterClaims && debaterClaims.length > 0
       ? classifyClaimsPrompt(statement, speakerLabel, debaterClaims, priorClaims)
       : extractClaimsPrompt(statement, speakerLabel, priorClaims);
-    const { text } = await api.generateText(prompt, model);
+
+    const callId = newCallId();
+    const callStartedAt = Date.now();
+    trace(TraceEventName.AI_CALL_START, {
+      debate_id: debate.id,
+      turn_id: entryId,
+      call_id: callId,
+      speaker,
+      model,
+      purpose: 'claim_extraction',
+      prompt_chars: prompt.length,
+    });
+
+    let text: string;
+    try {
+      ({ text } = await api.generateText(prompt, model));
+      trace(TraceEventName.AI_CALL_COMPLETE, {
+        debate_id: debate.id,
+        turn_id: entryId,
+        call_id: callId,
+        speaker,
+        model,
+        purpose: 'claim_extraction',
+        duration_ms: Date.now() - callStartedAt,
+        response_chars: text.length,
+      });
+    } catch (callErr) {
+      trace(TraceEventName.AI_CALL_FAILED, {
+        debate_id: debate.id,
+        turn_id: entryId,
+        call_id: callId,
+        speaker,
+        model,
+        purpose: 'claim_extraction',
+        duration_ms: Date.now() - callStartedAt,
+        error: String(callErr),
+      });
+      throw callErr;
+    }
     let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
     const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
     const parsed = JSON.parse(cleaned) as { claims?: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
-    if (!parsed.claims || !Array.isArray(parsed.claims)) return;
+    if (!parsed.claims || !Array.isArray(parsed.claims)) {
+      trace(TraceEventName.AN_EXTRACT_COMPLETE, {
+        debate_id: debate.id,
+        turn_id: entryId,
+        speaker,
+        accepted: 0,
+        rejected: 0,
+        edges_added: 0,
+        duration_ms: Date.now() - extractStartedAt,
+        reason: 'no_claims_array',
+      });
+      return;
+    }
 
     const turnNumber = debate.transcript.length;
     const newNodes: ArgumentNetworkNode[] = [];
@@ -244,6 +304,14 @@ async function extractClaimsAndUpdateAN(
       if (overlap < 0.3) {
         console.warn(`[AN] Rejected claim — low overlap (${(overlap * 100).toFixed(0)}%): ${claim.text.slice(0, 60)}`);
         diagRejected.push({ text: claim.text, reason: `Low word overlap (${(overlap * 100).toFixed(0)}%)`, overlap_pct: Math.round(overlap * 100) });
+        trace(TraceEventName.AN_EXTRACT_REJECTED_CLAIM, {
+          debate_id: debate.id,
+          turn_id: entryId,
+          speaker,
+          reason: 'low_overlap',
+          overlap_pct: Math.round(overlap * 100),
+          claim_preview: claim.text.slice(0, 80),
+        });
         continue;
       }
 
@@ -300,7 +368,19 @@ async function extractClaimsAndUpdateAN(
       }
     }
 
-    if (newNodes.length === 0) return;
+    if (newNodes.length === 0) {
+      trace(TraceEventName.AN_EXTRACT_COMPLETE, {
+        debate_id: debate.id,
+        turn_id: entryId,
+        speaker,
+        accepted: 0,
+        rejected: diagRejected.length,
+        edges_added: 0,
+        duration_ms: Date.now() - extractStartedAt,
+        reason: 'all_claims_rejected_or_empty',
+      });
+      return;
+    }
 
     // Update debate session
     const updated = {
@@ -318,6 +398,15 @@ async function extractClaimsAndUpdateAN(
     await get().saveDebate();
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
+    trace(TraceEventName.AN_EXTRACT_COMPLETE, {
+      debate_id: debate.id,
+      turn_id: entryId,
+      speaker,
+      accepted: newNodes.length,
+      rejected: diagRejected.length,
+      edges_added: newEdges.length,
+      duration_ms: Date.now() - extractStartedAt,
+    });
 
     // Update convergence tracker
     const updatedDebate = get().activeDebate;
@@ -424,6 +513,13 @@ async function extractClaimsAndUpdateAN(
     try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
+    trace(TraceEventName.AN_EXTRACT_FAILED, {
+      debate_id: debate.id,
+      turn_id: entryId,
+      speaker,
+      duration_ms: Date.now() - extractStartedAt,
+      error: String(err),
+    });
   }
 }
 

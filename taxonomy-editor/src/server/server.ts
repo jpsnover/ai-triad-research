@@ -436,6 +436,44 @@ post('/focus-node', (_req, res, body) => {
   json(res, { ok: true });
 });
 
+// ── Trace channel (observability) ──
+//
+// Accepts batched trace events from the renderer and emits each as a single
+// line of JSON on stdout. In the Azure Container Apps deployment, stdout is
+// ingested by Log Analytics via appLogsConfiguration (see deploy/azure/main.bicep)
+// which makes the events queryable with KQL:
+//
+//   ContainerAppConsoleLogs_CL
+//   | where Log_s startswith "[trace]"
+//   | extend ev = parse_json(substring(Log_s, 8))
+//   | where ev.debate_id == "<debate-id>"
+//
+// See docs/debate-observability-proposal.md for the full rationale.
+//
+// Events are intentionally not validated beyond basic shape — the renderer
+// owns the schema and we want to preserve unexpected fields for future use.
+// The per-batch cap prevents accidental payload bombs.
+
+const TRACE_MAX_EVENTS_PER_BATCH = 100;
+
+post('/debug/events', (_req, res, body) => {
+  try {
+    const { events } = (body || {}) as { events?: unknown };
+    if (!Array.isArray(events)) {
+      error(res, 'events must be an array', 400);
+      return;
+    }
+    const accepted = events.slice(0, TRACE_MAX_EVENTS_PER_BATCH);
+    for (const ev of accepted) {
+      // Single-line JSON so the log ingestion splits on newlines cleanly.
+      console.log('[trace] ' + JSON.stringify(ev));
+    }
+    json(res, { received: accepted.length, dropped: Math.max(0, events.length - accepted.length) });
+  } catch (err) {
+    error(res, String(err));
+  }
+});
+
 // ── Static file serving ──
 
 const STATIC_DIR = path.resolve(__dirname, '../renderer');
