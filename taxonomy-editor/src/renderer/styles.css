@@ -4042,6 +4042,60 @@ body {
   color: #fff;
 }
 
+.lineage-panel-item-indented {
+  padding-left: 24px;
+}
+
+/* ─── Lineage Category Groups (Pane 1) ────────────────── */
+
+.lineage-category-group {
+  margin-bottom: 2px;
+}
+
+.lineage-category-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lineage-category-header:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.lineage-category-label {
+  flex: 1;
+}
+
+.lineage-category-count {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ─── Lineage Category Badge (Pane 2 detail) ──────────── */
+
+.lineage-category-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, var(--bg-hover, #2a2d2e));
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 12px;
+}
+
 /* ─── Lineage Detail (Pane 2) ─────────────────────────── */
 
 .lineage-detail {
@@ -4052,7 +4106,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .lineage-detail-section {
@@ -10383,6 +10437,122 @@ body {
   color: var(--text-secondary);
 }
 .conflict-qbaf-meta {
+  margin-top: 6px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+/* ── Dialectic Trace panel ────────────────────────────── */
+.conflict-trace-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 12px;
+}
+.conflict-trace-header {
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+.conflict-trace-verdict {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.conflict-trace-criterion {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+.conflict-trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.conflict-trace-step {
+  display: flex;
+  gap: 8px;
+  min-height: 36px;
+}
+.conflict-trace-step-gutter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 22px;
+  flex-shrink: 0;
+}
+.conflict-trace-step-num {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.conflict-trace-connector {
+  flex: 1;
+  width: 1px;
+  background: var(--border-color);
+  min-height: 8px;
+}
+.conflict-trace-step:last-child .conflict-trace-connector {
+  display: none;
+}
+.conflict-trace-step-body {
+  flex: 1;
+  padding-bottom: 8px;
+}
+.conflict-trace-step-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+  margin-bottom: 2px;
+}
+.conflict-trace-action {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+}
+.conflict-trace-speaker {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+.conflict-trace-scheme {
+  background: var(--bg-secondary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+}
+.conflict-trace-attack-type {
+  color: #dc2626;
+  font-size: 0.55rem;
+  font-style: italic;
+}
+.conflict-trace-strength {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+.conflict-trace-claim {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+.conflict-trace-responds-to {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.conflict-trace-meta {
   margin-top: 6px;
   font-size: 0.6rem;
   color: var(--text-muted);

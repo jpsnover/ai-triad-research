@@ -157,6 +157,18 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       if (n.graph_attributes?.epistemic_type) {
         lines.push(`    Epistemic type: ${n.graph_attributes.epistemic_type}`);
       }
+      if (n.graph_attributes?.rhetorical_strategy) {
+        lines.push(`    Rhetorical strategy: ${n.graph_attributes.rhetorical_strategy}`);
+      }
+      if (n.graph_attributes?.falsifiability) {
+        lines.push(`    Falsifiability: ${n.graph_attributes.falsifiability}`);
+      }
+      if (n.graph_attributes?.node_scope) {
+        lines.push(`    Scope: ${n.graph_attributes.node_scope}`);
+      }
+      if (n.graph_attributes?.intellectual_lineage && n.graph_attributes.intellectual_lineage.length > 0) {
+        lines.push(`    Intellectual lineage: ${n.graph_attributes.intellectual_lineage.join('; ')}`);
+      }
       if (n.graph_attributes?.assumes && n.graph_attributes.assumes.length > 0) {
         lines.push(`    Assumes: ${n.graph_attributes.assumes.join('; ')}`);
       }

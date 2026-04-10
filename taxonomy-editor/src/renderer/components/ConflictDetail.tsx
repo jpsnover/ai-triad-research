@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { ConflictFile, ConflictQbaf } from '../types/taxonomy';
+import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
@@ -295,6 +295,11 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         <QbafConflictPanel qbaf={conflict.qbaf} />
       )}
 
+      {/* Dialectic Trace — shown when verdict has a trace */}
+      {conflict.verdict?.dialectic_trace && (
+        <DialecticTracePanel trace={conflict.verdict.dialectic_trace} />
+      )}
+
       {showDelete && !readOnly && (
         <DeleteConfirmDialog
           itemLabel={conflict.claim_label}
@@ -375,6 +380,74 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
 
       <div className="conflict-qbaf-meta">
         {qbaf.algorithm} &middot; {qbaf.iterations} iterations &middot; {new Date(qbaf.computed_at).toLocaleDateString()}
+      </div>
+    </div>
+  );
+}
+
+/** Dialectic trace panel — shows the argument chain explaining why a position prevailed */
+function DialecticTracePanel({ trace }: { trace: DialecticTrace }) {
+  const ACTION_ICONS: Record<DialecticTraceStep['action'], string> = {
+    asserted: '\u25B6',   // ▶
+    attacked: '\u2694',   // ⚔
+    supported: '\u2764',  // ❤
+    conceded: '\u2714',   // ✔
+    unaddressed: '\u2026', // …
+  };
+
+  const ACTION_COLORS: Record<DialecticTraceStep['action'], string> = {
+    asserted: 'var(--text-secondary)',
+    attacked: '#dc2626',
+    supported: '#16a34a',
+    conceded: '#d97706',
+    unaddressed: 'var(--text-muted)',
+  };
+
+  return (
+    <div className="conflict-trace-panel">
+      <div className="conflict-trace-header">Dialectic Trace</div>
+      <div className="conflict-trace-verdict">
+        <span>Prevailing: <strong>{trace.prevailing}</strong></span>
+        <span className="conflict-trace-criterion">{trace.criterion.replace(/_/g, ' ')}</span>
+      </div>
+
+      <div className="conflict-trace-steps">
+        {trace.steps.map((step, i) => (
+          <div key={i} className="conflict-trace-step">
+            <div className="conflict-trace-step-gutter">
+              <span className="conflict-trace-step-num">{step.step}</span>
+              <span className="conflict-trace-connector" />
+            </div>
+            <div className="conflict-trace-step-body">
+              <div className="conflict-trace-step-header">
+                <span
+                  className="conflict-trace-action"
+                  style={{ color: ACTION_COLORS[step.action] }}
+                >
+                  {ACTION_ICONS[step.action]} {step.action}
+                </span>
+                <span className="conflict-trace-speaker">{step.speaker}</span>
+                {step.scheme && (
+                  <span className="conflict-trace-scheme">{step.scheme}</span>
+                )}
+                {step.attack_type && (
+                  <span className="conflict-trace-attack-type">{step.attack_type}</span>
+                )}
+                {step.strength != null && (
+                  <span className="conflict-trace-strength">{step.strength.toFixed(2)}</span>
+                )}
+              </div>
+              <div className="conflict-trace-claim">{step.claim}</div>
+              {step.responds_to && (
+                <div className="conflict-trace-responds-to">responds to {step.responds_to}</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="conflict-trace-meta">
+        debate {trace.debate_id.slice(0, 12)} &middot; {new Date(trace.generated_at).toLocaleDateString()}
       </div>
     </div>
   );

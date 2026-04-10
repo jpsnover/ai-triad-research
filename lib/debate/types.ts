@@ -138,6 +138,8 @@ export interface DebateSession {
   missing_arguments?: MissingArgument[];
   /** Post-debate taxonomy refinement suggestions with before/after descriptions. */
   taxonomy_suggestions?: TaxonomySuggestion[];
+  /** Post-debate dialectic traces explaining why positions prevailed — argument chains from the AN graph. */
+  dialectic_traces?: import('./dialecticTrace').DialecticTrace[];
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */

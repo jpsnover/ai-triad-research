@@ -94,6 +94,12 @@ export interface SituationNode {
   /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
   disagreement_type?: 'definitional' | 'interpretive' | 'structural';
   debate_refs?: string[];
+  /** Parent situation node ID for hierarchy. Absent on root nodes. */
+  parent_id?: string | null;
+  /** Relationship to parent: is_a, part_of, or specializes. */
+  parent_relationship?: 'is_a' | 'part_of' | 'specializes' | null;
+  /** Rationale for the parent relationship. */
+  parent_rationale?: string | null;
 }
 
 /** @deprecated Use SituationNode */
@@ -156,6 +162,36 @@ export interface ConflictQbaf {
   iterations: number;
 }
 
+export interface DialecticTraceStep {
+  step: number;
+  claim_id: string;
+  speaker: string;
+  claim: string;
+  action: 'asserted' | 'attacked' | 'supported' | 'conceded' | 'unaddressed';
+  scheme?: string;
+  attack_type?: 'rebut' | 'undercut' | 'undermine';
+  responds_to?: string;
+  strength?: number;
+  turn?: number;
+}
+
+export interface DialecticTrace {
+  conflict: string;
+  prevailing: string;
+  criterion: string;
+  steps: DialecticTraceStep[];
+  debate_id: string;
+  generated_at: string;
+}
+
+export interface ConflictVerdict {
+  prevailing_stance?: string;
+  criterion?: string;
+  rationale?: string;
+  debate_id?: string;
+  dialectic_trace?: DialecticTrace;
+}
+
 export interface ConflictFile {
   claim_id: string;
   claim_label: string;
@@ -166,6 +202,8 @@ export interface ConflictFile {
   human_notes: ConflictNote[];
   /** QBAF argument graph + resolution. Absent on pre-QBAF conflicts. */
   qbaf?: ConflictQbaf;
+  /** Resolution verdict from debate harvest. */
+  verdict?: ConflictVerdict;
 }
 
 export type TabId = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts' | 'debate' | 'chat';

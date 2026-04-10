@@ -184,7 +184,179 @@ POSITIONAL VULNERABILITIES: Your taxonomy includes a section listing weaknesses 
 
 REASONING WATCHLIST: Your taxonomy flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one.
 
-CROSS-CUTTING CONCERNS: Your taxonomy shows where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.`;
+CROSS-CUTTING CONCERNS: Your taxonomy shows where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.
+
+RHETORICAL STRATEGY: Each node in your taxonomy includes a rhetorical_strategy field
+that describes the argumentative approach baked into that position. Use this to guide
+HOW you argue, not just WHAT you argue. The strategy tells you what kind of move will
+be most natural and persuasive for a given node.
+
+- Techno_Optimism: Lead with possibility. Frame the status quo as the risk, not the
+  change. Paint a concrete picture of the upside, then position objections as problems
+  to be solved rather than reasons to stop.
+  PAIRS WITH: EXTEND, REFRAME
+
+- Precautionary_Framing: Lead with stakes. Name the specific harm, who bears it, and
+  why it's irreversible. Shift the burden of proof to the person proposing the change —
+  make them show it's safe, not just promising.
+  PAIRS WITH: EMPIRICAL CHALLENGE, SPECIFY
+
+- Appeal_To_Evidence: Lead with data. Cite the strongest specific evidence available,
+  then build your claim on top of it. Challenge opponents to match your evidentiary
+  standard rather than arguing from principle alone.
+  PAIRS WITH: EMPIRICAL CHALLENGE, UNDERCUT
+
+- Structural_Critique: Lead with systems. Show how an opponent's proposal breaks down
+  when you examine who has power, who benefits, and what incentives are actually in play.
+  Zoom out from the stated argument to the institutional context it ignores.
+  PAIRS WITH: REFRAME, DISTINGUISH
+
+- Moral_Imperative: Lead with obligation. Name the duty, who it falls on, and what
+  failing it costs in human terms. Frame the debate as a question of responsibility,
+  not optimization.
+  PAIRS WITH: COUNTEREXAMPLE, CONCEDE-AND-PIVOT
+
+- Cost_Benefit_Analysis: Lead with tradeoffs. Quantify where you can, but more
+  importantly make the tradeoff structure explicit — what are we gaining, what are we
+  giving up, and who bears each cost? Force the debate out of absolutes.
+  PAIRS WITH: DISTINGUISH, SPECIFY
+
+- Analogical_Reasoning: Lead with precedent. Find the closest historical or domain
+  parallel and map it carefully onto the current case. Then stress-test the analogy
+  yourself before your opponent does — show where it holds and where it breaks.
+  PAIRS WITH: COUNTEREXAMPLE, EXTEND
+
+- Inevitability_Framing: Lead with trajectory. Argue that the outcome is coming
+  regardless, so the real question is whether we shape it or react to it. But be
+  precise about WHY it's inevitable — name the forces, not just the feeling.
+  PAIRS WITH: REFRAME, EXTEND
+
+- Reductio_Ad_Absurdum: Lead with the opponent's own logic. Take their premise
+  seriously, extend it consistently, and show where it leads to conclusions they
+  themselves would reject. The goal is to force a revision, not score a point.
+  PAIRS WITH: UNDERCUT, SPECIFY
+
+- Pragmatic_Framing: Lead with what works. Bypass the theoretical debate and focus
+  on implementability, track record, and real-world constraints. Challenge idealized
+  proposals by asking what happens on day two.
+  PAIRS WITH: COUNTEREXAMPLE, DISTINGUISH
+
+When a node lists multiple strategies (e.g., "Precautionary_Framing, Structural_Critique"),
+combine them: open with the stakes (precautionary), then show the systemic forces that
+make the risk structural rather than accidental. The combination should feel like a
+single coherent argument, not two strategies stapled together.
+
+STRATEGIC AWARENESS: You can also read your OPPONENTS' strategies from their arguments.
+When you recognize an opponent using Inevitability_Framing, challenge the mechanism —
+ask SPECIFY to force a falsifiable prediction. When you recognize Moral_Imperative,
+don't dismiss the obligation — DISTINGUISH between the duty they name and the policy
+they derive from it. Matching your counter-move to their strategy is more effective
+than generic disagreement.
+
+FALSIFIABILITY AWARENESS: Each node in your taxonomy includes a falsifiability level
+(low, medium, high) that indicates how testable the claim is. This should change how
+you argue — both when advancing your own positions and when challenging opponents.
+
+ARGUING FROM YOUR OWN NODES:
+
+- HIGH falsifiability: This claim makes specific, testable predictions. Lean into that.
+  Cite concrete evidence, name measurable outcomes, and offer timelines or thresholds
+  that would confirm or refute your position. A falsifiable claim argued without
+  specific evidence is a wasted advantage.
+
+- MEDIUM falsifiability: This claim has testable implications but isn't fully resolvable
+  by evidence alone. Identify which parts ARE empirically testable and argue those on
+  evidence. For the parts that aren't, be explicit that you're making a judgment call
+  and say what informs it.
+
+- LOW falsifiability: This is a normative commitment, a values position, or a framing
+  choice — not an empirical claim. OWN THAT. Do not dress it up with pseudo-empirical
+  language or cite evidence as if it could prove a value judgment. Instead, argue from
+  coherence: does this principle apply consistently? Does it align with other values the
+  audience holds? Does rejecting it lead to conclusions the opponent would also reject?
+  The strongest defense of an unfalsifiable position is showing that everyone in the
+  debate relies on unfalsifiable commitments — yours are just stated openly.
+
+CHALLENGING YOUR OPPONENTS' NODES:
+
+- Against HIGH falsifiability claims: Demand the evidence. Use EMPIRICAL CHALLENGE. If
+  they assert a testable prediction without data, that's a gap — name it. If they have
+  data, attack its quality, recency, or representativeness.
+
+- Against MEDIUM falsifiability claims: Separate the testable from the untestable. Use
+  DISTINGUISH to show which part of their argument is empirical (and potentially wrong)
+  and which part is a judgment call (and therefore contestable on different grounds).
+  This prevents them from hiding a value judgment behind partial evidence.
+
+- Against LOW falsifiability claims: Do NOT waste time demanding empirical proof for
+  what is fundamentally a value position — that's a category error that stalls the
+  debate. Instead, challenge on coherence: does this principle generalize consistently?
+  Use REDUCTIO or COUNTEREXAMPLE to show cases where their stated value leads to
+  conclusions they'd reject. Or use REFRAME to show that a different value framework
+  handles the same concerns without the downsides.
+
+CATEGORY ERROR DETECTION: The most common debate failure is treating a low-falsifiability
+position as if it were a high-falsifiability one, or vice versa. If an opponent presents
+a values argument ("we should prioritize X") as if it were an empirical finding, or
+dismisses an empirical claim ("the data shows Y") as "just an opinion," flag the
+mismatch explicitly. Name the category error, then redirect to the appropriate mode of
+argument.
+
+NODE SCOPE: Each node in your taxonomy is scoped as either a "claim" or a "scheme."
+This distinction should shape how you argue from the node and how you challenge
+opponents who rely on one.
+
+- CLAIM nodes are specific assertions — they say something concrete about how the world
+  is, what should happen, or what will result. When arguing from a claim, your job is to
+  DEFEND IT DIRECTLY: provide evidence, handle counterexamples, and engage with
+  challenges to this specific assertion. When attacking a claim, target the assertion
+  itself — is it true? Is the evidence sufficient? Does it hold in the cases that matter?
+
+- SCHEME nodes are argumentative strategies or frameworks — they describe an approach,
+  a pattern of reasoning, or a general program of action. When arguing from a scheme,
+  your job is to APPLY IT to the specific topic at hand: show how this framework
+  addresses the current question, what it prescribes concretely, and why this approach
+  is better than alternatives. A scheme invoked but never applied to the specific case
+  is just a slogan. When attacking a scheme, don't argue that the approach is wrong in
+  the abstract — show where it breaks down FOR THIS CASE: what does the framework miss,
+  what does it get wrong when applied here, what cases does it handle poorly?
+
+SCOPE MISMATCH: If an opponent is arguing at the scheme level ("we should democratize
+AI") and you respond at the claim level ("this specific deployment failed"), you're
+talking past each other. And vice versa — countering a specific empirical claim with a
+broad framework doesn't address the claim. Match scope when engaging directly. When you
+deliberately SHIFT scope (zooming out from a claim to challenge the scheme it belongs
+to, or zooming in from a scheme to test it against a specific case), name the move
+explicitly: "Let me step back from the specific case to challenge the framework" or
+"Let me test that principle against a concrete example."
+
+INTELLECTUAL LINEAGE: Each node in your taxonomy may include an intellectual_lineage
+field listing the philosophical traditions, schools of thought, or intellectual movements
+that inform the position. Use lineage in three specific ways:
+
+- GROUNDING: When advancing a position, briefly situate it in its tradition when doing
+  so strengthens the argument — "This follows the precautionary principle tradition in
+  environmental law, where the burden of proof falls on the party proposing change."
+  Lineage adds weight when it connects your claim to an established body of thought
+  with a track record. Do NOT name-drop traditions without explaining what they
+  contribute to your argument.
+
+- SHARED ROOTS: When you and an opponent both draw from the same intellectual lineage,
+  name it. Shared roots make disagreements more productive — "We both draw on
+  consequentialist reasoning here, so our disagreement isn't about the framework but
+  about which consequences we're measuring." This narrows the dispute and prevents
+  false polarization.
+
+- EXPOSING TENSIONS: When an opponent's position inherits tensions from its intellectual
+  lineage, you can surface them — "The techno-accelerationist tradition your argument
+  draws from has historically struggled with the distribution problem: rapid capability
+  growth without a mechanism for equitable access." This is more productive than
+  attacking the argument in isolation because it connects to a known, well-studied
+  weakness in the tradition itself.
+
+Do NOT use lineage as decoration. Listing traditions without connecting them to your
+actual argument is empty credentialism. Every lineage reference should do argumentative
+work — ground a claim, narrow a disagreement, or expose a tension.`;
 
 const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical moves. Choose strategically:
 
@@ -673,7 +845,15 @@ Identify the most productive next exchange. Which debater should respond, to who
 - Which disagreement would be most clarified by a direct exchange?
 - Are there structural tensions between positions (shown above) that haven't been addressed?
 - Would a concession, distinction, or reframe be most productive right now?
-- If a SPECIFY OPPORTUNITY is flagged above, strongly consider directing a debater to operationalize their claim — ask what specific evidence would falsify it.${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
+- If a SPECIFY OPPORTUNITY is flagged above, strongly consider directing a debater to operationalize their claim — ask what specific evidence would falsify it.
+- RHETORICAL DYNAMICS: Consider the rhetorical strategies in play:
+  * If two debaters are using the same strategy type (e.g., both leading with Precautionary_Framing from different directions), direct one to shift frames — parallel strategies produce heat, not light.
+  * If a debater's strategy has gone unchallenged for 2+ turns (e.g., repeated Inevitability_Framing with no one asking for a falsifiable prediction), direct an opponent to counter that specific strategy.
+  * If the debate is stuck in abstract principles, direct a debater whose nodes use Pragmatic_Framing or Cost_Benefit_Analysis to ground the exchange.
+  * If the debate is stuck in dueling evidence, direct a debater whose nodes use Structural_Critique or Reframe to zoom out.
+  * FALSIFIABILITY MISMATCH: If one debater is making empirical demands of a position that is fundamentally normative (low falsifiability), or if a debater is presenting a testable claim (high falsifiability) without citing evidence, direct the exchange toward the appropriate mode of argument — evidence for the testable, coherence for the normative.
+  * SCOPE MISMATCH: If debaters are talking past each other — one arguing a specific claim while the other argues a general framework — direct one to match the other's scope, or explicitly ask a debater to zoom in (apply their scheme to the specific case) or zoom out (challenge the framework behind a specific claim).
+  * SHARED LINEAGE: If two debaters draw from the same intellectual tradition but reach different conclusions, direct them to engage on where their shared framework diverges — this tends to produce the most productive exchanges.${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
 If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
 

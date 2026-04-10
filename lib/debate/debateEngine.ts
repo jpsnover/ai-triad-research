@@ -69,6 +69,7 @@ import {
 } from './helpers';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 import { computeCoverageMap } from './coverageTracker';
+import { generateDialecticTraces } from './dialecticTrace';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -180,6 +181,9 @@ export class DebateEngine {
 
     // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
     await this.runTaxonomyRefinementPass();
+
+    // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
+    this.runDialecticTracePass();
 
     // Finalize
     this.session.updated_at = nowISO();
@@ -1341,6 +1345,27 @@ export class DebateEngine {
       }
     } catch (err) {
       this.warn('Taxonomy refinement pass', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Dialectic trace generation ──────────────────────────────
+
+  /**
+   * Post-synthesis pass: generate dialectic traces from the argument network
+   * and synthesis preferences. Each trace is a minimal argument path explaining
+   * why a position prevailed — the dialectic structure as explanation.
+   *
+   * Synchronous — no AI calls needed, just graph traversal.
+   * Failure never blocks synthesis results.
+   */
+  private runDialecticTracePass(): void {
+    try {
+      const traces = generateDialecticTraces(this.session);
+      if (traces.length > 0) {
+        this.session.dialectic_traces = traces;
+      }
+    } catch (err) {
+      this.warn('Dialectic trace pass', err, 'Non-critical — debate results unaffected');
     }
   }
 

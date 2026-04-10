@@ -65,7 +65,11 @@
         "prevailing_stance": { "type": "string" },
         "criterion": { "type": "string" },
         "rationale": { "type": "string" },
-        "debate_id": { "type": "string" }
+        "debate_id": { "type": "string" },
+        "dialectic_trace": {
+          "$ref": "#/$defs/DialecticTrace",
+          "description": "Optional dialectic trace explaining the reasoning chain behind this verdict."
+        }
       }
     },
     "qbaf": {
@@ -280,6 +284,95 @@
           "type": "integer",
           "minimum": 1,
           "description": "Number of propagation iterations until convergence."
+        }
+      }
+    },
+    "DialecticTrace": {
+      "type": "object",
+      "description": "A minimal argument path explaining why a position prevailed in a debate. Based on Loui (1995) computational dialectics: the dialectic structure is the explanation.",
+      "required": ["conflict", "prevailing", "criterion", "steps", "debate_id", "generated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "conflict": {
+          "type": "string",
+          "description": "The conflict or dispute this trace explains."
+        },
+        "prevailing": {
+          "type": "string",
+          "description": "Which position prevailed."
+        },
+        "criterion": {
+          "type": "string",
+          "description": "Resolution criterion (e.g., empirical_evidence, logical_validity)."
+        },
+        "steps": {
+          "type": "array",
+          "description": "Ordered argument chain — each step is a dialectical move in the debate.",
+          "items": {
+            "$ref": "#/$defs/DialecticTraceStep"
+          }
+        },
+        "debate_id": {
+          "type": "string",
+          "description": "ID of the debate session that produced this trace."
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the trace was generated."
+        }
+      }
+    },
+    "DialecticTraceStep": {
+      "type": "object",
+      "description": "A single step in a dialectic trace — one claim and its dialectical role.",
+      "required": ["step", "claim_id", "speaker", "claim", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "step": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Step number (1-indexed)."
+        },
+        "claim_id": {
+          "type": "string",
+          "description": "The argument network node ID."
+        },
+        "speaker": {
+          "type": "string",
+          "description": "Who made this claim (pover ID or system/document)."
+        },
+        "claim": {
+          "type": "string",
+          "description": "The claim text."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["asserted", "attacked", "supported", "conceded", "unaddressed"],
+          "description": "What dialectical action this step represents."
+        },
+        "scheme": {
+          "type": "string",
+          "description": "Dialectical move (DISTINGUISH, EMPIRICAL_CHALLENGE, etc.)."
+        },
+        "attack_type": {
+          "type": "string",
+          "enum": ["rebut", "undercut", "undermine"],
+          "description": "AIF attack type when action is 'attacked'."
+        },
+        "responds_to": {
+          "type": "string",
+          "description": "The AN node ID this step responds to."
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "QBAF computed strength at this step."
+        },
+        "turn": {
+          "type": "integer",
+          "description": "Turn number in the debate."
         }
       }
     }
