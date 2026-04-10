@@ -90,3 +90,4 @@ GEMINI.local.md
 # Orca: generated sub-agent files (t/897)
 **/.claude/agents/
 **/.gemini/agents/
+tmp/
