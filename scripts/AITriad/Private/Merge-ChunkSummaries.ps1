@@ -51,7 +51,10 @@ function Merge-ChunkSummaries {
 
         try {
             if ($Text.Length -gt 1000) { $TruncText = $Text.Substring(0, 1000) } else { $TruncText = $Text }
-            $Output = & $PythonCmd $EmbedScript encode $TruncText 2>$null
+            # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
+            $SavedEAP = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try { $Output = & $PythonCmd $EmbedScript encode $TruncText 2>$null } finally { $ErrorActionPreference = $SavedEAP }
             if ($LASTEXITCODE -ne 0) { return $null }
             $Vector = [double[]]@($Output | ConvertFrom-Json)
             $EmbeddingCache[$Hash] = $Vector

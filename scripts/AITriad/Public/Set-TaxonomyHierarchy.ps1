@@ -385,7 +385,8 @@ function Set-TaxonomyHierarchy {
         $Json = $FileEntry.Data | ConvertTo-Json -Depth 20
         if ($PSCmdlet.ShouldProcess($FileEntry.Path, 'Write updated taxonomy file')) {
             try {
-                Set-Content -Path $FileEntry.Path -Value $Json -Encoding UTF8
+                # Write UTF-8 without BOM — PS 5.1's -Encoding UTF8 adds BOM which breaks downstream JSON readers
+                [System.IO.File]::WriteAllText($FileEntry.Path, $Json, [System.Text.UTF8Encoding]::new($false))
                 Write-OK "Saved $PovKey ($($FileEntry.Path))"
             }
             catch {

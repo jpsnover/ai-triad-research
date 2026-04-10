@@ -38,7 +38,7 @@ function Get-Prompt {
         if (-not (Test-Path $PromptPath)) {
             throw "Prompt file not found: $PromptPath"
         }
-        $script:PromptCache[$Name] = (Get-Content -Path $PromptPath -Raw).TrimEnd()
+        $script:PromptCache[$Name] = (Get-Content -Path $PromptPath -Raw -Encoding UTF8).TrimEnd()
     }
 
     $Text = $script:PromptCache[$Name]

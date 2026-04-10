@@ -67,7 +67,10 @@ function Get-TextEmbedding {
     $InputJson = @($Items) | ConvertTo-Json -Depth 5 -Compress
 
     try {
-        $Output = $InputJson | & $PythonCmd $EmbedScript batch-encode 2>$null
+        # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
+        $PrevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { $Output = $InputJson | & $PythonCmd $EmbedScript batch-encode 2>$null } finally { $ErrorActionPreference = $PrevEAP }
         if ($LASTEXITCODE -ne 0) {
             Write-Verbose "Get-TextEmbedding: batch-encode failed (exit code $LASTEXITCODE)"
             return $null

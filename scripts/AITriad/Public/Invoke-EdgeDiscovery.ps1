@@ -115,6 +115,14 @@ function Invoke-EdgeDiscovery {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    # ForEach-Object -Parallel is PS 7+ only. The AITriad module supports
+    # Windows PowerShell 5.1 as a hard requirement (see AITriad.psd1), so on
+    # 5.1 we clamp -MaxConcurrent to 1 and use the sequential code path.
+    if ($MaxConcurrent -gt 1 -and $PSVersionTable.PSVersion.Major -lt 7) {
+        Write-Warn "MaxConcurrent > 1 requires PowerShell 7+; falling back to sequential (MaxConcurrent = 1) on Windows PowerShell $($PSVersionTable.PSVersion)."
+        $MaxConcurrent = 1
+    }
+
     # ── Step 1: Validate environment ──
     Write-Step 'Validating environment'
 

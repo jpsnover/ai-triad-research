@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
@@ -21,6 +22,7 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getCategoryLabel } from '../data/lineageCategories';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
@@ -37,6 +39,16 @@ export function SituationsTab() {
   } = useTaxonomyStore();
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [hierarchyView, setHierarchyView] = useState<boolean>(() => {
+    try { return localStorage.getItem('taxonomy-editor-sit-hierarchy') === 'true'; } catch { return false; }
+  });
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('taxonomy-editor-sit-collapsed');
+      if (raw) return new Set(JSON.parse(raw));
+    } catch { /* ignore */ }
+    return new Set();
+  });
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
@@ -85,10 +97,60 @@ export function SituationsTab() {
     }
   }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const orderedIds = useMemo(
-    () => (situations ? situations.nodes.map(n => n.id) : []),
-    [situations],
-  );
+  const toggleHierarchy = useCallback(() => {
+    setHierarchyView(prev => {
+      const next = !prev;
+      localStorage.setItem('taxonomy-editor-sit-hierarchy', String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      localStorage.setItem('taxonomy-editor-sit-collapsed', JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  // Build hierarchy structures for tree view
+  const { roots, childMap, standalones } = useMemo(() => {
+    if (!situations) return { roots: [] as SituationNode[], childMap: new Map<string, SituationNode[]>(), standalones: [] as SituationNode[] };
+    const cMap = new Map<string, SituationNode[]>();
+    const allNodes = situations.nodes;
+    for (const n of allNodes) {
+      if (n.parent_id) {
+        const list = cMap.get(n.parent_id) || [];
+        list.push(n);
+        cMap.set(n.parent_id, list);
+      }
+    }
+    const r = allNodes.filter(n => !n.parent_id && cMap.has(n.id));
+    const s = allNodes.filter(n => !n.parent_id && !cMap.has(n.id));
+    return { roots: r, childMap: cMap, standalones: s };
+  }, [situations]);
+
+  // Ordered IDs for keyboard nav — hierarchy-aware when in tree view
+  const orderedIds = useMemo(() => {
+    if (!situations) return [];
+    if (!hierarchyView) return situations.nodes.map(n => n.id);
+    const ids: string[] = [];
+    for (const root of roots) {
+      ids.push(root.id);
+      if (!collapsedGroups.has(root.id)) {
+        for (const child of childMap.get(root.id) || []) {
+          ids.push(child.id);
+        }
+      }
+    }
+    for (const node of standalones) {
+      ids.push(node.id);
+    }
+    return ids;
+  }, [situations, hierarchyView, roots, childMap, standalones, collapsedGroups]);
+
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
   // Auto-select first node when tab loads
@@ -153,6 +215,7 @@ export function SituationsTab() {
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
@@ -161,6 +224,7 @@ export function SituationsTab() {
     return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{info.label}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <div className="lineage-detail-label">Summary</div>
           <p className="lineage-detail-text">{info.summary}</p>
@@ -242,6 +306,13 @@ export function SituationsTab() {
           <div className="list-panel-header">
             <h2>Situations</h2>
             <div className="list-panel-header-actions">
+              <button
+                className={`btn btn-sm${hierarchyView ? '' : ' btn-ghost'}`}
+                onClick={toggleHierarchy}
+                title={hierarchyView ? 'Switch to flat list' : 'Switch to hierarchy view'}
+              >
+                {hierarchyView ? 'Tree' : 'Flat'}
+              </button>
               <button className="btn btn-sm" onClick={createSituationNode}>
                 + New
               </button>
@@ -249,15 +320,62 @@ export function SituationsTab() {
             </div>
           </div>
           <div className="list-panel-items">
-            {situations.nodes.map((node) => (
-              <ListItem
-                key={node.id}
-                id={node.id}
-                label={node.label}
-                isSelected={selectedNodeId === node.id}
-                onSelect={setSelectedNodeId}
-              />
-            ))}
+            {hierarchyView ? (
+              <>
+                {roots.map((root) => {
+                  const children = childMap.get(root.id) || [];
+                  const isGroupCollapsed = collapsedGroups.has(root.id);
+                  return (
+                    <div key={root.id} className="node-tree-parent-group">
+                      <div
+                        className={`node-tree-parent-header ${selectedNodeId === root.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedNodeId(root.id)}
+                      >
+                        <span
+                          className={`category-toggle ${isGroupCollapsed ? 'collapsed' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleGroup(root.id); }}
+                        >&#9660;</span>
+                        <span className="node-tree-parent-label">{root.label || '(untitled)'}</span>
+                        <span className="node-tree-parent-count">{children.length}</span>
+                      </div>
+                      {!isGroupCollapsed && children.map((child) => (
+                        <ListItem
+                          key={child.id}
+                          id={child.id}
+                          label={child.label}
+                          isSelected={selectedNodeId === child.id}
+                          onSelect={setSelectedNodeId}
+                          indent
+                          relationship={child.parent_relationship}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                {standalones.length > 0 && roots.length > 0 && (
+                  <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4 }} />
+                )}
+                {standalones.map((node) => (
+                  <ListItem
+                    key={node.id}
+                    id={node.id}
+                    label={node.label}
+                    isSelected={selectedNodeId === node.id}
+                    onSelect={setSelectedNodeId}
+                  />
+                ))}
+              </>
+            ) : (
+              situations.nodes.map((node) => (
+                <ListItem
+                  key={node.id}
+                  id={node.id}
+                  label={node.label}
+                  isSelected={selectedNodeId === node.id}
+                  onSelect={setSelectedNodeId}
+                />
+              ))
+            )}
           </div>
         </div>
       )}
@@ -331,7 +449,20 @@ export function SituationsTab() {
   );
 }
 
-function ListItem({ id, label, isSelected, onSelect }: { id: string; label: string; isSelected: boolean; onSelect: (id: string) => void }) {
+const REL_LABELS: Record<string, string> = {
+  is_a: 'is a',
+  part_of: 'part of',
+  specializes: 'specializes',
+};
+
+function ListItem({ id, label, isSelected, onSelect, indent, relationship }: {
+  id: string;
+  label: string;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  indent?: boolean;
+  relationship?: string | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -343,11 +474,14 @@ function ListItem({ id, label, isSelected, onSelect }: { id: string; label: stri
   return (
     <div
       ref={ref}
-      className={`node-item ${isSelected ? 'selected' : ''}`}
+      className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}`}
       onClick={() => onSelect(id)}
     >
       <div>{label || '(untitled)'}</div>
-      <div className="node-item-id">{id}</div>
+      <div className="node-item-id">
+        {id}
+        {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
+      </div>
     </div>
   );
 }

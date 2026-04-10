@@ -159,7 +159,10 @@ function Get-Tax {
             $PyArgs += @('--top', $Top)
         }
 
-        $PyResult = & $PythonCmd $EmbedScript @PyArgs 2>$null
+        # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
+        $PrevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { $PyResult = & $PythonCmd $EmbedScript @PyArgs 2>$null } finally { $ErrorActionPreference = $PrevEAP }
         if ($LASTEXITCODE -ne 0) {
             Write-Error "embed_taxonomy.py find-overlaps failed (exit code $LASTEXITCODE)."
             return

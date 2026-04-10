@@ -79,7 +79,7 @@ function Invoke-HierarchyProposal {
     foreach ($PovKey in $PovFileMap.Keys) {
         $FilePath = Join-Path $TaxDir $PovFileMap[$PovKey]
         if (Test-Path $FilePath) {
-            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+            $AllTaxData[$PovKey] = Get-Content -Raw -Path $FilePath -Encoding UTF8 | ConvertFrom-Json
             Write-OK "$PovKey`: $($AllTaxData[$PovKey].nodes.Count) nodes"
         }
     }
@@ -531,8 +531,10 @@ $SchemaPrompt
                             if ($Found) { $ChildLabel = $Found.label; break }
                         }
                     }
-                    $Rationale = ($Child.rationale -replace '\|', '/') -replace '\n', ' '
-                    [void]$Md.AppendLine("| $($Child.node_id) | $ChildLabel | $($Child.relationship) | $Rationale |")
+                    $RawRationale = if ($Child.PSObject.Properties['rationale']) { $Child.rationale } else { '' }
+                    $Rationale = ($RawRationale -replace '\|', '/') -replace '\n', ' '
+                    $Rel = if ($Child.PSObject.Properties['relationship']) { $Child.relationship } else { '' }
+                    [void]$Md.AppendLine("| $($Child.node_id) | $ChildLabel | $Rel | $Rationale |")
                 }
                 [void]$Md.AppendLine('')
                 [void]$Md.AppendLine('**Verdict:** [ ] Accept  [ ] Modify  [ ] Reject')

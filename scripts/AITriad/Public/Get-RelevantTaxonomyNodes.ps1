@@ -115,7 +115,15 @@ function Get-RelevantTaxonomyNodes {
     if ($Query.Length -gt 2000) { $QueryText = $Query.Substring(0, 2000) } else { $QueryText = $Query }
 
     try {
-        $EmbOutput = & $PythonCmd $EmbedScript encode $QueryText 2>$null
+        # PS 5.1: native stderr lines become terminating errors under $ErrorActionPreference='Stop'.
+        # Temporarily switch to Continue so Python's progress/warning output on stderr doesn't abort.
+        $PrevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $EmbOutput = & $PythonCmd $EmbedScript encode $QueryText 2>$null
+        } finally {
+            $ErrorActionPreference = $PrevEAP
+        }
         if ($LASTEXITCODE -ne 0) {
             New-ActionableError -Goal 'compute query embedding' `
                 -Problem "embed_taxonomy.py encode failed (exit code $LASTEXITCODE)" `

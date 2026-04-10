@@ -100,43 +100,54 @@ function Invoke-TaxonomyProposal {
     # ── 3. Build compact data representations ──────────────────────────────────
     Write-Step "Building prompt context"
 
-    # Taxonomy nodes (ultra-compact: id, label only — grouped by pov/category header)
+    # Taxonomy nodes (compact: id, label, description — gives the LLM enough to judge overlap)
     $CompactNodes = @()
     foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
         $Entry = $script:TaxonomyData[$PovKey]
         if (-not $Entry) { continue }
         foreach ($Node in $Entry.nodes) {
+            $Desc = ''
+            if ($Node.PSObject.Properties['description']) { $Desc = $Node.description }
             $CompactNodes += @{
-                id    = $Node.id
-                label = $Node.label
+                id          = $Node.id
+                label       = $Node.label
+                description = $Desc
             }
         }
     }
     $TaxonomyNodesJson = $CompactNodes | ConvertTo-Json -Depth 5 -Compress
 
-    # Unmapped concepts (freq >= 2, or top 30) — compact: drop full doc lists and reasons
+    # Unmapped concepts (freq >= 2, or top 30) — compact with nearest-node similarity
+    $NearestNodeMap = $HealthData.NearestNodeMap
+    $NodeIndex = @{}
+    foreach ($N in $CompactNodes) { $NodeIndex[$N.id] = $N }
+
+    $BuildUnmapped = {
+        param($Item)
+        $Entry = @{
+            concept            = $Item.Concept
+            frequency          = $Item.Frequency
+            suggested_pov      = $Item.SuggestedPov
+            suggested_category = $Item.SuggestedCategory
+            doc_count          = $Item.ContributingDocs.Count
+        }
+        # Attach nearest existing nodes (by description embedding similarity)
+        if ($NearestNodeMap -and $NearestNodeMap.ContainsKey($Item.NormalizedKey)) {
+            $Entry.nearest_nodes = @($NearestNodeMap[$Item.NormalizedKey] | ForEach-Object {
+                $NodeLabel = ''
+                if ($NodeIndex.ContainsKey($_.NodeId)) { $NodeLabel = $NodeIndex[$_.NodeId].label }
+                @{ id = $_.NodeId; similarity = $_.Similarity; label = $NodeLabel }
+            })
+        }
+        $Entry
+    }
+
     $UnmappedForPrompt = @($HealthData.UnmappedConcepts |
         Where-Object { $_.Frequency -ge 2 } |
-        ForEach-Object {
-            @{
-                concept            = $_.Concept
-                frequency          = $_.Frequency
-                suggested_pov      = $_.SuggestedPov
-                suggested_category = $_.SuggestedCategory
-                doc_count          = $_.ContributingDocs.Count
-            }
-        })
+        ForEach-Object { & $BuildUnmapped $_ })
     if ($UnmappedForPrompt.Count -eq 0) {
         $UnmappedForPrompt = @($HealthData.UnmappedConcepts | Select-Object -First 30 |
-            ForEach-Object {
-                @{
-                    concept            = $_.Concept
-                    frequency          = $_.Frequency
-                    suggested_pov      = $_.SuggestedPov
-                    suggested_category = $_.SuggestedCategory
-                    doc_count          = $_.ContributingDocs.Count
-                }
-            })
+            ForEach-Object { & $BuildUnmapped $_ })
     }
     $UnmappedJson = $UnmappedForPrompt | ConvertTo-Json -Depth 5 -Compress
 

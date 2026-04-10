@@ -354,6 +354,16 @@ function Invoke-AIApi {
         }
         Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $($LastError.Exception.Message)"
         if ($Hint) { Write-Warning "$($Backend): $Hint" }
+        # Capture response body for debugging
+        try {
+            if ($LastError.Exception.Response) {
+                $ErrStream = $LastError.Exception.Response.GetResponseStream()
+                $ErrReader = [System.IO.StreamReader]::new($ErrStream)
+                $ErrBody   = $ErrReader.ReadToEnd()
+                $ErrReader.Close()
+                Write-Warning "$($Backend): Response body: $ErrBody"
+            }
+        } catch { }
         return $null
     }
 

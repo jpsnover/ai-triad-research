@@ -4,6 +4,10 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import {
+  LINEAGE_CATEGORIES, UNCATEGORIZED, CATEGORY_ORDER,
+  classifyLineage, getCategoryById,
+} from '../data/lineageCategories';
 
 interface LineagePanelProps {
   onSelectValue?: (value: string) => void;
@@ -14,9 +18,10 @@ const catalogKeys = new Set(Object.keys(INTELLECTUAL_LINEAGES));
 export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
   const [query, setQuery] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Merge catalog keys with actual taxonomy lineage values
   const allKeys = useMemo(() => {
@@ -46,48 +51,87 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     return allKeys.filter(k => k.toLowerCase().includes(q));
   }, [query, allKeys]);
 
-  const selectItem = useCallback((index: number) => {
-    if (index < 0 || index >= filtered.length) return;
-    setSelectedIndex(index);
-    onSelectValue?.(filtered[index]);
+  // Group filtered keys by category
+  const grouped = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const catId of CATEGORY_ORDER) {
+      groups.set(catId, []);
+    }
+    for (const key of filtered) {
+      const catId = classifyLineage(key);
+      groups.get(catId)!.push(key);
+    }
+    return groups;
+  }, [filtered]);
+
+  // Flat list for keyboard navigation (respects collapsed state)
+  const visibleKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const catId of CATEGORY_ORDER) {
+      const items = grouped.get(catId);
+      if (!items || items.length === 0) continue;
+      if (!collapsedCategories.has(catId)) {
+        keys.push(...items);
+      }
+    }
+    return keys;
+  }, [grouped, collapsedCategories]);
+
+  const selectItem = useCallback((key: string) => {
+    setSelectedKey(key);
+    onSelectValue?.(key);
     panelRef.current?.focus();
-    const el = resultsRef.current?.children[index] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: 'nearest' });
-  }, [filtered, onSelectValue]);
+    requestAnimationFrame(() => {
+      const el = listRef.current?.querySelector(`[data-lineage-key="${CSS.escape(key)}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [onSelectValue]);
 
   // Auto-select when navigated to from a lineage chip click
   useEffect(() => {
-    // console.log('[LineagePanel] useEffect fired. pendingLineageValue:', pendingLineageValue);
     if (!pendingLineageValue) return;
     const canonicalKey = findKey(pendingLineageValue);
-    // console.log('[LineagePanel] canonicalKey:', canonicalKey, '| filtered.length:', filtered.length);
     if (canonicalKey) {
-      const index = filtered.indexOf(canonicalKey);
-      // console.log('[LineagePanel] index in filtered:', index);
-      if (index >= 0) {
-        setSelectedIndex(index);
-        // console.log('[LineagePanel] calling onSelectValue with:', canonicalKey, '| onSelectValue defined:', !!onSelectValue);
-        onSelectValue?.(canonicalKey);
-        requestAnimationFrame(() => {
-          const el = resultsRef.current?.children[index] as HTMLElement | undefined;
-          el?.scrollIntoView({ block: 'center' });
-        });
-      }
-    } else {
-      // console.log('[LineagePanel] No canonical key found. pendingLineageValue:', JSON.stringify(pendingLineageValue), '| allKeys sample:', allKeys.slice(0, 5));
+      // Ensure the category is expanded
+      const catId = classifyLineage(canonicalKey);
+      setCollapsedCategories(prev => {
+        if (!prev.has(catId)) return prev;
+        const next = new Set(prev);
+        next.delete(catId);
+        return next;
+      });
+      setSelectedKey(canonicalKey);
+      onSelectValue?.(canonicalKey);
+      requestAnimationFrame(() => {
+        const el = listRef.current?.querySelector(`[data-lineage-key="${CSS.escape(canonicalKey)}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ block: 'center' });
+      });
     }
     useTaxonomyStore.setState({ pendingLineageValue: null });
   }, [pendingLineageValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (visibleKeys.length === 0) return;
+    const currentIndex = selectedKey ? visibleKeys.indexOf(selectedKey) : -1;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      selectItem(Math.min(selectedIndex + 1, filtered.length - 1));
+      const next = Math.min(currentIndex + 1, visibleKeys.length - 1);
+      selectItem(visibleKeys[next]);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      selectItem(Math.max(selectedIndex - 1, 0));
+      const next = Math.max(currentIndex - 1, 0);
+      selectItem(visibleKeys[next]);
     }
-  }, [selectedIndex, filtered.length, selectItem]);
+  }, [selectedKey, visibleKeys, selectItem]);
+
+  const toggleCategory = useCallback((catId: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }, []);
 
   return (
     <div className="lineage-panel" ref={panelRef} tabIndex={0} onKeyDown={handleKeyDown}>
@@ -100,20 +144,39 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
           className="search-panel-text-input"
           type="text"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setSelectedIndex(-1); }}
+          onChange={(e) => { setQuery(e.target.value); setSelectedKey(null); }}
           placeholder="Filter lineage values..."
         />
       </div>
-      <div className="lineage-panel-list" ref={resultsRef}>
-        {filtered.map((key, i) => {
-          const info = INTELLECTUAL_LINEAGES[key];
+      <div className="lineage-panel-list" ref={listRef}>
+        {CATEGORY_ORDER.map((catId) => {
+          const items = grouped.get(catId);
+          if (!items || items.length === 0) return null;
+          const cat = getCategoryById(catId);
+          const isCollapsed = collapsedCategories.has(catId);
           return (
-            <div
-              key={key}
-              className={`lineage-panel-item${i === selectedIndex ? ' selected' : ''}`}
-              onClick={() => selectItem(i)}
-            >
-              {info?.label || key}
+            <div key={catId} className="lineage-category-group">
+              <div
+                className="lineage-category-header"
+                onClick={() => toggleCategory(catId)}
+              >
+                <span className={`category-toggle${isCollapsed ? ' collapsed' : ''}`}>&#9660;</span>
+                <span className="lineage-category-label">{cat.label}</span>
+                <span className="lineage-category-count">({items.length})</span>
+              </div>
+              {!isCollapsed && items.map((key) => {
+                const info = INTELLECTUAL_LINEAGES[key];
+                return (
+                  <div
+                    key={key}
+                    data-lineage-key={key}
+                    className={`lineage-panel-item lineage-panel-item-indented${key === selectedKey ? ' selected' : ''}`}
+                    onClick={() => selectItem(key)}
+                  >
+                    {info?.label || key}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

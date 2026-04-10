@@ -24,6 +24,7 @@ import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getCategoryLabel } from '../data/lineageCategories';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
@@ -232,6 +233,7 @@ export function PovTab({ pov }: PovTabProps) {
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
@@ -240,6 +242,7 @@ export function PovTab({ pov }: PovTabProps) {
     return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{info.label}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <div className="lineage-detail-label">Summary</div>
           <p className="lineage-detail-text">{info.summary}</p>

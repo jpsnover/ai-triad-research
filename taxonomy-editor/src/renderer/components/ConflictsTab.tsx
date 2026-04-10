@@ -16,6 +16,7 @@ import { SearchPanel } from './SearchPanel';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getCategoryLabel } from '../data/lineageCategories';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 
@@ -73,6 +74,7 @@ export function ConflictsTab() {
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
@@ -81,6 +83,7 @@ export function ConflictsTab() {
     return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{info.label}</h2>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
         <div className="lineage-detail-section">
           <div className="lineage-detail-label">Summary</div>
           <p className="lineage-detail-text">{info.summary}</p>

@@ -120,7 +120,99 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
-SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json"}
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json"}
+
+# Default weights for multi-field embedding.  Must sum to 1.0.
+# Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
+DEFAULT_FIELD_WEIGHTS = (0.55, 0.35, 0.10, 0.0, 0.0)
+
+
+def _load_lineage_categories():
+    """Load the lineage→category mapping from lineage_categories.json.
+
+    Returns a dict mapping lineage value strings to their category labels,
+    or an empty dict if the file is missing.
+    """
+    lc_path = TAXONOMY_DIR / "lineage_categories.json"
+    if not lc_path.exists():
+        print("Warning: lineage_categories.json not found — lineage field will be empty.", file=sys.stderr)
+        return {}
+
+    try:
+        data = json.loads(lc_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: could not load lineage_categories.json: {exc}", file=sys.stderr)
+        return {}
+
+    # Build id→label lookup
+    cat_labels = {c["id"]: c["label"] for c in data.get("categories", [])}
+    # Build value→label mapping
+    mapping = {}
+    for value, cat_id in data.get("mapping", {}).items():
+        mapping[value] = cat_labels.get(cat_id, "Other")
+    return mapping
+
+
+import re
+_EXCLUDES_RE = re.compile(r"\s*Excludes:.*", re.DOTALL)
+
+
+def _strip_excludes(description: str) -> str:
+    """Remove the 'Excludes: ...' clause from a node description."""
+    return _EXCLUDES_RE.sub("", description).strip()
+
+
+def _compose_field_texts(node, lineage_map):
+    """Extract five embedding-ready text fields from a node.
+
+    Returns (description_text, assumes_text, lineage_text,
+             epistemic_text, rhetorical_text).
+
+    description_text: label + description (sans Excludes)
+    assumes_text:     concatenated assumes statements
+    lineage_text:     deduplicated lineage category labels
+    epistemic_text:   epistemic_type (underscores → spaces)
+    rhetorical_text:  rhetorical_strategy (underscores → spaces)
+    """
+    ga = node.get("graph_attributes", {}) or {}
+
+    # ── Field 1: Description ─────────────────────────────────────────
+    parts = []
+    label = node.get("label", "")
+    if label:
+        parts.append(label)
+
+    desc = node.get("description", "")
+    if desc:
+        parts.append(_strip_excludes(desc))
+
+    description_text = ". ".join(parts) if parts else ""
+
+    # ── Field 2: Assumes ─────────────────────────────────────────────
+    assumes = ga.get("assumes", []) or []
+    assumes_text = ". ".join(assumes) if assumes else ""
+
+    # ── Field 3: Lineage categories ──────────────────────────────────
+    lineage_values = ga.get("intellectual_lineage", []) or []
+    # Resolve to category labels and deduplicate while preserving order
+    seen = set()
+    cat_labels = []
+    for val in lineage_values:
+        cat_label = lineage_map.get(val, "Other")
+        if cat_label not in seen:
+            seen.add(cat_label)
+            cat_labels.append(cat_label)
+    lineage_text = ", ".join(cat_labels) if cat_labels else ""
+
+    # ── Field 4: Epistemic type ──────────────────────────────────────
+    epistemic = ga.get("epistemic_type", "")
+    epistemic_text = epistemic.replace("_", " ") if epistemic else ""
+
+    # ── Field 5: Rhetorical strategy ─────────────────────────────────
+    rhetorical = ga.get("rhetorical_strategy", "")
+    rhetorical_text = rhetorical.replace("_", " ") if rhetorical else ""
+
+    return description_text, assumes_text, lineage_text, epistemic_text, rhetorical_text
 
 
 def _load_taxonomy_nodes():
@@ -130,7 +222,7 @@ def _load_taxonomy_nodes():
         if path.name in SKIP_FILES:
             continue
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
         except (json.JSONDecodeError, OSError) as exc:
             print(f"Warning: skipping {path.name}: {exc}", file=sys.stderr)
             continue
@@ -147,7 +239,7 @@ def _load_policy_registry():
     if not registry_path.exists():
         return []
     try:
-        data = json.loads(registry_path.read_text(encoding="utf-8"))
+        data = json.loads(registry_path.read_text(encoding="utf-8-sig"))
         return data.get("policies", [])
     except (json.JSONDecodeError, OSError) as exc:
         print(f"Warning: could not load policy registry: {exc}", file=sys.stderr)
@@ -155,7 +247,18 @@ def _load_policy_registry():
 
 
 def cmd_generate(args):
-    """Rebuild embeddings.json from all taxonomy JSON files and policy registry."""
+    """Rebuild embeddings.json from all taxonomy JSON files and policy registry.
+
+    For taxonomy nodes, produces a weighted combination of five field embeddings:
+      - description (label + description sans Excludes)
+      - assumes (concatenated assumption statements)
+      - lineage (deduplicated lineage category labels)
+      - epistemic_type (e.g. "normative prescription")
+      - rhetorical_strategy (e.g. "precautionary framing, moral imperative")
+
+    Weights are configurable via --field-weights (default 0.35/0.35/0.20/0.05/0.05).
+    Policies continue to use a single embedding of their action text.
+    """
     nodes = _load_taxonomy_nodes()
     policies = _load_policy_registry()
 
@@ -163,37 +266,105 @@ def cmd_generate(args):
         print("Error: no taxonomy nodes or policies found.", file=sys.stderr)
         sys.exit(1)
 
+    # Parse weights
+    weights = (
+        tuple(float(x) for x in args.field_weights.split(","))
+        if hasattr(args, "field_weights") and args.field_weights
+        else DEFAULT_FIELD_WEIGHTS
+    )
+    if len(weights) == 3:
+        # Backward-compatible: old 3-field format → spread into 5 fields
+        weights = (weights[0], weights[1], weights[2], 0.0, 0.0)
+    if len(weights) != 5:
+        print(f"Error: --field-weights requires 5 values (description,assumes,lineage,epistemic,rhetorical), got {len(weights)}", file=sys.stderr)
+        sys.exit(1)
+    w_desc, w_assumes, w_lineage, w_epistemic, w_rhetorical = weights
+    weight_sum = sum(weights)
+    if abs(weight_sum - 1.0) > 0.01:
+        print(f"Warning: field weights sum to {weight_sum}, not 1.0. Normalizing.", file=sys.stderr)
+        w_desc, w_assumes, w_lineage, w_epistemic, w_rhetorical = (w / weight_sum for w in weights)
+
+    print(
+        f"Field weights: description={w_desc:.2f}, assumes={w_assumes:.2f}, "
+        f"lineage={w_lineage:.2f}, epistemic={w_epistemic:.2f}, rhetorical={w_rhetorical:.2f}",
+        file=sys.stderr,
+    )
+
+    lineage_map = _load_lineage_categories()
     model = _load_model()
 
-    # Embed taxonomy nodes
-    node_texts = [node.get('description', '') for _, node in nodes]
-    all_texts = list(node_texts)
+    # ── Compose field texts for taxonomy nodes ───────────────────────
+    desc_texts = []
+    assumes_texts = []
+    lineage_texts = []
+    epistemic_texts = []
+    rhetorical_texts = []
+    for _, node in nodes:
+        d, a, l, e, r = _compose_field_texts(node, lineage_map)
+        desc_texts.append(d)
+        assumes_texts.append(a)
+        lineage_texts.append(l)
+        epistemic_texts.append(e)
+        rhetorical_texts.append(r)
 
-    # Embed policies
-    policy_texts = [p.get('action', '') for p in policies]
-    all_texts.extend(policy_texts)
+    # ── Collect all texts to encode in one batch ─────────────────────
+    policy_texts = [p.get("action", "") for p in policies]
+    n = len(nodes)
 
-    print(f"Embedding {len(node_texts)} nodes + {len(policy_texts)} policies...", file=sys.stderr)
-    vectors = model.encode(all_texts, normalize_embeddings=True, show_progress_bar=True)
+    all_texts = desc_texts + assumes_texts + lineage_texts + epistemic_texts + rhetorical_texts + policy_texts
+    print(
+        f"Encoding {n} nodes x 5 fields + {len(policy_texts)} policies "
+        f"({len(all_texts)} total texts)...",
+        file=sys.stderr,
+    )
+    all_vecs = model.encode(all_texts, normalize_embeddings=True, show_progress_bar=True)
 
-    # Build output structure
+    # Slice into per-field arrays
+    desc_vecs = all_vecs[0:n]
+    assumes_vecs = all_vecs[n : 2 * n]
+    lineage_vecs = all_vecs[2 * n : 3 * n]
+    epistemic_vecs = all_vecs[3 * n : 4 * n]
+    rhetorical_vecs = all_vecs[4 * n : 5 * n]
+    policy_vecs = all_vecs[5 * n :]
+
+    # ── Weighted combination for taxonomy nodes ──────────────────────
+    node_vectors = (
+        w_desc * desc_vecs
+        + w_assumes * assumes_vecs
+        + w_lineage * lineage_vecs
+        + w_epistemic * epistemic_vecs
+        + w_rhetorical * rhetorical_vecs
+    )
+
+    # Re-normalize so downstream cosine similarity works correctly
+    norms = np.linalg.norm(node_vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0  # avoid division by zero for empty nodes
+    node_vectors = node_vectors / norms
+
+    # ── Build output structure ───────────────────────────────────────
     nodes_dict = {}
     for i, (pov, node) in enumerate(nodes):
         nodes_dict[node["id"]] = {
             "pov": pov,
-            "vector": vectors[i].tolist(),
+            "vector": node_vectors[i].tolist(),
         }
 
-    offset = len(nodes)
     for i, pol in enumerate(policies):
         nodes_dict[pol["id"]] = {
             "pov": "policy",
-            "vector": vectors[offset + i].tolist(),
+            "vector": policy_vecs[i].tolist(),
         }
 
     output = {
         "model": MODEL_NAME,
-        "dimension": int(vectors.shape[1]),
+        "dimension": int(all_vecs.shape[1]),
+        "field_weights": {
+            "description": w_desc,
+            "assumes": w_assumes,
+            "lineage": w_lineage,
+            "epistemic": w_epistemic,
+            "rhetorical": w_rhetorical,
+        },
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "node_count": len(nodes_dict),
         "nodes": nodes_dict,
@@ -203,8 +374,8 @@ def cmd_generate(args):
         json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print(
-        f"Wrote {len(nodes_dict)} embeddings ({len(node_texts)} nodes + "
-        f"{len(policy_texts)} policies, {vectors.shape[1]}d) to {EMBEDDINGS_FILE}",
+        f"Wrote {len(nodes_dict)} embeddings ({n} nodes + "
+        f"{len(policy_texts)} policies, {all_vecs.shape[1]}d) to {EMBEDDINGS_FILE}",
         file=sys.stderr,
     )
 
@@ -483,7 +654,16 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     # generate
-    sub.add_parser("generate", help="Rebuild taxonomy/embeddings.json")
+    gen = sub.add_parser("generate", help="Rebuild taxonomy/embeddings.json")
+    gen.add_argument(
+        "--field-weights",
+        default=None,
+        help=(
+            "Comma-separated weights for description,assumes,lineage,epistemic,rhetorical fields "
+            "(3-value format also accepted for backward compat) "
+            f"(default: {','.join(str(w) for w in DEFAULT_FIELD_WEIGHTS)}). Must sum to ~1.0."
+        ),
+    )
 
     # query
     q = sub.add_parser("query", help="Semantic search over taxonomy nodes")

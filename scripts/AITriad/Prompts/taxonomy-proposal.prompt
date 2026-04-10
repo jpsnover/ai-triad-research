@@ -26,7 +26,7 @@ Analyze the health data provided below and generate structured proposals to impr
 
 ### Action Types
 
-1. **NEW** — Add a new node. Use when unmapped concepts appear repeatedly (frequency >= 2) and represent a genuinely distinct idea not covered by existing nodes. Assign a proper ID following the naming convention.
+1. **NEW** — Add a new node. Use when unmapped concepts appear repeatedly (frequency >= 2) and represent a genuinely distinct idea not covered by existing nodes. Assign a proper ID following the naming convention. Each unmapped concept includes `nearest_nodes` — the top existing nodes ranked by description embedding similarity. **Do NOT propose NEW if any nearest node has similarity >= 0.80**; instead propose a RELABEL or MERGE if the existing node's description needs updating, or simply skip the concept (it is already covered). For similarity 0.60–0.80, carefully compare the concept against the nearest node's description before proposing NEW.
 
 2. **SPLIT** — Split an overloaded node into two or more specific children. Use when a single node accumulates citations from very different contexts or has high stance variance that suggests it conflates distinct concepts.
 
@@ -58,6 +58,7 @@ Analyze the health data provided below and generate structured proposals to impr
   - 2-4 sentences total. Write for a policy reporter — active voice, concrete examples, quotable sentences. No nominalizations or hedge stacking.
 - Prioritize proposals that address: (a) strong unmapped candidates (frequency >= 3), (b) orphan nodes, (c) high stance-variance nodes, (d) coverage imbalances.
 - Do NOT propose changes that merely rephrase existing nodes without substantive benefit.
+- Do NOT propose NEW nodes that duplicate existing coverage. Check each unmapped concept's `nearest_nodes` similarity scores — if the top match is >= 0.80, the concept is already covered. Existing taxonomy nodes now include descriptions to help you judge overlap.
 
 ---
 

@@ -295,6 +295,93 @@ function Get-TaxonomyHealthData {
         }
     }
 
+    # ── Auto-resolve unmapped concepts that duplicate existing nodes ────
+    # Compares each unmapped concept description against cached node embeddings
+    # (which are computed from node descriptions). Concepts above threshold are
+    # resolved to the matching node and removed from the unmapped list.
+    $NODE_SIM_THRESHOLD = 0.80
+    $NearestNodeMap = @{}
+
+    if ($UnmappedSorted.Count -gt 0) {
+        # Load cached node embeddings (description-based, from embeddings.json)
+        $EmbPath = Join-Path (Get-TaxonomyDir) 'embeddings.json'
+        $NodeEmbeddings = $null
+        if (Test-Path $EmbPath) {
+            try {
+                $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
+                $NodeEmbeddings = @{}
+                foreach ($Prop in $EmbData.nodes.PSObject.Properties) {
+                    $NodeEmbeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
+                }
+            }
+            catch {
+                Write-Verbose "Get-TaxonomyHealthData: failed to load embeddings.json — skipping node similarity check"
+            }
+        }
+
+        if ($null -ne $NodeEmbeddings -and $NodeEmbeddings.Count -gt 0) {
+            # Embed unmapped concept texts (use concept label as the text)
+            $conceptEmbeddings = Get-TextEmbedding -Texts @($UnmappedSorted.Concept)
+            if ($null -ne $conceptEmbeddings) {
+                $autoResolved = 0
+                $afterNodeFilter = [System.Collections.Generic.List[PSObject]]::new()
+                # Track nearest-node matches for concepts that survive filtering
+                $NearestNodeMap = @{}
+
+                for ($i = 0; $i -lt $UnmappedSorted.Count; $i++) {
+                    $conceptVec = $conceptEmbeddings["$i"]
+                    if (-not $conceptVec) {
+                        $afterNodeFilter.Add($UnmappedSorted[$i])
+                        continue
+                    }
+
+                    # Find best matching node by cosine similarity on descriptions
+                    $bestSim = -1.0
+                    $bestNodeId = $null
+                    $topMatches = [System.Collections.Generic.List[PSObject]]::new()
+
+                    foreach ($NodeId in $NodeEmbeddings.Keys) {
+                        $nodeVec = $NodeEmbeddings[$NodeId]
+                        if ($nodeVec.Count -ne $conceptVec.Count) { continue }
+
+                        $dot = 0.0; $na = 0.0; $nb = 0.0
+                        for ($k = 0; $k -lt $conceptVec.Count; $k++) {
+                            $dot += $conceptVec[$k] * $nodeVec[$k]
+                            $na  += $conceptVec[$k] * $conceptVec[$k]
+                            $nb  += $nodeVec[$k] * $nodeVec[$k]
+                        }
+                        $denom = [Math]::Sqrt($na) * [Math]::Sqrt($nb)
+                        if ($denom -gt 0) { $sim = $dot / $denom } else { $sim = 0.0 }
+
+                        if ($sim -gt $bestSim) {
+                            $bestSim = $sim
+                            $bestNodeId = $NodeId
+                        }
+
+                        # Track top-3 for prompt enrichment
+                        $topMatches.Add([PSCustomObject]@{ NodeId = $NodeId; Similarity = [Math]::Round($sim, 4) })
+                    }
+
+                    $top3 = @($topMatches | Sort-Object Similarity -Descending | Select-Object -First 3)
+                    $NearestNodeMap[$UnmappedSorted[$i].NormalizedKey] = $top3
+
+                    if ($bestSim -ge $NODE_SIM_THRESHOLD -and $bestNodeId) {
+                        $autoResolved++
+                        Write-Verbose ("Auto-resolved unmapped concept '{0}' -> {1} (sim={2:N3})" -f $UnmappedSorted[$i].Concept, $bestNodeId, $bestSim)
+                    }
+                    else {
+                        $afterNodeFilter.Add($UnmappedSorted[$i])
+                    }
+                }
+
+                $UnmappedSorted = @($afterNodeFilter | Sort-Object { $_.Frequency } -Descending)
+                if ($autoResolved -gt 0) {
+                    Write-Verbose "Node similarity filter: auto-resolved $autoResolved unmapped concepts (threshold=$NODE_SIM_THRESHOLD), $($UnmappedSorted.Count) remain"
+                }
+            }
+        }
+    }
+
     $StrongCandidates = @($UnmappedSorted | Where-Object { $_.Frequency -ge 3 })
 
     # Stance variance per node
@@ -656,5 +743,6 @@ function Get-TaxonomyHealthData {
         SummaryStats      = $SummaryStatsResult
         GraphHealth       = $GraphHealth
         DensitySignals    = $DensitySignals.ToArray()
+        NearestNodeMap    = if ($NearestNodeMap) { $NearestNodeMap } else { @{} }
     }
 }
