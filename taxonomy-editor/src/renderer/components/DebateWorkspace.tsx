@@ -238,6 +238,49 @@ function ProgressIndicator() {
   );
 }
 
+const EXPORT_FORMATS_INLINE = [
+  { id: 'json', label: 'JSON' },
+  { id: 'markdown', label: 'Markdown' },
+  { id: 'text', label: 'Plain Text' },
+  { id: 'pdf', label: 'PDF' },
+  { id: 'package', label: 'Package (ZIP)' },
+];
+
+function ExportButtonInline({ onExport }: { onExport: (format: string) => void }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', marginLeft: 'auto' }}>
+      <button className="btn btn-sm" onClick={() => setShowMenu(!showMenu)} title="Export debate">
+        Export &#9662;
+      </button>
+      {showMenu && (
+        <div className="export-format-menu">
+          {EXPORT_FORMATS_INLINE.map(f => (
+            <button
+              key={f.id}
+              className="export-format-item"
+              onClick={() => { onExport(f.id); setShowMenu(false); }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Similar POVs panel ───────────────────────────────────
 
 function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () => void }) {
@@ -1315,7 +1358,10 @@ function RefinedTopicEditor() {
   );
 }
 
-export function DebateWorkspace() {
+export function DebateWorkspace({ onExport, exportStatus }: {
+  onExport?: (format: string) => void;
+  exportStatus?: string | null;
+} = {}) {
   const {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
@@ -1505,13 +1551,8 @@ export function DebateWorkspace() {
 
   return (
     <div className="debate-workspace">
-      {/* Topic bar */}
-      <div className="debate-topic-bar">
-        <span className="debate-phase-indicator">
-          {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
-        </span>
-        <span className="debate-topic-text">{activeDebate.topic.final}</span>
-        {coverageMap && <CoverageBadge coverageMap={coverageMap} />}
+      {/* Fixed toolbar — always visible */}
+      <div className="debate-toolbar">
         {activeDebate.convergence_tracker && activeDebate.convergence_tracker.issues.length > 0 && (
           <button
             className={`btn btn-sm debate-convergence-btn${showConvergence ? ' active' : ''}`}
@@ -1537,12 +1578,13 @@ export function DebateWorkspace() {
             Details
           </button>
         )}
+        {exportStatus && (
+          <span className="debate-toolbar-status">{exportStatus}</span>
+        )}
+        {onExport && (
+          <ExportButtonInline onExport={onExport} />
+        )}
       </div>
-
-      {/* Debater toggle pills */}
-      {(isDebatePhase || isOpeningPhase) && (
-        <DebaterToggles />
-      )}
 
       {/* Cross-cutting context dialog */}
       {showCCDetails && activeDebate.source_content && (
@@ -1566,11 +1608,6 @@ export function DebateWorkspace() {
         </div>
       )}
 
-      {/* Refined topic editor (shown after synthesis, only during clarification) */}
-      {activeDebate.topic.refined && activeDebate.phase === 'clarification' && (
-        <RefinedTopicEditor />
-      )}
-
       {/* Find bar */}
       {findVisible && (
         <FindBar
@@ -1584,8 +1621,28 @@ export function DebateWorkspace() {
         />
       )}
 
-      {/* Transcript */}
-      <div className="debate-transcript" onContextMenu={handleContextMenu}>
+      {/* Scrollable content: topic, debaters, transcript */}
+      <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
+        {/* Topic info */}
+        <div className="debate-topic-info">
+          <span className="debate-phase-indicator">
+            {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
+          </span>
+          <span className="debate-topic-text">{activeDebate.topic.final}</span>
+          {coverageMap && <CoverageBadge coverageMap={coverageMap} />}
+        </div>
+
+        {/* Debater toggle pills */}
+        {(isDebatePhase || isOpeningPhase) && (
+          <DebaterToggles />
+        )}
+
+        {/* Refined topic editor (shown after synthesis, only during clarification) */}
+        {activeDebate.topic.refined && activeDebate.phase === 'clarification' && (
+          <RefinedTopicEditor />
+        )}
+
+        {/* Transcript */}
         {activeDebate.transcript.length === 0 && !debateGenerating && (
           <div className="debate-transcript-empty">
             The debate is ready to begin. Clarification questions will appear here.
@@ -1629,7 +1686,7 @@ export function DebateWorkspace() {
         <div ref={transcriptEndRef} />
       </div>
 
-      {/* Phase-aware action bar */}
+      {/* Phase-aware action bar (fixed at bottom) */}
       {isClarificationPhase && <ClarificationActions />}
       {isOpeningPhase && <OpeningActions />}
 
