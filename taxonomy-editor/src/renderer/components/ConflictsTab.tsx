@@ -53,25 +53,37 @@ export function ConflictsTab() {
   const [collapsedClusters, setCollapsedClusters] = useState<Set<string>>(() => loadCollapsedClusters());
   const initialCollapseApplied = useRef(false);
 
-  // Run clustering on mount
-  useEffect(() => {
-    if (!conflictClusters && !conflictClusterLoading && conflicts.length > 0) {
-      runClusterConflicts();
+  // Alpha-bucket grouping (zero-dependency, always available)
+  const alphaClusters = useMemo(() => {
+    if (conflicts.length === 0) return [];
+    const sorted = [...conflicts].sort((a, b) => a.claim_label.localeCompare(b.claim_label));
+    const buckets = new Map<string, string[]>();
+    for (const c of sorted) {
+      const first = (c.claim_label[0] || '#').toUpperCase();
+      const key = /[A-Z]/.test(first) ? first : '#';
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(c.claim_id);
     }
-  }, [conflicts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    return [...buckets.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([letter, ids]) => ({ label: letter, nodeIds: ids }));
+  }, [conflicts]);
+
+  // Use semantic clusters if available, else alpha buckets
+  const displayClusters = conflictClusters || alphaClusters;
 
   // Default all clusters to collapsed on first load
   useEffect(() => {
-    if (conflictClusters && !initialCollapseApplied.current) {
+    if (displayClusters.length > 0 && !initialCollapseApplied.current) {
       initialCollapseApplied.current = true;
       // Only set defaults if user hasn't saved preferences yet
       if (collapsedClusters.size === 0) {
-        const allKeys = new Set(conflictClusters.map(c => c.label));
+        const allKeys = new Set(displayClusters.map(c => c.label));
         setCollapsedClusters(allKeys);
         saveCollapsedClusters(allKeys);
       }
     }
-  }, [conflictClusters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displayClusters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleCluster = useCallback((key: string) => {
     setCollapsedClusters(prev => {
@@ -86,15 +98,10 @@ export function ConflictsTab() {
     });
   }, []);
 
-  // Build ordered IDs — cluster order if available, else alphabetical by label
+  // Build ordered IDs from display clusters
   const orderedIds = useMemo(() => {
-    if (conflictClusters) {
-      return conflictClusters.flatMap(c => c.nodeIds);
-    }
-    return [...conflicts]
-      .sort((a, b) => a.claim_label.localeCompare(b.claim_label))
-      .map(c => c.claim_id);
-  }, [conflicts, conflictClusters]);
+    return displayClusters.flatMap(c => c.nodeIds);
+  }, [displayClusters]);
 
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId);
 
@@ -218,17 +225,7 @@ export function ConflictsTab() {
             </div>
           </div>
           <div className="list-panel-items">
-            {conflictClusterLoading && (
-              <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                Clustering conflicts...
-              </div>
-            )}
-            {conflictClusterError && (
-              <div style={{ padding: '16px', color: 'var(--color-skp)', fontSize: '0.85rem' }}>
-                {conflictClusterError}
-              </div>
-            )}
-            {conflictClusters ? conflictClusters.map((cluster) => {
+            {displayClusters.map((cluster) => {
               const isCollapsed = collapsedClusters.has(cluster.label);
               return (
                 <div key={cluster.label} className="category-group cluster-group">
@@ -256,19 +253,7 @@ export function ConflictsTab() {
                   })}
                 </div>
               );
-            }) : [...conflicts]
-              .sort((a, b) => a.claim_label.localeCompare(b.claim_label))
-              .map((conflict) => (
-                <ConflictListItem
-                  key={conflict.claim_id}
-                  claimId={conflict.claim_id}
-                  label={conflict.claim_label}
-                  status={conflict.status}
-                  isSelected={selectedNodeId === conflict.claim_id}
-                  onSelect={setSelectedNodeId}
-                />
-              ))
-            }
+            })}
           </div>
         </div>
       )}

@@ -1087,13 +1087,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   loadAll: async () => {
     set({ loading: true });
     try {
-      const [acc, saf, skp, cc, conflicts, polReg] = await Promise.all([
+      const [acc, saf, skp, cc, conflicts, polReg, conflictClusterData] = await Promise.all([
         api.loadTaxonomyFile('accelerationist'),
         api.loadTaxonomyFile('safetyist'),
         api.loadTaxonomyFile('skeptic'),
         api.loadTaxonomyFile('situations'),
         api.loadConflictFiles(),
         api.loadPolicyRegistry(),
+        api.loadConflictClusters().catch(() => null),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       // Situations migration shim: normalize cross_cutting_refs → situation_refs on POV nodes
@@ -1104,6 +1105,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           }
         }
       }
+      // Parse pre-computed conflict clusters if available
+      const precomputedClusters = conflictClusterData &&
+        typeof conflictClusterData === 'object' &&
+        Array.isArray((conflictClusterData as { clusters: unknown }).clusters)
+        ? (conflictClusterData as { clusters: { label: string; nodeIds: string[] }[] }).clusters
+        : null;
+
       set({
         accelerationist: acc as PovTaxonomyFile,
         safetyist: saf as PovTaxonomyFile,
@@ -1111,6 +1119,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         situations: cc as SituationsFile,
         policyRegistry: regData?.policies ?? null,
         conflicts: conflicts as ConflictFile[],
+        conflictClusters: precomputedClusters,
         loading: false,
         dirty: new Set(),
         embeddingCache: new Map(),

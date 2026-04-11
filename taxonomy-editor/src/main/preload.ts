@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadConflictFiles: (): Promise<unknown[]> =>
     ipcRenderer.invoke('load-conflict-files'),
 
+  loadConflictClusters: (): Promise<unknown | null> =>
+    ipcRenderer.invoke('load-conflict-clusters'),
+
   saveConflictFile: (claimId: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('save-conflict-file', claimId, data),
 

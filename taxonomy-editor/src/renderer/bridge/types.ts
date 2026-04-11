@@ -28,6 +28,7 @@ export interface AppAPI {
 
   // --- Conflict CRUD ---
   loadConflictFiles: () => Promise<unknown[]>;
+  loadConflictClusters: () => Promise<unknown | null>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;

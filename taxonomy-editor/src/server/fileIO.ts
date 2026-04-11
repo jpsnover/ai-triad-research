@@ -100,10 +100,18 @@ function getConflictsDir(): string {
   return resolveDataPath(config.conflicts_dir);
 }
 
+export function readConflictClusters(): unknown | null {
+  const filePath = path.join(getConflictsDir(), '_conflict-clusters.json');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch { return null; }
+}
+
 export function readAllConflictFiles(): unknown[] {
   const dir = getConflictsDir();
   if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
   const results: unknown[] = [];
   for (const f of files) {
     try {

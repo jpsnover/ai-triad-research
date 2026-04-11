@@ -230,11 +230,19 @@ export function readPolicyRegistry(): unknown {
   return parseJsonFile(filePath);
 }
 
+export function readConflictClusters(): unknown | null {
+  const filePath = path.join(CONFLICTS_DIR, '_conflict-clusters.json');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return parseJsonFile(filePath);
+  } catch { return null; }
+}
+
 export function readAllConflictFiles(): unknown[] {
   if (!fs.existsSync(CONFLICTS_DIR)) {
     return [];
   }
-  const files = fs.readdirSync(CONFLICTS_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(CONFLICTS_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_'));
   const results: unknown[] = [];
   for (const f of files) {
     try {

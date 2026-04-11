@@ -8,6 +8,7 @@ import {
   readTaxonomyFile,
   writeTaxonomyFile,
   readAllConflictFiles,
+  readConflictClusters,
   writeConflictFile,
   createConflictFile,
   deleteConflictFile,
@@ -78,6 +79,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-conflict-files', () => {
     return readAllConflictFiles();
+  });
+
+  ipcMain.handle('load-conflict-clusters', () => {
+    return readConflictClusters();
   });
 
   ipcMain.handle('save-conflict-file', (_event, claimId: string, data: unknown) => {

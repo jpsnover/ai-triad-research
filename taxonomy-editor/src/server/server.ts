@@ -113,6 +113,10 @@ get('/api/conflicts', (_req, res) => {
   json(res, fileIO.readAllConflictFiles());
 });
 
+get('/api/conflicts/clusters', (_req, res) => {
+  json(res, fileIO.readConflictClusters());
+});
+
 put('/api/conflicts/:id', (req, res, body) => {
   try {
     const id = param(req, 'id', '/api/conflicts/:id');

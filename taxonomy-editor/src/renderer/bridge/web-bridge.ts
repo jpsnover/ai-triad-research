@@ -149,6 +149,7 @@ export const api: AppAPI = {
 
   // Conflict CRUD
   loadConflictFiles: () => get('/api/conflicts'),
+  loadConflictClusters: () => get('/api/conflicts/clusters'),
   saveConflictFile: (id, data) => put(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   createConflictFile: (id, data) => post(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   deleteConflictFile: (id) => del(`/api/conflicts/${encodeURIComponent(id)}`).then(() => {}),
