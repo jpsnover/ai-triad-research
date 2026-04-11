@@ -67,11 +67,18 @@ export function getOrderedNodeIds(
 }
 
 const COLLAPSE_STORAGE_KEY = 'taxonomy-editor-collapsed-categories';
+const COLLAPSE_VERSION_KEY = 'taxonomy-editor-collapsed-version';
+const COLLAPSE_VERSION = 2; // bump to reset all users to collapsed-by-default
 
 function loadCollapsed(): Set<string> {
   try {
-    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
-    if (raw) return new Set(JSON.parse(raw));
+    const version = Number(localStorage.getItem(COLLAPSE_VERSION_KEY) || '0');
+    if (version >= COLLAPSE_VERSION) {
+      const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    }
+    // First run or version bump — default collapsed & store the version
+    localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
   } catch { /* ignore */ }
   // Default: all categories collapsed
   return new Set(CATEGORY_ORDER);

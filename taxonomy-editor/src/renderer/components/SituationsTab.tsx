@@ -44,8 +44,12 @@ export function SituationsTab() {
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem('taxonomy-editor-sit-collapsed');
-      if (raw) return new Set(JSON.parse(raw));
+      const version = Number(localStorage.getItem('taxonomy-editor-sit-collapsed-version') || '0');
+      if (version >= 2) {
+        const raw = localStorage.getItem('taxonomy-editor-sit-collapsed');
+        if (raw) return new Set(JSON.parse(raw));
+      }
+      localStorage.setItem('taxonomy-editor-sit-collapsed-version', '2');
     } catch { /* ignore */ }
     return new Set(['__default_collapsed__']); // sentinel: collapse all on first load
   });
