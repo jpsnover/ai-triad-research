@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import { api } from '@bridge';
 
+const isWeb = import.meta.env.VITE_TARGET === 'web';
+
 interface FirstRunDialogProps {
   dataRoot: string;
   onComplete: () => void;
@@ -13,17 +15,39 @@ interface FirstRunDialogProps {
 export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogProps) {
   const [status, setStatus] = useState<'prompt' | 'downloading' | 'done' | 'error'>('prompt');
   const [message, setMessage] = useState('');
-  const [downloadPath, setDownloadPath] = useState(dataRoot);
+  const [downloadPath, setDownloadPath] = useState(dataRoot || '/data');
+  const [locatePath, setLocatePath] = useState('');
 
   const handleLocateData = async () => {
-    const result = await api.pickDirectory(dataRoot);
-    if (!result.cancelled && result.path) {
-      // Point the app at the selected directory and relaunch
-      await api.setDataRoot(result.path);
+    if (isWeb) {
+      // In web/container mode, use the typed path
+      if (!locatePath.trim()) return;
+      try {
+        await api.setDataRoot(locatePath.trim());
+        // Verify data is actually there after setting root
+        const available = await api.isDataAvailable();
+        if (available) {
+          onComplete();
+        } else {
+          setMessage(`No taxonomy data found at "${locatePath}". Check the path and try again.`);
+          setStatus('error');
+        }
+      } catch (err) {
+        setMessage(String(err));
+        setStatus('error');
+      }
+    } else {
+      // Electron mode: native file dialog
+      const result = await api.pickDirectory(dataRoot);
+      if (!result.cancelled && result.path) {
+        await api.setDataRoot(result.path);
+        onComplete();
+      }
     }
   };
 
   const handleBrowseDownloadPath = async () => {
+    if (isWeb) return; // no native dialog in web mode
     const result = await api.pickDirectory(downloadPath);
     if (!result.cancelled && result.path) {
       setDownloadPath(result.path);
@@ -38,8 +62,8 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
       if (result.success) {
         setStatus('done');
         setMessage('Data downloaded successfully!');
-        // Point the app at the downloaded data and relaunch
         await api.setDataRoot(downloadPath);
+        setTimeout(onComplete, 1500);
       } else {
         setStatus('error');
         setMessage(result.message);
@@ -65,8 +89,23 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
 
             <div className="first-run-section">
               <p className="first-run-section-label">Already have the data?</p>
+              {isWeb ? (
+                <div className="first-run-path">
+                  <span className="first-run-path-label">Path to data directory:</span>
+                  <div className="first-run-path-row">
+                    <input
+                      type="text"
+                      className="first-run-path-input"
+                      value={locatePath}
+                      onChange={(e) => setLocatePath(e.target.value)}
+                      placeholder="/path/to/ai-triad-data"
+                      onKeyDown={(e) => e.key === 'Enter' && handleLocateData()}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <button className="btn btn-primary first-run-btn" onClick={handleLocateData}>
-                Locate Existing Data...
+                {isWeb ? 'Use This Path' : 'Locate Existing Data...'}
               </button>
             </div>
 
@@ -79,14 +118,25 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
               <div className="first-run-path">
                 <span className="first-run-path-label">Download to:</span>
                 <div className="first-run-path-row">
-                  <code className="first-run-path-value">{downloadPath}</code>
-                  <button
-                    className="btn btn-sm first-run-browse-btn"
-                    onClick={handleBrowseDownloadPath}
-                    title="Choose a different directory"
-                  >
-                    Browse...
-                  </button>
+                  {isWeb ? (
+                    <input
+                      type="text"
+                      className="first-run-path-input"
+                      value={downloadPath}
+                      onChange={(e) => setDownloadPath(e.target.value)}
+                    />
+                  ) : (
+                    <>
+                      <code className="first-run-path-value">{downloadPath}</code>
+                      <button
+                        className="btn btn-sm first-run-browse-btn"
+                        onClick={handleBrowseDownloadPath}
+                        title="Choose a different directory"
+                      >
+                        Browse...
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <button className="btn first-run-btn" onClick={handleDownload}>
@@ -125,8 +175,8 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
           <div className="first-run-progress">
             <p className="first-run-error">{message}</p>
             <div className="first-run-actions">
-              <button className="btn btn-primary first-run-btn" onClick={handleDownload}>
-                Retry
+              <button className="btn btn-primary first-run-btn" onClick={() => setStatus('prompt')}>
+                Back
               </button>
               <button className="btn first-run-btn" onClick={onSkip}>
                 Skip

@@ -187,8 +187,8 @@ export const api: AppAPI = {
   saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   exportDebateToFile: async (session, format = 'json') => {
-    const { debateToText, debateToMarkdown, debateToHtml, debateExportFilename } = await import('@lib/debate/debateExport');
-    const debate = session as Parameters<typeof debateToText>[0];
+    const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
+    const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
     let content: string;
     let mimeType: string;
     let ext: string;
@@ -214,6 +214,18 @@ export const api: AppAPI = {
           printWindow.addEventListener('load', () => printWindow.print());
         }
         return { cancelled: false, filePath: debateExportFilename(debate.title, 'pdf') };
+      }
+      case 'package': {
+        // ZIP package — no PDF generator in browser, so HTML fallback is included
+        const zipBytes = await debateToPackage(debate);
+        const filename = debateExportFilename(debate.title, 'zip');
+        const blob = new Blob([zipBytes.buffer as ArrayBuffer], { type: 'application/zip' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return { cancelled: false, filePath: filename };
       }
       default:
         content = JSON.stringify(debate, null, 2);

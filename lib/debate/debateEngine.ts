@@ -1598,11 +1598,14 @@ Return ONLY JSON (no markdown, no code fences):
     debaterClaims?: { claim: string; targets: string[] }[],
   ): Promise<void> {
     const an = this.session.argument_network!;
-    const priorClaims = an.nodes.map(n => ({
+    // Include all prior claims but cap at last 30 to keep the prompt manageable.
+    // Earlier claims are still in the network but won't be offered as relationship targets.
+    const allPriorClaims = an.nodes.map(n => ({
       id: n.id,
       text: n.text,
       speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker,
     }));
+    const priorClaims = allPriorClaims.slice(-30);
 
     let prompt: string;
     if (debaterClaims && debaterClaims.length > 0) {
@@ -1634,6 +1637,10 @@ Return ONLY JSON (no markdown, no code fences):
     const rejected: { text: string; reason: string; overlap_pct: number }[] = [];
     const turnNumber = this.session.transcript.length;
 
+    // Debater-provided claims (classifyClaimsPrompt path) are already grounded
+    // in the statement, so use a lower overlap threshold.
+    const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
+
     for (const claim of claims.slice(0, 4)) {
       if (!claim.text || claim.text.length < 10) continue;
 
@@ -1642,7 +1649,7 @@ Return ONLY JSON (no markdown, no code fences):
       const stmtWords = new Set(statement.toLowerCase().split(/\s+/).filter(w => w.length > 3));
       const overlap = [...claimWords].filter(w => stmtWords.has(w)).length / Math.max(claimWords.size, 1);
 
-      if (overlap < 0.3) {
+      if (overlap < overlapThreshold) {
         rejected.push({ text: claim.text, reason: 'low overlap', overlap_pct: Math.round(overlap * 100) });
         continue;
       }

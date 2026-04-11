@@ -295,6 +295,23 @@ body {
   min-width: 0;
 }
 
+.first-run-path-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.first-run-path-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
 .first-run-browse-btn {
   flex-shrink: 0;
   font-size: 0.75rem;
@@ -5453,8 +5470,9 @@ body {
 
 .debate-topic-bar {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -5694,9 +5712,8 @@ body {
 .debate-topic-text {
   font-size: 0.85rem;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 /* ─── Diagnostics Panel ──────────────────────────────── */

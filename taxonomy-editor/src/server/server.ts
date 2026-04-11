@@ -184,6 +184,20 @@ get('/api/data/root', (_req, res) => {
   json(res, fileIO.getDataRootPath());
 });
 
+post('/api/data/set-root', (_req, res, body) => {
+  const { newRoot } = body as { newRoot: string };
+  try {
+    if (!fs.existsSync(newRoot)) {
+      json(res, { success: false, message: `Directory does not exist: ${newRoot}` }, 400);
+      return;
+    }
+    process.env.AI_TRIAD_DATA_ROOT = path.resolve(newRoot);
+    json(res, { success: true });
+  } catch (err) {
+    json(res, { success: false, message: String(err) }, 500);
+  }
+});
+
 post('/api/data/clone', async (_req, res, body) => {
   const { targetPath } = body as { targetPath: string };
   try {

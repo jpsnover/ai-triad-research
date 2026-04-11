@@ -32,7 +32,7 @@ import {
   saveChatSession,
   deleteChatSession,
 } from './chatIO';
-import { debateToText, debateToMarkdown, debateToPdf } from './debateExport';
+import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
@@ -465,7 +465,7 @@ export function registerIpcHandlers(): void {
       .substring(0, 60);
 
     // Map format to default extension for the save dialog
-    const formatExtMap: Record<string, string> = { json: 'json', markdown: 'md', text: 'txt', pdf: 'pdf' };
+    const formatExtMap: Record<string, string> = { json: 'json', markdown: 'md', text: 'txt', pdf: 'pdf', package: 'zip' };
     const defaultExt = formatExtMap[format || 'json'] || 'json';
 
     // Put the requested format first in the filter list
@@ -474,6 +474,7 @@ export function registerIpcHandlers(): void {
       { name: 'Markdown', extensions: ['md'] },
       { name: 'Plain Text', extensions: ['txt'] },
       { name: 'PDF', extensions: ['pdf'] },
+      { name: 'Package (ZIP)', extensions: ['zip'] },
     ];
     const selectedIdx = allFilters.findIndex(f => f.extensions[0] === defaultExt);
     const filters = selectedIdx > 0
@@ -511,6 +512,16 @@ export function registerIpcHandlers(): void {
       case 'pdf': {
         const pdfBuffer = await debateToPdf(debate);
         fs.writeFileSync(filePath, pdfBuffer);
+        break;
+      }
+      case 'zip': {
+        const zipBytes = await debateToPackage(debate, {
+          generatePdf: async (s) => {
+            const buf = await debateToPdf(s);
+            return new Uint8Array(buf);
+          },
+        });
+        fs.writeFileSync(filePath, Buffer.from(zipBytes));
         break;
       }
       default: {

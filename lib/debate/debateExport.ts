@@ -42,7 +42,7 @@ export interface ExportableDebateSession {
   };
 }
 
-export type DebateExportFormat = 'json' | 'markdown' | 'text' | 'pdf';
+export type DebateExportFormat = 'json' | 'markdown' | 'text' | 'pdf' | 'package';
 
 // ── Speaker labels ──
 
@@ -350,4 +350,54 @@ export function debateExportFilename(title: string, ext: string): string {
     .replace(/^-|-$/g, '')
     .substring(0, 60);
   return `${slug}.${ext}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Package (ZIP containing JSON + Markdown + PDF + Diagnostics)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface PackageOptions {
+  /** Generate PDF buffer — platform-specific, provided by caller. */
+  generatePdf?: (session: ExportableDebateSession) => Promise<Uint8Array>;
+}
+
+/**
+ * Build a ZIP package containing the debate in multiple formats plus diagnostics.
+ * Returns the zip as a Uint8Array suitable for saving to disk or triggering a download.
+ */
+export async function debateToPackage(
+  session: ExportableDebateSession & { diagnostics?: unknown },
+  options?: PackageOptions,
+): Promise<Uint8Array> {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+
+  const slug = debateExportFilename(session.title, '').replace(/\.$/, '');
+
+  // JSON — full session data
+  zip.file(`${slug}.json`, JSON.stringify(session, null, 2) + '\n');
+
+  // Markdown
+  zip.file(`${slug}.md`, debateToMarkdown(session));
+
+  // PDF (if platform provides a generator)
+  if (options?.generatePdf) {
+    try {
+      const pdfBytes = await options.generatePdf(session);
+      zip.file(`${slug}.pdf`, pdfBytes);
+    } catch {
+      // PDF generation failed — include HTML fallback instead
+      zip.file(`${slug}.html`, debateToHtml(session));
+    }
+  } else {
+    // No PDF generator available — include printable HTML
+    zip.file(`${slug}.html`, debateToHtml(session));
+  }
+
+  // Diagnostics
+  if (session.diagnostics) {
+    zip.file(`${slug}-diagnostics.json`, JSON.stringify(session.diagnostics, null, 2) + '\n');
+  }
+
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }

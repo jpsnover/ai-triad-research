@@ -9,5 +9,8 @@
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
   }
 }

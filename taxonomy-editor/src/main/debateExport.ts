@@ -13,7 +13,7 @@ import {
 } from '../../../lib/debate/debateExport';
 
 // Re-export shared converters so existing imports keep working
-export { debateToText, debateToMarkdown, debateExportFilename } from '../../../lib/debate/debateExport';
+export { debateToText, debateToMarkdown, debateToPackage, debateExportFilename } from '../../../lib/debate/debateExport';
 export type { ExportableDebateSession, DebateExportFormat } from '../../../lib/debate/debateExport';
 
 export async function debateToPdf(session: ExportableDebateSession): Promise<Buffer> {

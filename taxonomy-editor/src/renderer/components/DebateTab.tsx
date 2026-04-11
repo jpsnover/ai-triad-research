@@ -26,13 +26,14 @@ import type { Pov } from '../types/taxonomy';
 import { nodeTypeFromId } from '@lib/debate';
 import { api } from '@bridge';
 
-type ExportFormat = 'json' | 'markdown' | 'text' | 'pdf';
+type ExportFormat = 'json' | 'markdown' | 'text' | 'pdf' | 'package';
 
 const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
   { id: 'json', label: 'JSON' },
   { id: 'markdown', label: 'Markdown' },
   { id: 'text', label: 'Plain Text' },
   { id: 'pdf', label: 'PDF' },
+  { id: 'package', label: 'Package (ZIP)' },
 ];
 
 function ExportButton({ onExport, showMenu, setShowMenu }: {
@@ -185,7 +186,7 @@ export function DebateTab() {
 
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  const handleExport = async (format: 'json' | 'markdown' | 'text' | 'pdf' = 'json') => {
+  const handleExport = async (format: ExportFormat = 'json') => {
     if (!activeDebate) return;
     setShowExportMenu(false);
     try {
