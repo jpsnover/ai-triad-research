@@ -241,7 +241,7 @@ function Invoke-AIApi {
     $Uri         = ''
     $Headers     = @{}
     $Body        = ''
-    $ContentType = 'application/json'
+    $ContentType = 'application/json; charset=utf-8'
 
     switch ($Backend) {
         'gemini' {
@@ -314,11 +314,15 @@ function Invoke-AIApi {
 
     for ($Attempt = 0; $Attempt -lt $MaxRetries; $Attempt++) {
         try {
+            # Encode body as UTF-8 bytes — PS 5.1's Invoke-RestMethod defaults to
+            # Windows-1252, which mangles non-ASCII chars and produces invalid JSON.
+            $BodyBytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
+
             $SplatParams = @{
                 Uri         = $Uri
                 Method      = 'POST'
                 ContentType = $ContentType
-                Body        = $Body
+                Body        = $BodyBytes
                 TimeoutSec  = $TimeoutSec
                 ErrorAction = 'Stop'
             }
