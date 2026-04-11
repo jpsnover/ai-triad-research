@@ -47,7 +47,9 @@ EMBEDDINGS_FILE: Path = _DEFAULT_TAXONOMY_DIR / "embeddings.json"
 
 def _resolve_taxonomy_dir(override=None):
     """Resolve the taxonomy directory from override, .aitriad.json, or default."""
-    global TAXONOMY_DIR, EMBEDDINGS_FILE
+    global TAXONOMY_DIR, EMBEDDINGS_FILE, CONFLICTS_DIR
+
+    data_base = _SCRIPT_DIR.parent  # fallback
 
     if override:
         TAXONOMY_DIR = Path(override).resolve()
@@ -59,12 +61,17 @@ def _resolve_taxonomy_dir(override=None):
                 cfg = json.loads(config_path.read_text(encoding="utf-8"))
                 data_root = cfg.get("data_root", ".")
                 tax_dir = cfg.get("taxonomy_dir", "taxonomy/Origin")
+                conflicts_dir = cfg.get("conflicts_dir", "conflicts")
                 base = Path(data_root) if Path(data_root).is_absolute() else (_SCRIPT_DIR.parent / data_root)
+                data_base = base.resolve()
                 TAXONOMY_DIR = (base / tax_dir).resolve()
+                CONFLICTS_DIR = (base / conflicts_dir).resolve()
             except (json.JSONDecodeError, OSError):
                 pass  # fall through to default
 
     EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
+    if not CONFLICTS_DIR or not CONFLICTS_DIR.exists():
+        CONFLICTS_DIR = data_base / "conflicts"
     return TAXONOMY_DIR
 
 
@@ -121,6 +128,9 @@ def _classify_pairs_nli(nli_model, pairs):
 
 
 SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json"}
+
+# Resolved at runtime from .aitriad.json
+CONFLICTS_DIR: Path = Path()  # set in _resolve_taxonomy_dir
 
 # Default weights for multi-field embedding.  Must sum to 1.0.
 # Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
@@ -246,6 +256,32 @@ def _load_policy_registry():
         return []
 
 
+def _load_conflict_nodes():
+    """Read all conflict JSON files and return a list of conflict dicts.
+
+    Each dict has at minimum: claim_id, claim_label, description.
+    Files starting with '_' (e.g. _conflict-clusters.json) are skipped.
+    """
+    if not CONFLICTS_DIR.exists():
+        print(f"Warning: conflicts directory not found at {CONFLICTS_DIR}", file=sys.stderr)
+        return []
+
+    conflicts = []
+    for path in sorted(CONFLICTS_DIR.glob("*.json")):
+        if path.name.startswith("_"):
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            conflicts.append({
+                "claim_id": data.get("claim_id", path.stem),
+                "claim_label": data.get("claim_label", ""),
+                "description": data.get("description", ""),
+            })
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"Warning: skipping conflict {path.name}: {exc}", file=sys.stderr)
+    return conflicts
+
+
 def cmd_generate(args):
     """Rebuild embeddings.json from all taxonomy JSON files and policy registry.
 
@@ -261,9 +297,10 @@ def cmd_generate(args):
     """
     nodes = _load_taxonomy_nodes()
     policies = _load_policy_registry()
+    conflicts = _load_conflict_nodes()
 
-    if not nodes and not policies:
-        print("Error: no taxonomy nodes or policies found.", file=sys.stderr)
+    if not nodes and not policies and not conflicts:
+        print("Error: no taxonomy nodes, policies, or conflicts found.", file=sys.stderr)
         sys.exit(1)
 
     # Parse weights
@@ -309,12 +346,15 @@ def cmd_generate(args):
 
     # ── Collect all texts to encode in one batch ─────────────────────
     policy_texts = [p.get("action", "") for p in policies]
+    conflict_texts = [
+        f"{c['claim_label']}. {c['description']}".strip(". ") for c in conflicts
+    ]
     n = len(nodes)
 
-    all_texts = desc_texts + assumes_texts + lineage_texts + epistemic_texts + rhetorical_texts + policy_texts
+    all_texts = desc_texts + assumes_texts + lineage_texts + epistemic_texts + rhetorical_texts + policy_texts + conflict_texts
     print(
-        f"Encoding {n} nodes x 5 fields + {len(policy_texts)} policies "
-        f"({len(all_texts)} total texts)...",
+        f"Encoding {n} nodes x 5 fields + {len(policy_texts)} policies + "
+        f"{len(conflict_texts)} conflicts ({len(all_texts)} total texts)...",
         file=sys.stderr,
     )
     all_vecs = model.encode(all_texts, normalize_embeddings=True, show_progress_bar=True)
@@ -325,7 +365,8 @@ def cmd_generate(args):
     lineage_vecs = all_vecs[2 * n : 3 * n]
     epistemic_vecs = all_vecs[3 * n : 4 * n]
     rhetorical_vecs = all_vecs[4 * n : 5 * n]
-    policy_vecs = all_vecs[5 * n :]
+    policy_vecs = all_vecs[5 * n : 5 * n + len(policy_texts)]
+    conflict_vecs = all_vecs[5 * n + len(policy_texts) :]
 
     # ── Weighted combination for taxonomy nodes ──────────────────────
     node_vectors = (
@@ -355,6 +396,12 @@ def cmd_generate(args):
             "vector": policy_vecs[i].tolist(),
         }
 
+    for i, conflict in enumerate(conflicts):
+        nodes_dict[conflict["claim_id"]] = {
+            "pov": "conflict",
+            "vector": conflict_vecs[i].tolist(),
+        }
+
     output = {
         "model": MODEL_NAME,
         "dimension": int(all_vecs.shape[1]),
@@ -375,7 +422,8 @@ def cmd_generate(args):
     )
     print(
         f"Wrote {len(nodes_dict)} embeddings ({n} nodes + "
-        f"{len(policy_texts)} policies, {all_vecs.shape[1]}d) to {EMBEDDINGS_FILE}",
+        f"{len(policy_texts)} policies + {len(conflict_texts)} conflicts, "
+        f"{all_vecs.shape[1]}d) to {EMBEDDINGS_FILE}",
         file=sys.stderr,
     )
 
@@ -395,12 +443,13 @@ def cmd_query(args):
     # Staleness check
     current_nodes = _load_taxonomy_nodes()
     current_policies = _load_policy_registry()
-    expected = len(current_nodes) + len(current_policies)
+    current_conflicts = _load_conflict_nodes()
+    expected = len(current_nodes) + len(current_policies) + len(current_conflicts)
     if expected != data.get("node_count", 0):
         print(
-            f"Warning: taxonomy has {len(current_nodes)} nodes + {len(current_policies)} policies "
-            f"({expected} total) but embeddings.json has {data['node_count']}. "
-            f"Consider running 'generate' to update.",
+            f"Warning: taxonomy has {len(current_nodes)} nodes + {len(current_policies)} policies + "
+            f"{len(current_conflicts)} conflicts ({expected} total) but embeddings.json has "
+            f"{data['node_count']}. Consider running 'generate' to update.",
             file=sys.stderr,
         )
 

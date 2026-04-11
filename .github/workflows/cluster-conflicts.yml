@@ -1,0 +1,79 @@
+name: Cluster Conflicts
+
+on:
+  # Run after batch summarization completes (when new conflicts are generated)
+  workflow_run:
+    workflows: ["Batch POV Summarization"]
+    types: [completed]
+
+  # Weekly refresh (Sunday 3 AM UTC)
+  schedule:
+    - cron: '0 3 * * 0'
+
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cluster:
+    runs-on: ubuntu-latest
+    # Only run on successful batch-summarize, or on schedule/manual
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install sentence-transformers scikit-learn numpy
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compute conflict clusters
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/compute-conflict-clusters.mjs
+
+      - name: Regenerate embeddings (includes conflicts)
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+        run: |
+          python scripts/embed_taxonomy.py \
+            --taxonomy-dir "$AI_TRIAD_DATA_ROOT/taxonomy/Origin" \
+            generate
+
+      - name: Commit cluster data
+        working-directory: ai-triad-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add conflicts/_conflict-clusters.json taxonomy/Origin/embeddings.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: refresh conflict clusters and embeddings"
+            git push
+          fi
