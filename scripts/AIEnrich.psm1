@@ -198,8 +198,8 @@ function Invoke-AIApi {
         [int]   $MaxTokens   = 1024,
         [switch]$JsonMode,
         [int]   $TimeoutSec  = 120,
-        [int]   $MaxRetries  = 3,
-        [int[]] $RetryDelays = @(5, 15, 45)
+        [int]   $MaxRetries  = 5,
+        [int[]] $RetryDelays = @(15, 45, 90, 120)
     )
 
     # -- Resolve model info from registry -------------------------------------
