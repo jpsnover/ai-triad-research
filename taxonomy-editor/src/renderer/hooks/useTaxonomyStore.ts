@@ -316,6 +316,12 @@ interface TaxonomyState {
   runClusterView: (pov: Pov) => Promise<void>;
   clearClusterView: () => void;
 
+  conflictClusters: { label: string; nodeIds: string[] }[] | null;
+  conflictClusterLoading: boolean;
+  conflictClusterError: string | null;
+  runClusterConflicts: () => Promise<void>;
+  clearConflictClusters: () => void;
+
   setActiveTab: (tab: TabId) => void;
   setSelectedNodeId: (id: string | null) => void;
   navigateToNode: (tab: TabId, id: string) => void;
@@ -459,6 +465,106 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   clusterLoading: false,
   clusterError: null,
   clearClusterView: () => set({ clusterView: null, clusterError: null }),
+
+  conflictClusters: null,
+  conflictClusterLoading: false,
+  conflictClusterError: null,
+  clearConflictClusters: () => set({ conflictClusters: null, conflictClusterError: null }),
+
+  runClusterConflicts: async () => {
+    const state = get();
+    const conflicts = state.conflicts;
+    if (!conflicts || conflicts.length === 0) return;
+
+    set({ conflictClusterLoading: true, conflictClusterError: null });
+
+    try {
+      // Ensure embeddings are computed
+      let cache = state.embeddingCache;
+      if (state.embeddingDirty || cache.size === 0) {
+        const { ids, texts } = state.buildEmbeddingTexts(new Set(), new Set());
+        if (texts.length === 0) {
+          set({ conflictClusterLoading: false, conflictClusterError: 'No embeddings available' });
+          return;
+        }
+        const { vectors } = await api.computeEmbeddings(texts, ids);
+        cache = new Map();
+        for (let i = 0; i < ids.length; i++) {
+          cache.set(ids[i], vectors[i]);
+        }
+        set({ embeddingCache: cache, embeddingDirty: false });
+      }
+
+      const { clusterByEmbedding, buildClusterLabelPrompt } = await import('../utils/clustering');
+
+      const nodeIds = conflicts.map(c => c.claim_id);
+      // More clusters for the large conflict set, lower similarity threshold
+      const maxClusters = Math.max(8, Math.min(15, Math.ceil(conflicts.length / 50)));
+      const rawClusters = clusterByEmbedding(nodeIds, cache, maxClusters, 0.45);
+
+      if (rawClusters.length === 0) {
+        set({ conflictClusterLoading: false, conflictClusterError: 'Could not form clusters' });
+        return;
+      }
+
+      // Build label lookup
+      const labelMap = new Map(conflicts.map(c => [c.claim_id, c.claim_label]));
+      const multiRawClusters = rawClusters.filter(ids => ids.length > 1);
+      const clustersForPrompt = multiRawClusters.map(ids => ({
+        nodeIds: ids,
+        labels: ids.map(id => labelMap.get(id) || id),
+      }));
+
+      let labels: string[];
+      if (clustersForPrompt.length > 0) {
+        const prompt = buildClusterLabelPrompt(clustersForPrompt);
+        const { text } = await api.generateText(prompt);
+        try {
+          const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+          labels = JSON.parse(cleaned);
+        } catch {
+          labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
+        }
+      } else {
+        labels = [];
+      }
+
+      // Map labels back
+      const multiClusters: { label: string; nodeIds: string[] }[] = [];
+      const singletonIds: string[] = [];
+      let multiIdx = 0;
+
+      for (const ids of rawClusters) {
+        if (ids.length > 1) {
+          multiClusters.push({
+            label: labels[multiIdx] || `Cluster ${multiIdx + 1}`,
+            nodeIds: ids,
+          });
+          multiIdx++;
+        } else {
+          singletonIds.push(...ids);
+        }
+      }
+
+      // Sort clusters alphabetically by label
+      multiClusters.sort((a, b) => a.label.localeCompare(b.label));
+
+      // Sort items within each cluster alphabetically by label
+      for (const cluster of multiClusters) {
+        cluster.nodeIds.sort((a, b) => (labelMap.get(a) || '').localeCompare(labelMap.get(b) || ''));
+      }
+
+      // Append "Other" bucket for singletons
+      if (singletonIds.length > 0) {
+        singletonIds.sort((a, b) => (labelMap.get(a) || '').localeCompare(labelMap.get(b) || ''));
+        multiClusters.push({ label: 'Other', nodeIds: singletonIds });
+      }
+
+      set({ conflictClusters: multiClusters, conflictClusterLoading: false });
+    } catch (err) {
+      set({ conflictClusterLoading: false, conflictClusterError: mapErrorToUserMessage(err) });
+    }
+  },
 
   runClusterView: async (pov) => {
     const state = get();

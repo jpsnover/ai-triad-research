@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel } from '../hooks/useResizablePanel';
@@ -21,8 +21,26 @@ import { api } from '@bridge';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 
+const COLLAPSE_STORAGE_KEY = 'taxonomy-editor-conflict-collapsed';
+
+function loadCollapsedClusters(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch { /* ignore */ }
+  return new Set(); // sentinel set — will be initialized from cluster labels on first render
+}
+
+function saveCollapsedClusters(collapsed: Set<string>) {
+  localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
+}
+
 export function ConflictsTab() {
-  const { conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth, toolbarPanel } = useTaxonomyStore();
+  const {
+    conflicts, selectedNodeId, setSelectedNodeId, createConflict, pinnedStack, pinAtDepth, toolbarPanel,
+    conflictClusters, conflictClusterLoading, conflictClusterError,
+    runClusterConflicts, clearConflictClusters,
+  } = useTaxonomyStore();
   const [showNew, setShowNew] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -32,11 +50,52 @@ export function ConflictsTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
+  const [collapsedClusters, setCollapsedClusters] = useState<Set<string>>(() => loadCollapsedClusters());
+  const initialCollapseApplied = useRef(false);
 
-  const orderedIds = useMemo(
-    () => conflicts.map(c => c.claim_id),
-    [conflicts],
-  );
+  // Run clustering on mount
+  useEffect(() => {
+    if (!conflictClusters && !conflictClusterLoading && conflicts.length > 0) {
+      runClusterConflicts();
+    }
+  }, [conflicts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Default all clusters to collapsed on first load
+  useEffect(() => {
+    if (conflictClusters && !initialCollapseApplied.current) {
+      initialCollapseApplied.current = true;
+      // Only set defaults if user hasn't saved preferences yet
+      if (collapsedClusters.size === 0) {
+        const allKeys = new Set(conflictClusters.map(c => c.label));
+        setCollapsedClusters(allKeys);
+        saveCollapsedClusters(allKeys);
+      }
+    }
+  }, [conflictClusters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCluster = useCallback((key: string) => {
+    setCollapsedClusters(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      saveCollapsedClusters(next);
+      return next;
+    });
+  }, []);
+
+  // Build ordered IDs — cluster order if available, else alphabetical by label
+  const orderedIds = useMemo(() => {
+    if (conflictClusters) {
+      return conflictClusters.flatMap(c => c.nodeIds);
+    }
+    return [...conflicts]
+      .sort((a, b) => a.claim_label.localeCompare(b.claim_label))
+      .map(c => c.claim_id);
+  }, [conflicts, conflictClusters]);
+
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId);
 
   // Auto-select first conflict when tab loads
@@ -159,16 +218,57 @@ export function ConflictsTab() {
             </div>
           </div>
           <div className="list-panel-items">
-            {conflicts.map((conflict) => (
-              <ConflictListItem
-                key={conflict.claim_id}
-                claimId={conflict.claim_id}
-                label={conflict.claim_label}
-                status={conflict.status}
-                isSelected={selectedNodeId === conflict.claim_id}
-                onSelect={setSelectedNodeId}
-              />
-            ))}
+            {conflictClusterLoading && (
+              <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Clustering conflicts...
+              </div>
+            )}
+            {conflictClusterError && (
+              <div style={{ padding: '16px', color: 'var(--color-skp)', fontSize: '0.85rem' }}>
+                {conflictClusterError}
+              </div>
+            )}
+            {conflictClusters ? conflictClusters.map((cluster) => {
+              const isCollapsed = collapsedClusters.has(cluster.label);
+              return (
+                <div key={cluster.label} className="category-group cluster-group">
+                  <div
+                    className="category-label cluster-label"
+                    onClick={() => toggleCluster(cluster.label)}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <span className={`category-toggle ${isCollapsed ? 'collapsed' : ''}`}>&#9660;</span>
+                    {cluster.label} <span className="category-count">({cluster.nodeIds.length})</span>
+                  </div>
+                  {!isCollapsed && cluster.nodeIds.map((id) => {
+                    const conflict = conflicts.find(c => c.claim_id === id);
+                    if (!conflict) return null;
+                    return (
+                      <ConflictListItem
+                        key={conflict.claim_id}
+                        claimId={conflict.claim_id}
+                        label={conflict.claim_label}
+                        status={conflict.status}
+                        isSelected={selectedNodeId === conflict.claim_id}
+                        onSelect={setSelectedNodeId}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            }) : [...conflicts]
+              .sort((a, b) => a.claim_label.localeCompare(b.claim_label))
+              .map((conflict) => (
+                <ConflictListItem
+                  key={conflict.claim_id}
+                  claimId={conflict.claim_id}
+                  label={conflict.claim_label}
+                  status={conflict.status}
+                  isSelected={selectedNodeId === conflict.claim_id}
+                  onSelect={setSelectedNodeId}
+                />
+              ))
+            }
           </div>
         </div>
       )}
