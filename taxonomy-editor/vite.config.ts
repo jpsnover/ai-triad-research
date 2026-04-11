@@ -14,6 +14,8 @@ export default defineConfig({
   define: {
     // Expose build target to renderer code
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
+    __APP_VERSION__: JSON.stringify(require('./package.json').version),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
   },
   resolve: {
     alias: {

@@ -1,11 +1,28 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+declare const __APP_VERSION__: string;
+declare const __BUILD_DATE__: string;
+
+function getRuntime(): string {
+  const target = import.meta.env.VITE_TARGET;
+  if (target === 'web') return 'Container';
+  if (typeof window !== 'undefined' && (window as any).electronAPI) return 'Electron';
+  return 'Browser';
+}
+
 interface HelpDialogProps {
   onClose: () => void;
 }
 
 export function HelpDialog({ onClose }: HelpDialogProps) {
+  const buildDate = new Date(__BUILD_DATE__);
+  const formattedDate = buildDate.toLocaleDateString(undefined, {
+    year: 'numeric', month: 'long', day: 'numeric',
+  }) + ' ' + buildDate.toLocaleTimeString(undefined, {
+    hour: '2-digit', minute: '2-digit',
+  });
+
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()}>
@@ -58,6 +75,17 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <p><strong>Pin</strong> - Pin any item to compare it side-by-side with the active item.</p>
           <p><strong>Search</strong> - Full-text search with raw, wildcard, and regex modes. Scope by POV and/or category.</p>
           <p><strong>Resize</strong> - Drag the border between the list and detail panels to resize.</p>
+        </div>
+
+        <div className="help-section help-about">
+          <h4>About</h4>
+          <table className="help-shortcuts">
+            <tbody>
+              <tr><td className="help-key">Version</td><td>{__APP_VERSION__}</td></tr>
+              <tr><td className="help-key">Built</td><td>{formattedDate}</td></tr>
+              <tr><td className="help-key">Runtime</td><td>{getRuntime()}</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div className="dialog-actions">
