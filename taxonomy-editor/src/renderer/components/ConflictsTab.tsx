@@ -22,13 +22,20 @@ import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 
 const COLLAPSE_STORAGE_KEY = 'taxonomy-editor-conflict-collapsed';
+const COLLAPSE_VERSION_KEY = 'taxonomy-editor-conflict-collapsed-version';
+const COLLAPSE_VERSION = 2; // bump to reset all users to collapsed-by-default
 
 function loadCollapsedClusters(): Set<string> {
   try {
-    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
-    if (raw) return new Set(JSON.parse(raw));
+    const version = Number(localStorage.getItem(COLLAPSE_VERSION_KEY) || '0');
+    if (version >= COLLAPSE_VERSION) {
+      const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    }
+    localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
+    localStorage.removeItem(COLLAPSE_STORAGE_KEY);
   } catch { /* ignore */ }
-  return new Set(); // sentinel set — will be initialized from cluster labels on first render
+  return new Set(); // empty = will be initialized from cluster labels on first render
 }
 
 function saveCollapsedClusters(collapsed: Set<string>) {

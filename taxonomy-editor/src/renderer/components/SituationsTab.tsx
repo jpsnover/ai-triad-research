@@ -45,11 +45,11 @@ export function SituationsTab() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     try {
       const version = Number(localStorage.getItem('taxonomy-editor-sit-collapsed-version') || '0');
-      if (version >= 2) {
+      if (version >= 3) {
         const raw = localStorage.getItem('taxonomy-editor-sit-collapsed');
         if (raw) return new Set(JSON.parse(raw));
       }
-      localStorage.setItem('taxonomy-editor-sit-collapsed-version', '2');
+      localStorage.setItem('taxonomy-editor-sit-collapsed-version', '3');
     } catch { /* ignore */ }
     return new Set(['__default_collapsed__']); // sentinel: collapse all on first load
   });
