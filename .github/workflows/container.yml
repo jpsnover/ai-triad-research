@@ -58,6 +58,7 @@ jobs:
           push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == 'true') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
