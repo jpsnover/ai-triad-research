@@ -81,6 +81,7 @@ COPY --from=builder /build/taxonomy-editor/dist/renderer/ ./dist/renderer/
 
 # Scripts and config
 COPY scripts/ ./scripts/
+COPY taxonomy-editor/authorized-users.json ./
 COPY ai-models.json ./
 COPY .aitriad.json ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/

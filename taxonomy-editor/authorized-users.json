@@ -1,0 +1,10 @@
+{
+  "$schema": "Authorized users for taxonomy-editor EasyAuth. Matched against email or provider-specific ID from X-MS-CLIENT-PRINCIPAL. Deploy to /data/authorized-users.json on the Azure Files volume.",
+  "users": [
+    {
+      "name": "Jeffrey Snover",
+      "emails": ["jsnover15@hotmail.com", "jsnover16@hotmail.com"],
+      "github": "jpsnover"
+    }
+  ]
+}

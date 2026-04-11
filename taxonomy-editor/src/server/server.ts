@@ -594,12 +594,143 @@ function getCorsOrigin(req: http.IncomingMessage): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
 }
 
-// User allowlist from ALLOWED_USERS env var (comma-separated GitHub usernames).
-// Azure Easy Auth sends the authenticated username in X-MS-CLIENT-PRINCIPAL-NAME.
-// When set, only listed users can access the app. Unset = no restriction.
-const ALLOWED_USERS = process.env.ALLOWED_USERS
-  ? new Set(process.env.ALLOWED_USERS.split(',').map(u => u.trim().toLowerCase()).filter(Boolean))
-  : null;
+// ── Auth: file-based user allowlist ──
+// Reads authorized-users.json from the data volume (or repo root as fallback).
+// Azure Easy Auth sets X-MS-CLIENT-PRINCIPAL-NAME and X-MS-CLIENT-PRINCIPAL-IDP
+// after successful login. We match against emails, GitHub username, or display name.
+
+interface AuthorizedUser {
+  name: string;
+  emails?: string[];
+  github?: string;
+}
+
+interface AuthorizedUsersFile {
+  users: AuthorizedUser[];
+}
+
+function loadAuthorizedUsers(): AuthorizedUsersFile | null {
+  // Try data volume first (editable at runtime), then repo-bundled fallback
+  const candidates = [
+    path.join(getDataRoot(), 'authorized-users.json'),
+    path.resolve(__dirname, '../../authorized-users.json'), // Docker: /app/dist/server -> /app/
+    path.resolve(__dirname, '../authorized-users.json'),     // dev fallback
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as AuthorizedUsersFile;
+        console.log(`[auth] Loaded ${data.users.length} authorized users from ${p}`);
+        return data;
+      }
+    } catch (err) {
+      console.error(`[auth] Failed to parse ${p}:`, err);
+    }
+  }
+  return null; // No file found = no restriction
+}
+
+let authorizedUsersCache: AuthorizedUsersFile | null | undefined;
+let authorizedUsersCacheTime = 0;
+const AUTH_CACHE_TTL = 30_000; // Re-read file every 30s
+
+function getAuthorizedUsers(): AuthorizedUsersFile | null {
+  const now = Date.now();
+  if (authorizedUsersCache === undefined || now - authorizedUsersCacheTime > AUTH_CACHE_TTL) {
+    authorizedUsersCache = loadAuthorizedUsers();
+    authorizedUsersCacheTime = now;
+  }
+  return authorizedUsersCache;
+}
+
+function isUserAuthorized(principalName: string, idp: string): boolean {
+  const auth = getAuthorizedUsers();
+  if (!auth) return true; // No file = allow all
+
+  const name = principalName.toLowerCase();
+  for (const user of auth.users) {
+    // Match GitHub username
+    if (idp === 'github' && user.github && user.github.toLowerCase() === name) return true;
+    // Match email (Google, Microsoft, or any provider)
+    if (user.emails?.some(e => e.toLowerCase() === name)) return true;
+    // Match display name as last resort
+    if (user.name.toLowerCase() === name) return true;
+  }
+  return false;
+}
+
+const LOGIN_PAGE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign In — Taxonomy Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .card { background: #1e293b; border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; text-align: center; }
+  h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  .subtitle { color: #94a3b8; font-size: 0.875rem; margin-bottom: 32px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 12px;
+         width: 100%; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #334155;
+         border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 0.95rem;
+         text-decoration: none; transition: background 0.15s, border-color 0.15s; cursor: pointer; }
+  .btn:hover { background: #1e293b; border-color: #60a5fa; }
+  .btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .btn-github:hover { border-color: #e2e8f0; }
+  .btn-google:hover { border-color: #34d399; }
+  .btn-microsoft:hover { border-color: #60a5fa; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Taxonomy Editor</h1>
+  <p class="subtitle">Sign in to continue</p>
+  <a class="btn btn-github" href="/.auth/login/github?post_login_redirect_uri=/">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+    Sign in with GitHub
+  </a>
+  <a class="btn btn-google" href="/.auth/login/google?post_login_redirect_uri=/">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    Sign in with Google
+  </a>
+  <a class="btn btn-microsoft" href="/.auth/login/aad?post_login_redirect_uri=/">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+    Sign in with Microsoft
+  </a>
+</div>
+</body>
+</html>`;
+
+const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access Denied — Taxonomy Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .card { background: #1e293b; border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; text-align: center; }
+  h1 { font-size: 1.5rem; color: #ef4444; margin-bottom: 12px; }
+  p { color: #94a3b8; margin-bottom: 8px; font-size: 0.9rem; }
+  .user { color: #f59e0b; font-weight: 600; }
+  .btn { display: inline-block; margin-top: 20px; padding: 10px 24px; border-radius: 8px;
+         background: #334155; color: #e2e8f0; text-decoration: none; font-size: 0.9rem; }
+  .btn:hover { background: #475569; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Access Denied</h1>
+  <p>Signed in as <span class="user">${name}</span></p>
+  <p>You are not in the authorized users list. Contact the administrator to request access.</p>
+  <a class="btn" href="/.auth/logout?post_logout_redirect_uri=/">Sign out</a>
+</div>
+</body>
+</html>`;
 
 const server = http.createServer(async (req, res) => {
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
@@ -610,15 +741,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // User allowlist check — Azure Easy Auth sets X-MS-CLIENT-PRINCIPAL-NAME
-  if (ALLOWED_USERS) {
-    const principalName = (req.headers['x-ms-client-principal-name'] as string || '').toLowerCase();
-    // Allow health check and static assets without auth (Easy Auth handles login redirect)
-    const url_path = req.url?.split('?')[0] || '';
-    const isPublicPath = url_path === '/health' || url_path === '/.auth/login/github/callback';
-    if (!isPublicPath && principalName && !ALLOWED_USERS.has(principalName)) {
+  // Auth gate — only enforced when authorized-users.json exists
+  const urlPath = req.url?.split('?')[0] || '';
+  const isPublicPath = urlPath === '/health' || urlPath.startsWith('/.auth/');
+  if (!isPublicPath && getAuthorizedUsers()) {
+    const principalName = req.headers['x-ms-client-principal-name'] as string || '';
+    const idp = req.headers['x-ms-client-principal-idp'] as string || '';
+
+    if (!principalName) {
+      // Not authenticated — serve login picker
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(LOGIN_PAGE);
+      return;
+    }
+
+    if (!isUserAuthorized(principalName, idp)) {
+      // Authenticated but not in allowlist
       res.writeHead(403, { 'Content-Type': 'text/html' });
-      res.end(`<h1>Access Denied</h1><p>User <strong>${principalName}</strong> is not authorized. Contact the administrator.</p>`);
+      res.end(FORBIDDEN_PAGE(principalName));
       return;
     }
   }
