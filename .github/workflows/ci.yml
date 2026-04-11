@@ -17,8 +17,12 @@ jobs:
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
-          path: ../ai-triad-data
+          path: ai-triad-data
           fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
+        continue-on-error: true
 
       - name: Validate Windows PowerShell 5.1 compatibility
         shell: pwsh

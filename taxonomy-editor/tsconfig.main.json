@@ -8,7 +8,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist/main",
-    "rootDir": "../"
+    "rootDir": "../",
+    "baseUrl": ".",
+    "paths": {
+      "jszip": ["./node_modules/jszip"]
+    }
   },
   "include": [
     "src/main/**/*",

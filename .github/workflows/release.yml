@@ -23,9 +23,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jpsnover/ai-triad-data
-          path: ../ai-triad-data
+          path: ai-triad-data
           # Shallow clone to save time — tests only need taxonomy files
           fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
 
       - name: Install Pester
         shell: pwsh
