@@ -587,6 +587,77 @@ export function harvestSaveManifest(manifest: Record<string, unknown>): boolean 
   return true;
 }
 
+// ── Summaries & Sources ──
+
+function getSourcesDir(): string {
+  const config = loadDataConfig();
+  return resolveDataPath(config.sources_dir);
+}
+
+function getSummariesDir(): string {
+  const config = loadDataConfig();
+  return resolveDataPath(config.summaries_dir);
+}
+
+export interface DiscoveredSource {
+  id: string;
+  title: string;
+  url: string | null;
+  sourceType: string;
+  datePublished: string;
+  dateIngested: string;
+  hasSummary: boolean;
+  tags: string[];
+  authors: string[];
+}
+
+export function discoverSources(): DiscoveredSource[] {
+  const sourcesDir = getSourcesDir();
+  const summariesDir = getSummariesDir();
+  if (!fs.existsSync(sourcesDir)) return [];
+
+  const sources: DiscoveredSource[] = [];
+  for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
+    try {
+      if (!fs.existsSync(metaPath)) continue;
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      const summaryPath = path.join(summariesDir, `${entry.name}.json`);
+      sources.push({
+        id: entry.name,
+        title: meta.title || entry.name,
+        url: meta.url || null,
+        sourceType: meta.source_type || 'unknown',
+        datePublished: meta.date_published || meta.source_time || '',
+        dateIngested: meta.date_ingested || '',
+        hasSummary: fs.existsSync(summaryPath),
+        tags: meta.pov_tags || [],
+        authors: meta.authors || [],
+      });
+    } catch { /* skip */ }
+  }
+  return sources.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export function loadSummary(docId: string): unknown | null {
+  const summariesDir = getSummariesDir();
+  const filePath = path.join(summariesDir, `${docId}.json`);
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch { return null; }
+}
+
+export function loadSnapshot(sourceId: string): string | null {
+  const sourcesDir = getSourcesDir();
+  const filePath = path.join(sourcesDir, sourceId, 'snapshot.md');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return fs.readFileSync(filePath, 'utf-8');
+  } catch { return null; }
+}
+
 // ── PowerShell prompts ──
 
 export function readPsPrompt(promptName: string): { text: string | null; error?: string } {

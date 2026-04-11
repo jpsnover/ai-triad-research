@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadConflictClusters: (): Promise<unknown | null> =>
     ipcRenderer.invoke('load-conflict-clusters'),
 
+  // Summaries & Sources
+  discoverSources: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('discover-sources'),
+
+  loadSummary: (docId: string): Promise<unknown | null> =>
+    ipcRenderer.invoke('load-summary', docId),
+
+  loadSnapshot: (sourceId: string): Promise<{ content: string } | null> =>
+    ipcRenderer.invoke('load-snapshot', sourceId),
+
   saveConflictFile: (claimId: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('save-conflict-file', claimId, data),
 

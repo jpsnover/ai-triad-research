@@ -30,6 +30,11 @@ export const api: AppAPI = {
   createConflictFile: (id, data) => window.electronAPI.createConflictFile(id, data),
   deleteConflictFile: (id) => window.electronAPI.deleteConflictFile(id),
 
+  // Summaries & Sources
+  discoverSources: () => window.electronAPI.discoverSources(),
+  loadSummary: (docId) => window.electronAPI.loadSummary(docId),
+  loadSnapshot: (sourceId) => window.electronAPI.loadSnapshot(sourceId),
+
   // Data management
   isDataAvailable: () => window.electronAPI.isDataAvailable(),
   getDataRoot: () => window.electronAPI.getDataRoot(),

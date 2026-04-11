@@ -20,6 +20,9 @@ import {
   buildNodeSourceIndex,
   buildPolicySourceIndex,
   readPolicyRegistry,
+  discoverSources,
+  loadSummary,
+  loadSnapshot,
 } from './fileIO';
 import {
   listDebateSessions,
@@ -83,6 +86,14 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-conflict-clusters', () => {
     return readConflictClusters();
+  });
+
+  // Summaries & Sources
+  ipcMain.handle('discover-sources', () => discoverSources());
+  ipcMain.handle('load-summary', (_event, docId: string) => loadSummary(docId));
+  ipcMain.handle('load-snapshot', (_event, sourceId: string) => {
+    const content = loadSnapshot(sourceId);
+    return content ? { content } : null;
   });
 
   ipcMain.handle('save-conflict-file', (_event, claimId: string, data: unknown) => {

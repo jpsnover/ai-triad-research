@@ -407,6 +407,24 @@ post('/api/harvest/manifest', (_req, res, body) => {
   json(res, { saved: fileIO.harvestSaveManifest(body as Record<string, unknown>) });
 });
 
+// ── Summaries & Sources ──
+
+get('/api/sources', (_req, res) => { json(res, fileIO.discoverSources()); });
+
+get('/api/summaries/:docId', (req, res) => {
+  const docId = param(req, 'docId', '/api/summaries/:docId');
+  const data = fileIO.loadSummary(docId);
+  if (data === null) { error(res, `Summary not found: ${docId}`, 404); return; }
+  json(res, data);
+});
+
+get('/api/snapshots/:sourceId', (req, res) => {
+  const sourceId = param(req, 'sourceId', '/api/snapshots/:sourceId');
+  const data = fileIO.loadSnapshot(sourceId);
+  if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }
+  json(res, { content: data });
+});
+
 // ── Proposals ──
 
 get('/api/proposals', (_req, res) => { json(res, fileIO.listProposals()); });

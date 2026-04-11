@@ -16,6 +16,7 @@ import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { HarvestDialog } from './components/HarvestDialog';
+import { SummariesTab } from './components/SummariesTab';
 
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
@@ -322,7 +323,7 @@ function MainApp() {
         </div>
       )}
 
-      {toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat', 'summaries'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
@@ -333,6 +334,7 @@ function MainApp() {
           {activeTab === 'conflicts' && <ConflictsTab />}
           {activeTab === 'debate' && <DebateTab />}
           {activeTab === 'chat' && <ChatTab />}
+          {activeTab === 'summaries' && <SummariesTab />}
         </div>
       </div>
       <SaveBar />

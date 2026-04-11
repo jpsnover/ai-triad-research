@@ -10,6 +10,9 @@ export interface ElectronAPI {
   loadPolicyRegistry: () => Promise<unknown>;
   loadConflictFiles: () => Promise<unknown[]>;
   loadConflictClusters?: () => Promise<unknown | null>;
+  discoverSources: () => Promise<unknown[]>;
+  loadSummary: (docId: string) => Promise<unknown | null>;
+  loadSnapshot: (sourceId: string) => Promise<{ content: string } | null>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;

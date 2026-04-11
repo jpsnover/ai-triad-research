@@ -154,6 +154,11 @@ export const api: AppAPI = {
   createConflictFile: (id, data) => post(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   deleteConflictFile: (id) => del(`/api/conflicts/${encodeURIComponent(id)}`).then(() => {}),
 
+  // Summaries & Sources
+  discoverSources: () => get('/api/sources'),
+  loadSummary: (docId) => get(`/api/summaries/${encodeURIComponent(docId)}`).catch(() => null),
+  loadSnapshot: (sourceId) => get(`/api/snapshots/${encodeURIComponent(sourceId)}`).then(r => r as { content: string } | null).catch(() => null),
+
   // Data management
   isDataAvailable: () => get('/api/data/available'),
   getDataRoot: () => get('/api/data/root'),

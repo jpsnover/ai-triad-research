@@ -33,6 +33,11 @@ export interface AppAPI {
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;
 
+  // --- Summaries & Sources ---
+  discoverSources: () => Promise<unknown[]>;
+  loadSummary: (docId: string) => Promise<unknown | null>;
+  loadSnapshot: (sourceId: string) => Promise<{ content: string } | null>;
+
   // --- Data management ---
   isDataAvailable: () => Promise<boolean>;
   getDataRoot: () => Promise<string>;
