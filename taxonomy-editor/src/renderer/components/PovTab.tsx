@@ -44,11 +44,11 @@ export function PovTab({ pov }: PovTabProps) {
     attributeFilter, attributeInfo,
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
     relatedNodeId, showRelatedEdges, selectedEdge,
-    toolbarPanel,
+    toolbarPanel, setActiveTab,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>('id');
+  const [sortMode, setSortMode] = useState<SortMode>('label');
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
@@ -61,6 +61,17 @@ export function PovTab({ pov }: PovTabProps) {
   const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
   const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
   const handleSelectFallacy = useCallback((key: string | null) => setSelectedFallacyKey(key), []);
+  const handleFallacyNodeSelect = useCallback((nodeId: string, nodePov: string) => {
+    const tabMap: Record<string, string> = {
+      accelerationist: 'accelerationist', safetyist: 'safetyist',
+      skeptic: 'skeptic', situations: 'situations',
+    };
+    const tab = tabMap[nodePov];
+    if (tab) {
+      setActiveTab(tab as any);
+      setTimeout(() => setSelectedNodeId(nodeId), 50);
+    }
+  }, [setActiveTab, setSelectedNodeId]);
   const { width, onMouseDown } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-analysis-panel-width',
@@ -393,7 +404,7 @@ export function PovTab({ pov }: PovTabProps) {
       )
       : toolbarPanel === 'prompts' ? null : toolbarPanel === 'fallacy' ? (
         <div className="detail-panel">
-          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
+          <FallacyDetailPanel fallacyKey={selectedFallacyKey} onSelectNode={handleFallacyNodeSelect} />
         </div>
       ) : toolbarPanel === 'lineage' ? (
         <>

@@ -35,7 +35,7 @@ export function SituationsTab() {
     pinnedStack, pinAtDepth,
     attributeFilter, attributeInfo,
     relatedNodeId, showRelatedEdges, selectedEdge,
-    toolbarPanel,
+    toolbarPanel, setActiveTab,
   } = useTaxonomyStore();
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
@@ -47,7 +47,7 @@ export function SituationsTab() {
       const raw = localStorage.getItem('taxonomy-editor-sit-collapsed');
       if (raw) return new Set(JSON.parse(raw));
     } catch { /* ignore */ }
-    return new Set();
+    return new Set(['__default_collapsed__']); // sentinel: collapse all on first load
   });
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
@@ -127,8 +127,14 @@ export function SituationsTab() {
         cMap.set(n.parent_id, list);
       }
     }
-    const r = allNodes.filter(n => !n.parent_id && cMap.has(n.id));
-    const s = allNodes.filter(n => !n.parent_id && !cMap.has(n.id));
+    const r = allNodes.filter(n => !n.parent_id && cMap.has(n.id))
+      .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+    const s = allNodes.filter(n => !n.parent_id && !cMap.has(n.id))
+      .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+    // Sort children within each group
+    for (const [key, children] of cMap) {
+      cMap.set(key, children.sort((a, b) => (a.label || '').localeCompare(b.label || '')));
+    }
     return { roots: r, childMap: cMap, standalones: s };
   }, [situations]);
 
@@ -153,6 +159,15 @@ export function SituationsTab() {
 
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
+  // Default-collapse all groups on first load (when sentinel is present)
+  useEffect(() => {
+    if (collapsedGroups.has('__default_collapsed__') && roots.length > 0) {
+      const allIds = new Set(roots.map(r => r.id));
+      setCollapsedGroups(allIds);
+      localStorage.setItem('taxonomy-editor-sit-collapsed', JSON.stringify([...allIds]));
+    }
+  }, [roots]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-select first node when tab loads
   useEffect(() => {
     if (!selectedNodeId && orderedIds.length > 0) {
@@ -165,6 +180,22 @@ export function SituationsTab() {
   }
 
   const selectedNode = situations.nodes.find(n => n.id === selectedNodeId) || null;
+
+  const handleFallacyNodeSelect = useCallback((nodeId: string, pov: string) => {
+    // Map pov to tab and navigate
+    const tabMap: Record<string, string> = {
+      accelerationist: 'accelerationist',
+      safetyist: 'safetyist',
+      skeptic: 'skeptic',
+      situations: 'situations',
+    };
+    const tab = tabMap[pov];
+    if (tab) {
+      setActiveTab(tab as any);
+      // Delay to let the tab render before selecting
+      setTimeout(() => setSelectedNodeId(nodeId), 50);
+    }
+  }, [setActiveTab, setSelectedNodeId]);
 
   const handlePin = () => {
     if (selectedNode) {
@@ -182,7 +213,6 @@ export function SituationsTab() {
   };
 
   const { createSituationDebate } = useDebateStore();
-  const { setActiveTab } = useTaxonomyStore();
   const handleDebate = useCallback(async () => {
     if (!selectedNode) return;
     await createSituationDebate(selectedNode.id);
@@ -402,7 +432,7 @@ export function SituationsTab() {
         </div>
       ) : toolbarPanel === 'fallacy' ? (
         <div className="detail-panel">
-          <FallacyDetailPanel fallacyKey={selectedFallacyKey} />
+          <FallacyDetailPanel fallacyKey={selectedFallacyKey} onSelectNode={handleFallacyNodeSelect} />
         </div>
       ) : toolbarPanel === 'lineage' ? (
         <>

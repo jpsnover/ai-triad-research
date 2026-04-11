@@ -19,7 +19,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER));
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 

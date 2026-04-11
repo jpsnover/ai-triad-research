@@ -181,9 +181,7 @@ export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
           >
             <div className="fallacy-panel-item-header">
               <span className="fallacy-panel-item-label">{entry.label}</span>
-              {entry.count > 0 && (
-                <span className="fallacy-panel-item-count">{entry.count}</span>
-              )}
+              <span className="fallacy-panel-item-count">{entry.count}</span>
               <span className={`fallacy-panel-item-cat cat-${entry.category}`}>
                 {CATEGORY_LABELS[entry.category]}
               </span>
@@ -197,7 +195,7 @@ export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
 }
 
 /** Detail view for pane 2 when a fallacy is selected */
-export function FallacyDetailPanel({ fallacyKey }: { fallacyKey: string | null }) {
+export function FallacyDetailPanel({ fallacyKey, onSelectNode }: { fallacyKey: string | null; onSelectNode?: (nodeId: string, pov: string) => void }) {
   if (!fallacyKey) {
     return <div className="detail-panel-empty">Select a fallacy to view details</div>;
   }
@@ -244,7 +242,11 @@ export function FallacyDetailPanel({ fallacyKey }: { fallacyKey: string | null }
           <div className="fallacy-detail-label">Taxonomy Nodes ({nodes.length})</div>
           <div className="fallacy-detail-nodes">
             {nodes.map((n, i) => (
-              <div key={`${n.id}-${i}`} className="fallacy-detail-node">
+              <div
+                key={`${n.id}-${i}`}
+                className={`fallacy-detail-node${onSelectNode ? ' clickable' : ''}`}
+                onClick={() => onSelectNode?.(n.id, n.pov)}
+              >
                 <div className="fallacy-detail-node-header">
                   <span className="fallacy-detail-node-pov" style={{ color: POV_COLOR[n.pov] || 'var(--text-muted)' }}>
                     {n.pov.slice(0, 3)}

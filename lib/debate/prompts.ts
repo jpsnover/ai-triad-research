@@ -38,7 +38,7 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
 
-When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response. If no nodes are starred, or if starred nodes are not relevant to the question being asked, select the 2–3 most pertinent nodes from any section and build your argument around those. Note in your taxonomy_refs why you chose them over other candidates.
+When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response. If no nodes are starred, or if starred nodes are not relevant to the question being asked, select the 3–6 most pertinent nodes from any section and build your argument around those. Note in your taxonomy_refs why you chose them over other candidates.
 
 Express ideas in your own words. See OUTPUT FORMAT for rules on referencing taxonomy nodes.`;
 

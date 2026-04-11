@@ -73,7 +73,8 @@ function loadCollapsed(): Set<string> {
     const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
     if (raw) return new Set(JSON.parse(raw));
   } catch { /* ignore */ }
-  return new Set();
+  // Default: all categories collapsed
+  return new Set(CATEGORY_ORDER);
 }
 
 function saveCollapsed(collapsed: Set<string>) {
@@ -99,13 +100,15 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
   // Cluster view
   if (sortMode === 'similarity' && clusters && clusters.length > 0) {
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const sortedClusters = [...clusters].sort((a, b) => a.label.localeCompare(b.label));
     return (
       <div>
-        {clusters.map((cluster, ci) => {
+        {sortedClusters.map((cluster, ci) => {
           const key = `cluster-${ci}`;
           // Default collapsed for cluster view
           const isCollapsed = !collapsed.has(`${key}-expanded`);
-          const clusterNodes = cluster.nodeIds.map(id => nodeMap.get(id)).filter(Boolean) as PovNode[];
+          const clusterNodes = (cluster.nodeIds.map(id => nodeMap.get(id)).filter(Boolean) as PovNode[])
+            .sort((a, b) => a.label.localeCompare(b.label));
           return (
             <div key={key} className="category-group cluster-group">
               <div

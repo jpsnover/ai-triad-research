@@ -8609,9 +8609,13 @@ body {
   background: var(--focus-ring);
   color: #fff;
 }
-.fallacy-panel-item.selected .fallacy-panel-item-desc,
-.fallacy-panel-item.selected .fallacy-panel-item-cat {
+.fallacy-panel-item.selected .fallacy-panel-item-desc {
   color: rgba(255,255,255,0.85);
+}
+.fallacy-panel-item.selected .fallacy-panel-item-cat {
+  color: #fff;
+  background: rgba(255,255,255,0.2);
+  font-weight: 600;
 }
 
 .fallacy-panel-item-header {
@@ -8704,6 +8708,13 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background: var(--bg-secondary);
+}
+.fallacy-detail-node.clickable {
+  cursor: pointer;
+}
+.fallacy-detail-node.clickable:hover {
+  background: var(--bg-hover, var(--hover-bg));
+  border-color: var(--focus-ring);
 }
 .fallacy-detail-node-header {
   display: flex;

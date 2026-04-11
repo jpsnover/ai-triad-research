@@ -17,6 +17,7 @@ import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { getCategoryLabel } from '../data/lineageCategories';
+import { api } from '@bridge';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 
@@ -96,6 +97,24 @@ export function ConflictsTab() {
           <div className="lineage-detail-label">Frequency</div>
           <p className="lineage-detail-text">{info.frequency}</p>
         </div>
+        {info.links && info.links.length > 0 && (
+          <div className="lineage-detail-section">
+            <div className="lineage-detail-label">Learn More</div>
+            <ul className="strategy-info-links">
+              {info.links.map((link, i) => (
+                <li key={i}>
+                  <button
+                    className="strategy-info-link"
+                    onClick={() => api.openExternal(link.url)}
+                    title={link.url}
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     );
   };

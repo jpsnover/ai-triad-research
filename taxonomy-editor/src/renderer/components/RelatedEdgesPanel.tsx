@@ -211,7 +211,28 @@ export function RelatedEdgesPanel({ width }: RelatedEdgesPanelProps) {
       edges.sort((a, b) => b.confidence - a.confidence);
     }
 
-    return groups;
+    // Sort groups by fixed priority order
+    const EDGE_TYPE_PRIORITY: string[] = [
+      'SUPPORTS',
+      'CONTRADICTS',
+      'ASSUMES',
+      'WEAKENS',
+      'RESPONDS_TO',
+      'TENSION_WITH',
+      'INTERPRETS',
+    ];
+    const sorted = new Map<EdgeType, Edge[]>();
+    // First: types in priority order
+    for (const type of EDGE_TYPE_PRIORITY) {
+      const edges = groups.get(type as EdgeType);
+      if (edges) sorted.set(type as EdgeType, edges);
+    }
+    // Then: any remaining types not in the priority list
+    for (const [type, edges] of groups) {
+      if (!sorted.has(type)) sorted.set(type, edges);
+    }
+
+    return sorted;
   }, [edgesFile, nodeId, statusFilter, confidenceThreshold, hiddenPovs]);
 
   // Get edge type definitions for labels
