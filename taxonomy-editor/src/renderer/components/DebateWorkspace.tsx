@@ -406,6 +406,27 @@ function FindBar({ query, onQueryChange, current, total, onPrev, onNext, onClose
 
 // ─────────────────────────────────────────────────────────
 
+function buildExplainPrompt(entry: TranscriptEntry): string {
+  const speaker = speakerLabel(entry.speaker);
+  const refs = entry.taxonomy_refs || [];
+  let prompt = `Explain this section of a debate between Prometheus (an AI Accelerationist), Sentinel (an AI Safetyist) and Cassandra (an AI Skeptic):\n\n`;
+  prompt += `[${speaker} — ${entry.type}]\n${entry.content}\n`;
+  if (refs.length > 0) {
+    prompt += `\nTaxonomy references cited:\n`;
+    for (const ref of refs) {
+      const label = getNodeLabel(ref.node_id);
+      prompt += `- ${ref.node_id} (${label}): ${ref.relevance}\n`;
+    }
+  }
+  return prompt;
+}
+
+function handleExplainEntry(entry: TranscriptEntry) {
+  const prompt = buildExplainPrompt(entry);
+  api.clipboardWriteText(prompt);
+  api.openExternal('https://gemini.google.com/app');
+}
+
 /** Wrapper that adds delete controls to any transcript entry */
 function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   entry: TranscriptEntry; totalEntries: number; entryIndex: number;
@@ -439,6 +460,13 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
 
   return (
     <div className="debate-entry-delete-actions">
+      <button
+        className="debate-entry-action-btn debate-entry-explain-btn"
+        onClick={() => handleExplainEntry(entry)}
+        title="Explain this entry — copies prompt to clipboard and opens Google Gemini"
+      >
+        Explain
+      </button>
       <button
         className="debate-entry-delete-btn"
         onClick={() => setConfirmMode('single')}

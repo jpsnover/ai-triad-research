@@ -6153,6 +6153,20 @@ body {
 .debate-entry-wrapper:hover .debate-entry-delete-actions {
   opacity: 1;
 }
+.debate-entry-action-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 1px 5px;
+  line-height: 1;
+}
+.debate-entry-explain-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .debate-entry-delete-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
