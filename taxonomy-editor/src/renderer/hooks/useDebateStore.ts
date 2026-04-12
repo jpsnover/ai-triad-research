@@ -2457,9 +2457,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Fact-checking claim (${model})`, set);
       if (!isStillValid()) return;
 
-      let result = parseAIJson<{ verdict?: string; explanation?: string; sources?: unknown[] }>(text);
+      let result = parseAIJson<{ verdict?: string; explanation?: string; sources?: unknown[]; points?: unknown[] }>(text);
       if (!result) {
-        result = { verdict: 'unverifiable', explanation: text.trim(), sources: [] };
+        result = { verdict: 'unverifiable', explanation: text.trim(), sources: [], points: [] };
       }
 
       const verdictLabels: Record<string, string> = {
@@ -2502,13 +2502,20 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       });
 
       // ── Generate AN nodes and edges from fact-check points ──
-      const points = Array.isArray(result.points) ? result.points as { text: string; type: 'supports' | 'attacks'; evidence_basis?: string }[] : [];
+      // Always create AN nodes for a fact-check so the argument network captures
+      // the evidence. Falls back gracefully when:
+      //   - LLM omitted `points` → synthesize one from verdict+explanation
+      //   - No existing AN nodes match entryId → synthesize a target node from selectedText
+      const rawPoints = Array.isArray(result.points) ? result.points as { text: string; type?: 'supports' | 'attacks'; evidence_basis?: string }[] : [];
+      const points = rawPoints.filter(p => p && p.text && p.text.length > 0);
       const debate = get().activeDebate;
-      if (points.length > 0 && debate?.argument_network) {
-        const an = debate.argument_network;
+      if (debate) {
+        const an = debate.argument_network || { nodes: [], edges: [] };
+        const factCheckEntryId = debate.transcript[debate.transcript.length - 1]?.id || generateId();
+        const baseTurnNumber = an.nodes.length > 0 ? Math.max(...an.nodes.map(n => n.turn_number)) + 1 : 1;
+
         // Find AN nodes belonging to the checked statement
         const targetNodes = an.nodes.filter(n => n.source_entry_id === entryId);
-        // Pick the best target: prefer nodes whose text overlaps with the checked text
         const checkedWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
         const rankedTargets = targetNodes
           .map(n => {
@@ -2517,56 +2524,83 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             return { node: n, overlap };
           })
           .sort((a, b) => b.overlap - a.overlap);
-        const bestTarget = rankedTargets[0]?.node;
 
-        if (bestTarget) {
-          const factCheckEntryId = debate.transcript[debate.transcript.length - 1]?.id || generateId();
-          let nextNodeIdx = an.nodes.length;
-          let nextEdgeIdx = an.edges.length;
-          const newNodes: typeof an.nodes = [];
-          const newEdges: typeof an.edges = [];
+        let nextNodeIdx = an.nodes.length;
+        let nextEdgeIdx = an.edges.length;
+        const newNodes: typeof an.nodes = [];
+        const newEdges: typeof an.edges = [];
 
-          for (const pt of points.slice(0, 4)) {
-            if (!pt.text || !pt.type) continue;
-            const nodeId = `AN-${nextNodeIdx++}`;
-            newNodes.push({
-              id: nodeId,
-              text: pt.text,
-              speaker: 'system',
-              source_entry_id: factCheckEntryId,
-              taxonomy_refs: [],
-              turn_number: an.nodes.length > 0 ? Math.max(...an.nodes.map(n => n.turn_number)) + 1 : 1,
-              base_strength: pt.type === 'attacks' ? 0.7 : 0.6,
-              scoring_method: 'ai_rubric',
-              bdi_category: 'belief',
-              specificity: 'precise',
-            });
-            const edgeId = `AE-${nextEdgeIdx++}`;
-            newEdges.push({
-              id: edgeId,
-              source: nodeId,
-              target: bestTarget.id,
-              type: pt.type === 'attacks' ? 'attacks' : 'supports',
-              attack_type: pt.type === 'attacks' ? 'rebut' : undefined,
-              scheme: pt.type === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
-              warrant: `Fact-check evidence (${pt.evidence_basis || 'mixed'}): ${pt.text.slice(0, 100)}`,
-              argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
-            });
-          }
+        // If no existing target AN node for this entry, synthesize one from the
+        // selected text so fact-check findings have something to attach to.
+        let bestTarget = rankedTargets[0]?.node;
+        if (!bestTarget) {
+          const syntheticId = `AN-${nextNodeIdx++}`;
+          const syntheticNode = {
+            id: syntheticId,
+            text: selectedText.length > 300 ? selectedText.slice(0, 297) + '...' : selectedText,
+            speaker: 'system' as const,
+            source_entry_id: entryId,
+            taxonomy_refs: [],
+            turn_number: baseTurnNumber,
+            base_strength: 0.5,
+            scoring_method: 'default_pending' as const,
+            bdi_category: 'belief' as const,
+            specificity: 'precise' as const,
+          };
+          newNodes.push(syntheticNode);
+          bestTarget = syntheticNode;
+        }
 
-          if (newNodes.length > 0) {
-            const updated = get().activeDebate;
-            if (updated?.argument_network) {
-              set({
-                activeDebate: {
-                  ...updated,
-                  argument_network: {
-                    nodes: [...updated.argument_network.nodes, ...newNodes],
-                    edges: [...updated.argument_network.edges, ...newEdges],
-                  },
+        // If the LLM returned no usable points, synthesize one from the verdict + explanation
+        // so the fact-check still appears in the argument network.
+        const pointsToAdd = points.length > 0 ? points : [{
+          text: result.explanation || `Fact-check verdict: ${result.verdict}`,
+          type: (result.verdict === 'disputed' || result.verdict === 'false') ? 'attacks' as const : 'supports' as const,
+          evidence_basis: 'mixed',
+        }];
+
+        for (const pt of pointsToAdd.slice(0, 4)) {
+          if (!pt.text) continue;
+          const attackType = pt.type === 'attacks' ? 'attacks' : 'supports';
+          const nodeId = `AN-${nextNodeIdx++}`;
+          newNodes.push({
+            id: nodeId,
+            text: pt.text,
+            speaker: 'system',
+            source_entry_id: factCheckEntryId,
+            taxonomy_refs: [],
+            turn_number: baseTurnNumber,
+            base_strength: attackType === 'attacks' ? 0.7 : 0.6,
+            scoring_method: 'ai_rubric',
+            bdi_category: 'belief',
+            specificity: 'precise',
+          });
+          const edgeId = `AE-${nextEdgeIdx++}`;
+          newEdges.push({
+            id: edgeId,
+            source: nodeId,
+            target: bestTarget.id,
+            type: attackType,
+            attack_type: attackType === 'attacks' ? 'rebut' : undefined,
+            scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
+            warrant: `Fact-check evidence (${pt.evidence_basis || 'mixed'}): ${pt.text.slice(0, 100)}`,
+            argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
+          });
+        }
+
+        if (newNodes.length > 0) {
+          const updated = get().activeDebate;
+          if (updated) {
+            const existingAn = updated.argument_network || { nodes: [], edges: [] };
+            set({
+              activeDebate: {
+                ...updated,
+                argument_network: {
+                  nodes: [...existingAn.nodes, ...newNodes],
+                  edges: [...existingAn.edges, ...newEdges],
                 },
-              });
-            }
+              },
+            });
           }
         }
       }
