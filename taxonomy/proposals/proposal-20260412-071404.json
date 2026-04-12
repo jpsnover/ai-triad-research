@@ -1,0 +1,72 @@
+﻿{
+    "generated_at":  "2026-04-12T07:14:04Z",
+    "model":  "gemini-3.1-flash-lite-preview",
+    "taxonomy_version":  "3.2.0",
+    "summary_count":  318,
+    "proposals":  [
+                      {
+                          "action":  "NEW",
+                          "target_node_id":  null,
+                          "suggested_id":  "sit-141",
+                          "pov":  "situations",
+                          "category":  "Beliefs",
+                          "label":  "Heterogeneous Labor Market Impact",
+                          "description":  "A situation concept that describes how AI\u0027s impact on labor demand and skill requirements varies significantly depending on the task composition of an occupation.\nEncompasses: The divergence between automation-prone and augmentation-prone roles.\nExcludes: Uniform impact models or general labor market displacement theories.",
+                          "rationale":  "This concept appears with high frequency (103) in the health data and provides a necessary, nuanced framework for understanding labor market shifts that existing nodes like \u0027AI\u0027s Complex Effects on the Workforce\u0027 (skp-beliefs-042) do not fully capture.",
+                          "evidence_doc_ids":  [
+                                                   "doc-labor-001",
+                                                   "doc-labor-002",
+                                                   "doc-labor-003"
+                                               ],
+                          "evidence_count":  103,
+                          "children":  null,
+                          "merge_node_ids":  null,
+                          "surviving_node_id":  null,
+                          "new_parent_id":  null,
+                          "density_signal":  null,
+                          "status":  "approved"
+                      },
+                      {
+                          "action":  "NEW",
+                          "target_node_id":  null,
+                          "suggested_id":  "sit-142",
+                          "pov":  "situations",
+                          "category":  "Beliefs",
+                          "label":  "AI Data Dead Loop",
+                          "description":  "A situation concept that describes the scenario where AI systems are trained primarily on data synthesized by previous models rather than authentic human discourse.\nEncompasses: The structural weakness where models lose touch with the originality and factual grounding of human-generated content.\nExcludes: General model training data issues or simple data quality problems.",
+                          "rationale":  "This concept is a recurring, distinct concern regarding the long-term viability of AI systems, appearing in multiple summaries as a present and accelerating reality.",
+                          "evidence_doc_ids":  [
+                                                   "doc-data-001",
+                                                   "doc-data-002",
+                                                   "doc-data-003"
+                                               ],
+                          "evidence_count":  3,
+                          "children":  null,
+                          "merge_node_ids":  null,
+                          "surviving_node_id":  null,
+                          "new_parent_id":  null,
+                          "density_signal":  null,
+                          "status":  "approved"
+                      },
+                      {
+                          "action":  "RELABEL",
+                          "target_node_id":  "skp-beliefs-042",
+                          "suggested_id":  "skp-beliefs-042",
+                          "pov":  "skeptic",
+                          "category":  "Beliefs",
+                          "label":  "AI\u0027s Complex Effects on the Workforce",
+                          "description":  "A Belief within skeptic discourse that examines the multifaceted ways AI is changing the job market and worker experience.\nEncompasses: Job displacement, new job creation, increased workload, economic limits to automation, and worker agency.\nExcludes: Broad macroeconomic theories or the specific concept of heterogeneous labor market impacts covered by Heterogeneous Labor Market Impact.",
+                          "rationale":  "The label remains the same, but the description is updated to explicitly exclude the newly proposed \u0027Heterogeneous Labor Market Impact\u0027 node to maintain taxonomy clarity.",
+                          "evidence_doc_ids":  [
+                                                   "doc-labor-001"
+                                               ],
+                          "evidence_count":  125,
+                          "children":  null,
+                          "merge_node_ids":  null,
+                          "surviving_node_id":  null,
+                          "new_parent_id":  null,
+                          "density_signal":  null,
+                          "status":  "approved"
+                      }
+                  ]
+}

@@ -17,7 +17,7 @@ import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from '../prompts/argumentNetwork';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis } from '../types/debate';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
@@ -185,6 +185,112 @@ function recordDiagnostic(
   try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
 }
 
+/** djb2 hash for prompt fingerprinting. */
+function hashString(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
+
+/** Heuristic: does response body look cut off mid-JSON? */
+function looksTruncated(s: string): boolean {
+  if (!s) return false;
+  const trimmed = s.trimEnd();
+  if (trimmed.length === 0) return false;
+  let depth = 0;
+  for (const c of trimmed) {
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+  }
+  if (depth > 0) return true;
+  const last = trimmed.slice(-1);
+  return !(last === '}' || last === ']' || last === '"');
+}
+
+function wordOverlap(a: string, b: string): number {
+  const aw = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+  const bw = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+  if (aw.size === 0) return 0;
+  const inter = [...aw].filter(w => bw.has(w)).length;
+  return inter / aw.size;
+}
+
+function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {
+  let max = 0;
+  for (const n of existing) {
+    const o = wordOverlap(text, n.text);
+    if (o > max) max = o;
+  }
+  return max;
+}
+
+/** Incrementally refresh debate.extraction_summary given a new trace. */
+function updateExtractionSummary(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get: () => any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: (partial: any) => void,
+): void {
+  const debate = get().activeDebate as DebateSession | null;
+  if (!debate) return;
+
+  const traces: ClaimExtractionTrace[] = [];
+  const entries = debate.diagnostics?.entries ?? {};
+  for (const entryDiag of Object.values(entries) as EntryDiagnostics[]) {
+    if (entryDiag.extraction_trace) traces.push(entryDiag.extraction_trace);
+  }
+  traces.sort((a, b) => a.round - b.round);
+
+  let totalProposed = 0;
+  let totalAccepted = 0;
+  let totalRejected = 0;
+  const rejectionTotals: Record<string, number> = {};
+  const growth: { round: number; cumulative_count: number }[] = [];
+  for (const t of traces) {
+    totalProposed += t.candidates_proposed;
+    totalAccepted += t.candidates_accepted;
+    totalRejected += t.candidates_rejected;
+    for (const [k, v] of Object.entries(t.rejection_reasons)) {
+      rejectionTotals[k] = (rejectionTotals[k] ?? 0) + v;
+    }
+    growth.push({ round: t.round, cumulative_count: t.an_node_count_after });
+  }
+
+  let plateauDetected = false;
+  let plateauStartedAt: number | undefined;
+  let plateauLastAnId: string | undefined;
+  if (traces.length >= 2) {
+    let tailZero = 0;
+    for (let i = traces.length - 1; i >= 0; i--) {
+      const t = traces[i];
+      if (t.an_node_count_after === t.an_node_count_before) tailZero++;
+      else break;
+    }
+    if (tailZero >= 2) {
+      plateauDetected = true;
+      const firstZeroIdx = traces.length - tailZero;
+      plateauStartedAt = traces[firstZeroIdx]?.round;
+      const lastGood = traces[firstZeroIdx - 1];
+      plateauLastAnId = lastGood?.an_nodes_added_ids.slice(-1)[0];
+    }
+  }
+
+  const summary: ExtractionSummary = {
+    total_turns: traces.length,
+    total_proposed: totalProposed,
+    total_accepted: totalAccepted,
+    total_rejected: totalRejected,
+    acceptance_rate: totalProposed > 0 ? totalAccepted / totalProposed : 0,
+    an_growth_series: growth,
+    plateau_detected: plateauDetected,
+    plateau_started_at_turn: plateauStartedAt,
+    plateau_last_an_id: plateauLastAnId,
+    rejection_reason_totals: rejectionTotals,
+  };
+
+  set({ activeDebate: { ...debate, extraction_summary: summary } });
+}
+
 /**
  * Extract claims from a debater's statement and update the argument network.
  * Runs in the background after each turn — does not block the debate flow.
@@ -209,6 +315,9 @@ async function extractClaimsAndUpdateAN(
   const speakerLabel = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
 
   const extractStartedAt = Date.now();
+  const anCountBefore = an.nodes.length;
+  const turnRound = (debate.transcript?.length ?? 0) + 1;
+  const EXTRACTION_PROMPT_VERSION = 'v1.4';
   trace(TraceEventName.AN_EXTRACT_START, {
     debate_id: debate.id,
     turn_id: entryId,
@@ -217,12 +326,46 @@ async function extractClaimsAndUpdateAN(
     has_debater_claims: !!(debaterClaims && debaterClaims.length > 0),
   });
 
+  // Seed trace — progressively filled in as the extraction lifecycle proceeds.
+  const extractionTrace: ClaimExtractionTrace = {
+    entry_id: entryId,
+    round: turnRound,
+    speaker,
+    status: 'ok',
+    attempt_count: 1,
+    prompt_chars: 0,
+    prompt_token_estimate: 0,
+    response_chars: 0,
+    response_truncated: false,
+    model,
+    response_time_ms: 0,
+    candidates_proposed: 0,
+    candidates_accepted: 0,
+    candidates_rejected: 0,
+    rejection_reasons: {},
+    rejected_overlap_pcts: [],
+    max_overlap_vs_existing: 0,
+    an_node_count_before: anCountBefore,
+    an_node_count_after: anCountBefore,
+    an_nodes_added_ids: [],
+    prompt_hash: '',
+    extraction_prompt_version: EXTRACTION_PROMPT_VERSION,
+  };
+
+  const commitTrace = () => {
+    recordDiagnostic(get, set, entryId, { extraction_trace: { ...extractionTrace } });
+    updateExtractionSummary(get, set);
+  };
+
   try {
     // Hybrid approach: if debater supplied claims, use classifyClaimsPrompt (lighter).
     // Otherwise fall back to full extractClaimsPrompt (backward compat with older models).
     const prompt = debaterClaims && debaterClaims.length > 0
       ? classifyClaimsPrompt(statement, speakerLabel, debaterClaims, priorClaims)
       : extractClaimsPrompt(statement, speakerLabel, priorClaims);
+    extractionTrace.prompt_chars = prompt.length;
+    extractionTrace.prompt_token_estimate = Math.round(prompt.length / 4);
+    extractionTrace.prompt_hash = hashString(prompt);
 
     const callId = newCallId();
     const callStartedAt = Date.now();
@@ -239,6 +382,9 @@ async function extractClaimsAndUpdateAN(
     let text: string;
     try {
       ({ text } = await api.generateText(prompt, model));
+      extractionTrace.response_time_ms = Date.now() - callStartedAt;
+      extractionTrace.response_chars = text.length;
+      extractionTrace.response_truncated = looksTruncated(text);
       trace(TraceEventName.AI_CALL_COMPLETE, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -250,6 +396,9 @@ async function extractClaimsAndUpdateAN(
         response_chars: text.length,
       });
     } catch (callErr) {
+      extractionTrace.response_time_ms = Date.now() - callStartedAt;
+      extractionTrace.status = 'adapter_error';
+      extractionTrace.error_message = String(callErr);
       trace(TraceEventName.AI_CALL_FAILED, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -267,8 +416,18 @@ async function extractClaimsAndUpdateAN(
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
-    const parsed = JSON.parse(cleaned) as { claims?: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+    try {
+      parsed = JSON.parse(cleaned) as typeof parsed;
+    } catch (parseErr) {
+      extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
+      extractionTrace.error_message = String(parseErr);
+      commitTrace();
+      throw parseErr;
+    }
     if (!parsed.claims || !Array.isArray(parsed.claims)) {
+      extractionTrace.status = 'empty_response';
+      commitTrace();
       trace(TraceEventName.AN_EXTRACT_COMPLETE, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -281,6 +440,7 @@ async function extractClaimsAndUpdateAN(
       });
       return;
     }
+    extractionTrace.candidates_proposed = parsed.claims.length;
 
     const turnNumber = debate.transcript.length;
     const newNodes: ArgumentNetworkNode[] = [];
@@ -295,7 +455,15 @@ async function extractClaimsAndUpdateAN(
     const speakerCommits: CommitmentStore = commitments[speaker] || { asserted: [], conceded: [], challenged: [] };
 
     for (const claim of parsed.claims.slice(0, 4)) {
-      if (!claim.text || claim.text.length < 10) continue;
+      if (!claim.text || claim.text.length < 10) {
+        extractionTrace.rejection_reasons.too_short = (extractionTrace.rejection_reasons.too_short ?? 0) + 1;
+        continue;
+      }
+      // Track max overlap vs. existing AN nodes — catches "saturated network" failure mode.
+      const overlapVsAN = maxOverlapVsExisting(claim.text, an.nodes);
+      if (overlapVsAN > extractionTrace.max_overlap_vs_existing) {
+        extractionTrace.max_overlap_vs_existing = overlapVsAN;
+      }
 
       // V1.4: Verify claim is grounded in statement (>40% word overlap)
       const claimWords = new Set(claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3));
@@ -304,6 +472,8 @@ async function extractClaimsAndUpdateAN(
       if (overlap < 0.3) {
         console.warn(`[AN] Rejected claim — low overlap (${(overlap * 100).toFixed(0)}%): ${claim.text.slice(0, 60)}`);
         diagRejected.push({ text: claim.text, reason: `Low word overlap (${(overlap * 100).toFixed(0)}%)`, overlap_pct: Math.round(overlap * 100) });
+        extractionTrace.rejection_reasons.low_overlap = (extractionTrace.rejection_reasons.low_overlap ?? 0) + 1;
+        extractionTrace.rejected_overlap_pcts.push(Math.round(overlap * 100));
         trace(TraceEventName.AN_EXTRACT_REJECTED_CLAIM, {
           debate_id: debate.id,
           turn_id: entryId,
@@ -368,7 +538,13 @@ async function extractClaimsAndUpdateAN(
       }
     }
 
+    extractionTrace.candidates_accepted = newNodes.length;
+    extractionTrace.candidates_rejected = diagRejected.length;
+
     if (newNodes.length === 0) {
+      extractionTrace.status = 'no_new_nodes';
+      extractionTrace.an_node_count_after = anCountBefore;
+      commitTrace();
       trace(TraceEventName.AN_EXTRACT_COMPLETE, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -381,6 +557,10 @@ async function extractClaimsAndUpdateAN(
       });
       return;
     }
+
+    extractionTrace.status = 'ok';
+    extractionTrace.an_node_count_after = anCountBefore + newNodes.length;
+    extractionTrace.an_nodes_added_ids = newNodes.map(n => n.id);
 
     // Update debate session
     const updated = {
@@ -474,6 +654,7 @@ async function extractClaimsAndUpdateAN(
 
     // Inline empirical claim verification (non-blocking)
     const preciseBeliefs = newNodes.filter(n => n.bdi_category === 'belief' && n.specificity === 'precise');
+    let factCheckMutated = false;
     for (const pNode of preciseBeliefs.slice(0, 2)) {
       try {
         const verifyPrompt = `Verify this empirical claim using web search evidence.\n\nClaim: "${pNode.text}"\n\nReturn ONLY JSON:\n{"verdict": "verified" or "disputed" or "unverifiable", "evidence": "1-2 sentence summary"}`;
@@ -482,19 +663,73 @@ async function extractClaimsAndUpdateAN(
         if (vParsed?.verdict) {
           pNode.verification_status = vParsed.verdict;
           pNode.verification_evidence = vParsed.evidence;
+          factCheckMutated = true;
           // Update in session
           const currentDebate = get().activeDebate;
           if (currentDebate) set({ activeDebate: { ...currentDebate } });
 
-          if (vParsed.verdict === 'disputed') {
+          if (vParsed.verdict === 'disputed' || vParsed.verdict === 'verified') {
             const addEntry = get().addTranscriptEntry;
             if (addEntry) {
+              const verdictLabel = vParsed.verdict === 'disputed' ? 'Disputed' : 'Verified';
               addEntry({
-                type: 'system',
+                type: 'fact-check',
                 speaker: 'system',
-                content: `[Fact-check] Claim ${pNode.id} disputed by web evidence: ${vParsed.evidence}`,
+                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text.length > 120 ? pNode.text.slice(0, 117) + '...' : pNode.text}"\n\n${vParsed.evidence}`,
                 taxonomy_refs: [],
+                metadata: {
+                  fact_check: {
+                    verdict: vParsed.verdict,
+                    explanation: vParsed.evidence,
+                    checked_text: pNode.text,
+                    web_search_used: true,
+                    target_an_id: pNode.id,
+                  },
+                },
               });
+            }
+
+            // Create an AN node + edge capturing the fact-check finding so the
+            // argument network reflects the evidence (mirrors manual fact-check path).
+            const cur = get().activeDebate as DebateSession | null;
+            if (cur) {
+              const curAN = cur.argument_network || { nodes: [], edges: [] };
+              const attackType = vParsed.verdict === 'disputed' ? 'attacks' : 'supports';
+              const fcNodeId = `AN-${curAN.nodes.length + 1}`;
+              const fcEdgeId = `AE-${curAN.edges.length + 1}`;
+              const factCheckEntryId = cur.transcript[cur.transcript.length - 1]?.id || entryId;
+              const fcNode: ArgumentNetworkNode = {
+                id: fcNodeId,
+                text: `Fact-check (${vParsed.verdict}): ${vParsed.evidence}`,
+                speaker: 'system',
+                source_entry_id: factCheckEntryId,
+                taxonomy_refs: [],
+                turn_number: cur.transcript.length,
+                base_strength: attackType === 'attacks' ? 0.7 : 0.6,
+                scoring_method: 'ai_rubric',
+                bdi_category: 'belief',
+                specificity: 'precise',
+              };
+              const fcEdge: ArgumentNetworkEdge = {
+                id: fcEdgeId,
+                source: fcNodeId,
+                target: pNode.id,
+                type: attackType,
+                attack_type: attackType === 'attacks' ? 'rebut' : undefined,
+                scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
+                warrant: `Inline fact-check evidence (web search): ${String(vParsed.evidence).slice(0, 100)}`,
+                argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
+              };
+              set({
+                activeDebate: {
+                  ...cur,
+                  argument_network: {
+                    nodes: [...curAN.nodes, fcNode],
+                    edges: [...curAN.edges, fcEdge],
+                  },
+                },
+              });
+              factCheckMutated = true;
             }
           }
         }
@@ -503,16 +738,25 @@ async function extractClaimsAndUpdateAN(
         pNode.verification_status = 'pending';
       }
     }
+    if (factCheckMutated) {
+      try { await get().saveDebate(); } catch (saveErr) {
+        console.warn('[Verify] Failed to persist inline fact-check mutations:', saveErr);
+      }
+    }
 
     // Record claim extraction diagnostics
     recordDiagnostic(get, set, entryId, {
       extracted_claims: { accepted: diagAccepted, rejected: diagRejected },
     });
+    commitTrace();
 
     // Broadcast updated state to popout
     try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
+    if (!extractionTrace.error_message) extractionTrace.error_message = String(err);
+    if (extractionTrace.status === 'ok') extractionTrace.status = 'adapter_error';
+    try { commitTrace(); } catch { /* ignore */ }
     trace(TraceEventName.AN_EXTRACT_FAILED, {
       debate_id: debate.id,
       turn_id: entryId,

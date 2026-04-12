@@ -329,6 +329,7 @@ interface TaxonomyState {
 
   loadAll: () => Promise<void>;
   save: () => Promise<void>;
+  dismissSaveError: () => void;
 
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>) => void;
   createPovNode: (pov: Pov, category: Category) => string;
@@ -1147,6 +1148,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       set({ loading: false, saveError: mapErrorToUserMessage(err) });
     }
   },
+
+  dismissSaveError: () => set({ saveError: null }),
 
   save: async () => {
     const state = get();

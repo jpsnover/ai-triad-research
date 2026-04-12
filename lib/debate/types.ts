@@ -155,6 +155,8 @@ export interface DebateSession {
   taxonomy_suggestions?: TaxonomySuggestion[];
   /** Post-debate dialectic traces explaining why positions prevailed — argument chains from the AN graph. */
   dialectic_traces?: import('./dialecticTrace').DialecticTrace[];
+  /** Session-level aggregate of claim-extraction health — computed incrementally after each extraction turn. */
+  extraction_summary?: ExtractionSummary;
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
@@ -278,9 +280,87 @@ export interface EntryDiagnostics {
     accepted: { text: string; id: string; overlap_pct: number }[];
     rejected: { text: string; reason: string; overlap_pct: number }[];
   };
+  /** Legacy claim-extraction capture — prompt, raw response, parse count, schemes. */
+  claim_extraction?: {
+    prompt: string;
+    raw_response: string;
+    response_time_ms: number;
+    claims_parsed: number;
+    schemes_classified: string[];
+  };
+  /** Full extraction-lifecycle trace — status, sizes, funnel, overlap distribution, AN delta. */
+  extraction_trace?: ClaimExtractionTrace;
   edge_tensions?: string;
   argument_network_context?: string;
   selection_reasoning?: string;
+}
+
+/**
+ * Per-turn trace for the claim-extraction pipeline. Used to diagnose
+ * "AN nodes stop being registered" plateau failures.
+ */
+export interface ClaimExtractionTrace {
+  entry_id: string;
+  round: number;
+  speaker: PoverId;
+
+  /** Lifecycle outcome for the extraction call. */
+  status:
+    | 'ok'                // at least one claim accepted
+    | 'no_new_nodes'      // extraction ran but zero accepted (all rejected or empty)
+    | 'adapter_error'     // underlying AI call threw
+    | 'parse_error'       // response received but JSON parse failed
+    | 'empty_response'    // AI returned 0 candidates
+    | 'truncated_response'// response body appears truncated
+    | 'skipped';          // extraction intentionally bypassed
+  error_message?: string;
+  attempt_count: number;
+
+  // Sizes — catches context-bloat failure mode
+  prompt_chars: number;
+  prompt_token_estimate: number;
+  response_chars: number;
+  response_truncated: boolean;
+  model: string;
+  response_time_ms: number;
+
+  // Funnel
+  candidates_proposed: number;
+  candidates_accepted: number;
+  candidates_rejected: number;
+  rejection_reasons: Record<string, number>;
+
+  // Overlap distribution — catches "AN saturated" failure mode
+  rejected_overlap_pcts: number[];
+  max_overlap_vs_existing: number;
+
+  // Cumulative state
+  an_node_count_before: number;
+  an_node_count_after: number;
+  an_nodes_added_ids: string[];
+
+  // Drift signals
+  prompt_hash: string;
+  extraction_prompt_version: string;
+}
+
+/** Session-level aggregate of extraction health, computed incrementally. */
+export interface ExtractionSummary {
+  total_turns: number;
+  total_proposed: number;
+  total_accepted: number;
+  total_rejected: number;
+  acceptance_rate: number;
+  /** Per-round AN node counts (cumulative). */
+  an_growth_series: { round: number; cumulative_count: number }[];
+  /** True if 2+ consecutive turns produced zero new AN nodes. */
+  plateau_detected: boolean;
+  /** Turn index where plateau first began (1-based). Absent if no plateau. */
+  plateau_started_at_turn?: number;
+  /** AN node ID of last successful addition before plateau (e.g. "AN-11"). */
+  plateau_last_an_id?: string;
+  /** Aggregate rejection reasons across the session. */
+  rejection_reason_totals: Record<string, number>;
 }
 
 export interface DebateOverviewDiagnostics {

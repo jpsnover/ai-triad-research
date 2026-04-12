@@ -12,6 +12,8 @@ import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
+import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
+import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
 
 const DiagSearchContext = createContext('');
 
@@ -302,7 +304,7 @@ function Highlight({ text, query: queryProp }: { text: string; query?: string })
 
 function SearchBar({ query, setQuery, matchCount }: { query: string; setQuery: (q: string) => void; matchCount: number }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
       <input
         type="text"
         placeholder="Search diagnostics..."
@@ -370,13 +372,14 @@ function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) 
 }
 
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
-function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength }: {
+function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
   allNodes: ArgumentNetworkNode[];
   isSource: boolean;
   computedStrength?: number;
+  statementId?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const responded = attacks.length > 0 || supports.length > 0;
@@ -398,6 +401,16 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         <div style={{ flex: 1 }}>
           <AifBadge type="I-node" />
           <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
+          {statementId && (
+            <span
+              title={`Source statement ${statementId}`}
+              style={{
+                marginLeft: 5, padding: '1px 5px', borderRadius: 8,
+                background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+              }}
+            >{statementId}</span>
+          )}
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
           {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
           {(() => {
@@ -484,6 +497,41 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details';
+  const [entryTab, setEntryTab] = useState<EntryTab>('tax-refs');
+  const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
+  const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
+  // Reset the tax-ref detail panel whenever the selected transcript entry changes
+  useEffect(() => { setSelectedTaxRefId(null); }, [selectedEntry]);
+
+  // Load POV/situations taxonomy files once so we can resolve taxonomy_refs by id
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const files = await Promise.all([
+          api.loadTaxonomyFile('accelerationist').catch(() => null),
+          api.loadTaxonomyFile('safetyist').catch(() => null),
+          api.loadTaxonomyFile('skeptic').catch(() => null),
+          api.loadTaxonomyFile('situations').catch(() => null),
+        ]);
+        if (cancelled) return;
+        const m = new Map<string, Record<string, unknown>>();
+        for (const f of files) {
+          const nodes = (f as { nodes?: Record<string, unknown>[] } | null)?.nodes;
+          if (!Array.isArray(nodes)) continue;
+          for (const n of nodes) {
+            const id = (n as { id?: string }).id;
+            if (typeof id === 'string') m.set(id, n);
+          }
+        }
+        setTaxNodeMap(m);
+      } catch {
+        // non-fatal — table still renders without detail panel lookup
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Apply theme — the diagnostics popout doesn't go through MainApp which normally sets data-theme
   useEffect(() => {
@@ -542,7 +590,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     <DiagSearchContext.Provider value={sq}>
     <div style={{ padding: 12, height: '100vh', overflow: 'auto', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', flex: 1 }}>Debate Diagnostics</h2>
+        <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
+        {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
+        {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
           onClick={() => setShowHelp(!showHelp)}
           style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
@@ -550,7 +600,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {showHelp ? 'Close Help' : 'Help'}
         </button>
       </div>
-      {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
       {showHelp && <HelpContent />}
       {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
 
@@ -560,10 +609,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             Click a transcript entry in the main window to inspect it here. Showing overview.
           </p>
 
+          {/* Extraction Timeline — diagnoses AN-plateau failures */}
+          <Section
+            title={`Extraction Timeline${debate.extraction_summary?.plateau_detected ? ' ⚠ plateau' : ''}`}
+            defaultOpen={debate.extraction_summary?.plateau_detected === true}
+          >
+            <ExtractionTimelinePanel debate={debate} />
+          </Section>
+
           {/* Argument Network with inline Moderator Deliberations */}
           {an && an.nodes.length > 0 && (() => {
             const caCount = an.edges.filter(e => e.type === 'attacks').length;
             const raCount = an.edges.filter(e => e.type === 'supports').length;
+            // Statement-ID map — matches S{round} from the main transcript view.
+            const stmtIdByEntry = new Map<string, string>();
+            debate.transcript.forEach((e, i) => stmtIdByEntry.set(e.id, `S${i + 1}`));
 
             // Compute QBAF strengths from edges
             const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
@@ -682,6 +742,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           allNodes={an.nodes}
                           isSource={isSource}
                           computedStrength={strengthMap.get(n.id)}
+                          statementId={stmtIdByEntry.get(n.source_entry_id)}
                         />
                       );
                     })}
@@ -704,141 +765,375 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
           {/* Transcript list for selection */}
           <Section title={`Transcript (${debate.transcript.length} entries)`} defaultOpen>
-            {debate.transcript.map(e => (
-              <div
-                key={e.id}
-                onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
-                style={{ padding: '3px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: 'var(--bg-primary)', fontSize: '0.7rem' }}
-              >
-                <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
-              </div>
-            ))}
+            {debate.transcript.map((e, i) => {
+              const stmtId = `S${i + 1}`;
+              return (
+                <div
+                  key={e.id}
+                  onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
+                  style={{ padding: '3px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: 'var(--bg-primary)', fontSize: '0.7rem', display: 'flex', alignItems: 'baseline', gap: 6 }}
+                >
+                  <span
+                    title={`Statement ${stmtId}`}
+                    style={{
+                      padding: '1px 6px', borderRadius: 8,
+                      background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                      fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                      flexShrink: 0,
+                    }}
+                  >{stmtId}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
+                  </span>
+                </div>
+              );
+            })}
           </Section>
         </>
       )}
 
-      {entry && (
+      {entry && (() => {
+        const entryIdx = debate!.transcript.findIndex(e => e.id === entry.id);
+        const totalEntries = debate!.transcript.length;
+        const stmtId = entryIdx >= 0 ? `S${entryIdx + 1}` : '';
+        const goToIdx = (i: number) => {
+          if (i < 0 || i >= totalEntries) return;
+          setSelectedEntry(debate!.transcript[i].id);
+          setLocalOverride(true);
+        };
+        const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
+          padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
+          borderRadius: 4, border: '1px solid var(--border)',
+          background: disabled ? 'transparent' : 'rgba(249,115,22,0.1)',
+          color: disabled ? 'var(--text-muted)' : '#f97316',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+        });
+        return (
         <>
-          <button onClick={() => { setSelectedEntry(null); setLocalOverride(true); }} style={{ fontSize: '0.7rem', marginBottom: 8, cursor: 'pointer', background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', color: 'var(--text-primary)' }}>
-            ← Back to Overview
-          </button>
-          <div style={{ marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
+              style={{ fontSize: '0.7rem', cursor: 'pointer', background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', color: 'var(--text-primary)' }}
+            >
+              Overview
+            </button>
+            <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
+            {stmtId && (
+              <span
+                title={`Statement ${stmtId}`}
+                style={{
+                  padding: '1px 7px', borderRadius: 10,
+                  background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                  fontSize: '0.7rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                }}
+              >{stmtId}</span>
+            )}
             <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
-            <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.75rem' }}>{entry.type}</span>
-            {!diag && <span style={{ color: '#f59e0b', marginLeft: 8, fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
+            {!diag && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
+            <span style={{ flex: 1 }} />
+            <button
+              onClick={() => goToIdx(entryIdx - 1)}
+              disabled={entryIdx <= 0}
+              title="Previous statement"
+              style={navBtnStyle(entryIdx <= 0)}
+            >◀ Prev</button>
+            <button
+              onClick={() => goToIdx(entryIdx + 1)}
+              disabled={entryIdx >= totalEntries - 1}
+              title="Next statement"
+              style={navBtnStyle(entryIdx >= totalEntries - 1)}
+            >Next ▶</button>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+              {entryIdx + 1} / {totalEntries}
+            </span>
           </div>
 
-          {/* ── ALWAYS AVAILABLE (from metadata) ── */}
+          {/* ── Tabbed view: Taxonomy Refs | Taxonomy Context | Full Prompt | Raw Response ── */}
+          {(() => {
+            const taxRefCount = entry.taxonomy_refs?.length ?? 0;
+            const taxContext = diag?.taxonomy_context ?? '';
+            const prompt = diag?.prompt ?? '';
+            const response = diag?.raw_response ?? '';
+            // "Details" tab is available whenever any detail section has data.
+            const hasDetails = !!(
+              (meta?.key_assumptions && (meta.key_assumptions as unknown[]).length > 0) ||
+              diag?.extracted_claims ||
+              (meta?.my_claims && (meta.my_claims as unknown[]).length > 0) ||
+              (meta?.policy_refs as string[])?.length || (entry.policy_refs?.length ?? 0) > 0 ||
+              diag?.model ||
+              diag?.commitment_context ||
+              diag?.edge_tensions ||
+              diag?.argument_network_context ||
+              (meta?.move_types && (meta.move_types as unknown[]).length > 0)
+            );
+            const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
+              { id: 'details', label: 'Details', has: hasDetails, copy: '' },
+              { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
+              { id: 'tax-context', label: 'Taxonomy Context', has: taxContext.length > 0, copy: taxContext },
+              { id: 'prompt', label: 'Full Prompt Sent to AI', has: prompt.length > 0, copy: prompt },
+              { id: 'response', label: 'Raw AI Response', has: response.length > 0, copy: response },
+            ];
+            // If the current tab has no data, auto-select the first tab that does.
+            const activeTab = tabs.find(t => t.id === entryTab)?.has
+              ? entryTab
+              : (tabs.find(t => t.has)?.id ?? 'details');
+            const active = tabs.find(t => t.id === activeTab)!;
+            const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch(() => {}); };
 
-          {meta?.move_types && (
-            <Section title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as string[]).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
-              {(meta.move_types as string[]).map((m, i) => (
-                <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{m}</span>
-              ))}
-              {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
-            </Section>
-          )}
+            const textAreaStyle: React.CSSProperties = {
+              width: '100%',
+              flex: 1,
+              height: 'calc(100vh - 200px)',
+              minHeight: 300,
+              resize: 'none',
+              fontFamily: 'monospace',
+              fontSize: '0.78rem',
+              background: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+              borderBottomLeftRadius: 6,
+              borderBottomRightRadius: 6,
+              padding: '10px 12px',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              boxSizing: 'border-box',
+            };
 
-          {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
-            <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
-              {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
-                <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
-                  <div><strong>Assumes:</strong> {a.assumption}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>If wrong: {a.if_wrong}</div>
+            const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => ({
+              padding: '6px 12px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              border: '1px solid var(--border)',
+              borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
+              background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
+              color: t.has ? (t.id === activeTab ? '#f97316' : 'var(--text-primary)') : 'var(--text-muted)',
+              cursor: t.has ? 'pointer' : 'not-allowed',
+              opacity: t.has ? 1 : 0.5,
+              borderRadius: '6px 6px 0 0',
+              marginRight: 2,
+              marginBottom: -1,
+              position: 'relative',
+              zIndex: t.id === activeTab ? 2 : 1,
+            });
+
+            return (
+              <div style={{ margin: '8px 0 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid var(--border)' }}>
+                  {tabs.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => t.has && setEntryTab(t.id)}
+                      disabled={!t.has}
+                      style={tabBtnStyle(t)}
+                      title={t.has ? t.label : `${t.label} (no data)`}
+                    >
+                      {t.label}
+                      {t.count != null && <span style={{ marginLeft: 4, color: 'var(--text-muted)', fontWeight: 400 }}>({t.count})</span>}
+                    </button>
+                  ))}
+                  <div style={{ flex: 1 }} />
+                  {active.has && active.id !== 'tax-refs' && (
+                    <button
+                      onClick={handleCopy}
+                      style={{ fontSize: '0.65rem', padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', marginBottom: 4 }}
+                      title="Copy tab content"
+                    >Copy</button>
+                  )}
                 </div>
-              ))}
-            </Section>
-          )}
+                <div style={{
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderTop: 'none',
+                  borderRadius: '0 6px 6px 6px',
+                  padding: activeTab === 'tax-refs' ? '8px 10px' : 0,
+                }}>
+                  {activeTab === 'tax-refs' && (
+                    taxRefCount > 0 ? (
+                      <div style={{ maxHeight: 'calc(100vh - 260px)', minHeight: 200, overflowY: 'auto', padding: '8px 10px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
+                          <colgroup>
+                            <col style={{ width: '180px' }} />
+                            <col />
+                          </colgroup>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Id</th>
+                              <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Relevance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {entry.taxonomy_refs!.map((r, i) => {
+                              const isSelected = selectedTaxRefId === r.node_id;
+                              return (
+                                <tr
+                                  key={i}
+                                  style={{
+                                    borderBottom: '1px solid var(--border)',
+                                    background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                                  }}
+                                >
+                                  <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                                    <button
+                                      onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: 0,
+                                        cursor: 'pointer',
+                                        color: 'var(--accent)',
+                                        fontWeight: isSelected ? 700 : 600,
+                                        textDecoration: 'underline',
+                                        fontFamily: 'inherit',
+                                        fontSize: 'inherit',
+                                        textAlign: 'left',
+                                      }}
+                                      title="Show POV details"
+                                    >{r.node_id}</button>
+                                  </td>
+                                  <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                    {r.relevance}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {selectedTaxRefId && (() => {
+                          const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
+                          const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
+                            : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
+                            : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
+                            : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                          return (
+                            <TaxonomyRefDetail
+                              nodeId={selectedTaxRefId}
+                              node={node}
+                              pov={povOfId}
+                              onClose={() => setSelectedTaxRefId(null)}
+                            />
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '8px 10px' }}>No taxonomy refs for this entry.</div>
+                    )
+                  )}
+                  {activeTab === 'tax-context' && (
+                    taxContext ? (
+                      <textarea readOnly value={taxContext} style={textAreaStyle} />
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
+                    )
+                  )}
+                  {activeTab === 'prompt' && (
+                    prompt ? (
+                      <textarea readOnly value={prompt} style={textAreaStyle} />
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No prompt captured for this entry.</div>
+                    )
+                  )}
+                  {activeTab === 'response' && (
+                    response ? (
+                      <textarea readOnly value={response} style={textAreaStyle} />
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No raw response captured for this entry.</div>
+                    )
+                  )}
+                  {activeTab === 'details' && (
+                    <div style={{ padding: '8px 10px', maxHeight: 'calc(100vh - 260px)', minHeight: 200, overflowY: 'auto' }}>
+                      {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
+                        <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
+                          {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+                            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)' }}>
+                              <div><strong>Assumes:</strong> {a.assumption}</div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>If wrong: {a.if_wrong}</div>
+                            </div>
+                          ))}
+                        </Section>
+                      )}
 
-          {diag?.extracted_claims && (
-            <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
-              {diag.extracted_claims.accepted.map((c, i) => (
-                <div key={i} style={{ margin: '3px 0' }}>
-                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                      {diag?.extracted_claims && (
+                        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
+                          {diag.extracted_claims.accepted.map((c, i) => (
+                            <div key={i} style={{ margin: '3px 0' }}>
+                              <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                            </div>
+                          ))}
+                          {diag.extracted_claims.rejected.map((c, i) => (
+                            <div key={i} style={{ margin: '3px 0' }}>
+                              <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                              <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
+                            </div>
+                          ))}
+                        </Section>
+                      )}
+
+                      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+                        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
+                          {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
+                            <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
+                              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
+                              {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+                            </div>
+                          ))}
+                        </Section>
+                      )}
+
+                      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
+                        <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
+                          {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
+                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
+                          ))}
+                        </Section>
+                      )}
+
+                      {diag?.model && (
+                        <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
+                          <div>Model: {diag.model}</div>
+                          {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
+                        </Section>
+                      )}
+
+                      {diag?.commitment_context && (
+                        <Section title="Commitments Injected" copyText={diag.commitment_context}>
+                          <ResizablePre tall text={diag.commitment_context} />
+                        </Section>
+                      )}
+
+                      {diag?.edge_tensions && (
+                        <Section title="Edge Tensions" copyText={diag.edge_tensions}>
+                          <ResizablePre tall text={diag.edge_tensions} />
+                        </Section>
+                      )}
+
+                      {diag?.argument_network_context && (
+                        <Section title="Argument Network Context" copyText={diag.argument_network_context}>
+                          <ResizablePre tall text={diag.argument_network_context} />
+                        </Section>
+                      )}
+
+                      {meta?.move_types && (
+                        <Section title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as string[]).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
+                          {(meta.move_types as string[]).map((m, i) => (
+                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{m}</span>
+                          ))}
+                          {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
+                        </Section>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
-              {diag.extracted_claims.rejected.map((c, i) => (
-                <div key={i} style={{ margin: '3px 0' }}>
-                  <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-                  <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
-                </div>
-              ))}
-            </Section>
-          )}
+              </div>
+            );
+          })()}
 
-          {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-            <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
-              {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
-                <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
-                  <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
-                  {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {entry.taxonomy_refs.length > 0 && (
-            <Section title={`Taxonomy Refs (${entry.taxonomy_refs.length})`} copyText={entry.taxonomy_refs.map(r => `${r.node_id}: ${r.relevance}`).join('\n')}>
-              {entry.taxonomy_refs.map((r, i) => (
-                <div key={i} style={{ margin: '2px 0' }}><strong style={{ color: 'var(--accent)' }}>{r.node_id}</strong> {r.relevance?.slice(0, 100)}</div>
-              ))}
-            </Section>
-          )}
-
-          {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
-            <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
-              {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
-                <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
-              ))}
-            </Section>
-          )}
-
-          {/* ── NEEDS NEW TURN (from diagnostics capture) ── */}
-
-          {diag?.model && (
-            <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
-              <div>Model: {diag.model}</div>
-              {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
-            </Section>
-          )}
-
-          {diag?.taxonomy_context && (
-            <Section title="Taxonomy Context (BDI)" copyText={diag.taxonomy_context}>
-              <ResizablePre tall text={diag.taxonomy_context} />
-            </Section>
-          )}
-
-          {diag?.commitment_context && (
-            <Section title="Commitments Injected" copyText={diag.commitment_context}>
-              <ResizablePre tall text={diag.commitment_context} />
-            </Section>
-          )}
-
-          {diag?.edge_tensions && (
-            <Section title="Edge Tensions" copyText={diag.edge_tensions}>
-              <ResizablePre tall text={diag.edge_tensions} />
-            </Section>
-          )}
-
-          {diag?.argument_network_context && (
-            <Section title="Argument Network Context" copyText={diag.argument_network_context}>
-              <ResizablePre tall text={diag.argument_network_context} />
-            </Section>
-          )}
-
-          {diag?.prompt && (
-            <Section title="Full Prompt Sent to AI" copyText={diag.prompt}>
-              <ResizablePre tall text={diag.prompt} />
-            </Section>
-          )}
-
-          {diag?.raw_response && (
-            <Section title="Raw AI Response" copyText={diag.raw_response}>
-              <ResizablePre tall text={diag.raw_response} />
-            </Section>
-          )}
         </>
-      )}
+        );
+      })()}
     </div>
     </DiagSearchContext.Provider>
   );

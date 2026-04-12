@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
-import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
+import { HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
@@ -243,7 +243,17 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
     <div ref={formRef} className="node-detail-tabbed">
       <div className="nd-header">
         <div className="nd-header-title">
-          <span className="nd-header-label">{node.label}</span>
+          {readOnly ? (
+            <span className="nd-header-label">{node.label}</span>
+          ) : (
+            <input
+              className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+              value={node.label}
+              onChange={(e) => update({ label: e.target.value })}
+              placeholder="Label"
+              aria-label="Label"
+            />
+          )}
           <span className="nd-header-cat" data-cat={node.category}>
             {node.category.toUpperCase()}
             <FieldHelp text={BDI_GUIDANCE[node.category]} />
@@ -317,15 +327,8 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
       <div className="node-detail-tab-content">
         {activeTab === 'content' && (
           <>
-            {!readOnly && (
-              <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
-                <label>Label</label>
-                <HighlightedInput
-                  value={node.label}
-                  onChange={(v) => update({ label: v })}
-                />
-                {err('label') && <div className="error-text">{err('label')}</div>}
-              </div>
+            {!readOnly && err('label') && (
+              <div className="error-text" style={{ marginBottom: 8 }}>{err('label')}</div>
             )}
 
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>

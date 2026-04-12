@@ -21,6 +21,8 @@ import type {
   EntryDiagnostics,
   DebateDiagnostics,
   DebatePhase,
+  ClaimExtractionTrace,
+  ExtractionSummary,
 } from './types';
 import { POVER_INFO, getDebatePhase } from './types';
 import type { PovNode, SituationNode } from './taxonomyTypes';
@@ -1596,6 +1598,121 @@ Return ONLY JSON (no markdown, no code fences):
 
   // ── Claim extraction ───────────────────────────────────────
 
+  /** Lightweight string hash (djb2) — for detecting prompt drift across runs. */
+  private hashString(s: string): string {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16);
+  }
+
+  /** Heuristic: response looks truncated if it ends mid-JSON or has unbalanced braces. */
+  private looksTruncated(text: string): boolean {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return false;
+    const last = trimmed[trimmed.length - 1];
+    if (last !== '}' && last !== ']' && last !== '`') return true;
+    let opens = 0, closes = 0;
+    for (const ch of trimmed) {
+      if (ch === '{') opens++;
+      else if (ch === '}') closes++;
+    }
+    return opens !== closes;
+  }
+
+  /** Word-overlap (Jaccard-ish) between two texts, using words >3 chars. */
+  private wordOverlap(a: string, b: string): number {
+    const wa = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const wb = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    if (wa.size === 0) return 0;
+    return [...wa].filter(w => wb.has(w)).length / wa.size;
+  }
+
+  /** Best word-overlap of a candidate claim against existing AN node texts. */
+  private maxOverlapVsExisting(claimText: string, nodes: ArgumentNetworkNode[]): number {
+    let max = 0;
+    for (const n of nodes) {
+      const o = this.wordOverlap(claimText, n.text);
+      if (o > max) max = o;
+    }
+    return max;
+  }
+
+  /** Recompute the session-level extraction summary + fire plateau system entry on first detection. */
+  private updateExtractionSummary(trace: ClaimExtractionTrace): void {
+    const diag = this.session.diagnostics!;
+    const traces: ClaimExtractionTrace[] = [];
+    for (const entryDiag of Object.values(diag.entries)) {
+      if (entryDiag.extraction_trace) traces.push(entryDiag.extraction_trace);
+    }
+
+    let totalProposed = 0, totalAccepted = 0, totalRejected = 0;
+    const reasonTotals: Record<string, number> = {};
+    const growth: { round: number; cumulative_count: number }[] = [];
+    for (const t of traces) {
+      totalProposed += t.candidates_proposed;
+      totalAccepted += t.candidates_accepted;
+      totalRejected += t.candidates_rejected;
+      for (const [reason, count] of Object.entries(t.rejection_reasons)) {
+        reasonTotals[reason] = (reasonTotals[reason] ?? 0) + count;
+      }
+      growth.push({ round: t.round, cumulative_count: t.an_node_count_after });
+    }
+
+    // Plateau: 2+ consecutive recent turns with zero AN nodes added.
+    let plateauDetected = false;
+    let plateauStartedAt: number | undefined;
+    let plateauLastId: string | undefined;
+    const ordered = [...traces].sort((a, b) => a.round - b.round);
+    let zeroRun = 0;
+    let zeroRunStart: number | undefined;
+    for (const t of ordered) {
+      if (t.an_nodes_added_ids.length === 0) {
+        if (zeroRun === 0) zeroRunStart = t.round;
+        zeroRun++;
+        if (zeroRun >= 2 && !plateauDetected) {
+          plateauDetected = true;
+          plateauStartedAt = zeroRunStart;
+          plateauLastId = `AN-${t.an_node_count_before}`;
+        }
+      } else {
+        zeroRun = 0;
+        zeroRunStart = undefined;
+      }
+    }
+
+    const wasDetected = this.session.extraction_summary?.plateau_detected === true;
+    const summary: ExtractionSummary = {
+      total_turns: traces.length,
+      total_proposed: totalProposed,
+      total_accepted: totalAccepted,
+      total_rejected: totalRejected,
+      acceptance_rate: totalProposed > 0 ? totalAccepted / totalProposed : 0,
+      an_growth_series: growth,
+      plateau_detected: plateauDetected,
+      plateau_started_at_turn: plateauStartedAt,
+      plateau_last_an_id: plateauLastId,
+      rejection_reason_totals: reasonTotals,
+    };
+    this.session.extraction_summary = summary;
+
+    // Emit a one-shot [Extraction plateau] system entry when plateau is first detected.
+    if (plateauDetected && !wasDetected) {
+      const reasonCluster = Object.entries(trace.rejection_reasons)
+        .map(([r, c]) => `${r}×${c}`).join(', ') || 'empty_response';
+      const lastId = plateauLastId ?? 'AN-?';
+      this.session.transcript.push({
+        id: `S-${this.session.transcript.length + 1}`,
+        timestamp: new Date().toISOString(),
+        type: 'system',
+        speaker: 'system',
+        content:
+          `[Extraction plateau] No new AN nodes since ${lastId} (turn ${plateauStartedAt}). ` +
+          `Reason cluster: ${reasonCluster}. See Diagnostics → Extraction Timeline.`,
+        taxonomy_refs: [],
+      });
+    }
+  }
+
   private async extractClaims(
     statement: string,
     speaker: Exclude<PoverId, 'user'>,
@@ -1620,43 +1737,107 @@ Return ONLY JSON (no markdown, no code fences):
       prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims);
     }
 
+    const anNodeCountBefore = an.nodes.length;
+    const turnNumber = this.session.transcript.length;
+
+    // Build the lifecycle trace as we go.
+    const trace: ClaimExtractionTrace = {
+      entry_id: entryId,
+      round: turnNumber,
+      speaker,
+      status: 'ok',
+      attempt_count: 1,
+      prompt_chars: prompt.length,
+      prompt_token_estimate: Math.round(prompt.length / 4),
+      response_chars: 0,
+      response_truncated: false,
+      model: this.session.debate_model ?? '',
+      response_time_ms: 0,
+      candidates_proposed: 0,
+      candidates_accepted: 0,
+      candidates_rejected: 0,
+      rejection_reasons: {},
+      rejected_overlap_pcts: [],
+      max_overlap_vs_existing: 0,
+      an_node_count_before: anNodeCountBefore,
+      an_node_count_after: anNodeCountBefore,
+      an_nodes_added_ids: [],
+      prompt_hash: this.hashString(prompt),
+      extraction_prompt_version: debaterClaims && debaterClaims.length > 0 ? 'classify-v1' : 'extract-v1',
+    };
+
     let text: string;
     const extractStart = Date.now();
     try {
       text = await this.generate(prompt, 'Claim extraction');
     } catch (err) {
+      trace.status = 'adapter_error';
+      trace.error_message = err instanceof Error ? err.message : String(err);
+      trace.response_time_ms = Date.now() - extractStart;
+      this.recordDiagnostic(entryId, { extraction_trace: trace });
+      this.updateExtractionSummary(trace);
       this.warn(`Claim extraction for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
       return;
     }
     const extractElapsed = Date.now() - extractStart;
+    trace.response_time_ms = extractElapsed;
+    trace.response_chars = text.length;
+    trace.response_truncated = this.looksTruncated(text);
 
     let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
     } catch (err) {
+      trace.status = 'parse_error';
+      trace.error_message = err instanceof Error ? err.message : String(err);
+      this.recordDiagnostic(entryId, {
+        extraction_trace: trace,
+        claim_extraction: {
+          prompt, raw_response: text, response_time_ms: extractElapsed,
+          claims_parsed: 0, schemes_classified: [],
+        },
+      });
+      this.updateExtractionSummary(trace);
       this.warn(`Parsing claim extraction response for ${POVER_INFO[speaker].label}`, err, 'Skipping — argument network will be incomplete for this turn');
       return;
     }
 
+    trace.candidates_proposed = claims.length;
+    if (claims.length === 0) {
+      trace.status = trace.response_truncated ? 'truncated_response' : 'empty_response';
+    }
+
     const accepted: { text: string; id: string; overlap_pct: number }[] = [];
     const rejected: { text: string; reason: string; overlap_pct: number }[] = [];
-    const turnNumber = this.session.transcript.length;
 
     // Debater-provided claims (classifyClaimsPrompt path) are already grounded
     // in the statement, so use a lower overlap threshold.
     const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
 
     for (const claim of claims.slice(0, 4)) {
-      if (!claim.text || claim.text.length < 10) continue;
+      if (!claim.text || claim.text.length < 10) {
+        if (claim.text) {
+          rejected.push({ text: claim.text, reason: 'too_short', overlap_pct: 0 });
+          trace.rejection_reasons['too_short'] = (trace.rejection_reasons['too_short'] ?? 0) + 1;
+        }
+        continue;
+      }
 
       // Validate word overlap
-      const claimWords = new Set(claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-      const stmtWords = new Set(statement.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-      const overlap = [...claimWords].filter(w => stmtWords.has(w)).length / Math.max(claimWords.size, 1);
+      const overlap = this.wordOverlap(claim.text, statement);
+
+      // Track overlap vs. existing AN nodes — catches "saturated network" failure mode.
+      const overlapVsExisting = this.maxOverlapVsExisting(claim.text, an.nodes);
+      if (overlapVsExisting > trace.max_overlap_vs_existing) {
+        trace.max_overlap_vs_existing = overlapVsExisting;
+      }
 
       if (overlap < overlapThreshold) {
-        rejected.push({ text: claim.text, reason: 'low overlap', overlap_pct: Math.round(overlap * 100) });
+        const pct = Math.round(overlap * 100);
+        rejected.push({ text: claim.text, reason: 'low_overlap', overlap_pct: pct });
+        trace.rejection_reasons['low_overlap'] = (trace.rejection_reasons['low_overlap'] ?? 0) + 1;
+        trace.rejected_overlap_pcts.push(pct);
         continue;
       }
 
@@ -1762,6 +1943,15 @@ Return ONLY JSON (no markdown, no code fences):
       }
     }
 
+    // Finalize trace
+    trace.candidates_accepted = accepted.length;
+    trace.candidates_rejected = rejected.length;
+    trace.an_node_count_after = an.nodes.length;
+    trace.an_nodes_added_ids = accepted.map(a => a.id);
+    if (accepted.length === 0 && trace.status === 'ok') {
+      trace.status = 'no_new_nodes';
+    }
+
     this.recordDiagnostic(entryId, {
       extracted_claims: { accepted, rejected },
       claim_extraction: {
@@ -1773,7 +1963,10 @@ Return ONLY JSON (no markdown, no code fences):
           .filter(r => r.argumentation_scheme)
           .map(r => r.argumentation_scheme!),
       },
+      extraction_trace: trace,
     });
+
+    this.updateExtractionSummary(trace);
 
     // Update unanswered claims ledger
     this.session.unanswered_claims_ledger = updateUnansweredLedger(

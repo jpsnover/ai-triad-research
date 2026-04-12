@@ -12,7 +12,7 @@ function formatFileKey(key: string): string {
 }
 
 export function SaveBar() {
-  const { dirty, save, saveError, validationErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const { dirty, save, saveError, dismissSaveError, validationErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
 
@@ -54,12 +54,23 @@ export function SaveBar() {
           : 'All changes saved'}
       </span>
       {saveError && (
-        <span
-          className={`save-bar-error ${hasErrors ? 'clickable' : ''}`}
-          onClick={() => hasErrors && setShowErrors(v => !v)}
-          title={hasErrors ? 'Click to see error details' : undefined}
-        >
-          {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
+        <span className="save-bar-error-wrap">
+          <span
+            className={`save-bar-error ${hasErrors ? 'clickable' : ''}`}
+            onClick={() => hasErrors && setShowErrors(v => !v)}
+            title={hasErrors ? 'Click to see error details' : undefined}
+          >
+            {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
+          </span>
+          <button
+            type="button"
+            className="save-bar-error-dismiss"
+            onClick={(e) => { e.stopPropagation(); setShowErrors(false); dismissSaveError(); }}
+            title="Dismiss error"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
         </span>
       )}
       {showErrors && hasErrors && (

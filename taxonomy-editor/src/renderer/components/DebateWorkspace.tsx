@@ -524,8 +524,8 @@ function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   );
 }
 
-function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
-  entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
+function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
+  entry: TranscriptEntry; statementId?: string; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
@@ -553,6 +553,15 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
       data-is-pover={isPover ? 'true' : 'false'}
     >
       <div className="debate-statement-header">
+        {statementId && (
+          <span
+            className="debate-statement-id"
+            title={`Statement ${statementId} — stable position in transcript`}
+            id={`stmt-${statementId}`}
+          >
+            {statementId}
+          </span>
+        )}
         <span className="debate-statement-speaker" style={color ? { color } : undefined}>
           {speakerLabel(entry.speaker)}
         </span>
@@ -598,7 +607,7 @@ function StatementCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
 }
 
 /** Probing questions card — clicking a question inserts it as the user's next question */
-function ProbingCard({ entry }: { entry: TranscriptEntry }) {
+function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statementId?: string }) {
   const { askQuestion, debateGenerating } = useDebateStore();
   const questions = (entry.metadata?.probing_questions as { text: string; targets: string[]; threatens?: string; type?: string }[]) || [];
 
@@ -617,6 +626,11 @@ function ProbingCard({ entry }: { entry: TranscriptEntry }) {
   return (
     <div className="debate-statement debate-type-probing debate-speaker-system">
       <div className="debate-statement-header">
+        {statementId && (
+          <span className="debate-statement-id" title={`Statement ${statementId}`} id={`stmt-${statementId}`}>
+            {statementId}
+          </span>
+        )}
         <span className="debate-statement-speaker">Facilitator</span>
         <span className="debate-statement-type">probing questions</span>
       </div>
@@ -737,8 +751,8 @@ function DebateContextMenu({
 }
 
 /** Fact-check result card */
-function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
-  entry: TranscriptEntry; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
+function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
+  entry: TranscriptEntry; statementId?: string; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
   const [showWebEvidence, setShowWebEvidence] = useState(false);
   const factCheck = entry.metadata?.fact_check as {
@@ -759,6 +773,11 @@ function FactCheckCard({ entry, findQuery = '', matchOffset = 0, findCurrentInde
   return (
     <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
       <div className="debate-statement-header">
+        {statementId && (
+          <span className="debate-statement-id" title={`Statement ${statementId}`} id={`stmt-${statementId}`}>
+            {statementId}
+          </span>
+        )}
         <span className="debate-statement-speaker">Fact Check</span>
         <span className={`debate-fact-check-verdict ${verdictClass}`}>
           {factCheck?.verdict || 'unknown'}
@@ -1678,14 +1697,18 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         )}
         {activeDebate.transcript.map((entry, idx) => {
           const matchOffset = findOffsets.get(entry.id) ?? 0;
+          // Statement ID — stable human-readable label for this transcript position.
+          // Matches ClaimExtractionTrace.round (transcript index + 1) so cross-panel
+          // references line up (e.g. Extraction Timeline "S12" == this card's "S12").
+          const statementId = `S${idx + 1}`;
           // Skip the clarification transcript card — the interactive ClarificationActions panel
           // below the transcript already shows the questions as clickable pills.
           if (entry.type === 'clarification') return null;
           const card = entry.type === 'probing'
-            ? <ProbingCard key={entry.id} entry={entry} />
+            ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
             : entry.type === 'fact-check'
-            ? <FactCheckCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
-            : <StatementCard key={entry.id} entry={entry} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
+            ? <FactCheckCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
+            : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
           return (
             <div
               key={entry.id}
