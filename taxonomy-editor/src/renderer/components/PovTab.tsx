@@ -434,7 +434,7 @@ export function PovTab({ pov }: PovTabProps) {
             </div>
           ) : (
             <div className="detail-panel" data-cat={selectedNode?.category}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0, lineHeight: 1 }}>
                 <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
               </div>
               {selectedNode ? (

@@ -20,37 +20,67 @@ interface HighlightedTextareaProps {
   readOnly?: boolean;
   rows?: number;
   style?: CSSProperties;
+  /** Literal substrings to render bold in the backdrop overlay (e.g. "Encompasses:", "Excludes:"). */
+  boldKeywords?: readonly string[];
 }
 
-function useHighlightParts(text: string): ReactNode[] | null {
+const DEFAULT_BOLD_KEYWORDS: readonly string[] = ['Encompasses:', 'Excludes:'];
+
+function useHighlightParts(text: string, boldKeywords: readonly string[] = []): ReactNode[] | null {
   const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
 
   return useMemo(() => {
-    const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
-    if (!regex) return null;
+    const searchRegex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
 
-    regex.lastIndex = 0;
-    if (!regex.test(text)) return null;
+    // Collect match ranges from both the search regex and the bold-keyword list.
+    type Range = { start: number; end: number; kind: 'mark' | 'bold' };
+    const ranges: Range[] = [];
 
+    if (searchRegex) {
+      searchRegex.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      let i = 0;
+      while ((m = searchRegex.exec(text)) !== null && i < 100) {
+        if (m[0].length > 0) {
+          ranges.push({ start: m.index, end: m.index + m[0].length, kind: 'mark' });
+        } else {
+          searchRegex.lastIndex++;
+        }
+        i++;
+      }
+    }
+
+    for (const kw of boldKeywords) {
+      if (!kw) continue;
+      let from = 0;
+      while (from <= text.length) {
+        const idx = text.indexOf(kw, from);
+        if (idx < 0) break;
+        ranges.push({ start: idx, end: idx + kw.length, kind: 'bold' });
+        from = idx + kw.length;
+      }
+    }
+
+    if (ranges.length === 0) return null;
+
+    // Sort by start, drop ranges that overlap an earlier one (search-mark wins over bold if tied).
+    ranges.sort((a, b) => a.start - b.start || (a.kind === b.kind ? 0 : a.kind === 'mark' ? -1 : 1));
     const parts: ReactNode[] = [];
     let lastIndex = 0;
-    let i = 0;
-    regex.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(text)) !== null && i < 100) {
-      if (match.index > lastIndex) {
-        parts.push(text.slice(lastIndex, match.index));
-      }
-      parts.push(<mark key={i}>{match[0]}</mark>);
-      lastIndex = regex.lastIndex;
-      if (match[0].length === 0) regex.lastIndex++;
-      i++;
-    }
-    if (lastIndex < text.length) {
-      parts.push(text.slice(lastIndex));
-    }
+    ranges.forEach((r, i) => {
+      if (r.start < lastIndex) return;
+      if (r.start > lastIndex) parts.push(text.slice(lastIndex, r.start));
+      const content = text.slice(r.start, r.end);
+      parts.push(
+        r.kind === 'mark'
+          ? <mark key={i}>{content}</mark>
+          : <strong key={i}>{content}</strong>
+      );
+      lastIndex = r.end;
+    });
+    if (lastIndex < text.length) parts.push(text.slice(lastIndex));
     return parts;
-  }, [text, findQuery, findMode, findCaseSensitive]);
+  }, [text, findQuery, findMode, findCaseSensitive, boldKeywords]);
 }
 
 export function HighlightedInput({ value, onChange, readOnly, disabled, type, style }: HighlightedInputProps) {
@@ -85,9 +115,9 @@ export function HighlightedInput({ value, onChange, readOnly, disabled, type, st
   );
 }
 
-export function HighlightedTextarea({ value, onChange, readOnly, rows, style }: HighlightedTextareaProps) {
+export function HighlightedTextarea({ value, onChange, readOnly, rows, style, boldKeywords = DEFAULT_BOLD_KEYWORDS }: HighlightedTextareaProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
-  const parts = useHighlightParts(value);
+  const parts = useHighlightParts(value, boldKeywords);
   const hasHighlight = parts !== null;
 
   const handleChange = useCallback(
