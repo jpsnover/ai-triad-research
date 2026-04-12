@@ -150,7 +150,7 @@ function AppRouter() {
 
 /** Main taxonomy editor application */
 function MainApp() {
-  const { activeTab, loading, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+  const { activeTab, loading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
@@ -300,7 +300,33 @@ function MainApp() {
   }
 
   if (loading) {
-    return <div className="loading">Loading taxonomy files...</div>;
+    const { completed, total } = loadingProgress;
+    const pct = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+    return (
+      <div className="loading">
+        <div className="loading-title">Loading taxonomy files...</div>
+        {total > 0 && (
+          <>
+            <div className="loading-bar-track">
+              <div className="loading-bar-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="loading-detail">
+              {completed.length < total
+                ? `${completed.length} of ${total} loaded`
+                : 'Initializing...'}
+            </div>
+            <div className="loading-steps">
+              {['Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
+                'Conflicts', 'Policy Registry', 'Conflict Clusters'].map((step) => (
+                <div key={step} className={`loading-step ${completed.includes(step) ? 'done' : ''}`}>
+                  {completed.includes(step) ? '\u2713' : '\u00B7'} {step}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
   }
 
   return (

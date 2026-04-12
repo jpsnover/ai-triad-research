@@ -6,7 +6,7 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis } from './types';
+import type { DocumentAnalysis, DebatePhase } from './types';
 import { POVER_INFO } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
 import { interpretationText } from './taxonomyTypes';
@@ -113,17 +113,87 @@ BUT: concession is powerful because it's rare. If you concede every turn, it bec
 empty ritual. Not every response needs a concession — sometimes the right move is to
 directly challenge, provide a counterexample, or reframe the issue.`;
 
+// ── Phase-specific instruction blocks ──────────────────────────────
+
+const PHASE_INSTRUCTIONS: Record<DebatePhase, string> = {
+  'thesis-antithesis': `## CURRENT PHASE: THESIS & ANTITHESIS (early rounds)
+Your goal this phase is to STAKE OUT your position clearly and challenge opponents' core claims.
+- Lead with your strongest arguments and most compelling evidence.
+- Identify the cruxes — the specific factual or value questions where you most disagree.
+- Challenge opponents' premises directly rather than peripheral points.
+- Name your key assumptions explicitly so opponents can engage with them.
+Do NOT try to find common ground yet — that comes later. Focus on making each position as clear and distinct as possible.`,
+
+  'exploration': `## CURRENT PHASE: EXPLORATION (middle rounds)
+Your goal this phase is to PROBE DEEPER and TEST EDGE CASES. The positions are established — now stress-test them.
+- Identify the cruxes: what specific evidence or argument would change your mind?
+- Use SPECIFY moves to force falsifiable predictions from opponents.
+- Explore edge cases and boundary conditions where positions might converge or diverge unexpectedly.
+- When you find a genuine point of agreement, NAME IT explicitly: "We agree that X. The real disagreement is Y."
+- When you partially agree, use INTEGRATE or CONDITIONAL-AGREE moves (see constructive moves below).
+Do NOT simply restate your opening position. If you catch yourself repeating an earlier argument, stop and find a new angle.`,
+
+  'synthesis': `## CURRENT PHASE: SYNTHESIS (final rounds)
+Your goal this phase is to CONVERGE where possible and NARROW remaining disagreements to their sharpest form.
+- Lead with what you've LEARNED from this debate — how has your understanding shifted?
+- Use INTEGRATE moves to propose positions that incorporate valid points from multiple perspectives.
+- For remaining disagreements, state them as precisely as possible: "The core disagreement is whether X, which is [EMPIRICAL/VALUES/DEFINITIONAL]."
+- Propose CONDITIONAL agreements: "If X turns out to be true, then I would accept Y."
+- Identify what specific evidence or developments would resolve each remaining disagreement.
+Do NOT introduce new arguments or reopen settled points. Focus on crystallizing what this debate has established.
+You MUST include a "position_update" field in your JSON output summarizing how your position has evolved.`,
+};
+
+// ── Constructive moves (available in exploration + synthesis phases) ──
+
+const CONSTRUCTIVE_MOVES = `
+CONSTRUCTIVE MOVES — use these to advance the debate toward resolution:
+
+- INTEGRATE: Propose a position that incorporates valid elements from multiple perspectives.
+  USE WHEN: You see a way to combine insights from different debaters into a stronger whole.
+  THE KEY: The integration must be genuine — not "I'm right and you raise a minor point."
+  Show how each perspective contributes something the others miss.
+
+- CONDITIONAL-AGREE: Accept a position contingent on specific conditions being met.
+  USE WHEN: You would agree with an opponent IF certain empirical facts hold or safeguards are in place.
+  THE KEY: State the conditions precisely. "I would support X if and only if Y and Z are ensured."
+
+- NARROW: Reduce a broad disagreement to its precise crux.
+  USE WHEN: Debaters are arguing about many things at once and you can identify the one question that matters most.
+  THE KEY: Show that if the crux were resolved, the broader disagreement would dissolve.
+
+- STEEL-BUILD: Build on an opponent's strongest argument to reach a conclusion they haven't drawn yet.
+  USE WHEN: An opponent's reasoning, if taken seriously, actually supports a hybrid position.
+  THE KEY: The opponent must recognize their own logic in your extension — don't strawman.`;
+
 /** Assemble all instruction blocks — always the full set (DT-1: length tiers removed). */
-function allInstructions(): string {
-  return [
+function allInstructions(phase?: DebatePhase): string {
+  const blocks = [
     TAXONOMY_USAGE,
     MUST_CORE_BEHAVIORS,
     SHOULD_WHEN_RELEVANT,
     MUST_EXTENDED,
     STEELMAN_INSTRUCTION,
     DIALECTICAL_MOVES,
-    OUTPUT_FORMAT,
-  ].join('\n\n');
+  ];
+
+  // Add phase-specific instructions
+  if (phase) {
+    blocks.push(PHASE_INSTRUCTIONS[phase]);
+    if (phase !== 'thesis-antithesis') {
+      blocks.push(CONSTRUCTIVE_MOVES);
+    }
+  }
+
+  blocks.push(OUTPUT_FORMAT);
+
+  // Add position_update schema in synthesis phase
+  if (phase === 'synthesis') {
+    blocks.push(`POSITION UPDATE: In the synthesis phase, you MUST include a "position_update" field in your JSON output:
+  "position_update": "1-3 sentences describing how your position has evolved during this debate — what you've conceded, what you've learned, and what remains unchanged."`);
+  }
+
+  return blocks.join('\n\n');
 }
 
 const STEELMAN_INSTRUCTION = `Before critiquing an opposing position, briefly state the strongest version of that position in a way its advocates would recognize as fair. Only then explain where you think it breaks down.
@@ -413,6 +483,8 @@ openings:
 - "Let me challenge that directly..."
 - "Consider what happens if we apply your logic consistently..."
 
+In exploration and synthesis phases, you may also use constructive moves: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD (see constructive moves section if present).
+
 Include a "move_types" array in your response (select 1-3 per response).`;
 
 const OUTPUT_FORMAT = `## OUTPUT FORMAT
@@ -436,6 +508,8 @@ Include a "my_claims" array in your response:
 - Extract 1-4 claims. Focus on substantive assertions, not rhetorical flourishes.
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
+Include 4–6 taxonomy_refs per response — draw from all three sections (Beliefs, Desires, Intentions).
+Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
 For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically
 how that node informed your argument — not a brief label. Vary your sentence openings; never
 start with "This node".
@@ -581,7 +655,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view, suggesting that real-world outcomes depend on factors the other side overlooks."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
+    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical evidence from this node grounds the argument — without it, the claim rests on assumption rather than data."},
+    {"node_id": "e.g. acc-intentions-003", "relevance": "This strategic framing shapes how the argument is constructed and which counterarguments are anticipated."},
+    {"node_id": "e.g. acc-beliefs-011", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."}
   ],
   "my_claims": [
     {"claim": "near-verbatim key assertion from your statement", "targets": []}
@@ -637,7 +714,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
+    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data from this node challenges the opposing claim and provides evidentiary weight."},
+    {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe — without it, the counterargument lacks structural force."},
+    {"node_id": "e.g. acc-beliefs-012", "relevance": "Connects the response to broader empirical patterns the other debater overlooked."},
+    {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
   "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
   "my_claims": [
@@ -822,6 +903,7 @@ export function crossRespondSelectionPrompt(
   edgeContext: string = '',
   recentScheme?: string,
   metaphorReframe?: { source: string; prompt: string; reveals: string; challenges: string } | null,
+  phase?: DebatePhase,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
@@ -831,9 +913,18 @@ export function crossRespondSelectionPrompt(
     ? `\n\n=== METAPHOR REFRAMING SUGGESTION ===\nThe debate may benefit from a fresh perspective. Consider asking a debater to engage with this reframing:\n\n"${metaphorReframe.prompt}"\n\nWhat this metaphor reveals: ${metaphorReframe.reveals}\nWhat it challenges: ${metaphorReframe.challenges}\n\nYou may include this in the focus_point if you judge it would be more productive than continuing the current line of argument. Set "metaphor_reframe": true in your response if you use it.\n`
     : '';
 
+  // Phase-specific moderator objectives
+  const phaseObjective = phase === 'thesis-antithesis'
+    ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence — let positions be fully articulated before seeking common ground.\n`
+    : phase === 'exploration'
+    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE, CONDITIONAL-AGREE, or NARROW moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
+    : phase === 'synthesis'
+    ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
+    : '';
+
   return `You are a debate moderator analyzing the current state of a structured debate.
 ${READING_LEVEL}
-
+${phaseObjective}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
@@ -880,6 +971,7 @@ export function crossRespondPrompt(
   debateSourceContent?: string,
   documentAnalysis?: DocumentAnalysis,
   priorMoveTypes?: string[],
+  phase?: DebatePhase,
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -890,13 +982,25 @@ export function crossRespondPrompt(
     ? `\n=== YOUR RECENT MOVES ===\nYour last ${priorMoveTypes.length} responses used: ${priorMoveTypes.join(' → ')}.\n${priorMoveTypes.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
     : '';
 
+  const constructiveMoveList = phase && phase !== 'thesis-antithesis'
+    ? ', INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD' : '';
+
+  const positionUpdateField = phase === 'synthesis'
+    ? `\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
+
+  const phaseDirective = phase === 'synthesis'
+    ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
+    : phase === 'exploration'
+    ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
+    : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
+
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${otherDebaters(label)}
 ${READING_LEVEL}
 ${DETAIL_INSTRUCTION}
 
-${allInstructions()}
+${allInstructions(phase)}
 
 ${taxonomyContext}
 
@@ -909,20 +1013,23 @@ ${moveHistoryBlock}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
-Respond substantively. Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.
+Respond substantively. ${phaseDirective}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "taxonomy_refs": [
-    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y."}
+    {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
+    {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data here challenges the opposing claim and provides evidentiary weight."},
+    {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
+    {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
-  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
+  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY${constructiveMoveList}
   "my_claims": [
     {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
 }
 
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
@@ -1244,8 +1351,17 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "sources": [
     {"node_id": "e.g. acc-desires-002"},
     {"conflict_id": "e.g. conflict-xyz"}
+  ],
+  "points": [
+    {
+      "text": "A specific finding — e.g. 'NHTSA 2025 data shows autonomous vehicles had 40% fewer fatal crashes per mile than human drivers'",
+      "type": "supports" | "attacks",
+      "evidence_basis": "web_search" | "taxonomy" | "internal_consistency" | "temporal"
+    }
   ]
-}`;
+}
+
+The "points" array should contain 1-4 discrete, specific findings from your analysis. Each point is a single factual observation that either supports or attacks the checked claim. Be concrete — cite specific data, dates, or sources rather than vague assessments.`;
 }
 
 export function contextCompressionPrompt(

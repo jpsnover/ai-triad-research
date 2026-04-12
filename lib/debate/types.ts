@@ -3,6 +3,21 @@
 
 export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
 
+/**
+ * Progressive debate phases — each phase has different goals and instruction sets.
+ * - thesis-antithesis: Rounds 1–2. Debaters stake out positions and challenge each other's core claims.
+ * - exploration: Middle rounds. Debaters probe deeper, find cruxes, and test edge cases.
+ * - synthesis: Final rounds. Debaters identify convergence, narrow remaining disagreements, and propose integrations.
+ */
+export type DebatePhase = 'thesis-antithesis' | 'exploration' | 'synthesis';
+
+/** Determine which debate phase a given round falls in. */
+export function getDebatePhase(round: number, totalRounds: number): DebatePhase {
+  if (round <= 2) return 'thesis-antithesis';
+  if (round > totalRounds - 2) return 'synthesis';
+  return 'exploration';
+}
+
 /** Canonical dialectical schemes (AIF-aligned). */
 export type DialecticalScheme =
   | 'DISTINGUISH'

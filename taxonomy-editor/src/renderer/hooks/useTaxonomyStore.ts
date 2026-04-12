@@ -259,6 +259,7 @@ interface TaxonomyState {
   validationErrors: ValidationErrors;
   saveError: string | null;
   loading: boolean;
+  loadingProgress: { completed: string[]; total: number };
 
   pinnedStack: PinnedData[];
   pinAtDepth: (depth: number, data: PinnedData) => void;
@@ -414,6 +415,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   validationErrors: {},
   saveError: null,
   loading: false,
+  loadingProgress: { completed: [], total: 0 },
 
   pinnedStack: [],
   pinAtDepth: (depth, data) => set((state) => ({
@@ -1085,16 +1087,32 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   navigateToNode: (tab, id) => set({ activeTab: tab, selectedNodeId: id, validationErrors: {} }),
 
   loadAll: async () => {
-    set({ loading: true });
+    const steps = [
+      'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
+      'Conflicts', 'Policy Registry', 'Conflict Clusters',
+    ];
+    set({ loading: true, loadingProgress: { completed: [], total: steps.length } });
+
+    const track = <T,>(label: string, promise: Promise<T>): Promise<T> =>
+      promise.then((result) => {
+        set((s) => ({
+          loadingProgress: {
+            ...s.loadingProgress,
+            completed: [...s.loadingProgress.completed, label],
+          },
+        }));
+        return result;
+      });
+
     try {
       const [acc, saf, skp, cc, conflicts, polReg, conflictClusterData] = await Promise.all([
-        api.loadTaxonomyFile('accelerationist'),
-        api.loadTaxonomyFile('safetyist'),
-        api.loadTaxonomyFile('skeptic'),
-        api.loadTaxonomyFile('situations'),
-        api.loadConflictFiles(),
-        api.loadPolicyRegistry(),
-        api.loadConflictClusters().catch(() => null),
+        track(steps[0], api.loadTaxonomyFile('accelerationist')),
+        track(steps[1], api.loadTaxonomyFile('safetyist')),
+        track(steps[2], api.loadTaxonomyFile('skeptic')),
+        track(steps[3], api.loadTaxonomyFile('situations')),
+        track(steps[4], api.loadConflictFiles()),
+        track(steps[5], api.loadPolicyRegistry()),
+        track(steps[6], api.loadConflictClusters().catch(() => null)),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       // Situations migration shim: normalize cross_cutting_refs → situation_refs on POV nodes

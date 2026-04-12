@@ -20,8 +20,9 @@ import type {
   CommitmentStore,
   EntryDiagnostics,
   DebateDiagnostics,
+  DebatePhase,
 } from './types';
-import { POVER_INFO } from './types';
+import { POVER_INFO, getDebatePhase } from './types';
 import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { TaxonomyContext } from './taxonomyContext';
 import {
@@ -149,8 +150,9 @@ export class DebateEngine {
     // Phase 3: Cross-respond rounds
     const midpointRound = Math.min(3, Math.ceil(this.config.rounds / 2));
     for (let round = 1; round <= this.config.rounds; round++) {
-      this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds}`, round);
-      await this.runCrossRespondRound(round);
+      const phase = getDebatePhase(round, this.config.rounds);
+      this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
+      await this.runCrossRespondRound(round, phase);
 
       // Neutral evaluator: midpoint checkpoint
       if (round === midpointRound && !this._midpointEvalDone) {
@@ -680,7 +682,7 @@ export class DebateEngine {
 
   // ── Phase: Cross-respond round ─────────────────────────────
 
-  private async runCrossRespondRound(round: number): Promise<void> {
+  private async runCrossRespondRound(round: number, phase: DebatePhase = 'exploration'): Promise<void> {
     const recentTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
     const activeLabels = this.config.activePovers.map(p => POVER_INFO[p].label);
 
@@ -749,7 +751,7 @@ export class DebateEngine {
     // SPECIFY hint — detect isolated high-strength claims that need falsifiability probing
     const specifyHint = an ? formatSpecifyHint(an.nodes, an.edges) : '';
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe);
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe, phase);
     const selectionStart = Date.now();
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
     const selectionElapsed = Date.now() - selectionStart;
@@ -795,6 +797,7 @@ export class DebateEngine {
           selected: responder,
           focus_point: focusPoint,
           addressing,
+          debate_phase: phase,
           agreement_detected: agreementDetected,
           recent_scheme: recentScheme ?? null,
           critical_questions: recentScheme ? (formatCriticalQuestions(recentScheme) || null) : null,
@@ -857,6 +860,7 @@ export class DebateEngine {
       this.session.document_analysis ? undefined : this.config.sourceContent,
       this.session.document_analysis,
       priorMoves,
+      phase,
     );
 
     const start = Date.now();
@@ -880,6 +884,8 @@ export class DebateEngine {
         disagreement_type: meta.disagreement_type,
         my_claims: meta.my_claims,
         injection_manifest: this._lastInjectionManifest ?? undefined,
+        debate_phase: phase,
+        position_update: meta.position_update,
       },
     });
 

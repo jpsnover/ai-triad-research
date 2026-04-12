@@ -105,15 +105,8 @@ function Invoke-SummaryPipeline {
             Write-Verbose "Pipeline: RAG selected ~$([int]($TaxonomyJson.Length / 4)) tokens of taxonomy"
         }
         catch {
-            Write-Verbose "Pipeline: RAG failed ($($_.Exception.Message)) — falling back to full taxonomy"
-            $TaxFiles = @("accelerationist.json", "safetyist.json", "skeptic.json", "situations.json")
-            $TaxContext = [ordered]@{}
-            $TaxDir = Get-TaxonomyDir
-            foreach ($F in $TaxFiles) {
-                $P = Join-Path $TaxDir $F
-                if (Test-Path $P) { $TaxContext[$F] = Get-Content $P -Raw | ConvertFrom-Json }
-            }
-            $TaxonomyJson = $TaxContext | ConvertTo-Json -Depth 20 -Compress:$false
+            Write-Verbose "Pipeline: RAG failed ($($_.Exception.Message)) — falling back to compact taxonomy"
+            $TaxonomyJson = Build-CompactTaxonomy
         }
     }
 

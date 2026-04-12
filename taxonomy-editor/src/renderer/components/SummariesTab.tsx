@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { api } from '@bridge';
+import type { Pov, Category } from '../types/taxonomy';
 
 // ── Types ──
 
@@ -87,9 +88,22 @@ function stanceClass(stance: string): string {
 // ── Component ──
 
 type ViewMode = 'key-points' | 'claims' | 'unmapped' | 'document';
+type SortField = 'title' | 'dateIngested' | 'datePublished';
+
+const POV_MAP: Record<string, Pov> = {
+  accelerationist: 'accelerationist',
+  safetyist: 'safetyist',
+  skeptic: 'skeptic',
+};
+
+const CATEGORY_MAP: Record<string, Category> = {
+  Desires: 'Desires',
+  Beliefs: 'Beliefs',
+  Intentions: 'Intentions',
+};
 
 export function SummariesTab() {
-  const { getLabelForId, navigateToNode, setActiveTab } = useTaxonomyStore();
+  const { getLabelForId, navigateToNode, setActiveTab, createPovNode, updatePovNode } = useTaxonomyStore();
   const { width: listWidth, onMouseDown } = useResizablePanel();
 
   // Sources
@@ -109,6 +123,10 @@ export function SummariesTab() {
   // View
   const [viewMode, setViewMode] = useState<ViewMode>('key-points');
   const [povFilter, setPovFilter] = useState<string | null>(null);
+
+  // Sort
+  const [sortField, setSortField] = useState<SortField>('dateIngested');
+  const [sortDesc, setSortDesc] = useState(true);
 
   // Load sources on mount
   useEffect(() => {
@@ -142,17 +160,31 @@ export function SummariesTab() {
   // Reset snapshot when source changes
   useEffect(() => { setSnapshot(null); }, [selectedSourceId]);
 
-  // Filtered sources
+  // Filtered and sorted sources
   const filteredSources = useMemo(() => {
-    if (!filter) return sources;
-    const q = filter.toLowerCase();
-    return sources.filter(s =>
-      s.title.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q) ||
-      s.authors.some(a => a.toLowerCase().includes(q)) ||
-      s.tags.some(t => t.toLowerCase().includes(q))
-    );
-  }, [sources, filter]);
+    let result = sources;
+    if (filter) {
+      const q = filter.toLowerCase();
+      result = result.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        s.authors.some(a => a.toLowerCase().includes(q)) ||
+        s.tags.some(t => t.toLowerCase().includes(q))
+      );
+    }
+    const sorted = [...result].sort((a, b) => {
+      let cmp: number;
+      if (sortField === 'title') {
+        cmp = a.title.localeCompare(b.title);
+      } else {
+        const av = a[sortField] || '';
+        const bv = b[sortField] || '';
+        cmp = av.localeCompare(bv);
+      }
+      return sortDesc ? -cmp : cmp;
+    });
+    return sorted;
+  }, [sources, filter, sortField, sortDesc]);
 
   // Aggregated key points
   const keyPoints = useMemo(() => {
@@ -168,6 +200,20 @@ export function SummariesTab() {
   }, [summary, povFilter]);
 
   const selectedSource = sources.find(s => s.id === selectedSourceId);
+
+  const addUnmappedToTaxonomy = useCallback((uc: UnmappedConcept) => {
+    const pov = POV_MAP[uc.suggested_pov || ''];
+    const category = CATEGORY_MAP[uc.suggested_category || ''];
+    if (!pov || !category) return;
+    const newId = createPovNode(pov, category);
+    if (!newId) return;
+    updatePovNode(pov, newId, {
+      label: uc.suggested_label || uc.concept,
+      description: uc.suggested_description || uc.concept,
+    });
+    setActiveTab(pov);
+    navigateToNode(pov, newId);
+  }, [createPovNode, updatePovNode, setActiveTab, navigateToNode]);
 
   const handleNodeClick = useCallback((nodeId: string) => {
     // Navigate to the node in the appropriate tab
@@ -185,7 +231,7 @@ export function SummariesTab() {
         <div className="panel-header">
           <h3>Sources ({filteredSources.length})</h3>
         </div>
-        <div style={{ padding: '4px 8px' }}>
+        <div style={{ padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <input
             type="text"
             className="search-input"
@@ -194,6 +240,23 @@ export function SummariesTab() {
             onChange={e => setFilter(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Sort:</span>
+            {([['dateIngested', 'Imported'], ['datePublished', 'Published'], ['title', 'Title']] as const).map(([field, label]) => (
+              <button
+                key={field}
+                onClick={() => {
+                  if (sortField === field) setSortDesc(d => !d);
+                  else { setSortField(field); setSortDesc(field !== 'title'); }
+                }}
+                style={{
+                  padding: '1px 5px', fontSize: '0.6rem', border: 'none', borderRadius: 3, cursor: 'pointer',
+                  background: sortField === field ? 'var(--accent-color, #3b82f6)' : 'var(--bg-secondary)',
+                  color: sortField === field ? '#fff' : 'var(--text-muted)',
+                }}
+              >{label}{sortField === field ? (sortDesc ? ' \u25BC' : ' \u25B2') : ''}</button>
+            ))}
+          </div>
         </div>
         <div className="panel-body" style={{ overflow: 'auto', flex: 1 }}>
           {sourcesLoading ? (
@@ -228,7 +291,9 @@ export function SummariesTab() {
                           'var(--text-muted)',
                       }}>{t.slice(0, 3)}</span>
                     ))}
-                    {s.datePublished && <span style={{ marginLeft: 4 }}>{s.datePublished.slice(0, 10)}</span>}
+                    {sortField === 'dateIngested' && s.dateIngested
+                      ? <span style={{ marginLeft: 4 }}>{s.dateIngested.slice(0, 10)}</span>
+                      : s.datePublished && <span style={{ marginLeft: 4 }}>{s.datePublished.slice(0, 10)}</span>}
                   </div>
                 </li>
               ))}
@@ -432,19 +497,35 @@ export function SummariesTab() {
                           {uc.reason}
                         </div>
                       )}
-                      {uc.resolved_node_id && (
-                        <button
-                          onClick={() => handleNodeClick(uc.resolved_node_id!)}
-                          style={{
-                            marginTop: 4, padding: '2px 8px', fontSize: '0.6rem',
-                            border: '1px solid var(--border-color)', borderRadius: 3,
-                            background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Go to {getLabelForId(uc.resolved_node_id) || uc.resolved_node_id}
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        {uc.resolved_node_id && (
+                          <button
+                            onClick={() => handleNodeClick(uc.resolved_node_id!)}
+                            style={{
+                              padding: '2px 8px', fontSize: '0.6rem',
+                              border: '1px solid var(--border-color)', borderRadius: 3,
+                              background: 'var(--bg-primary)', color: 'var(--accent-color, #3b82f6)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Go to {getLabelForId(uc.resolved_node_id) || uc.resolved_node_id}
+                          </button>
+                        )}
+                        {!uc.resolved_node_id && uc.suggested_pov && POV_MAP[uc.suggested_pov] && uc.suggested_category && CATEGORY_MAP[uc.suggested_category] && (
+                          <button
+                            onClick={() => addUnmappedToTaxonomy(uc)}
+                            style={{
+                              padding: '2px 8px', fontSize: '0.6rem',
+                              border: '1px solid var(--border-color)', borderRadius: 3,
+                              background: 'var(--bg-primary)', color: '#22c55e',
+                              cursor: 'pointer', fontWeight: 500,
+                            }}
+                            title={`Add as ${uc.suggested_pov} ${uc.suggested_category} node`}
+                          >
+                            + Add to Taxonomy
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

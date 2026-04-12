@@ -162,7 +162,8 @@ export function setActiveTaxonomyDir(dirName: string): void {
 
 /** Parse JSON with diagnostic error messages that identify the problem and suggest a fix. */
 function parseJsonFile(filePath: string): unknown {
-  const raw = fs.readFileSync(filePath, 'utf-8');
+  // Strip UTF-8 BOM if present — PowerShell's Set-Content writes BOM by default
+  const raw = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
   try {
     return JSON.parse(raw);
   } catch (err) {

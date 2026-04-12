@@ -2075,6 +2075,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
 
       // Build readable content
+      // Strip inline node IDs from text fields — they belong in taxonomy_refs, not prose
+      const stripNodeIds = (text: string) =>
+        text.replace(/\b(?:acc|saf|skp|sit|cc)-(?:beliefs|desires|intentions)-\d+\b/g, '')
+            .replace(/\s{2,}/g, ' ').trim();
+
       const lines: string[] = [];
       if (synthesis._raw_text) {
         lines.push('*Synthesis could not be parsed as structured data. Raw output:*');
@@ -2082,40 +2087,40 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         lines.push(synthesis._raw_text);
       }
       if (synthesis.areas_of_agreement?.length > 0) {
-        lines.push('**Areas of Agreement:**');
+        lines.push('## Areas of Agreement', '');
         for (const a of synthesis.areas_of_agreement) {
           const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ') : '';
-          lines.push(`- ${a.point}${who ? ` (${who})` : ''}`);
+          lines.push(`- ${stripNodeIds(a.point)}${who ? ` (${who})` : ''}`);
         }
       }
       if (synthesis.areas_of_disagreement?.length > 0) {
-        lines.push('', '**Areas of Disagreement:**');
+        lines.push('', '## Areas of Disagreement', '');
         for (const d of synthesis.areas_of_disagreement) {
           const typeTag = d.type ? ` [${d.type}]` : '';
           const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
-          lines.push(`- ${d.point}${typeTag}${bdiTag}`);
+          lines.push(`- **${stripNodeIds(d.point)}**${typeTag}${bdiTag}`);
           if (d.resolvability) {
-            lines.push(`  *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
+            lines.push(`  - *Resolution path: ${d.resolvability.replace(/_/g, ' ')}*`);
           }
           if (Array.isArray(d.positions)) {
             for (const pos of d.positions) {
               const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label || pos.pover;
-              lines.push(`  - ${label}: ${pos.stance}`);
+              lines.push(`  - ${label}: ${stripNodeIds(pos.stance)}`);
             }
           }
         }
       }
       if (synthesis.cruxes?.length > 0) {
-        lines.push('', '**Cruxes (mind-changing questions):**');
+        lines.push('', '## Cruxes', '');
         for (const c of synthesis.cruxes) {
           const typeTag = c.type ? ` [${c.type}]` : '';
-          lines.push(`- ${c.question}${typeTag}`);
-          if (c.if_yes) lines.push(`  - If yes: ${c.if_yes}`);
-          if (c.if_no) lines.push(`  - If no: ${c.if_no}`);
+          lines.push(`- ${stripNodeIds(c.question)}${typeTag}`);
+          if (c.if_yes) lines.push(`  - If yes: ${stripNodeIds(c.if_yes)}`);
+          if (c.if_no) lines.push(`  - If no: ${stripNodeIds(c.if_no)}`);
         }
       }
       if (synthesis.document_claims?.length > 0) {
-        lines.push('', '**Document Claims:**');
+        lines.push('', '## Document Claims', '');
         for (const dc of synthesis.document_claims) {
           const accepted = Array.isArray(dc.accepted_by)
             ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
@@ -2123,24 +2128,24 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           const challenged = Array.isArray(dc.challenged_by)
             ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
             : '';
-          lines.push(`- ${dc.claim}`);
+          lines.push(`- ${stripNodeIds(dc.claim)}`);
           if (accepted) lines.push(`  - Accepted by: ${accepted}`);
-          if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${dc.challenge_basis}` : ''}`);
+          if (challenged) lines.push(`  - Challenged by: ${challenged}${dc.challenge_basis ? ` — ${stripNodeIds(dc.challenge_basis)}` : ''}`);
         }
       }
       if (synthesis.argument_map?.length > 0) {
-        lines.push('', '**Argument Map:**');
+        lines.push('', '## Argument Map', '');
         for (const claim of synthesis.argument_map) {
           const claimantLabel = POVER_INFO[claim.claimant as Exclude<PoverId, 'user'>]?.label || claim.claimant;
           const typeTag = claim.type ? ` [${claim.type}]` : '';
-          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${claim.claim}`);
+          lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
           if (claim.supported_by?.length > 0) {
             for (const sup of claim.supported_by) {
               if (typeof sup === 'string') {
-                lines.push(`  Supported by: ${sup}`);
+                lines.push(`  - Supported by: ${sup}`);
               } else {
                 const schemeTag = sup.scheme ? ` (${sup.scheme.replace(/_/g, ' ')})` : '';
-                lines.push(`  Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${sup.warrant}` : ''}`);
+                lines.push(`  - Supported by ${sup.claim_id}${schemeTag}${sup.warrant ? `: ${stripNodeIds(sup.warrant)}` : ''}`);
               }
             }
           }
@@ -2148,36 +2153,35 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             for (const attack of claim.attacked_by) {
               const attackerLabel = POVER_INFO[attack.claimant as Exclude<PoverId, 'user'>]?.label || attack.claimant;
               const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
-              lines.push(`  ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${attack.claim}`);
+              lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
             }
           }
         }
       }
       if (synthesis.preferences?.length > 0) {
-        lines.push('', '**Resolution Analysis:**');
+        lines.push('', '## Resolution Analysis', '');
         for (const p of synthesis.preferences) {
           if (p.prevails === 'undecidable') {
-            lines.push(`- **${p.conflict}** — Undecidable`);
-            lines.push(`  *${p.rationale}*`);
+            lines.push(`- **${stripNodeIds(p.conflict)}** — Undecidable`);
+            lines.push(`  - *${stripNodeIds(p.rationale)}*`);
           } else {
-            // Resolve claim ID to text
             let prevailsText = p.prevails;
             if (/^C\d+$/.test(p.prevails) && synthesis.argument_map) {
               const claim = synthesis.argument_map.find((c: { claim_id: string; claim: string; claimant: string }) => c.claim_id === p.prevails);
-              if (claim) prevailsText = `${claim.claimant}: "${claim.claim}"`;
+              if (claim) prevailsText = `${claim.claimant}: "${stripNodeIds(claim.claim)}"`;
             }
-            lines.push(`- **${p.conflict}** — Stronger: ${prevailsText} (${p.criterion?.replace(/_/g, ' ')})`);
-            lines.push(`  *${p.rationale}*`);
+            lines.push(`- **${stripNodeIds(p.conflict)}** — Stronger: ${prevailsText} (${p.criterion?.replace(/_/g, ' ')})`);
+            lines.push(`  - *${stripNodeIds(p.rationale)}*`);
           }
           if (p.what_would_change_this) {
-            lines.push(`  Would change if: ${p.what_would_change_this}`);
+            lines.push(`  - Would change if: ${stripNodeIds(p.what_would_change_this)}`);
           }
         }
       }
       if (synthesis.unresolved_questions?.length > 0) {
-        lines.push('', '**Unresolved Questions:**');
+        lines.push('', '## Unresolved Questions', '');
         for (const q of synthesis.unresolved_questions) {
-          lines.push(`- ${q}`);
+          lines.push(`- ${stripNodeIds(q)}`);
         }
       }
 
@@ -2496,6 +2500,76 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           },
         },
       });
+
+      // ── Generate AN nodes and edges from fact-check points ──
+      const points = Array.isArray(result.points) ? result.points as { text: string; type: 'supports' | 'attacks'; evidence_basis?: string }[] : [];
+      const debate = get().activeDebate;
+      if (points.length > 0 && debate?.argument_network) {
+        const an = debate.argument_network;
+        // Find AN nodes belonging to the checked statement
+        const targetNodes = an.nodes.filter(n => n.source_entry_id === entryId);
+        // Pick the best target: prefer nodes whose text overlaps with the checked text
+        const checkedWords = new Set(selectedText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+        const rankedTargets = targetNodes
+          .map(n => {
+            const words = n.text.toLowerCase().split(/\s+/);
+            const overlap = words.filter(w => checkedWords.has(w)).length;
+            return { node: n, overlap };
+          })
+          .sort((a, b) => b.overlap - a.overlap);
+        const bestTarget = rankedTargets[0]?.node;
+
+        if (bestTarget) {
+          const factCheckEntryId = debate.transcript[debate.transcript.length - 1]?.id || generateId();
+          let nextNodeIdx = an.nodes.length;
+          let nextEdgeIdx = an.edges.length;
+          const newNodes: typeof an.nodes = [];
+          const newEdges: typeof an.edges = [];
+
+          for (const pt of points.slice(0, 4)) {
+            if (!pt.text || !pt.type) continue;
+            const nodeId = `AN-${nextNodeIdx++}`;
+            newNodes.push({
+              id: nodeId,
+              text: pt.text,
+              speaker: 'system',
+              source_entry_id: factCheckEntryId,
+              taxonomy_refs: [],
+              turn_number: an.nodes.length > 0 ? Math.max(...an.nodes.map(n => n.turn_number)) + 1 : 1,
+              base_strength: pt.type === 'attacks' ? 0.7 : 0.6,
+              scoring_method: 'ai_rubric',
+              bdi_category: 'belief',
+              specificity: 'precise',
+            });
+            const edgeId = `AE-${nextEdgeIdx++}`;
+            newEdges.push({
+              id: edgeId,
+              source: nodeId,
+              target: bestTarget.id,
+              type: pt.type === 'attacks' ? 'attacks' : 'supports',
+              attack_type: pt.type === 'attacks' ? 'rebut' : undefined,
+              scheme: pt.type === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
+              warrant: `Fact-check evidence (${pt.evidence_basis || 'mixed'}): ${pt.text.slice(0, 100)}`,
+              argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
+            });
+          }
+
+          if (newNodes.length > 0) {
+            const updated = get().activeDebate;
+            if (updated?.argument_network) {
+              set({
+                activeDebate: {
+                  ...updated,
+                  argument_network: {
+                    nodes: [...updated.argument_network.nodes, ...newNodes],
+                    edges: [...updated.argument_network.edges, ...newEdges],
+                  },
+                },
+              });
+            }
+          }
+        }
+      }
     } catch (err) {
       set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
     } finally {

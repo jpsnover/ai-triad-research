@@ -465,12 +465,34 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
   );
 }
 
-export function DiagnosticsWindow() {
-  const [debate, setDebate] = useState<DebateSession | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+export function DiagnosticsWindow({ initialData }: { initialData?: Record<string, unknown> } = {}) {
+  const [debate, setDebate] = useState<DebateSession | null>(() => {
+    // If opened with initial data (e.g. from CLI file viewer), use it immediately
+    if (initialData) {
+      const d = initialData as { debate?: DebateSession; selectedEntry?: string };
+      return (d.debate as DebateSession) ?? (initialData as unknown as DebateSession);
+    }
+    return null;
+  });
+  const [selectedEntry, setSelectedEntry] = useState<string | null>(() => {
+    if (initialData) {
+      const d = initialData as { selectedEntry?: string };
+      return d.selectedEntry ?? null;
+    }
+    return null;
+  });
   const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Apply theme — the diagnostics popout doesn't go through MainApp which normally sets data-theme
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!root.getAttribute('data-theme')) {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = api.onDiagnosticsStateUpdate((state) => {

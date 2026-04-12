@@ -82,7 +82,8 @@ function resolveTaxonomyFilePath(pov: string): string {
 
 export function readTaxonomyFile(pov: string): unknown {
   const filePath = resolveTaxonomyFilePath(pov);
-  const raw = fs.readFileSync(filePath, 'utf-8');
+  // Strip UTF-8 BOM if present — PowerShell's Set-Content writes BOM by default
+  const raw = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
   return JSON.parse(raw);
 }
 

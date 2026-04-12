@@ -199,6 +199,7 @@ export interface PoverResponseMeta {
   key_assumptions?: { assumption: string; if_wrong: string }[];
   my_claims?: { claim: string; targets: string[] }[];
   policy_refs?: string[];
+  position_update?: string;
 }
 
 /** Try to parse JSON, with repair fallback for LLM formatting issues */
@@ -299,6 +300,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
       policy_refs: Array.isArray(parsed.policy_refs) ? parsed.policy_refs.filter(
         (r: unknown) => typeof r === 'string',
       ) : undefined,
+      position_update: typeof parsed.position_update === 'string' ? parsed.position_update : undefined,
     };
   } catch {
     // Fallback: look for a JSON object with "statement" embedded after preamble text

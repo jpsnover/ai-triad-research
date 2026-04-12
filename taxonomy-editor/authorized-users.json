@@ -3,8 +3,25 @@
   "users": [
     {
       "name": "Jeffrey Snover",
-      "emails": ["jsnover15@hotmail.com", "jsnover16@hotmail.com"],
+      "emails": ["jsnover15@hotmail.com", "jsnover16@hotmail.com", "jsnover@law.harvard.edu"],
       "github": "jpsnover"
+    },
+    {
+      "name": "Doug Finke",
+      "emails": ["finked@hotmail.com"],
+      "github": "dfinke"
+    },
+    {
+      "name": "todd Hollow-Bist",
+      "emails": ["todd@pathwiseleadership.com"]
+    },
+    {
+      "name": "Joe long",
+      "emails": ["joe.long@hotmail.com", "Joelong@microsoft.com"]
+    },
+    {
+      "name": "Lee Holmes",
+      "emails": ["leeholmes@microsoft.com"]
     }
   ]
 }

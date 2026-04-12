@@ -115,22 +115,35 @@ function Get-RelevantTaxonomyNodes {
     if ($Query.Length -gt 2000) { $QueryText = $Query.Substring(0, 2000) } else { $QueryText = $Query }
 
     try {
-        # PS 5.1: native stderr lines become terminating errors under $ErrorActionPreference='Stop'.
-        # Temporarily switch to Continue so Python's progress/warning output on stderr doesn't abort.
-        $PrevEAP = $ErrorActionPreference
-        $ErrorActionPreference = 'Continue'
+        # PS 5.1: native stderr lines become NativeCommandError even with 2>$null
+        # when $ErrorActionPreference='Stop'. Use Start-Process to fully isolate stderr.
+        $StdoutFile = [System.IO.Path]::GetTempFileName()
+        $StderrFile = [System.IO.Path]::GetTempFileName()
         try {
-            $EmbOutput = & $PythonCmd $EmbedScript encode $QueryText 2>$null
+            $Proc = Start-Process -FilePath $PythonCmd `
+                -ArgumentList "`"$EmbedScript`" encode `"$QueryText`"" `
+                -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput $StdoutFile `
+                -RedirectStandardError $StderrFile
+            if ($Proc.ExitCode -ne 0) {
+                $StderrMsg = Get-Content $StderrFile -Raw -ErrorAction SilentlyContinue
+                New-ActionableError -Goal 'compute query embedding' `
+                    -Problem "embed_taxonomy.py encode failed (exit $($Proc.ExitCode)): $StderrMsg" `
+                    -Location 'Get-RelevantTaxonomyNodes' `
+                    -NextSteps @('Check Python is installed', 'Run: pip install sentence-transformers') -Throw
+            }
+            $EmbOutput = Get-Content $StdoutFile -Raw
         } finally {
-            $ErrorActionPreference = $PrevEAP
+            Remove-Item $StdoutFile, $StderrFile -Force -ErrorAction SilentlyContinue
         }
-        if ($LASTEXITCODE -ne 0) {
+        if (-not $EmbOutput -or $EmbOutput.Trim().Length -eq 0) {
             New-ActionableError -Goal 'compute query embedding' `
-                -Problem "embed_taxonomy.py encode failed (exit code $LASTEXITCODE)" `
+                -Problem "embed_taxonomy.py produced no output" `
                 -Location 'Get-RelevantTaxonomyNodes' `
                 -NextSteps @('Check Python is installed', 'Run: pip install sentence-transformers') -Throw
         }
-        $QueryVector = [double[]]@($EmbOutput | ConvertFrom-Json)
+        $Parsed = $EmbOutput | ConvertFrom-Json
+        $QueryVector = [double[]]($Parsed | ForEach-Object { [double]$_ })
     }
     catch {
         New-ActionableError -Goal 'compute query embedding' `

@@ -179,7 +179,7 @@ function Invoke-ChunkedSummary {
         Write-Host "  │  chunk $ChunkNum/$ChunkCount (~$ChunkTokens tokens)..." -ForegroundColor Gray -NoNewline
 
         # Per-chunk relevance filtering: use chunk text as query for better node selection
-        $ChunkTaxonomy = $TaxonomyJson
+        $ChunkTaxonomy = $null
         try {
             $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText `
                 -Threshold 0.30 -MaxTotal 150 -MinPerCategory 2 `
@@ -190,7 +190,10 @@ function Invoke-ChunkedSummary {
             }
         }
         catch {
-            Write-Verbose "  Chunk $ChunkNum`: RAG fallback — using document-level taxonomy"
+            Write-Verbose "  Chunk $ChunkNum`: RAG fallback — using compact taxonomy"
+        }
+        if (-not $ChunkTaxonomy) {
+            $ChunkTaxonomy = Build-CompactTaxonomy
         }
 
         $ChunkPrompt = @"
@@ -382,6 +385,44 @@ function Build-DensityScaledPrompt {
         -replace '{{FC_MAX}}',     $fcMax `
         -replace '{{UC_MIN}}',     $ucMin `
         -replace '{{UC_MAX}}',     $ucMax
+}
+
+function Build-CompactTaxonomy {
+    <#
+    .SYNOPSIS
+        Builds a compact taxonomy context (~5-10K tokens) for prompt injection
+        when full RAG embedding is unavailable.
+    .DESCRIPTION
+        Loads the four taxonomy files and emits only id, category, and label per node.
+        This is ~95% smaller than the full taxonomy JSON while still providing
+        enough context for the LLM to map claims to node IDs.
+    #>
+    $TaxDir = Get-TaxonomyDir
+    $Lines = [System.Text.StringBuilder]::new()
+    [void]$Lines.AppendLine("=== COMPACT TAXONOMY (id | category | label — full descriptions omitted for brevity) ===")
+    [void]$Lines.AppendLine("")
+
+    $TaxFiles = [ordered]@{
+        'accelerationist.json' = 'Accelerationist'
+        'safetyist.json'       = 'Safetyist'
+        'skeptic.json'         = 'Skeptic'
+        'situations.json'      = 'Situations'
+    }
+
+    foreach ($FileName in $TaxFiles.Keys) {
+        $FilePath = Join-Path $TaxDir $FileName
+        if (-not (Test-Path $FilePath)) { continue }
+        $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
+        [void]$Lines.AppendLine("--- $($TaxFiles[$FileName]) ---")
+        foreach ($Node in $Data.nodes) {
+            $Cat = if ($null -ne $Node.PSObject.Properties['category'] -and $Node.category) { "[$($Node.category)]" } else { '' }
+            [void]$Lines.AppendLine("  $($Node.id) $Cat $($Node.label)")
+        }
+        [void]$Lines.AppendLine("")
+    }
+
+    Write-Verbose "Pipeline: compact taxonomy built (~$([int]($Lines.Length / 4)) tokens est.)"
+    return $Lines.ToString()
 }
 
 function Build-DocHeader {

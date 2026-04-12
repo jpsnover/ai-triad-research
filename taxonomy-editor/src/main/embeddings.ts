@@ -8,7 +8,19 @@ import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 import { PROJECT_ROOT } from './fileIO';
 
-const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
+/** Find embed_taxonomy.py — may be in PROJECT_ROOT/scripts or one level up (when PROJECT_ROOT is taxonomy-editor/) */
+function findEmbedScript(): string {
+  const candidates = [
+    path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py'),
+    path.join(PROJECT_ROOT, '..', 'scripts', 'embed_taxonomy.py'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return path.resolve(c);
+  }
+  return candidates[0]; // fallback — will produce a clear "file not found" error
+}
+const EMBED_SCRIPT = findEmbedScript();
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 // ---------- Warm-up: preload sentence_transformers model ----------
 
@@ -25,7 +37,7 @@ export function warmupEmbeddingModel(): void {
   console.log('[embeddings] Warming up local embedding model...');
   const t0 = Date.now();
   execFile(
-    'python3',
+    PYTHON,
     [EMBED_SCRIPT, 'encode', 'warmup'],
     { timeout: 120_000, maxBuffer: 1024 * 1024 },
     (err, _stdout, _stderr) => {
@@ -158,7 +170,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   // Call Python batch-encode via stdin
   const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
     const child = execFile(
-      'python3',
+      PYTHON,
       [EMBED_SCRIPT, 'batch-encode'],
       { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (err, stdout, stderr) => {
@@ -243,7 +255,7 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
 
   return new Promise((resolve, reject) => {
     const child = execFile(
-      'python3',
+      PYTHON,
       [EMBED_SCRIPT, 'nli-classify'],
       { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (err, stdout, stderr) => {
@@ -268,7 +280,7 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
     execFile(
-      'python3',
+      PYTHON,
       [EMBED_SCRIPT, 'encode', text],
       { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
       (err, stdout, stderr) => {
