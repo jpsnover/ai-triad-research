@@ -1,6 +1,8 @@
 # Debate System Overview
 
-**Status:** Current as of 2026-04-08. For review.
+**Status:** Current as of 2026-04-11. For review.
+
+**Source of truth:** `lib/debate/` (28 TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
 
 ## Purpose
 
@@ -58,10 +60,26 @@ User clicks "Start Debate"
   │     │
   │     └── NEUTRAL EVALUATOR: Final checkpoint (runs in parallel with synthesis)
   │
+  ├── Phase 5: Post-Synthesis Passes (sequential)
+  │     1. Missing Arguments — fresh LLM flags strong unsaid arguments
+  │     2. Taxonomy Refinement — suggest narrow/broaden/clarify/split/qualify/retire/new_node
+  │     3. Dialectic Traces — BFS graph traversal from synthesis preferences (no AI)
+  │
   └── Post-Debate
-        Harvest dialog: promote conflicts, steelman refinements, debate refs
+        Harvest dialog: promote conflicts, steelman refinements, debate refs, verdicts, concepts
         Divergence view: compare neutral evaluation vs persona synthesis
+        Export: JSON / Markdown / Text / PDF / ZIP package
 ```
+
+### Round Phase Mapping
+
+`getDebatePhase(round, totalRounds)` assigns each round to one of three phases, each with its own instruction block injected into debater prompts:
+
+| Phase | When | Instruction Focus |
+|-------|------|-------------------|
+| `thesis-antithesis` | Rounds 1–2 | Stake out position; challenge opposing premises; no common-ground seeking yet |
+| `exploration` | Middle rounds | Probe deeper, force falsifiable predictions, stress-test edge cases |
+| `synthesis` | Final 2 rounds | Converge where possible, narrow disagreements, require `position_update` field in output |
 
 ## Context Injection
 
@@ -134,16 +152,25 @@ Agents are instructed to match evidence to claim type. Attacking evidence should
 
 ## Dialectical Moves
 
-Six moves, ordered to counter primacy bias (COUNTEREXAMPLE first, CONCEDE last):
+**Core moves (8)** — always available; debaters select 1–3 per turn via the `move_types` array:
 
-1. **COUNTEREXAMPLE** — specific case challenging a general claim
-2. **DISTINGUISH** — accept evidence but show it doesn't apply here
-3. **REFRAME** — shift framing to reveal what the current frame hides
-4. **REDUCE** — show opponent's logic leads to an absurd conclusion
-5. **ESCALATE** — connect specific disagreement to deeper principle
-6. **CONCEDE** — acknowledge a valid point
+1. **DISTINGUISH** — accept opponent's evidence but show it doesn't apply here
+2. **COUNTEREXAMPLE** — specific case challenging a general claim
+3. **CONCEDE-AND-PIVOT** — acknowledge a valid point, then redirect to what it misses (genuine concession, no "but" reversal)
+4. **REFRAME** — shift framing to reveal what the current frame hides
+5. **EMPIRICAL CHALLENGE** — dispute the factual basis with specific counter-evidence
+6. **EXTEND** — build on another debater's point to strengthen or expand it
+7. **UNDERCUT** — attack the warrant (reasoning link) rather than evidence or conclusion
+8. **SPECIFY** — demand operationalization; force falsifiable predictions ("what specific outcome would make you abandon this position?")
 
-Anti-repetition enforcement: model sees its last N move_types with instruction to vary. Five alternative phrasings provided for concessions to prevent "I concede" uniformity.
+**Constructive moves (4)** — injected only in `exploration` and `synthesis` phases:
+
+- **INTEGRATE** — propose a position incorporating valid elements from multiple perspectives
+- **CONDITIONAL-AGREE** — accept a position contingent on specified conditions
+- **NARROW** — reduce a broad disagreement to its precise crux
+- **STEEL-BUILD** — build on an opponent's strongest argument to reach a conclusion they haven't drawn
+
+**Move diversity enforcement:** model sees its last N `move_types` with instruction to vary. Sentence-opening variety enforced via five alternative opening templates.
 
 ## Argumentation Scheme Classification
 
@@ -253,6 +280,18 @@ The highest-value output: programmatic comparison of final neutral evaluation vs
 - Output is NOT harvested into taxonomy (revisit after usage data)
 - No attempt to reconcile into a single unified verdict
 
+## Debate Protocols
+
+Three declarative protocols in `lib/debate/protocols.ts` control UI affordances and default pacing. The underlying engine is shared — protocols shape available actions and phase labels.
+
+| Protocol | Default Rounds | Debate-Phase Actions | Use Case |
+|----------|----------------|----------------------|----------|
+| `structured` | 3 | Ask, Cross-Respond, Synthesize, Probe, Harvest | Standard multi-perspective debate |
+| `socratic` | 5 | Ask, Probe, Summarize, Harvest | Single-POV interrogation dialogue |
+| `deliberation` | 4 | Propose, Respond, Consensus Check, Harvest | Consensus-seeking among participants |
+
+Each phase (`clarification` / `opening` / `debate`) declares its `ProtocolAction[]` — the Debate Workspace renders these as toolbar buttons bound to store handlers.
+
 ## Moderator Steering
 
 The moderator selects the next responder and focus point based on:
@@ -280,6 +319,50 @@ Three-phase process:
 | EMPIRICAL | Belief | Evidence gathering |
 | VALUES | Desire | Tradeoff analysis |
 | DEFINITIONAL | Concept | Term disambiguation |
+
+## Post-Synthesis Passes
+
+### Taxonomy Refinement Suggestions
+`taxonomyRefinementPrompt` runs after synthesis over nodes referenced during the debate. Outputs `TaxonomySuggestion[]` with action types: `narrow`, `broaden`, `clarify`, `split`, `qualify`, `retire`, `new_node`. Each carries a rationale linking to specific debate turns. Stored on `DebateSession.taxonomy_suggestions` and surfaced in the harvest dialog.
+
+### Dialectic Traces
+Synchronous BFS graph traversal — no AI calls. `generateDialecticTraces()` walks the argument network from each synthesis preference backward through the attack/support edges to produce a human-readable trace: "Claim X prevailed because it survived attacks A, B; A was undercut by C; …". Stored as `DialecticTrace[]` on `DebateSession.dialectic_traces`. Gives a deterministic explanation layer over the QBAF numerical scores.
+
+### Missing Arguments Pass
+(See "LLM Failure Mode Interventions" §5 below.)
+
+## Coverage Tracking
+
+For document-sourced debates, `coverageTracker.ts` tracks which source-document claims were engaged during the debate:
+
+- **`computeCoverage`** — embedding-based cosine match between pre-extracted document i-nodes and transcript entries.
+- **`computeCoverageByTextOverlap`** — Jaccard-similarity fallback when embeddings are unavailable.
+- **`computeCoverageMap`** — tri-state classification per claim: `covered` (Jaccard > 0.5), `partially_covered` (> 0.3), `uncovered`.
+
+Coverage percentage: `(covered + 0.5 × partially) / total × 100`. Uncovered claims feed into the `probingQuestionsPrompt` as steering targets; click-to-steer in the UI lets users force the moderator to address a specific uncovered claim.
+
+## Entry Summarization
+
+After each debater turn, `entrySummarizationPrompt` produces a two-tier summary of the entry text:
+
+- **Brief** (2–3 sentences) — used in context compression and the unanswered-claims ledger
+- **Medium** (1–2 paragraphs) — used in the transcript UI collapsed view and Markdown export
+
+Tiers are stored on `TranscriptEntry.summary_brief` and `summary_medium`. Resilient: failure of summarization never aborts the debate; the entry proceeds with `undefined` summary fields.
+
+## Export Formats
+
+`lib/debate/debateExport.ts` provides five output formats:
+
+| Format | Content |
+|--------|---------|
+| `json` | Full `DebateSession` JSON (transcript, argument network, commitments, diagnostics) |
+| `markdown` | Rendered Markdown with headers, taxonomy refs inline, synthesis sections |
+| `text` | Plain text with `===` separators |
+| `pdf` | HTML → PDF via platform callback (Electron `generatePdf`); falls back to HTML if unavailable |
+| `package` | ZIP bundle via jszip: JSON + Markdown + PDF (or HTML fallback) + `-diagnostics.json` |
+
+Platform-specific PDF generation is provided via a `generatePdf` callback injected into `debateToPackage(session, options)` — the library itself has no native PDF dependency.
 
 ## Temperature Calibration
 
@@ -314,18 +397,25 @@ Three-phase process:
 Debates stored in `ai-triad-data/debates/debate-<id>.json`:
 ```
 DebateSession {
-  transcript: TranscriptEntry[]
+  transcript: TranscriptEntry[]            // each with optional summary_brief / summary_medium
   context_summaries: ContextSummary[]
   argument_network: { nodes, edges }
   commitments: Record<PoverId, CommitmentStore>
   convergence_tracker: ConvergenceTracker
   diagnostics: DebateDiagnostics
   qbaf_timeline: QbafTimelineEntry[]
-  claim_coverage: ClaimCoverageEntry[]
+  claim_coverage: ClaimCoverageEntry[]     // document-source coverage map
   neutral_evaluations: NeutralEvaluation[]
   neutral_speaker_mapping: SpeakerMapping
+  unanswered_claims_ledger?: UnansweredClaimEntry[]
+  position_drift?: DriftSnapshot[]
+  missing_arguments?: MissingArgument[]
+  taxonomy_suggestions?: TaxonomySuggestion[]
+  dialectic_traces?: DialecticTrace[]
 }
 ```
+
+All post-intervention fields are optional for backward compatibility with pre-intervention debates.
 
 ## LLM Failure Mode Interventions
 
@@ -380,6 +470,14 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 **Prompt:** `missingArgumentsPrompt()` in `prompts.ts`. Temperature: 0.5. Taxonomy summary capped at 80 nodes.
 
 **New type:** `MissingArgument { argument, side, why_strong, bdi_layer }`.
+
+## Entry Points
+
+- **Programmatic:** `new DebateEngine(adapter).run(config)` — the single orchestration entry (`lib/debate/debateEngine.ts:127`).
+- **CLI:** `npx tsx lib/debate/cli.ts --config <file>` or `--stdin`. Emits JSON result with output file paths; exit code 1 on failure.
+- **PowerShell:** `Invoke-AITDebate` cmdlet in the `AITriad` module. Parameter sets: `Topic` / `Document` / `Url` / `CrossCutting` (cross-cutting = situation node). Shells out to the CLI with a 10-minute timeout and parses the JSON result.
+- **Electron UI:** `DebateWorkspace` component drives the debate via the Zustand store. The "Explain" button (per transcript entry) copies a contextualized prompt to the clipboard and opens `https://gemini.google.com/app` — a manual handoff, not an API call.
+- **Repair:** `Repair-DebateOutput.ps1` → `lib/debate/repairTranscript.ts` for post-hoc transcript repair on failed/partial runs.
 
 ## Style Guide
 
