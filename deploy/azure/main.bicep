@@ -27,6 +27,23 @@ param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 @description('Unique suffix for globally unique resource names')
 param uniqueSuffix string = uniqueString(resourceGroup().id)
 
+// ── OAuth identity providers ──
+// Client IDs are not sensitive, but we still mark them @secure() to keep them
+// out of deployment logs. Client secrets must already exist in the container
+// app secret store under the names below; Bicep only references them.
+
+@description('Google OAuth 2.0 client ID (from https://console.cloud.google.com)')
+param googleClientId string = ''
+
+@description('GitHub OAuth app client ID (from https://github.com/settings/developers)')
+param githubClientId string = ''
+
+@description('Name of the container-app secret holding the Google client secret')
+param googleClientSecretName string = 'google-client-secret'
+
+@description('Name of the container-app secret holding the GitHub client secret')
+param githubClientSecretName string = 'github-client-secret'
+
 // ── Log Analytics ──
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -161,6 +178,57 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             http: { metadata: { concurrentRequests: '10' } }
           }
         ]
+      }
+    }
+  }
+}
+
+// ── Authentication (Easy Auth for Container Apps) ──
+// Enables /.auth/login/<provider> endpoints. On successful OAuth, Azure injects
+// X-MS-CLIENT-PRINCIPAL-* headers into requests to the container. The server
+// (src/server/server.ts) reads those headers and gates access via
+// authorized-users.json.
+//
+// unauthenticatedClientAction: 'AllowAnonymous' — we don't auto-redirect because
+// the server renders its own login picker (multi-provider), then the picker
+// buttons link to /.auth/login/google or /.auth/login/github.
+
+resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview' = {
+  parent: containerApp
+  name: 'current'
+  properties: {
+    platform: {
+      enabled: true
+    }
+    globalValidation: {
+      unauthenticatedClientAction: 'AllowAnonymous'
+    }
+    identityProviders: {
+      google: {
+        enabled: !empty(googleClientId)
+        registration: {
+          clientId: googleClientId
+          clientSecretSettingName: googleClientSecretName
+        }
+        validation: {
+          allowedAudiences: []
+        }
+      }
+      gitHub: {
+        enabled: !empty(githubClientId)
+        registration: {
+          clientId: githubClientId
+          clientSecretSettingName: githubClientSecretName
+        }
+      }
+    }
+    login: {
+      routes: {
+        logoutEndpoint: '/.auth/logout'
+      }
+      preserveUrlFragmentsForLogins: false
+      tokenStore: {
+        enabled: true
       }
     }
   }

@@ -45,6 +45,8 @@ jobs:
           template: deploy/azure/main.bicep
           parameters: >-
             containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
+            githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
 
       - name: Update CORS with app URL
         run: |

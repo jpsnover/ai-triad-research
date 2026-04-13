@@ -75,7 +75,7 @@ function Resolve-UnmappedConcepts {
     $AllNodes = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($PovKey in $TaxonomyData.Keys) {
         $Entry = $TaxonomyData[$PovKey]
-        if ($Entry.nodes) { $Nodes = $Entry.nodes } else { $Nodes = @() }
+        if ($Entry -and $Entry.PSObject.Properties['nodes'] -and $Entry.nodes) { $Nodes = $Entry.nodes } else { $Nodes = @() }
         foreach ($Node in $Nodes) {
             if ($Node.PSObject.Properties['category']) { $NodeCat = $Node.category } else { $NodeCat = $null }
             $null = $AllNodes.Add([PSCustomObject]@{

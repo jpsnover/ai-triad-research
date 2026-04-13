@@ -217,6 +217,13 @@ if (Test-Path $TaxonomyDir) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json') { continue }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
+            # Only register POV files that follow the taxonomy shape (have a .nodes array).
+            # Auxiliary files (lineage_categories.json, etc.) live alongside POV files but
+            # don't belong in $script:TaxonomyData.
+            if (-not ($Json -and $Json.PSObject.Properties['nodes'])) {
+                Write-Verbose "Taxonomy: skipping $($File.Name) (no 'nodes' property — not a POV file)"
+                continue
+            }
             $PovName = $File.BaseName.ToLower()
             $script:TaxonomyData[$PovName] = $Json
             Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"

@@ -387,14 +387,35 @@ function Import-AITriadDocument {
         }
 
         'ByFile' {
+            $ResolvedFile = (Resolve-Path -LiteralPath $File).Path
+            $ResolvedInbox = if (Test-Path $InboxDir) { (Resolve-Path -LiteralPath $InboxDir).Path } else { $null }
+            $FromInbox = $ResolvedInbox -and $ResolvedFile.StartsWith($ResolvedInbox, [System.StringComparison]::OrdinalIgnoreCase)
+
             $DocId = Invoke-IngestDocument `
-                -SourceFile  $File `
+                -SourceFile  $ResolvedFile `
                 -PovTags     $Pov `
                 -TopicTags   $Topic
 
+            $SummarizeOk = $true
             if (-not $NoSummarize -and $DocId) {
                 Write-Step "Running POV summarization for $DocId"
-                Invoke-BatchSummary -DocId $DocId -Model $Model -Temperature $Temperature
+                try {
+                    Invoke-BatchSummary -DocId $DocId -Model $Model -Temperature $Temperature
+                } catch {
+                    $SummarizeOk = $false
+                    Write-Fail "Summarization failed for $DocId`: $_"
+                    if ($FromInbox) { Write-Info "File left in inbox for retry." }
+                    throw
+                }
+            }
+
+            # If the source lives under sources/_inbox/, clean it up after a fully
+            # successful ingest+summarize — symmetrical with the -Inbox branch.
+            if ($FromInbox -and $DocId -and $SummarizeOk) {
+                $SidecarPath = $ResolvedFile + '.meta.json'
+                if (Test-Path $ResolvedFile) { Remove-Item $ResolvedFile -Force }
+                if (Test-Path $SidecarPath)  { Remove-Item $SidecarPath -Force }
+                Write-OK "Removed inbox copy: $(Split-Path $ResolvedFile -Leaf)"
             }
         }
 

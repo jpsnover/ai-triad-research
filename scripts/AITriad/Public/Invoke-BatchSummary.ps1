@@ -427,7 +427,7 @@ function Invoke-BatchSummary {
                 if ($SumData -and $SumData.factual_claims) { $FcCount = @($SumData.factual_claims).Count } else { $FcCount = 0 }
                 if ($SumData -and $SumData.unmapped_concepts) { $UcCount = @($SumData.unmapped_concepts).Count } else { $UcCount = 0 }
 
-                $Results.Add(@{
+                $Results.Add([PSCustomObject]@{
                     Success       = $true
                     DocId         = $Doc.DocId
                     TotalPoints   = $TotalPts
@@ -439,7 +439,7 @@ function Invoke-BatchSummary {
                 })
             }
             catch {
-                $Results.Add(@{
+                $Results.Add([PSCustomObject]@{
                     Success = $false
                     DocId   = $Doc.DocId
                     Error   = $_.Exception.Message
@@ -462,11 +462,14 @@ function Invoke-BatchSummary {
                     }
                 }
                 $Result = Invoke-DocumentSummary -Doc $Doc @DocSharedParams
+                # Normalize to PSCustomObject so Measure-Object -Property works in PS 5.1
+                # (hashtable keys aren't exposed as PSObject properties in 5.1).
+                if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
                 $Results.Add($Result)
             }
             catch {
                 Write-Warn "  ✗ $($Doc.DocId) — $($_.Exception.Message)"
-                $Results.Add(@{ Success = $false; DocId = $Doc.DocId; Error = $_.Exception.Message })
+                $Results.Add([PSCustomObject]@{ Success = $false; DocId = $Doc.DocId; Error = $_.Exception.Message })
             }
         }
     } else {
@@ -487,6 +490,7 @@ function Invoke-BatchSummary {
             $Doc = $_
             $Params = $using:SharedParams
             $Result = & $Mod { param($D, $P) Invoke-DocumentSummary -Doc $D @P } $Doc $Params
+            if ($Result -is [hashtable]) { $Result = [PSCustomObject]$Result }
             [void]$bag.Add($Result)
 
         } -ThrottleLimit $MaxConcurrent
