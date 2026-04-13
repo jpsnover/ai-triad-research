@@ -12,7 +12,7 @@ import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
 import { nodeTypeFromId } from '@lib/debate';
@@ -383,7 +383,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                   ))}
                 </div>
                 {expandedLineage && (() => {
-                  const info = INTELLECTUAL_LINEAGES[expandedLineage];
+                  const info = getLineageInfo(expandedLineage);
                   if (!info) return (
                     <div className="lineage-inline-detail">
                       <div className="lineage-inline-header">

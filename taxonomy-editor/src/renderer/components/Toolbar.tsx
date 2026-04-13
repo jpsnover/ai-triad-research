@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
 import { SettingsDialog } from './SettingsDialog';
@@ -23,6 +23,23 @@ export function Toolbar() {
   } = useTaxonomyStore();
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close "More" popover on outside click
+  useEffect(() => {
+    if (!showMore) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setShowMore(false);
+      }
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [showMore]);
+
+  const morePanels: ToolbarPanel[] = ['edges', 'policyAlignment', 'policyDashboard', 'fallacy'];
+  const moreHasActive = morePanels.includes(toolbarPanel as ToolbarPanel);
 
   // Escape key navigates back
   useEffect(() => {
@@ -171,54 +188,68 @@ export function Toolbar() {
             <path d="M16 17l3 3" />
           </svg>
         </button>
-        {/* Edge Browser */}
-        <button
-          className={`toolbar-icon${toolbarPanel === 'edges' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('edges')}
-          data-tooltip="Edge Browser"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="5" cy="12" r="3" />
-            <circle cx="19" cy="12" r="3" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-          </svg>
-        </button>
-        {/* Policy Alignment */}
-        <button
-          className={`toolbar-icon${toolbarPanel === 'policyAlignment' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('policyAlignment')}
-          data-tooltip="Policy Alignment"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </button>
-        {/* Policy Dashboard */}
-        <button
-          className={`toolbar-icon${toolbarPanel === 'policyDashboard' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('policyDashboard')}
-          data-tooltip="Policy Dashboard"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="12" width="4" height="9" rx="1" />
-            <rect x="10" y="7" width="4" height="14" rx="1" />
-            <rect x="17" y="3" width="4" height="18" rx="1" />
-          </svg>
-        </button>
-        {/* Possible Fallacies */}
-        <button
-          className={`toolbar-icon${toolbarPanel === 'fallacy' ? ' toolbar-icon-active' : ''}`}
-          onClick={() => toggle('fallacy')}
-          data-tooltip="Possible Fallacies"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M3.6 15.4L10.3 4.6a2 2 0 0 1 3.4 0l6.7 10.8A2 2 0 0 1 18.7 19H5.3a2 2 0 0 1-1.7-3.6z" />
-          </svg>
-        </button>
+        {/* More (overflow: Edge Browser, Policy Alignment, Policy Dashboard, Possible Fallacies) */}
+        <div className="toolbar-more-wrap" ref={moreRef}>
+          <button
+            className={`toolbar-icon${moreHasActive || showMore ? ' toolbar-icon-active' : ''}`}
+            onClick={() => setShowMore(v => !v)}
+            data-tooltip="More tools"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="5" cy="12" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="19" cy="12" r="1.5" />
+            </svg>
+          </button>
+          {showMore && (
+            <div className="toolbar-more-popover" role="menu">
+              <button
+                className={`toolbar-more-item${toolbarPanel === 'edges' ? ' active' : ''}`}
+                onClick={() => { toggle('edges'); setShowMore(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="5" cy="12" r="3" />
+                  <circle cx="19" cy="12" r="3" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                <span>Edge Browser</span>
+              </button>
+              <button
+                className={`toolbar-more-item${toolbarPanel === 'policyAlignment' ? ' active' : ''}`}
+                onClick={() => { toggle('policyAlignment'); setShowMore(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+                <span>Policy Alignment</span>
+              </button>
+              <button
+                className={`toolbar-more-item${toolbarPanel === 'policyDashboard' ? ' active' : ''}`}
+                onClick={() => { toggle('policyDashboard'); setShowMore(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="12" width="4" height="9" rx="1" />
+                  <rect x="10" y="7" width="4" height="14" rx="1" />
+                  <rect x="17" y="3" width="4" height="18" rx="1" />
+                </svg>
+                <span>Policy Dashboard</span>
+              </button>
+              <button
+                className={`toolbar-more-item${toolbarPanel === 'fallacy' ? ' active' : ''}`}
+                onClick={() => { toggle('fallacy'); setShowMore(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                  <path d="M3.6 15.4L10.3 4.6a2 2 0 0 1 3.4 0l6.7 10.8A2 2 0 0 1 18.7 19H5.3a2 2 0 0 1-1.7-3.6z" />
+                </svg>
+                <span>Possible Fallacies</span>
+              </button>
+            </div>
+          )}
+        </div>
         <div className="toolbar-separator" />
         {/* Debates */}
         <button

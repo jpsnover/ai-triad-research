@@ -79,7 +79,14 @@ function Invoke-AITDebate {
         [string]$ApiKey,
 
         [Parameter()]
-        [double]$Temperature = 0.3
+        [double]$Temperature = 0.3,
+
+        [Parameter()]
+        [switch]$DisableTurnValidation,
+
+        [Parameter()]
+        [ValidateSet(0, 1, 2)]
+        [int]$MaxTurnRetries = 2
     )
 
     Set-StrictMode -Version Latest
@@ -194,7 +201,10 @@ Verify the file exists: Get-Item '$CliPath'
 
         $Psi = [System.Diagnostics.ProcessStartInfo]::new()
         $Psi.FileName = $NpxCmd.Source
-        $Psi.Arguments = "tsx `"$CliPath`" --config `"$ConfigPath`""
+        $TvArgs = ''
+        if ($DisableTurnValidation) { $TvArgs += ' --no-turn-validation' }
+        if ($PSBoundParameters.ContainsKey('MaxTurnRetries')) { $TvArgs += " --max-turn-retries $MaxTurnRetries" }
+        $Psi.Arguments = "tsx `"$CliPath`" --config `"$ConfigPath`"$TvArgs"
         $Psi.WorkingDirectory = $RepoRoot
         $Psi.RedirectStandardOutput = $true
         $Psi.RedirectStandardError  = $true

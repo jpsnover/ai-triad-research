@@ -499,14 +499,90 @@ body {
   padding: 8px 0;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
+  min-height: 0;
+  position: relative;
+  z-index: 50;
+  overflow: visible;
 }
 
-.toolbar-top,
+.toolbar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+
 .toolbar-bottom {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* ─── Toolbar "More" overflow popover ─── */
+.toolbar-more-wrap {
+  position: relative;
+  z-index: 201;
+}
+
+.toolbar-more-popover {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 0;
+  min-width: 180px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toolbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.toolbar-more-item:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.toolbar-more-item.active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+/* ─── Compact mode for short viewports ─── */
+@media (max-height: 700px) {
+  .toolbar { width: 38px; padding: 4px 0; }
+  .toolbar-icon { width: 32px; height: 30px; }
+  .toolbar-separator { margin: 2px 0; }
+}
+
+@media (max-height: 560px) {
+  .toolbar-icon { width: 30px; height: 26px; }
+  .toolbar-icon svg { width: 16px; height: 16px; }
+  .toolbar-separator { margin: 1px 0; }
 }
 
 .toolbar-icon {
@@ -1787,6 +1863,12 @@ body {
   background: rgba(176, 124, 198, 0.12);
   color: var(--cat-intentions);
   border: 1px solid rgba(176, 124, 198, 0.25);
+}
+
+.nd-header-cat[data-cat="SITUATIONS"] {
+  background: rgba(46, 170, 170, 0.08);
+  color: var(--color-sit, #2aaaaa);
+  border: 1px solid rgba(46, 170, 170, 0.2);
 }
 
 .nd-header-actions {
@@ -4256,6 +4338,38 @@ body {
   gap: 4px;
 }
 
+.lineage-detail-secondary {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-color, #3b82f6);
+  border-radius: 6px;
+}
+
+.lineage-detail-secondary-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.lineage-detail-secondary-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.lineage-detail-secondary-title {
+  font-size: 1.05rem;
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+
 /* ─── Prompts Panel ─────────── */
 
 .prompts-panel {
@@ -5742,6 +5856,15 @@ body {
 
 .sit-bdi-edit .form-group {
   margin-bottom: 8px;
+  flex: none;
+}
+
+.sit-bdi-edit .form-group textarea,
+.sit-bdi-edit .form-group .highlighted-input-container {
+  flex: none;
+  min-height: 0;
+  height: calc(3 * 1.5em + 12px);
+  resize: vertical;
 }
 
 .sit-bdi-field-label {
@@ -8750,17 +8873,30 @@ body {
   font-weight: 600;
 }
 .fallacy-panel-item-count {
-  font-size: 0.68rem;
-  padding: 1px 5px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: white;
-  font-weight: 600;
-  min-width: 18px;
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--focus-ring, #2563eb);
+  color: #fff;
+  font-weight: 700;
+  min-width: 20px;
   text-align: center;
+  line-height: 1.4;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+.fallacy-panel-item-count.zero {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-weight: 500;
 }
 .fallacy-panel-item.selected .fallacy-panel-item-count {
-  background: rgba(255,255,255,0.3);
+  background: #fff;
+  color: var(--focus-ring, #2563eb);
+  box-shadow: none;
+}
+.fallacy-panel-item.selected .fallacy-panel-item-count.zero {
+  background: rgba(255,255,255,0.85);
+  color: var(--text-secondary);
 }
 .fallacy-panel-item-cat {
   font-size: 0.68rem;

@@ -103,6 +103,7 @@ export interface AppAPI {
 
   // --- Diagnostics ---
   openDiagnosticsWindow: () => Promise<void>;
+  openPovProgressionWindow: () => Promise<void>;
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;

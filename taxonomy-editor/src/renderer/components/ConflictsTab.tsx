@@ -15,7 +15,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { SearchPanel } from './SearchPanel';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
 import { api } from '@bridge';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
@@ -142,9 +142,7 @@ export function ConflictsTab() {
 
   const renderLineagePreview = () => {
     if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
-    const info = INTELLECTUAL_LINEAGES[lineagePreviewValue]
-      ?? Object.entries(INTELLECTUAL_LINEAGES).find(([k]) => k.toLowerCase() === lineagePreviewValue.toLowerCase())?.[1]
-      ?? null;
+    const info = getLineageInfo(lineagePreviewValue);
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>

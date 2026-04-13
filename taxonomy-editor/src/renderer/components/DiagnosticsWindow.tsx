@@ -9,7 +9,7 @@
 import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../types/debate';
+import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
@@ -60,6 +60,133 @@ function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
   return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+}
+
+function TrafficLight({ pass, label, tip }: { pass: boolean; label: string; tip: string }) {
+  return (
+    <span
+      title={tip}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 6px', borderRadius: 10,
+        background: pass ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+        color: pass ? '#16a34a' : '#dc2626',
+        fontSize: '0.7rem', fontWeight: 600,
+      }}
+    >
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor' }} />
+      {label}
+    </span>
+  );
+}
+
+function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
+  const palette: Record<TurnValidation['outcome'], { bg: string; fg: string; text: string }> = {
+    pass:              { bg: 'rgba(34,197,94,0.15)',  fg: '#16a34a', text: 'PASS' },
+    accept_with_flag:  { bg: 'rgba(234,179,8,0.18)',  fg: '#b45309', text: 'ACCEPT (flagged)' },
+    retry:             { bg: 'rgba(239,68,68,0.15)',  fg: '#dc2626', text: 'RETRY' },
+    skipped:           { bg: 'rgba(148,163,184,0.18)', fg: '#475569', text: 'SKIPPED' },
+  };
+  const c = palette[outcome] ?? palette.pass;
+  return (
+    <span style={{
+      background: c.bg, color: c.fg, fontWeight: 700, fontSize: '0.7rem',
+      padding: '2px 8px', borderRadius: 10, letterSpacing: 0.5,
+    }}>{c.text}</span>
+  );
+}
+
+function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
+  const [open, setOpen] = useState(false);
+  const v = a.validation;
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: 4, marginBottom: 6 }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          cursor: 'pointer', padding: '6px 8px', display: 'flex',
+          alignItems: 'center', gap: 8, fontSize: '0.75rem',
+        }}
+      >
+        <span style={{ color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
+        <strong>Attempt {a.attempt}{a.attempt === 0 ? ' (original)' : ''}</strong>
+        <OutcomeBadge outcome={v.outcome} />
+        <span style={{ color: 'var(--text-muted)' }}>score {v.score.toFixed(2)}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{(a.response_time_ms / 1000).toFixed(1)}s</span>
+        {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>judge: {v.judge_model}</span>}
+      </div>
+      {open && (
+        <div style={{ padding: '4px 10px 10px', fontSize: '0.72rem' }}>
+          {v.repairHints.length > 0 && (
+            <>
+              <div style={{ fontWeight: 600, marginTop: 4 }}>Repair hints</div>
+              <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
+                {v.repairHints.map((h, i) => <li key={i}>{h}</li>)}
+              </ul>
+            </>
+          )}
+          {v.clarifies_taxonomy.length > 0 && (
+            <>
+              <div style={{ fontWeight: 600, marginTop: 4 }}>Taxonomy clarification hints</div>
+              <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
+                {v.clarifies_taxonomy.map((h, i) => (
+                  <li key={i}>
+                    <strong>{h.action}</strong>
+                    {h.node_id ? ` ${h.node_id}` : h.label ? ` "${h.label}"` : ''}
+                    {h.rationale ? ` — ${h.rationale}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {a.prompt_delta && (
+            <>
+              <div style={{ fontWeight: 600, marginTop: 4 }}>Repair prompt delta</div>
+              <pre style={{
+                whiteSpace: 'pre-wrap', background: 'var(--bg-subtle)',
+                padding: 6, borderRadius: 3, maxHeight: 200, overflow: 'auto',
+                fontSize: '0.7rem',
+              }}>{a.prompt_delta}</pre>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TurnValidationSection({ trail }: { trail: TurnValidationTrail }) {
+  const f = trail.final;
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <OutcomeBadge outcome={f.outcome} />
+        <span style={{ fontSize: '0.8rem' }}>score <strong>{f.score.toFixed(2)}</strong></span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          {trail.attempts.length} attempt{trail.attempts.length === 1 ? '' : 's'}
+        </span>
+        {f.judge_used && (
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>judge: {f.judge_model}</span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        <TrafficLight pass={f.dimensions.schema.pass}      label="schema"      tip={f.dimensions.schema.issues.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions.grounding.pass}   label="grounding"   tip={f.dimensions.grounding.issues.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions.advancement.pass} label="advancement" tip={f.dimensions.advancement.signals.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions.clarifies.pass}   label="clarifies"   tip={f.dimensions.clarifies.signals.join('\n') || 'no taxonomy hints'} />
+      </div>
+      {f.repairHints.length > 0 && (
+        <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
+          <strong>Final repair hints</strong>
+          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+            {f.repairHints.map((h, i) => <li key={i}>{h}</li>)}
+          </ul>
+        </div>
+      )}
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Attempts</div>
+      {trail.attempts.map((a, i) => <TurnValidationAttemptRow key={i} a={a} />)}
+    </div>
+  );
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -556,6 +683,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
   const entry = selectedEntry ? debate?.transcript.find(e => e.id === selectedEntry) : null;
   const diag: EntryDiagnostics | undefined = selectedEntry ? debate?.diagnostics?.entries[selectedEntry] : undefined;
+  const turnValTrail: TurnValidationTrail | undefined = selectedEntry ? debate?.turn_validations?.[selectedEntry] : undefined;
   const meta = entry?.metadata as Record<string, unknown> | undefined;
   const an = debate?.argument_network;
   const commitments = debate?.commitments;
@@ -1095,6 +1223,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
                           <div>Model: {diag.model}</div>
                           {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
+                        </Section>
+                      )}
+
+                      {turnValTrail && (
+                        <Section
+                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${turnValTrail.final.score.toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
+                          defaultOpen
+                        >
+                          <TurnValidationSection trail={turnValTrail} />
                         </Section>
                       )}
 

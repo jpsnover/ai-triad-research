@@ -116,6 +116,62 @@ export function selectRelevantSituationNodes(
 }
 
 /**
+ * Lexical fallback for when no embedding adapter is available.
+ * Scores nodes by normalized token overlap between the query and each node's
+ * label+description. Output range is [0,1] per node; uses the same Map shape
+ * as `scoreNodeRelevance` so downstream selection logic is interchangeable.
+ *
+ * This is worse than real embedding similarity but at least varies turn-over-turn
+ * with the debate transcript, which the prior "first vector in the map" hack did not.
+ */
+const STOPWORDS = new Set([
+  'the', 'and', 'that', 'this', 'with', 'from', 'have', 'will', 'their', 'they',
+  'there', 'which', 'what', 'when', 'where', 'because', 'these', 'those', 'about',
+  'would', 'could', 'should', 'than', 'then', 'also', 'into', 'over', 'under',
+  'such', 'some', 'been', 'being', 'other', 'more', 'most', 'just', 'like',
+]);
+
+function tokenize(text: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const t of text.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (t.length >= 4 && !STOPWORDS.has(t)) tokens.add(t);
+  }
+  return tokens;
+}
+
+export function scoreNodesLexical(
+  query: string,
+  povNodes: PovNode[],
+  situationNodes: SituationNode[],
+): Map<string, number> {
+  const q = tokenize(query);
+  const scores = new Map<string, number>();
+  if (q.size === 0) return scores;
+
+  const score = (nodeId: string, text: string) => {
+    const nodeTokens = tokenize(text);
+    if (nodeTokens.size === 0) {
+      scores.set(nodeId, 0);
+      return;
+    }
+    let overlap = 0;
+    for (const t of q) if (nodeTokens.has(t)) overlap++;
+    // Normalize by geometric mean of sizes — favors real overlap without
+    // over-rewarding short nodes that share one common word.
+    const denom = Math.sqrt(q.size * nodeTokens.size);
+    scores.set(nodeId, denom > 0 ? overlap / denom : 0);
+  };
+
+  for (const n of povNodes) {
+    score(n.id, `${n.label} ${n.description}`);
+  }
+  for (const n of situationNodes) {
+    score(n.id, `${n.label} ${n.description}`);
+  }
+  return scores;
+}
+
+/**
  * Build a query string from the debate context for embedding.
  * Combines topic + recent transcript for relevance scoring.
  */

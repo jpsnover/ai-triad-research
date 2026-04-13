@@ -157,6 +157,69 @@ export interface DebateSession {
   dialectic_traces?: import('./dialecticTrace').DialecticTrace[];
   /** Session-level aggregate of claim-extraction health — computed incrementally after each extraction turn. */
   extraction_summary?: ExtractionSummary;
+  /** Per-entry turn-validation trail. Keyed by transcript entry id. See docs/debate-turn-validation.md. */
+  turn_validations?: Record<string, TurnValidationTrail>;
+}
+
+// ── Turn validation (see docs/debate-turn-validation.md) ──
+
+export interface TurnValidationConfig {
+  /** Master switch. Default: true. */
+  enabled?: boolean;
+  /** Max retries per turn. Hard-capped at 2 (higher values clamped). Default: 2. */
+  maxRetries?: 0 | 1 | 2;
+  /** Skip the LLM judge (Stage B) and use only deterministic checks. Default: false. */
+  deterministicOnly?: boolean;
+  /** Model override for the Stage-B judge. */
+  judgeModel?: string;
+  /** Per-phase sampling rate, 0..1. Default 1 (always). Persisted but not yet honored. */
+  sampleRate?: {
+    'thesis-antithesis'?: number;
+    exploration?: number;
+    synthesis?: number;
+  };
+}
+
+export type TurnValidationOutcome = 'pass' | 'retry' | 'accept_with_flag' | 'skipped';
+
+export interface TurnValidationDimensions {
+  schema:      { pass: boolean; issues: string[] };
+  grounding:   { pass: boolean; issues: string[] };
+  advancement: { pass: boolean; signals: string[] };
+  clarifies:   { pass: boolean; signals: string[] };
+}
+
+export interface TaxonomyClarificationHint {
+  action: 'narrow' | 'broaden' | 'split' | 'merge' | 'qualify' | 'retire' | 'new_node';
+  node_id?: string;
+  node_ids?: string[];
+  label?: string;
+  evidence_claim_id?: string;
+  rationale: string;
+}
+
+export interface TurnValidation {
+  outcome: TurnValidationOutcome;
+  score: number;
+  dimensions: TurnValidationDimensions;
+  repairHints: string[];
+  clarifies_taxonomy: TaxonomyClarificationHint[];
+  judge_used: boolean;
+  judge_model?: string;
+}
+
+export interface TurnAttempt {
+  attempt: number;
+  model: string;
+  prompt_delta: string;
+  raw_response: string;
+  response_time_ms: number;
+  validation: TurnValidation;
+}
+
+export interface TurnValidationTrail {
+  attempts: TurnAttempt[];
+  final: TurnValidation;
 }
 
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
@@ -523,15 +586,21 @@ export interface TaxonomySuggestion {
   node_label: string;
   node_pov: string;
   /** What kind of change is suggested. */
-  suggestion_type: 'narrow' | 'broaden' | 'clarify' | 'split' | 'qualify' | 'retire' | 'new_node';
+  suggestion_type: 'narrow' | 'broaden' | 'clarify' | 'split' | 'merge' | 'qualify' | 'retire' | 'new_node';
   /** Current node description (for before/after comparison). Absent for new_node. */
   current_description?: string;
-  /** Proposed revised description (or new node description for new_node). */
-  proposed_description: string;
+  /** Proposed revised description (or new node description for new_node). May be absent on turn-validator hints which only propose a direction. */
+  proposed_description?: string;
   /** Why this change is warranted — references specific debate evidence. */
   rationale: string;
   /** Which debate claims or synthesis points support this suggestion. */
   evidence_claim_ids?: string[];
+  /** Where the suggestion came from. 'post-debate' = harvest pass, 'turn-validator' = mid-debate judge hint. Absent in pre-source suggestions. */
+  source?: 'post-debate' | 'turn-validator';
+  /** For merge suggestions: the other node(s) proposed for merging. */
+  merge_with_node_ids?: string[];
+  /** Transcript entry id where a turn-validator hint originated. */
+  origin_entry_id?: string;
 }
 
 // ── Prompt Inspector types (Phase A: type definition only) ──────────

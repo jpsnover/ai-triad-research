@@ -51,7 +51,7 @@ For each distinct claim in the statement:
      OTHER — if none fit (include brief description)
 3. If it's a new standalone claim, responds_to should be an empty array
 
-Extract 1-4 claims. Each claim must be traceable to text actually in the statement. Do NOT invent claims.
+Extract 3-6 claims. Each claim must be traceable to text actually in the statement. Do NOT invent claims. Prefer more rather than fewer — include secondary and supporting claims, not just the headline assertion.
 
 For each claim, also classify:
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)

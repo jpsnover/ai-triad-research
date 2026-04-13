@@ -49,20 +49,44 @@ function log(msg: string): void {
   process.stderr.write(`[debate-cli] ${msg}\n`);
 }
 
-function parseArgs(): string {
+interface ParsedArgs {
+  configPath: string;
+  disableTurnValidation: boolean;
+  maxTurnRetries?: 0 | 1 | 2;
+}
+
+function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
-  const idx = args.indexOf('--config');
-  if (idx >= 0 && args[idx + 1]) return args[idx + 1];
 
-  // Try stdin
-  if (args.includes('--stdin')) return '-';
+  let configPath: string | undefined;
+  const cfgIdx = args.indexOf('--config');
+  if (cfgIdx >= 0 && args[cfgIdx + 1]) configPath = args[cfgIdx + 1];
+  else if (args.includes('--stdin')) configPath = '-';
 
-  console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json>');
-  process.exit(1);
+  if (!configPath) {
+    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2]');
+    process.exit(1);
+  }
+
+  const disableTurnValidation = args.includes('--no-turn-validation');
+
+  let maxTurnRetries: 0 | 1 | 2 | undefined;
+  const retryIdx = args.indexOf('--max-turn-retries');
+  if (retryIdx >= 0 && args[retryIdx + 1]) {
+    const raw = args[retryIdx + 1];
+    const n = Number(raw);
+    if (n !== 0 && n !== 1 && n !== 2) {
+      console.error(`--max-turn-retries must be 0, 1, or 2 (got '${raw}').`);
+      process.exit(1);
+    }
+    maxTurnRetries = n as 0 | 1 | 2;
+  }
+
+  return { configPath, disableTurnValidation, maxTurnRetries };
 }
 
 async function main(): Promise<void> {
-  const configPath = parseArgs();
+  const { configPath, disableTurnValidation, maxTurnRetries } = parseArgs();
   let configText: string;
 
   if (configPath === '-') {
@@ -187,6 +211,10 @@ async function main(): Promise<void> {
     enableProbing: config.enableProbing,
     probingInterval: config.probingInterval ?? 2,
     temperature: config.temperature,
+    turnValidation: {
+      enabled: !disableTurnValidation,
+      ...(maxTurnRetries !== undefined ? { maxRetries: maxTurnRetries } : {}),
+    },
   };
 
   // Run debate

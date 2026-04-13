@@ -241,12 +241,23 @@ export function formatDebateMarkdown(session: DebateSession): string {
 
   // Fact Checks
   if (factChecks.length > 0) {
+    const counts: Record<string, number> = {};
+    for (const fc of factChecks) {
+      const v = ((fc.metadata as Record<string, unknown> | undefined)?.verdict as string | undefined) ?? 'unknown';
+      counts[v] = (counts[v] ?? 0) + 1;
+    }
+    const summary = Object.entries(counts).map(([v, n]) => `${n} ${v}`).join(', ');
+
     lines.push('## Fact Checks');
+    lines.push('');
+    lines.push(`*${factChecks.length} check${factChecks.length === 1 ? '' : 's'}: ${summary}*`);
     lines.push('');
     for (const fc of factChecks) {
       const meta = fc.metadata as Record<string, unknown> | undefined;
-      const verdict = meta?.verdict as string | undefined;
-      lines.push(`- **${verdict ?? 'unknown'}**: ${fc.content.slice(0, 200)}`);
+      const verdict = (meta?.verdict as string | undefined) ?? 'unknown';
+      const source = (meta?.source as string | undefined) === 'auto' ? 'auto' : 'user';
+      const confidence = meta?.confidence ? ` (confidence: ${meta.confidence})` : '';
+      lines.push(`- **${verdict}** _[${source}]_${confidence}: ${fc.content.slice(0, 240)}`);
     }
     lines.push('');
   }
@@ -268,6 +279,82 @@ export function buildDiagnosticsOutput(session: DebateSession): object {
       move_type_counts: {},
       disagreement_type_counts: {},
     },
+    verification: computeVerificationDiagnostics(session),
+  };
+}
+
+/**
+ * Aggregate fact-check activity across the transcript and argument network.
+ * Covers both auto-verification (inline, Gemini-grounded) and user-invoked checks.
+ */
+function computeVerificationDiagnostics(session: DebateSession): {
+  total_checks: number;
+  auto_checks: number;
+  user_checks: number;
+  verdict_counts: Record<string, number>;
+  auto_verdict_counts: Record<string, number>;
+  user_verdict_counts: Record<string, number>;
+  confidence_counts: Record<string, number>;
+  precise_belief_claims: number;
+  precise_beliefs_verified: number;
+  precise_belief_coverage: number;
+  claim_verification_status_counts: Record<string, number>;
+} {
+  const factChecks = session.transcript.filter(e => e.type === 'fact-check');
+  const verdictCounts: Record<string, number> = {};
+  const autoVerdictCounts: Record<string, number> = {};
+  const userVerdictCounts: Record<string, number> = {};
+  const confidenceCounts: Record<string, number> = {};
+  let autoChecks = 0;
+  let userChecks = 0;
+
+  for (const fc of factChecks) {
+    const meta = (fc.metadata ?? {}) as Record<string, unknown>;
+    const verdict = (meta.verdict as string | undefined) ?? 'unknown';
+    const source = (meta.source as string | undefined) === 'auto' ? 'auto' : 'user';
+    const confidence = meta.confidence as string | undefined;
+
+    verdictCounts[verdict] = (verdictCounts[verdict] ?? 0) + 1;
+    if (source === 'auto') {
+      autoChecks++;
+      autoVerdictCounts[verdict] = (autoVerdictCounts[verdict] ?? 0) + 1;
+    } else {
+      userChecks++;
+      userVerdictCounts[verdict] = (userVerdictCounts[verdict] ?? 0) + 1;
+    }
+    if (confidence) confidenceCounts[confidence] = (confidenceCounts[confidence] ?? 0) + 1;
+  }
+
+  // Coverage: how many precise Belief claims in the argument network got verified
+  const anNodes = session.argument_network?.nodes ?? [];
+  const preciseBeliefs = anNodes.filter(
+    (n: { bdi_category?: string; specificity?: string }) =>
+      n.bdi_category === 'belief' && n.specificity === 'precise',
+  );
+  const verifiedPreciseBeliefs = preciseBeliefs.filter(
+    (n: { verification_status?: string }) =>
+      n.verification_status && n.verification_status !== 'pending',
+  );
+  const claimStatusCounts: Record<string, number> = {};
+  for (const n of anNodes as { verification_status?: string }[]) {
+    const s = n.verification_status ?? 'unchecked';
+    claimStatusCounts[s] = (claimStatusCounts[s] ?? 0) + 1;
+  }
+
+  return {
+    total_checks: factChecks.length,
+    auto_checks: autoChecks,
+    user_checks: userChecks,
+    verdict_counts: verdictCounts,
+    auto_verdict_counts: autoVerdictCounts,
+    user_verdict_counts: userVerdictCounts,
+    confidence_counts: confidenceCounts,
+    precise_belief_claims: preciseBeliefs.length,
+    precise_beliefs_verified: verifiedPreciseBeliefs.length,
+    precise_belief_coverage: preciseBeliefs.length > 0
+      ? verifiedPreciseBeliefs.length / preciseBeliefs.length
+      : 0,
+    claim_verification_status_counts: claimStatusCounts,
   };
 }
 

@@ -1,0 +1,458 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * Per-turn debate validation — runs a Stage-A deterministic gate and an
+ * optional Stage-B LLM judge against a just-returned debater response.
+ * See docs/debate-turn-validation.md for the design, and
+ * specs/debate-turn-validation-impl.md for the implementation spec.
+ */
+
+import type {
+  DebatePhase,
+  PoverId,
+  TaxonomyRef,
+  TranscriptEntry,
+  TurnValidation,
+  TurnValidationConfig,
+  TurnValidationDimensions,
+  TaxonomyClarificationHint,
+} from './types';
+import type { PoverResponseMeta } from './helpers';
+import { parseJsonRobust } from './helpers';
+
+// ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
+const MOVE_CATALOG = new Set<string>([
+  'DISTINGUISH',
+  'COUNTEREXAMPLE',
+  'CONCEDE-AND-PIVOT',
+  'REFRAME',
+  'EMPIRICAL CHALLENGE',
+  'EXTEND',
+  'UNDERCUT',
+  // Legacy accepted variants
+  'CONCEDE',
+  'REDUCE',
+  'ESCALATE',
+  'ASSERT',
+  'SPECIFY',
+]);
+
+const DISAGREEMENT_TYPES = new Set(['EMPIRICAL', 'VALUES', 'DEFINITIONAL']);
+
+const FILLER_RELEVANCE = /^(supports|relevant|important|my view|this is)/i;
+
+// ── Config resolution ────────────────────────────────────
+
+export function resolveTurnValidationConfig(
+  c: TurnValidationConfig | undefined,
+): Required<TurnValidationConfig> {
+  const src = c ?? {};
+  const rawRetries = src.maxRetries ?? 2;
+  const clamped = Math.max(0, Math.min(2, rawRetries)) as 0 | 1 | 2;
+  return {
+    enabled: src.enabled ?? true,
+    maxRetries: clamped,
+    deterministicOnly: src.deterministicOnly ?? false,
+    judgeModel: src.judgeModel ?? 'claude-haiku-4-5-20251001',
+    sampleRate: {
+      'thesis-antithesis': src.sampleRate?.['thesis-antithesis'] ?? 1,
+      exploration: src.sampleRate?.exploration ?? 1,
+      synthesis: src.sampleRate?.synthesis ?? 1,
+    },
+  };
+}
+
+// ── Validation entry point ───────────────────────────────
+
+export interface ValidateTurnParams {
+  statement: string;
+  taxonomyRefs: TaxonomyRef[];
+  meta: PoverResponseMeta;
+  phase: DebatePhase;
+  speaker: PoverId;
+  round: number;
+  /** Last up to 2 same-agent prior turns, newest last. */
+  priorTurns: TranscriptEntry[];
+  /** Up to 2 most-recent turns from any agent (newest last) — judge context. */
+  recentTurns: TranscriptEntry[];
+  knownNodeIds: ReadonlySet<string>;
+  policyIds: ReadonlySet<string>;
+  config: Required<TurnValidationConfig>;
+  callJudge: (prompt: string, label: string) => Promise<string>;
+}
+
+interface StageAResult {
+  errorIssues: string[];
+  warningIssues: string[];
+  dimensions: TurnValidationDimensions;
+}
+
+function runStageA(p: ValidateTurnParams): StageAResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const schemaIssues: string[] = [];
+  const groundingIssues: string[] = [];
+  const advancementSignals: string[] = [];
+
+  const { statement, taxonomyRefs, meta, round, phase, priorTurns, knownNodeIds, policyIds } = p;
+
+  // Rule 1: move_types subset of MOVE_CATALOG (error)
+  if (meta.move_types && meta.move_types.length > 0) {
+    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(m));
+    if (bad.length > 0) {
+      const msg = `Unknown move_types: ${bad.join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT.`;
+      errors.push(msg);
+      schemaIssues.push(msg);
+    }
+  } else {
+    const msg = 'move_types is missing or empty — declare at least one dialectical move.';
+    errors.push(msg);
+    schemaIssues.push(msg);
+  }
+
+  // Rule 2: disagreement_type enum (error, only if present)
+  if (meta.disagreement_type && !DISAGREEMENT_TYPES.has(meta.disagreement_type)) {
+    const msg = `disagreement_type '${meta.disagreement_type}' is not one of EMPIRICAL | VALUES | DEFINITIONAL.`;
+    errors.push(msg);
+    schemaIssues.push(msg);
+  }
+
+  // Rule 3: every taxonomy_refs[i].node_id exists (error)
+  const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
+  if (unknownRefs.length > 0) {
+    const msg = `Unknown taxonomy node_id(s): ${unknownRefs.map(r => r.node_id).join(', ')}. Cite only nodes that exist in the loaded taxonomy.`;
+    errors.push(msg);
+    schemaIssues.push(msg);
+    groundingIssues.push(msg);
+  }
+
+  // Rule 4: policy_refs exist (warning only)
+  if (meta.policy_refs && policyIds.size > 0) {
+    const unknownPolicies = meta.policy_refs.filter(pid => !policyIds.has(pid));
+    if (unknownPolicies.length > 0) {
+      const msg = `Unknown policy_refs: ${unknownPolicies.join(', ')}.`;
+      warnings.push(msg);
+      groundingIssues.push(msg);
+    }
+  }
+
+  // Rule 5: every relevance must be substantive (error)
+  const weakRelevance = taxonomyRefs.filter(
+    r => (r.relevance ?? '').trim().length < 40 || FILLER_RELEVANCE.test((r.relevance ?? '').trim()),
+  );
+  if (weakRelevance.length > 0) {
+    const msg = `taxonomy_refs with filler or too-short 'relevance' (≥40 chars, no stock openers): ${weakRelevance.map(r => r.node_id).join(', ')}. Explain the mechanism by which the node supports or complicates your claim.`;
+    errors.push(msg);
+    groundingIssues.push(msg);
+  }
+
+  // Rule 6: paragraph count 3–5 (warning)
+  const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  if (paragraphs.length < 3 || paragraphs.length > 5) {
+    const msg = `Statement has ${paragraphs.length} paragraphs — target 3–5 double-newline-separated blocks.`;
+    warnings.push(msg);
+  }
+
+  // Rule 7: novelty (warning everywhere; harder expectation outside thesis-antithesis)
+  const priorNodeIds = new Set<string>();
+  for (const t of priorTurns) {
+    for (const r of t.taxonomy_refs ?? []) priorNodeIds.add(r.node_id);
+  }
+  const newRefs = taxonomyRefs.filter(r => !priorNodeIds.has(r.node_id));
+  if (newRefs.length === 0 && priorNodeIds.size > 0) {
+    const msg = 'No new taxonomy_refs beyond your last two turns — introduce at least one node you have not cited recently.';
+    warnings.push(msg);
+    if (phase !== 'thesis-antithesis') {
+      // Treat as a stronger advancement failure in later phases but still warning-level.
+      advancementSignals.push('no_new_refs');
+    }
+  } else if (newRefs.length > 0) {
+    advancementSignals.push(`new_refs:${newRefs.length}`);
+  }
+
+  // Rule 8: move repetition vs most recent same-agent turn (warning)
+  const lastMoves = priorTurns.length > 0
+    ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as string[] | undefined)
+    : undefined;
+  if (
+    lastMoves && lastMoves.length > 0 &&
+    meta.move_types && meta.move_types.length > 0 &&
+    lastMoves.length === meta.move_types.length &&
+    lastMoves.every((m, i) => m === meta.move_types![i])
+  ) {
+    const msg = `move_types repeat your previous turn exactly (${lastMoves.join(', ')}). Vary your dialectical move.`;
+    warnings.push(msg);
+  }
+
+  // Rule 9: claim specificity after round 3 (warning)
+  if (round >= 3) {
+    const claims = meta.my_claims ?? [];
+    const specific = claims.some(c =>
+      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
+    );
+    if (claims.length === 0) {
+      const msg = 'my_claims is empty after round 3 — add at least one claim with an operator, number, timeline, or named entity.';
+      warnings.push(msg);
+    } else if (!specific) {
+      const msg = 'my_claims are all abstract after round 3 — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").';
+      warnings.push(msg);
+    } else {
+      advancementSignals.push('specific_claim');
+    }
+  }
+
+  const schemaPass = schemaIssues.length === 0;
+  const groundingPass = groundingIssues.length === 0;
+  // advancement pass decided later composite with judge signal
+  const advancementPass = !advancementSignals.includes('no_new_refs');
+
+  return {
+    errorIssues: errors,
+    warningIssues: warnings,
+    dimensions: {
+      schema:      { pass: schemaPass, issues: schemaIssues },
+      grounding:   { pass: groundingPass, issues: groundingIssues },
+      advancement: { pass: advancementPass, signals: advancementSignals },
+      clarifies:   { pass: false, signals: [] },
+    },
+  };
+}
+
+// ── Stage B judge ────────────────────────────────────────
+
+function buildJudgePrompt(p: ValidateTurnParams): string {
+  const window = p.recentTurns.slice(-2).map(t => {
+    const content = typeof t.content === 'string' ? t.content : JSON.stringify(t.content);
+    return `[${t.speaker}] ${content.slice(0, 800)}`;
+  }).join('\n\n');
+
+  const turnJson = JSON.stringify({
+    statement: p.statement.slice(0, 2000),
+    taxonomy_refs: p.taxonomyRefs,
+    move_types: p.meta.move_types ?? [],
+    disagreement_type: p.meta.disagreement_type ?? null,
+    my_claims: p.meta.my_claims ?? [],
+  }, null, 2);
+
+  return `You are a debate-progress referee. You do NOT take sides. You judge ONE turn against the last two turns of the same debate.
+
+Phase: ${p.phase}
+Agent: ${p.speaker}
+Round: ${p.round}
+
+Previous turns (last 2, any agent):
+${window || '(no prior turns)'}
+
+Current turn (JSON):
+${turnJson}
+
+Decide:
+1. ADVANCES — does this turn do something the previous turns did not? (distinguish, concede-and-pivot, falsifiable prediction, narrowed crux, new steelman)
+2. CLARIFIES_TAXONOMY — does it imply a taxonomy edit? Choose zero or more of:
+   narrow <node_id> | broaden <node_id> | split <node_id> | merge <node_ids> | qualify <node_id> | retire <node_id> | new_node <label>
+   Only mark a hint when the turn contains evidence for it — never speculative.
+3. WEAKNESSES — list at most 3, each ≤15 words. Each names a concrete fix the debater could apply on retry.
+
+Return ONLY JSON in this shape (no prose, no code fences):
+{
+  "advances": true|false,
+  "advancement_reason": "...",
+  "clarifies_taxonomy": [ { "action": "narrow|broaden|split|merge|qualify|retire|new_node", "node_id": "...", "node_ids": ["..."], "label": "...", "evidence_claim_id": "...", "rationale": "..." } ],
+  "weaknesses": ["..."],
+  "recommend": "pass" | "retry" | "accept_with_flag"
+}`;
+}
+
+interface JudgeVerdict {
+  advances: boolean;
+  advancement_reason: string;
+  clarifies_taxonomy: TaxonomyClarificationHint[];
+  weaknesses: string[];
+  recommend: 'pass' | 'retry' | 'accept_with_flag';
+}
+
+function parseJudgeVerdict(raw: string): JudgeVerdict {
+  const fallback: JudgeVerdict = {
+    advances: true,
+    advancement_reason: '',
+    clarifies_taxonomy: [],
+    weaknesses: [],
+    recommend: 'pass',
+  };
+  try {
+    const parsed = parseJsonRobust(raw) as Record<string, unknown>;
+    const rec = typeof parsed.recommend === 'string' ? parsed.recommend : 'pass';
+    const recommend: JudgeVerdict['recommend'] =
+      rec === 'retry' || rec === 'accept_with_flag' ? rec : 'pass';
+    const hintsRaw = Array.isArray(parsed.clarifies_taxonomy) ? parsed.clarifies_taxonomy : [];
+    const hints: TaxonomyClarificationHint[] = hintsRaw
+      .map(h => h as Record<string, unknown>)
+      .filter(h => typeof h.action === 'string')
+      .map(h => ({
+        action: h.action as TaxonomyClarificationHint['action'],
+        node_id: typeof h.node_id === 'string' ? h.node_id : undefined,
+        node_ids: Array.isArray(h.node_ids) ? (h.node_ids as string[]) : undefined,
+        label: typeof h.label === 'string' ? h.label : undefined,
+        evidence_claim_id: typeof h.evidence_claim_id === 'string' ? h.evidence_claim_id : undefined,
+        rationale: typeof h.rationale === 'string' ? h.rationale : '',
+      }));
+    return {
+      advances: parsed.advances !== false,
+      advancement_reason: typeof parsed.advancement_reason === 'string' ? parsed.advancement_reason : '',
+      clarifies_taxonomy: hints,
+      weaknesses: Array.isArray(parsed.weaknesses)
+        ? (parsed.weaknesses as unknown[]).filter(w => typeof w === 'string').map(w => w as string)
+        : [],
+      recommend,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+// ── Orchestrator ─────────────────────────────────────────
+
+export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidation> {
+  if (!p.config.enabled) {
+    return zeroValidation('skipped', 1);
+  }
+
+  const stageA = runStageA(p);
+  const hasStageAError = stageA.errorIssues.length > 0;
+
+  // Sample rate check — treat out-of-sample as deterministic-only.
+  const phaseRate = p.config.sampleRate[p.phase] ?? 1;
+  const sampled = phaseRate >= 1 ? true : Math.random() < phaseRate;
+
+  const shouldRunJudge =
+    !p.config.deterministicOnly &&
+    !hasStageAError &&
+    sampled;
+
+  let judge: JudgeVerdict | null = null;
+  let judgeUsed = false;
+  if (shouldRunJudge) {
+    try {
+      const prompt = buildJudgePrompt(p);
+      const raw = await p.callJudge(prompt, `turn-validator judge (${p.speaker} r${p.round})`);
+      judge = parseJudgeVerdict(raw);
+      judgeUsed = true;
+    } catch {
+      // Broken judge degrades to pass — never stall a debate.
+      judge = null;
+    }
+  }
+
+  // Compose dimensions
+  const dims: TurnValidationDimensions = {
+    schema: stageA.dimensions.schema,
+    grounding: stageA.dimensions.grounding,
+    advancement: {
+      pass: stageA.dimensions.advancement.pass && (judge ? judge.advances : true),
+      signals: [
+        ...stageA.dimensions.advancement.signals,
+        ...(judge && judge.advances ? ['judge_advances'] : []),
+        ...(judge?.advancement_reason ? [judge.advancement_reason] : []),
+      ],
+    },
+    clarifies: {
+      pass: !!(judge && judge.clarifies_taxonomy.length > 0),
+      signals: (judge?.clarifies_taxonomy ?? []).map(h =>
+        `${h.action}${h.node_id ? `:${h.node_id}` : ''}`,
+      ),
+    },
+  };
+
+  // Repair hints — errors first, then warnings, then judge weaknesses.
+  const repairHints = [
+    ...stageA.errorIssues,
+    ...stageA.warningIssues,
+    ...(judge?.weaknesses ?? []),
+  ];
+
+  // Outcome
+  const retryBudget = p.config.maxRetries;
+  let outcome: TurnValidation['outcome'];
+  if (hasStageAError && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (judge && judge.recommend === 'retry' && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (judge && judge.recommend === 'retry' && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else if (judge && judge.recommend === 'accept_with_flag') {
+    outcome = 'accept_with_flag';
+  } else if (hasStageAError && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else {
+    outcome = 'pass';
+  }
+
+  const score =
+    0.4 * (dims.schema.pass ? 1 : 0) +
+    0.3 * (dims.grounding.pass ? 1 : 0) +
+    0.2 * (dims.advancement.pass ? 1 : 0) +
+    0.1 * (dims.clarifies.pass ? 1 : 0);
+
+  return {
+    outcome,
+    score,
+    dimensions: dims,
+    repairHints,
+    clarifies_taxonomy: judge?.clarifies_taxonomy ?? [],
+    judge_used: judgeUsed,
+    judge_model: judgeUsed ? p.config.judgeModel : undefined,
+  };
+}
+
+function zeroValidation(outcome: TurnValidation['outcome'], score: number): TurnValidation {
+  return {
+    outcome,
+    score,
+    dimensions: {
+      schema:      { pass: true, issues: [] },
+      grounding:   { pass: true, issues: [] },
+      advancement: { pass: true, signals: [] },
+      clarifies:   { pass: false, signals: [] },
+    },
+    repairHints: [],
+    clarifies_taxonomy: [],
+    judge_used: false,
+  };
+}
+
+// ── Repair prompt builder ────────────────────────────────
+
+export function buildRepairPrompt(
+  basePrompt: string,
+  v: TurnValidation,
+  attempt: number,
+): string {
+  const sections: string[] = [];
+  sections.push('--- REPAIR INSTRUCTIONS ---');
+  sections.push('Your prior response was rejected for the following reasons:');
+  for (const h of v.repairHints) sections.push(`- ${h}`);
+  sections.push('');
+  sections.push('Do NOT repeat the rejected response. On this retry you MUST:');
+  if (!v.dimensions.schema.pass) {
+    sections.push('• Fix the JSON/schema issues above before anything else.');
+  }
+  if (!v.dimensions.grounding.pass) {
+    sections.push('• Replace filler `relevance` strings with one concrete sentence explaining the mechanism by which the cited node supports or complicates your claim.');
+  }
+  if (!v.dimensions.advancement.pass) {
+    sections.push('• Include at least one NEW move from: DISTINGUISH, CONCEDE-AND-PIVOT, COUNTEREXAMPLE, or a falsifiable prediction with a timeline. Cite at least one taxonomy node you have not referenced in your last two turns.');
+  }
+  if (!v.dimensions.clarifies.pass) {
+    sections.push('• If the evidence warrants it, use one `taxonomy_refs[i].relevance` to propose a node clarification — say whether its description should be narrowed, broadened, or split, and cite the evidence from this turn.');
+  }
+  sections.push('• Keep `statement` to 3–5 paragraphs. Do not restate your opening.');
+
+  if (attempt >= 2) {
+    sections.push('');
+    sections.push('Required JSON shape (minimal reminder):');
+    sections.push('{ "statement": "…", "taxonomy_refs": [{"node_id":"…","relevance":"…"}], "move_types": ["…"], "disagreement_type": "EMPIRICAL|VALUES|DEFINITIONAL", "my_claims": [{"claim":"…","targets":["…"]}] }');
+  }
+
+  return `${basePrompt}\n\n${sections.join('\n')}\n`;
+}

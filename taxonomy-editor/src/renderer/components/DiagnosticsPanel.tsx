@@ -1142,6 +1142,12 @@ function OverviewView() {
         </CollapsibleSection>
       )}
 
+      {/* Fact-Check Verification */}
+      <VerificationSection
+        transcript={activeDebate.transcript ?? []}
+        anNodes={an?.nodes ?? []}
+      />
+
       {/* Overview Stats */}
       {diag && (
         <CollapsibleSection title="Session Statistics" defaultOpen>
@@ -1166,6 +1172,149 @@ function OverviewView() {
         <div className="diag-empty">No diagnostic data available. Enable diagnostics and run a debate to see the argument network, commitments, and statistics.</div>
       )}
     </div>
+  );
+}
+
+// ── Verification (Fact-Check) Section ──────────────────────────
+
+interface VerificationSectionProps {
+  transcript: Array<{ type: string; content: string; metadata?: Record<string, unknown> }>;
+  anNodes: ArgumentNetworkNode[];
+}
+
+const VERDICT_ORDER = ['verified', 'supported', 'disputed', 'false', 'unverifiable', 'pending', 'unknown'];
+const VERDICT_COLORS: Record<string, string> = {
+  verified: '#16a34a',
+  supported: '#16a34a',
+  disputed: '#dc2626',
+  false: '#dc2626',
+  unverifiable: '#a16207',
+  pending: '#6b7280',
+  unknown: '#6b7280',
+};
+
+function VerificationSection({ transcript, anNodes }: VerificationSectionProps) {
+  const stats = useMemo(() => {
+    const factChecks = transcript.filter(e => e.type === 'fact-check');
+    const verdictCounts: Record<string, number> = {};
+    const autoVerdictCounts: Record<string, number> = {};
+    const userVerdictCounts: Record<string, number> = {};
+    const confidenceCounts: Record<string, number> = {};
+    let autoChecks = 0;
+    let userChecks = 0;
+
+    for (const fc of factChecks) {
+      const meta = (fc.metadata ?? {}) as Record<string, unknown>;
+      const verdict = (meta.verdict as string | undefined) ?? 'unknown';
+      const source = (meta.source as string | undefined) === 'auto' ? 'auto' : 'user';
+      const confidence = meta.confidence as string | undefined;
+
+      verdictCounts[verdict] = (verdictCounts[verdict] ?? 0) + 1;
+      if (source === 'auto') {
+        autoChecks++;
+        autoVerdictCounts[verdict] = (autoVerdictCounts[verdict] ?? 0) + 1;
+      } else {
+        userChecks++;
+        userVerdictCounts[verdict] = (userVerdictCounts[verdict] ?? 0) + 1;
+      }
+      if (confidence) confidenceCounts[confidence] = (confidenceCounts[confidence] ?? 0) + 1;
+    }
+
+    const preciseBeliefs = anNodes.filter(
+      n => n.bdi_category === 'belief' && n.specificity === 'precise',
+    );
+    const verifiedPreciseBeliefs = preciseBeliefs.filter(
+      n => n.verification_status && n.verification_status !== 'pending',
+    );
+
+    return {
+      totalChecks: factChecks.length,
+      autoChecks,
+      userChecks,
+      verdictCounts,
+      autoVerdictCounts,
+      userVerdictCounts,
+      confidenceCounts,
+      preciseBeliefs: preciseBeliefs.length,
+      preciseVerified: verifiedPreciseBeliefs.length,
+      coverage: preciseBeliefs.length > 0 ? verifiedPreciseBeliefs.length / preciseBeliefs.length : 0,
+    };
+  }, [transcript, anNodes]);
+
+  if (stats.totalChecks === 0 && stats.preciseBeliefs === 0) return null;
+
+  const sortedVerdicts = Object.entries(stats.verdictCounts).sort(
+    (a, b) => (VERDICT_ORDER.indexOf(a[0]) - VERDICT_ORDER.indexOf(b[0])) || (b[1] - a[1]),
+  );
+
+  return (
+    <CollapsibleSection title="Fact-Check Verification" defaultOpen>
+      <div className="diag-kv">
+        <span className="diag-k">Total checks:</span>
+        <span className="diag-v">{stats.totalChecks} ({stats.autoChecks} auto, {stats.userChecks} user)</span>
+      </div>
+      {stats.preciseBeliefs > 0 && (
+        <>
+          <div className="diag-kv">
+            <span className="diag-k">Precise-belief coverage:</span>
+            <span className="diag-v">
+              {stats.preciseVerified} / {stats.preciseBeliefs} ({(stats.coverage * 100).toFixed(0)}%)
+            </span>
+          </div>
+          <div
+            style={{
+              height: 6,
+              background: 'var(--bg-secondary)',
+              borderRadius: 3,
+              overflow: 'hidden',
+              margin: '4px 0 8px',
+            }}
+            title={`${stats.preciseVerified} of ${stats.preciseBeliefs} precise empirical claims verified`}
+          >
+            <div
+              style={{
+                width: `${(stats.coverage * 100).toFixed(1)}%`,
+                height: '100%',
+                background: stats.coverage >= 0.75 ? '#16a34a' : stats.coverage >= 0.4 ? '#a16207' : '#dc2626',
+                transition: 'width 0.2s',
+              }}
+            />
+          </div>
+        </>
+      )}
+      {sortedVerdicts.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <span className="diag-k">Verdicts:</span>
+          <div className="diag-badges">
+            {sortedVerdicts.map(([v, n]) => (
+              <span
+                key={v}
+                className="diag-badge"
+                style={{ background: VERDICT_COLORS[v] ?? '#6b7280', color: '#fff' }}
+                title={`${stats.autoVerdictCounts[v] ?? 0} auto, ${stats.userVerdictCounts[v] ?? 0} user`}
+              >
+                {v} ({n})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {Object.keys(stats.confidenceCounts).length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <span className="diag-k">Confidence:</span>
+          <div className="diag-badges">
+            {['high', 'medium', 'low'].filter(c => stats.confidenceCounts[c]).map(c => (
+              <span key={c} className="diag-badge diag-badge-move">{c} ({stats.confidenceCounts[c]})</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {stats.totalChecks === 0 && stats.preciseBeliefs > 0 && (
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          No fact-checks recorded yet. Auto-verification requires a Gemini model with web-search grounding.
+        </div>
+      )}
+    </CollapsibleSection>
   );
 }
 

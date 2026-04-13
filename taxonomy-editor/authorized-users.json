@@ -22,6 +22,11 @@
     {
       "name": "Lee Holmes",
       "emails": ["leeholmes@microsoft.com","lee@leeholmes.com"]
+    },
+    {
+      "name": "Michael Greene",
+      "emails": ["mgg4@illinois.edu"],
+      "github": "michael-greene"      
     }
   ]
 }

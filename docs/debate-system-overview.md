@@ -87,8 +87,8 @@ User clicks "Start Debate"
 
 | Component | Max | Source | Purpose |
 |-----------|-----|--------|---------|
-| POV taxonomy nodes | 35 | `selectRelevantNodes` (cosine similarity, threshold 0.45) | BDI-structured worldview |
-| Situation nodes | 15 | `selectRelevantSituationNodes` | Cross-POV contested concepts |
+| POV taxonomy nodes | 35 | `selectRelevantNodes` (per-turn cosine similarity, threshold 0.45, recency diversified) | BDI-structured worldview |
+| Situation nodes | 15 | `selectRelevantSituationNodes` (per-turn cosine similarity) | Cross-POV contested concepts |
 | Steelman vulnerabilities | varies | relevant nodes' `steelman_vulnerability` | Self-aware argumentation |
 | Commitment store | full | `formatCommitments()` | Consistency enforcement |
 | Argument network context | full | `formatEstablishedPoints()` with Tier 1/2/3 | Respond to existing claims |
@@ -378,11 +378,25 @@ Platform-specific PDF generation is provided via a `generatePdf` callback inject
 
 ## Embedding Relevance
 
-- Model: all-MiniLM-L6-v2
+- Model: all-MiniLM-L6-v2 (384-dim)
 - Threshold: 0.45 (empirically calibrated; original 0.3 admitted 93.3% of pairs)
 - Minimum per BDI category: 3 nodes
 - POV discrimination: intra-POV mean 0.58 vs cross-POV 0.47 (useful)
 - BDI discrimination: 0.54 vs 0.49 (weak — must be enforced at prompt level)
+
+### Per-Turn Query Construction
+
+Relevance is recomputed **every turn**, not once per debate. `getRelevantTaxonomyContext(round, speaker, priorRefs)` in `debateEngine.ts`:
+
+1. Builds a query string via `buildRelevanceQuery(topic, recentTranscript)` — topic + last few transcript entries, capped at 500 chars, so the retrieval tracks the actual direction the debate has taken.
+2. Embeds the query via `adapter.computeQueryEmbedding(query)` (Extended adapter capability). Scores every node with `cosineSimilarity(queryVec, node.vector)` in `scoreNodeRelevance()`.
+3. **Lexical fallback:** when no embedding adapter is available (e.g. CLI runs without an embedding backend), `scoreNodesLexical()` scores nodes by tokenized query ↔ label+description overlap normalized by the geometric mean of token-set sizes. This degrades gracefully instead of silently returning a static list.
+4. **Recency diversification:** `priorRefs` (the IDs the current speaker cited across their last two turns) are multiplied by `0.55` in the score map before selection. Recently-cited nodes stay eligible but must outscore alternatives by ~45% to be reselected — breaking citation lock-in without banning continuity.
+5. Top-K selected per BDI category (min 3, cap 35 POV + 15 situation).
+
+### Historical Note: Pre-2026-04 Retrieval Bug
+
+Before this rewrite, `getRelevantTaxonomyContext` built the query string per turn but then scored nodes against `matchingVectors[0]` — the first vector in `Object.entries` iteration order — and discarded the query text. Selection was deterministic across the entire debate, which caused the novelty validator (turn rule 7: "No new taxonomy_refs beyond your last two turns") to trigger repeatedly. The intent was per-turn retrieval; the implementation was a static list in disguise. Fix: real query embedding via `adapter.computeQueryEmbedding` + diversification penalty + lexical fallback for unembedded paths.
 
 ## History Compression
 

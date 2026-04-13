@@ -6,11 +6,12 @@ import type { SituationNode } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
-import { HighlightedInput, HighlightedTextarea } from './HighlightedField';
+import { HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { GraphAttributesPanel } from './GraphAttributesPanel';
+import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
 import { nodeTypeFromId } from '@lib/debate';
@@ -44,9 +45,10 @@ const POV_TITLES: Record<string, string> = {
 };
 
 export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
-  const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, getLabelForId } = useTaxonomyStore();
+  const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<SitTab>('overview');
+  const [expandedLineage, setExpandedLineage] = useState<string | null>(null);
   const [researchText, setResearchText] = useState('');
   const [researchCopied, setResearchCopied] = useState(false);
   const researchTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -113,21 +115,35 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
   };
 
   return (
-    <div ref={formRef} className="sit-detail">
-      {/* Action pill toolbar — matches POV detail style */}
-      <div className="node-detail-toolbar">
-        {onDebate && (
-          <button className="node-detail-pill" onClick={onDebate} title="Start a structured debate">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Debate
-          </button>
-        )}
-        {onPin && (
-          <button className="node-detail-pill" onClick={onPin} title="Pin for comparison">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
-            Pin
-          </button>
-        )}
+    <div ref={formRef} className="sit-detail node-detail-tabbed">
+      {/* Header — matches POV detail layout (editable label + category badge + icon actions) */}
+      <div className="nd-header">
+        <div className="nd-header-title">
+          {readOnly ? (
+            <span className="nd-header-label">{node.label}</span>
+          ) : (
+            <input
+              className={`nd-header-label nd-header-label-editable ${err('label') ? 'has-error' : ''}`}
+              value={node.label}
+              onChange={(e) => update({ label: e.target.value })}
+              placeholder="Label"
+              aria-label="Label"
+            />
+          )}
+          <span className="nd-header-cat" data-cat="SITUATIONS">SITUATIONS</span>
+        </div>
+        <div className="nd-header-actions">
+          {onDebate && (
+            <button className="nd-header-btn" onClick={onDebate} title="Start a structured debate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
+          )}
+          {onPin && (
+            <button className="nd-header-btn" onClick={onPin} title="Pin for comparison">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {hasErrors && (
@@ -137,12 +153,10 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         </div>
       )}
 
-      {/* Title line — matches POV detail category:label style */}
-      <div className="node-detail-title-line" data-cat="Situations">
-        <span className="node-detail-category">SITUATIONS</span>
-        <span className="node-detail-title-sep"> : </span>
-        <span className="node-detail-label-text">{node.label}</span>
-      </div>
+      {!readOnly && err('label') && (
+        <div className="error-text" style={{ padding: '0 14px 4px' }}>{err('label')}</div>
+      )}
+
       {node.disagreement_type && (
         <div className="sit-detail-disagreement-type" style={{ marginTop: '4px' }}>
           <span
@@ -183,16 +197,6 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
       <div className="sit-detail-tab-content">
         {activeTab === 'overview' && (
           <div className="sit-overview">
-            {!readOnly && (
-              <div className={`form-group ${err('label') ? 'has-error' : ''}`}>
-                <label>Label</label>
-                <HighlightedInput
-                  value={node.label}
-                  onChange={(v) => update({ label: v })}
-                />
-                {err('label') && <div className="error-text">{err('label')}</div>}
-              </div>
-            )}
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
               <label>
                 Description
@@ -235,8 +239,8 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                   {node.graph_attributes.intellectual_lineage.map((l, i) => (
                     <span
                       key={i}
-                      className="ga-promoted-chip ga-promoted-chip-interactive"
-                      onClick={(e) => { e.stopPropagation(); navigateToLineage(l); }}
+                      className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
                       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
                       title={`Click to view lineage info: "${l}"`}
                     >
@@ -244,6 +248,47 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                     </span>
                   ))}
                 </div>
+                {expandedLineage && (() => {
+                  const info = getLineageInfo(expandedLineage);
+                  if (!info) return (
+                    <div className="lineage-inline-detail">
+                      <div className="lineage-inline-header">
+                        <span className="lineage-inline-label">{expandedLineage}</span>
+                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+                      </div>
+                      <div className="lineage-inline-empty">No detailed information available for this lineage.</div>
+                    </div>
+                  );
+                  return (
+                    <div className="lineage-inline-detail">
+                      <div className="lineage-inline-header">
+                        <span className="lineage-inline-label">{info.label}</span>
+                        <button className="lineage-inline-close" onClick={() => setExpandedLineage(null)} title="Close">×</button>
+                      </div>
+                      <div className="lineage-inline-summary">{info.summary}</div>
+                      {info.example && (
+                        <div className="lineage-inline-example">
+                          <span className="lineage-inline-example-label">Example:</span> {info.example}
+                        </div>
+                      )}
+                      {info.links && info.links.length > 0 && (
+                        <div className="lineage-inline-links">
+                          {info.links.map((link, li) => (
+                            <a
+                              key={li}
+                              className="lineage-inline-link"
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); api.openExternal(link.url); }}
+                              title={link.url}
+                            >
+                              {link.label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

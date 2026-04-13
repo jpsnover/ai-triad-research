@@ -39,6 +39,7 @@ export interface ElectronAPI {
   harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>) => Promise<{ updated: boolean }>;
   harvestQueueConcept: (concept: Record<string, unknown>) => Promise<{ queued: boolean }>;
   openDiagnosticsWindow: () => Promise<void>;
+  openPovProgressionWindow: () => Promise<void>;
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;

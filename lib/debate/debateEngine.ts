@@ -57,6 +57,7 @@ import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator';
 import {
   cosineSimilarity,
   scoreNodeRelevance,
+  scoreNodesLexical,
   selectRelevantNodes,
   selectRelevantSituationNodes,
   buildRelevanceQuery,
@@ -73,6 +74,8 @@ import {
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 import { computeCoverageMap } from './coverageTracker';
 import { generateDialecticTraces } from './dialecticTrace';
+import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
+import type { TurnAttempt, TurnValidation } from './types';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -91,6 +94,8 @@ export interface DebateConfig {
   enableProbing?: boolean;
   probingInterval?: number;
   temperature?: number;
+  /** Per-turn validation settings. Default: enabled, maxRetries=2. */
+  turnValidation?: import('./types').TurnValidationConfig;
 }
 
 export interface DebateProgress {
@@ -119,6 +124,43 @@ export class DebateEngine {
   private _midpointEvalDone = false;
   /** Cached opening statement embeddings for position drift detection. */
   private _openingEmbeddings = new Map<string, number[]>();
+  /** Lazy-built set of every taxonomy node id in the loaded taxonomy. */
+  private _knownNodeIds: Set<string> | null = null;
+  /** Lazy-built set of every policy id in the loaded policy registry. */
+  private _policyIds: Set<string> | null = null;
+
+  private getKnownNodeIds(): Set<string> {
+    if (this._knownNodeIds) return this._knownNodeIds;
+    const s = new Set<string>();
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const n of this.taxonomy[pov]?.nodes ?? []) s.add(n.id);
+    }
+    for (const n of this.taxonomy.situations?.nodes ?? []) s.add(n.id);
+    this._knownNodeIds = s;
+    return s;
+  }
+
+  private getPolicyIds(): Set<string> {
+    if (this._policyIds) return this._policyIds;
+    const s = new Set<string>();
+    for (const p of this.taxonomy.policyRegistry ?? []) s.add(p.id);
+    this._policyIds = s;
+    return s;
+  }
+
+  private async generateWithModel(
+    prompt: string, label: string, model: string, timeoutMs?: number,
+  ): Promise<string> {
+    this.progress('generating', undefined, label);
+    const start = Date.now();
+    const text = await this.adapter.generateText(prompt, model, {
+      temperature: 0,
+      timeoutMs,
+    });
+    this.apiCallCount++;
+    this.totalResponseTimeMs += Date.now() - start;
+    return text;
+  }
 
   constructor(config: DebateConfig, adapter: AIAdapter | ExtendedAIAdapter, taxonomy: LoadedTaxonomy) {
     this.config = config;
@@ -320,6 +362,81 @@ export class DebateEngine {
     diag.entries[entryId] = { ...diag.entries[entryId], ...data };
   }
 
+  /** Find node label + pov from the loaded taxonomy, or undefined if not present. */
+  private findNodeMeta(nodeId: string): { label: string; pov: string; description: string } | undefined {
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const n = this.taxonomy[pov]?.nodes.find(x => x.id === nodeId);
+      if (n) return { label: n.label, pov, description: n.description };
+    }
+    const sit = this.taxonomy.situations?.nodes.find(x => x.id === nodeId);
+    if (sit) return { label: sit.label, pov: 'situations', description: sit.description };
+    return undefined;
+  }
+
+  /** Convert TurnValidation.clarifies_taxonomy hints into TaxonomySuggestion entries,
+   *  append to session, dedupe by (node_id, suggestion_type, source). */
+  private routeTurnValidatorHints(validation: TurnValidation, entryId: string): void {
+    const HINT_TO_SUGGESTION = {
+      narrow: 'narrow',
+      broaden: 'broaden',
+      split: 'split',
+      merge: 'merge',
+      qualify: 'qualify',
+      retire: 'retire',
+      new_node: 'new_node',
+    } as const;
+
+    this.session.taxonomy_suggestions ||= [];
+    const existing = this.session.taxonomy_suggestions;
+
+    for (const hint of validation.clarifies_taxonomy) {
+      const type = HINT_TO_SUGGESTION[hint.action];
+      if (!type) continue;
+
+      // New-node hints reference a label, not a node_id.
+      if (type === 'new_node') {
+        const duplicate = existing.some(
+          s => s.source === 'turn-validator' && s.suggestion_type === 'new_node' &&
+            (s.node_label ?? '') === (hint.label ?? ''),
+        );
+        if (duplicate || !hint.label) continue;
+        existing.push({
+          node_id: `pending:${hint.label}`,
+          node_label: hint.label,
+          node_pov: 'unknown',
+          suggestion_type: 'new_node',
+          rationale: hint.rationale || 'Proposed mid-debate by the turn validator.',
+          evidence_claim_ids: hint.evidence_claim_id ? [hint.evidence_claim_id] : undefined,
+          source: 'turn-validator',
+          origin_entry_id: entryId,
+        });
+        continue;
+      }
+
+      if (!hint.node_id) continue;
+      const duplicate = existing.some(
+        s => s.source === 'turn-validator' &&
+          s.node_id === hint.node_id &&
+          s.suggestion_type === type,
+      );
+      if (duplicate) continue;
+
+      const meta = this.findNodeMeta(hint.node_id);
+      existing.push({
+        node_id: hint.node_id,
+        node_label: meta?.label ?? hint.node_id,
+        node_pov: meta?.pov ?? 'unknown',
+        suggestion_type: type,
+        current_description: meta?.description,
+        rationale: hint.rationale || 'Surfaced mid-debate by the turn validator.',
+        evidence_claim_ids: hint.evidence_claim_id ? [hint.evidence_claim_id] : undefined,
+        source: 'turn-validator',
+        origin_entry_id: entryId,
+        merge_with_node_ids: type === 'merge' ? hint.node_ids : undefined,
+      });
+    }
+  }
+
   // ── Taxonomy context ───────────────────────────────────────
 
   private getTaxonomyContext(pov: string): TaxonomyContext {
@@ -331,48 +448,55 @@ export class DebateEngine {
     };
   }
 
-  private getRelevantTaxonomyContext(pov: string): string {
+  private async getRelevantTaxonomyContext(pov: string, priorRefs: string[] = []): Promise<string> {
     const ctx = this.getTaxonomyContext(pov);
 
-    // Try relevance filtering with pre-computed embeddings
+    // Build the per-turn query from topic + recent transcript
+    const recentTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
+    const query = buildRelevanceQuery(this.session.topic.final, recentTranscript);
+
+    let scores: Map<string, number> | null = null;
+
+    // Preferred path: real per-turn query embedding via adapter (same model as embeddings.json)
+    const adapter = this.adapter as ExtendedAIAdapter;
     const hasEmbeddings = Object.keys(this.taxonomy.embeddings).length > 0;
-    if (hasEmbeddings) {
-      const recentTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
-      const query = buildRelevanceQuery(this.session.topic.final, recentTranscript);
-
-      // Build pseudo-query vector by averaging node vectors whose text overlaps with the query
-      const queryWords = new Set(query.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-      const matchingVectors: number[][] = [];
-      for (const [, entry] of Object.entries(this.taxonomy.embeddings)) {
-        if (matchingVectors.length >= 5) break;
-        // We don't have node text here easily, so use all embeddings for the POV
-        if (entry.vector?.length > 0) matchingVectors.push(entry.vector);
-      }
-
-      // If we have embeddings, try to filter — otherwise fall through to unfiltered
-      if (matchingVectors.length > 0) {
-        const scores = scoreNodeRelevance(matchingVectors[0], this.taxonomy.embeddings);
-        const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3, 35);
-        const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3, 15);
-        const filteredCtx = {
-          povNodes: scoredPov.map(s => s.node),
-          situationNodes: filteredSit.map(s => s.node),
-          policyRegistry: ctx.policyRegistry,
-          nodeScores: scores,
-        };
-        this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
-        return formatTaxonomyContext(filteredCtx, pov);
+    if (hasEmbeddings && adapter.computeQueryEmbedding) {
+      try {
+        const { vector } = await adapter.computeQueryEmbedding(query);
+        if (vector && vector.length > 0) {
+          scores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
+        }
+      } catch (err) {
+        this.warn('Query embedding for relevance filter', err, 'Falling back to lexical scoring');
       }
     }
 
-    // Fallback: unfiltered, top 21 POV + 10 CC
-    const fallbackCtx = {
-      povNodes: ctx.povNodes.slice(0, 21),
-      situationNodes: ctx.situationNodes.slice(0, 10),
+    // Fallback: lexical overlap against node label + description (no adapter embedding).
+    // This at least varies turn-to-turn with the query text, unlike the old "first vector" hack.
+    if (!scores) {
+      scores = scoreNodesLexical(query, ctx.povNodes, ctx.situationNodes);
+    }
+
+    // Diversification: down-weight nodes the speaker recently cited so fresh-but-relevant
+    // nodes rise into the shortlist. Multiplicative penalty keeps strong-relevance recent
+    // nodes in the mix when they still dominate other candidates.
+    if (priorRefs.length > 0) {
+      const recent = new Set(priorRefs);
+      for (const [id, score] of scores) {
+        if (recent.has(id)) scores.set(id, score * 0.55);
+      }
+    }
+
+    const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3, 35);
+    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3, 15);
+    const filteredCtx = {
+      povNodes: scoredPov.map(s => s.node),
+      situationNodes: filteredSit.map(s => s.node),
       policyRegistry: ctx.policyRegistry,
+      nodeScores: scores,
     };
-    this._lastInjectionManifest = computeInjectionManifest(fallbackCtx, pov);
-    return formatTaxonomyContext(fallbackCtx, pov);
+    this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
+    return formatTaxonomyContext(filteredCtx, pov);
   }
 
   private formatDebaterEdgeContext(debaterPov: string): string {
@@ -610,7 +734,7 @@ export class DebateEngine {
       const info = POVER_INFO[poverId];
       this.progress('opening', poverId, `${info.label} preparing opening statement`);
 
-      const taxonomyContext = this.getRelevantTaxonomyContext(info.pov);
+      const taxonomyContext = await this.getRelevantTaxonomyContext(info.pov);
       const commitmentContext = this.getCommitmentContext(poverId);
       const establishedPoints = this.getEstablishedPointsContext(poverId);
       const edgeContext = this.formatDebaterEdgeContext(info.pov);
@@ -841,7 +965,14 @@ export class DebateEngine {
     const info = POVER_INFO[responder];
     this.progress('debate', responder, `${info.label} responding (round ${round})`);
 
-    const taxonomyContext = this.getRelevantTaxonomyContext(info.pov);
+    // priorRefs is also fed to the prompt below; computing it here lets
+    // retrieval diversify AGAINST recently-cited nodes as well.
+    const priorRefsEarly = this.session.transcript
+      .filter(e => e.speaker === responder && e.type !== 'opening')
+      .slice(-2)
+      .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+
+    const taxonomyContext = await this.getRelevantTaxonomyContext(info.pov, priorRefsEarly);
     const commitmentContext = this.getCommitmentContext(responder);
     const establishedPoints = this.getEstablishedPointsContext(responder);
     const debaterEdgeContext = this.formatDebaterEdgeContext(info.pov);
@@ -853,6 +984,11 @@ export class DebateEngine {
       .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as string[]) ?? [])
       .slice(-6); // Last 3 turns × ~2 moves each
 
+    // Reuse priorRefsEarly (computed before retrieval) for prompt-side rotation guidance.
+    const priorRefs = priorRefsEarly;
+    const povFile = (this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>)[info.pov];
+    const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
+
     const prompt = crossRespondPrompt(
       info.label, info.pov, info.personality,
       this.session.topic.final,
@@ -863,13 +999,71 @@ export class DebateEngine {
       this.session.document_analysis,
       priorMoves,
       phase,
+      priorRefs,
+      availablePovNodeIds,
     );
 
-    const start = Date.now();
-    const text = await this.generate(prompt, `${info.label} cross-respond`);
-    const elapsed = Date.now() - start;
+    // ── Cross-respond with per-turn validation + retry loop ──
+    const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
+    const attempts: TurnAttempt[] = [];
 
-    const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
+    let attemptPrompt = prompt;
+    let attemptIdx = 0;
+    let turnStart = Date.now();
+    let text = await this.generate(attemptPrompt, `${info.label} cross-respond`);
+    let elapsed = Date.now() - turnStart;
+    let parsed = parsePoverResponse(text);
+    let statement = parsed.statement;
+    let taxonomyRefs = parsed.taxonomyRefs;
+    let meta = parsed.meta;
+    let validation: TurnValidation;
+    let totalElapsed = elapsed;
+
+    const priorSameAgent = this.session.transcript
+      .filter(e => e.speaker === responder && e.type !== 'opening')
+      .slice(-2);
+    const recentTurnsForJudge = this.session.transcript
+      .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+      .slice(-2);
+
+    for (;;) {
+      validation = await validateTurn({
+        statement,
+        taxonomyRefs,
+        meta,
+        phase,
+        speaker: responder,
+        round,
+        priorTurns: priorSameAgent,
+        recentTurns: recentTurnsForJudge,
+        knownNodeIds: this.getKnownNodeIds(),
+        policyIds: this.getPolicyIds(),
+        config: vConfig,
+        callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
+      });
+
+      attempts.push({
+        attempt: attemptIdx,
+        model: this.config.model,
+        prompt_delta: attemptIdx === 0 ? '' : attemptPrompt.slice(prompt.length),
+        raw_response: text,
+        response_time_ms: elapsed,
+        validation,
+      });
+
+      if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
+
+      attemptIdx += 1;
+      attemptPrompt = buildRepairPrompt(prompt, validation, attemptIdx);
+      turnStart = Date.now();
+      text = await this.generate(attemptPrompt, `${info.label} cross-respond (retry ${attemptIdx})`);
+      elapsed = Date.now() - turnStart;
+      totalElapsed += elapsed;
+      parsed = parsePoverResponse(text);
+      statement = parsed.statement;
+      taxonomyRefs = parsed.taxonomyRefs;
+      meta = parsed.meta;
+    }
 
     const entry = this.addEntry({
       type: 'statement',
@@ -888,14 +1082,25 @@ export class DebateEngine {
         injection_manifest: this._lastInjectionManifest ?? undefined,
         debate_phase: phase,
         position_update: meta.position_update,
+        turn_validation_outcome: validation.outcome,
+        turn_validation_score: validation.score,
+        turn_validation_attempts: attempts.length,
+        turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
       },
     });
 
+    this.session.turn_validations ||= {};
+    this.session.turn_validations[entry.id] = { attempts, final: validation };
+
+    if (validation.clarifies_taxonomy.length > 0) {
+      this.routeTurnValidatorHints(validation, entry.id);
+    }
+
     this.recordDiagnostic(entry.id, {
-      prompt,
+      prompt: attemptPrompt,
       raw_response: text,
       model: this.config.model,
-      response_time_ms: elapsed,
+      response_time_ms: totalElapsed,
       taxonomy_context: taxonomyContext,
       commitment_context: commitmentContext,
     });
@@ -1349,7 +1554,15 @@ export class DebateEngine {
       const text = await this.generate(prompt, 'Taxonomy refinement pass');
       const parsed = parseJsonRobust(text) as any;
       if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
-        this.session.taxonomy_suggestions = parsed.taxonomy_suggestions.slice(0, 10);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const postDebate = parsed.taxonomy_suggestions.slice(0, 10).map((s: any) => ({
+          ...s,
+          source: 'post-debate' as const,
+        }));
+        // Merge with any turn-validator hints already appended during the debate.
+        const existing = this.session.taxonomy_suggestions ?? [];
+        const turnValidator = existing.filter(s => s.source === 'turn-validator');
+        this.session.taxonomy_suggestions = [...postDebate, ...turnValidator];
       }
     } catch (err) {
       this.warn('Taxonomy refinement pass', err, 'Non-critical — debate results unaffected');
@@ -1578,20 +1791,40 @@ Return ONLY JSON (no markdown, no code fences):
           node.verification_status = parsed.verdict;
           node.verification_evidence = parsed.evidence;
 
-          if (parsed.verdict === 'disputed') {
-            this.session.transcript.push({
-              id: generateId(),
-              timestamp: nowISO(),
-              type: 'system',
-              speaker: 'system',
-              content: `[Fact-check] Claim ${node.id} disputed by web evidence: ${parsed.evidence}`,
-              taxonomy_refs: [],
-            });
-          }
+          this.session.transcript.push({
+            id: generateId(),
+            timestamp: nowISO(),
+            type: 'fact-check',
+            speaker: 'system',
+            content: `Claim ${node.id} — ${parsed.verdict}: ${parsed.evidence ?? ''}`.trim(),
+            taxonomy_refs: [],
+            metadata: {
+              source: 'auto',
+              claim_id: node.id,
+              claim_text: node.text,
+              verdict: parsed.verdict,
+              evidence: parsed.evidence,
+              confidence: parsed.confidence,
+            },
+          });
         }
       } catch (err) {
         this.warn(`Inline verification for ${node.id}`, err, 'Non-critical — claim unverified');
         node.verification_status = 'pending';
+        this.session.transcript.push({
+          id: generateId(),
+          timestamp: nowISO(),
+          type: 'fact-check',
+          speaker: 'system',
+          content: `Claim ${node.id} — verification pending (adapter error)`,
+          taxonomy_refs: [],
+          metadata: {
+            source: 'auto',
+            claim_id: node.id,
+            claim_text: node.text,
+            verdict: 'pending',
+          },
+        });
       }
     }
   }
@@ -1815,7 +2048,7 @@ Return ONLY JSON (no markdown, no code fences):
     // in the statement, so use a lower overlap threshold.
     const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
 
-    for (const claim of claims.slice(0, 4)) {
+    for (const claim of claims.slice(0, 6)) {
       if (!claim.text || claim.text.length < 10) {
         if (claim.text) {
           rejected.push({ text: claim.text, reason: 'too_short', overlap_pct: 0 });

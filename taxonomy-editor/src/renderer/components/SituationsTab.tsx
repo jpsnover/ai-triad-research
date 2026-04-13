@@ -21,7 +21,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
@@ -40,7 +40,10 @@ export function SituationsTab() {
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [hierarchyView, setHierarchyView] = useState<boolean>(() => {
-    try { return localStorage.getItem('taxonomy-editor-sit-hierarchy') === 'true'; } catch { return false; }
+    try {
+      const v = localStorage.getItem('taxonomy-editor-sit-hierarchy');
+      return v === null ? true : v === 'true';
+    } catch { return true; }
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     try {
@@ -243,9 +246,7 @@ export function SituationsTab() {
   // Render lineage about info for Pane 2
   const renderLineagePreview = () => {
     if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
-    const info = INTELLECTUAL_LINEAGES[lineagePreviewValue]
-      ?? Object.entries(INTELLECTUAL_LINEAGES).find(([k]) => k.toLowerCase() === lineagePreviewValue.toLowerCase())?.[1]
-      ?? null;
+    const info = getLineageInfo(lineagePreviewValue);
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>

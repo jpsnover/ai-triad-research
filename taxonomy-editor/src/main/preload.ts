@@ -111,6 +111,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
+  openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {

@@ -52,6 +52,8 @@ import {
 } from '@lib/debate/helpers';
 import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta } from '@lib/debate/helpers';
+import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
+import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
 
@@ -291,6 +293,129 @@ function updateExtractionSummary(
   set({ activeDebate: { ...debate, extraction_summary: summary } });
 }
 
+// ── AN commit instrumentation ─────────────────────────────
+//
+// Per-turn AN extractions run fire-and-forget, so two commits can race.
+// `commitAnNodes` centralises the atomic mint-then-set pattern, asserts
+// no ID collisions, and logs before/after state so any clobber is visible.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function snapshotAnLengths(get: () => any): { nodeCount: number; edgeCount: number; maxNodeId: number } {
+  const d = get().activeDebate;
+  const an = d?.argument_network ?? { nodes: [], edges: [] };
+  let maxId = 0;
+  for (const n of an.nodes) {
+    const m = /^AN-(\d+)$/.exec(n.id);
+    if (m) { const k = parseInt(m[1], 10); if (k > maxId) maxId = k; }
+  }
+  return { nodeCount: an.nodes.length, edgeCount: an.edges.length, maxNodeId: maxId };
+}
+
+function assertNoDuplicateAnIds(label: string, existing: { id: string }[], incoming: { id: string }[]): void {
+  const existingIds = new Set(existing.map(n => n.id));
+  const dupsWithExisting: string[] = [];
+  const seenInIncoming = new Set<string>();
+  const dupsInIncoming: string[] = [];
+  for (const n of incoming) {
+    if (existingIds.has(n.id)) dupsWithExisting.push(n.id);
+    if (seenInIncoming.has(n.id)) dupsInIncoming.push(n.id);
+    seenInIncoming.add(n.id);
+  }
+  if (dupsWithExisting.length || dupsInIncoming.length) {
+    const msg = `[AN-INVARIANT] ${label} duplicate AN IDs detected — existing: [${dupsWithExisting.join(', ')}], within-batch: [${dupsInIncoming.join(', ')}]`;
+    console.error(msg, { existingIds: [...existingIds], incomingIds: incoming.map(n => n.id) });
+    throw new Error(msg);
+  }
+}
+
+interface AnCommitResult {
+  idBase: number;
+  edgeIdBase: number;
+  idMap: Record<string, string>;
+  assignedNodeIds: string[];
+}
+
+/**
+ * Atomically mint AN-N / AE-N IDs from fresh state, assert no duplicates,
+ * commit via set(), and return the id map for callers that need to remap
+ * downstream references (e.g., diagnostic entries, pNode targets).
+ *
+ * Caller must supply `newNodes`/`newEdges` whose `.id` fields may be
+ * tentative — they will be reassigned in place. Edges whose `.source`
+ * references a tentative node id are remapped via the returned idMap.
+ */
+function commitAnNodes<N extends { id: string }, E extends { id: string; source: string }>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get: () => any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: (partial: any) => void,
+  label: string,
+  newNodes: N[],
+  newEdges: E[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mergeExtras?: (fresh: any) => any,
+): AnCommitResult {
+  const before = snapshotAnLengths(get);
+  const freshState = get().activeDebate;
+  const freshAn = freshState?.argument_network || { nodes: [], edges: [] };
+  const idBase = freshAn.nodes.length;
+  const edgeIdBase = freshAn.edges.length;
+  const idMap: Record<string, string> = {};
+
+  // If existing IDs aren't dense 1..N (e.g., prior corruption), mint past the max.
+  const safeBase = Math.max(idBase, before.maxNodeId);
+  newNodes.forEach((n, i) => {
+    const realId = `AN-${safeBase + i + 1}`;
+    idMap[n.id] = realId;
+    n.id = realId;
+  });
+  newEdges.forEach((e, i) => {
+    e.id = `AE-${edgeIdBase + i + 1}`;
+    if (idMap[e.source]) e.source = idMap[e.source];
+  });
+
+  assertNoDuplicateAnIds(label, freshAn.nodes, newNodes);
+
+  const base = mergeExtras ? mergeExtras(freshState) : { ...freshState };
+  const updated = {
+    ...base,
+    argument_network: {
+      nodes: [...freshAn.nodes, ...newNodes],
+      edges: [...freshAn.edges, ...newEdges],
+    },
+  };
+  set({ activeDebate: updated });
+
+  const after = snapshotAnLengths(get);
+  console.log(
+    `[AN-COMMIT ${label}] before=${before.nodeCount}/${before.edgeCount} (maxId=${before.maxNodeId}) ` +
+    `+${newNodes.length}n/${newEdges.length}e → after=${after.nodeCount}/${after.edgeCount} (maxId=${after.maxNodeId}) ` +
+    `assigned=[${newNodes.map(n => n.id).join(', ')}]`,
+  );
+
+  if (after.nodeCount !== before.nodeCount + newNodes.length) {
+    console.error(
+      `[AN-INVARIANT] ${label} length mismatch — expected ${before.nodeCount + newNodes.length}, got ${after.nodeCount}. ` +
+      `Something else wrote activeDebate between our read and set.`,
+    );
+  }
+
+  return { idBase: safeBase, edgeIdBase, idMap, assignedNodeIds: newNodes.map(n => n.id) };
+}
+
+/**
+ * Run an AN-length invariant check after any set() that might have touched
+ * argument_network. If the array shrunk, something clobbered it.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function checkAnInvariants(label: string, get: () => any, expectedMinCount: number): void {
+  const d = get().activeDebate;
+  const count = d?.argument_network?.nodes?.length ?? 0;
+  if (count < expectedMinCount) {
+    console.error(`[AN-INVARIANT] ${label} AN shrank: was ≥${expectedMinCount}, now ${count}. Clobber detected.`);
+  }
+}
+
 /**
  * Extract claims from a debater's statement and update the argument network.
  * Runs in the background after each turn — does not block the debate flow.
@@ -454,7 +579,7 @@ async function extractClaimsAndUpdateAN(
     const commitments = debate.commitments || {};
     const speakerCommits: CommitmentStore = commitments[speaker] || { asserted: [], conceded: [], challenged: [] };
 
-    for (const claim of parsed.claims.slice(0, 4)) {
+    for (const claim of parsed.claims.slice(0, 6)) {
       if (!claim.text || claim.text.length < 10) {
         extractionTrace.rejection_reasons.too_short = (extractionTrace.rejection_reasons.too_short ?? 0) + 1;
         continue;
@@ -559,23 +684,29 @@ async function extractClaimsAndUpdateAN(
     }
 
     extractionTrace.status = 'ok';
-    extractionTrace.an_node_count_after = anCountBefore + newNodes.length;
-    extractionTrace.an_nodes_added_ids = newNodes.map(n => n.id);
 
-    // Update debate session
-    const updated = {
-      ...get().activeDebate,
-      argument_network: {
-        nodes: [...an.nodes, ...newNodes],
-        edges: [...an.edges, ...newEdges],
-      },
-      commitments: {
-        ...commitments,
-        [speaker]: speakerCommits,
-      },
-    };
-    set({ activeDebate: updated });
+    const commitResult = commitAnNodes(
+      get, set,
+      `extract[speaker=${speaker},entry=${entryId.slice(-6)}]`,
+      newNodes, newEdges,
+      (fresh) => ({
+        ...fresh,
+        commitments: {
+          ...(fresh?.commitments ?? commitments),
+          [speaker]: speakerCommits,
+        },
+      }),
+    );
+
+    for (const a of diagAccepted) {
+      if (commitResult.idMap[a.id]) a.id = commitResult.idMap[a.id];
+    }
+    extractionTrace.an_node_count_after = commitResult.idBase + newNodes.length;
+    extractionTrace.an_nodes_added_ids = commitResult.assignedNodeIds;
+    const expectedMinAnCount = commitResult.idBase + newNodes.length;
+
     await get().saveDebate();
+    checkAnInvariants(`post-save(extract,${entryId.slice(-6)})`, get, expectedMinAnCount);
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
     trace(TraceEventName.AN_EXTRACT_COMPLETE, {
@@ -693,13 +824,10 @@ async function extractClaimsAndUpdateAN(
             // argument network reflects the evidence (mirrors manual fact-check path).
             const cur = get().activeDebate as DebateSession | null;
             if (cur) {
-              const curAN = cur.argument_network || { nodes: [], edges: [] };
               const attackType = vParsed.verdict === 'disputed' ? 'attacks' : 'supports';
-              const fcNodeId = `AN-${curAN.nodes.length + 1}`;
-              const fcEdgeId = `AE-${curAN.edges.length + 1}`;
               const factCheckEntryId = cur.transcript[cur.transcript.length - 1]?.id || entryId;
               const fcNode: ArgumentNetworkNode = {
-                id: fcNodeId,
+                id: 'pending-fc-node',
                 text: `Fact-check (${vParsed.verdict}): ${vParsed.evidence}`,
                 speaker: 'system',
                 source_entry_id: factCheckEntryId,
@@ -711,8 +839,8 @@ async function extractClaimsAndUpdateAN(
                 specificity: 'precise',
               };
               const fcEdge: ArgumentNetworkEdge = {
-                id: fcEdgeId,
-                source: fcNodeId,
+                id: 'pending-fc-edge',
+                source: 'pending-fc-node',
                 target: pNode.id,
                 type: attackType,
                 attack_type: attackType === 'attacks' ? 'rebut' : undefined,
@@ -720,15 +848,7 @@ async function extractClaimsAndUpdateAN(
                 warrant: `Inline fact-check evidence (web search): ${String(vParsed.evidence).slice(0, 100)}`,
                 argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
               };
-              set({
-                activeDebate: {
-                  ...cur,
-                  argument_network: {
-                    nodes: [...curAN.nodes, fcNode],
-                    edges: [...curAN.edges, fcEdge],
-                  },
-                },
-              });
+              commitAnNodes(get, set, `factcheck(inline,pNode=${pNode.id})`, [fcNode], [fcEdge]);
               factCheckMutated = true;
             }
           }
@@ -765,6 +885,86 @@ async function extractClaimsAndUpdateAN(
       error: String(err),
     });
   }
+}
+
+// ── Turn-validator helpers ───────────────────────────────
+
+function getAllKnownNodeIds(): Set<string> {
+  const s = new Set<string>();
+  const state = useTaxonomyStore.getState();
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const n of state[pov]?.nodes ?? []) s.add(n.id);
+  }
+  for (const n of state.situations?.nodes ?? []) s.add(n.id);
+  return s;
+}
+
+function getAllPolicyIds(): Set<string> {
+  const s = new Set<string>();
+  for (const p of useTaxonomyStore.getState().policyRegistry ?? []) s.add(p.id);
+  return s;
+}
+
+function findNodeMetaInStore(nodeId: string): { label: string; pov: string; description: string } | undefined {
+  const state = useTaxonomyStore.getState();
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    const n = state[pov]?.nodes.find(x => x.id === nodeId);
+    if (n) return { label: n.label, pov, description: n.description };
+  }
+  const sit = state.situations?.nodes.find(x => x.id === nodeId);
+  if (sit) return { label: sit.label, pov: 'situations', description: sit.description };
+  return undefined;
+}
+
+function routeTurnValidatorHintsIntoSuggestions(
+  validation: TurnValidation,
+  entryId: string,
+  existing: TaxonomySuggestion[] | undefined,
+): TaxonomySuggestion[] {
+  const out: TaxonomySuggestion[] = existing ? [...existing] : [];
+  const HINT_TO_SUGGESTION = {
+    narrow: 'narrow', broaden: 'broaden', split: 'split', merge: 'merge',
+    qualify: 'qualify', retire: 'retire', new_node: 'new_node',
+  } as const;
+
+  for (const hint of validation.clarifies_taxonomy) {
+    const type = HINT_TO_SUGGESTION[hint.action];
+    if (!type) continue;
+
+    if (type === 'new_node') {
+      if (!hint.label) continue;
+      if (out.some(s => s.source === 'turn-validator' && s.suggestion_type === 'new_node' && s.node_label === hint.label)) continue;
+      out.push({
+        node_id: `pending:${hint.label}`,
+        node_label: hint.label,
+        node_pov: 'unknown',
+        suggestion_type: 'new_node',
+        rationale: hint.rationale || 'Proposed mid-debate by the turn validator.',
+        evidence_claim_ids: hint.evidence_claim_id ? [hint.evidence_claim_id] : undefined,
+        source: 'turn-validator',
+        origin_entry_id: entryId,
+      });
+      continue;
+    }
+
+    if (!hint.node_id) continue;
+    if (out.some(s => s.source === 'turn-validator' && s.node_id === hint.node_id && s.suggestion_type === type)) continue;
+
+    const meta = findNodeMetaInStore(hint.node_id);
+    out.push({
+      node_id: hint.node_id,
+      node_label: meta?.label ?? hint.node_id,
+      node_pov: meta?.pov ?? 'unknown',
+      suggestion_type: type,
+      current_description: meta?.description,
+      rationale: hint.rationale || 'Surfaced mid-debate by the turn validator.',
+      evidence_claim_ids: hint.evidence_claim_id ? [hint.evidence_claim_id] : undefined,
+      source: 'turn-validator',
+      origin_entry_id: entryId,
+      merge_with_node_ids: type === 'merge' ? hint.node_ids : undefined,
+    });
+  }
+  return out;
 }
 
 // ── Taxonomy grounding helpers ───────────────────────────
@@ -2205,11 +2405,74 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     );
 
     try {
-      const t0 = Date.now();
-      const { text } = await generateTextWithProgress(prompt, model, `${info.label} is cross-responding (${model})`, set);
-      const responseTime = Date.now() - t0;
+      // ── Per-turn validation + retry loop ──
+      const vConfig = resolveTurnValidationConfig(undefined); // UI-launched: always-on defaults
+      const attempts: TurnAttempt[] = [];
+      const activeSnapshot = get().activeDebate;
+      const priorSameAgent = (activeSnapshot?.transcript ?? [])
+        .filter(e => e.speaker === responderPover && e.type !== 'opening')
+        .slice(-2);
+      const recentTurnsForJudge = (activeSnapshot?.transcript ?? [])
+        .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+        .slice(-2);
+      const knownNodeIds = getAllKnownNodeIds();
+      const policyIds = getAllPolicyIds();
+
+      let attemptPrompt = prompt;
+      let attemptIdx = 0;
+      let t0 = Date.now();
+      let { text } = await generateTextWithProgress(attemptPrompt, model, `${info.label} is cross-responding (${model})`, set);
+      let responseTime = Date.now() - t0;
       if (!isStillValid()) return;
-      const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
+      let parsed = parsePoverResponse(text);
+      let statement = parsed.statement;
+      let taxonomyRefs = parsed.taxonomyRefs;
+      let meta = parsed.meta;
+      let validation: TurnValidation;
+      let totalElapsed = responseTime;
+
+      for (;;) {
+        validation = await validateTurn({
+          statement,
+          taxonomyRefs,
+          meta,
+          phase: ((activeSnapshot?.transcript.length ?? 0) < 6) ? 'thesis-antithesis' : 'exploration',
+          speaker: responderPover,
+          round: crossRespondRound,
+          priorTurns: priorSameAgent,
+          recentTurns: recentTurnsForJudge,
+          knownNodeIds,
+          policyIds,
+          config: vConfig,
+          callJudge: async (jp: string, label: string) => {
+            const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
+            return r.text;
+          },
+        });
+
+        attempts.push({
+          attempt: attemptIdx,
+          model,
+          prompt_delta: attemptIdx === 0 ? '' : attemptPrompt.slice(prompt.length),
+          raw_response: text,
+          response_time_ms: responseTime,
+          validation,
+        });
+
+        if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
+
+        attemptIdx += 1;
+        attemptPrompt = buildRepairPrompt(prompt, validation, attemptIdx);
+        t0 = Date.now();
+        ({ text } = await generateTextWithProgress(attemptPrompt, model, `${info.label} cross-responding (retry ${attemptIdx})`, set));
+        responseTime = Date.now() - t0;
+        totalElapsed += responseTime;
+        if (!isStillValid()) return;
+        parsed = parsePoverResponse(text);
+        statement = parsed.statement;
+        taxonomyRefs = parsed.taxonomyRefs;
+        meta = parsed.meta;
+      }
 
       addTranscriptEntry({
         type: 'statement',
@@ -2218,16 +2481,40 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: taxonomyRefs,
         policy_refs: meta.policy_refs,
         addressing: 'all',
-        metadata: { cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel, moderator_trace: moderatorTrace, ...meta },
+        metadata: {
+          cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel,
+          moderator_trace: moderatorTrace, ...meta,
+          turn_validation_outcome: validation.outcome,
+          turn_validation_score: validation.score,
+          turn_validation_attempts: attempts.length,
+          turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
+        },
       });
+
+      // Persist validation trail + route clarifies_taxonomy hints
+      {
+        const lastId = get().activeDebate?.transcript.slice(-1)[0]?.id;
+        if (lastId) {
+          const curr = get().activeDebate;
+          if (curr) {
+            const trail: TurnValidationTrail = { attempts, final: validation };
+            const trails = { ...(curr.turn_validations ?? {}), [lastId]: trail };
+            let suggestions = curr.taxonomy_suggestions;
+            if (validation.clarifies_taxonomy.length > 0) {
+              suggestions = routeTurnValidatorHintsIntoSuggestions(validation, lastId, suggestions);
+            }
+            set({ activeDebate: { ...curr, turn_validations: trails, taxonomy_suggestions: suggestions } });
+          }
+        }
+      }
 
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
         recordDiagnostic(get, set, lastEntry.id, {
-          prompt,
+          prompt: attemptPrompt,
           raw_response: text,
           model,
-          response_time_ms: responseTime,
+          response_time_ms: totalElapsed,
           taxonomy_context: taxonomyBlock,
           commitment_context: commitBlock || undefined,
         });
@@ -2246,9 +2533,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             for (const [pov, embed] of Object.entries(openingEmbeds)) {
               if (pov !== responderPover) opponentSims[pov] = cosineSimilarity(responseEmbed.vector, embed);
             }
-            const drift = currentD?.position_drift ?? [];
+            // Re-read fresh state — the await above yielded to the event loop,
+            // so concurrent commits (e.g., fire-and-forget extractClaimsAndUpdateAN)
+            // may have landed in between. Spreading the stale `currentD` would
+            // clobber their writes (notably argument_network).
+            const freshD = get().activeDebate;
+            const drift = freshD?.position_drift ?? [];
             drift.push({ round: crossRespondRound, speaker: responderPover, self_similarity: selfSim, opponent_similarities: opponentSims });
-            set({ activeDebate: { ...currentD!, position_drift: drift } });
+            if (freshD) {
+              set({ activeDebate: { ...freshD, position_drift: drift } });
+            }
 
             // Sycophancy detection
             const speakerDrift = drift.filter(d => d.speaker === responderPover);
@@ -2833,19 +3127,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
 
         if (newNodes.length > 0) {
-          const updated = get().activeDebate;
-          if (updated) {
-            const existingAn = updated.argument_network || { nodes: [], edges: [] };
-            set({
-              activeDebate: {
-                ...updated,
-                argument_network: {
-                  nodes: [...existingAn.nodes, ...newNodes],
-                  edges: [...existingAn.edges, ...newEdges],
-                },
-              },
-            });
-          }
+          commitAnNodes(get, set, `factcheck(manual,entry=${entryId.slice(-6)})`, newNodes, newEdges);
         }
       }
     } catch (err) {

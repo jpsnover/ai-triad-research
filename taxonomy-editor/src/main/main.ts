@@ -12,6 +12,7 @@ import { PROJECT_ROOT } from './fileIO';
 
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
+let povProgWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
 const FOCUS_PORT = 17862;
@@ -267,11 +268,45 @@ app.whenReady().then(() => {
     }
   });
 
-  // Relay diagnostics state from main window to diag window
+  // Relay diagnostics state from main window to diag window AND pov-progression window
   ipcMain.on('diagnostics-state-update', (_event, state) => {
     if (diagWindow && !diagWindow.isDestroyed()) {
       diagWindow.webContents.send('diagnostics-state-update', state);
     }
+    if (povProgWindow && !povProgWindow.isDestroyed()) {
+      povProgWindow.webContents.send('diagnostics-state-update', state);
+    }
+  });
+
+  // POV Progression popout window
+  ipcMain.handle('open-pov-progression-window', () => {
+    if (povProgWindow && !povProgWindow.isDestroyed()) {
+      povProgWindow.focus();
+      return;
+    }
+    const preloadPath = path.join(__dirname, 'preload.js');
+    povProgWindow = new BrowserWindow({
+      width: 1100,
+      height: 720,
+      minWidth: 700,
+      minHeight: 500,
+      title: 'POV Progression',
+      alwaysOnTop: false,
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    const isDev = !app.isPackaged;
+    if (isDev) {
+      povProgWindow.loadURL('http://localhost:5173#pov-progression-window');
+    } else {
+      povProgWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'pov-progression-window' });
+    }
+    povProgWindow.on('closed', () => {
+      povProgWindow = null;
+    });
   });
 });
 

@@ -181,7 +181,10 @@ export function FallacyPanel({ onSelectFallacy }: FallacyPanelProps) {
           >
             <div className="fallacy-panel-item-header">
               <span className="fallacy-panel-item-label">{entry.label}</span>
-              <span className="fallacy-panel-item-count">{entry.count}</span>
+              <span
+                className={`fallacy-panel-item-count${entry.count === 0 ? ' zero' : ''}`}
+                title={`${entry.count} node${entry.count === 1 ? '' : 's'} reference this fallacy`}
+              >{entry.count}</span>
               <span className={`fallacy-panel-item-cat cat-${entry.category}`}>
                 {CATEGORY_LABELS[entry.category]}
               </span>

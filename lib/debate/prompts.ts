@@ -492,12 +492,14 @@ Structure your response as the following JSON object. Every field must be presen
 
 NODE-ID PROHIBITION: Node IDs are system metadata, not part of the conversation. Never surface them in your statement text — no "AN-64," no "According to taxonomy node X," no "Cassandra's AN-64 point." Instead, describe the actual argument in plain language. Use the taxonomy_refs field for attribution.
 
-CLAIM SKETCHING: As you write your response, identify your 1-4 most important claims — the
-assertions that carry your argument. For each claim, extract a near-verbatim sentence from your
-statement text and note which prior claims it engages with (if any).
+CLAIM SKETCHING: As you write your response, identify 3-6 claims — the headline assertion
+AND the supporting sub-claims that carry your argument. For each claim, extract a near-verbatim
+sentence from your statement text and note which prior claims it engages with (if any).
 
 This helps the system track the argument structure. You know what you're arguing better than a
 post-hoc analyzer, so your claim sketches are the primary input for the argument network.
+A single-claim response is almost always undercounting — include premises and secondary
+assertions, not only the thesis.
 
 Include a "my_claims" array in your response:
   "my_claims": [
@@ -505,11 +507,19 @@ Include a "my_claims" array in your response:
   ]
 - "claim" must be a sentence that appears almost verbatim in your statement text.
 - "targets" lists the AN-IDs of prior claims this claim responds to (empty array if standalone).
-- Extract 1-4 claims. Focus on substantive assertions, not rhetorical flourishes.
+- Extract 3-6 claims. Include supporting sub-claims and premises, not just the headline. Prefer
+  more rather than fewer; only skip a claim if it is purely rhetorical (no assertive content).
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
 Include 4–6 taxonomy_refs per response — draw from all three sections (Beliefs, Desires, Intentions).
 Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
+
+ROTATE YOUR CITATIONS: If the prompt lists "YOUR RECENT CITATIONS," at least one — ideally two — of
+this turn's refs MUST be node_ids absent from that list. A worldview is not 3 nodes; if you keep
+re-citing the same handful of nodes, you are reciting slogans, not reasoning. Pick up Beliefs,
+Desires, or Intentions you have neglected. Re-citing a node is acceptable only when you are
+advancing a new implication of it — never as filler.
+
 For each taxonomy_ref, the "relevance" field MUST be 1 to 4 sentences explaining specifically
 how that node informed your argument — not a brief label. Vary your sentence openings; never
 start with "This node".
@@ -661,7 +671,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-beliefs-011", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."}
   ],
   "my_claims": [
-    {"claim": "near-verbatim key assertion from your statement", "targets": []}
+    {"claim": "near-verbatim headline assertion from your statement", "targets": []},
+    {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
+    {"claim": "near-verbatim additional assertion or consequence", "targets": []}
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "key_assumptions": [
@@ -722,7 +734,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
   "my_claims": [
-    {"claim": "near-verbatim key assertion", "targets": ["AN-3"]}
+    {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
+    {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
+    {"claim": "near-verbatim further assertion or consequence", "targets": ["AN-5"]}
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"
@@ -972,6 +986,8 @@ export function crossRespondPrompt(
   documentAnalysis?: DocumentAnalysis,
   priorMoveTypes?: string[],
   phase?: DebatePhase,
+  priorRefs?: string[],
+  availablePovNodeIds?: string[],
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -981,6 +997,23 @@ export function crossRespondPrompt(
   const moveHistoryBlock = priorMoveTypes && priorMoveTypes.length > 0
     ? `\n=== YOUR RECENT MOVES ===\nYour last ${priorMoveTypes.length} responses used: ${priorMoveTypes.join(' → ')}.\n${priorMoveTypes.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
     : '';
+
+  // Show recently-cited taxonomy nodes + uncited ones so the debater rotates breadth
+  // instead of re-citing the same 3–4 "obvious" nodes every turn.
+  let refsHistoryBlock = '';
+  if (priorRefs && priorRefs.length > 0) {
+    const recent = Array.from(new Set(priorRefs));
+    const uncited = availablePovNodeIds
+      ? availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 12)
+      : [];
+    const uncitedLine = uncited.length > 0
+      ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
+      : '';
+    refsHistoryBlock = `\n=== YOUR RECENT CITATIONS ===
+You cited these taxonomy nodes across your last 2 turns: ${recent.join(', ')}.
+REQUIRED: At least 1 — ideally 2 — of this turn's 4–6 taxonomy_refs must be node_ids NOT in that list.
+Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}\n`;
+  }
 
   const constructiveMoveList = phase && phase !== 'thesis-antithesis'
     ? ', INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD' : '';
@@ -1009,7 +1042,7 @@ ${taxonomyContext}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
-${moveHistoryBlock}
+${moveHistoryBlock}${refsHistoryBlock}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
@@ -1026,7 +1059,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY${constructiveMoveList}
   "my_claims": [
-    {"claim": "near-verbatim key assertion", "targets": ["AN-1"]}
+    {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
+    {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
+    {"claim": "near-verbatim further assertion or consequence", "targets": ["AN-2"]}
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
