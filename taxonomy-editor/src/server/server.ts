@@ -647,6 +647,11 @@ function isUserAuthorized(principalName: string, idp: string): boolean {
   const auth = getAuthorizedUsers();
   if (!auth) return true; // No file = allow all
 
+  // Opt-in: accept any signed-in user, bypass the allowlist. Sign-in is still
+  // required because getAuthorizedUsers() returns non-null, so the gate at the
+  // top of the request handler still redirects unauthenticated requests.
+  if (process.env.AUTH_ALLOW_ALL_SIGNED_IN === '1') return true;
+
   const name = principalName.toLowerCase();
   for (const user of auth.users) {
     // Match GitHub username
