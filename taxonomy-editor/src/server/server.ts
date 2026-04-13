@@ -751,7 +751,10 @@ const server = http.createServer(async (req, res) => {
   // /api/models is public: lets the pre-auth renderer populate the model
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
   const isPublicPath = urlPath === '/health' || urlPath === '/api/models' || urlPath.startsWith('/.auth/');
-  if (!isPublicPath && getAuthorizedUsers()) {
+  // Emergency kill-switch: disables the entire auth gate (no sign-in required).
+  // Use only for temporary recovery when the allowlist is misconfigured.
+  const authDisabled = process.env.AUTH_DISABLED === '1';
+  if (!isPublicPath && !authDisabled && getAuthorizedUsers()) {
     const principalName = req.headers['x-ms-client-principal-name'] as string || '';
     const idp = req.headers['x-ms-client-principal-idp'] as string || '';
 
