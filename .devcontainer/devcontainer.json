@@ -1,0 +1,25 @@
+{
+  "name": "ai-triad-research",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" }
+  },
+  "forwardPorts": [5173, 5174, 5175],
+  "portsAttributes": {
+    "5173": { "label": "taxonomy-editor (vite)", "onAutoForward": "notify" },
+    "5174": { "label": "poviewer (vite)", "onAutoForward": "notify" },
+    "5175": { "label": "summary-viewer (vite)", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.powershell",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-python.python"
+      ]
+    }
+  }
+}
