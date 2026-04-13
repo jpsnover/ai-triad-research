@@ -40,5 +40,12 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, '..')],
     },
+    // In web mode, proxy API + WebSocket traffic to the local server (port 7862)
+    // so the web bridge's /api/* and /ws/* calls resolve. Ignored in electron mode.
+    proxy: isWeb ? {
+      '/api': { target: 'http://localhost:7862', changeOrigin: true },
+      '/ws':  { target: 'ws://localhost:7862',   ws: true, changeOrigin: true },
+      '/health': { target: 'http://localhost:7862', changeOrigin: true },
+    } : undefined,
   },
 });

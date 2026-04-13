@@ -8,6 +8,8 @@
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:web": "cross-env VITE_TARGET=web vite --host 0.0.0.0",
+    "dev:server": "npm run build:server && node dist/server/server.js",
+    "dev:container": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
     "build": "tsc -p tsconfig.main.json && vite build",

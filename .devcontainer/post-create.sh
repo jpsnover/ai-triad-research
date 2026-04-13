@@ -31,7 +31,12 @@ for app in taxonomy-editor poviewer summary-viewer; do
   fi
 done
 
-echo "==> Done. To run a frontend in the browser:"
-echo "    cd taxonomy-editor && npm run dev:vite   # port 5173"
-echo "    cd poviewer        && npm run dev:vite   # port 5174"
-echo "    cd summary-viewer  && npm run dev:vite   # port 5175"
+echo "==> Done."
+echo ""
+echo "Taxonomy-editor in the browser (data-backed, with hot reload):"
+echo "    cd taxonomy-editor && npm run dev:container"
+echo "    # serves API on :7862, Vite (proxied) on :5173 — open 5173"
+echo ""
+echo "Other Vite apps (static, no data API):"
+echo "    cd poviewer       && npm run dev:vite     # port 5174"
+echo "    cd summary-viewer && npm run dev:vite     # port 5175"
