@@ -743,7 +743,9 @@ const server = http.createServer(async (req, res) => {
 
   // Auth gate — only enforced when authorized-users.json exists
   const urlPath = req.url?.split('?')[0] || '';
-  const isPublicPath = urlPath === '/health' || urlPath.startsWith('/.auth/');
+  // /api/models is public: lets the pre-auth renderer populate the model
+  // catalog from ai-models.json. Contains no secrets — just labels + ids.
+  const isPublicPath = urlPath === '/health' || urlPath === '/api/models' || urlPath.startsWith('/.auth/');
   if (!isPublicPath && getAuthorizedUsers()) {
     const principalName = req.headers['x-ms-client-principal-name'] as string || '';
     const idp = req.headers['x-ms-client-principal-idp'] as string || '';
