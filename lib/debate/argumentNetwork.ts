@@ -454,3 +454,58 @@ export function formatSpecifyHint(
     `a SPECIFY move: direct one debater to state what specific evidence or outcome would ` +
     `falsify their position. This forces testable predictions and makes the disagreement resolvable.`;
 }
+
+/**
+ * QBAF-Grounded Concession Opportunity (QGCO).
+ *
+ * Surfaces opponent claims whose QBAF computed_strength exceeds `threshold` and
+ * that the current speaker has not yet attacked or conceded. The debater can
+ * choose to grant these points — counterbalancing the move-type rotation rule
+ * that blocks consecutive CONCEDE openings and was causing debaters to never
+ * concede anything.
+ *
+ * Returns '' if no qualifying candidates exist. The caller is responsible for
+ * any round-based gating (e.g. fire only when no recent concession).
+ */
+export function formatConcessionCandidatesHint(
+  nodes: { id: string; text: string; speaker: string; base_strength?: number; computed_strength?: number }[],
+  edges: { source: string; target: string; type: string }[],
+  currentSpeaker: string,
+  priorConceded: string[] = [],
+  threshold: number = 0.65,
+  maxCandidates: number = 2,
+): string {
+  const concededSet = new Set(priorConceded);
+  const attackedByMe = new Set(
+    edges
+      .filter(e => e.type === 'attacks')
+      .filter(e => nodes.find(n => n.id === e.source)?.speaker === currentSpeaker)
+      .map(e => e.target),
+  );
+
+  const candidates = nodes
+    .filter(n => n.speaker !== currentSpeaker)
+    .filter(n => !attackedByMe.has(n.id))
+    .filter(n => !concededSet.has(n.id) && !concededSet.has(n.text))
+    .map(n => ({ node: n, strength: n.computed_strength ?? n.base_strength ?? 0 }))
+    .filter(c => c.strength >= threshold)
+    .sort((a, b) => b.strength - a.strength)
+    .slice(0, maxCandidates);
+
+  if (candidates.length === 0) return '';
+
+  const lines = [
+    '',
+    '=== POTENTIAL CONCESSIONS ===',
+    'Before responding, consider whether you can grant any of these opponent points.',
+    'Conceding a strong opposing claim and pivoting is a sign of intellectual honesty, not weakness.',
+    'If you grant a point, name it explicitly and pivot to what you still contest.',
+  ];
+  candidates.forEach((c, i) => {
+    lines.push(
+      `${i + 1}. [${c.node.id}] ${c.node.speaker} (strength ${c.strength.toFixed(2)}): "${c.node.text}"`,
+    );
+  });
+  lines.push('If you decline to concede, set "concession_considered": "declined" in your JSON response.');
+  return lines.join('\n') + '\n';
+}

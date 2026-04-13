@@ -1064,7 +1064,8 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"claim": "near-verbatim further assertion or consequence", "targets": ["AN-2"]}
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)",
+  "concession_considered": "accepted | declined | n/a — set to 'accepted' if you granted a point from POTENTIAL CONCESSIONS (if shown), 'declined' if you saw candidates but chose not to concede, 'n/a' if no candidates were surfaced"${positionUpdateField}
 }
 
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;

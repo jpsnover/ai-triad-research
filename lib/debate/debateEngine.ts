@@ -47,7 +47,7 @@ import {
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
 } from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from './argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
 import type { ContextInjectionManifest } from './taxonomyContext';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
@@ -207,7 +207,7 @@ export class DebateEngine {
       // Probing questions every N rounds
       if (this.config.enableProbing && this.config.probingInterval &&
           round % this.config.probingInterval === 0 && round < this.config.rounds) {
-        await this.runProbingQuestions();
+        await this.runProbingQuestions(round);
       }
 
       // Context compression if transcript is getting long
@@ -976,6 +976,25 @@ export class DebateEngine {
     const commitmentContext = this.getCommitmentContext(responder);
     const establishedPoints = this.getEstablishedPointsContext(responder);
     const debaterEdgeContext = this.formatDebaterEdgeContext(info.pov);
+
+    // QBAF-grounded concession hint: surface strong opposing claims this debater
+    // hasn't attacked or already conceded. Counterbalances the rotation rule
+    // that blocks consecutive CONCEDE openings.
+    const concessionAN = this.session.argument_network;
+    const priorConceded = this.session.commitments?.[responder]?.conceded ?? [];
+    const concessionHint = concessionAN
+      ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responder, priorConceded)
+      : '';
+    const concessionCandidateIds = concessionHint
+      ? (concessionAN!.nodes
+          .filter(n => n.speaker !== responder)
+          .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
+          .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && e.source && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responder && e.target === n.id))
+          .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
+          .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+          .slice(0, 2)
+          .map(n => n.id))
+      : [];
     const updatedTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
 
     // Collect this debater's prior move_types for diversity enforcement
@@ -992,7 +1011,7 @@ export class DebateEngine {
     const prompt = crossRespondPrompt(
       info.label, info.pov, info.personality,
       this.session.topic.final,
-      taxonomyContext + commitmentContext + establishedPoints + debaterEdgeContext,
+      taxonomyContext + commitmentContext + establishedPoints + debaterEdgeContext + concessionHint,
       updatedTranscript, focusPoint, addressing,
       this.config.responseLength,
       this.session.document_analysis ? undefined : this.config.sourceContent,
@@ -1074,6 +1093,7 @@ export class DebateEngine {
       addressing: addressing as PoverId | 'all',
       metadata: {
         cross_respond: true,
+        round,
         focus_point: focusPoint,
         addressing_label: addressing,
         move_types: meta.move_types,
@@ -1086,6 +1106,8 @@ export class DebateEngine {
         turn_validation_score: validation.score,
         turn_validation_attempts: attempts.length,
         turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
+        concession_candidates_offered: concessionCandidateIds.length > 0 ? concessionCandidateIds : undefined,
+        concession_considered: (meta as Record<string, unknown>)?.concession_considered as string | undefined,
       },
     });
 
@@ -1136,7 +1158,7 @@ export class DebateEngine {
 
   // ── Probing questions ──────────────────────────────────────
 
-  private async runProbingQuestions(): Promise<void> {
+  private async runProbingQuestions(round: number): Promise<void> {
     this.progress('probing', undefined, 'Generating probing questions');
 
     // Find unreferenced nodes
@@ -1204,7 +1226,7 @@ export class DebateEngine {
         speaker: 'system',
         content,
         taxonomy_refs: [],
-        metadata: { questions },
+        metadata: { questions, round },
       });
     }
   }

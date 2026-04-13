@@ -9,7 +9,7 @@
  * Layout: scrubber + mini-map (compact change ribbon) + selected-turn detail.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DebateSession, TranscriptEntry, ArgumentNetworkNode, ArgumentNetworkEdge, PoverId } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
 
@@ -708,6 +708,23 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
 
   const safeSelected = Math.min(selectedTurn, turns.length - 1);
   const curr = turns[safeSelected];
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Skip when typing in an input/textarea/contenteditable
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === 'ArrowLeft') {
+        setSelectedTurn(i => Math.max(0, Math.min(i, turns.length - 1) - 1));
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight') {
+        setSelectedTurn(i => Math.min(turns.length - 1, Math.min(i, turns.length - 1) + 1));
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [turns.length]);
   const prevForDiff: TurnSnapshot | null =
     mode === 'snapshot' ? null :
     mode === 'since-opening' ? (turns[0] !== curr ? turns[0] : null) :
@@ -742,7 +759,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
               className="btn btn-sm"
               style={{
                 fontSize: '0.65rem',
-                background: mode === m ? 'var(--accent)' : 'var(--bg-subtle)',
+                background: mode === m ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
                 color: mode === m ? '#fff' : 'var(--text)',
               }}
             >{m === 'since-opening' ? 'vs Opening' : m}</button>
@@ -762,7 +779,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
             className="btn btn-sm"
             style={{
               fontSize: '0.65rem',
-              background: t.turnIndex === safeSelected ? 'var(--accent)' : 'var(--bg-subtle)',
+              background: t.turnIndex === safeSelected ? 'var(--accent-color, #3b82f6)' : 'var(--bg-subtle)',
               color: t.turnIndex === safeSelected ? '#fff' : 'var(--text)',
             }}
           >{t.label}</button>

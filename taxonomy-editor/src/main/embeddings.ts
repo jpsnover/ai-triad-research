@@ -328,7 +328,7 @@ async function callGeminiBatchApi(
   }));
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetch(url, {
+    const response = await net.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests }),

@@ -16,7 +16,7 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
@@ -2389,7 +2389,27 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }));
     const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
     const edgeBlock = formatDebaterEdgeContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock;
+
+    // QBAF-grounded concession hint: surface strong opposing claims this debater
+    // hasn't attacked or already conceded. Counterbalances the rotation rule
+    // that blocks consecutive CONCEDE openings.
+    const concessionAN = activeDebate.argument_network;
+    const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
+    const concessionHint = concessionAN
+      ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
+      : '';
+    const concessionCandidateIds = concessionHint
+      ? concessionAN!.nodes
+          .filter(n => n.speaker !== responderPover)
+          .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= 0.65)
+          .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responderPover && e.target === n.id))
+          .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))
+          .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
+          .slice(0, 2)
+          .map(n => n.id)
+      : [];
+
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock + concessionHint;
 
     const crDocAnalysis = activeDebate.document_analysis;
     const prompt = buildCrossRespondPrompt(
@@ -2482,12 +2502,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         policy_refs: meta.policy_refs,
         addressing: 'all',
         metadata: {
-          cross_respond: true, focus_point: focusPoint, addressing_label: addressingLabel,
+          cross_respond: true, round: crossRespondRound,
+          focus_point: focusPoint, addressing_label: addressingLabel,
           moderator_trace: moderatorTrace, ...meta,
           turn_validation_outcome: validation.outcome,
           turn_validation_score: validation.score,
           turn_validation_attempts: attempts.length,
           turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
+          concession_candidates_offered: concessionCandidateIds.length > 0 ? concessionCandidateIds : undefined,
+          concession_considered: (meta as Record<string, unknown>)?.concession_considered as string | undefined,
         },
       });
 
@@ -2889,12 +2912,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         questions = [{ text: text.trim(), targets: [] }];
       }
 
+      const probingRound = activeDebate.transcript.filter(e => e.type === 'statement').length;
       addTranscriptEntry({
         type: 'probing',
         speaker: 'system',
         content: questions.map((q, i) => `${i + 1}. ${q.text}`).join('\n'),
         taxonomy_refs: [],
-        metadata: { probing_questions: questions },
+        metadata: { probing_questions: questions, round: probingRound },
       });
     } catch (err) {
       set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });

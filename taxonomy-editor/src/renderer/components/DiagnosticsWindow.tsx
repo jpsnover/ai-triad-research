@@ -626,6 +626,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [searchQuery, setSearchQuery] = useState('');
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details';
   const [entryTab, setEntryTab] = useState<EntryTab>('tax-refs');
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript';
+  const [overviewTab, setOverviewTab] = useState<OverviewTab>('transcript');
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   // Reset the tax-ref detail panel whenever the selected transcript entry changes
@@ -748,16 +750,49 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             Click a transcript entry in the main window to inspect it here. Showing overview.
           </p>
 
+          {(() => {
+            const hasAn = !!(an && an.nodes.length > 0);
+            const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
+            const plateau = debate.extraction_summary?.plateau_detected === true;
+            const tabs: { id: OverviewTab; label: string; badge?: string; visible: boolean }[] = [
+              { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
+              { id: 'argument-network', label: 'Argument Network', visible: hasAn },
+              { id: 'commitments', label: 'Commitments', visible: hasCommitments },
+              { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
+            ];
+            const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
+            const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';
+            return (
+              <div style={{
+                display: 'flex', gap: 4, marginBottom: 8,
+                borderBottom: '1px solid var(--border)', paddingBottom: 6, flexWrap: 'wrap',
+              }}>
+                {tabs.filter(t => t.visible).map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setOverviewTab(t.id)}
+                    style={{
+                      padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
+                      borderRadius: 4, cursor: 'pointer',
+                      border: '1px solid ' + (t.id === effectiveTab ? '#f59e0b' : 'var(--border)'),
+                      background: t.id === effectiveTab ? '#f59e0b' : 'transparent',
+                      color: t.id === effectiveTab ? '#000' : 'var(--text-primary)',
+                    }}
+                  >
+                    {t.label}{t.badge ? ` ${t.badge}` : ''}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Extraction Timeline — diagnoses AN-plateau failures */}
-          <Section
-            title={`Extraction Timeline${debate.extraction_summary?.plateau_detected ? ' ⚠ plateau' : ''}`}
-            defaultOpen={debate.extraction_summary?.plateau_detected === true}
-          >
+          {overviewTab === 'extraction' && (
             <ExtractionTimelinePanel debate={debate} />
-          </Section>
+          )}
 
           {/* Argument Network with inline Moderator Deliberations */}
-          {an && an.nodes.length > 0 && (() => {
+          {overviewTab === 'argument-network' && an && an.nodes.length > 0 && (() => {
             const caCount = an.edges.filter(e => e.type === 'attacks').length;
             const raCount = an.edges.filter(e => e.type === 'supports').length;
             // Statement-ID map — matches S{round} from the main transcript view.
@@ -818,7 +853,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const modCount = [...modTraceByEntryId.values()].length;
 
             return (
-              <Section title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA, ${raCount} RA${modCount > 0 ? ` · ${modCount} moderator decisions` : ''}`} defaultOpen>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                  {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
+                </div>
                 {entryGroups.map(({ entryId, nodes: groupNodes, trace }) => (
                   <div key={entryId}>
                     {/* Moderator deliberation banner */}
@@ -887,24 +925,25 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     })}
                   </div>
                 ))}
-              </Section>
+              </div>
             );
           })()}
 
           {/* Commitments */}
-          {commitments && Object.keys(commitments).length > 0 && (
-            <Section title="Commitment Stores" defaultOpen>
+          {overviewTab === 'commitments' && commitments && Object.keys(commitments).length > 0 && (
+            <div>
               {Object.entries(commitments).map(([pov, store]) => (
                 <div key={pov} style={{ margin: '4px 0' }}>
                   <strong>{speakerLabel(pov)}</strong>: Asserted {store.asserted.length} | Conceded {store.conceded.length} | Challenged {store.challenged.length}
                 </div>
               ))}
-            </Section>
+            </div>
           )}
 
           {/* Transcript list for selection */}
-          <Section title={`Transcript (${debate.transcript.length} entries)`} defaultOpen>
-            {debate.transcript.map((e, i) => {
+          {overviewTab === 'transcript' && (
+            <div>
+              {debate.transcript.map((e, i) => {
               const stmtId = `S${i + 1}`;
               return (
                 <div
@@ -927,7 +966,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 </div>
               );
             })}
-          </Section>
+            </div>
+          )}
         </>
       )}
 
