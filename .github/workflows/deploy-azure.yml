@@ -46,7 +46,9 @@ jobs:
           parameters: >-
             containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
+            googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
+            githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
 
       - name: Update CORS with app URL
         run: |

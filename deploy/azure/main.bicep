@@ -28,9 +28,10 @@ param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 param uniqueSuffix string = uniqueString(resourceGroup().id)
 
 // ── OAuth identity providers ──
-// Client IDs are not sensitive, but we still mark them @secure() to keep them
-// out of deployment logs. Client secrets must already exist in the container
-// app secret store under the names below; Bicep only references them.
+// Bicep owns the container app's secret store. Pass the client secrets as
+// secure params at deploy time (the workflow reads them from GH Actions
+// secrets). If a param is empty, the corresponding provider self-disables
+// below and its secret is omitted.
 
 @description('Google OAuth 2.0 client ID (from https://console.cloud.google.com)')
 param googleClientId string = ''
@@ -38,11 +39,22 @@ param googleClientId string = ''
 @description('GitHub OAuth app client ID (from https://github.com/settings/developers)')
 param githubClientId string = ''
 
-@description('Name of the container-app secret holding the Google client secret')
-param googleClientSecretName string = 'google-client-secret'
+@secure()
+@description('Google OAuth 2.0 client secret')
+param googleClientSecret string = ''
 
-@description('Name of the container-app secret holding the GitHub client secret')
-param githubClientSecretName string = 'github-client-secret'
+@secure()
+@description('GitHub OAuth app client secret')
+param githubClientSecret string = ''
+
+var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
+var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
+var googleClientSecretName = 'google-client-secret'
+var githubClientSecretName = 'github-client-secret'
+var oauthSecrets = concat(
+  googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
+  githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : []
+)
 
 // ── Log Analytics ──
 
@@ -125,6 +137,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'auto' // supports both HTTP and WebSocket
         allowInsecure: false
       }
+      secrets: oauthSecrets
     }
     template: {
       containers: [
@@ -205,7 +218,7 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
     }
     identityProviders: {
       google: {
-        enabled: !empty(googleClientId)
+        enabled: googleEnabled
         registration: {
           clientId: googleClientId
           clientSecretSettingName: googleClientSecretName
@@ -215,7 +228,7 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
         }
       }
       gitHub: {
-        enabled: !empty(githubClientId)
+        enabled: githubEnabled
         registration: {
           clientId: githubClientId
           clientSecretSettingName: githubClientSecretName
