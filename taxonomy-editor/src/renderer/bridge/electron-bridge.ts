@@ -92,6 +92,7 @@ export const api: AppAPI = {
 
   // Diagnostics
   openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),
+  openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),
   closeDiagnosticsWindow: () => window.electronAPI.closeDiagnosticsWindow(),
   sendDiagnosticsState: (s) => window.electronAPI.sendDiagnosticsState(s),
   getCliFileArg: () => window.electronAPI.getCliFileArg(),

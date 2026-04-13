@@ -15,6 +15,7 @@ import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
+import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 
@@ -130,6 +131,9 @@ export function App() {
   // If this window was opened as a diagnostics popout, render only that
   if (window.location.hash === '#diagnostics-window') {
     return <ErrorBoundary><DiagnosticsWindow /></ErrorBoundary>;
+  }
+  if (window.location.hash === '#pov-progression-window') {
+    return <ErrorBoundary><PovProgressionWindow /></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app

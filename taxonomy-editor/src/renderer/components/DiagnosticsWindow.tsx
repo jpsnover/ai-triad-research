@@ -722,6 +722,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
+          onClick={async () => {
+            await api.openPovProgressionWindow();
+            // Re-broadcast current state so the new popout receives it
+            setTimeout(() => api.sendDiagnosticsState({ debate, selectedEntry }), 1000);
+          }}
+          title="Show how each POV's taxonomy context and citations evolve across turns"
+          style={{ background: 'none', color: '#8b5cf6', border: '1px solid #8b5cf6', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          POV Progression
+        </button>
+        <button
           onClick={() => setShowHelp(!showHelp)}
           style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
         >

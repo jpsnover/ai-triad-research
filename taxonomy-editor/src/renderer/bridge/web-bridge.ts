@@ -277,6 +277,9 @@ export const api: AppAPI = {
     // Open diagnostics in a new browser tab using the hash the App checks for
     window.open(`${location.origin}/#diagnostics-window`, '_blank');
   },
+  openPovProgressionWindow: async () => {
+    window.open(`${location.origin}/#pov-progression-window`, '_blank');
+  },
   closeDiagnosticsWindow: async () => {
     diagChannel?.postMessage({ type: 'diagnostics-closed' });
   },

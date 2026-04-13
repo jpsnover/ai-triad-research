@@ -1372,6 +1372,16 @@ export function DiagnosticsPanel() {
             }} style={{ fontSize: '0.65rem' }} title="Open in separate window">
               Popout
             </button>
+            <button className="btn btn-sm" onClick={async () => {
+              await api.openPovProgressionWindow();
+              const debate = useDebateStore.getState().activeDebate;
+              const entry = useDebateStore.getState().selectedDiagEntry;
+              setTimeout(() => {
+                api.sendDiagnosticsState({ debate, selectedEntry: entry });
+              }, 1000);
+            }} style={{ fontSize: '0.65rem' }} title="Show how each POV's taxonomy context and citations evolve across turns">
+              POV Progression
+            </button>
           </div>
         </div>
         <div className="diagnostics-panel-body">
