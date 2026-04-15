@@ -3,6 +3,11 @@
   "version": "0.6.6",
   "private": true,
   "description": "Visual editor for AI Triad Research taxonomy JSON files",
+  "homepage": "https://github.com/jpsnover/ai-triad-research",
+  "author": {
+    "name": "Jeffrey Snover",
+    "email": "jsnover13@gmail.com"
+  },
   "main": "dist/main/taxonomy-editor/src/main/main.js",
   "scripts": {
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",

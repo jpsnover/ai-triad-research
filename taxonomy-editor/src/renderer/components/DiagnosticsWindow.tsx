@@ -625,9 +625,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details';
-  const [entryTab, setEntryTab] = useState<EntryTab>('tax-refs');
+  const [entryTab, setEntryTab] = useState<EntryTab>('details');
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript';
-  const [overviewTab, setOverviewTab] = useState<OverviewTab>('transcript');
+  const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   // Reset the tax-ref detail panel whenever the selected transcript entry changes
@@ -755,10 +755,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
             const tabs: { id: OverviewTab; label: string; badge?: string; visible: boolean }[] = [
-              { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
               { id: 'argument-network', label: 'Argument Network', visible: hasAn },
               { id: 'commitments', label: 'Commitments', visible: hasCommitments },
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
+              { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
             ];
             const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
             const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';

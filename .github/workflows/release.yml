@@ -13,6 +13,39 @@ env:
   PWSH_VERSION: '7.5'
 
 jobs:
+  # ── Resolve effective version ─────────────────────────────
+  # Checks PSGallery for the module and bumps the patch number
+  # if the manifest version is already published. The resolved
+  # version is applied by later jobs to the PS manifest and
+  # taxonomy-editor/package.json so all artifacts stay aligned.
+  resolve-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version vs PSGallery
+        id: resolve
+        shell: pwsh
+        run: |
+          $manifest = Import-PowerShellDataFile ./scripts/AITriad/AITriad.psd1
+          $current = [version]$manifest.ModuleVersion
+          try {
+            $gallery = Find-Module -Name AITriad -Repository PSGallery -ErrorAction Stop
+            $galleryVer = [version]$gallery.Version
+          } catch {
+            $galleryVer = [version]'0.0.0'
+          }
+          if ($current -le $galleryVer) {
+            $new = [version]::new($galleryVer.Major, $galleryVer.Minor, $galleryVer.Build + 1)
+            Write-Host "Manifest $current <= gallery $galleryVer — bumping to $new"
+          } else {
+            $new = $current
+            Write-Host "Manifest $current > gallery $galleryVer — using manifest version"
+          }
+          "version=$new" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
   # ── Run Pester tests ──────────────────────────────────────
   test:
     runs-on: ubuntu-latest
@@ -45,10 +78,20 @@ jobs:
 
   # ── Build PowerShell module ───────────────────────────────
   build-ps-module:
-    needs: test
+    needs: [test, resolve-version]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Apply resolved version to manifest
+        shell: pwsh
+        run: |
+          $psd1 = './scripts/AITriad/AITriad.psd1'
+          (Get-Content $psd1 -Raw) -replace "ModuleVersion\s*=\s*'[^']+'", "ModuleVersion = '$env:RELEASE_VERSION'" |
+            Set-Content $psd1 -NoNewline
+          Write-Host "Set ModuleVersion = $env:RELEASE_VERSION in $psd1"
 
       - name: Build module
         shell: pwsh
@@ -74,14 +117,20 @@ jobs:
 
   # ── Build Electron app (macOS) ────────────────────────────
   build-electron-mac:
-    needs: test
+    needs: [test, resolve-version]
     runs-on: macos-latest
+    env:
+      RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      - name: Apply resolved version to package.json
+        working-directory: taxonomy-editor
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
         working-directory: taxonomy-editor
@@ -105,14 +154,20 @@ jobs:
 
   # ── Build Electron app (Windows) ──────────────────────────
   build-electron-win:
-    needs: test
+    needs: [test, resolve-version]
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      - name: Apply resolved version to package.json
+        working-directory: taxonomy-editor
+        run: npm version "$env:RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
         working-directory: taxonomy-editor
@@ -136,14 +191,20 @@ jobs:
 
   # ── Build Electron app (Linux) ────────────────────────────
   build-electron-linux:
-    needs: test
+    needs: [test, resolve-version]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      - name: Apply resolved version to package.json
+        working-directory: taxonomy-editor
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
         working-directory: taxonomy-editor

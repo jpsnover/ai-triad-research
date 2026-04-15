@@ -295,12 +295,6 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         >
           Content
         </button>
-        <button
-          className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
-          onClick={() => setActiveTab('related')}
-        >
-          Related
-        </button>
         {hasGraphAttrs && (
           <button
             className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
@@ -309,6 +303,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             Attributes
           </button>
         )}
+        <button
+          className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('related')}
+        >
+          Related
+        </button>
         <button
           className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('sources')}

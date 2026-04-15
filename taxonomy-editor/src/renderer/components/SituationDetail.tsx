@@ -31,11 +31,11 @@ type SitTab = 'overview' | 'attributes' | 'sources' | 'research' | 'acceleration
 const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
   { id: 'attributes', label: 'Attributes', color: 'var(--text-primary)' },
-  { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
-  { id: 'research', label: 'Research', color: 'var(--text-primary)' },
   { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
   { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
   { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
+  { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
+  { id: 'research', label: 'Research', color: 'var(--text-primary)' },
 ];
 
 const POV_TITLES: Record<string, string> = {

@@ -65,6 +65,10 @@ export function Toolbar() {
 
   const switchTab = (tab: 'situations' | 'conflicts' | 'debate' | 'chat' | 'summaries') => {
     clearCurrentPanel();
+    // NodeDetail's Related tab sets relatedNodeId without setting toolbarPanel.
+    // Clear it so the next tab's effects don't re-open a Related view on a
+    // leftover node id.
+    useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
     setActiveTab(tab);
   };

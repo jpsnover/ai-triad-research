@@ -690,6 +690,23 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
 
   const turns = useMemo(() => session ? buildTimeline(session) : [], [session]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Skip when typing in an input/textarea/contenteditable
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === 'ArrowLeft') {
+        setSelectedTurn(i => Math.max(0, Math.min(i, turns.length - 1) - 1));
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight') {
+        setSelectedTurn(i => Math.min(turns.length - 1, Math.min(i, turns.length - 1) + 1));
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [turns.length]);
+
   if (!session) {
     return (
       <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -708,23 +725,6 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
 
   const safeSelected = Math.min(selectedTurn, turns.length - 1);
   const curr = turns[safeSelected];
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // Skip when typing in an input/textarea/contenteditable
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      if (e.key === 'ArrowLeft') {
-        setSelectedTurn(i => Math.max(0, Math.min(i, turns.length - 1) - 1));
-        e.preventDefault();
-      } else if (e.key === 'ArrowRight') {
-        setSelectedTurn(i => Math.min(turns.length - 1, Math.min(i, turns.length - 1) + 1));
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [turns.length]);
   const prevForDiff: TurnSnapshot | null =
     mode === 'snapshot' ? null :
     mode === 'since-opening' ? (turns[0] !== curr ? turns[0] : null) :
