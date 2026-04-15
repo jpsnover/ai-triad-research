@@ -49,7 +49,7 @@ function loadDataConfig(): AiTriadConfig {
   for (const configPath of searchPaths) {
     try {
       if (fs.existsSync(configPath)) {
-        const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
         console.log(`[fileIO] Loaded config from ${configPath}`);
         return { ...defaults, ...raw };
       }
@@ -71,7 +71,7 @@ export function resolveDataPath(subPath: string): string {
 
 /** Parse JSON with diagnostic error messages that identify the problem and suggest a fix. */
 function parseJsonFile(filePath: string): unknown {
-  const raw = fs.readFileSync(filePath, 'utf-8');
+  const raw = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
   try {
     return JSON.parse(raw);
   } catch (err) {
@@ -176,7 +176,7 @@ export function discoverSources(): DiscoveredSource[] {
     if (!fs.existsSync(metaPath)) continue;
 
     try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8').replace(/^\uFEFF/, ''));
 
       // Check if summary exists — only include sources with summaries
       const summaryPath = path.join(SUMMARIES_DIR, `${dir.name}.json`);
@@ -259,7 +259,7 @@ export function loadTaxonomy(): Record<string, TaxonomyNode> {
 
   for (const file of files) {
     try {
-      const raw = JSON.parse(fs.readFileSync(path.join(activeTaxonomyDir, file), 'utf-8'));
+      const raw = JSON.parse(fs.readFileSync(path.join(activeTaxonomyDir, file), 'utf-8').replace(/^\uFEFF/, ''));
       if (!Array.isArray(raw.nodes)) continue;
       for (const node of raw.nodes) {
         if (node.id) {
@@ -284,7 +284,7 @@ export function readPolicyRegistry(): unknown {
   const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
   if (!fs.existsSync(filePath)) return null;
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, ''));
   } catch {
     return null;
   }
@@ -305,10 +305,13 @@ const POV_PREFIX_MAP: Record<string, string> = {
 };
 
 const CATEGORY_PREFIX_MAP: Record<string, string> = {
-  'Desires': 'goals',
-  'Beliefs': 'data',
-  'Intentions': 'methods',
+  'Desires': 'desires',
+  'Beliefs': 'beliefs',
+  'Intentions': 'intentions',
 };
+
+/** Valid ID shapes per the taxonomy schema. Situations: cc-NNN. POV: {acc|saf|skp}-{desires|beliefs|intentions}-NNN. */
+const NODE_ID_PATTERN = /^(acc|saf|skp)-(desires|beliefs|intentions)-\d{3}$|^cc-\d{3}$/;
 
 export interface AddTaxonomyNodeRequest {
   pov: string;
@@ -353,7 +356,7 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
   }
 
   try {
-    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, ''));
     if (!Array.isArray(raw.nodes)) {
       return { success: false, nodeId: '', error: 'Taxonomy file has no nodes array' };
     }
@@ -399,6 +402,14 @@ export function addTaxonomyNode(req: AddTaxonomyNodeRequest): AddTaxonomyNodeRes
         }
       }
       newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+    }
+
+    if (!NODE_ID_PATTERN.test(newId)) {
+      return {
+        success: false,
+        nodeId: '',
+        error: `Generated node ID "${newId}" does not conform to the taxonomy schema (expected {acc|saf|skp}-{desires|beliefs|intentions}-NNN or cc-NNN). Refusing to write. Check pov="${req.pov}" and category="${req.category}".`,
+      };
     }
 
     const newNode = isCrossCutting

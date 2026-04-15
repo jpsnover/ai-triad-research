@@ -82,7 +82,7 @@ function loadConfig(repoRoot: string): AiTriadConfig {
     );
   }
   try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
   } catch (err) {
     throw new Error(
       `Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}\n` +
@@ -99,7 +99,7 @@ function loadJsonSafe<T>(filePath: string, fallback: T): T {
     return fallback;
   }
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '')) as T;
   } catch (err) {
     process.stderr.write(`[taxonomy-loader] Warning: Failed to parse ${filePath}: ${err instanceof Error ? err.message : err} — using empty default\n`);
     return fallback;
