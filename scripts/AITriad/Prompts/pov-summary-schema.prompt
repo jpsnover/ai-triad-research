@@ -101,6 +101,9 @@
       "reason": "<why this concept deserves a new taxonomy node>"
     },
     {
+      "suggested_label": "<concise 5-10 word plain-language label, e.g. 'The Writing-Thinking Gap'>",
+      "suggested_description": "<3-line genus-differentia description for a situation concept. Line 1: 'A situation concept that [differentia].' Line 2: 'Encompasses: ...'. Line 3: 'Excludes: ...'. Separated by \\n.>",
+      "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "situations",
       "suggested_category": "Beliefs",
       "reason": "<why this concept deserves a new taxonomy node>",
