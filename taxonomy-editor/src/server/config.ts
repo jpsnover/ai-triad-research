@@ -98,73 +98,39 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
   groq: 'GROQ_API_KEY',
 };
 
+// Imported after AIBackend is defined (keyStore depends on the type).
+import { getKeyStore } from './keyStore';
+import { getCurrentUserId } from './userContext';
+
 /**
  * Resolve an API key for the given backend.
- * Priority: backend-specific env var → encrypted store file → AI_API_KEY fallback.
+ * Priority: backend-specific env var → keyStore (local file or Azure KV) → AI_API_KEY fallback.
+ *
+ * In Azure (AZURE_KEYVAULT_URL set), keys are partitioned per authenticated
+ * user via getCurrentUserId(). Locally, a single shared key is used per backend.
  */
-export function getApiKey(backend: AIBackend = 'gemini'): string | null {
-  // 1. Backend-specific env var
+export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string | null> {
   const envKey = process.env[ENV_KEY_NAMES[backend]];
   if (envKey) return envKey;
 
-  // 2. Encrypted key store (file-based, in data volume)
   try {
-    const keyFile = path.join(getDataRoot(), `.aitriad-key-${backend}.enc`);
-    if (fs.existsSync(keyFile)) {
-      return decryptKeyFile(keyFile);
-    }
-  } catch { /* fall through */ }
+    const stored = await getKeyStore(getDataRoot).get(backend, getCurrentUserId());
+    if (stored) return stored;
+  } catch (err) {
+    console.warn(`[config] getApiKey(${backend}) failed:`, err);
+  }
 
-  // 3. Universal fallback
   if (process.env.AI_API_KEY) return process.env.AI_API_KEY;
 
   return null;
 }
 
-export function hasApiKey(backend: AIBackend = 'gemini'): boolean {
-  return getApiKey(backend) !== null;
+export async function hasApiKey(backend: AIBackend = 'gemini'): Promise<boolean> {
+  return (await getApiKey(backend)) !== null;
 }
 
-export function storeApiKey(key: string, backend: AIBackend = 'gemini'): void {
-  const keyFile = path.join(getDataRoot(), `.aitriad-key-${backend}.enc`);
-  encryptKeyFile(keyFile, key);
-}
-
-// ── Simple file-based key encryption ──
-// Uses AES-256-GCM with a machine-derived key. Not as strong as Electron
-// safeStorage (OS keychain), but keeps keys encrypted at rest.
-
-import crypto from 'crypto';
-
-function getDerivedKey(): Buffer {
-  // Derive from a stable machine identifier. In Docker, the container ID
-  // is stable for the lifetime of the volume mount.
-  const hostname = require('os').hostname();
-  const salt = 'aitriad-server-key-v1';
-  return crypto.pbkdf2Sync(hostname + salt, salt, 100_000, 32, 'sha256');
-}
-
-function encryptKeyFile(filePath: string, plaintext: string): void {
-  const key = getDerivedKey();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  // Format: iv (16) + tag (16) + ciphertext
-  const combined = Buffer.concat([iv, tag, encrypted]);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, combined);
-}
-
-function decryptKeyFile(filePath: string): string {
-  const combined = fs.readFileSync(filePath);
-  const iv = combined.subarray(0, 16);
-  const tag = combined.subarray(16, 32);
-  const encrypted = combined.subarray(32);
-  const key = getDerivedKey();
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final('utf-8');
+export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): Promise<void> {
+  await getKeyStore(getDataRoot).set(backend, getCurrentUserId(), key);
 }
 
 // ── Server settings ──

@@ -10,9 +10,10 @@
 //
 // Resources created:
 //   - Container Apps Environment (serverless, scale-to-zero)
-//   - Container App (the Taxonomy Editor)
+//   - Container App (the Taxonomy Editor, system-assigned managed identity)
 //   - Storage Account + Azure Files share (persistent data)
 //   - Log Analytics Workspace (diagnostics)
+//   - Key Vault (per-user BYOK secrets, accessed via managed identity)
 //
 // Usage:
 //   az deployment group create -g ai-triad -f main.bicep
@@ -93,6 +94,25 @@ resource dataShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-0
   }
 }
 
+// ── Key Vault (per-user BYOK secrets) ──
+// Uses RBAC authorization; the container app's system-assigned managed
+// identity is granted 'Key Vault Secrets Officer' on this vault below.
+// Secret names: apikey-<backend>-<sha256(principal)[:32]>
+
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: 'kv-ait-${uniqueSuffix}'
+  location: location
+  properties: {
+    tenantId: subscription().tenantId
+    sku: { family: 'A', name: 'standard' }
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+    enablePurgeProtection: true
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
 // ── Container Apps Environment ──
 
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -128,6 +148,9 @@ resource storageMount 'Microsoft.App/managedEnvironments/storages@2024-03-01' = 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
@@ -153,8 +176,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ALLOWED_ORIGINS', value: '' } // Set after deployment: https://<app-fqdn>
             { name: 'HOME', value: '/home/aitriad' }
             { name: 'NODE_ENV', value: 'production' }
-            // No API keys here — BYOK model: users enter keys via the app UI.
-            // Keys are encrypted (AES-256-GCM) and stored on the data volume.
+            // BYOK model: users enter keys via the app UI. In Azure the server
+            // routes them to Key Vault (one secret per user+backend), accessed
+            // via the container app's system-assigned managed identity.
+            { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }
@@ -193,6 +218,22 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         ]
       }
     }
+  }
+}
+
+// ── Role assignment: container app → Key Vault ──
+// Grants 'Key Vault Secrets Officer' (get/set/delete secrets) to the
+// container app's system-assigned managed identity on this vault only.
+
+var kvSecretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+
+resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, containerApp.id, kvSecretsOfficerRoleId)
+  properties: {
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
   }
 }
 
@@ -254,3 +295,5 @@ output appName string = containerApp.name
 output resourceGroup string = resourceGroup().name
 output storageAccountName string = storageAccount.name
 output fileShareName string = dataShare.name
+output keyVaultName string = keyVault.name
+output keyVaultUri string = keyVault.properties.vaultUri

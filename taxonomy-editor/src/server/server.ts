@@ -16,6 +16,7 @@ import {
   PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
 } from './config';
+import { runWithUser } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
 
@@ -266,14 +267,14 @@ post('/api/models/refresh', async (_req, res) => {
   } catch (err) { error(res, String(err)); }
 });
 
-get('/api/keys/has', (req, res) => {
+get('/api/keys/has', async (req, res) => {
   const backend = (query(req, 'backend') || 'gemini') as AIBackend;
-  json(res, hasApiKey(backend));
+  json(res, await hasApiKey(backend));
 });
 
-post('/api/keys', (_req, res, body) => {
+post('/api/keys', async (_req, res, body) => {
   const { key, backend } = body as { key: string; backend?: string };
-  storeApiKey(key, (backend || 'gemini') as AIBackend);
+  await storeApiKey(key, (backend || 'gemini') as AIBackend);
   json(res, { ok: true });
 });
 
@@ -746,6 +747,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
+  // Extract Easy Auth headers up front so the per-request user context is
+  // available to deep call sites (keyStore, AI backends) via AsyncLocalStorage.
+  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+
   // Auth gate — only enforced when authorized-users.json exists
   const urlPath = req.url?.split('?')[0] || '';
   // /api/models is public: lets the pre-auth renderer populate the model
@@ -755,9 +761,6 @@ const server = http.createServer(async (req, res) => {
   // Use only for temporary recovery when the allowlist is misconfigured.
   const authDisabled = process.env.AUTH_DISABLED === '1';
   if (!isPublicPath && !authDisabled && getAuthorizedUsers()) {
-    const principalName = req.headers['x-ms-client-principal-name'] as string || '';
-    const idp = req.headers['x-ms-client-principal-idp'] as string || '';
-
     if (!principalName) {
       // Not authenticated — serve login picker
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -773,27 +776,34 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  const url = new URL(req.url!, 'http://localhost');
-  const route = matchRoute(req.method!, url.pathname);
+  // Run the remainder of request handling inside a user context so that
+  // getCurrentUserId() inside getApiKey()/storeApiKey() sees the caller.
+  // Unauthenticated paths (local dev, kill-switch, public endpoints) fall
+  // back to '_local' — which keyStore ignores in local-file mode.
+  const userCtx = { principalName: principalName || '_local', idp: idp || '_local' };
+  await runWithUser(userCtx, async () => {
+    const url = new URL(req.url!, 'http://localhost');
+    const route = matchRoute(req.method!, url.pathname);
 
-  if (route) {
-    try {
-      const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
-      await route.handler(req, res, body);
-    } catch (err) {
-      console.error(`[server] Error handling ${req.method} ${url.pathname}:`, err);
-      error(res, String(err));
+    if (route) {
+      try {
+        const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
+        await route.handler(req, res, body);
+      } catch (err) {
+        console.error(`[server] Error handling ${req.method} ${url.pathname}:`, err);
+        error(res, String(err));
+      }
+      return;
     }
-    return;
-  }
 
-  // Static file serving (SPA)
-  if (req.method === 'GET') {
-    if (serveStatic(req, res)) return;
-  }
+    // Static file serving (SPA)
+    if (req.method === 'GET') {
+      if (serveStatic(req, res)) return;
+    }
 
-  res.writeHead(404);
-  res.end('Not Found');
+    res.writeHead(404);
+    res.end('Not Found');
+  });
 });
 
 // ── WebSocket: Terminal ──

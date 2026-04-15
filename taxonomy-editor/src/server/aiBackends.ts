@@ -225,7 +225,7 @@ export async function generateText(
 ): Promise<string> {
   const resolved = model || 'gemini-3.1-flash-lite-preview';
   const backend = resolveBackend(resolved);
-  const apiKey = getApiKey(backend);
+  const apiKey = await getApiKey(backend);
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
@@ -249,7 +249,7 @@ export async function generateTextWithSearch(
     return { text };
   }
 
-  const apiKey = getApiKey('gemini');
+  const apiKey = await getApiKey('gemini');
   if (!apiKey) throw new Error('No Gemini API key configured.');
 
   const apiModel = getApiModelId(resolved);
@@ -361,7 +361,7 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
   }
 
   if (missing.length > 0) {
-    const apiKey = getApiKey('gemini');
+    const apiKey = await getApiKey('gemini');
     if (!apiKey) throw new Error('No Gemini API key for embeddings.');
     const missingTexts = missing.map(i => texts[i]);
     const all: number[][] = [];
@@ -392,7 +392,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
   try {
     return await computeQueryViaLocalPython(text);
   } catch {
-    const apiKey = getApiKey('gemini');
+    const apiKey = await getApiKey('gemini');
     if (!apiKey) throw new Error('No Gemini API key and Python unavailable for embeddings.');
     const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
     return vectors[0];
@@ -446,7 +446,7 @@ export async function refreshAIModels(): Promise<unknown> {
   // For the container, models are pre-configured. This just validates keys work.
   const result: Record<string, { ok: boolean; count: number; error?: string }> = {};
   for (const backend of ['gemini', 'claude', 'groq'] as AIBackend[]) {
-    const key = getApiKey(backend);
+    const key = await getApiKey(backend);
     if (!key) { result[backend] = { ok: false, count: 0, error: 'No API key' }; continue; }
     try {
       if (backend === 'gemini') {
