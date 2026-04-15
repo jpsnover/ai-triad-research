@@ -148,12 +148,12 @@ foreach ($rw in $rewrites) {
 # Write updated files
 foreach ($key in $summaryCache.Keys) {
     $path = Join-Path $SummariesDir $key
-    $summaryCache[$key] | ConvertTo-Json -Depth 20 | Set-Content -Path $path -Encoding UTF8
+    $summaryCache[$key] | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $path 
     Write-Host "  Updated: summaries/$key"
 }
 foreach ($key in $taxCache.Keys) {
     $path = Join-Path $TaxDir $key
-    $taxCache[$key] | ConvertTo-Json -Depth 20 | Set-Content -Path $path -Encoding UTF8
+    $taxCache[$key] | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $path 
     Write-Host "  Updated: taxonomy/Origin/$key"
 }
 

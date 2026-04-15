@@ -168,7 +168,7 @@ function Update-PolicyRegistry {
                         }
                     }
                 }
-                $FileData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+                $FileData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $FilePath 
                 Write-Info "  Assigned $NewId to $($U.NodeId)`: $($U.Action.Substring(0, [Math]::Min(50, $U.Action.Length)))"
             }
         }
@@ -212,7 +212,7 @@ function Update-PolicyRegistry {
         }
 
         if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write rebuilt policy registry')) {
-            $NewRegistry | ConvertTo-Json -Depth 10 | Set-Content -Path $RegistryPath -Encoding UTF8
+            $NewRegistry | ConvertTo-Json -Depth 10 | Write-Utf8NoBom -Path $RegistryPath 
             Write-OK "Registry saved: $($ExistingPolicies.Count) policies"
         }
     }

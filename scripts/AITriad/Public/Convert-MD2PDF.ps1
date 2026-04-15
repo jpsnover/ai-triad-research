@@ -217,7 +217,7 @@ No PDF engine found. Install one of:
                         elseif ($PdfEngine -in @('xelatex', 'lualatex', 'pdflatex')) {
                             # Create a temp LaTeX header with xcolor package for colored text
                             $TexHeader = Join-Path ([System.IO.Path]::GetTempPath()) "pandoc-header-$([guid]::NewGuid().ToString('N').Substring(0,8)).tex"
-                            Set-Content -Path $TexHeader -Value '\usepackage[dvipsnames]{xcolor}' -Encoding UTF8
+                            Write-Utf8NoBom -Path $TexHeader -Value '\usepackage[dvipsnames]{xcolor}' 
                             $PandocArgs += @(
                                 '-V', "geometry:margin=$Margin"
                                 '-V', "papersize:$PaperSize"

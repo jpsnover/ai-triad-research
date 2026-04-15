@@ -36,7 +36,7 @@
 .EXAMPLE
     & pdftotext document.pdf output.txt
     $Md = Optimize-PdfText -RawText (Get-Content output.txt -Raw)
-    $Md | Set-Content snapshot.md
+    $Md | Write-Utf8NoBom -Path snapshot.md
 #>
 function Optimize-PdfText {
     param([Parameter(Mandatory)][string]$RawText)

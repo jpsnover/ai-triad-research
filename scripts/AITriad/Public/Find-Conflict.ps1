@@ -150,7 +150,7 @@ function Find-Conflict {
                         $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
                         $conflictData["linked_taxonomy_nodes"] = $merged
                     }
-                    Set-Content -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
+                    Write-Utf8NoBom -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) 
                     Write-OK "  Appended to existing conflict: $hintId"
                     $appended++
                 }
@@ -165,7 +165,7 @@ function Find-Conflict {
                     instances             = @($newInstance)
                     human_notes           = @()
                 }
-                Set-Content -Path $existingPath -Value ($newConflict | ConvertTo-Json -Depth 10) -Encoding UTF8
+                Write-Utf8NoBom -Path $existingPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
                 Write-OK "  Created new conflict file: $hintId.json"
                 $created++
             }
@@ -200,7 +200,7 @@ function Find-Conflict {
                         $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
                         $conflictData["linked_taxonomy_nodes"] = $merged
                     }
-                    Set-Content -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
+                    Write-Utf8NoBom -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) 
                     Write-OK "  Appended to fuzzy-matched conflict: $($existingMatch.BaseName)"
                     $appended++
                 }
@@ -215,7 +215,7 @@ function Find-Conflict {
                     instances             = @($newInstance)
                     human_notes           = @()
                 }
-                Set-Content -Path $newConflictPath -Value ($newConflict | ConvertTo-Json -Depth 10) -Encoding UTF8
+                Write-Utf8NoBom -Path $newConflictPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
                 Write-OK "  Created new conflict file: $newId.json"
                 $created++
             }

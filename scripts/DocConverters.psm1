@@ -61,7 +61,7 @@ function Test-ExternalTool {
     conversion but available for future link resolution).
 .EXAMPLE
     $Md = ConvertFrom-Html -Html (Invoke-WebRequest 'https://example.com/article').Content
-    $Md | Set-Content snapshot.md
+    $Md | Write-Utf8NoBom -Path snapshot.md
 
     Converts a fetched web page to Markdown.
 .EXAMPLE
@@ -80,7 +80,7 @@ function ConvertFrom-Html {
         $TempIn  = [System.IO.Path]::GetTempFileName() + '.html'
         $TempOut = [System.IO.Path]::GetTempFileName() + '.md'
         try {
-            Set-Content -Path $TempIn -Value $Html -Encoding UTF8
+            Write-Utf8NoBom -Path $TempIn -Value $Html 
             & pandoc $TempIn -f html -t markdown_strict --wrap=none -o $TempOut 2>$null
             if (Test-Path $TempOut) {
                 $md = Get-Content $TempOut -Raw
@@ -313,7 +313,7 @@ function ConvertFrom-MarkItDown {
     Absolute path to the PDF file to convert.
 .EXAMPLE
     $Md = ConvertFrom-Pdf -PdfPath '/path/to/document.pdf'
-    $Md | Set-Content snapshot.md
+    $Md | Write-Utf8NoBom -Path snapshot.md
 
 .EXAMPLE
     $Md = ConvertFrom-Pdf -PdfPath $RawFile
@@ -375,7 +375,7 @@ function ConvertFrom-Pdf {
 
 .EXAMPLE
     $Md = ConvertFrom-Docx -DocxPath $File.FullName
-    if ($Md -notmatch 'EXTRACTION FAILED') { Set-Content snapshot.md $Md }
+    if ($Md -notmatch 'EXTRACTION FAILED') { Write-Utf8NoBom -Path snapshot.md -Value $Md }
 #>
 function ConvertFrom-Docx {
     param(

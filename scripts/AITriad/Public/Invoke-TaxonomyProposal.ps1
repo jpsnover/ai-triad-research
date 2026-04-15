@@ -306,7 +306,7 @@ $QueueBlock
             $DebugPath = Join-Path (Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals') "proposal-debug-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
             $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
             if (-not (Test-Path $ProposalsDir)) { New-Item -ItemType Directory -Path $ProposalsDir -Force | Out-Null }
-            Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
+            Write-Utf8NoBom -Path $DebugPath -Value $RawText 
             Write-Fail "AI returned invalid JSON. Raw response saved: $DebugPath"
             throw "AI returned invalid JSON for taxonomy proposal"
         }
@@ -345,7 +345,7 @@ $QueueBlock
 
     $ProposalJson = $FinalProposal | ConvertTo-Json -Depth 20
     try {
-        Set-Content -Path $OutputFile -Value $ProposalJson -Encoding UTF8
+        Write-Utf8NoBom -Path $OutputFile -Value $ProposalJson 
         Write-OK "Proposal written to: $OutputFile"
     }
     catch {

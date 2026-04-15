@@ -466,7 +466,7 @@ $SchemaPrompt
 
     $Json = $OutputObj | ConvertTo-Json -Depth 30
     if ($PSCmdlet.ShouldProcess($OutputFile, 'Write hierarchy proposal')) {
-        Set-Content -Path $OutputFile -Value $Json -Encoding UTF8
+        Write-Utf8NoBom -Path $OutputFile -Value $Json 
         Write-Step 'Done'
         Write-OK "Proposal saved to $OutputFile"
     }
@@ -570,7 +570,7 @@ $SchemaPrompt
     }
 
     if ($PSCmdlet.ShouldProcess($ReviewFile, 'Write review Markdown')) {
-        Set-Content -Path $ReviewFile -Value $Md.ToString() -Encoding UTF8
+        Write-Utf8NoBom -Path $ReviewFile -Value $Md.ToString() 
         Write-OK "Review document saved to $ReviewFile"
     }
 

@@ -283,7 +283,7 @@ INSTRUCTIONS:
 
         # Save registry
         if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write updated policy registry')) {
-            $Registry | ConvertTo-Json -Depth 10 | Set-Content -Path $RegistryPath -Encoding UTF8
+            $Registry | ConvertTo-Json -Depth 10 | Write-Utf8NoBom -Path $RegistryPath 
             Write-OK "Registry saved: $($Registry.policies.Count) policies"
         }
 
@@ -292,7 +292,7 @@ INSTRUCTIONS:
             if (-not $TaxData.ContainsKey($PovKey)) { continue }
             $FilePath = Join-Path $TaxDir "$PovKey.json"
             if ($PSCmdlet.ShouldProcess($FilePath, 'Write updated taxonomy file')) {
-                $TaxData[$PovKey] | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+                $TaxData[$PovKey] | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $FilePath 
                 Write-OK "Saved $PovKey"
             }
         }

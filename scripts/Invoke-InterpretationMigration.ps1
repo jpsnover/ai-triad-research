@@ -177,7 +177,7 @@ if (-not $DryRun -and $migrated -gt 0) {
     Write-Host ""
     Write-Host "  Writing $migrated migrated nodes to $sitFile..." -ForegroundColor Cyan
     $sitData.last_modified = (Get-Date -Format 'yyyy-MM-dd')
-    $sitData | ConvertTo-Json -Depth 10 | Set-Content -Path $sitFile -NoNewline
+    $sitData | ConvertTo-Json -Depth 10 | Write-Utf8NoBom -Path $sitFile -NoNewline
     Write-Host "  Done." -ForegroundColor Green
 }
 

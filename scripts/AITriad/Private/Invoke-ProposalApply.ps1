@@ -278,7 +278,7 @@ function Invoke-ProposalApply {
     $Raw.last_modified = $Today
     $Json = $Raw | ConvertTo-Json -Depth 20
     try {
-        Set-Content -Path $FilePath -Value $Json -Encoding UTF8
+        Write-Utf8NoBom -Path $FilePath -Value $Json 
     }
     catch {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to write $FileName — $($_.Exception.Message)" }

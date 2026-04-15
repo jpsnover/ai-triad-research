@@ -132,7 +132,7 @@ foreach ($pov in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
     }
 
     if ($changed) {
-        $data | ConvertTo-Json -Depth 20 | Set-Content -Path $filePath -Encoding UTF8
+        $data | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $filePath 
         Write-Host "  Updated: taxonomy/Origin/$pov.json"
     }
 }

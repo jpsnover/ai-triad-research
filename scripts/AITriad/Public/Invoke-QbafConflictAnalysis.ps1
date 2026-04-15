@@ -283,7 +283,7 @@ function Invoke-QbafConflictAnalysis {
     # Write output
     $OutputFile = Join-Path $OutputDir "qbaf-analysis-$(Get-Date -Format 'yyyy-MM-dd-HHmmss').json"
     if ($PSCmdlet.ShouldProcess($OutputFile, 'Write QBAF conflict analysis')) {
-        $Output | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputFile -Encoding UTF8
+        $Output | ConvertTo-Json -Depth 10 | Write-Utf8NoBom -Path $OutputFile 
         Write-OK "Analysis saved to $OutputFile"
     }
 

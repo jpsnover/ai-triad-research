@@ -119,7 +119,7 @@ function Repair-UnmappedConcepts {
         if ($PSCmdlet.ShouldProcess($File.Name, "Remove $($ResolvedList.Count) matched concept(s) from unmapped_concepts array")) {
             $Summary.unmapped_concepts = $RemainingList
             $Json = $Summary | ConvertTo-Json -Depth 20
-            Set-Content -Path $File.FullName -Value $Json -Encoding UTF8
+            Write-Utf8NoBom -Path $File.FullName -Value $Json 
             $FilesModified++
         }
     }

@@ -614,7 +614,7 @@ init();
                             }
                             $EnvLines.Add('# powershell_section_end')
 
-                            Set-Content -Path $EnvFilePath -Value ($EnvLines -join "`n") -Encoding UTF8 -Force
+                            Write-Utf8NoBom -Path $EnvFilePath -Value ($EnvLines -join "`n")  -Force
 
                             if ($Changes.Count -gt 0) {
                                 $SaveResult.message = "Saved: $($Changes -join ', '). Persisted to $EnvFilePath"

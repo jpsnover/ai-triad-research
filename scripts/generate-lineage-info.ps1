@@ -126,7 +126,7 @@ foreach ($item in $AllResults) {
 }
 
 $outputPath = Join-Path (Join-Path $RepoRoot 'scripts') 'lineage-info-additions.ts'
-$tsLines | Set-Content -Path $outputPath -Encoding UTF8
+$tsLines | Write-Utf8NoBom -Path $outputPath 
 Write-Host "`nGenerated TypeScript fragment: $outputPath"
 Write-Host "Entries: $($AllResults.Count)"
 Write-Host "`nManually insert these before the closing '};' in intellectualLineageInfo.ts"

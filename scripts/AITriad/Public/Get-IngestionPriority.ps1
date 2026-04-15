@@ -319,7 +319,7 @@ function Get-IngestionPriority {
     if ($OutputFile) {
         try {
             $Json = $Result | ConvertTo-Json -Depth 20
-            Set-Content -Path $OutputFile -Value $Json -Encoding UTF8
+            Write-Utf8NoBom -Path $OutputFile -Value $Json 
             Write-OK "Exported to $OutputFile"
         }
         catch {

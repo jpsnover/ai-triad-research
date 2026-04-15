@@ -322,7 +322,7 @@ function Invoke-POVSummary {
 
     $summaryJson = $finalSummary | ConvertTo-Json -Depth 20
     try {
-        Set-Content -Path $paths.SummaryFile -Value $summaryJson -Encoding UTF8
+        Write-Utf8NoBom -Path $paths.SummaryFile -Value $summaryJson 
         Write-OK "Summary written to: summaries/$DocId.json"
     }
     catch {
@@ -364,7 +364,7 @@ function Invoke-POVSummary {
         $metaUpdated["total_facts"]        = $totalFacts
         $metaUpdated["unmapped_concepts"]  = $unmappedConceptCount
 
-        Set-Content -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+        Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) 
         Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
     }
     catch {
@@ -413,7 +413,7 @@ function Invoke-POVSummary {
                             $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
                             $conflictData["linked_taxonomy_nodes"] = $merged
                         }
-                        Set-Content -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
+                        Write-Utf8NoBom -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) 
                         Write-OK "  Appended to existing conflict: $hintId"
                     }
                 } else {
@@ -427,7 +427,7 @@ function Invoke-POVSummary {
                         instances              = @($newInstance)
                         human_notes            = @()
                     }
-                    Set-Content -Path $existingPath -Value ($newConflict | ConvertTo-Json -Depth 10) -Encoding UTF8
+                    Write-Utf8NoBom -Path $existingPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
                     Write-OK "  Created new conflict file: $hintId.json"
                 }
             } else {
@@ -449,7 +449,7 @@ function Invoke-POVSummary {
                             $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
                             $conflictData["linked_taxonomy_nodes"] = $merged
                         }
-                        Set-Content -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) -Encoding UTF8
+                        Write-Utf8NoBom -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) 
                         Write-OK "  Appended to fuzzy-matched conflict: $($existingMatch.BaseName)"
                     }
                 } else {
@@ -463,7 +463,7 @@ function Invoke-POVSummary {
                         instances              = @($newInstance)
                         human_notes            = @()
                     }
-                    Set-Content -Path $newConflictPath -Value ($newConflict | ConvertTo-Json -Depth 10) -Encoding UTF8
+                    Write-Utf8NoBom -Path $newConflictPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
                     Write-OK "  Created new conflict file: $newId.json"
                 }
             }

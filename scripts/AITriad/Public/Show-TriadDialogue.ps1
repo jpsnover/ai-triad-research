@@ -499,7 +499,7 @@ function Show-TriadDialogue {
 
     try {
         $Json = $DebateData | ConvertTo-Json -Depth 20
-        Set-Content -Path $TargetFile -Value $Json -Encoding UTF8
+        Write-Utf8NoBom -Path $TargetFile -Value $Json 
         Write-OK "Debate saved to: $TargetFile"
     }
     catch {

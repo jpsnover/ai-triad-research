@@ -377,7 +377,7 @@ $SchemaPrompt
                 $FileData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
                 $Json = $FileData | ConvertTo-Json -Depth 20
                 try {
-                    Set-Content -Path $FilePath -Value $Json -Encoding UTF8
+                    Write-Utf8NoBom -Path $FilePath -Value $Json 
                     Write-OK "Saved $PovKey ($FilePath)"
                 }
                 catch {
@@ -392,7 +392,7 @@ $SchemaPrompt
     if ($Registry -and $TotalProcessed -gt 0 -and -not $DryRun) {
         if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write updated policy registry')) {
             $RegistryJson = $Registry | ConvertTo-Json -Depth 10
-            Set-Content -Path $RegistryPath -Value $RegistryJson -Encoding UTF8
+            Write-Utf8NoBom -Path $RegistryPath -Value $RegistryJson 
             Write-OK "Policy registry updated: $($Registry.policies.Count) policies"
         }
     }

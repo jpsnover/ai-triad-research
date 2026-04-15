@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     $Title = $BaseName -replace '-', ' '
                     $StyleFile = Join-Path ([System.IO.Path]::GetTempPath()) "show-md-style-$(Get-Random).html"
                     try {
-                        Set-Content -Path $StyleFile -Value $script:HtmlStyle -Encoding UTF8 -ErrorAction Stop
+                        Write-Utf8NoBom -Path $StyleFile -Value $script:HtmlStyle  -ErrorAction Stop
                     } catch {
                         Write-Error "Failed to write style temp file: $_`nCheck that $([System.IO.Path]::GetTempPath()) is writable."
                         continue

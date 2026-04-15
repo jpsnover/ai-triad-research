@@ -487,7 +487,7 @@ function Measure-TaxonomyBaseline {
     $Json = $Report | ConvertTo-Json -Depth 10
 
     if ($OutputPath) {
-        Set-Content -Path $OutputPath -Value $Json -Encoding UTF8
+        Write-Utf8NoBom -Path $OutputPath -Value $Json 
         Write-Host "`n  Report saved: $OutputPath" -ForegroundColor Green
     }
 

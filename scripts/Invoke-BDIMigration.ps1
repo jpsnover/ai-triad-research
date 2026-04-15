@@ -391,7 +391,7 @@ foreach ($SetName in $FileSets.Keys) {
             # Atomic write: .tmp then move
             $TmpPath = "$($File.FullName).tmp"
             try {
-                Set-Content -Path $TmpPath -Value $NewJson -Encoding UTF8 -NoNewline
+                Write-Utf8NoBom -Path $TmpPath -Value $NewJson  -NoNewline
                 Move-Item -Path $TmpPath -Destination $File.FullName -Force
                 $AfterChecksum = Get-FileChecksum -Path $File.FullName
 
@@ -506,7 +506,7 @@ if ($DryRun) {
 }
 else {
     try {
-        Set-Content -Path $ManifestPath -Value $ManifestJson -Encoding UTF8
+        Write-Utf8NoBom -Path $ManifestPath -Value $ManifestJson 
         Write-Host "  Manifest written: $ManifestPath" -ForegroundColor Green
     }
     catch {

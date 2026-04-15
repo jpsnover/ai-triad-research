@@ -39,7 +39,7 @@ function Add-ToSummaryQueue {
     if ($DocId -notin $Queue) {
         $Queue += $DocId
         try {
-            @($Queue) | ConvertTo-Json | Set-Content $QueueFile -Encoding UTF8
+            @($Queue) | ConvertTo-Json | Write-Utf8NoBom $QueueFile 
             Write-Info "Added to summary queue: $QueueFile"
         }
         catch {

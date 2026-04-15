@@ -186,7 +186,7 @@ Return ONLY valid JSON.
 
         $NewJson = $Debate | ConvertTo-Json -Depth 30
         $TmpPath = "$($Entry.File.FullName).tmp"
-        Set-Content -Path $TmpPath -Value $NewJson -Encoding UTF8 -NoNewline
+        Write-Utf8NoBom -Path $TmpPath -Value $NewJson  -NoNewline
         Move-Item -Path $TmpPath -Destination $Entry.File.FullName -Force
 
         if ($ArgMap.PSObject.Properties['claims']) { $ClaimCount = @($ArgMap.claims).Count } else { $ClaimCount = 0 }

@@ -424,7 +424,7 @@ function Get-TaxonomyHealth {
 
         try {
             $JsonOutput = $ExportData | ConvertTo-Json -Depth 20
-            Set-Content -Path $OutputFile -Value $JsonOutput -Encoding UTF8
+            Write-Utf8NoBom -Path $OutputFile -Value $JsonOutput 
             Write-OK "Health data exported to: $OutputFile"
         }
         catch {

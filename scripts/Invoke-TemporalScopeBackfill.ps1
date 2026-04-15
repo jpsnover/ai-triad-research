@@ -194,7 +194,7 @@ Return ONLY a JSON array like:
     if (-not $DryRun -and $Classified -gt 0) {
         $NewJson = $Entry.Summary | ConvertTo-Json -Depth 30
         $TmpPath = "$($Entry.File.FullName).tmp"
-        Set-Content -Path $TmpPath -Value $NewJson -Encoding UTF8 -NoNewline
+        Write-Utf8NoBom -Path $TmpPath -Value $NewJson  -NoNewline
         Move-Item -Path $TmpPath -Destination $Entry.File.FullName -Force
     }
 

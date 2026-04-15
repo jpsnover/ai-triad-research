@@ -371,7 +371,7 @@ $SchemaPrompt
         $Data.edges         = $List.ToArray()
         $Data.last_modified = (Get-Date).ToString('yyyy-MM-dd')
         $Json = $Data | ConvertTo-Json -Depth 20
-        Set-Content -Path $Path -Value $Json -Encoding UTF8
+        Write-Utf8NoBom -Path $Path -Value $Json 
         Write-Info "Checkpoint saved ($($List.Count) edges)"
     }
 
@@ -595,7 +595,7 @@ $SchemaPrompt
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
             $Json = $EdgesData | ConvertTo-Json -Depth 20
             try {
-                Set-Content -Path $EdgesPath -Value $Json -Encoding UTF8
+                Write-Utf8NoBom -Path $EdgesPath -Value $Json 
                 Write-OK "Saved edges to $EdgesPath"
             } catch {
                 Write-Fail "Failed to write edges.json — $($_.Exception.Message)"

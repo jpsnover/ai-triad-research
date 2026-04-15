@@ -307,7 +307,7 @@ function Import-AITriadDocument {
             # WriteAllBytes is symmetric with the ReadAllBytes used to load it.
             [System.IO.File]::WriteAllBytes($RawPath, $RawContent)
         } else {
-            Set-Content -Path $RawPath -Value $RawContent -Encoding UTF8
+            Write-Utf8NoBom -Path $RawPath -Value $RawContent 
         }
         Write-OK "Raw file saved: raw/$RawFilename"
 
@@ -320,7 +320,7 @@ function Import-AITriadDocument {
             -CapturedAt  (Get-Date -Format 'yyyy-MM-dd')
 
         $SnapshotPath = Join-Path $DocDir 'snapshot.md'
-        Set-Content -Path $SnapshotPath -Value $FinalMarkdown -Encoding UTF8
+        Write-Utf8NoBom -Path $SnapshotPath -Value $FinalMarkdown 
         Write-OK "Snapshot written: snapshot.md ($([int]$FinalMarkdown.Length) chars)"
 
         # -- Write metadata.json ----------------------------------------------
@@ -342,7 +342,7 @@ function Import-AITriadDocument {
         }
 
         $MetaPath = Join-Path $DocDir 'metadata.json'
-        $Metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $MetaPath -Encoding UTF8
+        $Metadata | ConvertTo-Json -Depth 5 | Write-Utf8NoBom -Path $MetaPath 
         Write-OK "Metadata written: metadata.json"
 
         # -- Summary queue ----------------------------------------------------

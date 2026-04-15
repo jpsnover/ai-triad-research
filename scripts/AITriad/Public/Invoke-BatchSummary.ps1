@@ -334,7 +334,7 @@ function Invoke-BatchSummary {
             $MetaUpdated['summary_version'] = $TaxonomyVersion
             $MetaUpdated['summary_status']  = 'current'
             $MetaUpdated['summary_updated'] = $Now
-            Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+            Write-Utf8NoBom -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) 
             Write-Info "  Marked current: $($Doc.DocId)"
         } catch {
             Write-Warn "  Could not update metadata for $($Doc.DocId): $_"

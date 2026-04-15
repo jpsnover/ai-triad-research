@@ -289,7 +289,7 @@ function Approve-TaxonomyProposal {
     if ($PSCmdlet.ShouldProcess($Path, 'Write updated proposal file')) {
         try {
             $Json = $ProposalData | ConvertTo-Json -Depth 20
-            Set-Content -Path $Path -Value $Json -Encoding UTF8
+            Write-Utf8NoBom -Path $Path -Value $Json 
             Write-OK "Saved $Path"
         }
         catch {

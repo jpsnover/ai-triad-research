@@ -108,7 +108,7 @@ if (Test-Path $DevConfigPath) {
         queue_file    = $DevConfig.queue_file
         version_file  = $DevConfig.version_file
     } | ConvertTo-Json -Depth 5
-    $InstalledConfig | Set-Content -Path (Join-Path $ModuleDir '.aitriad.json') -Encoding UTF8
+    $InstalledConfig | Write-Utf8NoBom -Path (Join-Path $ModuleDir '.aitriad.json') 
     Write-Host '  + .aitriad.json (directory structure only — no machine-specific paths)'
 } else {
     Write-Warning '  .aitriad.json not found in repo root — skipping'

@@ -199,7 +199,7 @@ function Invoke-SchemaMigration {
     }
 
     if ($PSCmdlet.ShouldProcess($VersionFile, "Bump version $CurrentTaxVersion -> $NewVersion")) {
-        Set-Content -Path $VersionFile -Value $NewVersion -Encoding UTF8 -NoNewline
+        Write-Utf8NoBom -Path $VersionFile -Value $NewVersion  -NoNewline
         $VersionBumped = $true
         Write-OK "TAXONOMY_VERSION bumped: $CurrentTaxVersion -> $NewVersion"
     }

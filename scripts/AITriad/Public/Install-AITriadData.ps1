@@ -134,7 +134,7 @@ function Install-AITriadData {
 
         if ($Config.data_root -ne $RelativePath) {
             $Config.data_root = $RelativePath
-            $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $ConfigPath -Encoding UTF8
+            $Config | ConvertTo-Json -Depth 5 | Write-Utf8NoBom -Path $ConfigPath 
             Write-OK "Updated .aitriad.json: data_root = $RelativePath"
             # Reset cached config so next call picks up the change
             $script:DataConfig = $null

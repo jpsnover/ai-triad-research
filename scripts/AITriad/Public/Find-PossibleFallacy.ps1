@@ -335,7 +335,7 @@ $SchemaPrompt
                 $FileData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
                 $Json = $FileData | ConvertTo-Json -Depth 20
                 try {
-                    Set-Content -Path $FilePath -Value $Json -Encoding UTF8
+                    Write-Utf8NoBom -Path $FilePath -Value $Json 
                     Write-OK "Saved $PovKey ($FilePath)"
                 }
                 catch {

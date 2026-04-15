@@ -33,7 +33,7 @@
     Creates a metadata object for a newly ingested PDF with POV and topic tags.
 .EXAMPLE
     $Meta = New-Metadata -DocId 'blog-post-2026' -Title 'Why AI Will Be Fine'
-    $Meta | ConvertTo-Json | Set-Content metadata.json
+    $Meta | ConvertTo-Json | Write-Utf8NoBom -Path metadata.json
 
     Creates minimal metadata and writes it to disk.
 #>

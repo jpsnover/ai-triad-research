@@ -211,7 +211,7 @@ Return ONLY a JSON array:
     # Write back
     $NewJson = $Entry.Data | ConvertTo-Json -Depth 20
     $TmpPath = "$($Entry.Path).tmp"
-    Set-Content -Path $TmpPath -Value $NewJson -Encoding UTF8 -NoNewline
+    Write-Utf8NoBom -Path $TmpPath -Value $NewJson  -NoNewline
     Move-Item -Path $TmpPath -Destination $Entry.Path -Force
     Write-Host "    Saved $PovKey" -ForegroundColor Green
 }

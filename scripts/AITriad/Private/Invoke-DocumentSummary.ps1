@@ -467,7 +467,7 @@ function Parse-AIResponse {
             }
         }
         $DebugPath = Join-Path $SummariesDir "${ThisDocId}.debug-raw.txt"
-        Set-Content -Path $DebugPath -Value $RawText -Encoding UTF8
+        Write-Utf8NoBom -Path $DebugPath -Value $RawText 
         Write-Host "  │  ✗ Invalid JSON. Raw saved: $DebugPath" -ForegroundColor Red
         return $null
     }
@@ -593,7 +593,7 @@ function Finalize-Summary {
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"
     try {
-        Set-Content -Path $SummaryPath -Value ($FinalSummary | ConvertTo-Json -Depth 20) -Encoding UTF8
+        Write-Utf8NoBom -Path $SummaryPath -Value ($FinalSummary | ConvertTo-Json -Depth 20) 
     }
     catch {
         Write-Host "  └─ ✗ Failed to write summary: $($_.Exception.Message)" -ForegroundColor Red
@@ -624,7 +624,7 @@ function Finalize-Summary {
         $MetaUpdated['total_facts']       = $TotalPoints
         $MetaUpdated['unmapped_concepts'] = $UnmappedCount
 
-        Set-Content -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) -Encoding UTF8
+        Write-Utf8NoBom -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) 
     }
     catch {
         Write-Host "  │  ⚠ Summary written but metadata update failed: $($_.Exception.Message)" -ForegroundColor Yellow
