@@ -48,6 +48,9 @@ param googleClientSecret string = ''
 @description('GitHub OAuth app client secret')
 param githubClientSecret string = ''
 
+@description('Emergency kill-switch: set to "1" to bypass the sign-in gate entirely. Leave empty to enforce auth.')
+param authDisabled string = ''
+
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
 var googleClientSecretName = 'google-client-secret'
@@ -180,6 +183,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             // routes them to Key Vault (one secret per user+backend), accessed
             // via the container app's system-assigned managed identity.
             { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
+            // Kill-switch: when set to '1', the server skips the sign-in gate
+            // for every non-public path. Persisted across redeploys via Bicep
+            // so Portal/CLI overrides don't get wiped on the next deploy.
+            { name: 'AUTH_DISABLED', value: authDisabled }
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }

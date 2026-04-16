@@ -11,6 +11,11 @@ on:
         options:
           - production
           - staging
+      disable_auth:
+        description: 'Bypass the sign-in gate (emergency kill-switch)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -49,6 +54,7 @@ jobs:
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+            authDisabled=${{ inputs.disable_auth && '1' || '' }}
 
       - name: Update CORS with app URL
         run: |
