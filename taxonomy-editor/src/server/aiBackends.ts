@@ -302,7 +302,10 @@ export async function generateTextWithSearch(
   };
   if (!json.candidates?.length) throw new Error('No candidates from Gemini grounded search');
 
-  const text = json.candidates[0].content.parts.map(p => p.text).join('');
+  let text = json.candidates[0].content.parts
+    .filter(p => typeof p.text === 'string')
+    .map(p => p.text)
+    .join('');
   const meta = json.candidates[0].groundingMetadata;
   const chunks = meta?.groundingChunks ?? [];
   const supports = meta?.groundingSupports ?? [];
@@ -327,6 +330,15 @@ export async function generateTextWithSearch(
         });
       }
     });
+  }
+
+  // If the model returned empty text but grounding supports have segment text,
+  // synthesize evidence from the segments so the UI has something to display.
+  if (!text && supports.length > 0) {
+    const segTexts = supports
+      .map(s => s.segment?.text)
+      .filter((t): t is string => !!t);
+    if (segTexts.length > 0) text = segTexts.join(' ');
   }
 
   const searchQueries = citations.map(c => c.title).filter(Boolean);
