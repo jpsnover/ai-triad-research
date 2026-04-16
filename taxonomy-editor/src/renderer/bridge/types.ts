@@ -10,6 +10,20 @@
  * Every renderer file should import `api` from '@bridge' instead of accessing
  * window.electronAPI directly.
  */
+
+export interface GroundingSegment {
+  startIndex: number;
+  endIndex: number;
+  text?: string;
+  confidence?: number;
+}
+
+export interface GroundingCitation {
+  uri: string;
+  title: string;
+  segments: GroundingSegment[];
+}
+
 export interface AppAPI {
   // --- Taxonomy directories ---
   getTaxonomyDirs: () => Promise<string[]>;
@@ -55,7 +69,11 @@ export interface AppAPI {
 
   // --- AI generation ---
   generateText: (prompt: string, model?: string, timeoutMs?: number) => Promise<{ text: string }>;
-  generateTextWithSearch: (prompt: string, model?: string) => Promise<{ text: string; searchQueries?: string[] }>;
+  generateTextWithSearch: (prompt: string, model?: string) => Promise<{
+    text: string;
+    searchQueries?: string[];
+    citations?: GroundingCitation[];
+  }>;
   setDebateTemperature: (temp: number | null) => Promise<void>;
 
   // --- Embeddings & NLI ---

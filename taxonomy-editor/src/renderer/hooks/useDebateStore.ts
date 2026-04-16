@@ -2990,9 +2990,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     // Step 1: Run grounded web search for external verification
+    // TODO: expose a user-configurable evidence source toggle — option (1) Gemini
+    // native grounding via generateTextWithSearch (current), and option (3) a
+    // decoupled search+fetch pipeline (Brave/Serper/Tavily + URL fetch + summarize)
+    // that works for non-Gemini backends. Not yet implemented.
     set({ debateActivity: `Searching the web for evidence (${model})` });
     let webContext = '';
     let searchQueries: string[] = [];
+    let webCitations: import('../bridge/types').GroundingCitation[] = [];
     try {
       const searchResult = await api.generateTextWithSearch(
         `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${selectedText}"\n\nContext: ${statementContext.slice(0, 500)}`,
@@ -3000,6 +3005,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       );
       webContext = searchResult.text;
       searchQueries = searchResult.searchQueries || [];
+      webCitations = searchResult.citations || [];
     } catch (err) {
       console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
       webContext = '(Web search unavailable)';
@@ -3059,6 +3065,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             web_search_used: webContext !== '(Web search unavailable)',
             web_search_queries: searchQueries,
             web_search_evidence: webContext !== '(Web search unavailable)' ? webContext : undefined,
+            web_search_citations: webCitations.length ? webCitations : undefined,
           },
         },
       });

@@ -32,7 +32,11 @@ export interface ElectronAPI {
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string, timeoutMs?: number) => Promise<{ text: string }>;
   setDebateTemperature: (temp: number | null) => Promise<void>;
-  generateTextWithSearch: (prompt: string, model?: string) => Promise<{ text: string; searchQueries?: string[] }>;
+  generateTextWithSearch: (prompt: string, model?: string) => Promise<{
+    text: string;
+    searchQueries?: string[];
+    citations?: { uri: string; title: string; segments: { startIndex: number; endIndex: number; text?: string; confidence?: number }[] }[];
+  }>;
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;
   harvestAddDebateRef: (nodeId: string, debateId: string) => Promise<{ updated: boolean }>;
   harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string) => Promise<{ updated: boolean }>;

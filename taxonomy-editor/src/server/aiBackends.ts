@@ -238,9 +238,22 @@ export async function generateText(
   }
 }
 
+export interface GroundingSegment {
+  startIndex: number;
+  endIndex: number;
+  text?: string;
+  confidence?: number;
+}
+
+export interface GroundingCitation {
+  uri: string;
+  title: string;
+  segments: GroundingSegment[];
+}
+
 export async function generateTextWithSearch(
   prompt: string, model?: string,
-): Promise<{ text: string; searchQueries?: string[] }> {
+): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
   const resolved = model || 'gemini-3.1-flash-lite-preview';
   const backend = resolveBackend(resolved);
 
@@ -277,16 +290,52 @@ export async function generateTextWithSearch(
   const json = await response.json() as {
     candidates?: {
       content: { parts: { text: string }[] };
-      groundingMetadata?: { groundingChunks?: { web?: { title: string } }[] };
+      groundingMetadata?: {
+        groundingChunks?: { web?: { uri?: string; title?: string } }[];
+        groundingSupports?: {
+          segment?: { startIndex?: number; endIndex?: number; text?: string };
+          groundingChunkIndices?: number[];
+          confidenceScores?: number[];
+        }[];
+      };
     }[];
   };
   if (!json.candidates?.length) throw new Error('No candidates from Gemini grounded search');
 
   const text = json.candidates[0].content.parts.map(p => p.text).join('');
-  const searchQueries = json.candidates[0].groundingMetadata?.groundingChunks
-    ?.map(c => c.web?.title).filter(Boolean) as string[] | undefined;
+  const meta = json.candidates[0].groundingMetadata;
+  const chunks = meta?.groundingChunks ?? [];
+  const supports = meta?.groundingSupports ?? [];
 
-  return { text, searchQueries };
+  const citations: GroundingCitation[] = chunks.map(c => ({
+    uri: c.web?.uri || '',
+    title: c.web?.title || c.web?.uri || '(untitled source)',
+    segments: [],
+  }));
+  for (const s of supports) {
+    const seg = s.segment;
+    if (!seg || typeof seg.startIndex !== 'number' || typeof seg.endIndex !== 'number') continue;
+    const idxs = s.groundingChunkIndices ?? [];
+    const scores = s.confidenceScores ?? [];
+    idxs.forEach((ci, k) => {
+      if (ci >= 0 && ci < citations.length) {
+        citations[ci].segments.push({
+          startIndex: seg.startIndex as number,
+          endIndex: seg.endIndex as number,
+          text: seg.text,
+          confidence: scores[k],
+        });
+      }
+    });
+  }
+
+  const searchQueries = citations.map(c => c.title).filter(Boolean);
+
+  return {
+    text,
+    searchQueries: searchQueries.length ? searchQueries : undefined,
+    citations: citations.length ? citations : undefined,
+  };
 }
 
 // ── Embeddings ──

@@ -394,6 +394,23 @@ Relevance is recomputed **every turn**, not once per debate. `getRelevantTaxonom
 4. **Recency diversification:** `priorRefs` (the IDs the current speaker cited across their last two turns) are multiplied by `0.55` in the score map before selection. Recently-cited nodes stay eligible but must outscore alternatives by ~45% to be reselected — breaking citation lock-in without banning continuity.
 5. Top-K selected per BDI category (min 3, cap 35 POV + 15 situation).
 
+### Edge Selection (Cross-POV Tensions)
+
+Alongside node retrieval, each turn injects a curated slice of the taxonomy edge graph via `formatDebaterEdgeContext` (`debateEngine.ts`). Edges are filtered by:
+
+1. **Type.** Debaters see `CONTRADICTS`, `TENSION_WITH`, `WEAKENS`; the moderator additionally sees `RESPONDS_TO`. Support edges are excluded — the debate context is structured around productive conflict, not agreement.
+2. **Quality gate.** `status === 'approved'` OR `confidence ≥ 0.75`. Low-confidence unreviewed edges are suppressed to avoid steering debaters toward weak tensions.
+3. **Directionality.** Only edges where one endpoint belongs to the speaker's POV prefix (`acc-` / `saf-` / `skp-`) and the other to a different POV. Same-POV edges are intra-camp refinements and don't belong in cross-POV exchanges.
+4. **Top 15 by confidence, descending.** Hard cap to bound context cost.
+
+### Commitment & Argument-Network Layering
+
+Beyond nodes and edges, three additional per-turn layers are injected:
+
+- **Commitments** — each debater's asserted / conceded / challenged claims, so agents can't silently abandon prior positions.
+- **Established points** — recent opponent claims, surfaced so the speaker doesn't echo them as if new.
+- **QBAF strongest unaddressed** — top 5 claims by QBAF strength that no one has attacked yet, injected into the moderator's cross-respond selection to prioritize productive engagements.
+
 ### Historical Note: Pre-2026-04 Retrieval Bug
 
 Before this rewrite, `getRelevantTaxonomyContext` built the query string per turn but then scored nodes against `matchingVectors[0]` — the first vector in `Object.entries` iteration order — and discarded the query text. Selection was deterministic across the entire debate, which caused the novelty validator (turn rule 7: "No new taxonomy_refs beyond your last two turns") to trigger repeatedly. The intent was per-turn retrieval; the implementation was a static list in disguise. Fix: real query embedding via `adapter.computeQueryEmbedding` + diversification penalty + lexical fallback for unembedded paths.

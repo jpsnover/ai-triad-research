@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -762,13 +762,58 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
     web_search_used?: boolean;
     web_search_queries?: string[];
     web_search_evidence?: string;
+    web_search_citations?: {
+      uri: string;
+      title: string;
+      segments: { startIndex: number; endIndex: number; text?: string; confidence?: number }[];
+    }[];
   } | undefined;
 
   const verdictClass = factCheck?.verdict
     ? `debate-fact-check-${factCheck.verdict}`
     : '';
 
-  const hasWebEvidence = factCheck?.web_search_used || factCheck?.web_search_evidence;
+  const citations = factCheck?.web_search_citations ?? [];
+  const hasWebEvidence = factCheck?.web_search_used || factCheck?.web_search_evidence || citations.length > 0;
+
+  // Build a plain-text view of web_search_evidence annotated with inline [n] markers
+  // at the end of each grounded segment. Segments index into the raw evidence text
+  // by UTF-16 offsets as returned by Gemini groundingMetadata.groundingSupports.
+  const annotatedEvidence = (() => {
+    const raw = factCheck?.web_search_evidence;
+    if (!raw || citations.length === 0) return null;
+
+    type Marker = { pos: number; citationIndex: number; confidence?: number };
+    const markers: Marker[] = [];
+    citations.forEach((c, ci) => {
+      for (const seg of c.segments) {
+        if (typeof seg.endIndex === 'number' && seg.endIndex <= raw.length) {
+          markers.push({ pos: seg.endIndex, citationIndex: ci, confidence: seg.confidence });
+        }
+      }
+    });
+    if (markers.length === 0) return null;
+    markers.sort((a, b) => a.pos - b.pos);
+
+    const parts: ReactNode[] = [];
+    let cursor = 0;
+    markers.forEach((m, i) => {
+      if (m.pos > cursor) parts.push(raw.slice(cursor, m.pos));
+      parts.push(
+        <sup key={`cite-${i}`} className="debate-fact-check-citation-marker">
+          <a
+            href={`#fact-check-source-${m.citationIndex + 1}`}
+            title={citations[m.citationIndex]?.title + (m.confidence != null ? ` (confidence ${m.confidence.toFixed(2)})` : '')}
+          >
+            [{m.citationIndex + 1}]
+          </a>
+        </sup>,
+      );
+      cursor = m.pos;
+    });
+    if (cursor < raw.length) parts.push(raw.slice(cursor));
+    return parts;
+  })();
 
   return (
     <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
@@ -801,7 +846,9 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         <div className="debate-fact-check-web-evidence">
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
-            {factCheck?.web_search_evidence ? (
+            {annotatedEvidence ? (
+              <div className="debate-fact-check-evidence-text">{annotatedEvidence}</div>
+            ) : factCheck?.web_search_evidence ? (
               <Markdown remarkPlugins={[remarkGfm]}>{factCheck.web_search_evidence}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -809,6 +856,31 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
                   ? 'Web search was performed but the grounding response did not include extractable evidence text. The search results were still used to inform the verdict above.'
                   : 'Web search was not available for this fact check. Verdict is based on internal taxonomy data and conflict database only.'}
               </p>
+            )}
+            {citations.length > 0 && (
+              <ol className="debate-fact-check-sources">
+                {citations.map((c, i) => (
+                  <li key={c.uri || i} id={`fact-check-source-${i + 1}`}>
+                    {c.uri ? (
+                      <a href={c.uri} target="_blank" rel="noreferrer noopener">{c.title}</a>
+                    ) : (
+                      <span>{c.title}</span>
+                    )}
+                    {c.segments.length > 0 && (
+                      <span className="debate-fact-check-source-meta">
+                        {' '}
+                        — {c.segments.length} grounded span{c.segments.length === 1 ? '' : 's'}
+                        {(() => {
+                          const withConf = c.segments.filter(s => typeof s.confidence === 'number');
+                          if (withConf.length === 0) return null;
+                          const max = Math.max(...withConf.map(s => s.confidence as number));
+                          return `, max confidence ${max.toFixed(2)}`;
+                        })()}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
             )}
           </div>
         </div>
