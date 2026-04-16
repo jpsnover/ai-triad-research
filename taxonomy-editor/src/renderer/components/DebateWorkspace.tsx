@@ -827,6 +827,33 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         <span className={`debate-fact-check-verdict ${verdictClass}`}>
           {factCheck?.verdict || 'unknown'}
         </span>
+        {citations.length > 0 && (
+          <span className="debate-fact-check-sources-inline" aria-label="External sources">
+            <span className="debate-fact-check-sources-inline-label">Sources:</span>
+            {citations.map((c, i) => (
+              c.uri ? (
+                <a
+                  key={c.uri || i}
+                  href={c.uri}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="debate-fact-check-sources-inline-link"
+                  title={c.title || c.uri}
+                >
+                  [{i + 1}]
+                </a>
+              ) : (
+                <span
+                  key={i}
+                  className="debate-fact-check-sources-inline-link debate-fact-check-sources-inline-link-disabled"
+                  title={c.title}
+                >
+                  [{i + 1}]
+                </span>
+              )
+            ))}
+          </span>
+        )}
         {hasWebEvidence && (
           <button
             className="btn btn-sm debate-fact-check-web-toggle"

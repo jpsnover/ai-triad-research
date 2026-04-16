@@ -7933,6 +7933,39 @@ body {
   color: #ef4444;
 }
 
+.debate-fact-check-sources-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.debate-fact-check-sources-inline-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 2px;
+}
+.debate-fact-check-sources-inline-link {
+  color: var(--accent, #60a5fa);
+  text-decoration: none;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+.debate-fact-check-sources-inline-link:hover {
+  background: var(--bg-hover);
+  text-decoration: underline;
+}
+.debate-fact-check-sources-inline-link-disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+.debate-fact-check-sources-inline-link-disabled:hover {
+  background: transparent;
+  text-decoration: none;
+}
+
 .debate-fact-check-web-toggle {
   margin-left: auto;
   font-size: 0.65rem;
