@@ -21,6 +21,7 @@ import {
   type SyncStatus,
   type ResyncMode,
 } from '../utils/syncApi';
+import { RebaseConflictModal } from './RebaseConflictModal';
 
 interface Props {
   open: boolean;
@@ -65,6 +66,7 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
   const [busy, setBusy] = useState<string | null>(null); // path currently being discarded, or 'ALL'
   const [prDialog, setPrDialog] = useState(false);
   const [resyncDialog, setResyncDialog] = useState(false);
+  const [rebaseModal, setRebaseModal] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionInfo, setActionInfo] = useState<string | null>(null);
 
@@ -192,6 +194,23 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
           </div>
         )}
 
+        {status.rebase_in_progress && (
+          <div className="unsynced-drawer-alert error">
+            <span>
+              Rebase paused with unresolved conflicts. Resolve them to finish
+              syncing with <code>origin/main</code>.
+            </span>
+            <button
+              className="btn btn-sm"
+              onClick={() => { setActionError(null); setRebaseModal(true); }}
+              disabled={busy !== null}
+              title="Open the conflict resolver"
+            >
+              Resolve conflicts
+            </button>
+          </div>
+        )}
+
         {(actionError || actionInfo) && (
           <div className={`unsynced-drawer-alert ${actionError ? 'error' : 'info'}`}>
             <span>{actionError ?? actionInfo}</span>
@@ -264,9 +283,33 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
             onChanged();
             await refreshFiles();
           }}
+          onConflicts={(message) => {
+            setResyncDialog(false);
+            setActionInfo(message);
+            setRebaseModal(true);
+            onChanged();
+          }}
           onError={(msg) => { setResyncDialog(false); setActionError(msg); }}
         />
       )}
+
+      <RebaseConflictModal
+        open={rebaseModal}
+        onClose={() => setRebaseModal(false)}
+        onCompleted={async (message) => {
+          setRebaseModal(false);
+          setActionInfo(message);
+          onChanged();
+          await refreshFiles();
+        }}
+        onAborted={async (message) => {
+          setRebaseModal(false);
+          setActionInfo(message);
+          onChanged();
+          await refreshFiles();
+        }}
+        onError={(msg) => { setRebaseModal(false); setActionError(msg); }}
+      />
     </div>
   );
 }
@@ -356,16 +399,18 @@ interface ResyncDialogProps {
   hasLocalChanges: boolean;
   onCancel: () => void;
   onDone: (message: string) => void | Promise<void>;
+  onConflicts: (message: string) => void;
   onError: (message: string) => void;
 }
 
-function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onError }: ResyncDialogProps) {
+function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, onError }: ResyncDialogProps) {
   const [submitting, setSubmitting] = useState<ResyncMode | null>(null);
 
   const run = async (mode: ResyncMode) => {
     setSubmitting(mode);
     try {
       const res = await resync(mode);
+      if (res.conflicts) { onConflicts(res.message); return; }
       await onDone(res.message);
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));

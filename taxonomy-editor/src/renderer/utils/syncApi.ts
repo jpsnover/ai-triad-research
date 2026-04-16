@@ -25,6 +25,8 @@ export interface SyncStatus {
   github_configured: boolean;
   /** Set by the GitHub webhook when a PR merges on origin/main. */
   main_updated_available: boolean;
+  /** True when a rebase is paused with unresolved conflicts. */
+  rebase_in_progress: boolean;
 }
 
 export type ResyncMode = 'rebase' | 'fetch-only' | 'reset-main';
@@ -43,8 +45,25 @@ export interface ResyncSuccess {
   session_ahead: number;
   main_sha: string;
   conflicts: boolean;
+  /** Set when a rebase paused on conflict. */
+  conflict_files?: string[];
   message: string;
 }
+
+export interface RebaseState {
+  in_progress: boolean;
+  conflict_files: string[];
+  onto_branch: string | null;
+}
+
+export interface RebaseResolveResult { ok: true; remaining_files: string[]; }
+export interface ContinueRebaseResult {
+  ok: true;
+  completed: boolean;
+  conflict_files: string[];
+  message: string;
+}
+export interface AbortRebaseResult { ok: true; message: string; }
 
 export interface UnsyncedFile {
   path: string;
@@ -80,6 +99,7 @@ const DISABLED_STATUS: SyncStatus = {
   push_pending: false,
   github_configured: false,
   main_updated_available: false,
+  rebase_in_progress: false,
 };
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -123,4 +143,33 @@ export async function createPullRequest(opts: { title?: string; body?: string })
 
 export async function resync(mode: ResyncMode): Promise<ResyncSuccess> {
   return postJson<ResyncSuccess>('/api/sync/resync', { mode });
+}
+
+// ── Phase 4: rebase conflict resolution ──
+
+export async function getRebaseState(): Promise<RebaseState> {
+  try {
+    return await getJson<RebaseState>('/api/sync/rebase-state');
+  } catch {
+    return { in_progress: false, conflict_files: [], onto_branch: null };
+  }
+}
+
+export async function getRebaseFile(relPath: string): Promise<string> {
+  const res = await getJson<{ path: string; content: string }>(
+    `/api/sync/rebase-file?path=${encodeURIComponent(relPath)}`,
+  );
+  return res.content || '';
+}
+
+export async function resolveRebaseFile(relPath: string, content: string): Promise<RebaseResolveResult> {
+  return postJson<RebaseResolveResult>('/api/sync/rebase/resolve', { path: relPath, content });
+}
+
+export async function continueRebase(): Promise<ContinueRebaseResult> {
+  return postJson<ContinueRebaseResult>('/api/sync/rebase/continue', {});
+}
+
+export async function abortRebase(): Promise<AbortRebaseResult> {
+  return postJson<AbortRebaseResult>('/api/sync/rebase/abort', {});
 }

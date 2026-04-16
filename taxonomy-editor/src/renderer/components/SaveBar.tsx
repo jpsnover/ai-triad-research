@@ -129,6 +129,17 @@ export function SaveBar() {
             Upstream updated
           </button>
         )}
+        {syncStatus.enabled && syncStatus.rebase_in_progress && (
+          <button
+            type="button"
+            className="save-bar-rebase"
+            onClick={() => setSyncDrawerOpen(true)}
+            title="Rebase paused on conflicts — click to resolve"
+          >
+            <span className="save-bar-rebase-dot" aria-hidden="true" />
+            Rebase paused
+          </button>
+        )}
         <div className="zoom-controls">
           <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
           <button

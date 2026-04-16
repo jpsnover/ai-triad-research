@@ -180,6 +180,11 @@ export interface SyncStatus {
    * resync of any mode.
    */
   main_updated_available: boolean;
+  /**
+   * Phase 4: true when a rebase is paused with unresolved conflicts. The UI
+   * surfaces a persistent banner directing the user to the conflict modal.
+   */
+  rebase_in_progress: boolean;
 }
 
 export interface UnsyncedFile {
@@ -198,6 +203,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       enabled: false, unsynced_count: 0, session_branch: null,
       pr_number: null, pr_url: null, push_pending: false,
       github_configured: false, main_updated_available: false,
+      rebase_in_progress: false,
     };
   }
 
@@ -237,6 +243,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       }
     }
 
+    const rebaseInProgress = await isRebaseInProgress();
     return {
       enabled: true,
       unsynced_count: files.size,
@@ -246,6 +253,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       push_pending: pushPending,
       github_configured: !!getRepoSlug(),
       main_updated_available: mainUpdatedAvailable,
+      rebase_in_progress: rebaseInProgress,
     };
   });
 }
@@ -546,6 +554,8 @@ export interface ResyncResult {
   main_sha: string;
   /** True when a rebase paused on conflict and needs manual resolution. */
   conflicts: boolean;
+  /** Present only when `conflicts === true`. Files with merge markers. */
+  conflict_files?: string[];
   message: string;
 }
 export interface ResyncError {
@@ -605,14 +615,23 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
 
     const rebase = await gitSafe(['rebase', 'refs/remotes/origin/main']);
     if (!rebase.ok) {
-      // Conflict — leave the rebase paused so the user can resolve (Phase 2.1 UI
-      // will surface this). For now, abort so we don't leave the repo in a
-      // half-rebased state, and report the conflict to the caller.
-      await gitSafe(['rebase', '--abort']);
+      // Phase 4: leave the rebase paused so the user can resolve conflicts
+      // through the UI. The conflict list comes from `git diff --name-only
+      // --diff-filter=U` rather than parsing rebase output — more reliable.
+      const files = await listConflictFiles();
+      if (files.length === 0) {
+        // Non-conflict rebase failure (lock contention, etc). Abort + report.
+        await gitSafe(['rebase', '--abort']);
+        return {
+          ok: false as const,
+          error: `rebase failed: ${rebase.error}`,
+          code: 'rebase-failed' as const,
+        };
+      }
       return {
-        ok: false as const,
-        error: `rebase conflict on ${branch}. Rebase was aborted — resolve manually or choose Fetch-only.`,
-        code: 'rebase-failed' as const,
+        ok: true as const, mode, session_ahead: 0,
+        main_sha: mainSha, conflicts: true, conflict_files: files,
+        message: `Rebase paused on ${files.length} conflict${files.length === 1 ? '' : 's'}. Resolve in the editor.`,
       };
     }
 
@@ -630,6 +649,175 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
       main_sha: mainSha, conflicts: false,
       message: `Rebased ${branch} onto ${mainSha.slice(0, 7)}.`,
     };
+  });
+}
+
+// ── Phase 4: interactive rebase conflict resolution ──
+//
+// When resync('rebase') hits a conflict we now leave the working tree in the
+// paused state (HEAD detached on a replayed commit, merge markers in the
+// conflicting files). These helpers let the UI walk the user through resolving
+// each file and then continue or abort the rebase.
+
+/** True when `.git/rebase-merge` or `.git/rebase-apply` exists. */
+export async function isRebaseInProgress(): Promise<boolean> {
+  if (!isEnabled()) return false;
+  const root = getDataRoot();
+  try {
+    return fs.existsSync(path.join(root, '.git', 'rebase-merge'))
+        || fs.existsSync(path.join(root, '.git', 'rebase-apply'));
+  } catch { return false; }
+}
+
+/** Files with unmerged (conflict) entries in the index. */
+async function listConflictFiles(): Promise<string[]> {
+  const res = await gitSafe(['diff', '--name-only', '--diff-filter=U']);
+  if (!res.ok) return [];
+  return res.stdout.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+export interface RebaseState {
+  in_progress: boolean;
+  /** Files still unresolved (unmerged entries in the index). */
+  conflict_files: string[];
+  /** Session branch being rebased (null if no rebase is in progress). */
+  onto_branch: string | null;
+}
+
+export async function getRebaseState(): Promise<RebaseState> {
+  if (!(await isRebaseInProgress())) {
+    return { in_progress: false, conflict_files: [], onto_branch: null };
+  }
+  const files = await listConflictFiles();
+  // .git/rebase-merge/head-name holds "refs/heads/<branch>" for interactive-
+  // style rebases. Fall back to the current symbolic ref if missing.
+  let ontoBranch: string | null = null;
+  try {
+    const raw = fs.readFileSync(path.join(getDataRoot(), '.git', 'rebase-merge', 'head-name'), 'utf-8').trim();
+    if (raw.startsWith('refs/heads/')) ontoBranch = raw.slice('refs/heads/'.length);
+  } catch { /* not interactive-style or file missing */ }
+  return { in_progress: true, conflict_files: files, onto_branch: ontoBranch };
+}
+
+/**
+ * Return the current (working-tree) contents of a conflicted file, including
+ * the `<<<<<<< HEAD ... ======= ... >>>>>>> branch` merge markers. The UI uses
+ * this to render an editable textarea that the user resolves.
+ */
+export async function getRebaseFile(relPath: string): Promise<string | null> {
+  if (!(await isRebaseInProgress())) return null;
+  // Reject path traversal — same guard as discardFile.
+  if (relPath.includes('..') || path.isAbsolute(relPath)) return null;
+  const full = path.join(getDataRoot(), relPath);
+  try { return fs.readFileSync(full, 'utf-8'); }
+  catch { return null; }
+}
+
+export interface RebaseResolveResult {
+  ok: true;
+  remaining_files: string[];
+}
+export interface RebaseActionError {
+  ok: false;
+  error: string;
+  code: 'not-in-progress' | 'invalid-path' | 'write-failed' | 'stage-failed';
+}
+
+/** Write user-edited content for one conflicted file and stage it. */
+export async function resolveRebaseFile(relPath: string, content: string): Promise<RebaseResolveResult | RebaseActionError> {
+  if (!(await isRebaseInProgress())) {
+    return { ok: false, error: 'No rebase in progress.', code: 'not-in-progress' };
+  }
+  if (relPath.includes('..') || path.isAbsolute(relPath)) {
+    return { ok: false, error: 'Invalid path.', code: 'invalid-path' };
+  }
+  return serialize(async () => {
+    const full = path.join(getDataRoot(), relPath);
+    try { fs.writeFileSync(full, content, 'utf-8'); }
+    catch (err) { return { ok: false as const, error: `write failed: ${err instanceof Error ? err.message : String(err)}`, code: 'write-failed' as const }; }
+
+    const staged = await gitSafe(['add', '--', relPath]);
+    if (!staged.ok) return { ok: false as const, error: `git add failed: ${staged.error}`, code: 'stage-failed' as const };
+
+    return { ok: true as const, remaining_files: await listConflictFiles() };
+  });
+}
+
+export interface ContinueRebaseOk {
+  ok: true;
+  completed: boolean;
+  /** Populated when the rebase hit another conflict commit (loop). */
+  conflict_files: string[];
+  message: string;
+}
+export interface ContinueRebaseError {
+  ok: false;
+  error: string;
+  code: 'not-in-progress' | 'unresolved-files' | 'continue-failed';
+  /** Files still unresolved (when code === 'unresolved-files'). */
+  conflict_files?: string[];
+}
+
+/** Run `git rebase --continue`. If the next commit also conflicts, pause again. */
+export async function continueRebase(): Promise<ContinueRebaseOk | ContinueRebaseError> {
+  if (!(await isRebaseInProgress())) {
+    return { ok: false, error: 'No rebase in progress.', code: 'not-in-progress' };
+  }
+  const remaining = await listConflictFiles();
+  if (remaining.length > 0) {
+    return {
+      ok: false,
+      error: `${remaining.length} file(s) still have conflicts.`,
+      code: 'unresolved-files',
+      conflict_files: remaining,
+    };
+  }
+
+  return serialize(async () => {
+    // --continue requires an author commit env when nothing changed in a file
+    // (empty commit). GIT_EDITOR=true means the default commit message is kept.
+    const cont = await gitSafe(['-c', 'core.editor=true', 'rebase', '--continue']);
+    if (!cont.ok) {
+      // Could be another conflict commit in the stack. Re-check.
+      const nextConflicts = await listConflictFiles();
+      if (nextConflicts.length > 0) {
+        return {
+          ok: true as const, completed: false, conflict_files: nextConflicts,
+          message: `Next commit hit ${nextConflicts.length} conflict${nextConflicts.length === 1 ? '' : 's'}.`,
+        };
+      }
+      return { ok: false as const, error: `rebase --continue failed: ${cont.error}`, code: 'continue-failed' as const };
+    }
+
+    // Rebase finished. Push rebased tip if a PR is open.
+    const branch = await getCurrentBranchRaw();
+    const prInfo = readPrInfo(branch);
+    if (prInfo) {
+      const creds = await getCredentials();
+      if (creds) {
+        const remoteUrl = `https://x-access-token:${creds.token}@github.com/${creds.repo}.git`;
+        await gitSafe(['push', '--force-with-lease', remoteUrl, `HEAD:${branch}`]);
+        await gitSafe(['fetch', 'origin', branch]);
+      }
+    }
+
+    clearMainUpdatedAvailable();
+    return {
+      ok: true as const, completed: true, conflict_files: [],
+      message: `Rebase completed on ${branch}.`,
+    };
+  });
+}
+
+export interface AbortRebaseOk { ok: true; message: string; }
+export async function abortRebase(): Promise<AbortRebaseOk | RebaseActionError> {
+  if (!(await isRebaseInProgress())) {
+    return { ok: false, error: 'No rebase in progress.', code: 'not-in-progress' };
+  }
+  return serialize(async () => {
+    const res = await gitSafe(['rebase', '--abort']);
+    if (!res.ok) return { ok: false as const, error: `rebase --abort failed: ${res.error}`, code: 'stage-failed' as const };
+    return { ok: true as const, message: 'Rebase aborted; session branch restored.' };
   });
 }
 

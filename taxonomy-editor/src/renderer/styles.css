@@ -1632,6 +1632,31 @@ body {
   background: #8250df;
 }
 
+.save-bar-rebase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 11px;
+  border: 1px solid rgba(207, 34, 46, 0.4);
+  background: rgba(207, 34, 46, 0.08);
+  color: #b91c25;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.save-bar-rebase:hover { background: rgba(207, 34, 46, 0.16); }
+.save-bar-rebase-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cf222e;
+  animation: save-bar-rebase-pulse 1.8s ease-in-out infinite;
+}
+@keyframes save-bar-rebase-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 .unsynced-drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -1828,6 +1853,126 @@ body {
 .sync-dialog-options .btn {
   justify-content: flex-start;
   text-align: left;
+}
+
+/* ─── Rebase conflict modal ─────────────────────────────── */
+
+.rebase-modal {
+  min-width: 820px;
+  max-width: 1100px;
+  width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.rebase-modal-header {
+  padding: 16px 20px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.rebase-modal-header .dialog-title { margin: 0; }
+.rebase-modal-header .dialog-description { margin-top: 4px; }
+.rebase-modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  overflow: hidden;
+}
+.rebase-modal-file-list {
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.rebase-modal-file {
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  border-left: 3px solid transparent;
+}
+.rebase-modal-file:hover { background: var(--bg-hover); }
+.rebase-modal-file.selected {
+  background: var(--bg-hover);
+  border-left-color: #8250df;
+}
+.rebase-modal-file.staged { opacity: 0.7; }
+.rebase-modal-file-glyph {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: #cf222e;
+}
+.rebase-modal-file.staged .rebase-modal-file-glyph { background: #1a7f37; }
+.rebase-modal-file-path {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+.rebase-modal-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.rebase-modal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+.rebase-modal-marker-hint {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.rebase-modal-textarea {
+  flex: 1;
+  min-height: 340px;
+  border: none;
+  outline: none;
+  padding: 10px 14px;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  resize: none;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  white-space: pre;
+  overflow: auto;
+}
+.rebase-modal-dirty-hint {
+  padding: 6px 14px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  border-top: 1px dashed var(--border-color);
+  background: var(--bg-secondary);
+}
+.rebase-modal-empty {
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.rebase-modal .dialog-actions {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
 }
 
 .btn.btn-danger {

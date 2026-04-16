@@ -535,6 +535,73 @@ post('/api/sync/resync', async (_req, res, body) => {
   } catch (err) { error(res, String(err)); }
 });
 
+// ── Phase 4: interactive rebase conflict resolution ──
+//
+// When resync('rebase') hits merge conflicts we leave the rebase paused. These
+// endpoints let the UI walk the user through resolving each conflicted file
+// and then continue (or abort) the rebase.
+
+get('/api/sync/rebase-state', async (_req, res) => {
+  try {
+    const state = await gitStore.getRebaseState();
+    json(res, state);
+  } catch (err) { error(res, String(err)); }
+});
+
+get('/api/sync/rebase-file', async (req, res) => {
+  const url = new URL(req.url!, 'http://localhost');
+  const p = url.searchParams.get('path') || '';
+  if (!p) { error(res, 'path is required', 400); return; }
+  try {
+    const content = await gitStore.getRebaseFile(p);
+    if (content === null) { error(res, 'file not found or no rebase in progress', 404); return; }
+    json(res, { path: p, content });
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/sync/rebase/resolve', async (_req, res, body) => {
+  const { path: relPath, content } = (body || {}) as { path?: string; content?: string };
+  if (!relPath || typeof content !== 'string') {
+    error(res, 'path and content are required', 400);
+    return;
+  }
+  try {
+    const result = await gitStore.resolveRebaseFile(relPath, content);
+    if (!result.ok) {
+      const status = result.code === 'not-in-progress' ? 409
+                   : result.code === 'invalid-path' ? 400 : 500;
+      error(res, result.error, status);
+      return;
+    }
+    json(res, result);
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/sync/rebase/continue', async (_req, res, _body) => {
+  try {
+    const result = await gitStore.continueRebase();
+    if (!result.ok) {
+      const status = result.code === 'not-in-progress' ? 409
+                   : result.code === 'unresolved-files' ? 409 : 500;
+      json(res, result, status);
+      return;
+    }
+    json(res, result);
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/sync/rebase/abort', async (_req, res, _body) => {
+  try {
+    const result = await gitStore.abortRebase();
+    if (!result.ok) {
+      const status = result.code === 'not-in-progress' ? 409 : 500;
+      error(res, result.error, status);
+      return;
+    }
+    json(res, result);
+  } catch (err) { error(res, String(err)); }
+});
+
 // Phase-3 webhook: GitHub posts pull_request / ping events here. We verify the
 // X-Hub-Signature-256 HMAC against GITHUB_WEBHOOK_SECRET, then — for a merged
 // PR — flip the "upstream moved" flag so the UI banners a Resync prompt.
