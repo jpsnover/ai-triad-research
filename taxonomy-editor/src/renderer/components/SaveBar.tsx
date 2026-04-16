@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { useSyncStatus } from '../hooks/useSyncStatus';
+import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 
 function formatFileKey(key: string): string {
   if (key === 'situations') return 'Situations';
@@ -15,6 +17,22 @@ export function SaveBar() {
   const { dirty, save, saveError, dismissSaveError, validationErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
+  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
+  const { status: syncStatus, refresh: refreshSync } = useSyncStatus();
+
+  // Refresh sync status after a save completes (dirty transitions non-zero → 0).
+  const prevDirtyCountRef = useRef(dirty.size);
+  useEffect(() => {
+    const prev = prevDirtyCountRef.current;
+    const now = dirty.size;
+    if (prev > 0 && now === 0 && syncStatus.enabled) {
+      // Slight delay so the server-side commit has landed.
+      const t = setTimeout(() => { void refreshSync(); }, 500);
+      return () => clearTimeout(t);
+    }
+    prevDirtyCountRef.current = now;
+    return undefined;
+  }, [dirty.size, syncStatus.enabled, refreshSync]);
 
   const hasErrors = Object.keys(validationErrors).length > 0;
 
@@ -89,6 +107,17 @@ export function SaveBar() {
         </div>
       )}
       <div className="save-bar-right">
+        {syncStatus.enabled && syncStatus.unsynced_count > 0 && (
+          <button
+            type="button"
+            className="save-bar-unsynced"
+            onClick={() => setSyncDrawerOpen(true)}
+            title={`${syncStatus.unsynced_count} unsynced change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review`}
+          >
+            <span className="save-bar-unsynced-dot" aria-hidden="true" />
+            {syncStatus.unsynced_count} unsynced
+          </button>
+        )}
         <div className="zoom-controls">
           <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
           <button
@@ -108,6 +137,12 @@ export function SaveBar() {
           Save
         </button>
       </div>
+      <UnsyncedChangesDrawer
+        open={syncDrawerOpen}
+        onClose={() => setSyncDrawerOpen(false)}
+        status={syncStatus}
+        onChanged={() => { void refreshSync(); }}
+      />
     </div>
   );
 }

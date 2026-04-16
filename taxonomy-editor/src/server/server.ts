@@ -19,6 +19,7 @@ import {
 import { runWithUser } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
+import * as gitStore from './gitRepoStore';
 
 // ── Express-like micro-router (zero dependencies) ──
 
@@ -464,6 +465,45 @@ post('/api/upload-document', async (req, res) => {
   json(res, { cancelled: false, filePath: filename, content });
 });
 
+// ── Git sync (Phase 1: local-only session branch) ──
+//
+// Gated by GIT_SYNC_ENABLED=1. When disabled, status/unsynced/diff return
+// empty/disabled shapes and discard is a no-op so the UI can degrade gracefully.
+
+get('/api/sync/status', async (_req, res) => {
+  try {
+    json(res, await gitStore.getSyncStatus());
+  } catch (err) { error(res, String(err)); }
+});
+
+get('/api/sync/unsynced', async (_req, res) => {
+  try {
+    json(res, await gitStore.listUnsynced());
+  } catch (err) { error(res, String(err)); }
+});
+
+get('/api/sync/diff', async (req, res) => {
+  const p = query(req, 'path');
+  if (!p) { error(res, 'path query parameter is required', 400); return; }
+  try {
+    json(res, { path: p, diff: await gitStore.getFileDiff(p) });
+  } catch (err) { error(res, String(err), 400); }
+});
+
+post('/api/sync/discard', async (_req, res, body) => {
+  const { path: relPath, all } = (body || {}) as { path?: string; all?: boolean };
+  try {
+    if (all) {
+      await gitStore.discardAll();
+      json(res, { ok: true, scope: 'all' });
+      return;
+    }
+    if (!relPath) { error(res, 'either path or all=true is required', 400); return; }
+    await gitStore.discardFile(relPath);
+    json(res, { ok: true, scope: 'file', path: relPath });
+  } catch (err) { error(res, String(err), 400); }
+});
+
 // ── Focus node (inter-app communication) ──
 
 post('/focus-node', (_req, res, body) => {
@@ -555,6 +595,35 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boole
 }
 
 // ── Request router ──
+
+/**
+ * Returns true when a successful request of this method+path is expected to
+ * have produced on-disk changes under AI_TRIAD_DATA_ROOT that should be
+ * captured as a git commit on the user's session branch.
+ *
+ * Conservative allow-list approach: only mutating methods (POST/PUT/DELETE)
+ * on /api/* paths that hit fileIO, excluding in-memory endpoints (AI, keys,
+ * data-repo git ops themselves, upload buffers).
+ */
+function shouldCommitAfter(method: string, pathname: string): boolean {
+  if (!['POST', 'PUT', 'DELETE'].includes(method)) return false;
+  if (!pathname.startsWith('/api/')) return false;
+
+  // Endpoints that don't modify data-repo files.
+  const excludedPrefixes = [
+    '/api/ai/',             // in-memory generation
+    '/api/embeddings/',     // compute helpers
+    '/api/nli/',            // classifier
+    '/api/keys',            // secret store (Key Vault)
+    '/api/models',          // backend registry (no-op write)
+    '/api/data/',           // data-repo git ops (clone/pull/check/set-root)
+    '/api/sync/',           // this feature's own endpoints
+    '/api/debug/',          // trace channel
+    '/api/fetch-url',       // URL content fetcher
+    '/api/upload-document', // client-side buffer, not persisted here
+  ];
+  return !excludedPrefixes.some(p => pathname.startsWith(p));
+}
 
 function matchRoute(method: string, pathname: string): { handler: Handler; routePath: string } | null {
   for (const route of routes) {
@@ -789,6 +858,14 @@ const server = http.createServer(async (req, res) => {
       try {
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
+        // After a successful write to a data-bearing endpoint, commit any
+        // resulting working-tree changes to the user's session branch.
+        // No-op when GIT_SYNC_ENABLED is off or the data root isn't a git repo.
+        if (shouldCommitAfter(req.method!, url.pathname)) {
+          void gitStore.commitWorkingTreeChanges(
+            `web-edit: ${req.method} ${route.routePath}`,
+          );
+        }
       } catch (err) {
         console.error(`[server] Error handling ${req.method} ${url.pathname}:`, err);
         error(res, String(err));
