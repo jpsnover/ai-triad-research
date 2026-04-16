@@ -1,53 +1,64 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Uses a Python PTY broker to allocate a real pseudo-terminal.
-// Python's pty module works everywhere without native Node bindings.
+// Uses node-pty for a real pseudo-terminal on Windows (ConPTY) and Unix (PTY).
 
 import { ipcMain, BrowserWindow } from 'electron';
-import { spawn, ChildProcess } from 'child_process';
+import * as pty from 'node-pty';
 import path from 'path';
 import { PROJECT_ROOT } from './fileIO';
 
-let brokerProcess: ChildProcess | null = null;
+let ptyProcess: pty.IPty | null = null;
 
 const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, 'scripts');
-const BROKER_SCRIPT = path.resolve(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'pty-broker.py');
+
+function findShell(): string {
+  if (process.platform === 'win32') {
+    return process.env.COMSPEC?.toLowerCase().includes('pwsh')
+      ? process.env.COMSPEC
+      : 'pwsh.exe';
+  }
+  return process.env.SHELL_PWSH || 'pwsh';
+}
 
 export function registerTerminalHandlers(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('terminal:spawn', () => {
-    if (brokerProcess) return;
+    if (ptyProcess) return;
 
+    const shell = findShell();
     const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force`;
 
-    brokerProcess = spawn('python3', [BROKER_SCRIPT], {
-      cwd: PROJECT_ROOT,
-      env: {
-        ...process.env,
-        TERM: 'xterm-256color',
-        PTY_COLS: '120',
-        PTY_ROWS: '30',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    brokerProcess.stdout?.on('data', (data: Buffer) => {
+    try {
+      ptyProcess = pty.spawn(shell, ['-NoLogo'], {
+        name: 'xterm-256color',
+        cols: 120,
+        rows: 30,
+        cwd: PROJECT_ROOT,
+        env: { ...process.env } as { [key: string]: string },
+      });
+    } catch (err) {
       const win = getWindow();
       if (win && !win.isDestroyed()) {
-        win.webContents.send('terminal:data', data.toString());
+        const msg = err instanceof Error ? err.message : String(err);
+        win.webContents.send(
+          'terminal:data',
+          `Failed to start shell '${shell}': ${msg}\r\n` +
+          'Install PowerShell 7+ from https://github.com/PowerShell/PowerShell and restart Taxonomy Editor.\r\n',
+        );
+        win.webContents.send('terminal:exit');
+      }
+      return;
+    }
+
+    ptyProcess.onData((data: string) => {
+      const win = getWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('terminal:data', data);
       }
     });
 
-    brokerProcess.stderr?.on('data', (data: Buffer) => {
-      const win = getWindow();
-      if (win && !win.isDestroyed()) {
-        // Show stderr as terminal output too (for error messages)
-        win.webContents.send('terminal:data', data.toString());
-      }
-    });
-
-    brokerProcess.on('exit', () => {
-      brokerProcess = null;
+    ptyProcess.onExit(() => {
+      ptyProcess = null;
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         win.webContents.send('terminal:exit');
@@ -56,36 +67,37 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
 
     // Import AITriad module after a brief delay for shell startup
     setTimeout(() => {
-      if (brokerProcess && brokerProcess.stdin) {
-        brokerProcess.stdin.write(importCmd + '\r');
+      if (ptyProcess) {
+        ptyProcess.write(importCmd + '\r');
       }
     }, 500);
   });
 
   ipcMain.handle('terminal:write', (_event, data: string) => {
-    if (brokerProcess && brokerProcess.stdin) {
-      brokerProcess.stdin.write(data);
+    if (ptyProcess) {
+      ptyProcess.write(data);
     }
   });
 
   ipcMain.handle('terminal:resize', (_event, cols: number, rows: number) => {
-    if (brokerProcess && brokerProcess.stdin) {
-      // Send resize via custom escape sequence that the broker interprets
-      brokerProcess.stdin.write(`\x1b]R;${cols};${rows}\x07`);
+    if (ptyProcess) {
+      try {
+        ptyProcess.resize(cols, rows);
+      } catch { /* ignore races during shutdown */ }
     }
   });
 
   ipcMain.handle('terminal:kill', () => {
-    if (brokerProcess) {
-      brokerProcess.kill();
-      brokerProcess = null;
+    if (ptyProcess) {
+      ptyProcess.kill();
+      ptyProcess = null;
     }
   });
 }
 
 export function cleanupTerminal(): void {
-  if (brokerProcess) {
-    brokerProcess.kill();
-    brokerProcess = null;
+  if (ptyProcess) {
+    ptyProcess.kill();
+    ptyProcess = null;
   }
 }
