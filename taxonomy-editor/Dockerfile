@@ -87,7 +87,6 @@ COPY taxonomy-editor/authorized-users.json ./
 COPY ai-models.json ./
 COPY .aitriad.json ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
-COPY taxonomy-editor/src/main/pty-broker.py ./src/main/pty-broker.py
 
 # Data volume
 VOLUME /data
