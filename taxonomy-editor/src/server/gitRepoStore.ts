@@ -174,6 +174,12 @@ export interface SyncStatus {
   push_pending: boolean;
   /** True when GITHUB_REPO + credentials are configured. Drives Phase-2 UI. */
   github_configured: boolean;
+  /**
+   * Phase 3: set by the webhook handler when a PR merges on GitHub, so the UI
+   * can proactively prompt the user to resync. Cleared after a successful
+   * resync of any mode.
+   */
+  main_updated_available: boolean;
 }
 
 export interface UnsyncedFile {
@@ -191,7 +197,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
     return {
       enabled: false, unsynced_count: 0, session_branch: null,
       pr_number: null, pr_url: null, push_pending: false,
-      github_configured: false,
+      github_configured: false, main_updated_available: false,
     };
   }
 
@@ -239,8 +245,26 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       pr_url: prInfo?.url ?? null,
       push_pending: pushPending,
       github_configured: !!getRepoSlug(),
+      main_updated_available: mainUpdatedAvailable,
     };
   });
+}
+
+// ── Phase 3: upstream-updated flag ──
+//
+// The GitHub webhook handler (server.ts /api/sync/webhook/github) sets this
+// flag when a PR merges on origin/main. The UI banners "new changes available".
+// Cleared whenever resync() runs successfully (any mode), since any of them
+// results in the user having seen / applied the new main.
+
+let mainUpdatedAvailable = false;
+
+export function markMainUpdatedAvailable(): void {
+  mainUpdatedAvailable = true;
+}
+
+function clearMainUpdatedAvailable(): void {
+  mainUpdatedAvailable = false;
 }
 
 /** Per-file list for the unsynced-changes drawer. */
@@ -551,6 +575,7 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
 
     if (mode === 'fetch-only') {
       const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+      clearMainUpdatedAvailable();
       return {
         ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
         main_sha: mainSha, conflicts: false,
@@ -566,6 +591,7 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
         return { ok: false as const, error: `reset main failed: ${reset.error}`, code: 'reset-failed' as const };
       }
       const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+      clearMainUpdatedAvailable();
       return {
         ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
         main_sha: mainSha, conflicts: false,
@@ -598,6 +624,7 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
     }
 
     const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+    clearMainUpdatedAvailable();
     return {
       ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
       main_sha: mainSha, conflicts: false,

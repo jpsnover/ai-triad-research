@@ -23,6 +23,8 @@ export interface SyncStatus {
   push_pending: boolean;
   /** True when GITHUB_REPO + credentials are configured on the server. */
   github_configured: boolean;
+  /** Set by the GitHub webhook when a PR merges on origin/main. */
+  main_updated_available: boolean;
 }
 
 export type ResyncMode = 'rebase' | 'fetch-only' | 'reset-main';
@@ -77,6 +79,7 @@ const DISABLED_STATUS: SyncStatus = {
   pr_url: null,
   push_pending: false,
   github_configured: false,
+  main_updated_available: false,
 };
 
 export async function getSyncStatus(): Promise<SyncStatus> {

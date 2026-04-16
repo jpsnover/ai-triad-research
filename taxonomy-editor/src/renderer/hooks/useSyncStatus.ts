@@ -22,6 +22,7 @@ const DISABLED: SyncStatus = {
   pr_url: null,
   push_pending: false,
   github_configured: false,
+  main_updated_available: false,
 };
 
 export function useSyncStatus(): { status: SyncStatus; refresh: () => Promise<void> } {

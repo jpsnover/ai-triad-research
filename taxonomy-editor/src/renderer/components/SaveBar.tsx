@@ -118,6 +118,17 @@ export function SaveBar() {
             {syncStatus.unsynced_count} unsynced
           </button>
         )}
+        {syncStatus.enabled && syncStatus.main_updated_available && (
+          <button
+            type="button"
+            className="save-bar-upstream"
+            onClick={() => setSyncDrawerOpen(true)}
+            title="origin/main has new commits — click to resync"
+          >
+            <span className="save-bar-upstream-dot" aria-hidden="true" />
+            Upstream updated
+          </button>
+        )}
         <div className="zoom-controls">
           <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
           <button

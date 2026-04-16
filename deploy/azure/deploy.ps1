@@ -34,6 +34,9 @@
     Name of the Key Vault secret holding the App's PEM private key.
     Upload it once with:
       az keyvault secret set --vault-name <vault> --name <name> --file key.pem
+.PARAMETER GitHubWebhookSecret
+    HMAC shared secret for the GitHub webhook. When set, the server verifies
+    X-Hub-Signature-256 and flags "upstream updated" for the UI on merged PRs.
 .EXAMPLE
     ./deploy.ps1 -ResourceGroup ai-triad
 .EXAMPLE
@@ -60,12 +63,13 @@ param(
 
     [switch]$SkipLogin,
 
-    # GitHub sync (Phase-2) options. Leave empty to keep the feature off.
+    # GitHub sync (Phase-2/3) options. Leave empty to keep the feature off.
     [switch]$EnableGitSync,
     [string]$GitHubRepo = '',
     [string]$GitHubAppId = '',
     [string]$GitHubAppInstallationId = '',
-    [string]$GitHubAppPrivateKeySecretName = ''
+    [string]$GitHubAppPrivateKeySecretName = '',
+    [string]$GitHubWebhookSecret = ''
 )
 
 Set-StrictMode -Version Latest
@@ -121,6 +125,7 @@ if ($GitHubRepo)                    { $deployParams += "githubRepo=$GitHubRepo" 
 if ($GitHubAppId)                   { $deployParams += "githubAppId=$GitHubAppId" }
 if ($GitHubAppInstallationId)       { $deployParams += "githubAppInstallationId=$GitHubAppInstallationId" }
 if ($GitHubAppPrivateKeySecretName) { $deployParams += "githubAppPrivateKeySecretName=$GitHubAppPrivateKeySecretName" }
+if ($GitHubWebhookSecret)           { $deployParams += "githubWebhookSecret=$GitHubWebhookSecret" }
 
 $deployResult = az deployment group create `
     --resource-group $ResourceGroup `

@@ -79,16 +79,23 @@ param githubAppPrivateKeySecretName string = ''
 @description('Optional GITHUB_TOKEN (PAT) fallback when no App is registered. Prefer the App for production.')
 param githubToken string = ''
 
+@secure()
+@description('HMAC shared secret for the Phase-3 GitHub webhook. When set, /api/sync/webhook/github verifies X-Hub-Signature-256 and flags upstream-updated.')
+param githubWebhookSecret string = ''
+
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
 var googleClientSecretName = 'google-client-secret'
 var githubClientSecretName = 'github-client-secret'
 var githubTokenSecretName = 'github-sync-token'
+var githubWebhookSecretName = 'github-webhook-secret'
 var githubTokenProvided = !empty(githubToken)
+var githubWebhookSecretProvided = !empty(githubWebhookSecret)
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
-  githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : []
+  githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
+  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : []
 )
 
 // ── Log Analytics ──
@@ -202,9 +209,12 @@ var baseEnv = [
   { name: 'GITHUB_APP_INSTALLATION_ID', value: githubAppInstallationId }
   { name: 'GITHUB_APP_PRIVATE_KEY_SECRET_NAME', value: githubAppPrivateKeySecretName }
 ]
-var containerEnv = githubTokenProvided
+var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
   : baseEnv
+var containerEnv = githubWebhookSecretProvided
+  ? concat(envWithToken, [ { name: 'GITHUB_WEBHOOK_SECRET', secretRef: githubWebhookSecretName } ])
+  : envWithToken
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'

@@ -65,6 +65,7 @@ jobs:
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
             githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
+            githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
 
       - name: Update CORS with app URL
         run: |

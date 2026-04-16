@@ -175,6 +175,23 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
           </button>
         </div>
 
+        {status.main_updated_available && (
+          <div className="unsynced-drawer-alert upstream">
+            <span>
+              Upstream <code>main</code> has new commits. Resync to avoid merge
+              surprises the next time you open a PR.
+            </span>
+            <button
+              className="btn btn-sm"
+              onClick={() => { setActionError(null); setResyncDialog(true); }}
+              disabled={ghDisabled || busy !== null}
+              title={ghDisabled ? ghDisabledTitle : 'Open the Resync dialog'}
+            >
+              Resync
+            </button>
+          </div>
+        )}
+
         {(actionError || actionInfo) && (
           <div className={`unsynced-drawer-alert ${actionError ? 'error' : 'info'}`}>
             <span>{actionError ?? actionInfo}</span>

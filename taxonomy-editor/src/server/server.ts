@@ -10,6 +10,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { spawn, execFile, ChildProcess } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
@@ -534,6 +535,53 @@ post('/api/sync/resync', async (_req, res, body) => {
   } catch (err) { error(res, String(err)); }
 });
 
+// Phase-3 webhook: GitHub posts pull_request / ping events here. We verify the
+// X-Hub-Signature-256 HMAC against GITHUB_WEBHOOK_SECRET, then — for a merged
+// PR — flip the "upstream moved" flag so the UI banners a Resync prompt.
+// All responses are 2xx once the signature is valid: GitHub interprets 4xx/5xx
+// as delivery failures and retries, which would spam the logs.
+post('/api/sync/webhook/github', async (req, res, _body) => {
+  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  if (!secret) {
+    // The endpoint is dormant when no secret is configured. Respond 404 so a
+    // probing attacker can't distinguish "disabled" from "route missing".
+    error(res, 'Not found', 404);
+    return;
+  }
+
+  const raw = (req as RawBodyReq).__rawBody ?? '';
+  const sigHeader = (req.headers['x-hub-signature-256'] as string | undefined) ?? '';
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  // timingSafeEqual needs equal-length buffers; mismatched length = fail fast.
+  const sigBuf = Buffer.from(sigHeader);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    error(res, 'Invalid signature', 401);
+    return;
+  }
+
+  const event = (req.headers['x-github-event'] as string | undefined) ?? '';
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch { /* empty payload */ }
+
+  if (event === 'ping') {
+    json(res, { ok: true, pong: true });
+    return;
+  }
+
+  if (event === 'pull_request') {
+    const action = parsed.action;
+    const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string } } | undefined;
+    if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
+      gitStore.markMainUpdatedAvailable();
+      console.log('[sync] webhook: main merged; flagged main_updated_available');
+    }
+  }
+
+  // Acknowledge everything else so GitHub doesn't retry.
+  json(res, { ok: true });
+});
+
 // ── Focus node (inter-app communication) ──
 
 post('/focus-node', (_req, res, body) => {
@@ -671,10 +719,15 @@ function matchRoute(method: string, pathname: string): { handler: Handler; route
   return null;
 }
 
+type RawBodyReq = http.IncomingMessage & { __rawBody?: string };
+
 async function readBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
   const raw = Buffer.concat(chunks).toString('utf-8');
+  // Stash raw bytes so HMAC-verified endpoints (webhook) can recompute the
+  // signature. Parse-then-stringify would change whitespace and break it.
+  (req as RawBodyReq).__rawBody = raw;
   if (!raw) return {};
   try { return JSON.parse(raw); }
   catch { return raw; }
@@ -855,7 +908,12 @@ const server = http.createServer(async (req, res) => {
   const urlPath = req.url?.split('?')[0] || '';
   // /api/models is public: lets the pre-auth renderer populate the model
   // catalog from ai-models.json. Contains no secrets — just labels + ids.
-  const isPublicPath = urlPath === '/health' || urlPath === '/api/models' || urlPath.startsWith('/.auth/');
+  // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
+  // handler does its own HMAC verification against GITHUB_WEBHOOK_SECRET.
+  const isPublicPath = urlPath === '/health'
+    || urlPath === '/api/models'
+    || urlPath === '/api/sync/webhook/github'
+    || urlPath.startsWith('/.auth/');
   // Emergency kill-switch: disables the entire auth gate (no sign-in required).
   // Use only for temporary recovery when the allowlist is misconfigured.
   const authDisabled = process.env.AUTH_DISABLED === '1';
