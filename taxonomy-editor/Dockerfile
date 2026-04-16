@@ -79,9 +79,15 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 # Application code
 WORKDIR /app
 
-# Production Node dependencies only
+# Production Node dependencies only.
+# node-pty requires native compilation; install build tools for npm ci then purge
+# to keep the runtime image lean.
 COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
-RUN npm ci --omit=dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3-dev make g++ \
+    && npm ci --omit=dev \
+    && apt-get purge -y --auto-remove python3-dev make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Built artifacts from stage 1
 COPY --from=builder /build/taxonomy-editor/dist/server/ ./dist/server/
