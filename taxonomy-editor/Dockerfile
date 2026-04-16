@@ -6,6 +6,12 @@ FROM node:22.16-bookworm-slim AS builder
 
 WORKDIR /build
 
+# Native-module build deps for node-gyp (node-pty etc.)
+# Builder stage is discarded — no impact on runtime image size.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy dependency manifests first (Docker layer caching)
 COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./taxonomy-editor/
 COPY lib/ ./lib/

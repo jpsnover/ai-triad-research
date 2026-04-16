@@ -3,7 +3,7 @@
 
 @{
     RootModule        = 'AITriad.psm1'
-    ModuleVersion     = '0.6.9'
+    ModuleVersion     = '0.6.10'
     GUID              = 'a7c3e1f0-4b2d-4e8a-9f6c-1d3b5e7a9c0f'
     Author            = 'Jeffrey Snover'
     CompanyName       = 'Snover International Consulting LLC'
