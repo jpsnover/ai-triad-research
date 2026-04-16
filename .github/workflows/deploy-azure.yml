@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_git_sync:
+        description: 'Enable GitHub data-sync feature (requires GH_* secrets set)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -55,6 +60,11 @@ jobs:
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
             authDisabled=${{ inputs.disable_auth && '1' || '' }}
+            gitSyncEnabled=${{ inputs.enable_git_sync && '1' || '' }}
+            githubRepo=${{ vars.SYNC_GITHUB_REPO }}
+            githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
+            githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
+            githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
 
       - name: Update CORS with app URL
         run: |

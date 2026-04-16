@@ -51,13 +51,44 @@ param githubClientSecret string = ''
 @description('Emergency kill-switch: set to "1" to bypass the sign-in gate entirely. Leave empty to enforce auth.')
 param authDisabled string = ''
 
+// ── GitHub data-sync (optional Phase-2 feature) ──
+// When enabled, web edits commit to a per-user branch in the working tree and
+// the user can open / update a pull request against origin/main from the UI.
+// Set GIT_SYNC_ENABLED to '1' to turn the feature on at runtime. Authenticate
+// either with a GitHub App (preferred) or a PAT fallback (dev/test only).
+// The App's private key is NOT passed through Bicep — upload it to Key Vault
+// once (`az keyvault secret set --name github-app-private-key --file key.pem`)
+// and pass the secret NAME here.
+
+@description('Enable GitHub data-sync feature. "1" = on, empty = off.')
+param gitSyncEnabled string = ''
+
+@description('GitHub repo in owner/repo form (e.g. "jpsnover/ai-triad-data") that the server pushes to.')
+param githubRepo string = ''
+
+@description('GitHub App numeric ID. Leave empty to fall back to GITHUB_TOKEN (PAT).')
+param githubAppId string = ''
+
+@description('GitHub App installation ID on the target repo/org.')
+param githubAppInstallationId string = ''
+
+@description('Name of the Key Vault secret holding the GitHub App private key (PEM). Upload separately via az keyvault secret set.')
+param githubAppPrivateKeySecretName string = ''
+
+@secure()
+@description('Optional GITHUB_TOKEN (PAT) fallback when no App is registered. Prefer the App for production.')
+param githubToken string = ''
+
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
 var googleClientSecretName = 'google-client-secret'
 var githubClientSecretName = 'github-client-secret'
+var githubTokenSecretName = 'github-sync-token'
+var githubTokenProvided = !empty(githubToken)
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
-  githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : []
+  githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
+  githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : []
 )
 
 // ── Log Analytics ──
@@ -148,6 +179,33 @@ resource storageMount 'Microsoft.App/managedEnvironments/storages@2024-03-01' = 
 
 // ── Container App ──
 
+var baseEnv = [
+  { name: 'AI_TRIAD_DATA_ROOT', value: '/data' }
+  { name: 'ALLOWED_ORIGINS', value: '' } // Set after deployment: https://<app-fqdn>
+  { name: 'HOME', value: '/home/aitriad' }
+  { name: 'NODE_ENV', value: 'production' }
+  // BYOK model: users enter keys via the app UI. In Azure the server
+  // routes them to Key Vault (one secret per user+backend), accessed
+  // via the container app's system-assigned managed identity.
+  { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
+  // Kill-switch: when set to '1', the server skips the sign-in gate
+  // for every non-public path. Persisted across redeploys via Bicep
+  // so Portal/CLI overrides don't get wiped on the next deploy.
+  { name: 'AUTH_DISABLED', value: authDisabled }
+  // GitHub sync (Phase-2). GIT_SYNC_ENABLED is the master switch;
+  // githubAppAuth.ts tries App credentials first, then GITHUB_TOKEN.
+  // The App private key itself lives in Key Vault and is fetched by
+  // name via the managed identity; it is never injected as an env.
+  { name: 'GIT_SYNC_ENABLED', value: gitSyncEnabled }
+  { name: 'GITHUB_REPO', value: githubRepo }
+  { name: 'GITHUB_APP_ID', value: githubAppId }
+  { name: 'GITHUB_APP_INSTALLATION_ID', value: githubAppInstallationId }
+  { name: 'GITHUB_APP_PRIVATE_KEY_SECRET_NAME', value: githubAppPrivateKeySecretName }
+]
+var containerEnv = githubTokenProvided
+  ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
+  : baseEnv
+
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'
   location: location
@@ -174,20 +232,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.5')
             memory: '1Gi'
           }
-          env: [
-            { name: 'AI_TRIAD_DATA_ROOT', value: '/data' }
-            { name: 'ALLOWED_ORIGINS', value: '' } // Set after deployment: https://<app-fqdn>
-            { name: 'HOME', value: '/home/aitriad' }
-            { name: 'NODE_ENV', value: 'production' }
-            // BYOK model: users enter keys via the app UI. In Azure the server
-            // routes them to Key Vault (one secret per user+backend), accessed
-            // via the container app's system-assigned managed identity.
-            { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
-            // Kill-switch: when set to '1', the server skips the sign-in gate
-            // for every non-public path. Persisted across redeploys via Bicep
-            // so Portal/CLI overrides don't get wiped on the next deploy.
-            { name: 'AUTH_DISABLED', value: authDisabled }
-          ]
+          env: containerEnv
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }
           ]

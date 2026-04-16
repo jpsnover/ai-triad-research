@@ -2,13 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
- * Git-backed data-repo sync for the Taxonomy Editor (Phase 1).
+ * Git-backed data-repo sync for the Taxonomy Editor.
  *
- * When GIT_SYNC_ENABLED=1 and the data root is a git working tree, every
- * server-side write is followed by a local commit on a per-user session
- * branch. No push, no GitHub API — phase 1 is strictly local. Phase 2 adds
- * "Create pull request" and "Resync with GitHub" actions that go through
- * a registered GitHub App.
+ * Phase 1 (local-only, gated by GIT_SYNC_ENABLED=1):
+ *   - every server-side write commits to a per-user session branch,
+ *   - status/list/diff/discard surface the working tree.
+ *
+ * Phase 2 (network-touching, user-initiated; additionally requires
+ * GITHUB_REPO + either a GitHub App installation or a PAT):
+ *   - createPullRequest() pushes the session branch and opens/updates a PR,
+ *   - resync() fetches origin and optionally rebases the session onto main
+ *     or resets the local main ref.
  *
  * See docs/azure-github-data-sync-proposal.md for the full design.
  */
@@ -19,6 +23,7 @@ import fs from 'fs';
 import path from 'path';
 import { getDataRoot } from './config';
 import { getCurrentUser } from './userContext';
+import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
 
 const execFileP = promisify(execFile);
 
@@ -164,7 +169,11 @@ export interface SyncStatus {
   unsynced_count: number;
   session_branch: string | null;
   pr_number: number | null;
+  pr_url: string | null;
+  /** True when a PR is open but the session branch has commits not yet pushed. */
   push_pending: boolean;
+  /** True when GITHUB_REPO + credentials are configured. Drives Phase-2 UI. */
+  github_configured: boolean;
 }
 
 export interface UnsyncedFile {
@@ -179,7 +188,11 @@ export interface UnsyncedFile {
  */
 export async function getSyncStatus(): Promise<SyncStatus> {
   if (!isEnabled()) {
-    return { enabled: false, unsynced_count: 0, session_branch: null, pr_number: null, push_pending: false };
+    return {
+      enabled: false, unsynced_count: 0, session_branch: null,
+      pr_number: null, pr_url: null, push_pending: false,
+      github_configured: false,
+    };
   }
 
   return serialize(async () => {
@@ -203,12 +216,29 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       });
     }
 
+    const prInfo = readPrInfo(branch);
+    let pushPending = false;
+    if (prInfo) {
+      // PR is open: compare local session-branch HEAD with its remote tracking ref.
+      const remoteRef = `refs/remotes/origin/${branch}`;
+      const remoteExists = (await gitSafe(['rev-parse', '--verify', '--quiet', remoteRef])).ok;
+      if (remoteExists) {
+        const local = (await git(['rev-parse', 'HEAD'])).trim();
+        const remote = (await git(['rev-parse', remoteRef])).trim();
+        pushPending = local !== remote;
+      } else {
+        pushPending = true; // PR recorded but no remote tracking ref yet
+      }
+    }
+
     return {
       enabled: true,
       unsynced_count: files.size,
       session_branch: branch,
-      pr_number: null, // phase 2
-      push_pending: false, // phase 2
+      pr_number: prInfo?.number ?? null,
+      pr_url: prInfo?.url ?? null,
+      push_pending: pushPending,
+      github_configured: !!getRepoSlug(),
     };
   });
 }
@@ -347,5 +377,239 @@ export async function discardAll(): Promise<void> {
       : 'main';
     await git(['reset', '--hard', mainRef]);
     await git(['clean', '-fd']);
+    clearPrInfo(await getCurrentBranchRaw());
   });
+}
+
+// ── PR state persistence ──
+//
+// The server remembers which PR (if any) corresponds to a given session
+// branch in .git/webedit-pr-map.json. This avoids a GitHub API roundtrip on
+// every status poll, and survives container restarts because .git lives on
+// the same persistent volume as the working tree.
+
+interface PrInfo { number: number; url: string; }
+type PrMap = Record<string, PrInfo>;
+
+function prMapPath(): string {
+  return path.join(getDataRoot(), '.git', 'webedit-pr-map.json');
+}
+
+function readPrMap(): PrMap {
+  try {
+    const raw = fs.readFileSync(prMapPath(), 'utf-8');
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as PrMap;
+  } catch { /* file missing or corrupt — treat as empty */ }
+  return {};
+}
+
+function writePrMap(map: PrMap): void {
+  try {
+    fs.writeFileSync(prMapPath(), JSON.stringify(map, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[gitRepoStore] could not persist PR map:', err);
+  }
+}
+
+function readPrInfo(branch: string): PrInfo | null {
+  return readPrMap()[branch] ?? null;
+}
+
+function setPrInfo(branch: string, info: PrInfo): void {
+  const map = readPrMap();
+  map[branch] = info;
+  writePrMap(map);
+}
+
+function clearPrInfo(branch: string): void {
+  const map = readPrMap();
+  if (map[branch]) {
+    delete map[branch];
+    writePrMap(map);
+  }
+}
+
+// ── Phase 2: Create pull request ──
+
+export interface CreatePrResult {
+  ok: true;
+  number: number;
+  url: string;
+  branch: string;
+  created: boolean; // false when we reused an existing PR
+}
+export interface CreatePrError {
+  ok: false;
+  error: string;
+  code: 'disabled' | 'no-credentials' | 'no-changes' | 'push-failed' | 'api-failed';
+}
+
+/**
+ * Pushes the session branch to origin and opens (or updates) a PR against main.
+ * Idempotent: if a PR already exists for `head = session-branch` it returns
+ * that PR's info and only re-pushes.
+ */
+export async function createPullRequest(opts: { title?: string; body?: string }): Promise<CreatePrResult | CreatePrError> {
+  if (!isEnabled()) return { ok: false, error: 'Git sync is disabled on this server.', code: 'disabled' };
+
+  const creds = await getCredentials();
+  if (!creds) return { ok: false, error: 'GitHub credentials are not configured.', code: 'no-credentials' };
+
+  return serialize(async () => {
+    const branch = await ensureSessionBranch();
+    const mainRef = (await gitSafe(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'])).ok
+      ? 'origin/main' : 'main';
+
+    // Refuse to open a PR for a clean branch — there's nothing to review.
+    const aheadCount = (await git(['rev-list', '--count', `${mainRef}..HEAD`])).trim();
+    if (aheadCount === '0') {
+      return { ok: false as const, error: 'Session branch has no new commits vs main.', code: 'no-changes' as const };
+    }
+
+    // Push via token-auth URL. Keep the token off origin's persisted remote.
+    const remoteUrl = `https://x-access-token:${creds.token}@github.com/${creds.repo}.git`;
+    const push = await gitSafe(['push', '--force-with-lease', remoteUrl, `HEAD:${branch}`]);
+    if (!push.ok) {
+      return { ok: false as const, error: `git push failed: ${push.error}`, code: 'push-failed' as const };
+    }
+
+    // Fetch the remote tracking ref so push_pending calculations work.
+    await gitSafe(['fetch', 'origin', branch]);
+
+    const [owner, repoName] = creds.repo.split('/');
+
+    // Does a PR already exist for head = <branch>?
+    const existing = await githubFetch(creds, `/repos/${owner}/${repoName}/pulls?head=${owner}:${encodeURIComponent(branch)}&state=open`);
+    if (existing.ok && Array.isArray(existing.data) && existing.data.length > 0) {
+      const pr = existing.data[0] as { number: number; html_url: string };
+      setPrInfo(branch, { number: pr.number, url: pr.html_url });
+      // Best-effort body refresh if the caller provided one.
+      if (opts.body) {
+        await githubFetch(creds, `/repos/${owner}/${repoName}/pulls/${pr.number}`, {
+          method: 'PATCH',
+          body: { body: opts.body, ...(opts.title ? { title: opts.title } : {}) },
+        });
+      }
+      return { ok: true as const, number: pr.number, url: pr.html_url, branch, created: false };
+    }
+
+    // Open a new PR.
+    const title = opts.title?.trim() || `Web edits on ${branch}`;
+    const body = opts.body ?? '';
+    const created = await githubFetch(creds, `/repos/${owner}/${repoName}/pulls`, {
+      method: 'POST',
+      body: { title, body, head: branch, base: 'main' },
+    });
+    if (!created.ok) {
+      return { ok: false as const, error: created.error ?? 'GitHub API failed', code: 'api-failed' as const };
+    }
+    const pr = created.data as { number: number; html_url: string };
+    setPrInfo(branch, { number: pr.number, url: pr.html_url });
+    return { ok: true as const, number: pr.number, url: pr.html_url, branch, created: true };
+  });
+}
+
+// ── Phase 2: Resync with GitHub ──
+
+export type ResyncMode = 'rebase' | 'fetch-only' | 'reset-main';
+export interface ResyncResult {
+  ok: true;
+  mode: ResyncMode;
+  /** Commits the session branch gained relative to new origin/main (after operation). */
+  session_ahead: number;
+  /** origin/main SHA after fetch. */
+  main_sha: string;
+  /** True when a rebase paused on conflict and needs manual resolution. */
+  conflicts: boolean;
+  message: string;
+}
+export interface ResyncError {
+  ok: false;
+  error: string;
+  code: 'disabled' | 'no-credentials' | 'fetch-failed' | 'reset-failed' | 'rebase-failed';
+}
+
+export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncError> {
+  if (!isEnabled()) return { ok: false, error: 'Git sync is disabled on this server.', code: 'disabled' };
+
+  const creds = await getCredentials();
+  if (!creds) return { ok: false, error: 'GitHub credentials are not configured.', code: 'no-credentials' };
+
+  return serialize(async () => {
+    const branch = await ensureSessionBranch();
+    const remoteUrl = `https://x-access-token:${creds.token}@github.com/${creds.repo}.git`;
+
+    // 1) Always fetch first.
+    const fetchRes = await gitSafe(['fetch', remoteUrl, 'main', `+refs/heads/main:refs/remotes/origin/main`]);
+    if (!fetchRes.ok) {
+      return { ok: false as const, error: `git fetch failed: ${fetchRes.error}`, code: 'fetch-failed' as const };
+    }
+
+    const mainShaRaw = await gitSafe(['rev-parse', 'refs/remotes/origin/main']);
+    const mainSha = mainShaRaw.ok ? mainShaRaw.stdout.trim() : '';
+
+    if (mode === 'fetch-only') {
+      const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+      return {
+        ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
+        main_sha: mainSha, conflicts: false,
+        message: `Fetched origin/main at ${mainSha.slice(0, 7)}. Session branch not moved.`,
+      };
+    }
+
+    if (mode === 'reset-main') {
+      // Move local `main` to match origin/main — does not touch the session branch.
+      // Uses update-ref so we don't have to checkout/restore the session branch.
+      const reset = await gitSafe(['update-ref', 'refs/heads/main', 'refs/remotes/origin/main']);
+      if (!reset.ok) {
+        return { ok: false as const, error: `reset main failed: ${reset.error}`, code: 'reset-failed' as const };
+      }
+      const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+      return {
+        ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
+        main_sha: mainSha, conflicts: false,
+        message: `Local main reset to ${mainSha.slice(0, 7)}.`,
+      };
+    }
+
+    // mode === 'rebase' — rebase the session branch onto the new origin/main.
+    // Also fast-forward local `main` so future discards go to the right place.
+    await gitSafe(['update-ref', 'refs/heads/main', 'refs/remotes/origin/main']);
+
+    const rebase = await gitSafe(['rebase', 'refs/remotes/origin/main']);
+    if (!rebase.ok) {
+      // Conflict — leave the rebase paused so the user can resolve (Phase 2.1 UI
+      // will surface this). For now, abort so we don't leave the repo in a
+      // half-rebased state, and report the conflict to the caller.
+      await gitSafe(['rebase', '--abort']);
+      return {
+        ok: false as const,
+        error: `rebase conflict on ${branch}. Rebase was aborted — resolve manually or choose Fetch-only.`,
+        code: 'rebase-failed' as const,
+      };
+    }
+
+    // If there's an open PR, push the rebased tip (force-with-lease).
+    const prInfo = readPrInfo(branch);
+    if (prInfo) {
+      await gitSafe(['push', '--force-with-lease', remoteUrl, `HEAD:${branch}`]);
+      await gitSafe(['fetch', 'origin', branch]);
+    }
+
+    const ahead = (await git(['rev-list', '--count', `refs/remotes/origin/main..HEAD`])).trim();
+    return {
+      ok: true as const, mode, session_ahead: parseInt(ahead, 10) || 0,
+      main_sha: mainSha, conflicts: false,
+      message: `Rebased ${branch} onto ${mainSha.slice(0, 7)}.`,
+    };
+  });
+}
+
+/**
+ * Re-used by the status endpoint. Surfaces whether any credentials are wired up
+ * so the UI can render Phase-2 controls enabled vs. disabled-with-tooltip.
+ */
+export async function hasGithubCredentials(): Promise<boolean> {
+  return (await getCredentials()) !== null;
 }

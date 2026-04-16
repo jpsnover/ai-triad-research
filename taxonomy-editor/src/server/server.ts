@@ -504,6 +504,36 @@ post('/api/sync/discard', async (_req, res, body) => {
   } catch (err) { error(res, String(err), 400); }
 });
 
+post('/api/sync/create-pr', async (_req, res, body) => {
+  const { title, body: prBody } = (body || {}) as { title?: string; body?: string };
+  try {
+    const result = await gitStore.createPullRequest({ title, body: prBody });
+    if (!result.ok) {
+      const status = result.code === 'no-credentials' || result.code === 'disabled' ? 503 : 400;
+      error(res, result.error, status);
+      return;
+    }
+    json(res, result);
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/sync/resync', async (_req, res, body) => {
+  const { mode } = (body || {}) as { mode?: gitStore.ResyncMode };
+  if (mode !== 'rebase' && mode !== 'fetch-only' && mode !== 'reset-main') {
+    error(res, 'mode must be "rebase", "fetch-only", or "reset-main"', 400);
+    return;
+  }
+  try {
+    const result = await gitStore.resync(mode);
+    if (!result.ok) {
+      const status = result.code === 'no-credentials' || result.code === 'disabled' ? 503 : 400;
+      error(res, result.error, status);
+      return;
+    }
+    json(res, result);
+  } catch (err) { error(res, String(err)); }
+});
+
 // ── Focus node (inter-app communication) ──
 
 post('/focus-node', (_req, res, body) => {

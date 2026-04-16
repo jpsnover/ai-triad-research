@@ -21,10 +21,30 @@
     Clone ai-triad-data into the Azure Files share on first deploy.
 .PARAMETER SkipLogin
     Skip az login check (for CI/CD environments).
+.PARAMETER EnableGitSync
+    Turn on the Phase-2 GitHub sync feature. Requires a GitHub App (or PAT)
+    plus the data directory being a real git clone.
+.PARAMETER GitHubRepo
+    Target repo in owner/repo form (e.g. "jpsnover/ai-triad-data").
+.PARAMETER GitHubAppId
+    GitHub App numeric ID.
+.PARAMETER GitHubAppInstallationId
+    Installation ID of the App on the target repo/org.
+.PARAMETER GitHubAppPrivateKeySecretName
+    Name of the Key Vault secret holding the App's PEM private key.
+    Upload it once with:
+      az keyvault secret set --vault-name <vault> --name <name> --file key.pem
 .EXAMPLE
     ./deploy.ps1 -ResourceGroup ai-triad
 .EXAMPLE
     ./deploy.ps1 -ResourceGroup ai-triad -SeedData
+.EXAMPLE
+    ./deploy.ps1 -ResourceGroup ai-triad `
+        -EnableGitSync `
+        -GitHubRepo 'jpsnover/ai-triad-data' `
+        -GitHubAppId '123456' `
+        -GitHubAppInstallationId '7890123' `
+        -GitHubAppPrivateKeySecretName 'github-app-private-key'
 #>
 
 [CmdletBinding()]
@@ -38,7 +58,14 @@ param(
 
     [switch]$SeedData,
 
-    [switch]$SkipLogin
+    [switch]$SkipLogin,
+
+    # GitHub sync (Phase-2) options. Leave empty to keep the feature off.
+    [switch]$EnableGitSync,
+    [string]$GitHubRepo = '',
+    [string]$GitHubAppId = '',
+    [string]$GitHubAppInstallationId = '',
+    [string]$GitHubAppPrivateKeySecretName = ''
 )
 
 Set-StrictMode -Version Latest
@@ -88,10 +115,17 @@ if (-not (Test-Path $bicepFile)) {
     throw "Bicep template not found at $bicepFile"
 }
 
+$deployParams = @("containerImage=$ContainerImage")
+if ($EnableGitSync) { $deployParams += 'gitSyncEnabled=1' }
+if ($GitHubRepo)                    { $deployParams += "githubRepo=$GitHubRepo" }
+if ($GitHubAppId)                   { $deployParams += "githubAppId=$GitHubAppId" }
+if ($GitHubAppInstallationId)       { $deployParams += "githubAppInstallationId=$GitHubAppInstallationId" }
+if ($GitHubAppPrivateKeySecretName) { $deployParams += "githubAppPrivateKeySecretName=$GitHubAppPrivateKeySecretName" }
+
 $deployResult = az deployment group create `
     --resource-group $ResourceGroup `
     --template-file $bicepFile `
-    --parameters containerImage=$ContainerImage `
+    --parameters @deployParams `
     --output json | ConvertFrom-Json
 
 $appUrl      = $deployResult.properties.outputs.appUrl.value

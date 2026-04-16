@@ -19,7 +19,9 @@ const DISABLED: SyncStatus = {
   unsynced_count: 0,
   session_branch: null,
   pr_number: null,
+  pr_url: null,
   push_pending: false,
+  github_configured: false,
 };
 
 export function useSyncStatus(): { status: SyncStatus; refresh: () => Promise<void> } {

@@ -1726,6 +1726,84 @@ body {
   color: var(--color-fg-muted, #656d76);
   font-size: 0.8rem;
 }
+
+.unsynced-drawer-pr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(130, 80, 223, 0.12);
+  color: #8250df;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid rgba(130, 80, 223, 0.35);
+}
+.unsynced-drawer-pr-pill:hover { background: rgba(130, 80, 223, 0.2); }
+
+.unsynced-drawer-alert {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.unsynced-drawer-alert.error {
+  background: #ffebe9;
+  color: #82071e;
+  border: 1px solid #ff818266;
+}
+.unsynced-drawer-alert.info {
+  background: #ddf4ff;
+  color: #0550ae;
+  border: 1px solid #54aeff66;
+}
+.unsynced-drawer-alert span { flex: 1; word-break: break-word; }
+
+.sync-dialog {
+  min-width: 520px;
+  max-width: 640px;
+}
+.sync-dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.sync-dialog-label input,
+.sync-dialog-label textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.sync-dialog-label textarea {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.78rem;
+  resize: vertical;
+  min-height: 120px;
+}
+.sync-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.sync-dialog-options .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .btn.btn-danger {
   background: #cf222e;
   color: #fff;

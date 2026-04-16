@@ -19,7 +19,29 @@ export interface SyncStatus {
   unsynced_count: number;
   session_branch: string | null;
   pr_number: number | null;
+  pr_url: string | null;
   push_pending: boolean;
+  /** True when GITHUB_REPO + credentials are configured on the server. */
+  github_configured: boolean;
+}
+
+export type ResyncMode = 'rebase' | 'fetch-only' | 'reset-main';
+
+export interface CreatePrSuccess {
+  ok: true;
+  number: number;
+  url: string;
+  branch: string;
+  created: boolean;
+}
+
+export interface ResyncSuccess {
+  ok: true;
+  mode: ResyncMode;
+  session_ahead: number;
+  main_sha: string;
+  conflicts: boolean;
+  message: string;
 }
 
 export interface UnsyncedFile {
@@ -52,7 +74,9 @@ const DISABLED_STATUS: SyncStatus = {
   unsynced_count: 0,
   session_branch: null,
   pr_number: null,
+  pr_url: null,
   push_pending: false,
+  github_configured: false,
 };
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -88,4 +112,12 @@ export async function discardFile(relPath: string): Promise<void> {
 
 export async function discardAll(): Promise<void> {
   await postJson('/api/sync/discard', { all: true });
+}
+
+export async function createPullRequest(opts: { title?: string; body?: string }): Promise<CreatePrSuccess> {
+  return postJson<CreatePrSuccess>('/api/sync/create-pr', opts);
+}
+
+export async function resync(mode: ResyncMode): Promise<ResyncSuccess> {
+  return postJson<ResyncSuccess>('/api/sync/resync', { mode });
 }
