@@ -437,6 +437,41 @@ body {
   margin-bottom: 12px;
 }
 
+/* ─── Background loading banner ──────────────────────── */
+
+.background-loading-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  background: rgba(74, 158, 255, 0.08);
+  border-bottom: 1px solid rgba(74, 158, 255, 0.2);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.background-loading-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 30%;
+  background: rgba(74, 158, 255, 0.15);
+  animation: bg-loading-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes bg-loading-slide {
+  0% { left: -30%; }
+  100% { left: 100%; }
+}
+
+.background-loading-text {
+  position: relative;
+  color: var(--text-secondary, #999);
+}
+
 /* ─── Data update banner ─────────────────────────────── */
 
 .data-update-banner {

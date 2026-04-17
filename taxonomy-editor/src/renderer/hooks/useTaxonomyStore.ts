@@ -259,6 +259,7 @@ interface TaxonomyState {
   validationErrors: ValidationErrors;
   saveError: string | null;
   loading: boolean;
+  backgroundLoading: boolean;
   loadingProgress: { completed: string[]; total: number };
 
   pinnedStack: PinnedData[];
@@ -416,6 +417,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   validationErrors: {},
   saveError: null,
   loading: false,
+  backgroundLoading: false,
   loadingProgress: { completed: [], total: 0 },
 
   pinnedStack: [],
@@ -1092,7 +1094,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
       'Conflicts', 'Policy Registry', 'Conflict Clusters',
     ];
-    set({ loading: true, loadingProgress: { completed: [], total: steps.length } });
+    set({ loading: true, backgroundLoading: false, loadingProgress: { completed: [], total: steps.length } });
 
     const track = <T,>(label: string, promise: Promise<T>): Promise<T> =>
       promise.then((result) => {
@@ -1106,8 +1108,25 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       });
 
     try {
-      const [acc, saf, skp, cc, conflicts, polReg, conflictClusterData] = await Promise.all([
-        track(steps[0], api.loadTaxonomyFile('accelerationist')),
+      // Phase 1: Load accelerationist first so the GUI can display immediately
+      const acc = await track(steps[0], api.loadTaxonomyFile('accelerationist'));
+      const accFile = acc as PovTaxonomyFile;
+      if (accFile?.nodes) {
+        for (const node of accFile.nodes) {
+          normalizeNodeProperties(node as unknown as Record<string, unknown>);
+        }
+      }
+      set({
+        accelerationist: accFile,
+        loading: false,
+        backgroundLoading: true,
+        dirty: new Set(),
+        embeddingCache: new Map(),
+        embeddingDirty: true,
+      });
+
+      // Phase 2: Load remaining POVs and data files in the background
+      const [saf, skp, cc, conflicts, polReg, conflictClusterData] = await Promise.all([
         track(steps[1], api.loadTaxonomyFile('safetyist')),
         track(steps[2], api.loadTaxonomyFile('skeptic')),
         track(steps[3], api.loadTaxonomyFile('situations')),
@@ -1116,15 +1135,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         track(steps[6], api.loadConflictClusters().catch(() => null)),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
-      // Situations migration shim: normalize cross_cutting_refs → situation_refs on POV nodes
-      for (const povFile of [acc, saf, skp] as PovTaxonomyFile[]) {
+      for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
         if (povFile?.nodes) {
           for (const node of povFile.nodes) {
             normalizeNodeProperties(node as unknown as Record<string, unknown>);
           }
         }
       }
-      // Parse pre-computed conflict clusters if available
       const precomputedClusters = conflictClusterData &&
         typeof conflictClusterData === 'object' &&
         Array.isArray((conflictClusterData as { clusters: unknown }).clusters)
@@ -1132,20 +1149,17 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         : null;
 
       set({
-        accelerationist: acc as PovTaxonomyFile,
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
         situations: cc as SituationsFile,
         policyRegistry: regData?.policies ?? null,
         conflicts: conflicts as ConflictFile[],
         conflictClusters: precomputedClusters,
-        loading: false,
-        dirty: new Set(),
-        embeddingCache: new Map(),
+        backgroundLoading: false,
         embeddingDirty: true,
       });
     } catch (err) {
-      set({ loading: false, saveError: mapErrorToUserMessage(err) });
+      set({ loading: false, backgroundLoading: false, saveError: mapErrorToUserMessage(err) });
     }
   },
 
