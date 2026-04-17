@@ -1038,6 +1038,7 @@ export function crossRespondPrompt(
   priorRefs?: string[],
   availablePovNodeIds?: string[],
   priorFlaggedHints?: string[],
+  crossPovNodeIds?: string[],
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -1054,15 +1055,18 @@ export function crossRespondPrompt(
   if (priorRefs && priorRefs.length > 0) {
     const recent = Array.from(new Set(priorRefs));
     const uncited = availablePovNodeIds
-      ? availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 12)
+      ? availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 20)
       : [];
     const uncitedLine = uncited.length > 0
       ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
       : '';
+    const crossPovLine = crossPovNodeIds && crossPovNodeIds.length > 0
+      ? `\nYou may also cite nodes from other POVs when engaging directly with their claims — this demonstrates you understand their position, not that you endorse it. Sample cross-POV nodes: ${crossPovNodeIds.slice(0, 8).join(', ')}.`
+      : '';
     refsHistoryBlock = `\n=== YOUR RECENT CITATIONS ===
 You cited these taxonomy nodes across your last 2 turns: ${recent.join(', ')}.
 REQUIRED: At least 1 — ideally 2 — of this turn's 4–6 taxonomy_refs must be node_ids NOT in that list.
-Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}\n`;
+Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}${crossPovLine}\n`;
   }
 
   const constructiveMoveList = phase && phase !== 'thesis-antithesis'

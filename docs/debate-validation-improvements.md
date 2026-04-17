@@ -144,12 +144,16 @@ When building the cross-respond call, look up the most recent `turn_validations`
 
 **Priority:** Medium-High — closes the feedback loop without burning retry budget.
 
-## Implementation Order
+## Implementation Status
 
-1. **Rec 1** (paragraph enforcement) + **Rec 6** (feedback loop) — highest impact, lowest risk
-2. **Rec 2** (judge gate investigation) + **Rec 4** (abstract claim escalation) — fixes Gemini quality gap
-3. **Rec 3** (uncited node supply) — improves late-round depth
-4. **Rec 5** (clarifies heuristic) — scoring refinement
+| Rec | Description | Status | Commit |
+|-----|-------------|--------|--------|
+| 1 | Paragraph enforcement (single-paragraph → error) | **Done** | `a241212` |
+| 2 | Judge model fallback for non-Anthropic backends | **Done** | `a241212` |
+| 3 | Expanded uncited nodes + cross-POV suggestions in late rounds | **Done** | see below |
+| 4 | Abstract claims escalated to error after round 4 | **Done** | see below |
+| 5 | Deterministic fallback for `clarifies` dimension | Not started | — |
+| 6 | Feed `accept_with_flag` hints into next turn prompt | **Done** | `a241212` |
 
 ## Files Affected
 
@@ -157,5 +161,4 @@ When building the cross-respond call, look up the most recent `turn_validations`
 |---|---|
 | `lib/debate/prompts.ts` | 1, 3, 6 |
 | `lib/debate/turnValidator.ts` | 1, 4, 5 |
-| `lib/debate/debateEngine.ts` | 3 (pass uncited IDs to validator), 6 (pass prior hints to prompt) |
-| Debate config / caller | 2 (verify `deterministicOnly` and `sampleRate` settings) |
+| `lib/debate/debateEngine.ts` | 2 (fallback judge), 3 (cross-POV node IDs), 6 (prior hints to prompt) |

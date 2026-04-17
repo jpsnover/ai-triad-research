@@ -1005,8 +1005,19 @@ export class DebateEngine {
 
     // Reuse priorRefsEarly (computed before retrieval) for prompt-side rotation guidance.
     const priorRefs = priorRefsEarly;
-    const povFile = (this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>)[info.pov];
+    const taxMap = this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>;
+    const povFile = taxMap[info.pov];
     const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
+
+    // Gather cross-POV node IDs for late-round citation diversity (Rec 3)
+    const crossPovNodeIds = round >= 4
+      ? Object.entries(taxMap)
+          .filter(([key]) => key !== info.pov && key !== 'policyRegistry')
+          .flatMap(([, file]) => file?.nodes?.map(n => n.id) ?? [])
+          .filter(id => !priorRefsEarly.includes(id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 8)
+      : undefined;
 
     // Rec 6: Carry forward repair hints from prior accept_with_flag turns
     let priorFlaggedHints: string[] | undefined;
@@ -1035,6 +1046,7 @@ export class DebateEngine {
       priorRefs,
       availablePovNodeIds,
       priorFlaggedHints,
+      crossPovNodeIds,
     );
 
     // ── Cross-respond with per-turn validation + retry loop ──

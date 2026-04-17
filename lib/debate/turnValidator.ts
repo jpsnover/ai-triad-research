@@ -191,18 +191,19 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     warnings.push(msg);
   }
 
-  // Rule 9: claim specificity after round 3 (warning)
+  // Rule 9: claim specificity — warning after round 3, error after round 4
   if (round >= 3) {
     const claims = meta.my_claims ?? [];
     const specific = claims.some(c =>
       /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
     );
+    const target = round >= 4 ? errors : warnings;
     if (claims.length === 0) {
-      const msg = 'my_claims is empty after round 3 — add at least one claim with an operator, number, timeline, or named entity.';
-      warnings.push(msg);
+      const msg = 'my_claims is empty — add at least one claim with a number, timeline, or named entity.';
+      target.push(msg);
     } else if (!specific) {
-      const msg = 'my_claims are all abstract after round 3 — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").';
-      warnings.push(msg);
+      const msg = 'my_claims are all abstract — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").';
+      target.push(msg);
     } else {
       advancementSignals.push('specific_claim');
     }
