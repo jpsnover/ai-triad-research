@@ -10,6 +10,8 @@ import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode,
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
+import { getMoveName } from '@lib/debate/helpers';
+import type { MoveAnnotation } from '@lib/debate/helpers';
 import { computeCoverageMap } from '@lib/debate/coverageTracker';
 import type { CoverageMap, CoverageMapEntry } from '@lib/debate/coverageTracker';
 
@@ -279,12 +281,18 @@ function EntryView({ entryId }: { entryId: string }) {
 
       {/* Dialectical Moves */}
       {meta?.move_types && (
-        <CollapsibleSection title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen>
-          <div className="diag-badges">
-            {(meta.move_types as string[]).map((m, i) => (
-              <span key={i} className="diag-badge diag-badge-move">{m}</span>
-            ))}
-          </div>
+        <CollapsibleSection title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen>
+          {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
+            const name = getMoveName(m);
+            const ann = typeof m === 'object' ? m as MoveAnnotation : null;
+            return (
+              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(59,130,246,0.3)' }}>
+                <span className="diag-badge diag-badge-move">{name}</span>
+                {ann?.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
+                {ann?.detail && <div style={{ fontSize: '0.7rem', marginTop: 2 }}>{ann.detail}</div>}
+              </div>
+            );
+          })}
           {meta.disagreement_type && (
             <div className="diag-kv" style={{ marginTop: 4 }}>
               <span className="diag-k">Disagreement type:</span>

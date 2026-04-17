@@ -485,7 +485,11 @@ openings:
 
 In exploration and synthesis phases, you may also use constructive moves: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD (see constructive moves section if present).
 
-Include a "move_types" array in your response (select 1-3 per response).`;
+Include a "move_types" array in your response (select 1-3 per response). Each entry is an object:
+  {"move": "DISTINGUISH", "target": "AN-3", "detail": "Narrowed 'all regulation' to Section 230 liability specifically"}
+- "move" is the move name from the catalog above.
+- "target" (optional) is the AN-ID of the prior claim this move responds to.
+- "detail" is a brief phrase explaining what you did (e.g., what you specified, what you conceded, what you challenged).`;
 
 const OUTPUT_FORMAT = `## OUTPUT FORMAT
 Structure your response as the following JSON object. Every field must be present.
@@ -732,7 +736,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-beliefs-012", "relevance": "Connects the response to broader empirical patterns the other debater overlooked."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
-  "move_types": ["DISTINGUISH"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY
+  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY; each with optional "target" (AN-ID) and required "detail"
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1057,7 +1061,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
     {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
-  "move_types": ["COUNTEREXAMPLE", "REFRAME"],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY${constructiveMoveList}
+  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-3; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},

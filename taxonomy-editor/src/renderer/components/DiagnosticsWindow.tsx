@@ -12,6 +12,8 @@ import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
+import { getMoveName } from '@lib/debate/helpers';
+import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
 
@@ -624,7 +626,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
@@ -716,9 +718,61 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     return count;
   }, [sq, debate, an, diag]);
 
+  // Keyboard navigation: Left/Right = tabs, Up/Down/P/N = prev/next statement
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        if (entry) {
+          const ENTRY_TABS: EntryTab[] = ['details', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
+          const idx = ENTRY_TABS.indexOf(entryTab);
+          const next = idx + dir;
+          if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
+        } else if (debate) {
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction'];
+          const visible = OVERVIEW_TABS.filter(id => {
+            if (id === 'argument-network') return !!(an && an.nodes.length > 0);
+            if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
+            return true;
+          });
+          const idx = visible.indexOf(overviewTab);
+          const next = idx + dir;
+          if (next >= 0 && next < visible.length) setOverviewTab(visible[next]);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
+          e.key === 'p' || e.key === 'P' || e.key === 'n' || e.key === 'N') {
+        if (!debate) return;
+        e.preventDefault();
+        const dir = (e.key === 'ArrowDown' || e.key === 'n' || e.key === 'N') ? 1 : -1;
+        if (!entry) {
+          if (dir === 1 && debate.transcript.length > 0) {
+            setSelectedEntry(debate.transcript[0].id);
+            setLocalOverride(true);
+          }
+          return;
+        }
+        const curIdx = debate.transcript.findIndex(t => t.id === entry.id);
+        const nextIdx = curIdx + dir;
+        if (nextIdx >= 0 && nextIdx < debate.transcript.length) {
+          setSelectedEntry(debate.transcript[nextIdx].id);
+          setLocalOverride(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [debate, entry, entryTab, overviewTab, an, commitments]);
+
   return (
     <DiagSearchContext.Provider value={sq}>
-    <div style={{ padding: 12, height: '100vh', overflow: 'auto', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+    <div style={{ padding: 12, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
@@ -745,7 +799,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
 
       {debate && !selectedEntry && (
-        <>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
             Click a transcript entry in the main window to inspect it here. Showing overview.
           </p>
@@ -853,7 +907,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const modCount = [...modTraceByEntryId.values()].length;
 
             return (
-              <div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
                   {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
                 </div>
@@ -931,7 +985,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
           {/* Commitments */}
           {overviewTab === 'commitments' && commitments && Object.keys(commitments).length > 0 && (
-            <div>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {Object.entries(commitments).map(([pov, store]) => (
                 <div key={pov} style={{ margin: '4px 0' }}>
                   <strong>{speakerLabel(pov)}</strong>: Asserted {store.asserted.length} | Conceded {store.conceded.length} | Challenged {store.challenged.length}
@@ -942,7 +996,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
           {/* Transcript list for selection */}
           {overviewTab === 'transcript' && (
-            <div>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {debate.transcript.map((e, i) => {
               const stmtId = `S${i + 1}`;
               return (
@@ -968,7 +1022,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             })}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {entry && (() => {
@@ -989,7 +1043,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           opacity: disabled ? 0.5 : 1,
         });
         return (
-        <>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <button
               onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
@@ -1035,11 +1089,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const taxContext = diag?.taxonomy_context ?? '';
             const prompt = diag?.prompt ?? '';
             const response = diag?.raw_response ?? '';
-            // "Details" tab is available whenever any detail section has data.
+            const hasClaims = !!(
+              diag?.extracted_claims ||
+              (meta?.my_claims && (meta.my_claims as unknown[]).length > 0)
+            );
             const hasDetails = !!(
               (meta?.key_assumptions && (meta.key_assumptions as unknown[]).length > 0) ||
-              diag?.extracted_claims ||
-              (meta?.my_claims && (meta.my_claims as unknown[]).length > 0) ||
               (meta?.policy_refs as string[])?.length || (entry.policy_refs?.length ?? 0) > 0 ||
               diag?.model ||
               diag?.commitment_context ||
@@ -1047,8 +1102,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               diag?.argument_network_context ||
               (meta?.move_types && (meta.move_types as unknown[]).length > 0)
             );
+            const claimsCopy = [
+              ...(diag?.extracted_claims ? [...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)] : []),
+              ...((meta?.my_claims as { claim: string; targets: string[] }[])?.map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`) ?? []),
+            ].join('\n');
             const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
               { id: 'details', label: 'Details', has: hasDetails, copy: '' },
+              { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
               { id: 'tax-context', label: 'Taxonomy Context', has: taxContext.length > 0, copy: taxContext },
               { id: 'prompt', label: 'Full Prompt Sent to AI', has: prompt.length > 0, copy: prompt },
@@ -1064,7 +1124,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const textAreaStyle: React.CSSProperties = {
               width: '100%',
               flex: 1,
-              height: 'calc(100vh - 200px)',
+              height: '100%',
               minHeight: 300,
               resize: 'none',
               fontFamily: 'monospace',
@@ -1100,7 +1160,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             });
 
             return (
-              <div style={{ margin: '8px 0 14px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: '8px 0 0', minHeight: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid var(--border)' }}>
                   {tabs.map(t => (
                     <button
@@ -1124,6 +1184,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                 </div>
                 <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 0,
                   background: 'var(--bg-primary)',
                   border: '1px solid var(--border)',
                   borderTop: 'none',
@@ -1132,7 +1196,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 }}>
                   {activeTab === 'tax-refs' && (
                     taxRefCount > 0 ? (
-                      <div style={{ maxHeight: 'calc(100vh - 260px)', minHeight: 200, overflowY: 'auto', padding: '8px 10px' }}>
+                      <div style={{ flex: 1, minHeight: 200, overflowY: 'auto', padding: '8px 10px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
                           <colgroup>
                             <col style={{ width: '180px' }} />
@@ -1223,7 +1287,46 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     )
                   )}
                   {activeTab === 'details' && (
-                    <div style={{ padding: '8px 10px', maxHeight: 'calc(100vh - 260px)', minHeight: 200, overflowY: 'auto' }}>
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {meta?.move_types && (
+                        <Section title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
+                          {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
+                            const name = getMoveName(m);
+                            const ann = typeof m === 'object' ? m as MoveAnnotation : null;
+                            return (
+                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(59,130,246,0.3)' }}>
+                                <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
+                                {ann?.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
+                                {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
+                              </div>
+                            );
+                          })}
+                          {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
+                        </Section>
+                      )}
+
+                      {turnValTrail && (
+                        <Section
+                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${turnValTrail.final.score.toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
+                          defaultOpen
+                        >
+                          <TurnValidationSection trail={turnValTrail} />
+                        </Section>
+                      )}
+
+                      {diag?.model && (
+                        <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
+                          <div>Model: {diag.model}</div>
+                          {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
+                        </Section>
+                      )}
+
+                      {diag?.commitment_context && (
+                        <Section title="Commitments Injected" defaultOpen copyText={diag.commitment_context}>
+                          <ResizablePre tall text={diag.commitment_context} />
+                        </Section>
+                      )}
+
                       {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
                         <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
                           {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
@@ -1235,6 +1338,29 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </Section>
                       )}
 
+                      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
+                        <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} defaultOpen copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
+                          {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
+                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
+                          ))}
+                        </Section>
+                      )}
+
+                      {diag?.edge_tensions && (
+                        <Section title="Edge Tensions" defaultOpen copyText={diag.edge_tensions}>
+                          <ResizablePre tall text={diag.edge_tensions} />
+                        </Section>
+                      )}
+
+                      {diag?.argument_network_context && (
+                        <Section title="Argument Network Context" defaultOpen copyText={diag.argument_network_context}>
+                          <ResizablePre tall text={diag.argument_network_context} />
+                        </Section>
+                      )}
+                    </div>
+                  )}
+                  {activeTab === 'claims' && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
                       {diag?.extracted_claims && (
                         <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
                           {diag.extracted_claims.accepted.map((c, i) => (
@@ -1261,57 +1387,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           ))}
                         </Section>
                       )}
-
-                      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
-                        <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
-                          {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
-                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
-                          ))}
-                        </Section>
-                      )}
-
-                      {diag?.model && (
-                        <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
-                          <div>Model: {diag.model}</div>
-                          {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
-                        </Section>
-                      )}
-
-                      {turnValTrail && (
-                        <Section
-                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${turnValTrail.final.score.toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
-                          defaultOpen
-                        >
-                          <TurnValidationSection trail={turnValTrail} />
-                        </Section>
-                      )}
-
-                      {diag?.commitment_context && (
-                        <Section title="Commitments Injected" copyText={diag.commitment_context}>
-                          <ResizablePre tall text={diag.commitment_context} />
-                        </Section>
-                      )}
-
-                      {diag?.edge_tensions && (
-                        <Section title="Edge Tensions" copyText={diag.edge_tensions}>
-                          <ResizablePre tall text={diag.edge_tensions} />
-                        </Section>
-                      )}
-
-                      {diag?.argument_network_context && (
-                        <Section title="Argument Network Context" copyText={diag.argument_network_context}>
-                          <ResizablePre tall text={diag.argument_network_context} />
-                        </Section>
-                      )}
-
-                      {meta?.move_types && (
-                        <Section title={`Dialectical Moves — ${(meta.move_types as string[]).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as string[]).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
-                          {(meta.move_types as string[]).map((m, i) => (
-                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{m}</span>
-                          ))}
-                          {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
-                        </Section>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1319,7 +1394,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-        </>
+        </div>
         );
       })()}
     </div>

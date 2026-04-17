@@ -38,8 +38,8 @@ function PromptDefaultsSection() {
   const getResolved = usePromptConfigStore(s => s.get);
 
   return (
-    <div className="settings-prompt-defaults">
-      <label className="settings-label">Prompt Defaults</label>
+    <details className="settings-prompt-defaults">
+      <summary className="settings-label" style={{ cursor: 'pointer' }}>Prompt Defaults</summary>
       <p className="settings-hint">These apply to all new debates/chats. Existing sessions keep their per-session overrides.</p>
       <div className="settings-defaults-grid">
         {PROMPT_DEFAULT_ROWS.map(row => {
@@ -88,7 +88,7 @@ function PromptDefaultsSection() {
           );
         })}
       </div>
-    </div>
+    </details>
   );
 }
 

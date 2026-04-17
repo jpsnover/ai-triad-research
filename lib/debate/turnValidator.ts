@@ -19,7 +19,7 @@ import type {
   TaxonomyClarificationHint,
 } from './types';
 import type { PoverResponseMeta } from './helpers';
-import { parseJsonRobust } from './helpers';
+import { parseJsonRobust, getMoveName } from './helpers';
 
 // ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
 const MOVE_CATALOG = new Set<string>([
@@ -99,9 +99,9 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   // Rule 1: move_types subset of MOVE_CATALOG (error)
   if (meta.move_types && meta.move_types.length > 0) {
-    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(m));
+    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(getMoveName(m)));
     if (bad.length > 0) {
-      const msg = `Unknown move_types: ${bad.join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT.`;
+      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT.`;
       errors.push(msg);
       schemaIssues.push(msg);
     }
@@ -451,7 +451,7 @@ export function buildRepairPrompt(
   if (attempt >= 2) {
     sections.push('');
     sections.push('Required JSON shape (minimal reminder):');
-    sections.push('{ "statement": "…", "taxonomy_refs": [{"node_id":"…","relevance":"…"}], "move_types": ["…"], "disagreement_type": "EMPIRICAL|VALUES|DEFINITIONAL", "my_claims": [{"claim":"…","targets":["…"]}] }');
+    sections.push('{ "statement": "…", "taxonomy_refs": [{"node_id":"…","relevance":"…"}], "move_types": [{"move":"…","detail":"…"}], "disagreement_type": "EMPIRICAL|VALUES|DEFINITIONAL", "my_claims": [{"claim":"…","targets":["…"]}] }');
   }
 
   return `${basePrompt}\n\n${sections.join('\n')}\n`;

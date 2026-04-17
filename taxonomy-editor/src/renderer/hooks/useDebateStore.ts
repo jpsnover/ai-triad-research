@@ -51,7 +51,8 @@ import {
   parsePoverResponse,
 } from '@lib/debate/helpers';
 import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
-import type { PoverResponseMeta } from '@lib/debate/helpers';
+import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
+import { getMoveName } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
 import { usePromptConfigStore } from './usePromptConfigStore';
@@ -784,36 +785,78 @@ async function extractClaimsAndUpdateAN(
     }
 
     // Inline empirical claim verification (non-blocking)
+    // Uses the same two-pass approach as the manual factCheckSelection path:
+    //   Pass 1: grounded web search for evidence
+    //   Pass 2: structured verdict analysis with the evidence
     const preciseBeliefs = newNodes.filter(n => n.bdi_category === 'belief' && n.specificity === 'precise');
     let factCheckMutated = false;
     for (const pNode of preciseBeliefs.slice(0, 2)) {
       try {
-        const verifyPrompt = `Verify this empirical claim using web search evidence.\n\nClaim: "${pNode.text}"\n\nReturn ONLY JSON:\n{"verdict": "verified" or "disputed" or "unverifiable", "evidence": "1-2 sentence summary"}`;
-        const { text: vText } = await api.generateTextWithSearch(verifyPrompt, getConfiguredModel());
-        const vParsed = parseAIJson(vText) as any;
-        if (vParsed?.verdict) {
-          pNode.verification_status = vParsed.verdict;
-          pNode.verification_evidence = vParsed.evidence;
+        const fcModel = getConfiguredModel();
+
+        // Pass 1: web search for evidence (same as manual path)
+        let webContext = '';
+        let webQueries: string[] = [];
+        let webCitations: import('../bridge/types').GroundingCitation[] = [];
+        try {
+          const searchResult = await api.generateTextWithSearch(
+            `Fact-check this claim from an AI policy debate. Find recent, authoritative sources that support or contradict it. Be specific about what evidence you found.\n\nClaim: "${pNode.text}"`,
+            fcModel,
+          );
+          webContext = searchResult.text;
+          webQueries = searchResult.searchQueries || [];
+          webCitations = searchResult.citations || [];
+        } catch (searchErr) {
+          console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
+          webContext = '(Web search unavailable)';
+        }
+
+        // Pass 2: structured verdict analysis with all evidence
+        const verdictPrompt = buildFactCheckPrompt(
+          pNode.text,
+          pNode.text,
+          '',
+          webContext && webContext !== '(Web search unavailable)' ? `=== WEB SEARCH RESULTS ===\n${webContext}` : '',
+        );
+        const { text: vText } = await api.generateText(verdictPrompt, fcModel);
+        let vParsed = parseAIJson(vText) as any;
+        if (!vParsed) {
+          vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
+        }
+        const verdict = vParsed.verdict;
+        const explanation = vParsed.explanation || vParsed.evidence || '';
+
+        if (verdict) {
+          pNode.verification_status = verdict;
+          pNode.verification_evidence = explanation;
           factCheckMutated = true;
-          // Update in session
           const currentDebate = get().activeDebate;
           if (currentDebate) set({ activeDebate: { ...currentDebate } });
 
-          if (vParsed.verdict === 'disputed' || vParsed.verdict === 'verified') {
+          if (verdict === 'disputed' || verdict === 'verified' || verdict === 'supported') {
             const addEntry = get().addTranscriptEntry;
+            const hasWeb = !!webContext && webContext !== '(Web search unavailable)';
+            const webNote = webQueries.length > 0
+              ? `\n\n*Web sources consulted: ${webQueries.slice(0, 3).join(', ')}*`
+              : hasWeb
+                ? '\n\n*Verified against web search results*'
+                : '';
             if (addEntry) {
-              const verdictLabel = vParsed.verdict === 'disputed' ? 'Disputed' : 'Verified';
+              const verdictLabel = verdict === 'disputed' ? 'Disputed' : verdict === 'supported' ? 'Supported' : 'Verified';
               addEntry({
                 type: 'fact-check',
                 speaker: 'system',
-                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text.length > 120 ? pNode.text.slice(0, 117) + '...' : pNode.text}"\n\n${vParsed.evidence}`,
+                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text.length > 120 ? pNode.text.slice(0, 117) + '...' : pNode.text}"\n\n${explanation}${webNote}`,
                 taxonomy_refs: [],
                 metadata: {
                   fact_check: {
-                    verdict: vParsed.verdict,
-                    explanation: vParsed.evidence,
+                    verdict,
+                    explanation,
                     checked_text: pNode.text,
-                    web_search_used: true,
+                    web_search_used: hasWeb,
+                    web_search_queries: webQueries.length ? webQueries : undefined,
+                    web_search_evidence: hasWeb ? webContext : undefined,
+                    web_search_citations: webCitations.length ? webCitations : undefined,
                     target_an_id: pNode.id,
                   },
                 },
@@ -824,11 +867,11 @@ async function extractClaimsAndUpdateAN(
             // argument network reflects the evidence (mirrors manual fact-check path).
             const cur = get().activeDebate as DebateSession | null;
             if (cur) {
-              const attackType = vParsed.verdict === 'disputed' ? 'attacks' : 'supports';
+              const attackType = verdict === 'disputed' ? 'attacks' : 'supports';
               const factCheckEntryId = cur.transcript[cur.transcript.length - 1]?.id || entryId;
               const fcNode: ArgumentNetworkNode = {
                 id: 'pending-fc-node',
-                text: `Fact-check (${vParsed.verdict}): ${vParsed.evidence}`,
+                text: `Fact-check (${verdict}): ${explanation}`,
                 speaker: 'system',
                 source_entry_id: factCheckEntryId,
                 taxonomy_refs: [],
@@ -845,7 +888,7 @@ async function extractClaimsAndUpdateAN(
                 type: attackType,
                 attack_type: attackType === 'attacks' ? 'rebut' : undefined,
                 scheme: attackType === 'attacks' ? 'EMPIRICAL CHALLENGE' : 'EXTEND',
-                warrant: `Inline fact-check evidence (web search): ${String(vParsed.evidence).slice(0, 100)}`,
+                warrant: `Inline fact-check evidence (web search): ${String(explanation).slice(0, 100)}`,
                 argumentation_scheme: 'ARGUMENT_FROM_EVIDENCE',
               };
               commitAnNodes(get, set, `factcheck(inline,pNode=${pNode.id})`, [fcNode], [fcEdge]);
@@ -2029,7 +2072,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           if (meta.move_types) {
             const diag = get().activeDebate?.diagnostics;
             if (diag) {
-              for (const m of meta.move_types) diag.overview.move_type_counts[m] = (diag.overview.move_type_counts[m] || 0) + 1;
+              for (const m of meta.move_types) { const name = getMoveName(m); diag.overview.move_type_counts[name] = (diag.overview.move_type_counts[name] || 0) + 1; }
               if (meta.disagreement_type) diag.overview.disagreement_type_counts[meta.disagreement_type] = (diag.overview.disagreement_type_counts[meta.disagreement_type] || 0) + 1;
             }
           }

@@ -6861,6 +6861,13 @@ body {
 
 .debate-statement-content.markdown-body {
   white-space: normal;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 4.8em,
+    rgba(128, 128, 128, 0.22) 4.8em,
+    rgba(128, 128, 128, 0.22) 6.4em
+  );
 }
 
 .debate-statement-content.markdown-body p {

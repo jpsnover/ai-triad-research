@@ -192,9 +192,16 @@ export function formatRecentTranscript(
   return parts.join('\n\n');
 }
 
+/** Structured dialectical move annotation */
+export interface MoveAnnotation {
+  move: string;
+  target?: string;
+  detail: string;
+}
+
 /** Extended metadata from enriched debate prompts */
 export interface PoverResponseMeta {
-  move_types?: string[];
+  move_types?: (string | MoveAnnotation)[];
   disagreement_type?: string;
   key_assumptions?: { assumption: string; if_wrong: string }[];
   my_claims?: { claim: string; targets: string[] }[];
@@ -272,6 +279,28 @@ export function extractArraysFromPartialJson(json: string): Record<string, unkno
   };
 }
 
+function normalizeMoveTypes(raw: unknown[]): (string | MoveAnnotation)[] {
+  return raw.map(item => {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object') {
+      const obj = item as Record<string, unknown>;
+      if (typeof obj.move === 'string') {
+        return {
+          move: obj.move,
+          target: typeof obj.target === 'string' ? obj.target : undefined,
+          detail: typeof obj.detail === 'string' ? obj.detail : '',
+        } as MoveAnnotation;
+      }
+    }
+    return String(item);
+  });
+}
+
+/** Extract the move name from either a plain string or a MoveAnnotation */
+export function getMoveName(item: string | MoveAnnotation): string {
+  return typeof item === 'string' ? item : item.move;
+}
+
 /** Parse a POVer response JSON from the LLM */
 export function parsePoverResponse(text: string): { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta } {
   let statement: string;
@@ -291,7 +320,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
     }
     // Capture enriched debate metadata
     meta = {
-      move_types: Array.isArray(parsed.move_types) ? parsed.move_types : undefined,
+      move_types: Array.isArray(parsed.move_types) ? normalizeMoveTypes(parsed.move_types) : undefined,
       disagreement_type: typeof parsed.disagreement_type === 'string' ? parsed.disagreement_type : undefined,
       key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
       my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims.filter(
@@ -317,7 +346,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
             .map((r: Record<string, unknown>) => ({ node_id: r.node_id as string, relevance: (r.relevance as string) || '' }));
         }
         meta = {
-          move_types: Array.isArray(parsed.move_types) ? parsed.move_types : undefined,
+          move_types: Array.isArray(parsed.move_types) ? normalizeMoveTypes(parsed.move_types) : undefined,
           disagreement_type: typeof parsed.disagreement_type === 'string' ? parsed.disagreement_type : undefined,
           key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
           my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims : undefined,
