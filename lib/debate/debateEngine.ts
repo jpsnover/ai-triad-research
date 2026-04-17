@@ -1008,6 +1008,20 @@ export class DebateEngine {
     const povFile = (this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>)[info.pov];
     const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
 
+    // Rec 6: Carry forward repair hints from prior accept_with_flag turns
+    let priorFlaggedHints: string[] | undefined;
+    if (this.session.turn_validations) {
+      const priorSpeakerEntries = this.session.transcript
+        .filter(e => e.speaker === responder && e.type !== 'opening');
+      const lastEntry = priorSpeakerEntries[priorSpeakerEntries.length - 1];
+      if (lastEntry) {
+        const trail = this.session.turn_validations[lastEntry.id];
+        if (trail?.final?.outcome === 'accept_with_flag' && trail.final.repairHints?.length) {
+          priorFlaggedHints = trail.final.repairHints;
+        }
+      }
+    }
+
     const prompt = crossRespondPrompt(
       info.label, info.pov, info.personality,
       this.session.topic.final,
@@ -1020,6 +1034,7 @@ export class DebateEngine {
       phase,
       priorRefs,
       availablePovNodeIds,
+      priorFlaggedHints,
     );
 
     // ── Cross-respond with per-turn validation + retry loop ──
@@ -1059,6 +1074,9 @@ export class DebateEngine {
         policyIds: this.getPolicyIds(),
         config: vConfig,
         callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
+        callJudgeFallback: this.config.model !== vConfig.judgeModel
+          ? (p, l) => this.generateWithModel(p, l, this.config.model, 20000)
+          : undefined,
       });
 
       attempts.push({

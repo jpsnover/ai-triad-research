@@ -30,6 +30,7 @@ const MOVE_CATALOG = new Set<string>([
   'EMPIRICAL CHALLENGE',
   'EXTEND',
   'UNDERCUT',
+  'GROUND-CHECK',
   // Legacy accepted variants
   'CONCEDE',
   'REDUCE',
@@ -80,6 +81,8 @@ export interface ValidateTurnParams {
   policyIds: ReadonlySet<string>;
   config: Required<TurnValidationConfig>;
   callJudge: (prompt: string, label: string) => Promise<string>;
+  /** Optional fallback judge caller using the debate's own model when the primary judge fails. */
+  callJudgeFallback?: (prompt: string, label: string) => Promise<string>;
 }
 
 interface StageAResult {
@@ -147,9 +150,12 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     groundingIssues.push(msg);
   }
 
-  // Rule 6: paragraph count 3–5 (warning)
+  // Rule 6: paragraph count 3–5 (single-paragraph is error; other deviations are warning)
   const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
-  if (paragraphs.length < 3 || paragraphs.length > 5) {
+  if (paragraphs.length === 1) {
+    const msg = 'Statement is a single paragraph — split into 3–5 double-newline-separated blocks.';
+    errors.push(msg);
+  } else if (paragraphs.length === 2 || paragraphs.length > 5) {
     const msg = `Statement has ${paragraphs.length} paragraphs — target 3–5 double-newline-separated blocks.`;
     warnings.push(msg);
   }
@@ -332,15 +338,27 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
 
   let judge: JudgeVerdict | null = null;
   let judgeUsed = false;
+  let judgeModel: string | undefined;
   if (shouldRunJudge) {
+    const judgePrompt = buildJudgePrompt(p);
+    const judgeLabel = `turn-validator judge (${p.speaker} r${p.round})`;
     try {
-      const prompt = buildJudgePrompt(p);
-      const raw = await p.callJudge(prompt, `turn-validator judge (${p.speaker} r${p.round})`);
+      const raw = await p.callJudge(judgePrompt, judgeLabel);
       judge = parseJudgeVerdict(raw);
       judgeUsed = true;
+      judgeModel = p.config.judgeModel;
     } catch {
-      // Broken judge degrades to pass — never stall a debate.
-      judge = null;
+      // Primary judge failed (e.g. missing Anthropic key) — try fallback model.
+      if (p.callJudgeFallback) {
+        try {
+          const raw = await p.callJudgeFallback(judgePrompt, `${judgeLabel} [fallback]`);
+          judge = parseJudgeVerdict(raw);
+          judgeUsed = true;
+          judgeModel = 'fallback';
+        } catch {
+          judge = null;
+        }
+      }
     }
   }
 
@@ -401,7 +419,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     repairHints,
     clarifies_taxonomy: judge?.clarifies_taxonomy ?? [],
     judge_used: judgeUsed,
-    judge_model: judgeUsed ? p.config.judgeModel : undefined,
+    judge_model: judgeUsed ? judgeModel : undefined,
   };
 }
 

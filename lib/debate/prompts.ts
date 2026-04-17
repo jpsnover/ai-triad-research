@@ -26,7 +26,7 @@ const READING_LEVEL = 'Write for a policy reporter or congressional staffer — 
 // Each length tier specifies both the size constraint AND which
 // dialectical requirements apply at that tier.
 
-const DETAIL_INSTRUCTION = 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence.';
+const DETAIL_INSTRUCTION = 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence. Structure each major argument as: (1) State your conclusion. (2) Name the principle, standard, or evidence that governs the question. (3) Apply that standard to the specific facts of this debate. (4) Close by restating the conclusion in light of the application. This is one argument — repeat for each major point, giving each its own paragraph.';
 
 // ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
@@ -77,6 +77,8 @@ PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose bas
 - Prioritize CRUXES: points where, if resolved, someone would change their mind
 - Ignore rhetorical flourishes and focus on substantive claims
 - If multiple opponents made different arguments, address the one that most threatens your position
+
+FIND THE WEAKEST JOINT. Every structured argument has joints: the issue framing, the governing standard, the application of standard to facts, and the conclusion. You do not have to dismantle all of them. Identify which joint is weakest — usually the standard (is that really the right rule?) or the application (do the facts actually fit the rule as claimed?) — and press there. A single broken joint collapses the whole chain.
 
 HANDLING FLAWED QUESTIONS: If the question directed at you contains a false premise, a loaded framing, or is outside the scope of your debater's expertise, name the problem briefly before responding. Do not accept a flawed frame just to answer the question — restate the issue accurately, then give your substantive response. If the question is entirely off-topic for your perspective, say so and redirect to the most relevant nearby issue you can address.`;
 
@@ -175,6 +177,7 @@ function allInstructions(phase?: DebatePhase): string {
     MUST_EXTENDED,
     STEELMAN_INSTRUCTION,
     DIALECTICAL_MOVES,
+    COUNTER_TACTICS,
   ];
 
   // Add phase-specific instructions
@@ -470,6 +473,13 @@ const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical 
   this position?" The goal is to surface hidden assumptions and make the disagreement
   resolvable in principle.
 
+- GROUND-CHECK: Before engaging with an opponent's argument, verify the shared factual basis.
+  USE WHEN: An opponent's conclusion rests on a framing of facts you haven't agreed to, or
+  when ambiguous facts have been presented in a way that favors their position.
+  THE KEY: Restate the facts in neutral language and get agreement before debating what
+  follows from them. Whoever controls the facts controls the conclusion. This move prevents
+  you from accidentally conceding a contested premise by jumping straight to the reasoning.
+
 MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
 conceded last turn, lead with a challenge or reframe this turn. If you distinguished
 last turn, try a counterexample or undercut. The best debates feature genuine variety
@@ -491,8 +501,43 @@ Include a "move_types" array in your response (select 1-3 per response). Each en
 - "target" (optional) is the AN-ID of the prior claim this move responds to.
 - "detail" is a brief phrase explaining what you did (e.g., what you specified, what you conceded, what you challenged).`;
 
+const COUNTER_TACTICS = `RECOGNIZE AND COUNTER THESE PATTERNS when opponents use them:
+
+- BURDEN SHIFT: Opponent states a conclusion and demands you disprove it. Response: name the
+  move — "You're asserting X; the burden is on you to establish it, not on me to refute it."
+  Then redirect: what evidence supports their claim?
+
+- FACT REFRAMING: Opponent presents ambiguous facts in a framing that favors their position.
+  Response: restate the facts in neutral language before accepting their frame. Control the
+  facts before conceding the rule. If they resist the neutral restatement, that is where the
+  real disagreement lives.
+
+- PREMISE STACKING: Opponent asks you to agree to small claims, then builds on them. Response:
+  agree only to what is actually true. Qualify anything partly true — "I accept X but not the
+  implication that Y follows." Each unchallenged concession becomes a foundation you cannot
+  retract.
+
+- CONCLUSION AS FINDING: Opponent leads with a confident conclusion as if it were already
+  established. Response: treat it as a claim that requires support — "That is the conclusion.
+  Walk me through how you got there." Force reasoning into the open before engaging with
+  the substance.
+
+- POINT FLOODING: Opponent raises many issues at once to overwhelm or scatter your response.
+  Response: pick the 2-3 weakest or most load-bearing claims and demand they be resolved
+  before moving on. Do not chase every point — a focused response to their weakest joint
+  is stronger than a scattered response to everything.
+
+- UNVERIFIED AUTHORITY: Opponent cites a source, study, or expert you cannot verify. Response:
+  decline to accept unverified authority as settled — "I'm happy to examine that evidence, but
+  I won't concede the point on an unchecked citation." Then evaluate the claim on its own merits.
+
+When you detect one of these patterns, name it briefly in your statement before countering.
+Naming the tactic neutralizes it by making the rhetorical move visible to the audience.`;
+
 const OUTPUT_FORMAT = `## OUTPUT FORMAT
 Structure your response as the following JSON object. Every field must be present.
+
+PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea. A single unbroken block will be rejected — structure your argument into clear, quotable sections.
 
 NODE-ID PROHIBITION: Node IDs are system metadata, not part of the conversation. Never surface them in your statement text — no "AN-64," no "According to taxonomy node X," no "Cassandra's AN-64 point." Instead, describe the actual argument in plain language. Use the taxonomy_refs field for attribution.
 
@@ -992,6 +1037,7 @@ export function crossRespondPrompt(
   phase?: DebatePhase,
   priorRefs?: string[],
   availablePovNodeIds?: string[],
+  priorFlaggedHints?: string[],
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -1046,7 +1092,7 @@ ${taxonomyContext}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
-${moveHistoryBlock}${refsHistoryBlock}
+${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.length > 0 ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your current response.\n` : ''}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
