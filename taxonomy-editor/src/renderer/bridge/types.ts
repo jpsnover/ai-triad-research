@@ -68,7 +68,7 @@ export interface AppAPI {
   hasApiKey: (backend?: string) => Promise<boolean>;
 
   // --- AI generation ---
-  generateText: (prompt: string, model?: string, timeoutMs?: number) => Promise<{ text: string }>;
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];

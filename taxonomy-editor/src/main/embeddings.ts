@@ -7,6 +7,7 @@ import { execFile } from 'child_process';
 import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 import { PROJECT_ROOT } from './fileIO';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 
 /** Find embed_taxonomy.py — may be in PROJECT_ROOT/scripts or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findEmbedScript(): string {
@@ -491,6 +492,7 @@ async function generateViaGemini(
   apiKey: string,
   onRetry?: (progress: GenerateTextProgress) => void,
   timeoutMs?: number,
+  temperature?: number,
 ): Promise<string> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
@@ -506,7 +508,7 @@ async function generateViaGemini(
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: _debateTemperature ?? 0.7,
+              temperature: temperature ?? _debateTemperature ?? 0.7,
               maxOutputTokens: 16384,
             },
           }),
@@ -618,6 +620,7 @@ async function generateViaClaude(
   model: string,
   apiKey: string,
   timeoutMs?: number,
+  temperature?: number,
 ): Promise<string> {
   const apiModel = getApiModelId(model);
   const maskedKey = apiKey.length > 12 ? apiKey.slice(0, 8) + '...' + apiKey.slice(-4) : '***';
@@ -644,7 +647,7 @@ async function generateViaClaude(
       body: JSON.stringify({
         model: apiModel,
         max_tokens: 8192,
-        temperature: _debateTemperature ?? 0.7,
+        temperature: temperature ?? _debateTemperature ?? 0.7,
         messages: [{ role: 'user', content: prompt }],
       }),
     }),
@@ -680,6 +683,7 @@ async function generateViaGroq(
   model: string,
   apiKey: string,
   timeoutMs?: number,
+  temperature?: number,
 ): Promise<string> {
   const apiModel = getApiModelId(model);
   console.log(`[generateText] Calling Groq ${apiModel}...`);
@@ -694,7 +698,7 @@ async function generateViaGroq(
       body: JSON.stringify({
         model: apiModel,
         messages: [{ role: 'user', content: prompt }],
-        temperature: _debateTemperature ?? 0.7,
+        temperature: temperature ?? _debateTemperature ?? 0.7,
         max_tokens: 8192,
       }),
     }),
@@ -733,6 +737,7 @@ export async function generateText(
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
   timeoutMs?: number,
+  temperature?: number,
 ): Promise<string> {
   const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
   const resolvedModel = model || DEFAULT_GENERATE_MODEL;
@@ -757,11 +762,11 @@ export async function generateText(
 
   switch (backend) {
     case 'claude':
-      return generateViaClaude(prompt, resolvedModel, apiKey, timeoutMs);
+      return generateViaClaude(prompt, resolvedModel, apiKey, timeoutMs, temperature);
     case 'groq':
-      return generateViaGroq(prompt, resolvedModel, apiKey, timeoutMs);
+      return generateViaGroq(prompt, resolvedModel, apiKey, timeoutMs, temperature);
     default:
-      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry, timeoutMs);
+      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry, timeoutMs, temperature);
   }
 }
 
@@ -779,9 +784,45 @@ export interface GroundingCitation {
 }
 
 /**
- * Generate text with Gemini Google Search grounding enabled.
- * Used for fact-checking where external verification improves accuracy.
- * Falls back to regular generateText for non-Gemini backends.
+ * Tavily search + LLM pipeline: search the web via Tavily, then pass
+ * the results as context to the current AI model for grounded generation.
+ */
+async function generateWithTavily(
+  prompt: string,
+  model: string,
+  tavilyKey: string,
+): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
+  const searchQuery = prompt.length > 400 ? prompt.slice(0, 400) : prompt;
+  console.log(`[AI] Tavily search for model=${model}, query length=${searchQuery.length}`);
+
+  const searchResult = await tavilySearch(searchQuery, tavilyKey, {
+    maxResults: 5,
+    includeAnswer: true,
+    searchDepth: 'basic',
+  }, net.fetch as unknown as typeof fetch);
+
+  const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
+
+  const text = await generateText(augmentedPrompt, model);
+
+  const citations: GroundingCitation[] = searchCitations.map(c => ({
+    uri: c.uri,
+    title: c.title,
+    segments: [],
+  }));
+
+  return {
+    text,
+    searchQueries: searchQueries.length ? searchQueries : undefined,
+    citations: citations.length ? citations : undefined,
+  };
+}
+
+/**
+ * Generate text with web search grounding.
+ * Gemini: uses built-in google_search tool.
+ * Other backends: uses Tavily search + LLM if TAVILY_API_KEY is available.
+ * Falls back to regular generateText when no search provider is available.
  */
 export async function generateTextWithSearch(
   prompt: string,
@@ -791,8 +832,12 @@ export async function generateTextWithSearch(
   const resolvedModel = model || DEFAULT_GENERATE_MODEL;
   const backend = resolveBackend(resolvedModel);
 
-  // Only Gemini supports built-in search grounding
+  // Non-Gemini: use Tavily search + LLM if Tavily key is available
   if (backend !== 'gemini') {
+    const tavilyKey = loadApiKey('tavily') || process.env.TAVILY_API_KEY;
+    if (tavilyKey) {
+      return generateWithTavily(prompt, resolvedModel, tavilyKey);
+    }
     const text = await generateText(prompt, resolvedModel);
     return { text };
   }

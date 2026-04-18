@@ -9,9 +9,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "outDir": "dist/server",
-    "rootDir": "src/server",
+    "rootDir": "../",
     "declaration": false
   },
-  "include": ["src/server/**/*"],
+  "include": ["src/server/**/*", "../lib/search/**/*"],
   "exclude": ["node_modules", "dist"]
 }

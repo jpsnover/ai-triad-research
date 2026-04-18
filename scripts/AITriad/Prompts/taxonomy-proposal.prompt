@@ -55,7 +55,12 @@ Analyze the health data provided below and generate structured proposals to impr
   - Line 3: "Excludes: [what neighboring nodes cover]."
   - For situations nodes, Line 1 is: "A situation concept that [differentia]."
   - Each line MUST start with the literal label shown. Use "\n" to separate lines in JSON strings.
-  - 2-4 sentences total. Write for a policy reporter — active voice, concrete examples, quotable sentences. No nominalizations or hedge stacking.
+  - 2-4 sentences total. Use domain-specific terminology — no colloquialisms. No nominalizations or hedge stacking.
+- **Label format by category:**
+  - Desires: present participle targeting an ideal state (e.g., "Mitigating Automation Displacement", "Ensuring Algorithmic Accountability", "Democratizing AI Access")
+  - Beliefs: noun phrase denoting a phenomenon, principle, or empirical claim (e.g., "Inherent Power-Seeking Behavior", "Cognitive Atrophy from AI Reliance")
+  - Intentions: present participle denoting strategic action or policy posture (e.g., "Mandating Algorithmic Audits", "Prioritizing Interpretability Research")
+  - Never start labels with "The", "A", or "An". Never include parenthetical abbreviations.
 - Prioritize proposals that address: (a) strong unmapped candidates (frequency >= 3), (b) orphan nodes, (c) high stance-variance nodes, (d) coverage imbalances.
 - Do NOT propose changes that merely rephrase existing nodes without substantive benefit.
 - Do NOT propose NEW nodes that duplicate existing coverage. Check each unmapped concept's `nearest_nodes` similarity scores — if the top match is >= 0.80, the concept is already covered. Existing taxonomy nodes now include descriptions to help you judge overlap.

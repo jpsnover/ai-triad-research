@@ -279,6 +279,57 @@ function EntryView({ entryId }: { entryId: string }) {
         );
       })()}
 
+      {/* Pipeline Stage Work Products */}
+      {diag?.stage_diagnostics && diag.stage_diagnostics.length > 0 && (() => {
+        const stages = diag.stage_diagnostics;
+        const stageColors: Record<string, string> = { brief: '#3b82f6', plan: '#a855f7', draft: '#22c55e', cite: '#fb923c' };
+        return (
+          <>
+            {stages.map(s => (
+              <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${(s.response_time_ms / 1000).toFixed(1)}s)`}>
+                {s.stage === 'brief' && !!(s.work_product as Record<string, unknown>).situation_assessment && (
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem' }}>
+                    {String((s.work_product as Record<string, unknown>).situation_assessment)}
+                  </div>
+                )}
+                {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).strategic_goal && (
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem', fontWeight: 600 }}>
+                    {String((s.work_product as Record<string, unknown>).strategic_goal)}
+                  </div>
+                )}
+                {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).planned_moves) && (
+                  <div style={{ marginBottom: 6 }}>
+                    {((s.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
+                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                        <span className="diag-badge diag-badge-move">{m.move}</span>
+                        {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
+                        {m.detail && <div style={{ fontSize: '0.7rem', marginTop: 1 }}>{m.detail}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {s.stage === 'draft' && !!(s.work_product as Record<string, unknown>).disagreement_type && (
+                  <div className="diag-kv" style={{ marginBottom: 4 }}>
+                    <span className="diag-k">Disagreement:</span>
+                    <span className="diag-badge diag-badge-type">{String((s.work_product as Record<string, unknown>).disagreement_type)}</span>
+                  </div>
+                )}
+                {s.stage === 'cite' && typeof (s.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
+                  <div className="diag-kv" style={{ marginBottom: 4 }}>
+                    <span className="diag-k">Grounding confidence:</span>
+                    <span className="diag-v">{((s.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}</span>
+                  </div>
+                )}
+                <details style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  <summary style={{ cursor: 'pointer' }}>Full work product</summary>
+                  <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', fontSize: '0.6rem' }}>{JSON.stringify(s.work_product, null, 2)}</pre>
+                </details>
+              </CollapsibleSection>
+            ))}
+          </>
+        );
+      })()}
+
       {/* Dialectical Moves */}
       {meta?.move_types && (
         <CollapsibleSection title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen>
@@ -293,10 +344,10 @@ function EntryView({ entryId }: { entryId: string }) {
               </div>
             );
           })}
-          {meta.disagreement_type && (
+          {!!meta.disagreement_type && (
             <div className="diag-kv" style={{ marginTop: 4 }}>
               <span className="diag-k">Disagreement type:</span>
-              <span className="diag-badge diag-badge-type">{meta.disagreement_type as string}</span>
+              <span className="diag-badge diag-badge-type">{String(meta.disagreement_type)}</span>
             </div>
           )}
         </CollapsibleSection>

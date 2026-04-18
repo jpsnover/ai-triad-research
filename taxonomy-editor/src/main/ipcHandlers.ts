@@ -197,12 +197,12 @@ export function registerIpcHandlers(): void {
     return { results: await classifyNli(pairs) };
   });
 
-  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number) => {
+  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number) => {
     try {
       return {
         text: await generateText(prompt, model, (progress) => {
           event.sender.send('generate-text-progress', progress);
-        }, timeoutMs),
+        }, timeoutMs, temperature),
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

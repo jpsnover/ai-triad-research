@@ -56,12 +56,18 @@ QUANTITY GUIDANCE FOR THIS SECTION:
         - Each line MUST start with the literal label shown ("Encompasses:", "Excludes:").
         - Use "\n" to separate the three lines in the JSON string value.
         - 2-4 sentences total. The Excludes clause does the boundary work.
-        - Write for a policy reporter — active voice, named actors, one idea per sentence, concrete examples over abstractions. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use.
+        - Use domain-specific terminology — no colloquialisms. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; define on first use.
+
+    LABEL FORMAT BY CATEGORY:
+      • Desires: present participle targeting an ideal state (e.g., "Mitigating Automation Displacement", "Ensuring Algorithmic Accountability", "Democratizing AI Access")
+      • Beliefs: noun phrase denoting a phenomenon, principle, or empirical claim (e.g., "Inherent Power-Seeking Behavior", "Cognitive Atrophy from AI Reliance")
+      • Intentions: present participle denoting strategic action or policy posture (e.g., "Mandating Algorithmic Audits", "Prioritizing Interpretability Research")
+      • Never start labels with "The", "A", or "An". Never include parenthetical abbreviations.
 
     STYLE — labels must match the existing taxonomy's voice:
       • Write for a policy reporter — active voice, concrete examples, every sentence quotable without rewriting.
       • Labels should read like newspaper headlines, not academic paper titles.
-        GOOD: "New Tech Takes Time to Spread", "Attacks That Break AI Safety Rules"
+        GOOD: "Mitigating Workforce Displacement Risk", "Inherent Power-Seeking Behavior"
         BAD:  "Innovation-Diffusion Lag", "Denial-of-Governance Attacks"
     For situation concepts (suggested_pov = "situation"), you MUST also provide
     three interpretation fields:

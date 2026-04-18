@@ -30,6 +30,7 @@ export * from './qbafCombinator';
 export * from './concessionTracker';
 export * from './coverageTracker';
 export * from './debateExport';
+export * from './turnPipeline';
 
 // ── Situations Migration Normalizers ──────────────────────
 

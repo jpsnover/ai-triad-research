@@ -19,6 +19,7 @@
     "../lib/debate/debateExport.ts",
     "../lib/debate/taxonomyLoader.ts",
     "../lib/debate/taxonomyTypes.ts",
-    "../lib/debate/taxonomyContext.ts"
+    "../lib/debate/taxonomyContext.ts",
+    "../lib/search/**/*"
   ]
 }

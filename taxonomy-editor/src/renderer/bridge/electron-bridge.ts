@@ -51,7 +51,7 @@ export const api: AppAPI = {
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
 
   // AI generation
-  generateText: (prompt, model, timeout) => window.electronAPI.generateText(prompt, model, timeout),
+  generateText: (prompt, model, timeout, temperature) => window.electronAPI.generateText(prompt, model, timeout, temperature),
   generateTextWithSearch: (prompt, model) => window.electronAPI.generateTextWithSearch(prompt, model),
   setDebateTemperature: (temp) => window.electronAPI.setDebateTemperature(temp),
 

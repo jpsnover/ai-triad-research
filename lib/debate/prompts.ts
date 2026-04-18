@@ -1125,6 +1125,237 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
 }
 
+// ── 4-Stage turn pipeline prompts ─────────────────────────
+
+export interface StagePromptInput {
+  label: string;
+  pov: string;
+  personality: string;
+  topic: string;
+  taxonomyContext: string;
+  recentTranscript: string;
+  focusPoint: string;
+  addressing: string;
+  phase?: DebatePhase;
+  priorMoves?: string[];
+  priorRefs?: string[];
+  availablePovNodeIds?: string[];
+  crossPovNodeIds?: string[];
+  priorFlaggedHints?: string[];
+  sourceContent?: string;
+  documentAnalysis?: DocumentAnalysis;
+}
+
+export function briefStagePrompt(input: StagePromptInput): string {
+  const documentBlock = input.documentAnalysis
+    ? documentAnalysisContext(input.documentAnalysis)
+    : sourceReminder(input.sourceContent);
+
+  return `You are an analytical assistant preparing a situation brief for ${input.label}, who represents the ${input.pov} perspective on AI policy.
+
+Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
+
+${input.taxonomyContext}
+
+=== DEBATE TOPIC ===
+"${input.topic}"${documentBlock}
+
+=== RECENT DEBATE HISTORY ===
+${input.recentTranscript}
+
+=== ASSIGNMENT FOR NEXT TURN ===
+${input.label} must address ${input.addressing === 'general' ? 'the panel' : input.addressing} on: ${input.focusPoint}
+
+${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
+
+Analyze the debate state and produce a structured brief. Focus on:
+1. What is the current state of the debate? What just happened?
+2. What are the most important claims that need addressing? Include the AN-ID if available.
+3. Which taxonomy nodes from the context above are most relevant to the assignment?
+4. What commitments have been made that constrain or enable ${input.label}'s response?
+5. What structural tensions exist that ${input.label} could exploit or must navigate?
+6. What does the current debate phase demand?
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "situation_assessment": "2-4 sentences describing the current debate state and what just happened",
+  "key_claims_to_address": [
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known"}
+  ],
+  "relevant_taxonomy_nodes": [
+    {"node_id": "e.g. acc-beliefs-003", "why": "1 sentence: why this node matters for the assignment"}
+  ],
+  "relevant_commitments": [
+    {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}
+  ],
+  "edge_tensions": [
+    {"edge": "brief description of the tension", "relevance": "how it could be used"}
+  ],
+  "phase_considerations": "1-2 sentences on what the current phase demands and how it shapes strategy"
+}`;
+}
+
+export function planStagePrompt(input: StagePromptInput, brief: string): string {
+  const moveHistoryBlock = input.priorMoves && input.priorMoves.length > 0
+    ? `\n=== YOUR RECENT MOVES ===\nYour last ${input.priorMoves.length} responses used: ${input.priorMoves.join(' → ')}.\n${input.priorMoves.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
+    : '';
+
+  const flaggedBlock = input.priorFlaggedHints && input.priorFlaggedHints.length > 0
+    ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${input.priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your plan.\n`
+    : '';
+
+  const constructiveMoveList = input.phase && input.phase !== 'thesis-antithesis'
+    ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
+    : '';
+
+  return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
+Your personality: ${input.personality}.
+Your perspective: ${input.pov}.
+
+=== SITUATION BRIEF ===
+${brief}
+${moveHistoryBlock}${flaggedBlock}
+=== AVAILABLE DIALECTICAL MOVES ===
+Core moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK${constructiveMoveList}
+
+Each move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}
+
+Plan your argumentative strategy. Consider:
+1. What is your strategic goal for this turn? What should it accomplish?
+2. Which 1-3 dialectical moves will you use, and in what order?
+3. Which prior claims (by AN-ID) will you engage with?
+4. What is the structure of your argument — how will you open, develop, and close?
+5. How might opponents respond, and how does your plan account for that?
+6. What taxonomy nodes or policy evidence do you need to cite?
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "strategic_goal": "1-2 sentences: what this turn should accomplish",
+  "planned_moves": [
+    {"move": "DISTINGUISH", "target": "AN-3", "detail": "Separate regulatory capture from legitimate oversight"},
+    {"move": "EXTEND", "detail": "Build on the innovation metrics argument with new evidence"}
+  ],
+  "target_claims": ["AN-3", "AN-7"],
+  "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
+  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
+  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]
+}`;
+}
+
+export function draftStagePrompt(input: StagePromptInput, brief: string, plan: string): string {
+  const phaseDirective = input.phase === 'synthesis'
+    ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
+    : input.phase === 'exploration'
+    ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
+    : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
+
+  const positionUpdateField = input.phase === 'synthesis'
+    ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
+
+  return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
+Your personality: ${input.personality}.
+${otherDebaters(input.label)}
+${READING_LEVEL}
+${DETAIL_INSTRUCTION}
+
+${MUST_CORE_BEHAVIORS}
+
+${MUST_EXTENDED}
+
+${STEELMAN_INSTRUCTION}
+
+=== SITUATION BRIEF ===
+${brief}
+
+=== YOUR ARGUMENT PLAN ===
+${plan}
+
+=== YOUR ASSIGNMENT ===
+Address ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}
+
+${phaseDirective}
+
+Execute the argument plan above. Write your debate statement following the plan's structure and moves. Stay in character as ${input.label}.
+
+PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+
+NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
+
+CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "statement": "your full debate response (3-5 paragraphs)",
+  "claim_sketches": [
+    {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
+    {"claim": "near-verbatim supporting sub-claim", "targets": []}
+  ],
+  "key_assumptions": [
+    {"assumption": "a key assumption your argument depends on", "if_wrong": "what changes if this assumption fails"}
+  ],
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
+}`;
+}
+
+export function citeStagePrompt(
+  input: StagePromptInput,
+  brief: string,
+  plan: string,
+  draft: string,
+): string {
+  let refsHistoryBlock = '';
+  if (input.priorRefs && input.priorRefs.length > 0) {
+    const recent = Array.from(new Set(input.priorRefs));
+    const uncited = input.availablePovNodeIds
+      ? input.availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 20)
+      : [];
+    const uncitedLine = uncited.length > 0
+      ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
+      : '';
+    const crossPovLine = input.crossPovNodeIds && input.crossPovNodeIds.length > 0
+      ? `\nYou may also cite nodes from other POVs when engaging directly with their claims. Sample cross-POV nodes: ${input.crossPovNodeIds.slice(0, 8).join(', ')}.`
+      : '';
+    refsHistoryBlock = `\n=== RECENT CITATIONS ===
+Recently cited: ${recent.join(', ')}.
+REQUIRED: At least 1-2 of this turn's taxonomy_refs must be node_ids NOT in that list.${uncitedLine}${crossPovLine}\n`;
+  }
+
+  return `You are a grounding analyst. Your task is to annotate a debate statement with precise taxonomy references, policy connections, and dialectical move annotations.
+
+=== SITUATION BRIEF ===
+${brief}
+
+=== ARGUMENT PLAN ===
+${plan}
+
+=== DRAFT STATEMENT ===
+${draft}
+
+=== TAXONOMY CONTEXT ===
+${input.taxonomyContext}
+${refsHistoryBlock}
+Ground the draft statement in the taxonomy. For each connection:
+1. TAXONOMY REFS: Tag 4-6 taxonomy nodes that the statement draws from. Cover all three BDI sections (Beliefs, Desires, Intentions). For each, explain in 1-4 sentences how the node informed the argument.
+2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
+3. MOVE ANNOTATIONS: Finalize the dialectical move annotations. For each move actually executed in the statement (not just planned), provide the move name, optional AN-ID target, and a brief description.
+4. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "taxonomy_refs": [
+    {"node_id": "acc-beliefs-003", "relevance": "1-4 sentences: how this node informed the argument"},
+    {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
+    {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
+  ],
+  "policy_refs": ["pol-001", "pol-012"],
+  "move_annotations": [
+    {"move": "DISTINGUISH", "target": "AN-3", "detail": "Separated regulatory capture from legitimate oversight"},
+    {"move": "EXTEND", "detail": "Built on innovation metrics with new evidence"}
+  ],
+  "grounding_confidence": 0.85
+}`;
+}
+
 // ── Multi-phase synthesis prompts (PQ-5) ────────────────
 
 /** Phase 1: Extract core synthesis — agreement, disagreement, cruxes, unresolved questions */
@@ -1200,6 +1431,12 @@ Tasks:
    - For attacks, note which critical_question_addressed (1-4) the attack targets — e.g., challenging an analogy on CQ2 means "important differences prevent transfer"
    - Each claim must be traceable to the transcript${documentAnalysis}
 3. Identify concepts discussed in this debate that are NOT covered by any existing taxonomy node. For each, propose a new node with a label (3-8 words), genus-differentia description, POV, category, and rationale explaining why this debate surfaced a gap. Link to the claim IDs that motivated the proposal.
+   LABEL FORMAT BY CATEGORY:
+   - Desires: present participle targeting an ideal state (e.g., "Mitigating Automation Displacement", "Ensuring Algorithmic Accountability", "Democratizing AI Access")
+   - Beliefs: noun phrase denoting a phenomenon, principle, or empirical claim (e.g., "Inherent Power-Seeking Behavior", "Cognitive Atrophy from AI Reliance")
+   - Intentions: present participle denoting strategic action or policy posture (e.g., "Mandating Algorithmic Audits", "Prioritizing Interpretability Research")
+   Never start labels with "The", "A", or "An". Never include parenthetical abbreviations.
+   DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses.
 4. Identify existing taxonomy nodes that should be modified based on what this debate revealed — descriptions that are too narrow, categories that are wrong, or nodes that should be split. For each, specify the node ID, modification type, suggested change, and rationale.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -1211,7 +1448,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     ]}
   ],
   "taxonomy_proposals": [
-    {"label": "3-8 word label", "description": "A [Category] within [POV] discourse that [differentia]...", "pov": "accelerationist or safetyist or skeptic or situations", "category": "Beliefs or Desires or Intentions", "rationale": "why this debate surfaced a gap", "source_claims": ["C1", "C3"]}
+    {"label": "Mitigating Workforce Displacement Risk", "description": "A Desire within safetyist discourse that [differentia].\nEncompasses: [concrete sub-themes].\nExcludes: [neighboring concepts].", "pov": "accelerationist or safetyist or skeptic or situations", "category": "Beliefs or Desires or Intentions", "rationale": "why this debate surfaced a gap", "source_claims": ["C1", "C3"]}
   ],
   "taxonomy_modifications": [
     {"node_id": "acc-desires-001", "modification_type": "refine_description or add_nuance or recategorize or split", "suggested_change": "what to change", "rationale": "what the debate revealed", "source_claims": ["C2"]}
@@ -1711,6 +1948,12 @@ For each suggestion:
 - Write the COMPLETE proposed_description, not just a diff. Follow the genus-differentia format:
   POV nodes: "A [Belief|Desire|Intention] within [POV] discourse that [differentia]. Encompasses: [what it covers]. Excludes: [boundaries]."
   New nodes should follow the same pattern.
+- LABEL FORMAT BY CATEGORY:
+  Desires: present participle targeting an ideal state (e.g., "Mitigating Automation Displacement", "Ensuring Algorithmic Accountability")
+  Beliefs: noun phrase denoting a phenomenon, principle, or empirical claim (e.g., "Inherent Power-Seeking Behavior", "Cognitive Atrophy from AI Reliance")
+  Intentions: present participle denoting strategic action or policy posture (e.g., "Mandating Algorithmic Audits", "Prioritizing Interpretability Research")
+  Never start labels with "The", "A", or "An". Never include parenthetical abbreviations.
+- DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses.
 - The rationale must cite specific debate evidence (claims, counterarguments, concessions).
 - Only suggest changes with clear debate evidence. Do NOT suggest changes based on general knowledge.
 - Suggest 0 items if no changes are warranted — do not force suggestions.

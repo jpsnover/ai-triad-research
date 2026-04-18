@@ -626,7 +626,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
@@ -728,7 +728,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['details', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['details', 'brief', 'plan', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -1106,8 +1106,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               ...(diag?.extracted_claims ? [...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)] : []),
               ...((meta?.my_claims as { claim: string; targets: string[] }[])?.map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`) ?? []),
             ].join('\n');
+            const stages = diag?.stage_diagnostics;
+            const briefStage = stages?.find(s => s.stage === 'brief');
+            const planStage = stages?.find(s => s.stage === 'plan');
+            const draftStage = stages?.find(s => s.stage === 'draft');
+            const citeStage = stages?.find(s => s.stage === 'cite');
+
             const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
               { id: 'details', label: 'Details', has: hasDetails, copy: '' },
+              { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
+              { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
+              { id: 'draft', label: 'Draft', has: !!draftStage, copy: JSON.stringify(draftStage?.work_product, null, 2) ?? '' },
+              { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
               { id: 'tax-context', label: 'Taxonomy Context', has: taxContext.length > 0, copy: taxContext },
@@ -1357,6 +1367,214 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <ResizablePre tall text={diag.argument_network_context} />
                         </Section>
                       )}
+                    </div>
+                  )}
+                  {activeTab === 'brief' && briefStage && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontWeight: 600 }}>BRIEF</span>
+                        <span>{briefStage.model}</span>
+                        <span>temp={briefStage.temperature}</span>
+                        <span>{(briefStage.response_time_ms / 1000).toFixed(1)}s</span>
+                      </div>
+                      {!!(briefStage.work_product as Record<string, unknown>).situation_assessment && (
+                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.05)', fontSize: '0.78rem' }}>
+                          {String((briefStage.work_product as Record<string, unknown>).situation_assessment)}
+                        </div>
+                      )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).key_claims_to_address) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Claims to Address</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string }[]).map((c, i) => (
+                              <li key={i}><strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: {c.claim}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Relevant Taxonomy Nodes</summary>
+                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                            <tbody>
+                              {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{n.node_id}</td>
+                                  <td style={{ padding: '3px 6px' }}>{n.why}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </details>
+                      )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Edge Tensions</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).map((t, i) => (
+                              <li key={i}><strong>{t.edge}</strong>: {t.relevance}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {!!(briefStage.work_product as Record<string, unknown>).phase_considerations && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                          {String((briefStage.work_product as Record<string, unknown>).phase_considerations)}
+                        </div>
+                      )}
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.prompt}</pre>
+                      </details>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.raw_response}</pre>
+                      </details>
+                    </div>
+                  )}
+                  {activeTab === 'plan' && planStage && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontWeight: 600 }}>PLAN</span>
+                        <span>{planStage.model}</span>
+                        <span>temp={planStage.temperature}</span>
+                        <span>{(planStage.response_time_ms / 1000).toFixed(1)}s</span>
+                      </div>
+                      {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
+                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem', fontWeight: 600 }}>
+                          {String((planStage.work_product as Record<string, unknown>).strategic_goal)}
+                        </div>
+                      )}
+                      {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Planned Moves</summary>
+                          {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
+                            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
+                              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
+                              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
+                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{m.detail}</div>}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
+                          <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
+                            {String((planStage.work_product as Record<string, unknown>).argument_sketch)}
+                          </div>
+                        </details>
+                      )}
+                      {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_responses) && ((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).length > 0 && (
+                        <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
+                              <li key={i}>{r}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.prompt}</pre>
+                      </details>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.raw_response}</pre>
+                      </details>
+                    </div>
+                  )}
+                  {activeTab === 'draft' && draftStage && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>DRAFT</span>
+                        <span>{draftStage.model}</span>
+                        <span>temp={draftStage.temperature}</span>
+                        <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
+                      </div>
+                      {!!(draftStage.work_product as Record<string, unknown>).statement && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            {String((draftStage.work_product as Record<string, unknown>).statement)}
+                          </div>
+                        </details>
+                      )}
+                      {Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((draftStage.work_product as Record<string, unknown>).claim_sketches as { claim: string; targets: string[] }[]).map((c, i) => (
+                              <li key={i}>{c.claim}{c.targets?.length > 0 ? ` \u2192 ${c.targets.join(', ')}` : ''}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
+                          {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+                            <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
+                              <div><strong>Assumption:</strong> {a.assumption}</div>
+                              <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {!!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
+                        <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
+                          <strong>Disagreement type:</strong> {String((draftStage.work_product as Record<string, unknown>).disagreement_type)}
+                        </div>
+                      )}
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.prompt}</pre>
+                      </details>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.raw_response}</pre>
+                      </details>
+                    </div>
+                  )}
+                  {activeTab === 'cite' && citeStage && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(251,146,60,0.2)', color: '#fb923c', fontWeight: 600 }}>CITE</span>
+                        <span>{citeStage.model}</span>
+                        <span>temp={citeStage.temperature}</span>
+                        <span>{(citeStage.response_time_ms / 1000).toFixed(1)}s</span>
+                        {typeof (citeStage.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
+                          <span style={{ padding: '1px 6px', borderRadius: 3, background: (citeStage.work_product as Record<string, unknown>).grounding_confidence as number >= 0.7 ? 'rgba(34,197,94,0.2)' : 'rgba(251,146,60,0.2)', fontSize: '0.65rem' }}>
+                            confidence: {((citeStage.work_product as Record<string, unknown>).grounding_confidence as number).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
+                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                            <tbody>
+                              {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string }[]).map((r, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{r.node_id}</td>
+                                  <td style={{ padding: '3px 6px' }}>{r.relevance}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </details>
+                      )}
+                      {Array.isArray((citeStage.work_product as Record<string, unknown>).move_annotations) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Move Annotations</summary>
+                          {((citeStage.work_product as Record<string, unknown>).move_annotations as { move: string; target?: string; detail: string }[]).map((m, i) => (
+                            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(251,146,60,0.3)' }}>
+                              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(251,146,60,0.2)', color: '#fb923c', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
+                              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
+                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{m.detail}</div>}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {Array.isArray((citeStage.work_product as Record<string, unknown>).policy_refs) && ((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Policy References</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => (
+                              <li key={i} style={{ fontFamily: 'monospace' }}>{p}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.prompt}</pre>
+                      </details>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.raw_response}</pre>
+                      </details>
                     </div>
                   )}
                   {activeTab === 'claims' && (

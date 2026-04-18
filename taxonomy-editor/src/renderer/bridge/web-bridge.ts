@@ -175,8 +175,8 @@ export const api: AppAPI = {
   hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
 
   // AI generation
-  generateText: (prompt, model, timeout) =>
-    post('/api/ai/generate', { prompt, model, timeout }),
+  generateText: (prompt, model, timeout, temperature) =>
+    post('/api/ai/generate', { prompt, model, timeout, temperature }),
   generateTextWithSearch: (prompt, model) =>
     post('/api/ai/search', { prompt, model }),
   setDebateTemperature: (temp) => post('/api/ai/temperature', { temp }).then(() => {}),

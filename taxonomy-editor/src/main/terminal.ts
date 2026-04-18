@@ -34,7 +34,7 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
         cols: 120,
         rows: 30,
         cwd: PROJECT_ROOT,
-        env: { ...process.env } as { [key: string]: string },
+        env: { ...process.env, __PSLockdownPolicy: '4' } as { [key: string]: string },
       });
     } catch (err) {
       const win = getWindow();

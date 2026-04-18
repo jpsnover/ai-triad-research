@@ -356,6 +356,71 @@ export interface EntryDiagnostics {
   edge_tensions?: string;
   argument_network_context?: string;
   selection_reasoning?: string;
+  stage_diagnostics?: StageDiagnostics[];
+}
+
+// ── Turn pipeline types ──────────────────────────────
+
+export type TurnStageId = 'brief' | 'plan' | 'draft' | 'cite';
+
+export interface TurnStageConfig {
+  brief_temperature?: number;
+  plan_temperature?: number;
+  draft_temperature?: number;
+  cite_temperature?: number;
+}
+
+export interface StageDiagnostics {
+  stage: TurnStageId;
+  prompt: string;
+  raw_response: string;
+  model: string;
+  temperature: number;
+  response_time_ms: number;
+  work_product: Record<string, unknown>;
+  parse_error?: string;
+}
+
+export interface BriefWorkProduct {
+  situation_assessment: string;
+  key_claims_to_address: { claim: string; speaker: string; an_id?: string }[];
+  relevant_taxonomy_nodes: { node_id: string; why: string }[];
+  relevant_commitments: { speaker: string; commitment: string; type: string }[];
+  edge_tensions: { edge: string; relevance: string }[];
+  phase_considerations: string;
+}
+
+export interface PlanWorkProduct {
+  strategic_goal: string;
+  planned_moves: { move: string; target?: string; detail: string }[];
+  target_claims: string[];
+  argument_sketch: string;
+  anticipated_responses: string[];
+  evidence_needed: string[];
+}
+
+export interface DraftWorkProduct {
+  statement: string;
+  claim_sketches: { claim: string; targets: string[] }[];
+  key_assumptions: { assumption: string; if_wrong: string }[];
+  disagreement_type: string;
+  position_update?: string;
+}
+
+export interface CiteWorkProduct {
+  taxonomy_refs: TaxonomyRef[];
+  policy_refs: string[];
+  move_annotations: { move: string; target?: string; detail: string }[];
+  grounding_confidence: number;
+}
+
+export interface TurnPipelineResult {
+  brief: BriefWorkProduct;
+  plan: PlanWorkProduct;
+  draft: DraftWorkProduct;
+  cite: CiteWorkProduct;
+  stage_diagnostics: StageDiagnostics[];
+  total_time_ms: number;
 }
 
 /**

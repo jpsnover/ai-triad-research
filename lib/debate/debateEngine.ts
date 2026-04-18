@@ -70,12 +70,15 @@ import {
   extractArraysFromPartialJson,
   formatRecentTranscript,
   parsePoverResponse,
+  getMoveName,
 } from './helpers';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 import { computeCoverageMap } from './coverageTracker';
 import { generateDialecticTraces } from './dialecticTrace';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
 import type { TurnAttempt, TurnValidation } from './types';
+import { runTurnPipeline, assemblePipelineResult } from './turnPipeline';
+import type { TurnPipelineInput } from './turnPipeline';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -901,11 +904,17 @@ export class DebateEngine {
       agreementDetected = !!parsed.agreement_detected;
 
       if (agreementDetected) {
-        this.addEntry({
+        const agreeEntry = this.addEntry({
           type: 'system',
           speaker: 'system',
           content: `[Round ${round}] Moderator detected broad agreement. Focus: ${focusPoint}`,
           taxonomy_refs: [],
+        });
+        this.recordDiagnostic(agreeEntry.id, {
+          prompt: selectionPrompt,
+          raw_response: selectionText,
+          model: this.config.model,
+          response_time_ms: selectionElapsed,
         });
       }
     } catch (err) {
@@ -1033,37 +1042,53 @@ export class DebateEngine {
       }
     }
 
-    const prompt = crossRespondPrompt(
-      info.label, info.pov, info.personality,
-      this.session.topic.final,
-      taxonomyContext + commitmentContext + establishedPoints + debaterEdgeContext + concessionHint,
-      updatedTranscript, focusPoint, addressing,
-      this.config.responseLength,
-      this.session.document_analysis ? undefined : this.config.sourceContent,
-      this.session.document_analysis,
-      priorMoves,
+    // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+    const pipelineInput: TurnPipelineInput = {
+      label: info.label,
+      pov: info.pov,
+      personality: info.personality,
+      topic: this.session.topic.final,
+      taxonomyContext,
+      commitmentContext,
+      establishedPoints,
+      edgeContext: debaterEdgeContext,
+      concessionHint,
+      recentTranscript: updatedTranscript,
+      focusPoint,
+      addressing,
       phase,
+      priorMoves,
       priorRefs,
       availablePovNodeIds,
-      priorFlaggedHints,
       crossPovNodeIds,
-    );
+      priorFlaggedHints,
+      sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
+      documentAnalysis: this.session.document_analysis,
+      model: this.config.model,
+    };
+
+    const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
+      this.progress('generating', undefined, label);
+      const start = Date.now();
+      const text = await this.adapter.generateText(prompt, model, options);
+      this.apiCallCount++;
+      this.totalResponseTimeMs += Date.now() - start;
+      return text;
+    };
 
     // ── Cross-respond with per-turn validation + retry loop ──
     const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
     const attempts: TurnAttempt[] = [];
 
-    let attemptPrompt = prompt;
     let attemptIdx = 0;
-    let turnStart = Date.now();
-    let text = await this.generate(attemptPrompt, `${info.label} cross-respond`);
-    let elapsed = Date.now() - turnStart;
-    let parsed = parsePoverResponse(text);
-    let statement = parsed.statement;
-    let taxonomyRefs = parsed.taxonomyRefs;
-    let meta = parsed.meta;
+    let pipelineResult = await runTurnPipeline(
+      pipelineInput,
+      stageGenerate,
+      (_stage, label) => this.progress('generating', responder, label),
+    );
+    let assembled = assemblePipelineResult(pipelineResult);
+    let { statement, taxonomyRefs, meta } = assembled;
     let validation: TurnValidation;
-    let totalElapsed = elapsed;
 
     const priorSameAgent = this.session.transcript
       .filter(e => e.speaker === responder && e.type !== 'opening')
@@ -1091,27 +1116,26 @@ export class DebateEngine {
           : undefined,
       });
 
+      const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       attempts.push({
         attempt: attemptIdx,
         model: this.config.model,
-        prompt_delta: attemptIdx === 0 ? '' : attemptPrompt.slice(prompt.length),
-        raw_response: text,
-        response_time_ms: elapsed,
+        prompt_delta: '',
+        raw_response: draftDiag?.raw_response ?? '',
+        response_time_ms: pipelineResult.total_time_ms,
         validation,
       });
 
       if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
 
       attemptIdx += 1;
-      attemptPrompt = buildRepairPrompt(prompt, validation, attemptIdx);
-      turnStart = Date.now();
-      text = await this.generate(attemptPrompt, `${info.label} cross-respond (retry ${attemptIdx})`);
-      elapsed = Date.now() - turnStart;
-      totalElapsed += elapsed;
-      parsed = parsePoverResponse(text);
-      statement = parsed.statement;
-      taxonomyRefs = parsed.taxonomyRefs;
-      meta = parsed.meta;
+      pipelineResult = await runTurnPipeline(
+        { ...pipelineInput, repairHints: validation.repairHints },
+        stageGenerate,
+        (_stage, label) => this.progress('generating', responder, label),
+      );
+      assembled = assemblePipelineResult(pipelineResult);
+      ({ statement, taxonomyRefs, meta } = assembled);
     }
 
     const entry = this.addEntry({
@@ -1148,19 +1172,22 @@ export class DebateEngine {
       this.routeTurnValidatorHints(validation, entry.id);
     }
 
+    const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
     this.recordDiagnostic(entry.id, {
-      prompt: attemptPrompt,
-      raw_response: text,
+      prompt: draftDiag?.prompt ?? '',
+      raw_response: draftDiag?.raw_response ?? '',
       model: this.config.model,
-      response_time_ms: totalElapsed,
+      response_time_ms: pipelineResult.total_time_ms,
       taxonomy_context: taxonomyContext,
       commitment_context: commitmentContext,
+      stage_diagnostics: pipelineResult.stage_diagnostics,
     });
 
     // Track move types and disagreement types
     if (meta.move_types) {
       for (const m of meta.move_types) {
-        this.session.diagnostics!.overview.move_type_counts[m] = (this.session.diagnostics!.overview.move_type_counts[m] ?? 0) + 1;
+        const name = getMoveName(m);
+        this.session.diagnostics!.overview.move_type_counts[name] = (this.session.diagnostics!.overview.move_type_counts[name] ?? 0) + 1;
       }
     }
     if (meta.disagreement_type) {
@@ -1294,6 +1321,24 @@ export class DebateEngine {
         this.session.neutral_evaluations = [];
       }
       this.session.neutral_evaluations.push(evaluation);
+
+      // Add a transcript entry so diagnostics are visible per-entry
+      const cruxCount = evaluation.cruxes?.length ?? 0;
+      const claimCount = evaluation.claims?.length ?? 0;
+      const notes = evaluation.overall_assessment?.notes ?? '';
+      const evalEntry = this.addEntry({
+        type: 'system',
+        speaker: 'system',
+        content: `[Neutral evaluation: ${checkpoint}] ${cruxCount} cruxes, ${claimCount} claims evaluated. ${notes}`,
+        taxonomy_refs: [],
+        metadata: { neutral_checkpoint: checkpoint },
+      });
+      this.recordDiagnostic(evalEntry.id, {
+        prompt: evaluation.diagnostics_prompt,
+        raw_response: evaluation.diagnostics_raw_response,
+        model: this.config.model,
+        response_time_ms: evaluation.diagnostics_response_time_ms,
+      });
 
       return evaluation;
     } catch (err) {
@@ -1744,13 +1789,14 @@ export class DebateEngine {
     const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
     const opponentLabel = POVER_INFO[driftingToward as Exclude<PoverId, 'user'>]?.label ?? driftingToward;
 
-    this.session.transcript.push({
-      id: generateId(),
-      timestamp: nowISO(),
+    const sycEntry = this.addEntry({
       type: 'system',
       speaker: 'system',
       content: `[Sycophancy guard] ${speakerLabel} appears to be drifting toward ${opponentLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}. Consider whether this represents genuine agreement or accommodation.`,
       taxonomy_refs: [],
+    });
+    this.recordDiagnostic(sycEntry.id, {
+      raw_response: JSON.stringify({ speaker, drifting_toward: driftingToward, recent_drift: recent }),
     });
   }
 
@@ -1791,13 +1837,15 @@ export class DebateEngine {
           const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
           const topAssertions = targetCommitments.asserted.slice(-3).map(a => `"${a}"`).join('; ');
 
-          this.session.transcript.push({
-            id: generateId(),
-            timestamp: nowISO(),
+          const steelEntry = this.addEntry({
             type: 'system',
             speaker: 'system',
             content: `[Steelman check] ${speakerLabel}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
             taxonomy_refs: [],
+          });
+          this.recordDiagnostic(steelEntry.id, {
+            raw_response: JSON.stringify({ steelman_text: node.text, target_pover: targetPover, max_entailment: maxEntailment, nli_results: result.results }),
+            model: 'nli',
           });
         }
       } catch (err) {
@@ -1985,15 +2033,16 @@ Return ONLY JSON (no markdown, no code fences):
       const reasonCluster = Object.entries(trace.rejection_reasons)
         .map(([r, c]) => `${r}×${c}`).join(', ') || 'empty_response';
       const lastId = plateauLastId ?? 'AN-?';
-      this.session.transcript.push({
-        id: `S-${this.session.transcript.length + 1}`,
-        timestamp: new Date().toISOString(),
+      const plateauEntry = this.addEntry({
         type: 'system',
         speaker: 'system',
         content:
           `[Extraction plateau] No new AN nodes since ${lastId} (turn ${plateauStartedAt}). ` +
           `Reason cluster: ${reasonCluster}. See Diagnostics → Extraction Timeline.`,
         taxonomy_refs: [],
+      });
+      this.recordDiagnostic(plateauEntry.id, {
+        raw_response: JSON.stringify(summary),
       });
     }
   }

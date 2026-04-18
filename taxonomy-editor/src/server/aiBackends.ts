@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
 import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 
 // ── Constants ──
 
@@ -227,7 +228,7 @@ export async function generateText(
   const backend = resolveBackend(resolved);
   const apiKey = await getApiKey(backend);
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', tavily: 'Tavily' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
@@ -258,6 +259,28 @@ export async function generateTextWithSearch(
   const backend = resolveBackend(resolved);
 
   if (backend !== 'gemini') {
+    const tavilyKey = await getApiKey('tavily');
+    if (tavilyKey) {
+      const searchQuery = prompt.length > 400 ? prompt.slice(0, 400) : prompt;
+      console.log(`[AI] Tavily search for model=${resolved}, query length=${searchQuery.length}`);
+      const searchResult = await tavilySearch(searchQuery, tavilyKey, {
+        maxResults: 5,
+        includeAnswer: true,
+        searchDepth: 'basic',
+      });
+      const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
+      const text = await generateText(augmentedPrompt, resolved);
+      const citations: GroundingCitation[] = searchCitations.map(c => ({
+        uri: c.uri,
+        title: c.title,
+        segments: [],
+      }));
+      return {
+        text,
+        searchQueries: searchQueries.length ? searchQueries : undefined,
+        citations: citations.length ? citations : undefined,
+      };
+    }
     const text = await generateText(prompt, resolved);
     return { text };
   }

@@ -89,8 +89,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateText: (prompt: string, model?: string, timeoutMs?: number): Promise<{ text: string }> =>
-    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs),
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs, temperature),
 
   setDebateTemperature: (temp: number | null): Promise<void> =>
     ipcRenderer.invoke('set-debate-temperature', temp),

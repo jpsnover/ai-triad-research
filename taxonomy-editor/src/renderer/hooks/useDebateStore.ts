@@ -54,6 +54,8 @@ import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
+import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
+import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
@@ -770,11 +772,15 @@ async function extractClaimsAndUpdateAN(
 
             const addEntry = get().addTranscriptEntry;
             if (addEntry) {
-              addEntry({
+              const steelEntryId = addEntry({
                 type: 'system',
                 speaker: 'system',
                 content: `[Steelman check] ${speakerLbl}'s steelman of ${targetLabel}'s position (max entailment: ${maxEntailment.toFixed(2)}) diverges from their actual assertions. ${targetLabel} actually asserted: ${topAssertions}`,
                 taxonomy_refs: [],
+              });
+              recordDiagnostic(get, set, steelEntryId, {
+                raw_response: JSON.stringify({ steelman_text: sNode.text, target_pover: targetPover, max_entailment: maxEntailment, nli_results: nliResult.results }),
+                model: 'nli',
               });
             }
           }
@@ -1389,7 +1395,7 @@ interface DebateStore {
   deleteDebate: (id: string) => Promise<void>;
   renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
-  addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => void;
+  addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => string;
   deleteTranscriptEntries: (entryIds: string[]) => Promise<void>;
   togglePover: (poverId: PoverId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
@@ -1673,10 +1679,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
   addTranscriptEntry: (entry) => {
     const { activeDebate } = get();
-    if (!activeDebate) return;
+    const entryId = generateId();
+    if (!activeDebate) return entryId;
     const full: TranscriptEntry = {
       ...entry,
-      id: generateId(),
+      id: entryId,
       timestamp: nowISO(),
     };
     const updated: DebateSession = {
@@ -1685,6 +1692,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       transcript: [...activeDebate.transcript, full],
     };
     set({ activeDebate: updated });
+    return entryId;
   },
 
   deleteTranscriptEntries: async (entryIds) => {
@@ -2452,24 +2460,71 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           .map(n => n.id)
       : [];
 
-    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock + concessionHint;
-
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
     const crDocAnalysis = activeDebate.document_analysis;
-    const prompt = buildCrossRespondPrompt(
-      responderPover,
+
+    // Compute phase from transcript length
+    const phase = ((activeDebate.transcript.length ?? 0) < 6) ? 'thesis-antithesis' as const : 'exploration' as const;
+
+    // Collect prior move types for diversity enforcement
+    const priorMoves = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && e.metadata)
+      .flatMap(e => {
+        const mt = (e.metadata as Record<string, unknown>)?.move_types;
+        return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
+      })
+      .slice(-6);
+
+    // Collect prior refs for citation rotation
+    const priorRefs = activeDebate.transcript
+      .filter(e => e.speaker === responderPover && e.type !== 'opening')
+      .slice(-2)
+      .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+
+    const crTaxState = useTaxonomyStore.getState();
+    const povFile = crTaxState[info.pov as keyof typeof crTaxState] as { nodes?: { id: string }[] } | null;
+    const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
+
+    // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+    const pipelineInput: TurnPipelineInput = {
+      label: info.label,
+      pov: info.pov,
+      personality: info.personality,
       topic,
-      taxonomyBlock,
-      currentTranscript,
+      taxonomyContext: taxonomyBlock,
+      commitmentContext: commitBlock,
+      establishedPoints: establishedBlock,
+      edgeContext: edgeBlock,
+      concessionHint,
+      recentTranscript: currentTranscript,
       focusPoint,
-      addressingLabel,
-      get().responseLength,
-      crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
-      crDocAnalysis,
-    );
+      addressing: addressingLabel,
+      phase,
+      priorMoves,
+      priorRefs,
+      availablePovNodeIds,
+      sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+      documentAnalysis: crDocAnalysis,
+      model,
+    };
+
+    const stageGenerate = async (prompt: string, _model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
+      set({ debateActivity: label, debateProgress: null });
+      const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
+        set({ debateProgress: progress as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } });
+      });
+      try {
+        const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
+        return result.text;
+      } finally {
+        unsubscribe();
+        set({ debateProgress: null, debateActivity: null });
+      }
+    };
 
     try {
       // ── Per-turn validation + retry loop ──
-      const vConfig = resolveTurnValidationConfig(undefined); // UI-launched: always-on defaults
+      const vConfig = resolveTurnValidationConfig(undefined);
       const attempts: TurnAttempt[] = [];
       const activeSnapshot = get().activeDebate;
       const priorSameAgent = (activeSnapshot?.transcript ?? [])
@@ -2481,25 +2536,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const knownNodeIds = getAllKnownNodeIds();
       const policyIds = getAllPolicyIds();
 
-      let attemptPrompt = prompt;
       let attemptIdx = 0;
-      let t0 = Date.now();
-      let { text } = await generateTextWithProgress(attemptPrompt, model, `${info.label} is cross-responding (${model})`, set);
-      let responseTime = Date.now() - t0;
+      let pipelineResult = await runTurnPipeline(
+        pipelineInput,
+        stageGenerate,
+        (_stage, label) => set({ debateActivity: label }),
+      );
       if (!isStillValid()) return;
-      let parsed = parsePoverResponse(text);
-      let statement = parsed.statement;
-      let taxonomyRefs = parsed.taxonomyRefs;
-      let meta = parsed.meta;
+      let assembled = assemblePipelineResult(pipelineResult);
+      let { statement, taxonomyRefs, meta } = assembled;
       let validation: TurnValidation;
-      let totalElapsed = responseTime;
 
       for (;;) {
         validation = await validateTurn({
           statement,
           taxonomyRefs,
           meta,
-          phase: ((activeSnapshot?.transcript.length ?? 0) < 6) ? 'thesis-antithesis' : 'exploration',
+          phase,
           speaker: responderPover,
           round: crossRespondRound,
           priorTurns: priorSameAgent,
@@ -2513,28 +2566,27 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           },
         });
 
+        const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
         attempts.push({
           attempt: attemptIdx,
           model,
-          prompt_delta: attemptIdx === 0 ? '' : attemptPrompt.slice(prompt.length),
-          raw_response: text,
-          response_time_ms: responseTime,
+          prompt_delta: '',
+          raw_response: draftDiag?.raw_response ?? '',
+          response_time_ms: pipelineResult.total_time_ms,
           validation,
         });
 
         if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
 
         attemptIdx += 1;
-        attemptPrompt = buildRepairPrompt(prompt, validation, attemptIdx);
-        t0 = Date.now();
-        ({ text } = await generateTextWithProgress(attemptPrompt, model, `${info.label} cross-responding (retry ${attemptIdx})`, set));
-        responseTime = Date.now() - t0;
-        totalElapsed += responseTime;
+        pipelineResult = await runTurnPipeline(
+          { ...pipelineInput, repairHints: validation.repairHints },
+          stageGenerate,
+          (_stage, label) => set({ debateActivity: label }),
+        );
         if (!isStillValid()) return;
-        parsed = parsePoverResponse(text);
-        statement = parsed.statement;
-        taxonomyRefs = parsed.taxonomyRefs;
-        meta = parsed.meta;
+        assembled = assemblePipelineResult(pipelineResult);
+        ({ statement, taxonomyRefs, meta } = assembled);
       }
 
       addTranscriptEntry({
@@ -2574,15 +2626,17 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
 
+      const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
         recordDiagnostic(get, set, lastEntry.id, {
-          prompt: attemptPrompt,
-          raw_response: text,
+          prompt: draftDiag?.prompt ?? '',
+          raw_response: draftDiag?.raw_response ?? '',
           model,
-          response_time_ms: totalElapsed,
+          response_time_ms: pipelineResult.total_time_ms,
           taxonomy_context: taxonomyBlock,
           commitment_context: commitBlock || undefined,
+          stage_diagnostics: pipelineResult.stage_diagnostics,
         });
         extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         // Post-turn summarization (DT-2)
@@ -2660,7 +2714,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc);
 
     try {
+      const synthStartMs = Date.now();
       const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set, 180_000);
+      const synthElapsedMs = Date.now() - synthStartMs;
       if (!isStillValid()) return;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2793,12 +2849,19 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         .filter((t: Record<string, unknown>) => t.node_id)
         .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
 
-      addTranscriptEntry({
+      const synthEntryId = addTranscriptEntry({
         type: 'synthesis',
         speaker: 'system',
         content: lines.join('\n'),
         taxonomy_refs: taxonomyCoverage,
         metadata: { synthesis },
+      });
+
+      recordDiagnostic(get, set, synthEntryId, {
+        prompt,
+        raw_response: text,
+        model,
+        response_time_ms: synthElapsedMs,
       });
 
       // Missing arguments pass — fire after synthesis, non-blocking
@@ -3033,10 +3096,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     // Step 1: Run grounded web search for external verification
-    // TODO: expose a user-configurable evidence source toggle — option (1) Gemini
-    // native grounding via generateTextWithSearch (current), and option (3) a
-    // decoupled search+fetch pipeline (Brave/Serper/Tavily + URL fetch + summarize)
-    // that works for non-Gemini backends. Not yet implemented.
+    // Gemini uses native google_search grounding; non-Gemini backends use
+    // Tavily search + LLM when TAVILY_API_KEY is configured (see embeddings.ts).
     set({ debateActivity: `Searching the web for evidence (${model})` });
     let webContext = '';
     let searchQueries: string[] = [];

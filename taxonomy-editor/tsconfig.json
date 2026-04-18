@@ -17,6 +17,7 @@
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
       "@lib/debate/*": ["../lib/debate/*"],
+      "@lib/search/*": ["../lib/search/*"],
       "zod": ["node_modules/zod"]
     }
   },

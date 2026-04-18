@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily';
 
 // ── Interface ────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
   gemini: 'GEMINI_API_KEY',
   claude: 'ANTHROPIC_API_KEY',
   groq: 'GROQ_API_KEY',
+  tavily: 'TAVILY_API_KEY',
 };
 
 function resolveApiKey(backend: string, explicitKey?: string): string {
@@ -296,25 +298,89 @@ async function generateViaGroq(
 
 // ── Factory ──────────────────────────────────────────────
 
-export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): AIAdapter {
+export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
   const registry = loadRegistry(repoRoot);
 
-  return {
-    async generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
-      const { apiModelId, backend } = resolveModel(registry, model);
-      const apiKey = resolveApiKey(backend, explicitApiKey);
-      const opts = options ?? {};
+  async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
+    const { apiModelId, backend } = resolveModel(registry, model);
+    const apiKey = resolveApiKey(backend, explicitApiKey);
+    const opts = options ?? {};
 
-      return withRetry(async () => {
-        switch (backend) {
-          case 'claude':
-            return generateViaClaude(prompt, apiModelId, apiKey, opts);
-          case 'groq':
-            return generateViaGroq(prompt, apiModelId, apiKey, opts);
-          default:
-            return generateViaGemini(prompt, apiModelId, apiKey, opts);
+    return withRetry(async () => {
+      switch (backend) {
+        case 'claude':
+          return generateViaClaude(prompt, apiModelId, apiKey, opts);
+        case 'groq':
+          return generateViaGroq(prompt, apiModelId, apiKey, opts);
+        default:
+          return generateViaGemini(prompt, apiModelId, apiKey, opts);
+      }
+    }, 3, `${backend}/${apiModelId}`);
+  }
+
+  const adapter: ExtendedAIAdapter = {
+    generateText: doGenerateText,
+
+    async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> {
+      const resolved = model || 'gemini-3.1-flash-lite-preview';
+      const { backend } = resolveModel(registry, resolved);
+
+      // Gemini has built-in search grounding
+      if (backend === 'gemini') {
+        const apiKey = resolveApiKey(backend, explicitApiKey);
+        const { apiModelId } = resolveModel(registry, resolved);
+        const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
+
+        const response = await withTimeout(
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              tools: [{ google_search: {} }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 16384 },
+            }),
+          }),
+          60_000,
+          'Gemini grounded search',
+        );
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`Gemini search error ${response.status}: ${body.slice(0, 300)}`);
         }
-      }, 3, `${backend}/${apiModelId}`);
+
+        const json = await response.json() as {
+          candidates?: { content: { parts: { text: string }[] }; groundingMetadata?: { groundingChunks?: { web?: { title?: string } }[] } }[];
+        };
+        if (!json.candidates?.length) throw new Error('No candidates from Gemini grounded search');
+
+        const text = json.candidates[0].content.parts.map(p => p.text).join('');
+        const chunks = json.candidates[0].groundingMetadata?.groundingChunks ?? [];
+        const searchQueries = chunks.map(c => c.web?.title).filter((t): t is string => !!t);
+
+        return { text, searchQueries: searchQueries.length ? searchQueries : undefined };
+      }
+
+      // Non-Gemini: use Tavily if key available
+      const tavilyKey = process.env.TAVILY_API_KEY;
+      if (tavilyKey) {
+        const searchQuery = prompt.length > 400 ? prompt.slice(0, 400) : prompt;
+        const searchResult = await tavilySearch(searchQuery, tavilyKey, {
+          maxResults: 5,
+          includeAnswer: true,
+          searchDepth: 'basic',
+        });
+        const { augmentedPrompt, searchQueries } = buildSearchAugmentedPrompt(prompt, searchResult);
+        const text = await doGenerateText(augmentedPrompt, resolved);
+        return { text, searchQueries: searchQueries.length ? searchQueries : undefined };
+      }
+
+      // No search provider available — plain generation
+      const text = await doGenerateText(prompt, resolved);
+      return { text };
     },
   };
+
+  return adapter;
 }
