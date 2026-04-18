@@ -930,7 +930,7 @@ interface StructuredQuestion {
 function ClarificationActions() {
   const {
     activeDebate, debateGenerating, debateError,
-    submitAnswersAndSynthesize, beginDebate,
+    runClarification, submitAnswersAndSynthesize, beginDebate,
   } = useDebateStore();
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
@@ -966,7 +966,6 @@ function ClarificationActions() {
     if (submitting) return;
     setSubmitting(true);
     if (structuredQuestions) {
-      // Format structured answers as Q&A text for synthesis (skip unanswered questions)
       const qaText = structuredQuestions
         .map((q, i) => {
           const sel = selections[i];
@@ -995,6 +994,28 @@ function ClarificationActions() {
   return (
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
+
+      {!hasClarifications && !isGenerating && (
+        <div className="debate-clarification-choice">
+          <div className="debate-action-hint">
+            Would you like to refine the topic with clarifying questions, or jump straight into the debate?
+          </div>
+          <div className="debate-clarification-buttons">
+            <button
+              className="btn btn-primary"
+              onClick={() => runClarification()}
+            >
+              Refine Topic
+            </button>
+            <button
+              className="btn"
+              onClick={handleBeginDebate}
+            >
+              Skip to Debate
+            </button>
+          </div>
+        </div>
+      )}
 
       {!hasClarifications && isGenerating && (
         <div className="debate-action-hint">Generating clarifying questions...</div>
@@ -1516,7 +1537,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   } = useDebateStore();
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const hasTriggeredClarification = useRef(false);
+
 
   // Listen for diagnostics popout window closing
   useEffect(() => {
@@ -1661,24 +1682,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
   }, []);
 
-  // Auto-trigger clarification when entering clarification phase with no transcript
-  useEffect(() => {
-    if (
-      activeDebate?.phase === 'clarification' &&
-      activeDebate.transcript.length === 0 &&
-      !hasTriggeredClarification.current
-    ) {
-      hasTriggeredClarification.current = true;
-      runClarification();
-    }
-  }, [activeDebate?.phase, activeDebate?.transcript.length, runClarification]);
+  // Clarification is now user-initiated — no auto-trigger.
+  // The ClarificationActions component presents the choice.
 
   // Opening statements are now manually triggered via the OpeningActions button
   // (no auto-trigger — user picks depth first)
 
   // Reset trigger flags when debate changes
   useEffect(() => {
-    hasTriggeredClarification.current = false;
     hasTriggeredOpening.current = false;
   }, [activeDebate?.id]);
 
