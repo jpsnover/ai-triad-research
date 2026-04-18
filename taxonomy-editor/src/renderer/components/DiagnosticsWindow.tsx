@@ -692,7 +692,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
   // For system entries without diagnostics, proxy the moderator_trace from
   // the next debater entry so the moderator deliberation is visible.
-  const proxiedModeratorTrace = React.useMemo(() => {
+  const proxiedModeratorTrace = useMemo(() => {
     if (!entry || entry.speaker !== 'system' || meta?.moderator_trace) return null;
     if (!debate?.transcript) return null;
     const idx = debate.transcript.findIndex(e => e.id === entry.id);
