@@ -689,6 +689,22 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const diag: EntryDiagnostics | undefined = selectedEntry ? debate?.diagnostics?.entries[selectedEntry] : undefined;
   const turnValTrail: TurnValidationTrail | undefined = selectedEntry ? debate?.turn_validations?.[selectedEntry] : undefined;
   const meta = entry?.metadata as Record<string, unknown> | undefined;
+
+  // For system entries without diagnostics, proxy the moderator_trace from
+  // the next debater entry so the moderator deliberation is visible.
+  const proxiedModeratorTrace = React.useMemo(() => {
+    if (!entry || entry.speaker !== 'system' || meta?.moderator_trace) return null;
+    if (!debate?.transcript) return null;
+    const idx = debate.transcript.findIndex(e => e.id === entry.id);
+    if (idx < 0) return null;
+    for (let i = idx + 1; i < debate.transcript.length; i++) {
+      const next = debate.transcript[i];
+      const nextMeta = next.metadata as Record<string, unknown> | undefined;
+      if (nextMeta?.moderator_trace) return nextMeta.moderator_trace as Record<string, unknown>;
+      if (next.type === 'statement' || next.type === 'opening') break;
+    }
+    return null;
+  }, [entry, debate?.transcript, meta]);
   const an = debate?.argument_network;
   const commitments = debate?.commitments;
   const sq = searchQuery.trim();
@@ -1064,7 +1080,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             )}
             <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
-            {!diag && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
+            {!diag && !proxiedModeratorTrace && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
             <span style={{ flex: 1 }} />
             <button
               onClick={() => goToIdx(entryIdx - 1)}
@@ -1082,6 +1098,66 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               {entryIdx + 1} / {totalEntries}
             </span>
           </div>
+
+          {/* ── Proxied moderator trace for system entries ── */}
+          {proxiedModeratorTrace && (() => {
+            const t = proxiedModeratorTrace as {
+              selected?: string; focus_point?: string; selection_reason?: string;
+              excluded_last_speaker?: string | null; recent_scheme?: string | null;
+              convergence_score?: number | null; convergence_triggered?: boolean;
+              candidates?: { debater: string; computed_strength: number | null; rank: number }[];
+              argument_network_snapshot?: { total_claims: number; total_edges: number; unaddressed_claims: number } | null;
+              commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
+            };
+            return (
+              <div style={{
+                margin: '0 0 10px', padding: '8px 12px', borderRadius: 6,
+                background: 'rgba(249,115,22,0.08)', borderLeft: '3px solid #f97316',
+                fontSize: '0.72rem',
+              }}>
+                <div style={{ fontWeight: 700, color: '#f97316', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  Moderator Deliberation
+                </div>
+                {t.selected && (
+                  <div style={{ marginBottom: 3 }}>
+                    <strong>Selected:</strong> {t.selected}
+                    {t.selection_reason && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.6rem', fontWeight: 600 }}>{t.selection_reason.replace(/_/g, ' ')}</span>}
+                    {t.excluded_last_speaker && <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.65rem' }}>(excluded last speaker: {t.excluded_last_speaker})</span>}
+                  </div>
+                )}
+                {t.focus_point && <div style={{ marginBottom: 3 }}><strong>Focus:</strong> {t.focus_point}</div>}
+                {t.candidates && t.candidates.length > 0 && (
+                  <div style={{ marginBottom: 3 }}>
+                    <strong>Candidates:</strong>{' '}
+                    {t.candidates.map((c, i) => (
+                      <span key={i} style={{ marginRight: 8, fontWeight: c.debater === t.selected ? 700 : 400, opacity: c.debater === t.selected ? 1 : 0.7 }}>
+                        #{c.rank} {c.debater}{c.computed_strength != null ? ` (${c.computed_strength.toFixed(2)})` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {t.convergence_score != null && (
+                  <div style={{ marginBottom: 3 }}>
+                    <strong>Convergence:</strong> {(t.convergence_score * 100).toFixed(0)}%
+                    {t.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 4, fontWeight: 700 }}>triggered</span>}
+                  </div>
+                )}
+                {t.recent_scheme && <div style={{ marginBottom: 3 }}><strong>Recent scheme:</strong> {t.recent_scheme}</div>}
+                {t.argument_network_snapshot && (
+                  <div style={{ marginBottom: 3 }}>
+                    <strong>AN snapshot:</strong> {t.argument_network_snapshot.total_claims} claims, {t.argument_network_snapshot.total_edges} edges, {t.argument_network_snapshot.unaddressed_claims} unaddressed
+                  </div>
+                )}
+                {t.commitment_snapshot && (
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {Object.entries(t.commitment_snapshot).map(([name, c]) => (
+                      <span key={name} style={{ marginRight: 10 }}>{name}: {c.asserted}A {c.conceded}C {c.challenged}Ch</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Tabbed view: Taxonomy Refs | Taxonomy Context | Full Prompt | Raw Response ── */}
           {(() => {
