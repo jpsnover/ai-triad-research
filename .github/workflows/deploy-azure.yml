@@ -69,11 +69,13 @@ jobs:
 
       - name: Force new revision with latest image
         run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --set-env-vars "ALLOWED_ORIGINS=${{ steps.deploy.outputs.appUrl }}"
+            --revision-suffix "deploy-${SHORT_SHA}" \
+            --set-env-vars "ALLOWED_ORIGINS=${{ steps.deploy.outputs.appUrl }}" "DEPLOY_SHA=${{ github.sha }}"
 
       - name: Verify deployment
         run: |

@@ -58,22 +58,34 @@ function query(req: http.IncomingMessage, name: string): string | null {
 
 // ── Health ──
 
-// Version — injected at build time or read from package.json
 const SERVER_VERSION = (() => {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'));
-    return pkg.version || '0.1.0';
-  } catch {
-    return '0.1.0';
+  const candidates = [
+    path.resolve(__dirname, '../package.json'),
+    path.resolve(__dirname, '../../package.json'),
+    '/app/package.json',
+  ];
+  for (const p of candidates) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      if (pkg.version) return pkg.version as string;
+    } catch { /* try next */ }
   }
+  return '0.0.0';
 })();
+
+const SERVER_START_TIME = new Date().toISOString();
 
 get('/health', (_req, res) => {
   json(res, {
     status: 'ok',
     version: SERVER_VERSION,
-    uptime: process.uptime(),
+    startedAt: SERVER_START_TIME,
+    uptime: Math.round(process.uptime()),
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch,
     dataRoot: getDataRoot(),
+    memoryMB: Math.round(process.memoryUsage.rss() / 1024 / 1024),
   });
 });
 
