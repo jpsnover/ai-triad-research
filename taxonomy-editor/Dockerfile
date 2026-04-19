@@ -73,4 +73,4 @@ EXPOSE 7862
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s \
   CMD curl -f http://localhost:7862/health || exit 1
 
-CMD ["node", "dist/server/server.js"]
+CMD ["node", "dist/server/taxonomy-editor/src/server/server.js"]
