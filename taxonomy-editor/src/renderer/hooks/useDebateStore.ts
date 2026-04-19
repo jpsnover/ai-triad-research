@@ -13,6 +13,8 @@ import type {
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
+
+declare const __APP_VERSION__: string;
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
@@ -1535,6 +1537,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       title,
       created_at: now,
       updated_at: now,
+      app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined,
       phase: 'setup',
       topic: {
         original: topic,

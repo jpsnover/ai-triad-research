@@ -215,6 +215,7 @@ async function main(): Promise<void> {
       enabled: !disableTurnValidation,
       ...(maxTurnRetries !== undefined ? { maxRetries: maxTurnRetries } : {}),
     },
+    appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
   };
 
   // Run debate

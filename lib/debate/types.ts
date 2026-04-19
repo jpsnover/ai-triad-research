@@ -101,6 +101,8 @@ export interface DebateSession {
   title: string;
   created_at: string;
   updated_at: string;
+  /** App version that created this debate session. */
+  app_version?: string;
   phase: 'setup' | 'clarification' | 'opening' | 'debate' | 'closed';
   topic: {
     original: string;

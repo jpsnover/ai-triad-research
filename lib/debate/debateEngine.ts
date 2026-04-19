@@ -99,6 +99,8 @@ export interface DebateConfig {
   temperature?: number;
   /** Per-turn validation settings. Default: enabled, maxRetries=2. */
   turnValidation?: import('./types').TurnValidationConfig;
+  /** App version string to stamp on the session. */
+  appVersion?: string;
 }
 
 export interface DebateProgress {
@@ -255,6 +257,7 @@ export class DebateEngine {
       title,
       created_at: now,
       updated_at: now,
+      app_version: this.config.appVersion,
       phase: 'setup',
       topic: {
         original: this.config.topic,
