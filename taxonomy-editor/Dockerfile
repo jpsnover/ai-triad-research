@@ -27,6 +27,7 @@ RUN npm ci
 WORKDIR /build
 ARG CACHE_BUST=1
 RUN echo "Cache bust: $CACHE_BUST"
+COPY taxonomy-editor/package.json ./taxonomy-editor/
 COPY taxonomy-editor/src/ ./taxonomy-editor/src/
 COPY taxonomy-editor/tsconfig.json ./taxonomy-editor/
 COPY taxonomy-editor/tsconfig.main.json ./taxonomy-editor/
