@@ -63,8 +63,13 @@ COPY --chown=aitriad:aitriad taxonomy/schemas/ ./taxonomy/schemas/
 COPY --chown=aitriad:aitriad scripts/ ./scripts/
 
 # 3. Built artifacts (change on every code edit — LAST for fastest rebuilds)
+# tsc outputs to dist/server/{taxonomy-editor/src/server/,lib/} due to rootDir=../
+# Keep the full structure so compiled require() paths work, then symlink
+# renderer and package.json where __dirname-relative lookups expect them.
 COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/dist/server/ ./dist/server/
 COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/dist/renderer/ ./dist/renderer/
+RUN ln -s /app/dist/renderer /app/dist/server/taxonomy-editor/src/renderer \
+ && ln -s /app/package.json /app/dist/server/taxonomy-editor/src/package.json
 
 USER aitriad
 
