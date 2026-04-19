@@ -291,8 +291,8 @@ export function getGitDiffStat(): string {
 }
 
 export function listProposalFiles(): string[] {
-  const dataRoot = getDataRoot();
-  const proposalDir = path.join(dataRoot, 'taxonomy', 'proposals');
+  const projectRoot = getProjectRoot();
+  const proposalDir = path.join(projectRoot, 'taxonomy', 'proposals');
   try {
     if (!fs.existsSync(proposalDir)) return [];
     return fs.readdirSync(proposalDir)
