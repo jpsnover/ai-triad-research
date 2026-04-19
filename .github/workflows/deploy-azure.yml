@@ -67,11 +67,12 @@ jobs:
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
 
-      - name: Update CORS with app URL
+      - name: Force new revision with latest image
         run: |
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             --set-env-vars "ALLOWED_ORIGINS=${{ steps.deploy.outputs.appUrl }}"
 
       - name: Verify deployment
