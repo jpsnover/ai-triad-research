@@ -85,7 +85,7 @@ get('/health', (_req, res) => {
     platform: process.platform,
     arch: process.arch,
     dataRoot: getDataRoot(),
-    memoryMB: Math.round(process.memoryUsage.rss() / 1024 / 1024),
+    memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
   });
 });
 
