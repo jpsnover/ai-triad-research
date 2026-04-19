@@ -83,6 +83,10 @@ param githubToken string = ''
 @description('HMAC shared secret for the Phase-3 GitHub webhook. When set, /api/sync/webhook/github verifies X-Hub-Signature-256 and flags upstream-updated.')
 param githubWebhookSecret string = ''
 
+@secure()
+@description('GitHub PAT with read:packages scope for pulling container images from ghcr.io')
+param ghcrPassword string = ''
+
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
 var googleClientSecretName = 'google-client-secret'
@@ -91,11 +95,14 @@ var githubTokenSecretName = 'github-sync-token'
 var githubWebhookSecretName = 'github-webhook-secret'
 var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
+var ghcrConfigured = !empty(ghcrPassword)
+var ghcrSecretName = 'ghcr-password'
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
-  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : []
+  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
+  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : []
 )
 
 // ── Log Analytics ──
@@ -231,6 +238,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
+      registries: ghcrConfigured ? [
+        {
+          server: 'ghcr.io'
+          username: 'jpsnover'
+          passwordSecretRef: ghcrSecretName
+        }
+      ] : []
     }
     template: {
       containers: [

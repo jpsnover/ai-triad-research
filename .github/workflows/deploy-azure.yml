@@ -66,6 +66,7 @@ jobs:
             githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
+            ghcrPassword=${{ secrets.GHCR_PAT }}
 
       - name: Force new revision with latest image
         run: |
