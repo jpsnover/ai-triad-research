@@ -41,7 +41,7 @@ function ConvertTo-TaxonomyNode {
     $Obj.POV         = $PovKey
     $Obj.Id          = $Node.id
     $Obj.Label       = $Node.label
-    $Obj.Description = $Node.description
+    $Obj.Description = if ($null -ne $Node.PSObject.Properties['description']) { $Node.description } else { '' }
     $Obj.Score       = $Score
 
     # POV files (accelerationist, safetyist, skeptic) have category/parent/children
