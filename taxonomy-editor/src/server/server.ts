@@ -830,11 +830,10 @@ interface AuthorizedUsersFile {
 }
 
 function loadAuthorizedUsers(): AuthorizedUsersFile | null {
-  // Try data volume first (editable at runtime), then repo-bundled fallback
+  // Only load from the data volume — auth is opt-in per deployment.
+  // Drop authorized-users.json into /data/ (Azure Files) to enable the gate.
   const candidates = [
     path.join(getDataRoot(), 'authorized-users.json'),
-    path.resolve(__dirname, '../../authorized-users.json'), // Docker: /app/dist/server -> /app/
-    path.resolve(__dirname, '../authorized-users.json'),     // dev fallback
   ];
   for (const p of candidates) {
     try {
@@ -981,8 +980,8 @@ const server = http.createServer(async (req, res) => {
     || urlPath === '/api/models'
     || urlPath === '/api/sync/webhook/github'
     || urlPath.startsWith('/.auth/');
-  // Emergency kill-switch: disables the entire auth gate (no sign-in required).
-  // Use only for temporary recovery when the allowlist is misconfigured.
+  // AUTH_DISABLED='1' (default) = anonymous access. To enforce sign-in,
+  // set AUTH_DISABLED='' and place authorized-users.json on the data volume.
   const authDisabled = process.env.AUTH_DISABLED === '1';
   if (!isPublicPath && !authDisabled && getAuthorizedUsers()) {
     if (!principalName) {
@@ -1079,7 +1078,8 @@ function handleTerminalConnection(ws: WebSocket) {
 
   const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force`;
 
-  terminalProcess = spawn('python3', [BROKER_SCRIPT], {
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  terminalProcess = spawn(pythonCmd, [BROKER_SCRIPT], {
     cwd: getProjectRoot(),
     env: { ...process.env, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30' },
     stdio: ['pipe', 'pipe', 'pipe'],

@@ -3,13 +3,13 @@
 
 @{
     RootModule        = 'AITriad.psm1'
-    ModuleVersion     = '0.7.1'
+    ModuleVersion     = '0.7.2'
     GUID              = 'a7c3e1f0-4b2d-4e8a-9f6c-1d3b5e7a9c0f'
     Author            = 'Jeffrey Snover'
     CompanyName       = 'Snover International Consulting LLC'
     Copyright         = '(c) 2026 Snover International Consulting LLC. All rights reserved.'
     Description       = 'AI Triad Research — taxonomy queries, document ingestion, POV analysis'
-    PowerShellVersion = '5.1'
+    PowerShellVersion = '7.0'
 
     # Functions exported from this module
     FunctionsToExport = @(
@@ -79,6 +79,7 @@
         'Get-RelevantTaxonomyNodes'
         'Invoke-QbafConflictAnalysis'
         'Test-ExtractionQuality'
+        'Show-WorkflowRunner'
     )
 
     # Aliases exported from this module
@@ -90,6 +91,7 @@
         'SummaryViewer'
         'Redo-Snapshots'
         'Show-MD'
+        'Workflow'
     )
 
     # Cmdlets exported (none — pure script module)

@@ -336,7 +336,7 @@ function Invoke-POVSummary {
 
     try {
         $metaRaw     = Get-Content $paths.MetadataFile -Raw
-        $metaUpdated = $metaRaw | ConvertFrom-Json | ConvertTo-Hashtable
+        $metaUpdated = $metaRaw | ConvertFrom-Json -AsHashtable
 
         $metaUpdated["summary_version"] = $taxonomyVersion
         $metaUpdated["summary_status"]  = "current"
@@ -402,7 +402,7 @@ function Invoke-POVSummary {
                 $existingPath = Join-Path $paths.ConflictsDir "$hintId.json"
 
                 if (Test-Path $existingPath) {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if ($alreadyLogged) {
                         Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
@@ -440,7 +440,7 @@ function Invoke-POVSummary {
                     Select-Object -First 1
 
                 if ($existingMatch) {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json | ConvertTo-Hashtable
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -AsHashtable
                     $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
                     if (-not $alreadyLogged) {
                         $conflictData["instances"] += $newInstance

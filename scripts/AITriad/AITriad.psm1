@@ -1,40 +1,8 @@
 ﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-#Requires -Version 5.1
+#Requires -Version 7.0
 Set-StrictMode -Version Latest
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PowerShell 5.1 compatibility shims
-# ─────────────────────────────────────────────────────────────────────────────
-if (-not (Get-Variable IsWindows -Scope Global -ErrorAction SilentlyContinue)) {
-    # PS 5.1 is Windows-only, so these are always fixed values
-    Set-Variable -Name IsWindows -Value $true  -Scope Global -Option ReadOnly -Force
-    Set-Variable -Name IsMacOS   -Value $false -Scope Global -Option ReadOnly -Force
-    Set-Variable -Name IsLinux   -Value $false -Scope Global -Option ReadOnly -Force
-}
-
-function script:ConvertTo-Hashtable {
-    <# .SYNOPSIS Recursively converts PSCustomObject to ordered hashtable (5.1 compat for -AsHashtable). #>
-    [CmdletBinding()]
-    param([Parameter(ValueFromPipeline)] $InputObject)
-    process {
-        if ($null -eq $InputObject) { return $null }
-        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
-            $list = [System.Collections.ArrayList]::new()
-            foreach ($item in $InputObject) { $null = $list.Add((ConvertTo-Hashtable $item)) }
-            return ,$list
-        }
-        if ($InputObject -is [PSObject] -and $InputObject -isnot [ValueType] -and $InputObject -isnot [string]) {
-            $hash = [ordered]@{}
-            foreach ($prop in $InputObject.PSObject.Properties) {
-                $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
-            }
-            return $hash
-        }
-        return $InputObject
-    }
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Module root paths
@@ -215,6 +183,10 @@ $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json') { continue }
+        if ($File.Length -gt 10MB) {
+            Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
+            continue
+        }
         try {
             $Json    = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
             # Only register POV files that follow the taxonomy shape (have a .nodes array).
@@ -260,6 +232,7 @@ Set-Alias -Name 'POViewer'         -Value 'Show-POViewer'           -Scope Globa
 Set-Alias -Name 'SummaryViewer'    -Value 'Show-SummaryViewer'      -Scope Global
 Set-Alias -Name 'Redo-Snapshots'   -Value 'Update-Snapshot'         -Scope Global
 Set-Alias -Name 'Install-AITdependencies' -Value 'Install-AIDependencies' -Scope Global
+Set-Alias -Name 'Workflow'             -Value 'Show-WorkflowRunner'    -Scope Global
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Deprecation wrappers — old cmdlet names delegate to new names
@@ -351,6 +324,7 @@ Export-ModuleMember -Function @(
     'Get-RelevantTaxonomyNodes'
     'Invoke-QbafConflictAnalysis'
     'Test-ExtractionQuality'
+    'Show-WorkflowRunner'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
@@ -358,6 +332,7 @@ Export-ModuleMember -Function @(
     'SummaryViewer'
     'Redo-Snapshots'
     'Show-MD'
+    'Workflow'
 )
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -25,7 +25,7 @@
     Minimum average-linkage cosine similarity required to merge two clusters.
     Merging stops if the best pair falls below this threshold.  Defaults to 0.55.
 .EXAMPLE
-    $Embeddings = (Get-Content embeddings.json -Raw | ConvertFrom-Json | ConvertTo-Hashtable)
+    $Embeddings = (Get-Content embeddings.json -Raw | ConvertFrom-Json -AsHashtable)
     $Clusters = Get-EmbeddingClusters -NodeIds @('acc-1','acc-2','acc-3') -Embeddings $Embeddings
 
     Clusters three accelerationist nodes by semantic similarity.

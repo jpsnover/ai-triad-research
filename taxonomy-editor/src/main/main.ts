@@ -1,14 +1,20 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+console.log('[main] === STARTUP BEGIN ===');
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+console.log('[main] Core imports OK');
 import { registerIpcHandlers } from './ipcHandlers';
+console.log('[main] ipcHandlers import OK');
 import { registerTerminalHandlers, cleanupTerminal } from './terminal';
+console.log('[main] terminal import OK');
 import { warmupEmbeddingModel } from './embeddings';
+console.log('[main] embeddings import OK');
 import { PROJECT_ROOT } from './fileIO';
+console.log('[main] fileIO import OK');
 
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
@@ -97,6 +103,7 @@ function createWindow(): void {
   console.log('[main] preload path:', preloadPath);
   console.log('[main] app.isPackaged:', app.isPackaged);
 
+  console.log('[main] Creating BrowserWindow...');
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -123,8 +130,18 @@ function createWindow(): void {
     mainWindow.loadFile(filePath);
   }
 
+  console.log('[main] BrowserWindow created, setting up event handlers...');
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[main] RENDERER CRASHED:', JSON.stringify(details));
+  });
+
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[main] Failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.on('unresponsive', () => {
+    console.error('[main] Window became unresponsive');
   });
 
   mainWindow.on('closed', () => {
@@ -186,12 +203,22 @@ function createWindow(): void {
   Menu.setApplicationMenu(menu);
 }
 
+process.on('uncaughtException', (err) => {
+  console.error('[main] UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[main] UNHANDLED REJECTION:', reason);
+});
+
 app.whenReady().then(() => {
+  console.log('[main] app.whenReady fired');
   registerIpcHandlers();
+  console.log('[main] IPC handlers registered');
   registerTerminalHandlers(() => mainWindow);
   registerWindowHandlers();
   startFocusServer();
   warmupEmbeddingModel();
+  console.log('[main] All handlers registered, creating window...');
 
   // Check for file-viewer command line args
   const diagFileArg = process.argv.find(a => a.startsWith('--diagnostics-file='));

@@ -169,6 +169,11 @@ function Invoke-BatchSummary {
             Write-Fail "Taxonomy file missing: $FilePath"
             throw "Taxonomy file missing: $FileName"
         }
+        $FileInfo = Get-Item $FilePath
+        if ($FileInfo.Length -gt 10MB) {
+            Write-Fail "  $FileName is $([math]::Round($FileInfo.Length / 1MB, 1)) MB — likely corrupted (max 10 MB). Restore with: git -C `"$TaxonomyDir`" checkout -- $FileName"
+            throw "Taxonomy file too large (corrupted): $FileName"
+        }
         $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
         $NodeCount = $TaxonomyContext[$FileName].nodes.Count
         Write-OK "  $FileName ($NodeCount nodes)"
@@ -330,7 +335,7 @@ function Invoke-BatchSummary {
     foreach ($Doc in $DocsToSkip) {
         try {
             $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-            $MetaUpdated = $MetaRaw | ConvertFrom-Json | ConvertTo-Hashtable
+            $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
             $MetaUpdated['summary_version'] = $TaxonomyVersion
             $MetaUpdated['summary_status']  = 'current'
             $MetaUpdated['summary_updated'] = $Now

@@ -11,8 +11,8 @@ on:
         options:
           - production
           - staging
-      disable_auth:
-        description: 'Bypass the sign-in gate (emergency kill-switch)'
+      enable_auth:
+        description: 'Enforce sign-in gate (requires authorized-users.json on data volume)'
         required: false
         default: false
         type: boolean
@@ -59,7 +59,7 @@ jobs:
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-            authDisabled=${{ inputs.disable_auth && '1' || '' }}
+            authDisabled=${{ inputs.enable_auth && '' || '1' }}
             gitSyncEnabled=${{ inputs.enable_git_sync && '1' || '' }}
             githubRepo=${{ vars.SYNC_GITHUB_REPO }}
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}

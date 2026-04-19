@@ -12,6 +12,8 @@ import { execFile } from 'child_process';
 import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
+
 // ── Constants ──
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -461,7 +463,7 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
 
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
-    execFile('python3', [EMBED_SCRIPT, 'encode', text], { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(PYTHON, [EMBED_SCRIPT, 'encode', text], { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`Python embed failed: ${err.message}\n${stderr}`)); return; }
       try {
         const v = JSON.parse(stdout) as number[];
@@ -489,7 +491,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
 
   const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-    const child = execFile('python3', [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`batch-encode failed: ${err.message}\n${stderr}`)); return; }
       try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
     });
@@ -514,7 +516,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 export async function classifyNli(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
   if (pairs.length === 0) return [];
   return new Promise((resolve, reject) => {
-    const child = execFile('python3', [EMBED_SCRIPT, 'nli-classify'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`NLI failed: ${err.message}\n${stderr}`)); return; }
       try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
     });

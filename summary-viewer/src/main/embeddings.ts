@@ -8,6 +8,7 @@ import { resolveDataPath } from './fileIO';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 // ---------- Local embeddings from embeddings.json ----------
 
@@ -66,7 +67,7 @@ export function computeEmbeddings(texts: string[]): Promise<number[][]> {
 
   return new Promise((resolve, reject) => {
     const child = execFile(
-      'python3',
+      PYTHON,
       [EMBED_SCRIPT, 'batch-encode'],
       { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (err, stdout, stderr) => {
@@ -105,7 +106,7 @@ export function computeQueryEmbedding(text: string): Promise<number[]> {
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
     execFile(
-      'python3',
+      PYTHON,
       [EMBED_SCRIPT, 'encode', text],
       { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
       (err, stdout, stderr) => {

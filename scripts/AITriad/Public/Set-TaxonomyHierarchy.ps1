@@ -383,10 +383,13 @@ function Set-TaxonomyHierarchy {
         $FileEntry.Data.last_modified = $Today
 
         $Json = $FileEntry.Data | ConvertTo-Json -Depth 20
+        if ($Json.Length -gt 10MB) {
+            Write-Fail "BLOCKED write to $PovKey — JSON is $([math]::Round($Json.Length / 1MB, 1)) MB (likely corrupted encoding). Skipping to prevent data loss."
+            continue
+        }
         if ($PSCmdlet.ShouldProcess($FileEntry.Path, 'Write updated taxonomy file')) {
             try {
-                # Write UTF-8 without BOM — PS 5.1's -Encoding UTF8 adds BOM which breaks downstream JSON readers
-                [System.IO.File]::WriteAllText($FileEntry.Path, $Json, [System.Text.UTF8Encoding]::new($false))
+                Set-Content -Path $FileEntry.Path -Value $Json -Encoding utf8NoBOM -NoNewline
                 Write-OK "Saved $PovKey ($($FileEntry.Path))"
             }
             catch {

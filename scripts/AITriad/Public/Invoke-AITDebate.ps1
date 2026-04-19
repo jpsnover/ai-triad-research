@@ -171,8 +171,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     try {
         $ConfigPath = [System.IO.Path]::GetTempFileName()
         $Json = $Config | ConvertTo-Json -Depth 10
-        # Write UTF-8 without BOM — Windows PowerShell 5.1 `-Encoding UTF8` emits a BOM that JSON.parse rejects.
-        [System.IO.File]::WriteAllText($ConfigPath, $Json, (New-Object System.Text.UTF8Encoding $false))
+        Set-Content -Path $ConfigPath -Value $Json -Encoding utf8NoBOM -NoNewline
     } catch {
         throw "Failed to write debate config to temp file: $_`nCheck that $([System.IO.Path]::GetTempPath()) is writable and has free space."
     }

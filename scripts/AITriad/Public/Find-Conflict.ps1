@@ -55,7 +55,7 @@ function Find-Conflict {
     }
 
     try {
-        $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
+        $summaryObject = Get-Content $SummaryPath -Raw | ConvertFrom-Json -AsHashtable
     }
     catch {
         throw "Failed to parse summary file ${SummaryPath}: $($_.Exception.Message)"
@@ -131,7 +131,7 @@ function Find-Conflict {
 
             if (Test-Path $existingPath) {
                 try {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json | ConvertTo-Hashtable
+                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
                 }
                 catch {
                     Write-Warning "Skipping corrupt conflict file $($existingPath): $($_.Exception.Message)"
@@ -181,7 +181,7 @@ function Find-Conflict {
 
             if ($existingMatch) {
                 try {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json | ConvertTo-Hashtable
+                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -AsHashtable
                 }
                 catch {
                     Write-Warning "Skipping corrupt conflict file $($existingMatch.FullName): $($_.Exception.Message)"

@@ -7,7 +7,9 @@ import { execFile } from 'child_process';
 import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 import { PROJECT_ROOT } from './fileIO';
+console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
+console.log('[embeddings] Tavily import OK');
 
 /** Find embed_taxonomy.py — may be in PROJECT_ROOT/scripts or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findEmbedScript(): string {

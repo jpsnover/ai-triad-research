@@ -76,7 +76,7 @@ function Get-TextEmbedding {
             return $null
         }
 
-        $Parsed = $Output | ConvertFrom-Json | ConvertTo-Hashtable
+        $Parsed = $Output | ConvertFrom-Json -AsHashtable
         # Convert arrays to [double[]] for cosine computation
         $Result = @{}
         foreach ($Key in $Parsed.Keys) {

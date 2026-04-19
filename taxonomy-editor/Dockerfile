@@ -1,8 +1,11 @@
 # AI Triad Taxonomy Editor — Container Image
 # Multi-stage build: compile TypeScript, then copy artifacts to lean runtime.
+#
+# Requires the base image: ghcr.io/jpsnover/ai-triad-base:latest
+# (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
-FROM node:22.16-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /build
 
@@ -37,87 +40,31 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Runtime ──
-FROM node:22.16-bookworm-slim
+FROM ghcr.io/jpsnover/ai-triad-base:latest
 
-# System dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    pandoc \
-    python3 \
-    python3-pip \
-    python3-venv \
-    poppler-utils \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# PowerShell 7 — install via tar.gz (works on both amd64 and arm64)
-ARG PS_VERSION=7.5.1
-RUN ARCH=$(dpkg --print-architecture) \
-    && if [ "$ARCH" = "amd64" ]; then PS_ARCH="x64"; elif [ "$ARCH" = "arm64" ]; then PS_ARCH="arm64"; else echo "Unsupported arch: $ARCH" && exit 1; fi \
-    && curl -fsSL "https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/powershell-${PS_VERSION}-linux-${PS_ARCH}.tar.gz" -o /tmp/ps.tar.gz \
-    && mkdir -p /opt/microsoft/powershell/7 \
-    && tar xzf /tmp/ps.tar.gz -C /opt/microsoft/powershell/7 \
-    && rm /tmp/ps.tar.gz \
-    && chmod +x /opt/microsoft/powershell/7/pwsh \
-    && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh \
-    && apt-get update && apt-get install -y --no-install-recommends libicu72 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Python ML environment (isolated venv, CPU-only PyTorch to reduce image size)
-RUN python3 -m venv /opt/ml-env
-ENV PATH="/opt/ml-env/bin:$PATH"
-RUN pip install --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cpu
-
-# Install all Python dependencies from requirements.txt
-COPY scripts/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
-
-# Pre-download embedding model for fast first run
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-
-# Application code
-WORKDIR /app
-
-# Production Node dependencies only.
-# node-pty requires native compilation; install build tools for npm ci then purge
-# to keep the runtime image lean.
-COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3-dev make g++ \
-    && npm ci --omit=dev \
-    && apt-get purge -y --auto-remove python3-dev make g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Built artifacts from stage 1
-COPY --from=builder /build/taxonomy-editor/dist/server/ ./dist/server/
-COPY --from=builder /build/taxonomy-editor/dist/renderer/ ./dist/renderer/
-
-# Scripts and config
-COPY scripts/ ./scripts/
-COPY taxonomy-editor/authorized-users.json ./
-COPY ai-models.json ./
-COPY .aitriad.json ./
-COPY taxonomy/schemas/ ./taxonomy/schemas/
-
-# Data volume
 VOLUME /data
 ENV AI_TRIAD_DATA_ROOT=/data
 ENV PORT=7862
-# Prevent Python from buffering stdout/stderr (better log visibility)
 ENV PYTHONUNBUFFERED=1
 
-# Non-root user for security
-RUN groupadd -r aitriad && useradd -r -g aitriad -d /app -m aitriad
-RUN chown -R aitriad:aitriad /app
-# Ensure the ML model cache is readable
-RUN chown -R aitriad:aitriad /opt/ml-env
-# PowerShell needs writable cache/config dirs (default /.cache is root-owned)
-RUN mkdir -p /home/aitriad/.cache /home/aitriad/.config /home/aitriad/.local/share \
-    && chown -R aitriad:aitriad /home/aitriad
-ENV XDG_CACHE_HOME=/home/aitriad/.cache
-ENV XDG_CONFIG_HOME=/home/aitriad/.config
-ENV XDG_DATA_HOME=/home/aitriad/.local/share
+WORKDIR /app
+
+# ── Layers ordered by change frequency (least → most) ──
+
+# 1. Node production dependencies (changes when package-lock.json changes)
+COPY --chown=aitriad:aitriad taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
+RUN npm ci --omit=dev
+
+# 2. Stable config and scripts (change occasionally)
+COPY --chown=aitriad:aitriad ai-models.json ./
+COPY --chown=aitriad:aitriad .aitriad.json ./
+COPY --chown=aitriad:aitriad taxonomy/schemas/ ./taxonomy/schemas/
+COPY --chown=aitriad:aitriad scripts/ ./scripts/
+
+# 3. Built artifacts (change on every code edit — LAST for fastest rebuilds)
+COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/dist/server/ ./dist/server/
+COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/dist/renderer/ ./dist/renderer/
+
 USER aitriad
 
 EXPOSE 7862

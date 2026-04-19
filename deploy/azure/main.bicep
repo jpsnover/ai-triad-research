@@ -48,8 +48,8 @@ param googleClientSecret string = ''
 @description('GitHub OAuth app client secret')
 param githubClientSecret string = ''
 
-@description('Emergency kill-switch: set to "1" to bypass the sign-in gate entirely. Leave empty to enforce auth.')
-param authDisabled string = ''
+@description('Set to "1" (default) to allow anonymous access. Set to empty string to enforce the sign-in gate (requires authorized-users.json on the data volume).')
+param authDisabled string = '1'
 
 // ── GitHub data-sync (optional Phase-2 feature) ──
 // When enabled, web edits commit to a per-user branch in the working tree and
@@ -195,9 +195,8 @@ var baseEnv = [
   // routes them to Key Vault (one secret per user+backend), accessed
   // via the container app's system-assigned managed identity.
   { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
-  // Kill-switch: when set to '1', the server skips the sign-in gate
-  // for every non-public path. Persisted across redeploys via Bicep
-  // so Portal/CLI overrides don't get wiped on the next deploy.
+  // Auth gate: '1' (default) = anonymous access allowed. Set to ''
+  // to enforce sign-in (requires authorized-users.json on /data).
   { name: 'AUTH_DISABLED', value: authDisabled }
   // GitHub sync (Phase-2). GIT_SYNC_ENABLED is the master switch;
   // githubAppAuth.ts tries App credentials first, then GITHUB_TOKEN.

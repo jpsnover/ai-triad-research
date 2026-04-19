@@ -1,0 +1,25 @@
+appId: com.berkmanklein.ai-triad.workflow
+productName: AI Triad Workflow
+files:
+  - dist/**/*
+  - "!**/*.map"
+  - node_modules/**/*
+  - package.json
+
+mac:
+  target:
+    - target: dmg
+      arch: universal
+  hardenedRuntime: true
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+
+linux:
+  target:
+    - target: AppImage
+      arch: x64
+    - target: deb
+      arch: x64

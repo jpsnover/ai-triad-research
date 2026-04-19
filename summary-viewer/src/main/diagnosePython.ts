@@ -9,24 +9,21 @@ import { execFileSync } from 'child_process';
  * operation fails to give the user a precise fix.
  */
 export function diagnosePythonEmbeddings(): string {
-  // 1. Is python3 on PATH?
-  let pythonPath: string;
-  try {
-    pythonPath = execFileSync('which', ['python3'], { encoding: 'utf-8', timeout: 5000 }).trim();
-  } catch {
+  // 1. Find a working Python interpreter. Try `python` then `python3` directly
+  //    (no `which`/`where` — cross-platform: just probe each candidate).
+  let pythonPath = '';
+  let version = '';
+  for (const candidate of ['python', 'python3']) {
     try {
-      pythonPath = execFileSync('which', ['python'], { encoding: 'utf-8', timeout: 5000 }).trim();
+      version = execFileSync(candidate, ['--version'], { encoding: 'utf-8', timeout: 5000 }).trim();
+      pythonPath = candidate;
+      break;
     } catch {
-      return 'Python is not installed or not on PATH. Install Python 3.9+ from https://www.python.org/downloads/';
+      // try next
     }
   }
-
-  // 2. Is it Python 3?
-  let version: string;
-  try {
-    version = execFileSync(pythonPath, ['--version'], { encoding: 'utf-8', timeout: 5000 }).trim();
-  } catch {
-    return `Python found at ${pythonPath} but --version failed. The installation may be corrupt.`;
+  if (!pythonPath) {
+    return 'Python is not installed or not on PATH. Install Python 3.9+ from https://www.python.org/downloads/';
   }
 
   if (!version.startsWith('Python 3')) {
