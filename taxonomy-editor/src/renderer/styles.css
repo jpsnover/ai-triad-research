@@ -2266,6 +2266,14 @@ body {
   border-color: #dc2626;
 }
 
+.nd-header-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
 .nd-header-cat {
   display: inline-block;
   font-size: 0.6rem;
@@ -4612,6 +4620,60 @@ body {
   font-size: 0.8rem;
   color: var(--text-muted);
   padding: 4px 0;
+}
+
+.search-panel-related-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.search-panel-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.search-panel-threshold-row label {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.search-panel-threshold-row input[type="range"] {
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+}
+
+.search-panel-threshold-value {
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-panel-type-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-panel-type-filter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-panel-type-filter input[type="checkbox"] {
+  margin: 0;
 }
 
 /* ─── Lineage Panel (Pane 1) ───────────────────────────── */

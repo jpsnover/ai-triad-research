@@ -130,6 +130,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               aria-label="Label"
             />
           )}
+          <span className="nd-header-id">{node.id}</span>
           <span className="nd-header-cat" data-cat="SITUATIONS">SITUATIONS</span>
         </div>
         <div className="nd-header-actions">

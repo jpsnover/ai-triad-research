@@ -254,6 +254,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               aria-label="Label"
             />
           )}
+          <span className="nd-header-id">{node.id}</span>
           <span className="nd-header-cat" data-cat={node.category}>
             {node.category.toUpperCase()}
             <FieldHelp text={BDI_GUIDANCE[node.category]} />
