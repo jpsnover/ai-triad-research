@@ -28,6 +28,7 @@ import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
 const execFileP = promisify(execFile);
 
 const GIT_TIMEOUT_MS = 15_000;
+const GIT_INIT_TIMEOUT_MS = 120_000;
 
 function isFeatureFlagEnabled(): boolean {
   return process.env.GIT_SYNC_ENABLED === '1';
@@ -44,6 +45,64 @@ function dataRootHasGit(): boolean {
 /** Whether sync is operational in this deployment. Cheap to call. */
 export function isEnabled(): boolean {
   return isFeatureFlagEnabled() && dataRootHasGit();
+}
+
+// ── Auto-init data repo ──
+
+export interface InitResult {
+  ok: true;
+  action: 'initialized' | 'already-exists' | 'skipped';
+  message: string;
+}
+export interface InitError {
+  ok: false;
+  error: string;
+}
+
+/**
+ * If GIT_SYNC_ENABLED=1 but /data has no .git directory, clone the data repo
+ * into place (git init + fetch + checkout). Called at server startup and
+ * exposed via /api/sync/init for deploy-time triggering.
+ *
+ * Safe to call repeatedly — no-ops if .git already exists or if the feature
+ * flag is off.
+ */
+export async function initDataRepo(): Promise<InitResult | InitError> {
+  if (!isFeatureFlagEnabled()) {
+    return { ok: true, action: 'skipped', message: 'GIT_SYNC_ENABLED is not set.' };
+  }
+  if (dataRootHasGit()) {
+    return { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
+  }
+
+  const repoSlug = getRepoSlug();
+  if (!repoSlug) {
+    return { ok: false, error: 'GITHUB_REPO is not configured — cannot initialize data repo.' };
+  }
+
+  const dataRoot = getDataRoot();
+  console.log(`[gitRepoStore] Initializing data repo in ${dataRoot} from ${repoSlug}...`);
+
+  try {
+    const creds = await getCredentials();
+    const remoteUrl = creds
+      ? `https://x-access-token:${creds.token}@github.com/${repoSlug}.git`
+      : `https://github.com/${repoSlug}.git`;
+
+    const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
+    await execFileP('git', ['init'], opts);
+    await execFileP('git', ['remote', 'add', 'origin', remoteUrl], opts);
+    await execFileP('git', ['fetch', 'origin', 'main', '--depth=1'], opts);
+    await execFileP('git', ['checkout', '-f', 'FETCH_HEAD'], opts);
+    await execFileP('git', ['branch', '-M', 'main'], opts);
+
+    console.log(`[gitRepoStore] Data repo initialized successfully.`);
+    return { ok: true, action: 'initialized', message: `Initialized data repo from ${repoSlug}.` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[gitRepoStore] initDataRepo failed: ${msg}`);
+    return { ok: false, error: msg };
+  }
 }
 
 // ── Low-level git exec ──

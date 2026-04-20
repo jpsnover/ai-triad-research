@@ -483,6 +483,12 @@ post('/api/upload-document', async (req, res) => {
 // Gated by GIT_SYNC_ENABLED=1. When disabled, status/unsynced/diff return
 // empty/disabled shapes and discard is a no-op so the UI can degrade gracefully.
 
+post('/api/sync/init', async (_req, res) => {
+  try {
+    json(res, await gitStore.initDataRepo());
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/sync/status', async (_req, res) => {
   try {
     json(res, await gitStore.getSyncStatus());
@@ -1182,4 +1188,12 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 server.listen(PORT, () => {
   console.log(`[server] Taxonomy Editor running at http://localhost:${PORT}`);
   console.log(`[server] Data root: ${getDataRoot()}`);
+
+  gitStore.initDataRepo().then(r => {
+    if (!r.ok) console.error(`[server] Git data-repo init failed: ${r.error}`);
+    else if (r.action === 'initialized') console.log(`[server] ${r.message}`);
+    else console.log(`[server] Git sync: ${r.message}`);
+  }).catch(err => {
+    console.error(`[server] Git data-repo init error: ${err}`);
+  });
 });

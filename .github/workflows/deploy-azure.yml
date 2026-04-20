@@ -97,31 +97,14 @@ jobs:
 
           echo "::warning::Health check did not pass within 2 minutes. Container may still be starting."
 
-      - name: Sync data volume with GitHub
+      - name: Trigger data-repo initialization
         if: inputs.enable_git_sync
         run: |
-          REPO="https://github.com/jpsnover/ai-triad-data.git"
-          az containerapp exec \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --command -- /bin/sh -c '
-              cd /data || exit 1
-
-              if [ ! -d ".git" ]; then
-                echo "Initializing git repo in /data..."
-                git init
-                git remote add origin "'"$REPO"'"
-                git fetch origin main --depth=1
-                git checkout -f origin/main
-                echo "Data volume initialized from $REPO"
-              else
-                echo "Git repo exists, syncing..."
-                if [ -n "$(git status --porcelain)" ]; then
-                  echo "::warning::Data volume has uncommitted changes — stashing before sync"
-                  git stash --include-untracked -m "deploy-sync-$(date +%s)"
-                fi
-                git fetch origin main --depth=1
-                git reset --hard origin/main
-                echo "Data volume synced to latest origin/main"
-              fi
-            '
+          APP_URL="${{ steps.deploy.outputs.appUrl }}"
+          echo "Triggering git data-repo init via ${APP_URL}/api/sync/init..."
+          RESULT=$(curl -s -X POST "${APP_URL}/api/sync/init" -H "Content-Type: application/json")
+          echo "$RESULT" | jq .
+          OK=$(echo "$RESULT" | jq -r '.ok // false')
+          if [ "$OK" != "true" ]; then
+            echo "::warning::Data-repo init returned ok=$OK — the app will retry on next restart"
+          fi
