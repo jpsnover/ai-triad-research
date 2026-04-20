@@ -76,6 +76,7 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     const dataRoot = getDataRoot();
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
     try {
+      await execFileP('git', ['config', '--global', '--add', 'safe.directory', dataRoot], opts);
       await execFileP('git', ['rev-parse', 'HEAD'], opts);
       return { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
     } catch {
@@ -110,6 +111,7 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
       { timeout: GIT_INIT_TIMEOUT_MS });
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
+    await execFileP('git', ['config', '--global', '--add', 'safe.directory', dataRoot], opts);
     await execFileP('git', ['config', 'core.fileMode', 'false'], opts);
     await execFileP('git', ['checkout', '-f', 'HEAD'], opts);
     await execFileP('git', ['branch', '-M', 'main'], opts);
