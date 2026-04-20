@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Uses node-pty for a real pseudo-terminal on Windows (ConPTY) and Unix (PTY).
+// Lazy-imports node-pty to avoid conpty_console_list_agent crash at startup.
 
 import { ipcMain, BrowserWindow } from 'electron';
-import * as pty from 'node-pty';
 import path from 'path';
 import { PROJECT_ROOT } from './fileIO';
 
-let ptyProcess: pty.IPty | null = null;
+type IPty = import('node-pty').IPty;
+
+let ptyProcess: IPty | null = null;
 
 const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, 'scripts');
 
@@ -22,11 +24,28 @@ function findShell(): string {
 }
 
 export function registerTerminalHandlers(getWindow: () => BrowserWindow | null): void {
-  ipcMain.handle('terminal:spawn', () => {
+  ipcMain.handle('terminal:spawn', async () => {
     if (ptyProcess) return;
 
     const shell = findShell();
     const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force`;
+
+    let pty: typeof import('node-pty');
+    try {
+      pty = await import('node-pty');
+    } catch (err) {
+      const win = getWindow();
+      if (win && !win.isDestroyed()) {
+        const msg = err instanceof Error ? err.message : String(err);
+        win.webContents.send(
+          'terminal:data',
+          `Failed to load node-pty: ${msg}\r\n` +
+          'The integrated terminal requires native node-pty support.\r\n',
+        );
+        win.webContents.send('terminal:exit');
+      }
+      return;
+    }
 
     try {
       ptyProcess = pty.spawn(shell, ['-NoLogo'], {

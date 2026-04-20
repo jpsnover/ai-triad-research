@@ -1396,7 +1396,7 @@ interface DebateStore {
   swapConvergenceIssue: (removeId: string, addTaxonomyRef: string, addLabel: string) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
@@ -1542,7 +1542,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature) => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature, debateAudience) => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -1552,7 +1552,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       created_at: now,
       updated_at: now,
       app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined,
-      audience: get().audience,
+      audience: debateAudience ?? get().audience,
       phase: 'setup',
       topic: {
         original: topic,

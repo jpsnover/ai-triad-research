@@ -8159,6 +8159,39 @@ body {
   text-align: right;
 }
 
+/* ── Audience ── */
+.ndd-audience-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ndd-audience-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-primary);
+  font-size: 0.85rem;
+}
+.ndd-audience-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-color));
+}
+.ndd-audience-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+}
+.ndd-audience-card input[type="radio"] {
+  accent-color: var(--focus-ring);
+  flex-shrink: 0;
+}
+.ndd-audience-name {
+  font-weight: 600;
+}
+
 /* ── Debaters ── */
 .ndd-debaters {
   display: flex;

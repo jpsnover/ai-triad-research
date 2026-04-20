@@ -4,8 +4,8 @@
 import { useState, useMemo } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
-import { POVER_INFO } from '../types/debate';
-import type { PoverId, DebateSourceType } from '../types/debate';
+import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
+import type { PoverId, DebateSourceType, DebateAudience } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 import { api } from '@bridge';
 
@@ -55,6 +55,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [customModel, setCustomModel] = useState(globalModel);
   const [protocolId, setProtocolId] = useState('structured');
   const [temperature, setTemperature] = useState(0.7);
+  const [audience, setAudience] = useState<DebateAudience>('policymakers');
 
   // Get situation nodes for potential topics
   const situationNodes = useMemo(() => {
@@ -134,6 +135,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       debateModelOverride,
       protocolId,
       temperature,
+      audience,
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
@@ -314,6 +316,17 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 className="ndd-temperature-slider"
               />
               <span className="ndd-temperature-label">{temperatureLabel}</span>
+            </div>
+
+            {/* Audience */}
+            <label className="ndd-field-label">Target Audience</label>
+            <div className="ndd-audience-cards">
+              {DEBATE_AUDIENCES.map(a => (
+                <label key={a.id} className={`ndd-audience-card${audience === a.id ? ' active' : ''}`}>
+                  <input type="radio" name="audience" value={a.id} checked={audience === a.id} onChange={() => setAudience(a.id)} />
+                  <span className="ndd-audience-name">{a.label}</span>
+                </label>
+              ))}
             </div>
 
             {/* Debaters */}
