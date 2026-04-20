@@ -31,6 +31,12 @@ const MOVE_CATALOG = new Set<string>([
   'EXTEND',
   'UNDERCUT',
   'GROUND-CHECK',
+  'CONDITIONAL-AGREE',
+  'IDENTIFY-CRUX',
+  'INTEGRATE',
+  'STEEL-BUILD',
+  'EXPOSE-ASSUMPTION',
+  'BURDEN-SHIFT',
   // Legacy accepted variants
   'CONCEDE',
   'REDUCE',
@@ -104,7 +110,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   if (meta.move_types && meta.move_types.length > 0) {
     const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(getMoveName(m)));
     if (bad.length > 0) {
-      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT.`;
+      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT.`;
       errors.push(msg);
       schemaIssues.push(msg);
     }
@@ -455,6 +461,10 @@ export function buildRepairPrompt(
   sections.push('Do NOT repeat the rejected response. On this retry you MUST:');
   if (!v.dimensions.schema.pass) {
     sections.push('• Fix the JSON/schema issues above before anything else.');
+    const hasMoveError = v.repairHints.some(h => h.includes('Unknown move_types'));
+    if (hasMoveError) {
+      sections.push('• CRITICAL: move_types must use ONLY these exact values: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT. Do NOT invent new move names.');
+    }
   }
   if (!v.dimensions.grounding.pass) {
     sections.push('• Replace filler `relevance` strings with one concrete sentence explaining the mechanism by which the cited node supports or complicates your claim.');

@@ -837,7 +837,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-beliefs-012", "relevance": "Connects the response to broader empirical patterns the other debater overlooked."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
-  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY; each with optional "target" (AN-ID) and required "detail"
+  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1279,7 +1279,7 @@ Your perspective: ${input.pov}.
 ${brief}
 ${moveHistoryBlock}${flaggedBlock}
 === AVAILABLE DIALECTICAL MOVES ===
-Core moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK${constructiveMoveList}
+Core moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT${constructiveMoveList}
 
 Each move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}
 

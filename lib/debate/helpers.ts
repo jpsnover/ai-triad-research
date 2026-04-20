@@ -280,14 +280,68 @@ export function extractArraysFromPartialJson(json: string): Record<string, unkno
   };
 }
 
+const CANONICAL_MOVES: Record<string, string> = {
+  'DISTINGUISH': 'DISTINGUISH',
+  'COUNTEREXAMPLE': 'COUNTEREXAMPLE',
+  'CONCEDE-AND-PIVOT': 'CONCEDE-AND-PIVOT',
+  'CONCEDE_AND_PIVOT': 'CONCEDE-AND-PIVOT',
+  'CONCEDEANDPIVOT': 'CONCEDE-AND-PIVOT',
+  'CONCEDE AND PIVOT': 'CONCEDE-AND-PIVOT',
+  'REFRAME': 'REFRAME',
+  'EMPIRICAL CHALLENGE': 'EMPIRICAL CHALLENGE',
+  'EMPIRICAL_CHALLENGE': 'EMPIRICAL CHALLENGE',
+  'EMPIRICALCHALLENGE': 'EMPIRICAL CHALLENGE',
+  'EXTEND': 'EXTEND',
+  'UNDERCUT': 'UNDERCUT',
+  'GROUND-CHECK': 'GROUND-CHECK',
+  'GROUND_CHECK': 'GROUND-CHECK',
+  'GROUNDCHECK': 'GROUND-CHECK',
+  'CONDITIONAL-AGREE': 'CONDITIONAL-AGREE',
+  'CONDITIONAL_AGREE': 'CONDITIONAL-AGREE',
+  'CONDITIONALGREE': 'CONDITIONAL-AGREE',
+  'IDENTIFY-CRUX': 'IDENTIFY-CRUX',
+  'IDENTIFY_CRUX': 'IDENTIFY-CRUX',
+  'IDENTIFYCRUX': 'IDENTIFY-CRUX',
+  'CRUX': 'IDENTIFY-CRUX',
+  'CRUX-IDENTIFICATION': 'IDENTIFY-CRUX',
+  'FORCE_CRUX': 'IDENTIFY-CRUX',
+  'PROPOSE-CRUX': 'IDENTIFY-CRUX',
+  'CLARIFY-CRUX': 'IDENTIFY-CRUX',
+  'INTEGRATE': 'INTEGRATE',
+  'STEEL-BUILD': 'STEEL-BUILD',
+  'STEEL_BUILD': 'STEEL-BUILD',
+  'STEELBUILD': 'STEEL-BUILD',
+  'EXPOSE-ASSUMPTION': 'EXPOSE-ASSUMPTION',
+  'EXPOSE_ASSUMPTION': 'EXPOSE-ASSUMPTION',
+  'EXPOSEASSUMPTION': 'EXPOSE-ASSUMPTION',
+  'PRESUPPOSITION-CHALLENGE': 'EXPOSE-ASSUMPTION',
+  'CHALLENGE-EMPIRICAL': 'EMPIRICAL CHALLENGE',
+  'BURDEN-SHIFT': 'BURDEN-SHIFT',
+  'BURDEN_SHIFT': 'BURDEN-SHIFT',
+  'BURDENSHIFT': 'BURDEN-SHIFT',
+  'CONCEDE': 'CONCEDE',
+  'PARTIAL-CONCEDE': 'CONDITIONAL-AGREE',
+  'ACKNOWLEDGE-VULNERABILITY': 'CONDITIONAL-AGREE',
+  'ACKNOWLEDGE-SCOPE': 'CONDITIONAL-AGREE',
+  'REDUCE': 'REDUCE',
+  'ESCALATE': 'ESCALATE',
+  'ASSERT': 'ASSERT',
+  'SPECIFY': 'SPECIFY',
+  'SPECIFY-BOUNDARY-CONDITIONS': 'SPECIFY',
+};
+
+function canonicalizeMove(name: string): string {
+  return CANONICAL_MOVES[name.toUpperCase().trim()] ?? name;
+}
+
 function normalizeMoveTypes(raw: unknown[]): (string | MoveAnnotation)[] {
   return raw.map(item => {
-    if (typeof item === 'string') return item;
+    if (typeof item === 'string') return canonicalizeMove(item);
     if (item && typeof item === 'object') {
       const obj = item as Record<string, unknown>;
       if (typeof obj.move === 'string') {
         return {
-          move: obj.move,
+          move: canonicalizeMove(obj.move),
           target: typeof obj.target === 'string' ? obj.target : undefined,
           detail: typeof obj.detail === 'string' ? obj.detail : '',
         } as MoveAnnotation;
