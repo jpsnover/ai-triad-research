@@ -1005,7 +1005,7 @@ export async function getDiagnostics(): Promise<SyncDiagnostics> {
     }
   };
 
-  for (const name of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json', 'cross-cutting.json', 'edges.json', 'embeddings.json', 'policy_actions.json']) {
+  for (const name of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json', 'edges.json', 'embeddings.json', 'policy_actions.json']) {
     statFile(path.join(taxonomyDir, name), `${activeTaxDir}/${name}`);
   }
 
