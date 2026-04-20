@@ -783,6 +783,7 @@ export class DebateEngine {
           move_types: meta.move_types,
           key_assumptions: meta.key_assumptions,
           my_claims: meta.my_claims,
+          turn_symbols: meta.turn_symbols,
           injection_manifest: this._lastInjectionManifest ?? undefined,
         },
       });
@@ -1161,6 +1162,7 @@ export class DebateEngine {
         move_types: meta.move_types,
         disagreement_type: meta.disagreement_type,
         my_claims: meta.my_claims,
+        turn_symbols: meta.turn_symbols,
         injection_manifest: this._lastInjectionManifest ?? undefined,
         debate_phase: phase,
         position_update: meta.position_update,

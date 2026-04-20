@@ -7189,6 +7189,23 @@ body {
   letter-spacing: 0.3px;
 }
 
+.debate-turn-symbols {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+
+.debate-turn-symbol {
+  font-size: 2.275rem;
+  cursor: default;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.debate-turn-symbol:hover {
+  transform: scale(1.25);
+}
+
 .debate-statement-content {
   font-size: 0.85rem;
   line-height: 1.6;

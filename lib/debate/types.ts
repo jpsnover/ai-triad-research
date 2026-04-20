@@ -418,8 +418,14 @@ export interface PlanWorkProduct {
   evidence_needed: string[];
 }
 
+export interface TurnSymbol {
+  symbol: string;
+  tooltip: string;
+}
+
 export interface DraftWorkProduct {
   statement: string;
+  turn_symbols: TurnSymbol[];
   claim_sketches: { claim: string; targets: string[] }[];
   key_assumptions: { assumption: string; if_wrong: string }[];
   disagreement_type: string;

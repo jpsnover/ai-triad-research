@@ -886,6 +886,17 @@ function getCorsOrigin(req: http.IncomingMessage): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
 }
 
+function parseCookies(req: http.IncomingMessage): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  const header = req.headers.cookie;
+  if (!header) return cookies;
+  for (const pair of header.split(';')) {
+    const [key, ...rest] = pair.trim().split('=');
+    if (key) cookies[key] = rest.join('=');
+  }
+  return cookies;
+}
+
 // ── Auth: file-based user allowlist ──
 // Reads authorized-users.json from the data volume (or repo root as fallback).
 // Azure Easy Auth sets X-MS-CLIENT-PRINCIPAL-NAME and X-MS-CLIENT-PRINCIPAL-IDP
@@ -955,7 +966,20 @@ function isUserAuthorized(principalName: string, idp: string): boolean {
   return false;
 }
 
-const LOGIN_PAGE = `<!DOCTYPE html>
+function buildLoginPage(showAnonymous: boolean): string {
+  const subtitle = showAnonymous
+    ? 'Sign in for server-managed API keys, or continue anonymously with your own'
+    : 'Sign in to continue';
+
+  const anonymousSection = showAnonymous ? `
+  <div class="divider"><span>or</span></div>
+  <a class="btn btn-anonymous" href="/.auth/anonymous">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+    Continue without signing in
+  </a>
+  <p class="anon-note">Anonymous users have lower rate limits and must provide their own API keys</p>` : '';
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -977,12 +1001,17 @@ const LOGIN_PAGE = `<!DOCTYPE html>
   .btn-github:hover { border-color: #e2e8f0; }
   .btn-google:hover { border-color: #34d399; }
   .btn-microsoft:hover { border-color: #60a5fa; }
+  .btn-anonymous { border-color: #475569; }
+  .btn-anonymous:hover { border-color: #94a3b8; }
+  .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: #64748b; font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid #334155; }
+  .anon-note { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>Taxonomy Editor</h1>
-  <p class="subtitle">Sign in to continue</p>
+  <p class="subtitle">${subtitle}</p>
   <a class="btn btn-github" href="/.auth/login/github?post_login_redirect_uri=/">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
     Sign in with GitHub
@@ -994,10 +1023,11 @@ const LOGIN_PAGE = `<!DOCTYPE html>
   <a class="btn btn-microsoft" href="/.auth/login/aad?post_login_redirect_uri=/">
     <svg viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
     Sign in with Microsoft
-  </a>
+  </a>${anonymousSection}
 </div>
 </body>
 </html>`;
+}
 
 const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 <html lang="en">
@@ -1052,22 +1082,52 @@ const server = http.createServer(async (req, res) => {
     || urlPath === '/api/models'
     || urlPath === '/api/sync/webhook/github'
     || urlPath.startsWith('/.auth/');
-  // AUTH_DISABLED='1' (default) = anonymous access. To enforce sign-in,
-  // set AUTH_DISABLED='' and place authorized-users.json on the data volume.
+  // AUTH_DISABLED='1' (default) = anonymous access, no login page.
+  // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in
+  //   unlocks platform-tier keys, anonymous users get lower limits + BYOK.
+  // Neither = required auth (must sign in + be in authorized-users.json).
   const authDisabled = process.env.AUTH_DISABLED === '1';
-  if (!isPublicPath && !authDisabled && getAuthorizedUsers()) {
-    if (!principalName) {
-      // Not authenticated — serve login picker
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(LOGIN_PAGE);
-      return;
-    }
+  const authOptional = process.env.AUTH_OPTIONAL === '1';
 
-    if (!isUserAuthorized(principalName, idp)) {
-      // Authenticated but not in allowlist
-      res.writeHead(403, { 'Content-Type': 'text/html' });
-      res.end(FORBIDDEN_PAGE(principalName));
-      return;
+  // /.auth/anonymous — sets a session cookie and redirects to the app
+  if (urlPath === '/.auth/anonymous' && authOptional) {
+    res.writeHead(302, {
+      'Location': '/',
+      'Set-Cookie': 'auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax',
+    });
+    res.end();
+    return;
+  }
+
+  // Clear anonymous cookie when user signs in via EasyAuth
+  if (principalName && parseCookies(req)['auth_anonymous'] === '1') {
+    res.setHeader('Set-Cookie', 'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+  }
+
+  if (!isPublicPath && !authDisabled) {
+    if (authOptional) {
+      // Optional mode: show login page unless user signed in or chose anonymous
+      if (!principalName) {
+        const isAnonymousSession = parseCookies(req)['auth_anonymous'] === '1';
+        if (!isAnonymousSession) {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(buildLoginPage(true));
+          return;
+        }
+      }
+    } else if (getAuthorizedUsers()) {
+      // Required mode: must sign in and be in the allowlist
+      if (!principalName) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(buildLoginPage(false));
+        return;
+      }
+
+      if (!isUserAuthorized(principalName, idp)) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end(FORBIDDEN_PAGE(principalName));
+        return;
+      }
     }
   }
 

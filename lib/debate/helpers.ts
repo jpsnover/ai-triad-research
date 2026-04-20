@@ -207,6 +207,7 @@ export interface PoverResponseMeta {
   my_claims?: { claim: string; targets: string[] }[];
   policy_refs?: string[];
   position_update?: string;
+  turn_symbols?: { symbol: string; tooltip: string }[];
 }
 
 /** Try to parse JSON, with repair fallback for LLM formatting issues */
@@ -330,6 +331,9 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
         (r: unknown) => typeof r === 'string',
       ) : undefined,
       position_update: typeof parsed.position_update === 'string' ? parsed.position_update : undefined,
+      turn_symbols: Array.isArray(parsed.turn_symbols) ? parsed.turn_symbols.filter(
+        (s: Record<string, unknown>) => typeof s.symbol === 'string' && typeof s.tooltip === 'string',
+      ) : undefined,
     };
   } catch {
     // Fallback: look for a JSON object with "statement" embedded after preamble text
@@ -351,6 +355,9 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
           key_assumptions: Array.isArray(parsed.key_assumptions) ? parsed.key_assumptions : undefined,
           my_claims: Array.isArray(parsed.my_claims) ? parsed.my_claims : undefined,
           policy_refs: Array.isArray(parsed.policy_refs) ? parsed.policy_refs : undefined,
+          turn_symbols: Array.isArray(parsed.turn_symbols) ? parsed.turn_symbols.filter(
+            (s: Record<string, unknown>) => typeof s.symbol === 'string' && typeof s.tooltip === 'string',
+          ) : undefined,
         };
       } catch {
         statement = text.trim();

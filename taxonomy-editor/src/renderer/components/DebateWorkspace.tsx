@@ -537,6 +537,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
     n => n.source_entry_id === entry.id
   )?.id ?? null;
   const netDelta = (entry.metadata as Record<string, unknown> | undefined)?.qbaf_net_delta as number | undefined;
+  const turnSymbols = (entry.metadata as Record<string, unknown> | undefined)?.turn_symbols as { symbol: string; tooltip: string }[] | undefined;
 
   // Tier display logic (DT-3)
   const hasSummaries = entry.summaries != null;
@@ -592,6 +593,15 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           </span>
         )}
       </div>
+      {turnSymbols && turnSymbols.length > 0 && (
+        <div className="debate-turn-symbols">
+          {turnSymbols.map((s, i) => (
+            <span key={i} className="debate-turn-symbol" title={s.tooltip}>
+              {s.symbol}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />

@@ -48,8 +48,11 @@ param googleClientSecret string = ''
 @description('GitHub OAuth app client secret')
 param githubClientSecret string = ''
 
-@description('Set to "1" (default) to allow anonymous access. Set to empty string to enforce the sign-in gate (requires authorized-users.json on the data volume).')
-param authDisabled string = '1'
+@description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
+param authDisabled string = ''
+
+@description('Set to "1" to show login page with both sign-in and anonymous options. Signed-in users get platform-tier API keys; anonymous users must BYOK.')
+param authOptional string = '1'
 
 // ── GitHub data-sync (optional Phase-2 feature) ──
 // When enabled, web edits commit to a per-user branch in the working tree and
@@ -202,9 +205,10 @@ var baseEnv = [
   // routes them to Key Vault (one secret per user+backend), accessed
   // via the container app's system-assigned managed identity.
   { name: 'AZURE_KEYVAULT_URL', value: keyVault.properties.vaultUri }
-  // Auth gate: '1' (default) = anonymous access allowed. Set to ''
-  // to enforce sign-in (requires authorized-users.json on /data).
+  // Auth mode: AUTH_OPTIONAL='1' shows login page with sign-in + anonymous
+  // option. AUTH_DISABLED='1' skips auth entirely. Neither = required sign-in.
   { name: 'AUTH_DISABLED', value: authDisabled }
+  { name: 'AUTH_OPTIONAL', value: authOptional }
   // GitHub sync (Phase-2). GIT_SYNC_ENABLED is the master switch;
   // githubAppAuth.ts tries App credentials first, then GITHUB_TOKEN.
   // The App private key itself lives in Key Vault and is fetched by

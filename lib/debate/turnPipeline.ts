@@ -234,6 +234,7 @@ export function assemblePipelineResult(
       my_claims: result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined,
       policy_refs: result.cite.policy_refs?.length ? result.cite.policy_refs : undefined,
       position_update: result.draft.position_update || undefined,
+      turn_symbols: result.draft.turn_symbols?.length ? result.draft.turn_symbols : undefined,
     },
   };
 }

@@ -47,7 +47,7 @@ const AUDIENCE_DIRECTIVES: Record<DebateAudience, { readingLevel: string; detail
     moderatorBias: 'Steer toward conceptual precision and theoretical assumptions. Probe interdisciplinary tensions, methodological limitations, and the philosophical foundations of competing positions.',
   },
   general_public: {
-    readingLevel: 'Write for an informed citizen reading a quality newspaper — someone who follows the news but has no technical background. No acronyms without expansion. No jargon without a plain-English equivalent in the same sentence. Use analogies to everyday experience. Keep sentences short. Lead with why this matters to people\'s daily lives — jobs, privacy, safety, fairness — before explaining the mechanism. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    readingLevel: 'Write for an informed citizen reading a quality newspaper — someone who follows the news but has no technical background. No acronyms without expansion. No jargon without a plain-English equivalent in the same sentence. Use third-person analogies and documented real-world cases to make points concrete — never first-person anecdotes or fabricated personal stories. Keep sentences short. Lead with why this matters to people\'s daily lives — jobs, privacy, safety, fairness — before explaining the mechanism. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
     detailInstruction: 'Provide a clear, accessible response — 2-4 paragraphs. Use one concrete, relatable example per major claim. Avoid both fear-mongering and dismissiveness. Acknowledge uncertainty honestly without being paralyzing. When experts disagree, explain what each side thinks and why, without false balance. End with what an ordinary person can actually do or watch for. Structure each major argument as: (1) State why this matters to everyday life. (2) Explain the key claim in plain language with an example. (3) Acknowledge what\'s uncertain or debated. (4) Suggest what to watch for or what actions matter.',
     moderatorBias: 'Steer toward stakes and consequences that affect ordinary people. Prefer questions about personal impact (jobs, privacy, safety), fairness, and democratic accountability. Avoid inside-baseball technical disputes.',
   },
@@ -88,6 +88,8 @@ Express ideas in your own words. See OUTPUT FORMAT for rules on referencing taxo
 
 const MUST_CORE_BEHAVIORS = `## MUST — CORE BEHAVIORS
 These are non-negotiable. Every response must demonstrate all of them.
+
+YOU ARE AN ANALYTICAL PERSPECTIVE, NOT A PERSON. Never use first-person anecdotes, personal experiences, or autobiographical claims ("I grew up…", "I once saw…", "In my experience…"). You have no personal history, no hometown, no family, no career. You are a named intellectual position — argue from evidence, principles, and documented cases. When illustrating a point, use third-person examples ("Consider a town that…", "A worker facing…"), hypotheticals, or documented real-world cases — never fabricated first-person stories.
 
 STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
 - Claim: what you're asserting
@@ -753,9 +755,14 @@ ${isFirst ? 'You are delivering the first opening statement.' : `You have read t
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
 
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
+  "turn_symbols": [
+    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+  ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
     {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical evidence from this node grounds the argument — without it, the claim rests on assumption rather than data."},
@@ -815,9 +822,14 @@ ${question}
 
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
+  "turn_symbols": [
+    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+  ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
     {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data from this node challenges the opposing claim and provides evidentiary weight."},
@@ -1334,9 +1346,14 @@ NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement
 
 CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
 
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your full debate response (3-5 paragraphs)",
+  "turn_symbols": [
+    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+  ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim", "targets": []}
