@@ -73,7 +73,15 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     return { ok: true, action: 'skipped', message: 'GIT_SYNC_ENABLED is not set.' };
   }
   if (dataRootHasGit()) {
-    return { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
+    const dataRoot = getDataRoot();
+    const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
+    try {
+      await execFileP('git', ['rev-parse', 'HEAD'], opts);
+      return { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
+    } catch {
+      console.log('[gitRepoStore] .git exists but repo is broken — removing and re-cloning...');
+      fs.rmSync(path.join(dataRoot, '.git'), { recursive: true, force: true });
+    }
   }
 
   const repoSlug = getRepoSlug();
@@ -628,11 +636,14 @@ export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncErr
   if (!isEnabled()) return { ok: false, error: 'Git sync is disabled on this server.', code: 'disabled' };
 
   const creds = await getCredentials();
-  if (!creds) return { ok: false, error: 'GitHub credentials are not configured.', code: 'no-credentials' };
+  const repoSlug = getRepoSlug();
+  if (!creds && !repoSlug) return { ok: false, error: 'GitHub credentials are not configured.', code: 'no-credentials' };
 
   return serialize(async () => {
     const branch = await ensureSessionBranch();
-    const remoteUrl = `https://x-access-token:${creds.token}@github.com/${creds.repo}.git`;
+    const remoteUrl = creds
+      ? `https://x-access-token:${creds.token}@github.com/${creds.repo}.git`
+      : `https://github.com/${repoSlug}.git`;
 
     // 1) Always fetch first.
     const fetchRes = await gitSafe(['fetch', remoteUrl, 'main', `+refs/heads/main:refs/remotes/origin/main`]);
