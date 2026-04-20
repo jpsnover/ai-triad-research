@@ -106,7 +106,7 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
       fs.rmSync(path.join(dataRoot, '.git'), { recursive: true, force: true });
     }
     // Copy .git to Azure Files (rename won't work cross-device)
-    await execFileP('cp', ['-a', path.join(tmpDir, '.git'), path.join(dataRoot, '.git')],
+    await execFileP('cp', ['-r', path.join(tmpDir, '.git'), path.join(dataRoot, '.git')],
       { timeout: GIT_INIT_TIMEOUT_MS });
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
