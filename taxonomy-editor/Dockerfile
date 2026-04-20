@@ -71,6 +71,9 @@ COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/dist/renderer
 RUN ln -s /app/dist/renderer /app/dist/server/taxonomy-editor/src/renderer \
  && ln -s /app/package.json /app/dist/server/taxonomy-editor/src/package.json
 
+# 4. PTY broker script (Python, not compiled by tsc — copy to where config.ts expects it)
+COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/pty-broker.py
+
 USER aitriad
 
 EXPOSE 7862

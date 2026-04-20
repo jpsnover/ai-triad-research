@@ -27,15 +27,13 @@ interface AiTriadConfig {
 // Container: __dirname = /app/dist/server (only 2 levels to /app which has scripts/)
 // Resolve by checking which ancestor has .aitriad.json or scripts/
 const PROJECT_ROOT = (() => {
-  const threeUp = path.resolve(__dirname, '../../..');
-  if (fs.existsSync(path.join(threeUp, '.aitriad.json')) || fs.existsSync(path.join(threeUp, 'scripts'))) {
-    return threeUp;
+  const hasMarker = (d: string) =>
+    fs.existsSync(path.join(d, '.aitriad.json')) || fs.existsSync(path.join(d, 'scripts'));
+  for (let i = 2; i <= 6; i++) {
+    const candidate = path.resolve(__dirname, '../'.repeat(i));
+    if (hasMarker(candidate)) return candidate;
   }
-  const twoUp = path.resolve(__dirname, '../..');
-  if (fs.existsSync(path.join(twoUp, '.aitriad.json')) || fs.existsSync(path.join(twoUp, 'scripts'))) {
-    return twoUp;
-  }
-  return threeUp; // fallback
+  return path.resolve(__dirname, '../../..');
 })();
 
 const DEFAULT_CONFIG: AiTriadConfig = {
