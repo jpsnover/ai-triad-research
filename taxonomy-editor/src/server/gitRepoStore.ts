@@ -21,7 +21,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
-import { getDataRoot } from './config';
+import { getDataRoot, loadDataConfig, resolveDataPath } from './config';
+import { getActiveTaxonomyDirName } from './fileIO';
 import { getCurrentUser } from './userContext';
 import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
 
@@ -965,10 +966,8 @@ export async function getDiagnostics(): Promise<SyncDiagnostics> {
   }
 
   // Enumerate data files
-  const { loadDataConfig, resolveDataPath } = await import('./config');
   const config = loadDataConfig();
   const taxonomyBase = resolveDataPath(path.dirname(config.taxonomy_dir));
-  const { getActiveTaxonomyDirName } = await import('./fileIO');
   const activeTaxDir = getActiveTaxonomyDirName();
   const taxonomyDir = path.join(taxonomyBase, activeTaxDir);
   const conflictsDir = resolveDataPath(config.conflicts_dir);
