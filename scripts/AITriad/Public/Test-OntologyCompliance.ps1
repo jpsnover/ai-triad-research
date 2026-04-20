@@ -257,6 +257,37 @@ function Test-OntologyCompliance {
             -Fix @('Run Invoke-AttributeExtraction -Force to regenerate', "First 10: $($GenusFailIds -join ', ')")
     }
 
+    # Encompasses/Excludes clause compliance
+    $BoundaryOk = 0; $BoundaryFail = 0
+    $BoundaryFailIds = [System.Collections.Generic.List[string]]::new()
+    foreach ($Entry in $AllNodes.Values) {
+        $N = $Entry.Node
+        if (-not $N.description) { $BoundaryFail++; continue }
+        $HasEncompasses = $N.description -match 'Encompasses:'
+        $HasExcludes    = $N.description -match 'Excludes:'
+        if ($HasEncompasses -and $HasExcludes) { $BoundaryOk++ }
+        else {
+            $BoundaryFail++
+            if ($BoundaryFailIds.Count -lt 10) { $BoundaryFailIds.Add($N.id) }
+        }
+    }
+
+    $BoundaryPct = [Math]::Round($BoundaryOk / [Math]::Max(1, $AllNodes.Count) * 100, 1)
+    if ($BoundaryPct -ge 90) {
+        Add-Check -Category 'DOLCE' -Check "Encompasses/Excludes clauses ($BoundaryPct%)" -Status 'pass' `
+            -Detail "$BoundaryOk/$($AllNodes.Count) nodes have boundary clauses"
+    }
+    elseif ($BoundaryPct -ge 50) {
+        Add-Check -Category 'DOLCE' -Check "Encompasses/Excludes clauses ($BoundaryPct%)" -Status 'warn' `
+            -Detail "$BoundaryFail node(s) missing clauses (e.g. $($BoundaryFailIds[0]))" `
+            -Fix 'Run Invoke-DescriptionRewrite.ps1 to add boundary clauses'
+    }
+    else {
+        Add-Check -Category 'DOLCE' -Check "Encompasses/Excludes clauses ($BoundaryPct%)" -Status 'fail' `
+            -Detail "$BoundaryFail node(s) missing clauses" `
+            -Fix @('Run Invoke-DescriptionRewrite.ps1 to add boundary clauses', "First 10: $($BoundaryFailIds -join ', ')")
+    }
+
     # Category field present on POV nodes
     $PovNoCat = 0
     foreach ($Entry in $AllNodes.Values) {

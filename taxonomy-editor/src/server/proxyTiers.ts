@@ -43,7 +43,7 @@ const DEFAULT_CONFIG: TierConfig = {
   defaults: {
     platform:  { requestsPerMinute: 60,  tokensPerDay: 2_000_000, allowedBackends: ['gemini', 'claude', 'groq'] },
     byok:      { requestsPerMinute: 30,  tokensPerDay: 500_000,   allowedBackends: ['gemini', 'claude', 'groq'] },
-    anonymous: { requestsPerMinute: 10,  tokensPerDay: 100_000,   allowedBackends: ['gemini', 'groq'] },
+    anonymous: { requestsPerMinute: 10,  tokensPerDay: 100_000,   allowedBackends: ['gemini', 'claude', 'groq'] },
   },
   users: [],
 };

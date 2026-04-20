@@ -46,6 +46,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Import-Module (Join-Path (Join-Path $ScriptDir 'AITriad') 'AITriad.psm1') -Force -ErrorAction Stop
 Import-Module (Join-Path $ScriptDir 'AIEnrich.psm1') -Force -ErrorAction Stop
+. (Join-Path $ScriptDir 'AITriad' 'Private' 'Write-Utf8NoBom.ps1')
 
 if (-not $Model) {
     if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
@@ -85,13 +86,18 @@ foreach ($PovKey in $PovFiles.Keys) {
     $NonCompliant = [System.Collections.Generic.List[PSObject]]::new()
 
     foreach ($Node in $Data.nodes) {
-        if (-not $Node.description) { $NonCompliant.Add($Node); continue }
+        if (-not $Node.PSObject.Properties['description'] -or -not $Node.description) { $NonCompliant.Add($Node); continue }
 
         if ($PovKey -eq 'situations') {
             $IsCompliant = $Node.description -match '^A\s+situation\s+that\s+'
         }
         else {
             $IsCompliant = $Node.description -match '^An?\s+(Belief|Desire|Intention)\s+within\s+'
+        }
+
+        if ($IsCompliant) {
+            $HasBoundary = ($Node.description -match 'Encompasses:') -and ($Node.description -match 'Excludes:')
+            if (-not $HasBoundary) { $IsCompliant = $false }
         }
 
         if (-not $IsCompliant) {
@@ -153,28 +159,34 @@ foreach ($PovKey in $FilesToFix.Keys) {
 
         $NodeContext = @($Batch | ForEach-Object {
             if ($_.PSObject.Properties['category']) { $Cat = $_.category } else { $Cat = $null }
+            $Desc = if ($_.PSObject.Properties['description']) { $_.description } else { '' }
             [ordered]@{
                 id          = $_.id
                 label       = $_.label
                 category    = $Cat
                 pov         = $PovKey
-                current_desc = $_.description
+                current_desc = $Desc
             }
         })
 
         $ContextJson = $NodeContext | ConvertTo-Json -Depth 5 -Compress
 
         $Prompt = @"
-Rewrite each node description to use genus-differentia format. Preserve the meaning.
+Rewrite each node description to genus-differentia format with MANDATORY boundary clauses. Preserve the meaning.
 
-For POV nodes: "A [Belief | Desire | Intention] within [POV] discourse that [differentia]. Encompasses: [concrete examples]. Excludes: [what neighboring nodes cover]."
-For situation nodes: "A situation that [differentia]. Encompasses: [what it covers]. Excludes: [what is NOT covered]."
+REQUIRED 3-LINE FORMAT (every description MUST contain all 3 lines separated by \n):
+Line 1 — genus-differentia: "A [Belief | Desire | Intention] within [POV] discourse that [differentia]."
+Line 2 — "Encompasses: [concrete examples or sub-themes this node covers]."
+Line 3 — "Excludes: [what neighboring or parent nodes cover instead]."
+For situation nodes, Line 1 is: "A situation that [differentia]."
+
+CRITICAL: Every description MUST include both "Encompasses:" and "Excludes:" — these are not optional. A description without these clauses is INVALID and will be rejected.
 
 Rules:
-- First sentence MUST follow the pattern exactly
+- First sentence MUST follow the genus-differentia pattern exactly
 - 2-4 sentences total
 - Write for a policy reporter — active voice, named actors, concrete examples, quotable sentences. No nominalizations or hedge stacking. Technical terms fine when load-bearing; define on first use.
-- The Excludes clause does the boundary work
+- The Excludes clause does the boundary work — reference sibling nodes by topic where possible
 - Preserve all factual content from the original description
 
 Nodes:
@@ -191,11 +203,73 @@ Return ONLY a JSON array:
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             $Rewrites = $ResponseText | ConvertFrom-Json
 
+            $FailedIds = [System.Collections.Generic.List[string]]::new()
             foreach ($R in $Rewrites) {
                 $TargetNode = $Entry.Data.nodes | Where-Object { $_.id -eq $R.id } | Select-Object -First 1
-                if ($TargetNode -and $R.description) {
-                    $TargetNode.description = $R.description
+                if (-not $TargetNode -or -not $R.description) { continue }
+
+                # Post-generation quality check
+                $Desc = $R.description
+                $QualityOk = $true
+                if ($PovKey -eq 'situations') {
+                    if ($Desc -notmatch '^A\s+situation\s+(concept\s+)?that\s+') { $QualityOk = $false }
+                } else {
+                    if ($Desc -notmatch '^An?\s+(Belief|Desire|Intention)\s+within\s+') { $QualityOk = $false }
+                }
+                if ($Desc -notmatch 'Encompasses:') { $QualityOk = $false }
+                if ($Desc -notmatch 'Excludes:') { $QualityOk = $false }
+
+                if ($QualityOk) {
+                    $TargetNode.description = $Desc
                     $Rewritten++
+                } else {
+                    $FailedIds.Add($R.id)
+                }
+            }
+
+            # Retry failed nodes once with a stricter prompt
+            if ($FailedIds.Count -gt 0) {
+                $RetryNodes = @($Batch | Where-Object { $FailedIds -contains $_.id })
+                $RetryContext = @($RetryNodes | ForEach-Object {
+                    $Desc = if ($_.PSObject.Properties['description']) { $_.description } else { '' }
+                    [ordered]@{ id = $_.id; label = $_.label; category = $(if ($_.PSObject.Properties['category']) { $_.category } else { $null }); pov = $PovKey; current_desc = $Desc }
+                }) | ConvertTo-Json -Depth 5 -Compress
+                $RetryPrompt = @"
+Your previous rewrite was REJECTED because it was missing "Encompasses:" and/or "Excludes:" clauses.
+
+EVERY description MUST contain exactly these 3 parts separated by \n in the JSON string:
+1. "A [Belief|Desire|Intention] within [POV] discourse that [differentia]." (or "A situation that ..." for situations)
+2. "Encompasses: [list concrete sub-themes this node covers]."
+3. "Excludes: [list what sibling or parent nodes cover instead]."
+
+Nodes to fix:
+$RetryContext
+
+Return ONLY a JSON array: [{"id": "...", "description": "..."}, ...]
+"@
+                try {
+                    Start-Sleep -Milliseconds 500
+                    $RetryResult = Invoke-AIApi -Prompt $RetryPrompt -Model $Model -ApiKey $ApiKey `
+                        -Temperature 0.1 -MaxTokens 8192 -JsonMode -TimeoutSec 120
+                    $RetryText = $RetryResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                    $RetryRewrites = $RetryText | ConvertFrom-Json
+                    foreach ($R in $RetryRewrites) {
+                        $TargetNode = $Entry.Data.nodes | Where-Object { $_.id -eq $R.id } | Select-Object -First 1
+                        if (-not $TargetNode -or -not $R.description) { continue }
+                        $Desc = $R.description
+                        $Ok = ($Desc -match 'Encompasses:') -and ($Desc -match 'Excludes:')
+                        if ($Ok) {
+                            $TargetNode.description = $Desc
+                            $Rewritten++
+                            $FailedIds.Remove($R.id) | Out-Null
+                        }
+                    }
+                } catch {
+                    Write-Warning "    Retry API error: $($_.Exception.Message)"
+                }
+                foreach ($fid in $FailedIds) {
+                    Write-Warning "    $fid`: quality check failed after retry — skipped"
+                    $Errors++
                 }
             }
         }
