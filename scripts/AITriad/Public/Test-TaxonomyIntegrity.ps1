@@ -17,15 +17,20 @@ function Test-TaxonomyIntegrity {
         Show per-issue details instead of just counts.
     .PARAMETER PassThru
         Return a summary object.
+    .PARAMETER Repair
+        Auto-fix all repairable issues (dangling children, parent refs, situation refs, bad edges).
     .EXAMPLE
         Test-TaxonomyIntegrity
     .EXAMPLE
         Test-TaxonomyIntegrity -Detailed
+    .EXAMPLE
+        Test-TaxonomyIntegrity -Repair
     #>
     [CmdletBinding()]
     param(
         [switch]$Detailed,
-        [switch]$PassThru
+        [switch]$PassThru,
+        [switch]$Repair
     )
 
     Set-StrictMode -Version Latest
@@ -39,19 +44,24 @@ function Test-TaxonomyIntegrity {
     # ── Load all data ──
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $AllNodeIds = [System.Collections.Generic.HashSet[string]]::new()
+    $PovNodeIds = [System.Collections.Generic.HashSet[string]]::new()
     $PolicyRefs = @{}          # policy_id -> list of node_ids
     $DuplicateRefs = @()       # nodes with duplicate policy_id refs
     $MissingPolicyId = @()     # policy_actions without policy_id
     $ActualPovs = @{}          # policy_id -> set of povs
     $ActualCounts = @{}        # policy_id -> count
+    $LoadedFiles = @{}         # povKey -> { Path, Data }
+    $Dirty = @{}               # povKey -> $true if modified
 
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) { continue }
         $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $LoadedFiles[$PovKey] = @{ Path = $FilePath; Data = $FileData }
 
         foreach ($Node in $FileData.nodes) {
             [void]$AllNodeIds.Add($Node.id)
+            if ($PovKey -ne 'situations') { [void]$PovNodeIds.Add($Node.id) }
 
             if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
             if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
@@ -171,6 +181,150 @@ function Test-TaxonomyIntegrity {
     if ($MissingEmb -gt 0) {
         $Issues.Add([PSCustomObject]@{ Check = 'Embeddings'; Severity = 'Warning'; Count = $MissingEmb; Detail = "$MissingEmb nodes/policies missing embeddings" })
     } else { $Passed++ }
+
+    # ── Check 6: Dangling children ──
+    $Checks++
+    $DanglingChildren = @()
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+            if (-not $Node.PSObject.Properties['children'] -or $null -eq $Node.children) { continue }
+            foreach ($ChildId in @($Node.children)) {
+                if (-not $PovNodeIds.Contains($ChildId)) {
+                    $DanglingChildren += [PSCustomObject]@{ NodeId = $Node.id; ChildId = $ChildId; POV = $PovKey }
+                }
+            }
+        }
+    }
+    if ($DanglingChildren.Count -gt 0) {
+        $Detail = ($DanglingChildren | ForEach-Object { "$($_.NodeId) -> $($_.ChildId)" }) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'DanglingChild'; Severity = 'Error'; Count = $DanglingChildren.Count; Detail = "children ref non-existent nodes: $Detail" })
+    } else { $Passed++ }
+
+    # ── Check 7: Dangling parent_id ──
+    $Checks++
+    $DanglingParents = @()
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+            if ($Node.parent_id -and -not $PovNodeIds.Contains($Node.parent_id)) {
+                $DanglingParents += [PSCustomObject]@{ NodeId = $Node.id; ParentId = $Node.parent_id; POV = $PovKey }
+            }
+        }
+    }
+    if ($DanglingParents.Count -gt 0) {
+        $Detail = ($DanglingParents | ForEach-Object { "$($_.NodeId) -> $($_.ParentId)" }) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'DanglingParent'; Severity = 'Error'; Count = $DanglingParents.Count; Detail = "parent_id refs non-existent nodes: $Detail" })
+    } else { $Passed++ }
+
+    # ── Check 8: Dangling situation_refs ──
+    $Checks++
+    $SitIds = [System.Collections.Generic.HashSet[string]]::new()
+    if ($LoadedFiles.ContainsKey('situations')) {
+        foreach ($N in $LoadedFiles['situations'].Data.nodes) { [void]$SitIds.Add($N.id) }
+    }
+    $DanglingSitRefs = @()
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+            if (-not $Node.PSObject.Properties['situation_refs'] -or $null -eq $Node.situation_refs) { continue }
+            foreach ($Ref in @($Node.situation_refs)) {
+                if (-not $SitIds.Contains($Ref)) {
+                    $DanglingSitRefs += [PSCustomObject]@{ NodeId = $Node.id; SitRef = $Ref; POV = $PovKey }
+                }
+            }
+        }
+    }
+    if ($DanglingSitRefs.Count -gt 0) {
+        $Detail = ($DanglingSitRefs | ForEach-Object { "$($_.NodeId) -> $($_.SitRef)" }) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'DanglingSitRef'; Severity = 'Error'; Count = $DanglingSitRefs.Count; Detail = "situation_refs non-existent nodes: $Detail" })
+    } else { $Passed++ }
+
+    # ── Check 9: Dangling linked_nodes in situations ──
+    $Checks++
+    $DanglingLinked = @()
+    if ($LoadedFiles.ContainsKey('situations')) {
+        foreach ($Node in $LoadedFiles['situations'].Data.nodes) {
+            if (-not $Node.PSObject.Properties['linked_nodes'] -or $null -eq $Node.linked_nodes) { continue }
+            foreach ($Linked in @($Node.linked_nodes)) {
+                if (-not $AllNodeIds.Contains($Linked)) {
+                    $DanglingLinked += [PSCustomObject]@{ NodeId = $Node.id; LinkedId = $Linked }
+                }
+            }
+        }
+    }
+    if ($DanglingLinked.Count -gt 0) {
+        $Detail = ($DanglingLinked | ForEach-Object { "$($_.NodeId) -> $($_.LinkedId)" }) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'DanglingLinked'; Severity = 'Warning'; Count = $DanglingLinked.Count; Detail = "linked_nodes ref non-existent nodes: $Detail" })
+    } else { $Passed++ }
+
+    # ── Repair ──
+    if ($Repair -and $Issues.Count -gt 0) {
+        $Repaired = 0
+        Write-Host ''
+        Write-Host '  Repairing...' -ForegroundColor Cyan
+
+        # Fix dangling children
+        foreach ($DC in $DanglingChildren) {
+            $Node = $LoadedFiles[$DC.POV].Data.nodes | Where-Object { $_.id -eq $DC.NodeId }
+            $Node.children = @($Node.children | Where-Object { $_ -ne $DC.ChildId })
+            $Dirty[$DC.POV] = $true
+            $Repaired++
+            Write-Host "    Removed child '$($DC.ChildId)' from $($DC.NodeId)" -ForegroundColor Yellow
+        }
+
+        # Fix dangling parent_id
+        foreach ($DP in $DanglingParents) {
+            $Node = $LoadedFiles[$DP.POV].Data.nodes | Where-Object { $_.id -eq $DP.NodeId }
+            $Node.parent_id = $null
+            $Dirty[$DP.POV] = $true
+            $Repaired++
+            Write-Host "    Cleared parent_id '$($DP.ParentId)' from $($DP.NodeId)" -ForegroundColor Yellow
+        }
+
+        # Fix dangling situation_refs
+        foreach ($DS in $DanglingSitRefs) {
+            $Node = $LoadedFiles[$DS.POV].Data.nodes | Where-Object { $_.id -eq $DS.NodeId }
+            $Node.situation_refs = @($Node.situation_refs | Where-Object { $_ -ne $DS.SitRef })
+            $Dirty[$DS.POV] = $true
+            $Repaired++
+            Write-Host "    Removed situation_ref '$($DS.SitRef)' from $($DS.NodeId)" -ForegroundColor Yellow
+        }
+
+        # Fix dangling linked_nodes in situations
+        foreach ($DL in $DanglingLinked) {
+            $Node = $LoadedFiles['situations'].Data.nodes | Where-Object { $_.id -eq $DL.NodeId }
+            $Node.linked_nodes = @($Node.linked_nodes | Where-Object { $_ -ne $DL.LinkedId })
+            $Dirty['situations'] = $true
+            $Repaired++
+            Write-Host "    Removed linked_node '$($DL.LinkedId)' from $($DL.NodeId)" -ForegroundColor Yellow
+        }
+
+        # Fix dangling edges
+        $EdgesPath = Join-Path $TaxDir 'edges.json'
+        if ($BadEdges -gt 0 -and (Test-Path $EdgesPath)) {
+            $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
+            $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
+            if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
+            $OrigCount = $EdgesData.edges.Count
+            $EdgesData.edges = @($EdgesData.edges | Where-Object { $ValidIds.Contains($_.source) -and $ValidIds.Contains($_.target) })
+            $Removed = $OrigCount - $EdgesData.edges.Count
+            if ($Removed -gt 0) {
+                $EdgesData | ConvertTo-Json -Depth 20 | Set-Content -Path $EdgesPath -Encoding UTF8 -NoNewline
+                $Repaired += $Removed
+                Write-Host "    Removed $Removed dangling edges" -ForegroundColor Yellow
+            }
+        }
+
+        # Save modified files
+        foreach ($PovKey in $Dirty.Keys) {
+            $Entry = $LoadedFiles[$PovKey]
+            $Entry.Data | ConvertTo-Json -Depth 20 | Set-Content -Path $Entry.Path -Encoding UTF8 -NoNewline
+            Write-Host "    Saved $($Entry.Path)" -ForegroundColor Green
+        }
+
+        Write-Host "  Repaired $Repaired issue(s)." -ForegroundColor Green
+    }
 
     # ── Report ──
     Write-Host ''

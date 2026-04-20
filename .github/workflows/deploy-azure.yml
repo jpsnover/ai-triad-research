@@ -19,7 +19,7 @@ on:
       enable_git_sync:
         description: 'Enable GitHub data-sync feature (requires GH_* secrets set)'
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -96,3 +96,32 @@ jobs:
           done
 
           echo "::warning::Health check did not pass within 2 minutes. Container may still be starting."
+
+      - name: Sync data volume with GitHub
+        if: inputs.enable_git_sync
+        run: |
+          REPO="https://github.com/jpsnover/ai-triad-data.git"
+          az containerapp exec \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --command -- /bin/sh -c '
+              cd /data || exit 1
+
+              if [ ! -d ".git" ]; then
+                echo "Initializing git repo in /data..."
+                git init
+                git remote add origin "'"$REPO"'"
+                git fetch origin main --depth=1
+                git checkout -f origin/main
+                echo "Data volume initialized from $REPO"
+              else
+                echo "Git repo exists, syncing..."
+                if [ -n "$(git status --porcelain)" ]; then
+                  echo "::warning::Data volume has uncommitted changes — stashing before sync"
+                  git stash --include-untracked -m "deploy-sync-$(date +%s)"
+                fi
+                git fetch origin main --depth=1
+                git reset --hard origin/main
+                echo "Data volume synced to latest origin/main"
+              fi
+            '

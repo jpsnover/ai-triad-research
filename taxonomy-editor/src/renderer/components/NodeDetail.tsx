@@ -370,7 +370,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               <div className="form-group">
                 <label>Intellectual Lineage</label>
                 <div className="ga-promoted-list">
-                  {node.graph_attributes.intellectual_lineage.map((l, i) => (
+                  {[...node.graph_attributes.intellectual_lineage].sort((a, b) => a.localeCompare(b)).map((l, i) => (
                     <span
                       key={i}
                       className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}

@@ -922,7 +922,7 @@ Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
     <table>
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-Topic</code></td><td>string</td><td>Yes</td><td>The debate topic</td></tr>
-      <tr><td><code>-Rounds</code></td><td>int</td><td>No</td><td>Number of debate rounds after opening statements (1&ndash;10). Default: 3</td></tr>
+      <tr><td><code>-Rounds</code></td><td>int</td><td>No</td><td>Number of debate rounds after opening statements (1&ndash;15). Default: 3</td></tr>
       <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Path to write debate JSON. Default: <code>debates/debate-&lt;guid&gt;.json</code></td></tr>
       <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
     </table>

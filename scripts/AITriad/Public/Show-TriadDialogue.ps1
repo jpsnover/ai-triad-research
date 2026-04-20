@@ -13,7 +13,7 @@ function Show-TriadDialogue {
     .PARAMETER Topic
         The debate topic (mandatory).
     .PARAMETER Rounds
-        Number of debate rounds after opening statements (1-10, default 3).
+        Number of debate rounds after opening statements (1-15, default 3).
     .PARAMETER OutputFile
         Optional path to write the debate JSON. If omitted, writes to debates/debate-<guid>.json.
     .PARAMETER Model
@@ -32,7 +32,7 @@ function Show-TriadDialogue {
         [Parameter(Mandatory, Position = 0)]
         [string]$Topic,
 
-        [ValidateRange(1, 10)]
+        [ValidateRange(1, 15)]
         [int]$Rounds = 3,
 
         [string]$OutputFile,

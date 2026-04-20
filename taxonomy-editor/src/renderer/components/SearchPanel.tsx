@@ -439,6 +439,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       case 'safetyist': return 'var(--color-saf)';
       case 'skeptic': return 'var(--color-skp)';
       case 'situations': return 'var(--color-sit)';
+      case 'conflicts': return 'var(--color-conflict, var(--text-muted))';
       default: return 'var(--text-muted)';
     }
   };

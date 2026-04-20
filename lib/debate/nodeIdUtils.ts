@@ -19,6 +19,9 @@ export const POV_PREFIXES: Record<string, string> = {
 /** Situation node ID prefix. */
 export const SITUATION_PREFIX = 'sit-';
 
+/** Conflict node ID prefix. */
+export const CONFLICT_PREFIX = 'conflict-';
+
 /** Category slug within POV IDs (e.g., the 'desires' in 'acc-desires-001'). */
 export const CATEGORY_SLUGS: Record<string, string> = {
   'desires': 'Desires',
@@ -38,18 +41,20 @@ export function nodePovFromId(id: string): string | null {
     if (id.startsWith(prefix)) return pov;
   }
   if (id.startsWith(SITUATION_PREFIX)) return 'situations';
+  if (id.startsWith(CONFLICT_PREFIX)) return 'conflicts';
   return null;
 }
 
 /**
  * Get the node type from an ID prefix.
- * Returns 'pov' for POV nodes, 'situation' for situation nodes, or null.
+ * Returns 'pov' for POV nodes, 'situation' for situation nodes, 'conflict' for conflict nodes, or null.
  */
-export function nodeTypeFromId(id: string): 'pov' | 'situation' | null {
+export function nodeTypeFromId(id: string): 'pov' | 'situation' | 'conflict' | null {
   for (const prefix of Object.keys(POV_PREFIXES)) {
     if (id.startsWith(prefix)) return 'pov';
   }
   if (id.startsWith(SITUATION_PREFIX)) return 'situation';
+  if (id.startsWith(CONFLICT_PREFIX)) return 'conflict';
   return null;
 }
 
