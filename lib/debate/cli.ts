@@ -15,8 +15,8 @@ import { createCLIAdapter } from './aiAdapter';
 import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts } from './taxonomyLoader';
 import { DebateEngine } from './debateEngine';
 import type { DebateConfig } from './debateEngine';
-import type { DebateSourceType, PoverId } from './types';
-import { POVER_INFO } from './types';
+import type { DebateSourceType, PoverId, DebateAudience } from './types';
+import { POVER_INFO, DEBATE_AUDIENCES } from './types';
 import { formatSituationDebateContext } from './prompts';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters';
 
@@ -41,6 +41,7 @@ interface CLIConfig {
   slug?: string;
   apiKey?: string;
   temperature?: number;
+  audience?: string;
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -191,6 +192,12 @@ async function main(): Promise<void> {
   }
 
   // Create adapter
+  // Validate audience
+  const validAudienceIds = DEBATE_AUDIENCES.map(a => a.id);
+  const audience = config.audience
+    ? (validAudienceIds.includes(config.audience as DebateAudience) ? config.audience as DebateAudience : (() => { throw new Error(`Unknown audience: ${config.audience}. Valid: ${validAudienceIds.join(', ')}`); })())
+    : undefined;
+
   const adapter = createCLIAdapter(repoRoot, config.apiKey);
   const model = config.model ?? process.env.AI_MODEL ?? 'gemini-2.5-flash';
   log(`Model: ${model}`);
@@ -216,6 +223,7 @@ async function main(): Promise<void> {
       ...(maxTurnRetries !== undefined ? { maxRetries: maxTurnRetries } : {}),
     },
     appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
+    audience,
   };
 
   // Run debate

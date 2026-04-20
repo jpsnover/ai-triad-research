@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId, nodeTypeFromId } from '@lib/debate';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
@@ -169,6 +169,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const [attrQuery, setAttrQuery] = useState('');
   const [relatedQuery, setRelatedQuery] = useState('');
   const [relatedNodeId, setRelatedNodeId] = useState<string | null>(null);
+  const [relatedThreshold, setRelatedThreshold] = useState(50);
+  const [relatedTypeFilters, setRelatedTypeFilters] = useState<Record<string, boolean>>({ accelerationist: true, safetyist: true, skeptic: true, situation: true, conflict: true });
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -308,13 +310,24 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   // ─── Similar (Related) results ────────────────────────
   const relatedResults = useMemo(() => {
     if (mode !== 'related' || !similarResults) return [];
-    return similarResults.map(r => ({
-      id: r.id,
-      label: getLabelForId(r.id),
-      score: r.score,
-      pov: nodePovFromId(r.id) ?? 'unknown',
-    }));
-  }, [mode, similarResults, getLabelForId]);
+    const threshold = relatedThreshold / 100;
+    return similarResults
+      .filter(r => {
+        if (r.score < threshold) return false;
+        const ntype = nodeTypeFromId(r.id);
+        if (ntype === 'pov') {
+          const pov = nodePovFromId(r.id) ?? 'accelerationist';
+          return relatedTypeFilters[pov] !== false;
+        }
+        return relatedTypeFilters[ntype ?? 'pov'] !== false;
+      })
+      .map(r => ({
+        id: r.id,
+        label: getLabelForId(r.id),
+        score: r.score,
+        pov: nodePovFromId(r.id) ?? 'unknown',
+      }));
+  }, [mode, similarResults, getLabelForId, relatedThreshold, relatedTypeFilters]);
 
   // ─── Attribute results ────────────────────────────────
   const attrResults = useMemo(() => {
@@ -567,13 +580,40 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
         {mode === 'related' && (
           <div className="search-panel-related">
             {relatedNodeId ? (
-              <div className="search-panel-selected-node">
-                <span className="search-panel-selected-id">{relatedNodeId}</span>
-                <span className="search-panel-selected-label">{getLabelForId(relatedNodeId)}</span>
-                <button className="btn btn-ghost btn-sm" onClick={() => { setRelatedNodeId(null); clearSimilarSearch(); }}>
-                  &times;
-                </button>
-              </div>
+              <>
+                <div className="search-panel-selected-node">
+                  <span className="search-panel-selected-id">{relatedNodeId}</span>
+                  <span className="search-panel-selected-label">{getLabelForId(relatedNodeId)}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setRelatedNodeId(null); clearSimilarSearch(); }}>
+                    &times;
+                  </button>
+                </div>
+                <div className="search-panel-related-filters">
+                  <div className="search-panel-threshold-row">
+                    <label>Min:</label>
+                    <input
+                      type="range"
+                      min={30}
+                      max={100}
+                      value={relatedThreshold}
+                      onChange={(e) => setRelatedThreshold(Number(e.target.value))}
+                    />
+                    <span className="search-panel-threshold-value">{relatedThreshold}%</span>
+                  </div>
+                  <div className="search-panel-type-filters">
+                    {([['accelerationist', 'Acc'], ['safetyist', 'Saf'], ['skeptic', 'Skp'], ['situation', 'Sit'], ['conflict', 'Con']] as const).map(([key, label]) => (
+                      <label key={key} className="search-panel-type-filter">
+                        <input
+                          type="checkbox"
+                          checked={relatedTypeFilters[key] !== false}
+                          onChange={(e) => setRelatedTypeFilters(prev => ({ ...prev, [key]: e.target.checked }))}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="search-panel-typeahead">
                 <input

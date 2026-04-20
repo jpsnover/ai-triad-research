@@ -68,13 +68,17 @@ export interface AppAPI {
   hasApiKey: (backend?: string) => Promise<boolean>;
 
   // --- AI generation ---
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string }>;
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];
     citations?: GroundingCitation[];
   }>;
   setDebateTemperature: (temp: number | null) => Promise<void>;
+
+  // --- Proxy tier & usage ---
+  getProxyTier?: () => Promise<{ level: string; limits: { requestsPerMinute: number; tokensPerDay: number }; allowedBackends: string[]; principalName: string | null }>;
+  getProxyUsage?: () => Promise<{ tier: string; limits: { requestsPerMinute: number; tokensPerDay: number }; usage: { requestsInWindow: number; tokensToday: number } }>;
 
   // --- Embeddings & NLI ---
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;

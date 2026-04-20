@@ -1,0 +1,27 @@
+{
+  "defaults": {
+    "platform": {
+      "requestsPerMinute": 60,
+      "tokensPerDay": 2000000,
+      "allowedBackends": ["gemini", "claude", "groq"]
+    },
+    "byok": {
+      "requestsPerMinute": 30,
+      "tokensPerDay": 500000,
+      "allowedBackends": ["gemini", "claude", "groq"]
+    },
+    "anonymous": {
+      "requestsPerMinute": 10,
+      "tokensPerDay": 100000,
+      "allowedBackends": ["gemini", "groq"]
+    }
+  },
+  "users": [
+    {
+      "name": "Jeffrey Snover",
+      "emails": ["jsnover13@gmail.com"],
+      "github": "jpsnover",
+      "tier": "platform"
+    }
+  ]
+}

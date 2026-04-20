@@ -48,6 +48,7 @@ export interface TurnPipelineInput {
   priorFlaggedHints?: string[];
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
+  audience?: import('./types').DebateAudience;
   model: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
@@ -96,6 +97,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     priorFlaggedHints: input.priorFlaggedHints,
     sourceContent: input.sourceContent,
     documentAnalysis: input.documentAnalysis,
+    audience: input.audience,
   };
 }
 

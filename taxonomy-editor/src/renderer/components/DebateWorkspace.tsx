@@ -5,8 +5,8 @@ import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } fro
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { POVER_INFO } from '../types/debate';
-import type { PoverId, TranscriptEntry, TaxonomyRef } from '../types/debate';
+import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
+import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
@@ -1286,7 +1286,7 @@ function DebaterToggles() {
 }
 
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, audience, setAudience } = useDebateStore();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -1465,6 +1465,17 @@ function DebateActions() {
         >
           Harvest
         </button>
+        <select
+          className="debate-audience-select"
+          value={audience}
+          onChange={(e) => setAudience(e.target.value as DebateAudience)}
+          disabled={disabled}
+          title="Target audience for debate responses"
+        >
+          {DEBATE_AUDIENCES.map(a => (
+            <option key={a.id} value={a.id}>{a.label}</option>
+          ))}
+        </select>
       </div>
       {isGenerating && (
         <div className="debate-action-hint">
@@ -1786,6 +1797,11 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
           </span>
           <span className="debate-topic-text">{activeDebate.topic.final}</span>
+          {activeDebate.audience && (
+            <span className="debate-audience-badge">
+              {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
+            </span>
+          )}
           {coverageMap && <CoverageBadge coverageMap={coverageMap} />}
         </div>
 

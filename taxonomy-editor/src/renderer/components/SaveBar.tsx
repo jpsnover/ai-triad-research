@@ -6,6 +6,7 @@ import { nodePovFromId } from '@lib/debate';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
+import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
 
 function formatFileKey(key: string): string {
   if (key === 'situations') return 'Situations';
@@ -18,6 +19,7 @@ export function SaveBar() {
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
+  const [syncDiagOpen, setSyncDiagOpen] = useState(false);
   const { status: syncStatus, refresh: refreshSync } = useSyncStatus();
 
   // Refresh sync status after a save completes (dirty transitions non-zero → 0).
@@ -140,6 +142,14 @@ export function SaveBar() {
             Rebase paused
           </button>
         )}
+        <button
+          type="button"
+          className="save-bar-sync-diag"
+          onClick={() => setSyncDiagOpen(true)}
+          title="Sync diagnostics"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
         <div className="zoom-controls">
           <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
           <button
@@ -164,6 +174,10 @@ export function SaveBar() {
         onClose={() => setSyncDrawerOpen(false)}
         status={syncStatus}
         onChanged={() => { void refreshSync(); }}
+      />
+      <SyncDiagnosticsDialog
+        open={syncDiagOpen}
+        onClose={() => setSyncDiagOpen(false)}
       />
     </div>
   );

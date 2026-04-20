@@ -6,6 +6,7 @@ import type {
   DebateSession,
   DebateSessionSummary,
   DebateSourceType,
+  DebateAudience,
   PoverId,
   TranscriptEntry,
   TaxonomyRef,
@@ -1254,6 +1255,7 @@ function buildOpeningStatementPrompt(
   sourceContent?: string,
   length: string = 'medium',
   docAnalysis?: DocumentAnalysis,
+  audience?: DebateAudience,
 ): string {
   const info = POVER_INFO[poverId];
   let priorBlock = '';
@@ -1263,7 +1265,7 @@ function buildOpeningStatementPrompt(
       priorBlock += `\n${ps.speaker}:\n${ps.statement}\n`;
     }
   }
-  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0, sourceContent, length, docAnalysis);
+  return openingStatementPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, priorBlock, priorStatements.length === 0, sourceContent, length, docAnalysis, audience);
 }
 
 function buildDebateResponsePrompt(
@@ -1276,9 +1278,10 @@ function buildDebateResponsePrompt(
   sourceContent?: string,
   length: string = 'medium',
   docAnalysis?: DocumentAnalysis,
+  audience?: DebateAudience,
 ): string {
   const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis);
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience);
 }
 
 function buildCrossRespondSelectionPrompt(
@@ -1373,6 +1376,8 @@ interface DebateStore {
   debateError: string | null;
   responseLength: 'brief' | 'medium' | 'detailed';
   setResponseLength: (length: 'brief' | 'medium' | 'detailed') => void;
+  audience: DebateAudience;
+  setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
   setEntryDisplayTier: (entryId: string, tier: 'brief' | 'medium' | 'detailed') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
@@ -1441,6 +1446,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateGenerating: null,
   responseLength: 'detailed',
   setResponseLength: (length) => set({ responseLength: length }),
+  audience: 'policymakers' as DebateAudience,
+  setAudience: (audience) => {
+    set({ audience });
+    const debate = get().activeDebate;
+    if (debate) {
+      debate.audience = audience;
+      set({ activeDebate: { ...debate } });
+    }
+  },
   setEntryDisplayTier: (entryId, tier) => {
     const debate = get().activeDebate;
     if (!debate) return;
@@ -1538,6 +1552,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       created_at: now,
       updated_at: now,
       app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined,
+      audience: get().audience,
       phase: 'setup',
       topic: {
         original: topic,
@@ -1632,7 +1647,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       }
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers' });
       // Load prompt config from session (Phase B)
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
@@ -2048,7 +2063,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const prompt = buildOpeningStatementPrompt(
         poverId, topic, taxonomyBlock, priorStatements,
         docAnalysis ? undefined : (activeDebate.source_content || undefined),
-        get().responseLength, docAnalysis,
+        get().responseLength, docAnalysis, activeDebate.audience,
       );
 
       try {
@@ -2256,6 +2271,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         drDocAnalysis ? undefined : (activeDebate.source_content || undefined),
         get().responseLength,
         drDocAnalysis,
+        activeDebate.audience,
       );
 
       try {
@@ -2508,6 +2524,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       availablePovNodeIds,
       sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
       documentAnalysis: crDocAnalysis,
+      audience: activeDebate.audience,
       model,
     };
 

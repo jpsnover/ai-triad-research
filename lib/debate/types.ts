@@ -96,6 +96,21 @@ export interface ContextSummary {
 
 export type DebateSourceType = 'topic' | 'document' | 'url' | 'situations';
 
+export type DebateAudience =
+  | 'policymakers'
+  | 'technical_researchers'
+  | 'industry_leaders'
+  | 'academic_community'
+  | 'general_public';
+
+export const DEBATE_AUDIENCES: { id: DebateAudience; label: string }[] = [
+  { id: 'policymakers', label: 'Policymakers' },
+  { id: 'technical_researchers', label: 'Technical Researchers' },
+  { id: 'industry_leaders', label: 'Industry Leaders' },
+  { id: 'academic_community', label: 'Academic Community' },
+  { id: 'general_public', label: 'General Public' },
+];
+
 export interface DebateSession {
   id: string;
   title: string;
@@ -103,6 +118,8 @@ export interface DebateSession {
   updated_at: string;
   /** App version that created this debate session. */
   app_version?: string;
+  /** Target audience for tone, language, and concern prioritization. */
+  audience?: DebateAudience;
   phase: 'setup' | 'clarification' | 'opening' | 'debate' | 'closed';
   topic: {
     original: string;

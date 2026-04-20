@@ -65,10 +65,11 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
       }
     });
 
-    // Import AITriad module after a brief delay for shell startup
+    // Import AITriad module, then lock down to ConstrainedLanguage mode
     setTimeout(() => {
       if (ptyProcess) {
         ptyProcess.write(importCmd + '\r');
+        ptyProcess.write('$ExecutionContext.SessionState.LanguageMode = "ConstrainedLanguage"\r');
       }
     }, 500);
   });

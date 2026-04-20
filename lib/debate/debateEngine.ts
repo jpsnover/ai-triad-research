@@ -101,6 +101,8 @@ export interface DebateConfig {
   turnValidation?: import('./types').TurnValidationConfig;
   /** App version string to stamp on the session. */
   appVersion?: string;
+  /** Target audience for tone, language, and concern prioritization. */
+  audience?: import('./types').DebateAudience;
 }
 
 export interface DebateProgress {
@@ -258,6 +260,7 @@ export class DebateEngine {
       created_at: now,
       updated_at: now,
       app_version: this.config.appVersion,
+      audience: this.config.audience,
       phase: 'setup',
       topic: {
         original: this.config.topic,
@@ -761,6 +764,7 @@ export class DebateEngine {
         this.session.document_analysis ? undefined : this.config.sourceContent,
         this.config.responseLength,
         this.session.document_analysis,
+        this.config.audience,
       );
 
       const start = Date.now();
@@ -883,7 +887,7 @@ export class DebateEngine {
     // SPECIFY hint — detect isolated high-strength claims that need falsifiability probing
     const specifyHint = an ? formatSpecifyHint(an.nodes, an.edges) : '';
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe, phase);
+    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe, phase, this.config.audience);
     const selectionStart = Date.now();
     const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
     const selectionElapsed = Date.now() - selectionStart;
@@ -1067,6 +1071,7 @@ export class DebateEngine {
       priorFlaggedHints,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
+      audience: this.config.audience,
       model: this.config.model,
     };
 
@@ -1416,7 +1421,7 @@ export class DebateEngine {
     // Phase 1: Extract core synthesis
     this.progress('synthesis', undefined, 'Phase 1/3: Extracting agreements and disagreements');
     const extractText = await this.generate(
-      synthExtractPrompt(this.session.topic.final, fullTranscript),
+      synthExtractPrompt(this.session.topic.final, fullTranscript, this.config.audience),
       'Synthesis Phase 1: Extract', 60_000,
     );
     let extractData: Record<string, unknown> = {};
@@ -1428,7 +1433,7 @@ export class DebateEngine {
     this.progress('synthesis', undefined, 'Phase 2/3: Building argument map');
     const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
     const mapText = await this.generate(
-      synthMapPrompt(this.session.topic.final, fullTranscript, disagreementsSummary, hasSourceDoc),
+      synthMapPrompt(this.session.topic.final, fullTranscript, disagreementsSummary, hasSourceDoc, this.config.audience),
       'Synthesis Phase 2: Map', 60_000,
     );
     let mapData: Record<string, unknown> = {};
@@ -1440,7 +1445,7 @@ export class DebateEngine {
     this.progress('synthesis', undefined, 'Phase 3/3: Evaluating preferences');
     const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
     const evalText = await this.generate(
-      synthEvaluatePrompt(this.session.topic.final, disagreementsSummary, argMapSummary, policyContext),
+      synthEvaluatePrompt(this.session.topic.final, disagreementsSummary, argMapSummary, policyContext, this.config.audience),
       'Synthesis Phase 3: Evaluate', 60_000,
     );
     let evalData: Record<string, unknown> = {};

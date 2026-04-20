@@ -101,12 +101,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// ── Token usage tracking ──
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface GenerateResult {
+  text: string;
+  tokenUsage?: TokenUsage;
+}
+
 // ── Backend-specific generation ──
 
 async function generateViaGemini(
   prompt: string, model: string, apiKey: string,
   onRetry?: (p: GenerateTextProgress) => void, timeoutMs?: number,
-): Promise<string> {
+): Promise<GenerateResult> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -153,16 +166,24 @@ async function generateViaGemini(
     const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading response');
     if (!response.ok) throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
 
-    const json = JSON.parse(bodyText) as { candidates?: { content: { parts: { text: string }[] } }[] };
+    const json = JSON.parse(bodyText) as {
+      candidates?: { content: { parts: { text: string }[] } }[];
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+    };
     if (!json.candidates?.length) throw new Error(`No candidates from Gemini. Body: ${bodyText.slice(0, 200)}`);
-    return json.candidates[0].content.parts.map(p => p.text).join('');
+    const text = json.candidates[0].content.parts.map(p => p.text).join('');
+    const um = json.usageMetadata;
+    return {
+      text,
+      tokenUsage: um ? { inputTokens: um.promptTokenCount ?? 0, outputTokens: um.candidatesTokenCount ?? 0, totalTokens: um.totalTokenCount ?? 0 } : undefined,
+    };
   }
   throw new Error('generateText: exhausted retries');
 }
 
 async function generateViaClaude(
   prompt: string, model: string, apiKey: string, timeoutMs?: number,
-): Promise<string> {
+): Promise<GenerateResult> {
   const apiModel = getApiModelId(model);
   const response = await withTimeout(
     fetch('https://api.anthropic.com/v1/messages', {
@@ -186,14 +207,22 @@ async function generateViaClaude(
   const bodyText = await withTimeout(response.text(), 30_000, 'Reading Claude response');
   if (!response.ok) throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
 
-  const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
+  const json = JSON.parse(bodyText) as {
+    content?: { type: string; text: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   if (!json.content?.length) throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
-  return json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const u = json.usage;
+  return {
+    text,
+    tokenUsage: u ? { inputTokens: u.input_tokens ?? 0, outputTokens: u.output_tokens ?? 0, totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) } : undefined,
+  };
 }
 
 async function generateViaGroq(
   prompt: string, model: string, apiKey: string, timeoutMs?: number,
-): Promise<string> {
+): Promise<GenerateResult> {
   const apiModel = getApiModelId(model);
   const response = await withTimeout(
     fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -213,22 +242,33 @@ async function generateViaGroq(
   const bodyText = await withTimeout(response.text(), 30_000, 'Reading Groq response');
   if (!response.ok) throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
 
-  const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
+  const json = JSON.parse(bodyText) as {
+    choices?: { message: { content: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  };
   if (!json.choices?.length) throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
-  return json.choices[0].message.content;
+  const text = json.choices[0].message.content;
+  const u = json.usage;
+  return {
+    text,
+    tokenUsage: u ? { inputTokens: u.prompt_tokens ?? 0, outputTokens: u.completion_tokens ?? 0, totalTokens: u.total_tokens ?? 0 } : undefined,
+  };
 }
 
 // ── Public API ──
+
+export { resolveBackend };
 
 export async function generateText(
   prompt: string,
   model?: string,
   onRetry?: (p: GenerateTextProgress) => void,
   timeoutMs?: number,
-): Promise<string> {
+  explicitApiKey?: string,
+): Promise<GenerateResult> {
   const resolved = model || 'gemini-3.1-flash-lite-preview';
   const backend = resolveBackend(resolved);
-  const apiKey = await getApiKey(backend);
+  const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', tavily: 'Tavily' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
@@ -271,7 +311,7 @@ export async function generateTextWithSearch(
         searchDepth: 'basic',
       });
       const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
-      const text = await generateText(augmentedPrompt, resolved);
+      const { text } = await generateText(augmentedPrompt, resolved);
       const citations: GroundingCitation[] = searchCitations.map(c => ({
         uri: c.uri,
         title: c.title,
@@ -283,8 +323,8 @@ export async function generateTextWithSearch(
         citations: citations.length ? citations : undefined,
       };
     }
-    const text = await generateText(prompt, resolved);
-    return { text };
+    const result = await generateText(prompt, resolved);
+    return { text: result.text };
   }
 
   const apiKey = await getApiKey('gemini');

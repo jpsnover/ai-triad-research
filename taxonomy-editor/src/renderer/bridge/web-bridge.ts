@@ -21,6 +21,13 @@ async function post<T = unknown>(path: string, body?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const msg = data.limitType === 'tokens_per_day'
+      ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
+      : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
+    throw new Error(msg);
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`POST ${path} failed: ${res.status} ${text}`);
@@ -175,11 +182,19 @@ export const api: AppAPI = {
   hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
 
   // AI generation
-  generateText: (prompt, model, timeout, temperature) =>
-    post('/api/ai/generate', { prompt, model, timeout, temperature }),
+  generateText: (prompt, model, timeout, temperature) => {
+    const body: Record<string, unknown> = { prompt, model, timeout, temperature };
+    const byokKey = sessionStorage.getItem('byok-api-key');
+    if (byokKey) body.apiKey = byokKey;
+    return post('/api/ai/generate', body);
+  },
   generateTextWithSearch: (prompt, model) =>
     post('/api/ai/search', { prompt, model }),
   setDebateTemperature: (temp) => post('/api/ai/temperature', { temp }).then(() => {}),
+
+  // Proxy tier & usage
+  getProxyTier: () => get('/api/proxy/tier'),
+  getProxyUsage: () => get('/api/proxy/usage'),
 
   // Embeddings & NLI
   computeEmbeddings: (texts, ids) => post('/api/embeddings/compute', { texts, ids }),

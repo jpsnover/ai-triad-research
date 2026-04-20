@@ -6,7 +6,7 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis, DebatePhase } from './types';
+import type { DocumentAnalysis, DebatePhase, DebateAudience } from './types';
 import { POVER_INFO } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
 import { interpretationText } from './taxonomyTypes';
@@ -20,13 +20,55 @@ function otherDebaters(currentLabel: string): string {
   return `You are debating:\n${others}`;
 }
 
-const READING_LEVEL = 'Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. Avoid nominalizations (say "regulators decided" not "the regulatory decision"), hedge stacking ("may potentially" → pick one), and sentences that require re-reading. Technical terms are fine when they\'re load-bearing; define them briefly on first use. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.';
+// ── Audience-specific directives ──────────────────────────────
+// Each audience has a READING_LEVEL (tone/language) and DETAIL_INSTRUCTION
+// (structure/depth). The default ('policymakers') matches the original
+// hardcoded constants for backward compatibility.
 
-// ── Length-scaled instructions ──────────────────────────────
-// Each length tier specifies both the size constraint AND which
-// dialectical requirements apply at that tier.
+const AUDIENCE_DIRECTIVES: Record<DebateAudience, { readingLevel: string; detailInstruction: string; moderatorBias: string }> = {
+  policymakers: {
+    readingLevel: 'Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. Avoid nominalizations (say "regulators decided" not "the regulatory decision"), hedge stacking ("may potentially" → pick one), and sentences that require re-reading. Technical terms are fine when they\'re load-bearing; define them briefly on first use. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    detailInstruction: 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence. Frame arguments in terms of implementability, enforcement mechanisms, and political feasibility. Reference existing legislation, executive orders, or regulatory frameworks where relevant. Structure each major argument as: (1) State your conclusion. (2) Name the principle, standard, or evidence that governs the question. (3) Apply that standard to the specific facts of this debate. (4) Close by restating the conclusion in light of the application.',
+    moderatorBias: 'Steer toward actionable policy disagreements. Prefer questions about implementation feasibility, enforcement mechanisms, jurisdictional authority, and constituent impact.',
+  },
+  technical_researchers: {
+    readingLevel: 'Write for a senior ML researcher reviewing a position paper. Use precise technical vocabulary without hedging — your reader knows the field. Cite specific architectures, benchmarks, and failure modes by name. Quantify claims: parameter counts, compute budgets, error rates, confidence intervals. Distinguish empirical findings from theoretical arguments. When referencing a capability or risk, specify the threat model or evaluation protocol that supports it. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    detailInstruction: 'Provide a rigorous, evidence-grounded response — 3-5 paragraphs. Separate empirical claims (with citations or reproducibility notes) from normative positions. Identify the strongest technical counterargument and address it directly. Specify assumptions about capability timelines, scaling laws, or deployment contexts. Structure each major argument as: (1) State your conclusion. (2) Name the evidence, benchmark, or formal result that supports it. (3) Explain why this evidence is sufficient (methodology, sample size, generalizability). (4) Acknowledge the strongest technical objection and address it.',
+    moderatorBias: 'Steer toward empirical disputes and methodology. Probe evidence quality, reproducibility, and the validity of benchmarks or evaluations being cited.',
+  },
+  industry_leaders: {
+    readingLevel: 'Write for a technology executive making product and investment decisions. Lead with the business-relevant conclusion. Use concrete examples from deployed products, market dynamics, and competitive landscapes. Translate technical risks into operational risks: revenue impact, liability exposure, time-to-market, talent retention. Avoid jargon that requires a PhD to parse — but don\'t oversimplify the tradeoffs. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    detailInstruction: 'Provide a strategic, decision-oriented response — 3-5 paragraphs. Frame each argument around ROI, competitive advantage, or risk mitigation. Include at least one concrete case study or industry precedent. Acknowledge the tension between speed-to-market and responsible deployment. When proposing safeguards, estimate the cost and operational burden. Structure each major argument as: (1) State the business-relevant conclusion. (2) Cite the market dynamic, precedent, or data that supports it. (3) Quantify the risk or opportunity. (4) Recommend a concrete action.',
+    moderatorBias: 'Steer toward practical tradeoffs. Surface cost-benefit tensions, competitive dynamics, liability exposure, and talent considerations.',
+  },
+  academic_community: {
+    readingLevel: 'Write for a faculty seminar — scholars from multiple disciplines who value analytical rigor, theoretical grounding, and intellectual honesty. Trace arguments to their philosophical or theoretical roots. Name the scholarly traditions and key thinkers you draw on. Distinguish descriptive claims from normative ones. Acknowledge the limits of your evidence and the scope conditions of your argument. Use hedged language where certainty is unwarranted. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    detailInstruction: 'Provide a scholarly, well-structured response — 3-5 paragraphs. Engage with competing theoretical frameworks, not just competing conclusions. Cite intellectual lineage (e.g., consequentialist vs. deontological framing, Rawlsian fairness, capability approach). Identify methodological limitations and suggest how they could be addressed. When disagreeing, locate the precise point of divergence — is it empirical, conceptual, or normative? Structure each major argument as: (1) State your thesis. (2) Ground it in the relevant theoretical tradition. (3) Apply the framework to the case at hand, noting scope conditions. (4) Acknowledge limitations and alternative framings.',
+    moderatorBias: 'Steer toward conceptual precision and theoretical assumptions. Probe interdisciplinary tensions, methodological limitations, and the philosophical foundations of competing positions.',
+  },
+  general_public: {
+    readingLevel: 'Write for an informed citizen reading a quality newspaper — someone who follows the news but has no technical background. No acronyms without expansion. No jargon without a plain-English equivalent in the same sentence. Use analogies to everyday experience. Keep sentences short. Lead with why this matters to people\'s daily lives — jobs, privacy, safety, fairness — before explaining the mechanism. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
+    detailInstruction: 'Provide a clear, accessible response — 2-4 paragraphs. Use one concrete, relatable example per major claim. Avoid both fear-mongering and dismissiveness. Acknowledge uncertainty honestly without being paralyzing. When experts disagree, explain what each side thinks and why, without false balance. End with what an ordinary person can actually do or watch for. Structure each major argument as: (1) State why this matters to everyday life. (2) Explain the key claim in plain language with an example. (3) Acknowledge what\'s uncertain or debated. (4) Suggest what to watch for or what actions matter.',
+    moderatorBias: 'Steer toward stakes and consequences that affect ordinary people. Prefer questions about personal impact (jobs, privacy, safety), fairness, and democratic accountability. Avoid inside-baseball technical disputes.',
+  },
+};
 
-const DETAIL_INSTRUCTION = 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and develop your reasoning with evidence. Structure each major argument as: (1) State your conclusion. (2) Name the principle, standard, or evidence that governs the question. (3) Apply that standard to the specific facts of this debate. (4) Close by restating the conclusion in light of the application. This is one argument — repeat for each major point, giving each its own paragraph.';
+function getReadingLevel(audience?: DebateAudience): string {
+  return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].readingLevel;
+}
+
+function getDetailInstruction(audience?: DebateAudience): string {
+  return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].detailInstruction;
+}
+
+function getModeratorBias(audience?: DebateAudience): string {
+  return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].moderatorBias;
+}
+
+// Keep backward-compatible constants for any internal use
+const READING_LEVEL = AUDIENCE_DIRECTIVES.policymakers.readingLevel;
+
+const DETAIL_INSTRUCTION = AUDIENCE_DIRECTIVES.policymakers.detailInstruction;
 
 // ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
@@ -673,8 +715,9 @@ export function openingStatementPrompt(
   priorBlock: string,
   isFirst: boolean,
   debateSourceContent?: string,
-  _length?: string, // Deprecated — always generates detailed (DT-1)
+  _length?: string,
   documentAnalysis?: DocumentAnalysis,
+  audience?: DebateAudience,
 ): string {
   const hasDocument = !!(documentAnalysis || debateSourceContent);
 
@@ -692,8 +735,8 @@ export function openingStatementPrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${otherDebaters(label)}
-${READING_LEVEL}
-${DETAIL_INSTRUCTION}
+${getReadingLevel(audience)}
+${getDetailInstruction(audience)}
 
 ${allInstructions()}
 
@@ -743,8 +786,9 @@ export function debateResponsePrompt(
   question: string,
   addressing: string,
   debateSourceContent?: string,
-  _length?: string, // Deprecated — always generates detailed (DT-1)
+  _length?: string,
   documentAnalysis?: DocumentAnalysis,
+  audience?: DebateAudience,
 ): string {
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
@@ -753,8 +797,8 @@ export function debateResponsePrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${otherDebaters(label)}
-${READING_LEVEL}
-${DETAIL_INSTRUCTION}
+${getReadingLevel(audience)}
+${getDetailInstruction(audience)}
 
 ${allInstructions()}
 
@@ -967,6 +1011,7 @@ export function crossRespondSelectionPrompt(
   recentScheme?: string,
   metaphorReframe?: { source: string; prompt: string; reveals: string; challenges: string } | null,
   phase?: DebatePhase,
+  audience?: DebateAudience,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
@@ -985,8 +1030,12 @@ export function crossRespondSelectionPrompt(
     ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
     : '';
 
+  const audienceLine = audience
+    ? `\nAUDIENCE CONTEXT: This debate targets ${audience.replace(/_/g, ' ')}. ${getModeratorBias(audience)}\n`
+    : '';
+
   return `You are a debate moderator analyzing the current state of a structured debate.
-${READING_LEVEL}
+${getReadingLevel(audience)}${audienceLine}
 ${phaseObjective}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
@@ -1039,6 +1088,7 @@ export function crossRespondPrompt(
   availablePovNodeIds?: string[],
   priorFlaggedHints?: string[],
   crossPovNodeIds?: string[],
+  audience?: DebateAudience,
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -1084,8 +1134,8 @@ Re-citing a node is fine when it carries new weight, but repeating the same set 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${otherDebaters(label)}
-${READING_LEVEL}
-${DETAIL_INSTRUCTION}
+${getReadingLevel(audience)}
+${getDetailInstruction(audience)}
 
 ${allInstructions(phase)}
 
@@ -1144,6 +1194,7 @@ export interface StagePromptInput {
   priorFlaggedHints?: string[];
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
+  audience?: DebateAudience;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1255,8 +1306,8 @@ export function draftStagePrompt(input: StagePromptInput, brief: string, plan: s
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
 Your personality: ${input.personality}.
 ${otherDebaters(input.label)}
-${READING_LEVEL}
-${DETAIL_INSTRUCTION}
+${getReadingLevel(input.audience)}
+${getDetailInstruction(input.audience)}
 
 ${MUST_CORE_BEHAVIORS}
 
@@ -1362,9 +1413,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 export function synthExtractPrompt(
   topic: string,
   transcript: string,
+  audience?: DebateAudience,
 ): string {
   return `You are a debate analyst. Analyze this structured debate and extract the core synthesis.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 === DEBATE TOPIC ===
 "${topic}"
@@ -1399,6 +1451,7 @@ export function synthMapPrompt(
   transcript: string,
   disagreements: string,
   hasSourceDocument: boolean = false,
+  audience?: DebateAudience,
 ): string {
   const documentAnalysis = hasSourceDocument ? `
 7. Document vs. debater claims: Separate the claims that originate from the source document from arguments the debaters constructed independently.` : '';
@@ -1409,7 +1462,7 @@ export function synthMapPrompt(
   ]` : '';
 
   return `You are a debate analyst. Build an argument map from this structured debate.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 === DEBATE TOPIC ===
 "${topic}"
@@ -1462,9 +1515,10 @@ export function synthEvaluatePrompt(
   disagreements: string,
   argumentMap: string,
   policyContext: string = '',
+  audience?: DebateAudience,
 ): string {
   return `You are a debate analyst. Evaluate which arguments are stronger and identify policy implications.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 === DEBATE TOPIC ===
 "${topic}"

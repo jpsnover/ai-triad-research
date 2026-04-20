@@ -21,6 +21,8 @@ import { runWithUser } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
 import * as gitStore from './gitRepoStore';
+import * as proxyTiers from './proxyTiers';
+import * as rateLimiter from './rateLimiter';
 
 // ── Express-like micro-router (zero dependencies) ──
 
@@ -294,11 +296,39 @@ post('/api/keys', async (_req, res, body) => {
 
 // ── AI generation ──
 
-post('/api/ai/generate', async (_req, res, body) => {
-  const { prompt, model, timeout } = body as { prompt: string; model?: string; timeout?: number };
+post('/api/ai/generate', async (req, res, body) => {
+  const { prompt, model, timeout, apiKey: clientKey } = body as { prompt: string; model?: string; timeout?: number; apiKey?: string };
   try {
-    const text = await ai.generateText(prompt, model, undefined, timeout);
-    json(res, { text });
+    const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+    const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+    const tier = proxyTiers.resolveTier(principalName, idp);
+    const userId = principalName || '_anonymous';
+
+    // Check backend is allowed
+    const backend = ai.resolveBackend(model || 'gemini-3.1-flash-lite-preview');
+    if (!tier.allowedBackends.includes(backend)) {
+      res.writeHead(403); res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier` })); return;
+    }
+
+    // Rate limiting
+    const rpmCheck = rateLimiter.checkRequestRate(userId, tier.limits.requestsPerMinute);
+    if (!rpmCheck.allowed) {
+      res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
+    }
+    const tokenCheck = rateLimiter.checkTokenLimit(userId, tier.limits.tokensPerDay);
+    if (!tokenCheck.allowed) {
+      res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
+    }
+
+    // Key injection: platform users get server-side keys, BYOK users provide their own
+    const explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
+    const result = await ai.generateText(prompt, model, undefined, timeout, explicitKey);
+
+    if (result.tokenUsage) {
+      rateLimiter.recordTokenUsage(userId, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
+    }
+
+    json(res, { text: result.text, tokenUsage: result.tokenUsage });
   } catch (err) { error(res, String(err)); }
 });
 
@@ -307,6 +337,24 @@ post('/api/ai/search', async (_req, res, body) => {
   try {
     json(res, await ai.generateTextWithSearch(prompt, model));
   } catch (err) { error(res, String(err)); }
+});
+
+// ── Proxy info endpoints ──
+
+get('/api/proxy/tier', (req, res) => {
+  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  const tier = proxyTiers.resolveTier(principalName, idp);
+  json(res, { ...tier, principalName: principalName || null });
+});
+
+get('/api/proxy/usage', (req, res) => {
+  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  const userId = principalName || '_anonymous';
+  const tier = proxyTiers.resolveTier(principalName, idp);
+  const usage = rateLimiter.getUsage(userId);
+  json(res, { tier: tier.level, limits: tier.limits, usage });
 });
 
 post('/api/ai/temperature', (_req, res, body) => {
@@ -492,6 +540,12 @@ post('/api/sync/init', async (_req, res) => {
 get('/api/sync/status', async (_req, res) => {
   try {
     json(res, await gitStore.getSyncStatus());
+  } catch (err) { error(res, String(err)); }
+});
+
+get('/api/sync/diagnostics', async (_req, res) => {
+  try {
+    json(res, await gitStore.getDiagnostics());
   } catch (err) { error(res, String(err)); }
 });
 

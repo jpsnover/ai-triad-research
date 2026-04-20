@@ -887,3 +887,128 @@ export async function abortRebase(): Promise<AbortRebaseOk | RebaseActionError> 
 export async function hasGithubCredentials(): Promise<boolean> {
   return (await getCredentials()) !== null;
 }
+
+// ── Diagnostics ──
+
+export interface DiagnosticsFile {
+  relative_path: string;
+  exists: boolean;
+  size_bytes: number;
+  modified_iso: string;
+}
+
+export interface DiagnosticsCommit {
+  sha: string;
+  message: string;
+  author: string;
+  date_iso: string;
+}
+
+export interface SyncDiagnostics {
+  git_sync_enabled: boolean;
+  data_root: string;
+  data_root_has_git: boolean;
+  github_repo: string | null;
+  github_credentials_valid: boolean;
+  current_branch: string | null;
+  head_sha: string | null;
+  origin_main_sha: string | null;
+  ahead_of_main: number;
+  behind_main: number;
+  active_taxonomy_dir: string;
+  files: DiagnosticsFile[];
+  recent_commits: DiagnosticsCommit[];
+}
+
+export async function getDiagnostics(): Promise<SyncDiagnostics> {
+  const enabled = isFeatureFlagEnabled();
+  const hasGit = dataRootHasGit();
+  const repo = getRepoSlug();
+  const credsValid = (await getCredentials()) !== null;
+  const dataRoot = getDataRoot();
+
+  let currentBranch: string | null = null;
+  let headSha: string | null = null;
+  let originMainSha: string | null = null;
+  let ahead = 0;
+  let behind = 0;
+  const commits: DiagnosticsCommit[] = [];
+
+  if (hasGit) {
+    await serialize(async () => {
+      const branchRes = await gitSafe(['rev-parse', '--abbrev-ref', 'HEAD']);
+      if (branchRes.ok) currentBranch = branchRes.stdout.trim();
+
+      const headRes = await gitSafe(['rev-parse', '--short', 'HEAD']);
+      if (headRes.ok) headSha = headRes.stdout.trim();
+
+      const omRes = await gitSafe(['rev-parse', '--short', 'refs/remotes/origin/main']);
+      if (omRes.ok) originMainSha = omRes.stdout.trim();
+
+      if (originMainSha) {
+        const aheadRes = await gitSafe(['rev-list', '--count', 'refs/remotes/origin/main..HEAD']);
+        if (aheadRes.ok) ahead = parseInt(aheadRes.stdout.trim(), 10) || 0;
+
+        const behindRes = await gitSafe(['rev-list', '--count', 'HEAD..refs/remotes/origin/main']);
+        if (behindRes.ok) behind = parseInt(behindRes.stdout.trim(), 10) || 0;
+      }
+
+      const logRes = await gitSafe(['log', '--format=%h\t%s\t%an\t%aI', '-n', '15']);
+      if (logRes.ok) {
+        for (const line of logRes.stdout.trim().split('\n')) {
+          if (!line) continue;
+          const [sha, message, author, date_iso] = line.split('\t');
+          commits.push({ sha, message, author, date_iso });
+        }
+      }
+    });
+  }
+
+  // Enumerate data files
+  const { loadDataConfig, resolveDataPath } = await import('./config');
+  const config = loadDataConfig();
+  const taxonomyBase = resolveDataPath(path.dirname(config.taxonomy_dir));
+  const { getActiveTaxonomyDirName } = await import('./fileIO');
+  const activeTaxDir = getActiveTaxonomyDirName();
+  const taxonomyDir = path.join(taxonomyBase, activeTaxDir);
+  const conflictsDir = resolveDataPath(config.conflicts_dir);
+
+  const files: DiagnosticsFile[] = [];
+
+  const statFile = (absPath: string, relPath: string) => {
+    try {
+      const st = fs.statSync(absPath);
+      files.push({ relative_path: relPath, exists: true, size_bytes: st.size, modified_iso: st.mtime.toISOString() });
+    } catch {
+      files.push({ relative_path: relPath, exists: false, size_bytes: 0, modified_iso: '' });
+    }
+  };
+
+  for (const name of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json', 'cross-cutting.json', 'edges.json', 'embeddings.json', 'policy_actions.json']) {
+    statFile(path.join(taxonomyDir, name), `${activeTaxDir}/${name}`);
+  }
+
+  try {
+    if (fs.existsSync(conflictsDir)) {
+      for (const f of fs.readdirSync(conflictsDir).filter(f => f.endsWith('.json')).slice(0, 50)) {
+        statFile(path.join(conflictsDir, f), `conflicts/${f}`);
+      }
+    }
+  } catch { /* skip */ }
+
+  return {
+    git_sync_enabled: enabled,
+    data_root: dataRoot,
+    data_root_has_git: hasGit,
+    github_repo: repo,
+    github_credentials_valid: credsValid,
+    current_branch: currentBranch,
+    head_sha: headSha,
+    origin_main_sha: originMainSha,
+    ahead_of_main: ahead,
+    behind_main: behind,
+    active_taxonomy_dir: activeTaxDir,
+    files,
+    recent_commits: commits,
+  };
+}

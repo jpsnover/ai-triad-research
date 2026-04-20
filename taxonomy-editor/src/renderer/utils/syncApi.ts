@@ -173,3 +173,43 @@ export async function continueRebase(): Promise<ContinueRebaseResult> {
 export async function abortRebase(): Promise<AbortRebaseResult> {
   return postJson<AbortRebaseResult>('/api/sync/rebase/abort', {});
 }
+
+// ── Diagnostics ──
+
+export interface DiagnosticsFile {
+  relative_path: string;
+  exists: boolean;
+  size_bytes: number;
+  modified_iso: string;
+}
+
+export interface DiagnosticsCommit {
+  sha: string;
+  message: string;
+  author: string;
+  date_iso: string;
+}
+
+export interface SyncDiagnostics {
+  git_sync_enabled: boolean;
+  data_root: string;
+  data_root_has_git: boolean;
+  github_repo: string | null;
+  github_credentials_valid: boolean;
+  current_branch: string | null;
+  head_sha: string | null;
+  origin_main_sha: string | null;
+  ahead_of_main: number;
+  behind_main: number;
+  active_taxonomy_dir: string;
+  files: DiagnosticsFile[];
+  recent_commits: DiagnosticsCommit[];
+}
+
+export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
+  return getJson<SyncDiagnostics>('/api/sync/diagnostics');
+}
+
+export async function initDataRepo(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {
+  return postJson('/api/sync/init', {});
+}
