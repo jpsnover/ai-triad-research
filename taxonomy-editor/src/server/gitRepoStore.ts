@@ -98,12 +98,20 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
       ? `https://x-access-token:${creds.token}@github.com/${repoSlug}.git`
       : `https://github.com/${repoSlug}.git`;
 
+    // Azure Files doesn't support chmod — clone into /tmp (local fs) then move .git in.
+    const tmpDir = fs.mkdtempSync('/tmp/git-init-');
+    const cloneOpts = { cwd: tmpDir, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
+    await execFileP('git', ['clone', '--depth=1', '--branch=main', '--no-checkout', remoteUrl, tmpDir], cloneOpts);
+    if (fs.existsSync(path.join(dataRoot, '.git'))) {
+      fs.rmSync(path.join(dataRoot, '.git'), { recursive: true, force: true });
+    }
+    // Copy .git to Azure Files (rename won't work cross-device)
+    await execFileP('cp', ['-a', path.join(tmpDir, '.git'), path.join(dataRoot, '.git')],
+      { timeout: GIT_INIT_TIMEOUT_MS });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
-    await execFileP('git', ['-c', 'core.fileMode=false', 'init'], opts);
     await execFileP('git', ['config', 'core.fileMode', 'false'], opts);
-    await execFileP('git', ['remote', 'add', 'origin', remoteUrl], opts);
-    await execFileP('git', ['fetch', 'origin', 'main', '--depth=1'], opts);
-    await execFileP('git', ['checkout', '-f', 'FETCH_HEAD'], opts);
+    await execFileP('git', ['checkout', '-f', 'HEAD'], opts);
     await execFileP('git', ['branch', '-M', 'main'], opts);
 
     console.log(`[gitRepoStore] Data repo initialized successfully.`);
