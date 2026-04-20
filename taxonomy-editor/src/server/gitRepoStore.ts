@@ -99,7 +99,8 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
       : `https://github.com/${repoSlug}.git`;
 
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
-    await execFileP('git', ['init'], opts);
+    await execFileP('git', ['-c', 'core.fileMode=false', 'init'], opts);
+    await execFileP('git', ['config', 'core.fileMode', 'false'], opts);
     await execFileP('git', ['remote', 'add', 'origin', remoteUrl], opts);
     await execFileP('git', ['fetch', 'origin', 'main', '--depth=1'], opts);
     await execFileP('git', ['checkout', '-f', 'FETCH_HEAD'], opts);
