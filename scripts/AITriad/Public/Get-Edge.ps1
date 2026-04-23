@@ -42,6 +42,8 @@ function Get-Edge {
         Filter to edges whose source node belongs to this POV.
     .PARAMETER TargetPov
         Filter to edges whose target node belongs to this POV.
+    .PARAMETER Id
+        Return a specific edge by its display ID (e.g., edg-00042).
     .PARAMETER Index
         Return a specific edge by its zero-based index in edges.json.
     .PARAMETER First
@@ -69,6 +71,9 @@ function Get-Edge {
     .EXAMPLE
         Get-Edge -SourcePov safetyist -TargetPov accelerationist -Status approved
         # Approved edges from safetyist to accelerationist nodes.
+    .EXAMPLE
+        Get-Edge -Id edg-00042
+        # Return edge by its display ID.
     .EXAMPLE
         Get-Edge -Index 42
         # Return edge at index 42.
@@ -118,6 +123,9 @@ function Get-Edge {
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations', '')]
         [string]$TargetPov,
 
+        [ValidatePattern('^edg-\d{5}$')]
+        [string]$Id,
+
         [int]$Index = -1,
 
         [int]$First = 0,
@@ -139,6 +147,13 @@ function Get-Edge {
     $EdgesData = Get-Content -Raw -Path $EdgesPath | ConvertFrom-Json
 
     # ------------------------------------------------------------------
+    # Id mode — convert edg-NNNNN to zero-based index
+    # ------------------------------------------------------------------
+    if ($Id) {
+        $Index = [int]$Id.Substring(4) - 1
+    }
+
+    # ------------------------------------------------------------------
     # Index mode — fast return of a single edge
     # ------------------------------------------------------------------
     if ($Index -ge 0) {
@@ -149,6 +164,7 @@ function Get-Edge {
         $E = $EdgesData.edges[$Index]
         return [PSCustomObject]@{
             PSTypeName    = 'AITriad.Edge'
+            Id            = 'edg-{0:D5}' -f ($Index + 1)
             Index         = $Index
             Source        = $E.source
             Target        = $E.target
@@ -159,6 +175,7 @@ function Get-Edge {
             Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
             Rationale     = $E.rationale
             Notes         = if ($E.PSObject.Properties['notes']) { $E.notes } else { $null }
+            DirectionFlag = if ($E.PSObject.Properties['direction_flag']) { $E.direction_flag } else { $null }
             DiscoveredAt  = $E.discovered_at
             Model         = $E.model
         }
@@ -242,6 +259,7 @@ function Get-Edge {
 
         $Results.Add([PSCustomObject]@{
             PSTypeName    = 'AITriad.Edge'
+            Id            = 'edg-{0:D5}' -f ($i + 1)
             Index         = $i
             Source        = $E.source
             Target        = $E.target
@@ -252,6 +270,7 @@ function Get-Edge {
             Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
             Rationale     = $E.rationale
             Notes         = if ($E.PSObject.Properties['notes']) { $E.notes } else { $null }
+            DirectionFlag = if ($E.PSObject.Properties['direction_flag']) { $E.direction_flag } else { $null }
             DiscoveredAt  = $E.discovered_at
             Model         = $E.model
         })

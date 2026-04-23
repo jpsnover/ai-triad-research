@@ -36,6 +36,7 @@ export interface AppAPI {
   loadPolicyRegistry: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
+  swapEdgeDirection: (index: number) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
   buildNodeSourceIndex: () => Promise<unknown>;
   buildPolicySourceIndex: () => Promise<unknown>;

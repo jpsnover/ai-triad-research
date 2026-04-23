@@ -19,6 +19,7 @@ export const api: AppAPI = {
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
   loadEdges: () => window.electronAPI.loadEdges(),
   updateEdgeStatus: (i, s) => window.electronAPI.updateEdgeStatus(i, s),
+  swapEdgeDirection: (i) => window.electronAPI.swapEdgeDirection(i),
   bulkUpdateEdges: (indices, s) => window.electronAPI.bulkUpdateEdges(indices, s),
   buildNodeSourceIndex: () => window.electronAPI.buildNodeSourceIndex(),
   buildPolicySourceIndex: () => window.electronAPI.buildPolicySourceIndex(),

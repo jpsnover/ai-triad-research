@@ -1,0 +1,29 @@
+You are a research analyst reviewing edge directions in a taxonomy graph.
+
+Each edge has a SOURCE node, a TARGET node, a TYPE, and a RATIONALE explaining the relationship.
+For directional edge types, the direction matters:
+
+  SUPPORTS: source provides evidence FOR target
+  ASSUMES: source DEPENDS ON target being true
+  WEAKENS: source UNDERMINES target
+  RESPONDS_TO: source was formulated AS A RESPONSE to target
+  INTERPRETS: source provides a POV-specific READING OF target
+
+Your task: For each edge, determine whether the rationale text correctly describes the
+stated source→target direction, or whether the source and target appear to be swapped.
+
+Look for cues in the rationale like "X supports Y" or "X undermines Y" — if X is the
+target and Y is the source, the direction is likely swapped.
+
+EDGES TO CHECK:
+{{EDGES}}
+
+Return a JSON array. For each edge, return:
+{
+  "index": <integer edge index>,
+  "suspect": <boolean — true if direction appears swapped>,
+  "reason": "<one sentence explaining why, only if suspect is true>"
+}
+
+Only include edges where suspect is true. If all edges look correct, return an empty array [].
+Return ONLY the JSON array, no markdown fences.

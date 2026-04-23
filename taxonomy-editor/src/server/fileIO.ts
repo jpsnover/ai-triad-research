@@ -187,6 +187,9 @@ export function updateEdgeStatus(edges: unknown, index: number, status: string):
   const arr = edges as { edges: Record<string, unknown>[] };
   if (arr.edges && arr.edges[index]) {
     arr.edges[index].status = status;
+    if (status === 'approved') {
+      delete arr.edges[index].direction_flag;
+    }
     writeEdgesFile(arr);
   }
   return arr;
@@ -198,6 +201,19 @@ export function bulkUpdateEdges(edges: unknown, indices: number[], status: strin
     for (const i of indices) {
       if (arr.edges[i]) arr.edges[i].status = status;
     }
+    writeEdgesFile(arr);
+  }
+  return arr;
+}
+
+export function swapEdgeDirection(edges: unknown, index: number): unknown {
+  const arr = edges as { edges: Record<string, unknown>[] };
+  if (arr.edges && arr.edges[index]) {
+    const edge = arr.edges[index];
+    const tmp = edge.source;
+    edge.source = edge.target;
+    edge.target = tmp;
+    delete edge.direction_flag;
     writeEdgesFile(arr);
   }
   return arr;

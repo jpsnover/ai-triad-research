@@ -22,7 +22,8 @@ import type { PoverResponseMeta } from './helpers';
 import { parseJsonRobust, getMoveName } from './helpers';
 
 // ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
-const MOVE_CATALOG = new Set<string>([
+const MOVE_CATALOG_RAW = [
+  // Core 15 (documented in prompts.ts DIALECTICAL_MOVES)
   'DISTINGUISH',
   'COUNTEREXAMPLE',
   'CONCEDE-AND-PIVOT',
@@ -37,13 +38,92 @@ const MOVE_CATALOG = new Set<string>([
   'STEEL-BUILD',
   'EXPOSE-ASSUMPTION',
   'BURDEN-SHIFT',
+  'SPECIFY',
   // Legacy accepted variants
   'CONCEDE',
   'REDUCE',
   'ESCALATE',
   'ASSERT',
-  'SPECIFY',
-]);
+  // Expanded catalog — legitimate dialectical moves LLMs frequently reach for
+  'OPERATIONALIZE',
+  'CITE-AUTHORITY',
+  'ANALOGY',
+  'PROPOSE-TEST',
+  'REDUCTIO',
+  'SYNTHESIZE',
+  'CLARIFY',
+  'APPEAL-TO-EVIDENCE',
+  'ACKNOWLEDGE-PROGRESS',
+  'PROPOSE-STANDARD',
+  'RESOLVE-TENSION',
+  'FALSIFY',
+  'PRECEDENT',
+  'RETRACT',
+  'CHALLENGE',
+  'PROPOSE',
+];
+
+function normalizeMoveName(name: string): string {
+  return name.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Alias map: near-synonyms the AI generates → canonical catalog entry.
+// For multi-word aliases, both word orders are registered automatically below.
+const MOVE_ALIAS_ENTRIES: [string, string][] = [
+  ['SURFACE ASSUMPTION', 'EXPOSE ASSUMPTION'],
+  ['SURFACE CRUX', 'IDENTIFY CRUX'],
+  ['PROPOSE CRUX', 'IDENTIFY CRUX'],
+  ['CONDITIONAL CONCESSION', 'CONCEDE AND PIVOT'],
+  ['CONDITIONAL ACCEPTANCE', 'CONDITIONAL AGREE'],
+  ['MODIFY FRAMEWORK', 'REFRAME'],
+  ['STEELMAN', 'STEEL BUILD'],
+  ['PIVOT', 'CONCEDE AND PIVOT'],
+  ['PROPOSE EMPIRICAL TEST', 'PROPOSE TEST'],
+  ['PROPOSE BENCHMARK', 'PROPOSE TEST'],
+  ['PROPOSE CRITERION', 'PROPOSE STANDARD'],
+  ['PROPOSE CONVERGENCE', 'RESOLVE TENSION'],
+  ['PROPOSE SYNTHESIS', 'SYNTHESIZE'],
+  ['PROPOSE FRAMEWORK', 'REFRAME'],
+  ['EMPIRICAL BET', 'PROPOSE TEST'],
+  ['NORMATIVE JUSTIFICATION', 'APPEAL TO EVIDENCE'],
+  ['PROPOSE ADDITION', 'EXTEND'],
+  ['CONDITIONAL', 'CONDITIONAL AGREE'],
+  ['STATE ASSUMPTIONS', 'EXPOSE ASSUMPTION'],
+  ['ASSUMPTION AUDIT', 'EXPOSE ASSUMPTION'],
+  ['CITE EVIDENCE', 'APPEAL TO EVIDENCE'],
+  ['EVIDENCE', 'APPEAL TO EVIDENCE'],
+  ['EXPOSE CONTRADICTION', 'COUNTEREXAMPLE'],
+  ['CHALLENGE ANALOGY', 'COUNTEREXAMPLE'],
+  ['ANALOGY ATTACK', 'COUNTEREXAMPLE'],
+  ['SPECIFY STANDARD', 'PROPOSE STANDARD'],
+  ['BRIDGE', 'INTEGRATE'],
+  ['INVERT CAUSATION', 'REFRAME'],
+  ['ANALOGICAL REASONING', 'ANALOGY'],
+  ['DEMAND EVIDENCE', 'BURDEN SHIFT'],
+  ['CHALLENGE ASSUMPTION', 'EXPOSE ASSUMPTION'],
+  ['SPECIFY FALSIFIABILITY', 'PROPOSE TEST'],
+  ['SPECIFY REQUIREMENTS', 'SPECIFY'],
+  ['THRESHOLD SPECIFY', 'SPECIFY'],
+  ['MECHANISM DISTINGUISH', 'DISTINGUISH'],
+];
+
+// Build alias map with automatic reverse word-order registration for 2-word aliases
+const MOVE_ALIASES = new Map<string, string>();
+for (const [alias, canonical] of MOVE_ALIAS_ENTRIES) {
+  MOVE_ALIASES.set(alias, canonical);
+  const words = alias.split(' ');
+  if (words.length === 2) {
+    const reversed = `${words[1]} ${words[0]}`;
+    if (!MOVE_ALIASES.has(reversed)) MOVE_ALIASES.set(reversed, canonical);
+  }
+}
+
+function resolveMoveName(raw: string): string {
+  const normalized = normalizeMoveName(raw);
+  return MOVE_ALIASES.get(normalized) ?? normalized;
+}
+
+const MOVE_CATALOG = new Set<string>(MOVE_CATALOG_RAW.map(normalizeMoveName));
 
 const DISAGREEMENT_TYPES = new Set(['EMPIRICAL', 'VALUES', 'DEFINITIONAL']);
 
@@ -106,12 +186,12 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   const { statement, taxonomyRefs, meta, round, phase, priorTurns, knownNodeIds, policyIds } = p;
 
-  // Rule 1: move_types subset of MOVE_CATALOG (error)
+  // Rule 1: move_types present (error if missing); unknown names are warnings only
   if (meta.move_types && meta.move_types.length > 0) {
-    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(getMoveName(m)));
+    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(resolveMoveName(getMoveName(m))));
     if (bad.length > 0) {
-      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')}. Valid moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT.`;
-      errors.push(msg);
+      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')} (accepted as-is).`;
+      warnings.push(msg);
       schemaIssues.push(msg);
     }
   } else {
@@ -463,7 +543,7 @@ export function buildRepairPrompt(
     sections.push('• Fix the JSON/schema issues above before anything else.');
     const hasMoveError = v.repairHints.some(h => h.includes('Unknown move_types'));
     if (hasMoveError) {
-      sections.push('• CRITICAL: move_types must use ONLY these exact values: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT. Do NOT invent new move names.');
+      sections.push(`• CRITICAL: move_types must use ONLY these exact values: ${MOVE_CATALOG_RAW.join(', ')}. Do NOT invent new move names.`);
     }
   }
   if (!v.dimensions.grounding.pass) {

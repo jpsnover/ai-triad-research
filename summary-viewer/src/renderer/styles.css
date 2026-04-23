@@ -1138,6 +1138,109 @@ body {
   font-style: italic;
 }
 
+.unmapped-similar-toggle {
+  display: block;
+  margin-top: 6px;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-weight: 600;
+}
+.unmapped-similar-toggle:hover {
+  color: var(--text-primary);
+}
+
+.unmapped-similar-list {
+  margin-top: 4px;
+  padding-left: 4px;
+  border-left: 2px solid var(--border);
+}
+
+.unmapped-similar-item {
+  padding: 4px 6px;
+  margin: 3px 0;
+  background: var(--bg-input);
+  border-radius: 4px;
+}
+
+.unmapped-similar-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.unmapped-similar-score {
+  font-weight: 700;
+  color: var(--color-acc);
+  min-width: 32px;
+}
+
+.unmapped-similar-id {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+}
+
+.unmapped-similar-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.unmapped-similar-desc {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 2px;
+  padding-left: 38px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.unmapped-similar-empty {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 6px;
+}
+
+.unmapped-compare-btn {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.unmapped-compare-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.unmapped-compare-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.unmapped-compare-result {
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border-left: 2px solid var(--color-acc);
+}
+
 .unmapped-resolved {
   opacity: 0.55;
   border-left: 3px solid var(--success, #16a34a);

@@ -150,14 +150,13 @@ HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
 - Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
 - Never pretend the contradiction wasn't raised
 
-CONCEDE SELECTIVELY. Conceding a point is not losing — it's intellectual honesty:
-- Concede when the evidence clearly supports the opponent's claim
+CONCEDE HONESTLY. Real debates involve position changes — refusing to concede anything makes you less credible, not stronger:
+- You MUST concede when the evidence clearly supports the opponent's claim — defending a weak point undermines your strong ones
 - Concede when a point is tangential to your core argument (don't defend everything)
 - After conceding, explain why your overall position still holds despite this concession
+- AIM for at least one genuine concession every 2-3 turns. A debate where nobody concedes anything is a debate where nobody is listening
 Never silently drop a point you previously asserted — explicitly acknowledge the change.
-BUT: concession is powerful because it's rare. If you concede every turn, it becomes
-empty ritual. Not every response needs a concession — sometimes the right move is to
-directly challenge, provide a counterexample, or reframe the issue.`;
+Vary your moves: sometimes concede, sometimes challenge, sometimes reframe. A debater who never concedes is as predictable and unconvincing as one who always concedes.`;
 
 // ── Phase-specific instruction blocks ──────────────────────────────
 
@@ -177,11 +176,13 @@ Your goal this phase is to PROBE DEEPER and TEST EDGE CASES. The positions are e
 - Explore edge cases and boundary conditions where positions might converge or diverge unexpectedly.
 - When you find a genuine point of agreement, NAME IT explicitly: "We agree that X. The real disagreement is Y."
 - When you partially agree, use INTEGRATE or CONDITIONAL-AGREE moves (see constructive moves below).
+- CONCEDE at least one opponent point per 2 turns. If an opponent made a strong argument you haven't addressed, grant it and pivot to your remaining disagreement. Debates that never concede anything are unconvincing.
 Do NOT simply restate your opening position. If you catch yourself repeating an earlier argument, stop and find a new angle.`,
 
   'synthesis': `## CURRENT PHASE: SYNTHESIS (final rounds)
 Your goal this phase is to CONVERGE where possible and NARROW remaining disagreements to their sharpest form.
-- Lead with what you've LEARNED from this debate — how has your understanding shifted?
+- Lead with what you've CONCEDED during this debate — name at least 2-3 specific opponent points you now accept.
+- Then state what you've LEARNED — how has your understanding shifted?
 - Use INTEGRATE moves to propose positions that incorporate valid points from multiple perspectives.
 - For remaining disagreements, state them as precisely as possible: "The core disagreement is whether X, which is [EMPIRICAL/VALUES/DEFINITIONAL]."
 - Propose CONDITIONAL agreements: "If X turns out to be true, then I would accept Y."
@@ -292,8 +293,16 @@ MOVE TYPES: When constructing your response, identify which argumentative moves 
 - EMPIRICAL CHALLENGE: Disputing the factual basis of a claim — the data is wrong, outdated, misrepresented, or insufficient. Use when your disagreement is about what is true, not what matters.
 - EXTEND: Building on a point made by yourself or an ally in a previous round, adding new evidence or reasoning. Use when a prior argument was underdeveloped or needs reinforcement.
 - UNDERCUT: Attacking not the conclusion but the reasoning link between an opponent's evidence and their claim. Use when the facts may be right but the logic connecting them to the conclusion is flawed.
+- SPECIFY: Demanding the opponent operationalize their position — what evidence or condition would falsify their claim?
+- GROUND-CHECK: Verifying the shared factual basis before engaging with reasoning built on top of it.
+- CONDITIONAL-AGREE: Agreeing under specific conditions while marking where you still diverge.
+- IDENTIFY-CRUX: Isolating the single key disagreement that, if resolved, would change one side's position.
+- INTEGRATE: Synthesizing insights from multiple perspectives into a combined position.
+- STEEL-BUILD: Strengthening an opponent's argument before responding to it, to show you engage with their best case.
+- EXPOSE-ASSUMPTION: Surfacing a hidden premise that the opponent's argument depends on but hasn't stated.
+- BURDEN-SHIFT: Arguing that the other side bears the burden of proof for their claim.
 
-List your selections in the move_types field of your JSON output. Choose only types that genuinely describe your argument — do not pad the list.
+You MUST use ONLY move types from this list — do not invent new move names. Select 1–3 that genuinely describe your argument — do not pad the list.
 
 POLICY AWARENESS: As you construct your argument, consider whether your position supports, opposes, or has implications for any policies listed in the POLICY ACTIONS section of your taxonomy context. If it does, factor that connection into how you frame your argument — don't just tag it after the fact. Record these connections in the policy_refs field of your output.
 
@@ -524,6 +533,32 @@ const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical 
   follows from them. Whoever controls the facts controls the conclusion. This move prevents
   you from accidentally conceding a contested premise by jumping straight to the reasoning.
 
+- CONDITIONAL-AGREE: Accept a claim under specific conditions while rejecting it in general.
+  USE WHEN: The opponent's claim holds in some contexts but not others, and you want to narrow the disagreement.
+  THE KEY: State the exact conditions under which you agree, making the remaining disagreement precise.
+
+- IDENTIFY-CRUX: Name the single factual or value question whose answer would resolve the disagreement.
+  USE WHEN: The debate is circling without progress — identify what the real disagreement hinges on.
+  THE KEY: Frame it as a testable question or a clearly stated value choice, not a vague "we disagree."
+
+- INTEGRATE: Combine insights from multiple positions into a novel synthesis.
+  USE WHEN: Both sides have valid points that can be reconciled into a stronger position.
+  THE KEY: The synthesis must be genuinely new — not just listing both views side by side.
+
+- STEEL-BUILD: Strengthen the opponent's argument beyond what they stated, then engage with that stronger version.
+  USE WHEN: The opponent's argument has a stronger form they haven't articulated.
+  THE KEY: The steelmanned version must be one they would endorse — don't create a strawman disguised as charity.
+
+- EXPOSE-ASSUMPTION: Surface a hidden premise the opponent's argument depends on.
+  USE WHEN: The argument only works if an unstated assumption is true, and that assumption is contestable.
+  THE KEY: State the assumption explicitly and show why it's not self-evident.
+
+- BURDEN-SHIFT: Challenge who bears the burden of proof in the current exchange.
+  USE WHEN: The opponent asserts a conclusion and demands you disprove it.
+  THE KEY: Name the move — "You're asserting X; the burden is on you to establish it, not on me to refute it."
+
+IMPORTANT: These are the ONLY valid move names. Do NOT invent new move names — use exactly the names listed above.
+
 MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
 conceded last turn, lead with a challenge or reframe this turn. If you distinguished
 last turn, try a counterexample or undercut. The best debates feature genuine variety
@@ -537,11 +572,9 @@ openings:
 - "Let me challenge that directly..."
 - "Consider what happens if we apply your logic consistently..."
 
-In exploration and synthesis phases, you may also use constructive moves: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD (see constructive moves section if present).
-
 Include a "move_types" array in your response (select 1-3 per response). Each entry is an object:
   {"move": "DISTINGUISH", "target": "AN-3", "detail": "Narrowed 'all regulation' to Section 230 liability specifically"}
-- "move" is the move name from the catalog above.
+- "move" MUST be one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT. No other values are accepted.
 - "target" (optional) is the AN-ID of the prior claim this move responds to.
 - "detail" is a brief phrase explaining what you did (e.g., what you specified, what you conceded, what you challenged).`;
 
@@ -755,13 +788,13 @@ ${isFirst ? 'You are delivering the first opening statement.' : `You have read t
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
@@ -822,13 +855,13 @@ ${question}
 
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
@@ -1346,13 +1379,13 @@ NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement
 
 CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a short tooltip explaining how it relates to this specific turn.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your full debate response (3-5 paragraphs)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "1 sentence: how this symbol captures your argument this turn"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
@@ -1917,7 +1950,7 @@ export function entrySummarizationPrompt(statementText: string, speaker: string)
 STATEMENT:
 ${statementText}
 
-BRIEF (2-3 sentences): The core claim and strongest piece of reasoning or evidence, in ${speaker}'s own voice. Omit secondary points, assumptions, and steelman content.
+BRIEF (2-3 sentences + tagline): The core claim and strongest piece of reasoning or evidence, in ${speaker}'s own voice. Omit secondary points, assumptions, and steelman content. End with a catchy, memorable one-liner that captures the argument's essence — punchy enough to quote.
 
 MEDIUM (1-2 paragraphs): The main argument with key supporting evidence, in ${speaker}'s own voice. Include the steelman if present. Omit rhetorical flourishes and minor supporting points.
 

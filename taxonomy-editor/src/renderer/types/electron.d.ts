@@ -62,6 +62,7 @@ export interface ElectronAPI {
   buildPolicySourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
+  swapEdgeDirection: (index: number) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
   listChatSessions: () => Promise<unknown[]>;
   loadChatSession: (id: string) => Promise<unknown>;

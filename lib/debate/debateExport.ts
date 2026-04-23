@@ -394,9 +394,20 @@ export async function debateToPackage(
     zip.file(`${slug}.html`, debateToHtml(session));
   }
 
-  // Diagnostics
-  if (session.diagnostics) {
-    zip.file(`${slug}-diagnostics.json`, JSON.stringify(session.diagnostics, null, 2) + '\n');
+  // Diagnostics — comprehensive: merge all diagnostic-relevant session fields
+  const fullSession = session as unknown as Record<string, unknown>;
+  const fullDiagnostics: Record<string, unknown> = {};
+  if (session.diagnostics) fullDiagnostics.diagnostics = session.diagnostics;
+  if (fullSession.turn_validations) fullDiagnostics.turn_validations = fullSession.turn_validations;
+  if (fullSession.extraction_summary) fullDiagnostics.extraction_summary = fullSession.extraction_summary;
+  if (fullSession.argument_network) fullDiagnostics.argument_network = fullSession.argument_network;
+  if (fullSession.commitments) fullDiagnostics.commitments = fullSession.commitments;
+  if (fullSession.qbaf_timeline) fullDiagnostics.qbaf_timeline = fullSession.qbaf_timeline;
+  if (fullSession.dialectic_traces) fullDiagnostics.dialectic_traces = fullSession.dialectic_traces;
+  if (fullSession.convergence_radar) fullDiagnostics.convergence_radar = fullSession.convergence_radar;
+  if (fullSession.convergence_signals) fullDiagnostics.convergence_signals = fullSession.convergence_signals;
+  if (Object.keys(fullDiagnostics).length > 0) {
+    zip.file(`${slug}-diagnostics.json`, JSON.stringify(fullDiagnostics, null, 2) + '\n');
   }
 
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });

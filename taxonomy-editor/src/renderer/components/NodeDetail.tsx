@@ -346,23 +346,58 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               {err('description') && <div className="error-text">{err('description')}</div>}
             </div>
 
-            {node.graph_attributes?.steelman_vulnerability && (
+
+            {hasGraphAttrs && (
               <div className="form-group">
                 <label>Steelman Vulnerability</label>
-                {typeof node.graph_attributes.steelman_vulnerability === 'string' ? (
-                  <div className="ga-promoted-text">{node.graph_attributes.steelman_vulnerability}</div>
-                ) : (
+                {typeof node.graph_attributes!.steelman_vulnerability === 'string' ? (
+                  readOnly ? (
+                    <div className="ga-promoted-text">{node.graph_attributes!.steelman_vulnerability}</div>
+                  ) : (
+                    <textarea
+                      className="nd-vulnerability-input"
+                      value={node.graph_attributes!.steelman_vulnerability}
+                      rows={3}
+                      onChange={(e) => {
+                        update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: e.target.value } });
+                      }}
+                    />
+                  )
+                ) : typeof node.graph_attributes!.steelman_vulnerability === 'object' && node.graph_attributes!.steelman_vulnerability ? (
                   <div className="ga-promoted-text">
-                    {node.graph_attributes.steelman_vulnerability.from_accelerationist && (
-                      <div><strong style={{ color: 'var(--color-acc)' }}>Accelerationist:</strong> {node.graph_attributes.steelman_vulnerability.from_accelerationist}</div>
-                    )}
-                    {node.graph_attributes.steelman_vulnerability.from_safetyist && (
-                      <div><strong style={{ color: 'var(--color-saf)' }}>Safetyist:</strong> {node.graph_attributes.steelman_vulnerability.from_safetyist}</div>
-                    )}
-                    {node.graph_attributes.steelman_vulnerability.from_skeptic && (
-                      <div><strong style={{ color: 'var(--color-skp)' }}>Skeptic:</strong> {node.graph_attributes.steelman_vulnerability.from_skeptic}</div>
-                    )}
+                    {(['from_accelerationist', 'from_safetyist', 'from_skeptic'] as const).map(key => {
+                      const vuln = node.graph_attributes!.steelman_vulnerability as Record<string, string | undefined>;
+                      const colorMap: Record<string, string> = { from_accelerationist: 'var(--color-acc)', from_safetyist: 'var(--color-saf)', from_skeptic: 'var(--color-skp)' };
+                      const labelMap: Record<string, string> = { from_accelerationist: 'Accelerationist', from_safetyist: 'Safetyist', from_skeptic: 'Skeptic' };
+                      if (!vuln[key] && readOnly) return null;
+                      return (
+                        <div key={key} style={{ marginBottom: 4 }}>
+                          <strong style={{ color: colorMap[key] }}>{labelMap[key]}:</strong>
+                          {readOnly ? (
+                            <span> {vuln[key]}</span>
+                          ) : (
+                            <textarea
+                              className="nd-vulnerability-input"
+                              value={vuln[key] ?? ''}
+                              rows={2}
+                              onChange={(e) => {
+                                update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: { ...vuln, [key]: e.target.value } } });
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                ) : !readOnly ? (
+                  <button
+                    className="btn btn-sm nd-add-btn"
+                    onClick={() => {
+                      update({ graph_attributes: { ...node.graph_attributes!, steelman_vulnerability: '' } });
+                    }}
+                  >+ Add Vulnerability</button>
+                ) : (
+                  <div className="ga-empty">&mdash;</div>
                 )}
               </div>
             )}
@@ -451,6 +486,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             onBadgeClick={runAttributeFilter}
             onShowAttributeInfo={showAttributeInfo}
             onUpdatePolicyActions={readOnly ? undefined : (actions) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, policy_actions: actions } })}
+            onUpdateAssumptions={readOnly ? undefined : (assumes) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, assumes } })}
             readOnly={readOnly}
             defaultOpen
           />

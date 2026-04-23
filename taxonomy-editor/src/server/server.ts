@@ -178,6 +178,13 @@ put('/api/edges/status', (_req, res, body) => {
   json(res, edgesCache);
 });
 
+put('/api/edges/swap', (_req, res, body) => {
+  const { index } = body as { index: number };
+  if (!edgesCache) edgesCache = fileIO.readEdgesFile();
+  edgesCache = fileIO.swapEdgeDirection(edgesCache, index);
+  json(res, edgesCache);
+});
+
 put('/api/edges/bulk-status', (_req, res, body) => {
   const { indices, status: s } = body as { indices: number[]; status: string };
   if (!edgesCache) edgesCache = fileIO.readEdgesFile();

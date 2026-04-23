@@ -325,6 +325,7 @@ Export-ModuleMember -Function @(
     'Invoke-QbafConflictAnalysis'
     'Test-ExtractionQuality'
     'Show-WorkflowRunner'
+    'Test-EdgeDirection'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

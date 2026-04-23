@@ -15,6 +15,7 @@ import type { QbafNode, QbafEdge } from '@lib/debate';
 import { getMoveName } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
+import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
 
 const DiagSearchContext = createContext('');
@@ -628,7 +629,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [searchQuery, setSearchQuery] = useState('');
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
@@ -749,7 +750,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
@@ -829,6 +830,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'commitments', label: 'Commitments', visible: hasCommitments },
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
+              { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
             ];
             const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
             const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';
@@ -859,6 +861,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {/* Extraction Timeline — diagnoses AN-plateau failures */}
           {overviewTab === 'extraction' && (
             <ExtractionTimelinePanel debate={debate} />
+          )}
+
+          {/* Convergence Signals — per-turn diagnostic signals */}
+          {overviewTab === 'convergence' && (
+            <ConvergenceSignalsPanel debate={debate} />
           )}
 
           {/* Argument Network with inline Moderator Deliberations */}
@@ -1413,6 +1420,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </Section>
                       )}
 
+                      {(diag as Record<string, unknown>)?.edges_used && ((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).length > 0 && (
+                        <Section title={`Edges Used (${((diag as Record<string, unknown>).edges_used as unknown[]).length})`} defaultOpen copyText={((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map(e => `${e.source} ${e.type} ${e.target} (${e.confidence.toFixed(2)})`).join('\n')}>
+                          {((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map((e, i) => (
+                            <div key={i} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)', fontSize: '0.7rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{e.source}</span>
+                              {' '}<strong>{e.type}</strong>{' '}
+                              <span style={{ color: 'var(--text-muted)' }}>{e.target}</span>
+                              <span style={{ marginLeft: 8, opacity: 0.6 }}>({(e.confidence * 100).toFixed(0)}%)</span>
+                            </div>
+                          ))}
+                        </Section>
+                      )}
+
                       {meta?.key_assumptions && (meta.key_assumptions as { assumption: string; if_wrong: string }[]).length > 0 && (
                         <Section title={`Key Assumptions (${(meta.key_assumptions as unknown[]).length})`} defaultOpen copyText={(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map(a => `Assumes: ${a.assumption}\nIf wrong: ${a.if_wrong}`).join('\n\n')}>
                           {(meta.key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
@@ -1655,28 +1675,67 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'claims' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
-                      {diag?.extracted_claims && (
-                        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
-                          {diag.extracted_claims.accepted.map((c, i) => (
-                            <div key={i} style={{ margin: '3px 0' }}>
-                              <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-                            </div>
-                          ))}
-                          {diag.extracted_claims.rejected.map((c, i) => (
-                            <div key={i} style={{ margin: '3px 0' }}>
-                              <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
-                              <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
+                      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
+                        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
+                          {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
+                            <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
+                              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
+                              {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
                             </div>
                           ))}
                         </Section>
                       )}
 
-                      {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-                        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
-                          {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
-                            <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
-                              <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
-                              {c.targets?.length > 0 && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>→ {c.targets.join(', ')}</span>}
+                      {diag?.extracted_claims && (
+                        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
+                          {diag.extracted_claims.accepted.map((c, i) => {
+                            const outEdges = an?.edges.filter(e => e.source === c.id) ?? [];
+                            const edgeSummary = outEdges.map(edge => {
+                              const label = edge.type === 'attacks'
+                                ? (edge.attack_type ? `attacks(${edge.attack_type})` : 'attacks')
+                                : 'supports';
+                              return `${label} ${edge.target}`;
+                            }).join(', ');
+                            return (
+                              <details key={i} style={{ margin: '4px 0' }}>
+                                <summary style={{ cursor: 'pointer' }}>
+                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                                  {outEdges.length > 0 && (
+                                    <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
+                                      [{edgeSummary}]
+                                    </span>
+                                  )}
+                                </summary>
+                                {outEdges.length > 0 && (
+                                  <div style={{ paddingLeft: 20, marginTop: 4, marginBottom: 4 }}>
+                                    {outEdges.map((edge, ei) => {
+                                      const targetNode = an?.nodes.find(n => n.id === edge.target);
+                                      const edgeLabel = edge.type === 'attacks'
+                                        ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
+                                        : 'supports';
+                                      return (
+                                        <div key={ei} style={{ fontSize: '0.65rem', margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edge.type === 'attacks' ? '#ef4444' : '#22c55e'}` }}>
+                                          <div>
+                                            <span style={{ color: edge.type === 'attacks' ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{edgeLabel}</span>
+                                            {edge.argumentation_scheme && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>[{edge.argumentation_scheme}]</span>}
+                                          </div>
+                                          {targetNode && (
+                                            <div style={{ color: 'var(--text-muted)', marginTop: 1 }}>
+                                              <span style={{ fontWeight: 600 }}>{targetNode.id}</span> ({POVER_INFO[targetNode.speaker as keyof typeof POVER_INFO]?.label ?? targetNode.speaker}): {targetNode.text}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </details>
+                            );
+                          })}
+                          {diag.extracted_claims.rejected.map((c, i) => (
+                            <div key={i} style={{ margin: '3px 0' }}>
+                              <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                              <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                             </div>
                           ))}
                         </Section>

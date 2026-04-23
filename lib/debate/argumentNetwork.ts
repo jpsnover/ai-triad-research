@@ -472,8 +472,8 @@ export function formatConcessionCandidatesHint(
   edges: { source: string; target: string; type: string }[],
   currentSpeaker: string,
   priorConceded: string[] = [],
-  threshold: number = 0.65,
-  maxCandidates: number = 2,
+  threshold: number = 0.45,
+  maxCandidates: number = 3,
 ): string {
   const concededSet = new Set(priorConceded);
   const attackedByMe = new Set(
@@ -497,9 +497,10 @@ export function formatConcessionCandidatesHint(
   const lines = [
     '',
     '=== POTENTIAL CONCESSIONS ===',
-    'Before responding, consider whether you can grant any of these opponent points.',
-    'Conceding a strong opposing claim and pivoting is a sign of intellectual honesty, not weakness.',
+    'These opponent claims are well-supported. You SHOULD concede at least one unless you have specific, concrete counter-evidence.',
+    'Refusing to concede strong opposing points makes your overall argument weaker, not stronger.',
     'If you grant a point, name it explicitly and pivot to what you still contest.',
+    'If you decline ALL candidates, you must explain specifically why each one is wrong — "I disagree" is not sufficient.',
   ];
   candidates.forEach((c, i) => {
     lines.push(

@@ -416,8 +416,25 @@ export function registerIpcHandlers(): void {
     const edges = data['edges'] as Record<string, unknown>[];
     if (index < 0 || index >= edges.length) throw new Error(`Index ${index} out of range`);
     edges[index]['status'] = status;
+    if (status === 'approved') {
+      delete edges[index]['direction_flag'];
+    }
     writeEdgesFile(data);
     return { index, status };
+  });
+
+  ipcMain.handle('swap-edge-direction', (_event, index: number) => {
+    const data = readEdgesFile() as Record<string, unknown>;
+    if (!data) throw new Error('No edges.json found');
+    const edges = data['edges'] as Record<string, unknown>[];
+    if (index < 0 || index >= edges.length) throw new Error(`Index ${index} out of range`);
+    const edge = edges[index];
+    const tmp = edge['source'];
+    edge['source'] = edge['target'];
+    edge['target'] = tmp;
+    delete edge['direction_flag'];
+    writeEdgesFile(data);
+    return { index, source: edge['source'], target: edge['target'] };
   });
 
   ipcMain.handle('bulk-update-edges', (_event, indices: number[], status: string) => {

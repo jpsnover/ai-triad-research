@@ -10,7 +10,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '@bridge';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate';
-import type { Edge, EdgeType, EdgeStatus } from '../types/taxonomy';
+import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../types/taxonomy';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ interface FilterState {
   targetPov: string;
   edgeType: string;
   status: string;
+  directionFlag: string;
   minConfidence: number;
   searchText: string;
   crossPovOnly: boolean;
@@ -37,6 +38,7 @@ const DEFAULT_FILTERS: FilterState = {
   targetPov: '',
   edgeType: '',
   status: '',
+  directionFlag: '',
   minConfidence: 0,
   searchText: '',
   crossPovOnly: false,
@@ -100,11 +102,15 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
       } else if (e.type !== f.edgeType) return false;
     }
     if (f.status && e.status !== f.status) return false;
+    if (f.directionFlag === 'suspect' && e.direction_flag !== 'suspect') return false;
+    if (f.directionFlag === 'ok' && e.direction_flag !== 'ok') return false;
+    if (f.directionFlag === 'unchecked' && e.direction_flag) return false;
     if (e.confidence < f.minConfidence) return false;
     if (f.crossPovOnly && e.sourcePov === e.targetPov) return false;
     if (f.searchText) {
       const q = f.searchText.toLowerCase();
-      const hay = [e.source, e.target, e.sourceLabel, e.targetLabel, e.rationale, e.type, e.notes || ''].join(' ').toLowerCase();
+      const edgeId = `edg-${String(e.index + 1).padStart(5, '0')}`;
+      const hay = [edgeId, e.source, e.target, e.sourceLabel, e.targetLabel, e.rationale, e.type, e.notes || ''].join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -114,7 +120,7 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
 // ── Main component ───────────────────────────────────────
 
 export function EdgeBrowser() {
-  const { edgesFile, loadEdges, edgesLoading, getLabelForId } = useTaxonomyStore();
+  const { edgesFile, loadEdges, edgesLoading, getLabelForId, getDescriptionForId } = useTaxonomyStore();
   const [filters, setFilters] = useState<FilterState>({ ...DEFAULT_FILTERS });
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [splitPct, setSplitPct] = useState(45);
@@ -148,25 +154,60 @@ export function EdgeBrowser() {
 
   const resetFilters = useCallback(() => setFilters({ ...DEFAULT_FILTERS }), []);
 
+  const reloadEdges = useCallback(async () => {
+    try {
+      const raw = await api.loadEdges();
+      useTaxonomyStore.setState({ edgesFile: raw as EdgesFile | null });
+    } catch (err) {
+      console.error('Edge reload failed:', err);
+    }
+  }, []);
+
   const handleBulkUpdate = useCallback(async (status: EdgeStatus) => {
     const indices = filteredEdges.map((e) => e.index);
     if (indices.length === 0) return;
     try {
       await api.bulkUpdateEdges(indices, status);
-      loadEdges(); // Reload to pick up changes
+      await reloadEdges();
     } catch (err) {
       console.error('Bulk update failed:', err);
     }
-  }, [filteredEdges, loadEdges]);
+  }, [filteredEdges, reloadEdges]);
 
-  const handleStatusUpdate = useCallback(async (index: number, status: EdgeStatus) => {
+  const handleStatusUpdate = useCallback(async (index: number, status: EdgeStatus, autoAdvance = false) => {
     try {
       await api.updateEdgeStatus(index, status);
-      loadEdges();
+      await reloadEdges();
+      if (autoAdvance) {
+        const updated = useTaxonomyStore.getState().edgesFile;
+        if (updated) {
+          const updatedIndexed = updated.edges.map((e: Edge, i: number) => ({
+            ...e, index: i,
+            sourcePov: povForId(e.source), targetPov: povForId(e.target),
+            sourceLabel: '', targetLabel: '',
+          })) as IndexedEdge[];
+          const updatedFiltered = applyFilters(updatedIndexed, filters);
+          const curPos = updatedFiltered.findIndex(e => e.index === index);
+          if (curPos < updatedFiltered.length - 1) {
+            setSelectedIdx(updatedFiltered[curPos + 1].index);
+          } else if (updatedFiltered.length > 0) {
+            setSelectedIdx(updatedFiltered[Math.max(0, updatedFiltered.length - 1)].index);
+          }
+        }
+      }
     } catch (err) {
       console.error('Status update failed:', err);
     }
-  }, [loadEdges]);
+  }, [reloadEdges, filters]);
+
+  const handleSwapDirection = useCallback(async (index: number) => {
+    try {
+      await api.swapEdgeDirection(index);
+      await reloadEdges();
+    } catch (err) {
+      console.error('Swap direction failed:', err);
+    }
+  }, [reloadEdges]);
 
   // Stats
   const typeCounts = useMemo(() => {
@@ -206,6 +247,16 @@ export function EdgeBrowser() {
     if (currentFilteredIdx < filteredEdges.length - 1) setSelectedIdx(filteredEdges[currentFilteredIdx + 1].index);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); goNext(); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
   if (edgesLoading) return <div className="eb-loading">Loading edges...</div>;
   if (!edgesFile) return <div className="eb-loading">No edges data found</div>;
 
@@ -225,6 +276,12 @@ export function EdgeBrowser() {
           </select>
           <select className="eb-select" value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
             {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <select className="eb-select" value={filters.directionFlag} onChange={(e) => setFilter('directionFlag', e.target.value)}>
+            <option value="">All Directions</option>
+            <option value="suspect">⚠ Suspect</option>
+            <option value="ok">✓ OK</option>
+            <option value="unchecked">Unchecked</option>
           </select>
           <label className="eb-checkbox">
             <input type="checkbox" checked={filters.crossPovOnly} onChange={(e) => setFilter('crossPovOnly', e.target.checked)} />
@@ -298,13 +355,10 @@ export function EdgeBrowser() {
         <div className="eb-detail">
           {selectedEdge ? (
             <>
-              <div className="eb-detail-nav">
-                <button className="btn btn-sm" disabled={currentFilteredIdx <= 0} onClick={goPrev}>&larr; Prev</button>
-                <span className="eb-detail-pos">{currentFilteredIdx + 1} / {filteredEdges.length}</span>
-                <button className="btn btn-sm" disabled={currentFilteredIdx >= filteredEdges.length - 1} onClick={goNext}>Next &rarr;</button>
+              <div className="eb-detail-header">
+                <div className="eb-detail-type">{selectedEdge.type.replace('_', ' ')}{selectedEdge.bidirectional ? ' ↔' : ''}</div>
+                <div className="eb-detail-edge-id">edg-{String(selectedEdge.index + 1).padStart(5, '0')}</div>
               </div>
-
-              <div className="eb-detail-type">{selectedEdge.type.replace('_', ' ')}{selectedEdge.bidirectional ? ' ↔' : ''}</div>
 
               <div className="eb-detail-endpoints">
                 <div className="eb-detail-ep">
@@ -320,6 +374,17 @@ export function EdgeBrowser() {
                 </div>
               </div>
 
+              <div className="eb-detail-descriptions">
+                <div className="eb-detail-desc">
+                  <div className="eb-detail-desc-label">Source Description</div>
+                  <div className="eb-detail-desc-text">{getDescriptionForId(selectedEdge.source) || '—'}</div>
+                </div>
+                <div className="eb-detail-desc">
+                  <div className="eb-detail-desc-label">Target Description</div>
+                  <div className="eb-detail-desc-text">{getDescriptionForId(selectedEdge.target) || '—'}</div>
+                </div>
+              </div>
+
               <div className="eb-detail-section">
                 <div className="eb-detail-section-label">Rationale</div>
                 <div className="eb-detail-rationale">{selectedEdge.rationale}</div>
@@ -328,6 +393,7 @@ export function EdgeBrowser() {
               <div className="eb-detail-meta">
                 <span>Confidence: {Math.round(selectedEdge.confidence * 100)}%</span>
                 {selectedEdge.strength && <span>Strength: {selectedEdge.strength}</span>}
+                {selectedEdge.direction_flag === 'suspect' && <span className="eb-direction-suspect">⚠ Direction suspect</span>}
               </div>
 
               {selectedEdge.notes && (
@@ -338,9 +404,23 @@ export function EdgeBrowser() {
               )}
 
               <div className="eb-detail-actions">
-                <button className={`btn btn-sm${selectedEdge.status === 'approved' ? ' btn-primary' : ''}`} onClick={() => handleStatusUpdate(selectedEdge.index, 'approved')}>Approve</button>
-                <button className={`btn btn-sm${selectedEdge.status === 'rejected' ? ' btn-danger' : ''}`} onClick={() => handleStatusUpdate(selectedEdge.index, 'rejected')}>Reject</button>
-                <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'proposed')}>Reset</button>
+                <div className="eb-detail-actions-left">
+                  {selectedEdge.status === 'approved'
+                    ? <span className="eb-status-label eb-status-approved">&#10003; Approved</span>
+                    : <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'approved', true)}>Approve</button>
+                  }
+                  {selectedEdge.status === 'rejected'
+                    ? <span className="eb-status-label eb-status-rejected">&#10007; Rejected</span>
+                    : <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'rejected', true)}>Reject</button>
+                  }
+                  <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'proposed')}>Reset</button>
+                  <button className="btn btn-sm eb-swap-btn" onClick={() => handleSwapDirection(selectedEdge.index)} title="Swap source and target">&#8646; Swap</button>
+                </div>
+                <div className="eb-detail-nav">
+                  <button className="btn btn-sm" disabled={currentFilteredIdx <= 0} onClick={goPrev}>&larr; Prev</button>
+                  <span className="eb-detail-pos">{currentFilteredIdx + 1} / {filteredEdges.length}</span>
+                  <button className="btn btn-sm" disabled={currentFilteredIdx >= filteredEdges.length - 1} onClick={goNext}>Next &rarr;</button>
+                </div>
               </div>
             </>
           ) : (

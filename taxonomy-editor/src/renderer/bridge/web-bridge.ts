@@ -150,6 +150,7 @@ export const api: AppAPI = {
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadEdges: () => get('/api/edges'),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
+  swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
   bulkUpdateEdges: (indices, status) => put('/api/edges/bulk-status', { indices, status }),
   buildNodeSourceIndex: () => get('/api/node-source-index'),
   buildPolicySourceIndex: () => get('/api/policy-source-index'),

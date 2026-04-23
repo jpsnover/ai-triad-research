@@ -69,6 +69,7 @@
         'Invoke-PolicyRefinement'
         'Repair-UnmappedConcepts'
         'Invoke-AITDebate'
+        'Convert-DebateToAudio'
         'Convert-MD2PDF'
         'Show-Markdown'
         'Show-DebateDiagnostics'
@@ -80,6 +81,7 @@
         'Invoke-QbafConflictAnalysis'
         'Test-ExtractionQuality'
         'Show-WorkflowRunner'
+        'Test-EdgeDirection'
     )
 
     # Aliases exported from this module

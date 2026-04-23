@@ -31,6 +31,7 @@ export * from './concessionTracker';
 export * from './coverageTracker';
 export * from './debateExport';
 export * from './turnPipeline';
+export * from './convergenceSignals';
 
 // ── Situations Migration Normalizers ──────────────────────
 

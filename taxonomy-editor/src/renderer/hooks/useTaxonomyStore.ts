@@ -355,6 +355,7 @@ interface TaxonomyState {
   getAllNodeIds: () => string[];
   getAllConflictIds: () => string[];
   getLabelForId: (id: string) => string;
+  getDescriptionForId: (id: string) => string;
   lookupPinnedData: (id: string) => PinnedData | null;
 
   aiBackend: AIBackend;
@@ -1793,6 +1794,26 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       if (file) {
         const node = file.nodes.find(n => n.id === id);
         if (node) return node.label;
+      }
+    }
+    return '';
+  },
+
+  getDescriptionForId: (id: string) => {
+    const state = get();
+    if (id.startsWith('pol-')) {
+      const pol = state.policyRegistry?.find(p => p.id === id);
+      return pol?.description || '';
+    }
+    if (nodeTypeFromId(id) === 'situation') {
+      const node = state.situations?.nodes.find(n => n.id === id);
+      return node?.description || '';
+    }
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const file = state[pov];
+      if (file) {
+        const node = file.nodes.find(n => n.id === id);
+        if (node) return node.description;
       }
     }
     return '';

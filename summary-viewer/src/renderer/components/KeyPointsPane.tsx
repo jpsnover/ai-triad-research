@@ -3,7 +3,9 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import type { KeyPoint, PipelineSummary, GraphAttributes } from '../types/types';
+import type { KeyPoint, PipelineSummary, GraphAttributes, TaxonomyNode } from '../types/types';
+import { rankBySimilarity } from '../utils/similarity';
+import type { SemanticResult } from '../utils/similarity';
 
 const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: string }> = {
   accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
@@ -206,15 +208,109 @@ function EnrichmentProgress({ nodeId }: { nodeId: string }) {
   );
 }
 
+function SimilarItemRow({ item, uc }: { item: SemanticResult & { node: TaxonomyNode }; uc: AggregatedUnmapped }) {
+  const aiModel = useStore(s => s.aiModel);
+  const [comparison, setComparison] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
+
+  const runCompare = useCallback(async () => {
+    if (comparison) { setComparison(null); return; }
+    setComparing(true);
+    try {
+      const systemPrompt = 'You are an AI taxonomy analyst helping decide whether an unmapped concept should be added to an existing taxonomy. Write a detailed comparison in plain prose — no JSON, no markdown formatting, no single-word answers. Always explain your reasoning.';
+      const userPrompt = `I have an unmapped concept from a document analysis and a similar existing taxonomy node. Compare them in detail and help me decide whether the unmapped concept should be added as a new node or if the existing node already covers it.
+
+UNMAPPED CONCEPT:
+- Label: "${uc.suggested_label || uc.concept}"
+- Description: ${uc.suggested_description || uc.concept}
+- POV: ${uc.suggested_pov}, Category: ${uc.suggested_category}
+
+EXISTING TAXONOMY NODE (${item.id}):
+- Label: "${item.node.label}"
+- Description: ${item.node.description}
+- Category: ${item.node.category}
+
+Write 3-5 sentences covering:
+1. What specific aspect does each concept focus on?
+2. What does the unmapped concept capture that the existing node does not (or vice versa)?
+3. Your recommendation: should the unmapped concept be added as a new node, merged into the existing one, or skipped?`;
+      let raw = await window.electronAPI.generateContent(systemPrompt, userPrompt, aiModel);
+      // Strip JSON wrapper if the model returned one anyway
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          raw = parsed.comparison || parsed.response || parsed.text || parsed.answer || Object.values(parsed)[0] as string || raw;
+        } catch { /* use raw */ }
+      }
+      setComparison(raw);
+    } catch (err) {
+      setComparison(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setComparing(false);
+  }, [item, uc, aiModel, comparison]);
+
+  return (
+    <div className="unmapped-similar-item">
+      <div className="unmapped-similar-header">
+        <span className="unmapped-similar-score">{Math.round(item.score * 100)}%</span>
+        <span className="unmapped-similar-id">{item.id}</span>
+        <span className="unmapped-similar-label">{item.node.label}</span>
+        <button
+          className="unmapped-compare-btn"
+          onClick={runCompare}
+          disabled={comparing}
+        >
+          {comparing ? 'Comparing...' : comparison ? 'Hide' : 'Compare'}
+        </button>
+      </div>
+      <div className="unmapped-similar-desc">{item.node.description.split(/\s*Encompasses:|Excludes:/)[0].trim()}</div>
+      {comparison && (
+        <div className="unmapped-compare-result">{comparison}</div>
+      )}
+    </div>
+  );
+}
+
 function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: number; onSelect: () => void }) {
   const addToTaxonomy = useStore(s => s.addToTaxonomy);
   const runSimilarSearch = useStore(s => s.runSimilarSearch);
   const runPotentialEdges = useStore(s => s.runPotentialEdges);
+  const taxonomy = useStore(s => s.taxonomy);
+  const embeddingCache = useStore(s => s.embeddingCache);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [result, setResult] = useState<{ success: boolean; nodeId?: string; error?: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const [similarExpanded, setSimilarExpanded] = useState(false);
+  const [similarItems, setSimilarItems] = useState<(SemanticResult & { node: TaxonomyNode })[] | null>(null);
+  const [similarLoading, setSimilarLoading] = useState(false);
+
+  const loadSimilar = useCallback(async () => {
+    if (similarItems) { setSimilarExpanded(v => !v); return; }
+    setSimilarExpanded(true);
+    setSimilarLoading(true);
+    try {
+      let cache = embeddingCache;
+      if (cache.size === 0) {
+        const loaded = await window.electronAPI.loadEmbeddings();
+        if (loaded && Object.keys(loaded).length > 0) {
+          cache = new Map<string, number[]>(Object.entries(loaded));
+          useStore.setState({ embeddingCache: cache });
+        }
+      }
+      if (cache.size === 0) { setSimilarItems([]); setSimilarLoading(false); return; }
+      const queryText = `${uc.suggested_label || uc.concept}: ${uc.suggested_description || uc.concept}`;
+      const queryVector = await window.electronAPI.computeQueryEmbedding(queryText);
+      const results = rankBySimilarity(queryVector, cache, 0.3, 3);
+      const withNodes = results
+        .map(r => ({ ...r, node: taxonomy[r.id] }))
+        .filter(r => r.node);
+      setSimilarItems(withNodes);
+    } catch { setSimilarItems([]); }
+    setSimilarLoading(false);
+  }, [uc, taxonomy, embeddingCache, similarItems]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -353,6 +449,21 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
         <span className="unmapped-category">{uc.suggested_category}</span>
       </div>
       <div className="unmapped-reason">{uc.reason}</div>
+      <button
+        className="unmapped-similar-toggle"
+        onClick={(e) => { e.stopPropagation(); loadSimilar(); }}
+      >
+        {similarLoading ? 'Loading...' : similarExpanded ? '▼ Similar POV Items' : '▶ Similar POV Items'}
+      </button>
+      {similarExpanded && similarItems && (
+        <div className="unmapped-similar-list" onClick={(e) => e.stopPropagation()}>
+          {similarItems.length === 0 ? (
+            <div className="unmapped-similar-empty">No similar items found</div>
+          ) : similarItems.map(item => (
+            <SimilarItemRow key={item.id} item={item} uc={uc} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

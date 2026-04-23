@@ -941,6 +941,7 @@ function ClarificationActions() {
   const {
     activeDebate, debateGenerating, debateError,
     runClarification, submitAnswersAndSynthesize, beginDebate,
+    initialCrossRespondRounds, setInitialCrossRespondRounds,
   } = useDebateStore();
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
@@ -1009,6 +1010,21 @@ function ClarificationActions() {
         <div className="debate-clarification-choice">
           <div className="debate-action-hint">
             Would you like to refine the topic with clarifying questions, or jump straight into the debate?
+          </div>
+          <div className="debate-initial-rounds">
+            <label className="debate-initial-rounds-label">
+              Cross-respond rounds after openings:
+              <select
+                className="debate-turns-select"
+                value={initialCrossRespondRounds}
+                onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+                title="Number of cross-respond rounds to run automatically after opening statements"
+              >
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="debate-clarification-buttons">
             <button
@@ -1131,7 +1147,7 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder, initialCrossRespondRounds, setInitialCrossRespondRounds } = useDebateStore();
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -1193,6 +1209,21 @@ function OpeningActions() {
             </ol>
           </div>
         )}
+        <div className="debate-initial-rounds">
+          <label className="debate-initial-rounds-label">
+            Cross-respond rounds after openings:
+            <select
+              className="debate-turns-select"
+              value={initialCrossRespondRounds}
+              onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+              title="Number of cross-respond rounds to run automatically after opening statements"
+            >
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="debate-action-bar-inner">
           <button className="btn btn-primary" onClick={() => runOpeningStatements()}>
             Begin Opening Statements

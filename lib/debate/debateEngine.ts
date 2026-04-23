@@ -508,14 +508,14 @@ export class DebateEngine {
     return formatTaxonomyContext(filteredCtx, pov);
   }
 
-  private formatDebaterEdgeContext(debaterPov: string): string {
-    if (!this.taxonomy.edges?.edges) return '';
+  private formatDebaterEdgeContext(debaterPov: string): { text: string; edges_used: { source: string; target: string; type: string; confidence: number }[] } {
+    if (!this.taxonomy.edges?.edges) return { text: '', edges_used: [] };
 
     const povPrefixes: Record<string, string> = {
       accelerationist: 'acc-', safetyist: 'saf-', skeptic: 'skp-',
     };
     const myPrefix = povPrefixes[debaterPov];
-    if (!myPrefix) return '';
+    if (!myPrefix) return { text: '', edges_used: [] };
 
     const otherPrefixes = Object.entries(povPrefixes)
       .filter(([pov]) => pov !== debaterPov)
@@ -533,7 +533,7 @@ export class DebateEngine {
       return (srcIsMine && tgtIsOther) || (tgtIsMine && srcIsOther);
     });
 
-    if (relevantEdges.length === 0) return '';
+    if (relevantEdges.length === 0) return { text: '', edges_used: [] };
 
     const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, 15);
     const lines = [
@@ -546,11 +546,12 @@ export class DebateEngine {
       lines.push(`${e.source} ${e.type} ${e.target}`);
       if (e.rationale) lines.push(`  ${e.rationale.slice(0, 150)}`);
     }
-    return lines.join('\n');
+    const edges_used = top.map(e => ({ source: e.source, target: e.target, type: e.type, confidence: e.confidence }));
+    return { text: lines.join('\n'), edges_used };
   }
 
-  private formatModeratorEdgeContext(): string {
-    if (!this.taxonomy.edges?.edges) return '';
+  private formatModeratorEdgeContext(): { text: string; edges_used: { source: string; target: string; type: string; confidence: number }[] } {
+    if (!this.taxonomy.edges?.edges) return { text: '', edges_used: [] };
 
     const povPrefixes: Record<string, string> = {
       accelerationist: 'acc-', safetyist: 'saf-', skeptic: 'skp-',
@@ -567,14 +568,15 @@ export class DebateEngine {
       return srcPrefix && tgtPrefix && srcPrefix !== tgtPrefix;
     });
 
-    if (relevantEdges.length === 0) return '';
+    if (relevantEdges.length === 0) return { text: '', edges_used: [] };
 
     const top = relevantEdges.sort((a, b) => b.confidence - a.confidence).slice(0, 15);
     const lines = ['', '=== KNOWN TENSIONS BETWEEN POSITIONS ==='];
     for (const e of top) {
       lines.push(`${e.source} ${e.type} ${e.target} (confidence: ${e.confidence.toFixed(2)})`);
     }
-    return lines.join('\n');
+    const edges_used = top.map(e => ({ source: e.source, target: e.target, type: e.type, confidence: e.confidence }));
+    return { text: lines.join('\n'), edges_used };
   }
 
   // ── Commitment context ─────────────────────────────────────
@@ -746,7 +748,7 @@ export class DebateEngine {
       const taxonomyContext = await this.getRelevantTaxonomyContext(info.pov);
       const commitmentContext = this.getCommitmentContext(poverId);
       const establishedPoints = this.getEstablishedPointsContext(poverId);
-      const edgeContext = this.formatDebaterEdgeContext(info.pov);
+      const { text: edgeContext, edges_used: openingEdgesUsed } = this.formatDebaterEdgeContext(info.pov);
 
       let priorBlock = '';
       if (priorStatements.length > 0) {
@@ -795,6 +797,7 @@ export class DebateEngine {
         response_time_ms: elapsed,
         taxonomy_context: taxonomyContext,
         commitment_context: commitmentContext,
+        edges_used: openingEdgesUsed,
       });
 
       // Extract claims synchronously
@@ -824,7 +827,7 @@ export class DebateEngine {
     const activeLabels = this.config.activePovers.map(p => POVER_INFO[p].label);
 
     // Moderator selects responder
-    const edgeContext = this.formatModeratorEdgeContext();
+    const { text: edgeContext, edges_used: moderatorEdgesUsed } = this.formatModeratorEdgeContext();
     const an = this.session.argument_network;
     const anContext = (an && an.nodes.length > 0)
       ? formatArgumentNetworkContext(
@@ -967,6 +970,7 @@ export class DebateEngine {
       raw_response: selectionText,
       model: this.config.model,
       response_time_ms: selectionElapsed,
+      edges_used: moderatorEdgesUsed,
     });
 
     // Fallback: pick pover who spoke least recently
@@ -992,7 +996,7 @@ export class DebateEngine {
     const taxonomyContext = await this.getRelevantTaxonomyContext(info.pov, priorRefsEarly);
     const commitmentContext = this.getCommitmentContext(responder);
     const establishedPoints = this.getEstablishedPointsContext(responder);
-    const debaterEdgeContext = this.formatDebaterEdgeContext(info.pov);
+    const { text: debaterEdgeContext, edges_used: responderEdgesUsed } = this.formatDebaterEdgeContext(info.pov);
 
     // QBAF-grounded concession hint: surface strong opposing claims this debater
     // hasn't attacked or already conceded. Counterbalances the rotation rule
@@ -1191,6 +1195,7 @@ export class DebateEngine {
       taxonomy_context: taxonomyContext,
       commitment_context: commitmentContext,
       stage_diagnostics: pipelineResult.stage_diagnostics,
+      edges_used: responderEdgesUsed,
     });
 
     // Track move types and disagreement types
@@ -2181,6 +2186,14 @@ Return ONLY JSON (no markdown, no code fences):
         const pct = Math.round(overlap * 100);
         rejected.push({ text: claim.text, reason: 'low_overlap', overlap_pct: pct });
         trace.rejection_reasons['low_overlap'] = (trace.rejection_reasons['low_overlap'] ?? 0) + 1;
+        trace.rejected_overlap_pcts.push(pct);
+        continue;
+      }
+
+      if (overlapVsExisting >= 0.30) {
+        const pct = Math.round(overlapVsExisting * 100);
+        rejected.push({ text: claim.text, reason: 'duplicate_claim', overlap_pct: pct });
+        trace.rejection_reasons['duplicate_claim'] = (trace.rejection_reasons['duplicate_claim'] ?? 0) + 1;
         trace.rejected_overlap_pcts.push(pct);
         continue;
       }

@@ -181,6 +181,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateEdgeStatus: (index: number, status: string): Promise<unknown> =>
     ipcRenderer.invoke('update-edge-status', index, status),
 
+  swapEdgeDirection: (index: number): Promise<unknown> =>
+    ipcRenderer.invoke('swap-edge-direction', index),
+
   bulkUpdateEdges: (indices: number[], status: string): Promise<unknown> =>
     ipcRenderer.invoke('bulk-update-edges', indices, status),
 

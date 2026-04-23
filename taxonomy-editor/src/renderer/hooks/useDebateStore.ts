@@ -57,6 +57,7 @@ import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
+import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
@@ -596,6 +597,24 @@ async function extractClaimsAndUpdateAN(
         extractionTrace.max_overlap_vs_existing = overlapVsAN;
       }
 
+      // Reject claims that are too similar to existing AN nodes (>=30% word overlap)
+      if (overlapVsAN >= 0.30) {
+        const pct = Math.round(overlapVsAN * 100);
+        console.warn(`[AN] Rejected claim — duplicate (${pct}% overlap vs existing): ${claim.text.slice(0, 60)}`);
+        diagRejected.push({ text: claim.text, reason: `Duplicate claim (${pct}% overlap with existing AN)`, overlap_pct: pct });
+        extractionTrace.rejection_reasons.duplicate_claim = (extractionTrace.rejection_reasons.duplicate_claim ?? 0) + 1;
+        extractionTrace.rejected_overlap_pcts.push(pct);
+        trace(TraceEventName.AN_EXTRACT_REJECTED_CLAIM, {
+          debate_id: debate.id,
+          turn_id: entryId,
+          speaker,
+          reason: 'duplicate_claim',
+          overlap_pct: pct,
+          claim_preview: claim.text.slice(0, 80),
+        });
+        continue;
+      }
+
       // V1.4: Verify claim is grounded in statement (>40% word overlap)
       const claimWords = new Set(claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3));
       const stmtWords = new Set(statement.toLowerCase().split(/\s+/).filter(w => w.length > 3));
@@ -750,6 +769,25 @@ async function extractClaimsAndUpdateAN(
         postLedgerDebate.transcript.length,
       );
       set({ activeDebate: { ...postLedgerDebate, unanswered_claims_ledger: ledger } });
+    }
+
+    // Convergence signals computation
+    const postConvDebate = get().activeDebate;
+    if (postConvDebate?.argument_network && entryId) {
+      try {
+        const sig = computeConvergenceSignals(
+          entryId,
+          speaker,
+          postConvDebate.transcript,
+          postConvDebate.argument_network.nodes,
+          postConvDebate.argument_network.edges,
+          postConvDebate.convergence_signals ?? [],
+        );
+        const updatedSignals = [...(postConvDebate.convergence_signals ?? []), sig];
+        set({ activeDebate: { ...postConvDebate, convergence_signals: updatedSignals } });
+      } catch (convErr) {
+        console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
+      }
     }
 
     // Steelman validation (non-blocking)
@@ -1419,6 +1457,8 @@ interface DebateStore {
   // Phase 3: Opening Statements
   openingOrder: Exclude<PoverId, 'user'>[];
   setOpeningOrder: (order: Exclude<PoverId, 'user'>[]) => void;
+  initialCrossRespondRounds: number;
+  setInitialCrossRespondRounds: (n: number) => void;
   runOpeningStatements: () => Promise<void>;
   submitUserOpening: (statement: string) => Promise<void>;
 
@@ -1465,6 +1505,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
   openingOrder: [],
   setOpeningOrder: (order) => set({ openingOrder: order }),
+  initialCrossRespondRounds: 3,
+  setInitialCrossRespondRounds: (n) => set({ initialCrossRespondRounds: n }),
   debateError: null,
   debateProgress: null,
   debateActivity: null,
@@ -2167,6 +2209,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     } catch { /* non-critical */ }
 
     await saveDebate();
+
+    // Auto-run initial cross-respond rounds if configured
+    const { initialCrossRespondRounds } = get();
+    if (initialCrossRespondRounds > 0 && !activeDebate.user_is_pover) {
+      for (let i = 0; i < initialCrossRespondRounds; i++) {
+        if (!get().activeDebate) break;
+        await get().crossRespond();
+      }
+    }
   },
 
   submitUserOpening: async (statement: string) => {

@@ -237,6 +237,7 @@ export interface Edge {
   model: string;
   strength?: 'strong' | 'moderate' | 'weak';
   notes?: string;
+  direction_flag?: 'ok' | 'suspect' | null;
 }
 
 export interface EdgeTypeDefinition {

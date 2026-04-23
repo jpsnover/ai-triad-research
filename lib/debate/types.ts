@@ -178,6 +178,47 @@ export interface DebateSession {
   extraction_summary?: ExtractionSummary;
   /** Per-entry turn-validation trail. Keyed by transcript entry id. See docs/debate-turn-validation.md. */
   turn_validations?: Record<string, TurnValidationTrail>;
+  /** Per-turn convergence diagnostic signals — computed after claim extraction. */
+  convergence_signals?: ConvergenceSignals[];
+}
+
+export interface ConvergenceSignals {
+  entry_id: string;
+  round: number;
+  speaker: PoverId;
+  move_disposition: {
+    confrontational: number;
+    collaborative: number;
+    ratio: number;
+  };
+  engagement_depth: {
+    targeted: number;
+    standalone: number;
+    ratio: number;
+  };
+  recycling_rate: {
+    avg_self_overlap: number;
+    max_self_overlap: number;
+  };
+  strongest_opposing: {
+    node_id: string;
+    strength: number;
+    attacker: string;
+  } | null;
+  concession_opportunity: {
+    strong_attacks_faced: number;
+    concession_used: boolean;
+    outcome: 'taken' | 'missed' | 'none';
+  };
+  position_delta: {
+    overlap_with_opening: number;
+    drift: number;
+  };
+  crux_rate: {
+    used_this_turn: boolean;
+    cumulative_count: number;
+    cumulative_follow_through: number;
+  };
 }
 
 // ── Turn validation (see docs/debate-turn-validation.md) ──
@@ -376,6 +417,8 @@ export interface EntryDiagnostics {
   argument_network_context?: string;
   selection_reasoning?: string;
   stage_diagnostics?: StageDiagnostics[];
+  edges_used?: { source: string; target: string; type: string; confidence: number }[];
+  convergence_signals?: ConvergenceSignals;
 }
 
 // ── Turn pipeline types ──────────────────────────────

@@ -51,5 +51,27 @@
         </TableRowEntries>
       </TableControl>
     </View>
+    <View>
+      <Name>AITSource.Default</Name>
+      <ViewSelectedBy>
+        <TypeName>AITSource</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              <ListItem><Label>Title</Label><PropertyName>Title</PropertyName></ListItem>
+              <ListItem><Label>OneLiner</Label><PropertyName>OneLiner</PropertyName></ListItem>
+              <ListItem><Label>Id</Label><PropertyName>Id</PropertyName></ListItem>
+              <ListItem><Label>SummaryUpdated</Label><PropertyName>SummaryUpdated</PropertyName></ListItem>
+              <ListItem><Label>ImportTime</Label><PropertyName>ImportTime</PropertyName></ListItem>
+              <ListItem><Label>TopicTags</Label><ScriptBlock>$_.TopicTags -join ', '</ScriptBlock></ListItem>
+              <ListItem><Label>TotalClaims</Label><PropertyName>TotalClaims</PropertyName></ListItem>
+              <ListItem><Label>TotalFacts</Label><PropertyName>TotalFacts</PropertyName></ListItem>
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
+    </View>
   </ViewDefinitions>
 </Configuration>

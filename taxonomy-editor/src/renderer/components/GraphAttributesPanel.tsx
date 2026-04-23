@@ -13,6 +13,7 @@ interface GraphAttributesPanelProps {
   onBadgeClick?: (field: string, value: string) => void;
   onShowAttributeInfo?: (field: string, value: string) => void;
   onUpdatePolicyActions?: (actions: GraphAttributes['policy_actions']) => void;
+  onUpdateAssumptions?: (assumes: string[]) => void;
   readOnly?: boolean;
   defaultOpen?: boolean;
 }
@@ -121,12 +122,13 @@ function Badge({ field, value, onClick, onContextMenu }: {
   );
 }
 
-export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, readOnly, defaultOpen }: GraphAttributesPanelProps) {
+export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, onUpdateAssumptions, readOnly, defaultOpen }: GraphAttributesPanelProps) {
   const { policyRegistry, edgesFile } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null);
   const [policySearchQuery, setPolicySearchQuery] = useState('');
   const [showPolicyPicker, setShowPolicyPicker] = useState(false);
+  const [editingAssumptions, setEditingAssumptions] = useState(false);
 
   // Filter registry for typeahead
   const filteredPolicies = useMemo(() => {
@@ -215,8 +217,54 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
         <div className="ga-grid-3col">
           {/* Row 1: Assumptions | Epistemic Type + Falsifiability | Rhetorical Strategy */}
           <div className="ga-cell">
-            <div className="ga-label">{LABEL_MAP.assumes}</div>
-            {attrs.assumes && attrs.assumes.length > 0 ? (
+            <div className="ga-label">
+              {LABEL_MAP.assumes}
+              {!readOnly && onUpdateAssumptions && !editingAssumptions && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
+                  onClick={() => setEditingAssumptions(true)}
+                >Edit</button>
+              )}
+              {editingAssumptions && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
+                  onClick={() => setEditingAssumptions(false)}
+                >Done</button>
+              )}
+            </div>
+            {editingAssumptions && onUpdateAssumptions ? (
+              <>
+                <ul className="ga-list">
+                  {(attrs.assumes ?? []).map((a, i) => (
+                    <li key={i} className="nd-editable-list-item">
+                      <textarea
+                        className="nd-assumption-input"
+                        value={a}
+                        rows={2}
+                        onChange={(e) => {
+                          const updated = [...(attrs.assumes ?? [])];
+                          updated[i] = e.target.value;
+                          onUpdateAssumptions(updated);
+                        }}
+                      />
+                      <button
+                        className="nd-remove-btn"
+                        title="Remove assumption"
+                        onClick={() => {
+                          onUpdateAssumptions((attrs.assumes ?? []).filter((_, j) => j !== i));
+                        }}
+                      >&times;</button>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="btn btn-sm nd-add-btn"
+                  onClick={() => onUpdateAssumptions([...(attrs.assumes ?? []), ''])}
+                >+ Add Assumption</button>
+              </>
+            ) : attrs.assumes && attrs.assumes.length > 0 ? (
               <ul className="ga-list">
                 {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
               </ul>
