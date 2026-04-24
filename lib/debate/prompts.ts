@@ -2144,6 +2144,7 @@ Rules:
 - Only propose edits with clear debate evidence. Do not suggest changes based on general knowledge.
 - Descriptions MUST use genus-differentia format with Encompasses: and Excludes: clauses.
 - Labels: Desires use present participle targeting ideal state, Beliefs use noun phrase, Intentions use present participle denoting strategic action.
+- Match the tone, abstraction level, and specificity of the existing taxonomy nodes above. Your proposed labels and descriptions should read as natural additions to the same taxonomy — not more abstract, not more concrete, not more colloquial, not more technical than the surrounding entries.
 - Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
 - Propose 0 edits if nothing warrants change. Quality over quantity.
 - Limit to your 3-5 most important edits.
