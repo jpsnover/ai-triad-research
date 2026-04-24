@@ -71,7 +71,7 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* Label change */}
       <div style={{ fontSize: '0.75rem', marginBottom: 4 }}>
-        {edit.current_label ? (
+        {edit.current_label && edit.current_label !== edit.proposed_label ? (
           <>
             <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}</span>
             {' → '}
@@ -83,19 +83,25 @@ function EditCard({ edit, pover, editIndex }: {
       </div>
 
       {/* Description diff */}
-      {edit.current_description && edit.edit_type !== 'add' && (
-        <details style={{ fontSize: '0.7rem', marginBottom: 4 }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Current description</summary>
-          <div style={{ padding: '4px 8px', marginTop: 2, background: 'rgba(239,68,68,0.05)', borderRadius: 4, whiteSpace: 'pre-wrap' }}>
-            {edit.current_description}
-          </div>
-        </details>
+      {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (
+        <div style={{
+          fontSize: '0.7rem', padding: '4px 8px', marginBottom: 4,
+          background: 'rgba(239,68,68,0.06)', borderRadius: 4,
+          whiteSpace: 'pre-wrap', borderLeft: '3px solid rgba(239,68,68,0.3)',
+        }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ef4444', marginBottom: 2 }}>CURRENT</div>
+          {edit.current_description}
+        </div>
       )}
       <div style={{
         fontSize: '0.7rem', padding: '4px 8px',
-        background: 'rgba(34,197,94,0.05)', borderRadius: 4,
+        background: 'rgba(34,197,94,0.06)', borderRadius: 4,
         whiteSpace: 'pre-wrap', marginBottom: 6,
+        borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined,
       }}>
+        {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e', marginBottom: 2 }}>PROPOSED</div>
+        )}
         {edit.proposed_description}
       </div>
 
