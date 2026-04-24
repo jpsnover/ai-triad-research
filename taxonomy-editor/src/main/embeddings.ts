@@ -772,6 +772,110 @@ export async function generateText(
   }
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
+}
+
+export async function generateChatStream(
+  systemInstruction: string,
+  messages: ChatMessage[],
+  onChunk: (chunk: string) => void,
+  model?: string,
+  temperature?: number,
+): Promise<string> {
+  const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
+  const resolvedModel = model || DEFAULT_MODEL;
+  const backend = resolveBackend(resolvedModel);
+
+  const apiKey = loadApiKey(backend);
+  if (!apiKey) {
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+  }
+
+  if (backend !== 'gemini') {
+    const prompt = systemInstruction + '\n\n' + messages.map(m =>
+      m.role === 'user' ? `[User]: ${m.content}` : `[Assistant]: ${m.content}`
+    ).join('\n\n') + '\n\n[Assistant]:';
+    const text = backend === 'claude'
+      ? await generateViaClaude(prompt, resolvedModel, apiKey, 120_000, temperature)
+      : await generateViaGroq(prompt, resolvedModel, apiKey, 60_000, temperature);
+    onChunk(text);
+    return text;
+  }
+
+  const apiModel = getApiModelId(resolvedModel);
+  const url = `${GEMINI_BASE}/${apiModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const contents = messages.map(m => ({
+    role: m.role,
+    parts: [{ text: m.content }],
+  }));
+
+  const response = await net.fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemInstruction }] },
+      contents,
+      generationConfig: {
+        temperature: temperature ?? 0.3,
+        maxOutputTokens: 16384,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errBody.slice(0, 500)}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body reader available');
+
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const json = line.slice(6).trim();
+      if (!json || json === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(json) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          fullText += text;
+          onChunk(text);
+        }
+      } catch { /* skip malformed chunks */ }
+    }
+  }
+
+  if (buffer.startsWith('data: ')) {
+    const json = buffer.slice(6).trim();
+    if (json && json !== '[DONE]') {
+      try {
+        const parsed = JSON.parse(json) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          fullText += text;
+          onChunk(text);
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  console.log(`[chatStream] Complete, total length: ${fullText.length}`);
+  return fullText;
+}
+
 export interface GroundingSegment {
   startIndex: number;
   endIndex: number;

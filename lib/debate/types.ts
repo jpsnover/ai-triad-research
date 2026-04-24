@@ -72,6 +72,7 @@ export interface TranscriptEntry {
     | 'synthesis'
     | 'probing'
     | 'fact-check'
+    | 'reflection'
     | 'system';
   speaker: PoverId | 'system';
   content: string;

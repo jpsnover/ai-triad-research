@@ -2080,3 +2080,108 @@ Return ONLY JSON (no markdown, no code fences):
 
 For new_node suggestions, omit current_description and use the node_id format of the relevant POV (e.g., "acc-beliefs-NEW", "saf-desires-NEW").`;
 }
+
+export function reflectionPrompt(
+  label: string,
+  pov: string,
+  personality: string,
+  topic: string,
+  taxonomyNodes: { id: string; category: string; label: string; description: string }[],
+  transcript: string,
+  argumentNetwork?: string,
+  commitments?: string,
+  convergenceSignals?: string,
+  audience?: DebateAudience,
+): string {
+  const nodesBlock = taxonomyNodes.map(n =>
+    `[${n.id}] (${n.category}) "${n.label}"\n  ${n.description}`
+  ).join('\n\n');
+
+  const argNetSection = argumentNetwork
+    ? `\n=== ARGUMENT NETWORK (claims, attacks, supports with QBAF strengths) ===\n${argumentNetwork}\n`
+    : '';
+
+  const commitSection = commitments
+    ? `\n=== YOUR COMMITMENT STORE (what you asserted, conceded, or had challenged) ===\n${commitments}\n`
+    : '';
+
+  const convergenceSection = convergenceSignals
+    ? `\n=== CONVERGENCE SIGNALS (how the debate is trending) ===\n${convergenceSignals}\n`
+    : '';
+
+  return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
+Your personality: ${personality}.
+${getReadingLevel(audience)}
+
+You have just finished a structured debate on:
+"${topic}"
+
+=== DEBATE TRANSCRIPT ===
+${transcript}
+${argNetSection}${commitSection}${convergenceSection}
+=== YOUR CURRENT TAXONOMY (Beliefs, Desires, Intentions) ===
+${nodesBlock}
+
+=== REFLECTION TASK ===
+
+Reflect on this debate with intellectual honesty. Consider:
+
+1. **Arguments you could not adequately defend** — Where did opponents expose weaknesses in your taxonomy nodes? Which of your claims had the lowest QBAF strength or were successfully attacked?
+2. **Concessions you made** — Review your commitment store. What did you concede, and does your taxonomy reflect those concessions?
+3. **Positions you argued that lack taxonomy backing** — Did you make strong arguments during the debate that have no corresponding BDI node?
+4. **Convergence patterns** — Where are you converging with opponents? Does your taxonomy capture the nuance that emerged?
+5. **Gaps between your taxonomy and your actual argumentation** — Were there nodes you never referenced because they were too vague, too broad, or simply wrong?
+
+Based on this reflection, propose SPECIFIC EDITS to your own taxonomy nodes.
+
+Edit types:
+- REVISE: update an existing node's label or description to better reflect what the debate revealed
+- ADD: create a new node for a position that emerged during debate but has no existing node
+- QUALIFY: add caveats or nuance to an existing node based on valid counterarguments
+- DEPRECATE: mark a node as weak/unsupported if the debate effectively refuted it
+
+Rules:
+- Only propose edits with clear debate evidence. Do not suggest changes based on general knowledge.
+- Descriptions MUST use genus-differentia format with Encompasses: and Excludes: clauses.
+- Labels: Desires use present participle targeting ideal state, Beliefs use noun phrase, Intentions use present participle denoting strategic action.
+- Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
+- Propose 0 edits if nothing warrants change. Quality over quantity.
+- Limit to your 3-5 most important edits.
+- For each edit, assess your confidence: how strong is the debate evidence supporting this change?
+
+Return ONLY JSON (no markdown, no code fences):
+{
+  "reflection_summary": "2-3 sentences on what this debate revealed about your perspective",
+  "edits": [
+    {
+      "edit_type": "revise",
+      "node_id": "acc-beliefs-003",
+      "category": "Beliefs",
+      "current_label": "Current Label Text",
+      "proposed_label": "Revised Label Text",
+      "current_description": "Copy the current description exactly",
+      "proposed_description": "Complete revised description in genus-differentia format. Encompasses: [...]. Excludes: [...].",
+      "rationale": "During turn S13, Sentinel argued X which I could not adequately counter. This reveals that...",
+      "confidence": "high",
+      "evidence_entries": ["S13", "S15"]
+    },
+    {
+      "edit_type": "add",
+      "node_id": null,
+      "category": "Desires",
+      "current_label": null,
+      "proposed_label": "New Node Label",
+      "current_description": null,
+      "proposed_description": "Complete description. Encompasses: [...]. Excludes: [...].",
+      "rationale": "The debate surfaced a position I argued strongly for in turns S5 and S9 that has no existing node...",
+      "confidence": "medium",
+      "evidence_entries": ["S5", "S9"]
+    }
+  ]
+}
+
+Confidence levels:
+- "high": Multiple debate moments clearly support this change; concessions were made or arguments failed visibly
+- "medium": Debate evidence is suggestive but not conclusive; the change would improve the taxonomy but is debatable
+- "low": A minor refinement based on a single exchange; reasonable people might disagree`;
+}

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import { api } from '@bridge';
@@ -20,6 +20,7 @@ interface ChatMessage {
   content: string;
   timestamp: string;
   navigation?: NavigateCommand;
+  suggestions?: string[];
 }
 
 interface Props {
@@ -151,9 +152,27 @@ Examples:
 - "go to s13 claims" → \`\`\`navigate\n{"entry": "S13", "tab": "claims"}\n\`\`\`
 - "show convergence" → \`\`\`navigate\n{"entry": null, "overviewTab": "convergence"}\n\`\`\`
 
+## Follow-up Suggestions
+
+After EVERY response, suggest 2-3 follow-up questions the user might ask. Format them at the end:
+
+\`\`\`suggestions
+["What are the strongest attacks?", "Show the commitment stores", "Compare S21 and S13"]
+\`\`\`
+
 ## Debate State
 
 ${buildDebateSnapshot(debate, taxonomies)}`;
+}
+
+function buildEntryContext(debate: DebateSession, entryId: string): string {
+  const entry = debate.transcript.find(e => e.id === entryId);
+  if (!entry) return '';
+  const speaker = POVER_INFO[entry.speaker as keyof typeof POVER_INFO]?.label ?? entry.speaker;
+  const meta = entry.metadata as Record<string, unknown> | undefined;
+  const moves = meta?.move_types ? `\nMoves: ${JSON.stringify(meta.move_types)}` : '';
+  const taxRefs = meta?.taxonomy_refs ? `\nTaxonomy refs: ${JSON.stringify(meta.taxonomy_refs)}` : '';
+  return `\n[Currently viewing entry ${entryId} by ${speaker} (${entry.type})${moves}${taxRefs}]\nFull content:\n${entry.content}`;
 }
 
 function buildIncrementalUpdate(debate: DebateSession, lastSeenEntryCount: number): string | null {
@@ -183,6 +202,51 @@ function parseNavigation(text: string): { content: string; navigation?: Navigate
   }
 }
 
+function parseSuggestions(text: string): { content: string; suggestions?: string[] } {
+  const sugMatch = text.match(/```suggestions\s*\n([\s\S]*?)\n```/);
+  if (!sugMatch) return { content: text };
+  try {
+    const suggestions = JSON.parse(sugMatch[1]) as string[];
+    const content = text.replace(/```suggestions\s*\n[\s\S]*?\n```/, '').trim();
+    return { content, suggestions };
+  } catch {
+    return { content: text };
+  }
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3.5);
+}
+
+const COMPACTION_THRESHOLD = 25_000;
+const KEEP_RECENT = 6;
+
+function compactMessages(msgs: ChatMessage[]): ChatMessage[] {
+  const totalTokens = msgs.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  if (totalTokens < COMPACTION_THRESHOLD || msgs.length <= KEEP_RECENT) return msgs;
+
+  const cutoff = msgs.length - KEEP_RECENT;
+  const older = msgs.slice(0, cutoff);
+  const recent = msgs.slice(cutoff);
+
+  const summaryLines: string[] = ['[Conversation summary — older messages compacted to save context]'];
+  for (const m of older) {
+    if (m.role === 'system') continue;
+    const prefix = m.role === 'user' ? 'Q' : 'A';
+    const preview = m.content.length > 150 ? m.content.slice(0, 150) + '...' : m.content;
+    summaryLines.push(`${prefix}: ${preview}`);
+  }
+
+  const summaryMsg: ChatMessage = {
+    id: crypto.randomUUID(),
+    role: 'system',
+    content: summaryLines.join('\n'),
+    timestamp: new Date().toISOString(),
+  };
+
+  return [summaryMsg, ...recent];
+}
+
 const SESSION_MESSAGES_KEY = 'diag-chat-messages';
 const SESSION_HISTORY_KEY = 'diag-chat-prompt-history';
 
@@ -208,6 +272,151 @@ function savePromptHistory(history: string[]) {
   try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(history)); } catch {}
 }
 
+function buildHelpText(): string {
+  return [
+    '**Available commands:**',
+    '- `/help` or `/` or `/?` or `HELP` — Show this help',
+    '- `/suggest` — Suggest questions to ask about the debate',
+    '- `/clear` — Clear chat history',
+    '- `/summary` — Show debate summary',
+    '- `/strengths` — Show top arguments by QBAF strength',
+    '- `/convergence` — Show convergence status',
+    '- `/compare S21 S13` — Compare two entries',
+    '',
+    '**Keyboard shortcuts:**',
+    '- `Ctrl+Shift+D` — Toggle chat panel',
+    '- `Escape` — Minimize (or exit fullscreen)',
+    '- `Ctrl+L` — Clear chat (when input focused)',
+    '- `Tab` — Auto-complete commands',
+    '- `Up/Down` — Prompt history',
+  ].join('\n');
+}
+
+function buildSuggestText(debate: DebateSession, selectedEntry: string | null): string {
+  const suggestions: string[] = ['**Suggested questions you can ask:**', ''];
+  if (selectedEntry) {
+    const entry = debate.transcript.find(e => e.id === selectedEntry);
+    if (entry) {
+      const speaker = POVER_INFO[entry.speaker as keyof typeof POVER_INFO]?.label ?? entry.speaker;
+      suggestions.push(`- "What claims does ${speaker} make in ${selectedEntry}?"`)
+      suggestions.push(`- "Show the brief for ${selectedEntry}"`);
+      suggestions.push(`- "What attacks involve ${selectedEntry}?"`);
+      const idx = debate.transcript.indexOf(entry);
+      if (idx > 0) {
+        suggestions.push(`- "Compare ${selectedEntry} with ${debate.transcript[idx - 1].id}"`);
+      }
+    }
+  }
+  suggestions.push('- "Which debater has the strongest arguments?"');
+  suggestions.push('- "Are the debaters converging?"');
+  suggestions.push('- "Who conceded the most?"');
+  suggestions.push('- "Show the argument network"');
+  suggestions.push('- "What are the main points of disagreement?"');
+  suggestions.push('- "Summarize each debater\'s position"');
+
+  if (debate.convergence_signals?.length) {
+    suggestions.push('- "How close are the debaters to consensus?"');
+  }
+  if (debate.commitments && Object.values(debate.commitments).some(c => c.conceded.length > 0)) {
+    suggestions.push('- "What has been conceded so far?"');
+  }
+
+  return suggestions.join('\n');
+}
+
+const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: DebateSession, selectedEntry?: string | null) => string }> = {
+  '/help': {
+    description: 'Show available commands',
+    handler: () => buildHelpText(),
+  },
+  '/suggest': {
+    description: 'Suggest questions to ask',
+    handler: (debate, selectedEntry) => buildSuggestText(debate, selectedEntry ?? null),
+  },
+  '/summary': {
+    description: 'Debate summary',
+    handler: (debate) => {
+      const povers = (debate.active_povers ?? []).map(p => POVER_INFO[p as keyof typeof POVER_INFO]?.label ?? p);
+      const net = debate.argument_network;
+      const attacks = net?.edges.filter(e => e.type === 'attacks').length ?? 0;
+      const supports = net?.edges.filter(e => e.type === 'supports').length ?? 0;
+      return [
+        `**Debate Summary: ${typeof debate.topic === 'string' ? debate.topic : debate.topic.final}**`,
+        `- Phase: ${debate.phase}`,
+        `- Debaters: ${povers.join(', ')}`,
+        `- Transcript: ${debate.transcript.length} entries`,
+        `- Argument network: ${net?.nodes.length ?? 0} nodes (${attacks} attacks, ${supports} supports)`,
+        debate.commitments ? `- Commitments: ${Object.entries(debate.commitments).map(([s, c]) => `${POVER_INFO[s as keyof typeof POVER_INFO]?.label ?? s}: ${c.asserted.length} asserted, ${c.conceded.length} conceded`).join('; ')}` : '',
+      ].filter(Boolean).join('\n');
+    },
+  },
+  '/strengths': {
+    description: 'Top arguments by strength',
+    handler: (debate) => {
+      const nodes = debate.argument_network?.nodes ?? [];
+      if (nodes.length === 0) return 'No argument nodes yet.';
+      const sorted = [...nodes]
+        .filter(n => n.computed_strength != null)
+        .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0));
+      const top = sorted.slice(0, 8);
+      return ['**Top arguments by QBAF strength:**', ...top.map((n, i) => {
+        const speaker = POVER_INFO[n.speaker as keyof typeof POVER_INFO]?.label ?? n.speaker;
+        return `${i + 1}. **${n.id}** (${speaker}, str=${n.computed_strength?.toFixed(2)}): ${n.text.slice(0, 100)}`;
+      })].join('\n');
+    },
+  },
+  '/convergence': {
+    description: 'Convergence status',
+    handler: (debate) => {
+      const signals = debate.convergence_signals;
+      if (!signals || signals.length === 0) return 'No convergence signals recorded yet.';
+      const bySpeaker = new Map<string, typeof signals[0]>();
+      for (const s of signals) bySpeaker.set(s.speaker, s);
+      const lines = ['**Convergence Status:**'];
+      for (const [speaker, sig] of bySpeaker) {
+        const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
+        lines.push(`\n**${label}:**`);
+        lines.push(`- Collaborative moves: ${(sig.move_disposition.ratio * 100).toFixed(0)}%`);
+        lines.push(`- Engagement depth: ${(sig.engagement_depth.ratio * 100).toFixed(0)}%`);
+        lines.push(`- Recycling rate: ${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%`);
+        lines.push(`- Concession: ${sig.concession_opportunity.outcome}`);
+        lines.push(`- Position drift: ${(sig.position_delta.drift * 100).toFixed(0)}%`);
+      }
+      return lines.join('\n');
+    },
+  },
+};
+
+function handleCompareCommand(debate: DebateSession, args: string): string | null {
+  const match = args.match(/\/compare\s+(\S+)\s+(\S+)/i);
+  if (!match) return null;
+  const [, id1, id2] = match;
+  const e1 = debate.transcript.find(e => e.id.toLowerCase() === id1.toLowerCase());
+  const e2 = debate.transcript.find(e => e.id.toLowerCase() === id2.toLowerCase());
+  if (!e1 || !e2) return `Entry not found. Available: ${debate.transcript.map(e => e.id).join(', ')}`;
+  const s1 = POVER_INFO[e1.speaker as keyof typeof POVER_INFO]?.label ?? e1.speaker;
+  const s2 = POVER_INFO[e2.speaker as keyof typeof POVER_INFO]?.label ?? e2.speaker;
+  const net = debate.argument_network;
+  const e1Attacks = net?.edges.filter(e => e.source === e1.id && e.type === 'attacks') ?? [];
+  const e2Attacks = net?.edges.filter(e => e.source === e2.id && e.type === 'attacks') ?? [];
+  const e1Supports = net?.edges.filter(e => e.source === e1.id && e.type === 'supports') ?? [];
+  const e2Supports = net?.edges.filter(e => e.source === e2.id && e.type === 'supports') ?? [];
+  return [
+    `**Comparing ${e1.id} vs ${e2.id}:**`,
+    '',
+    `| | ${e1.id} | ${e2.id} |`,
+    `|---|---|---|`,
+    `| Speaker | ${s1} | ${s2} |`,
+    `| Type | ${e1.type} | ${e2.type} |`,
+    `| Length | ${e1.content.length} chars | ${e2.content.length} chars |`,
+    `| Attacks made | ${e1Attacks.length} | ${e2Attacks.length} |`,
+    `| Supports made | ${e1Supports.length} | ${e2Supports.length} |`,
+    '',
+    `**${e1.id}** preview: ${e1.content.slice(0, 120)}...`,
+    `**${e2.id}** preview: ${e2.content.slice(0, 120)}...`,
+  ].join('\n');
+}
+
 export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -215,6 +424,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   const [messages, setMessages] = useState<ChatMessage[]>(loadSessionMessages);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [activity, setActivity] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -222,6 +432,15 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   const resizing = useRef(false);
   const savedWidth = useRef(360);
   const [taxonomies, setTaxonomies] = useState<Map<string, TaxNode[]>>(new Map());
+  const promptHistory = useRef<string[]>(loadPromptHistory());
+  const historyIdx = useRef(-1);
+
+  const contextTokens = useMemo(() => {
+    if (!debate) return 0;
+    const systemPrompt = buildSystemPrompt(debate, taxonomies.size > 0 ? taxonomies : undefined);
+    const msgTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+    return estimateTokens(systemPrompt) + msgTokens;
+  }, [debate, taxonomies, messages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -281,7 +500,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     if (expanded && inputRef.current) inputRef.current.focus();
   }, [expanded]);
 
-  // Inject incremental updates when debate progresses
   useEffect(() => {
     if (!debate || messages.length === 0) return;
     const update = buildIncrementalUpdate(debate, lastSeenEntryCount.current);
@@ -296,9 +514,90 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     }
   }, [debate?.transcript.length]);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl+Shift+D — toggle chat
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setExpanded(prev => !prev);
+        return;
+      }
+      if (!expanded) return;
+      // Escape — minimize chat
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (fullscreen) {
+          setFullscreen(false);
+          setWidth(savedWidth.current);
+        } else {
+          setExpanded(false);
+        }
+        return;
+      }
+      // Ctrl+L — clear chat
+      if (e.ctrlKey && e.key === 'l') {
+        const active = document.activeElement;
+        const isInChat = inputRef.current === active || inputRef.current?.closest('.diag-chat-sidebar')?.contains(active as Node);
+        if (isInChat || active === inputRef.current) {
+          e.preventDefault();
+          setMessages([]);
+          lastSeenEntryCount.current = 0;
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [expanded, fullscreen]);
+
+  // Auto-scroll during streaming
+  useEffect(() => {
+    if (streamingText) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [streamingText]);
+
+  const handleSlashCommand = useCallback((text: string): boolean => {
+    const cmd = text.trim().toLowerCase();
+    if (cmd === '/clear' || cmd === 'clear history') {
+      setMessages([]);
+      lastSeenEntryCount.current = 0;
+      return true;
+    }
+    if (cmd.startsWith('/compare') && debate) {
+      const result = handleCompareCommand(debate, text.trim());
+      if (result) {
+        setMessages(prev => [...prev,
+          { id: crypto.randomUUID(), role: 'user', content: text.trim(), timestamp: new Date().toISOString() },
+          { id: crypto.randomUUID(), role: 'assistant', content: result, timestamp: new Date().toISOString() },
+        ]);
+        return true;
+      }
+    }
+    // "/" or "/?" or "HELP" all trigger help
+    if (cmd === '/' || cmd === '/?' || cmd === 'help') {
+      const result = buildHelpText();
+      setMessages(prev => [...prev,
+        { id: crypto.randomUUID(), role: 'user', content: text.trim(), timestamp: new Date().toISOString() },
+        { id: crypto.randomUUID(), role: 'assistant', content: result, timestamp: new Date().toISOString() },
+      ]);
+      return true;
+    }
+    const handler = SLASH_COMMANDS[cmd];
+    if (handler && debate) {
+      const result = handler.handler(debate, selectedEntry);
+      setMessages(prev => [...prev,
+        { id: crypto.randomUUID(), role: 'user', content: text.trim(), timestamp: new Date().toISOString() },
+        { id: crypto.randomUUID(), role: 'assistant', content: result, timestamp: new Date().toISOString() },
+      ]);
+      return true;
+    }
+    return false;
+  }, [debate, selectedEntry]);
+
   const sendMessage = useCallback(async () => {
     if (!input.trim() || generating) return;
-    if (handleCommand(input)) {
+    if (handleSlashCommand(input)) {
       promptHistory.current.push(input.trim());
       savePromptHistory(promptHistory.current);
       historyIdx.current = -1;
@@ -306,6 +605,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       return;
     }
     if (!debate) return;
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -313,53 +613,100 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       timestamp: new Date().toISOString(),
     };
 
-    const isFirst = messages.length === 0;
     lastSeenEntryCount.current = debate.transcript.length;
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
     setGenerating(true);
-    setActivity('Thinking...');
+    setStreamingText('');
+    setActivity('Connecting...');
 
     try {
-      const systemPrompt = isFirst ? buildSystemPrompt(debate, taxonomies.size > 0 ? taxonomies : undefined) : '';
-      const contextNote = selectedEntry ? `\n[User is currently viewing entry ${selectedEntry}, tab: ${currentTab}]` : '\n[User is viewing the overview]';
+      const systemPrompt = buildSystemPrompt(debate, taxonomies.size > 0 ? taxonomies : undefined);
 
-      // Build conversation as a single prompt
-      const promptParts: string[] = [];
-      if (systemPrompt) promptParts.push(systemPrompt);
-      for (const m of newMessages) {
-        if (m.role === 'system') promptParts.push(`[System]: ${m.content}`);
-        else if (m.role === 'user') promptParts.push(`[User]: ${m.content}`);
-        else promptParts.push(`[Assistant]: ${m.content}`);
+      // Context-aware entry injection
+      const entryContext = selectedEntry ? buildEntryContext(debate, selectedEntry) : '';
+      const contextNote = selectedEntry
+        ? `${entryContext}\n[Current tab: ${currentTab}]`
+        : '[User is viewing the overview]';
+
+      // Compact older messages if context is too large
+      const compacted = compactMessages(newMessages);
+      if (compacted.length < newMessages.length) {
+        setMessages(compacted);
       }
-      promptParts.push(contextNote);
-      promptParts.push('[Assistant]:');
+
+      // Build multi-turn messages for the API
+      const apiMessages: { role: 'user' | 'model'; content: string }[] = [];
+      for (const m of compacted) {
+        if (m.role === 'system') {
+          apiMessages.push({ role: 'user', content: `[System update]: ${m.content}` });
+          apiMessages.push({ role: 'model', content: 'Noted, I\'ll incorporate this updated state.' });
+        } else if (m.role === 'user') {
+          apiMessages.push({ role: 'user', content: m.content });
+        } else {
+          apiMessages.push({ role: 'model', content: m.content });
+        }
+      }
+
+      // Append context to the last user message
+      const lastIdx = apiMessages.length - 1;
+      if (lastIdx >= 0 && apiMessages[lastIdx].role === 'user') {
+        apiMessages[lastIdx] = {
+          ...apiMessages[lastIdx],
+          content: apiMessages[lastIdx].content + '\n' + contextNote,
+        };
+      }
 
       const model = getModel();
-      const unsubscribe = api.onGenerateTextProgress(() => {
+      let accumulated = '';
+
+      const unsubChunk = api.onChatStreamChunk((chunk) => {
+        accumulated += chunk;
+        setStreamingText(accumulated);
         setActivity('Generating...');
       });
 
-      const { text } = await api.generateText(promptParts.join('\n\n'), model, 60000, 0.3);
-      unsubscribe();
+      const streamDone = new Promise<string>((resolve, reject) => {
+        const unsubDone = api.onChatStreamDone((fullText) => {
+          unsubDone();
+          unsubErr();
+          resolve(fullText);
+        });
+        const unsubErr = api.onChatStreamError((error) => {
+          unsubDone();
+          unsubErr();
+          reject(new Error(error));
+        });
+      });
 
-      const { content, navigation } = parseNavigation(text);
+      api.startChatStream(systemPrompt, apiMessages, model, 0.3);
+
+      const fullText = await streamDone;
+      unsubChunk();
+
+      // Parse navigation and suggestions from the complete text
+      const { content: navParsed, navigation } = parseNavigation(fullText);
+      const { content: finalContent, suggestions } = parseSuggestions(navParsed);
+
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content,
+        content: finalContent,
         timestamp: new Date().toISOString(),
         navigation,
+        suggestions,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
+      setStreamingText('');
 
       if (navigation) {
         onNavigate(navigation);
       }
     } catch (err) {
+      setStreamingText('');
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -370,10 +717,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       setGenerating(false);
       setActivity(null);
     }
-  }, [input, debate, generating, messages, selectedEntry, currentTab, onNavigate]);
-
-  const promptHistory = useRef<string[]>(loadPromptHistory());
-  const historyIdx = useRef(-1);
+  }, [input, debate, generating, messages, selectedEntry, currentTab, onNavigate, taxonomies, handleSlashCommand]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -407,28 +751,60 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           setInput(promptHistory.current[newIdx]);
         }
       }
+    } else if (e.key === 'Tab' && input.startsWith('/')) {
+      e.preventDefault();
+      const partial = input.toLowerCase();
+      const allCmds = [...Object.keys(SLASH_COMMANDS), '/clear', '/compare', '/?'];
+      const match = allCmds.find(c => c.startsWith(partial) && c !== partial);
+      if (match) setInput(match === '/compare' ? '/compare ' : match);
     }
   };
 
-  const clearChat = () => {
-    setMessages([]);
-    lastSeenEntryCount.current = 0;
-  };
-
-  const handleCommand = (text: string): boolean => {
-    const cmd = text.trim().toLowerCase();
-    if (cmd === 'clear history' || cmd === '/clear') {
-      clearChat();
-      return true;
+  const localSuggestions = useMemo(() => {
+    if (!debate) return [];
+    const suggestions: string[] = [];
+    if (selectedEntry) {
+      const entry = debate.transcript.find(e => e.id === selectedEntry);
+      if (entry) {
+        const speaker = POVER_INFO[entry.speaker as keyof typeof POVER_INFO]?.label ?? entry.speaker;
+        suggestions.push(`Show brief for ${selectedEntry}`);
+        suggestions.push(`What claims does ${speaker} make in ${selectedEntry}?`);
+        const idx = debate.transcript.indexOf(entry);
+        if (idx > 0) {
+          const prev = debate.transcript[idx - 1];
+          suggestions.push(`Compare ${selectedEntry} with ${prev.id}`);
+        }
+        const attacks = debate.argument_network?.edges.filter(
+          e => e.source === selectedEntry || e.target === selectedEntry
+        ) ?? [];
+        if (attacks.length > 0) {
+          suggestions.push(`What attacks involve ${selectedEntry}?`);
+        }
+      }
+    } else {
+      suggestions.push('Which debater has the strongest arguments?');
+      if (debate.convergence_signals?.length) {
+        suggestions.push('Are the debaters converging?');
+      }
+      if (debate.commitments && Object.values(debate.commitments).some(c => c.conceded.length > 0)) {
+        suggestions.push('Who conceded the most?');
+      }
+      suggestions.push('Show the argument network');
     }
-    return false;
-  };
+    return suggestions.slice(0, 3);
+  }, [debate, selectedEntry]);
+
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    if (generating) return;
+    setInput(suggestion);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [generating]);
 
   if (!expanded) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        title="Open diagnostics chat"
+        title="Open diagnostics chat (Ctrl+Shift+D)"
         style={{
           position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
           width: 44, height: 44, borderRadius: '50%',
@@ -443,8 +819,10 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     );
   }
 
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+
   return (
-    <div style={{
+    <div className="diag-chat-sidebar" style={{
       position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 999,
       width: fullscreen ? '100vw' : width, display: 'flex', flexDirection: 'column',
       background: 'var(--bg-primary, #1a1a2e)',
@@ -472,7 +850,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         </span>
         {messages.length > 0 && (
           <button
-            onClick={clearChat}
+            onClick={() => { setMessages([]); lastSeenEntryCount.current = 0; }}
             title="Clear chat"
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
           >Clear</button>
@@ -481,7 +859,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           onClick={toggleFullscreen}
           title={fullscreen ? 'Restore size' : 'Fullscreen'}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}
-        >{fullscreen ? '⊡' : '⊞'}</button>
+        >{fullscreen ? '⊞' : '⊞'}</button>
         <button
           onClick={() => { setExpanded(false); if (fullscreen) { setFullscreen(false); setWidth(savedWidth.current); } }}
           title="Minimize chat"
@@ -494,7 +872,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         flex: 1, overflowY: 'auto', padding: '8px 12px',
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
-        {messages.length === 0 && (
+        {messages.length === 0 && !generating && (
           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
             Ask questions about the debate diagnostics.
             <br /><br />
@@ -502,6 +880,8 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
               Try: "Show me the brief for S21"
               <br />"Which debater conceded the most?"
               <br />"What's the strongest attack chain?"
+              <br /><br />
+              Type / or HELP for commands | /suggest for question ideas
             </span>
           </div>
         )}
@@ -518,6 +898,8 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
               background: msg.role === 'user' ? 'rgba(245,158,11,0.15)' : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
               color: 'var(--text-primary, #e2e8f0)',
               border: msg.role === 'user' ? '1px solid rgba(245,158,11,0.3)' : '1px solid var(--border)',
+              userSelect: 'text',
+              cursor: 'text',
             }}
           >
             {msg.role === 'assistant' ? (
@@ -539,7 +921,23 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             )}
           </div>
         ))}
-        {generating && (
+        {/* Streaming preview */}
+        {generating && streamingText && (
+          <div style={{
+            alignSelf: 'flex-start', maxWidth: '90%',
+            padding: '6px 10px', borderRadius: 8,
+            fontSize: '0.75rem', lineHeight: 1.4,
+            background: 'var(--bg-tertiary, rgba(255,255,255,0.05))',
+            color: 'var(--text-primary, #e2e8f0)',
+            border: '1px solid var(--border)',
+            userSelect: 'text', cursor: 'text',
+          }}>
+            <div className="diag-chat-markdown">
+              <Markdown remarkPlugins={[remarkGfm]}>{streamingText}</Markdown>
+            </div>
+          </div>
+        )}
+        {generating && !streamingText && (
           <div style={{
             alignSelf: 'flex-start', padding: '6px 10px', borderRadius: 8,
             fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic',
@@ -547,6 +945,35 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             {activity || 'Thinking...'}
           </div>
         )}
+        {/* Follow-up suggestions (AI-generated or local fallback) */}
+        {!generating && (() => {
+          const suggestions = lastAssistantMsg?.suggestions?.length
+            ? lastAssistantMsg.suggestions
+            : localSuggestions;
+          if (!suggestions.length) return null;
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 0' }}>
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  style={{
+                    padding: '3px 8px', borderRadius: 12,
+                    fontSize: '0.65rem', cursor: 'pointer',
+                    background: 'rgba(245,158,11,0.08)',
+                    color: '#f59e0b',
+                    border: '1px solid rgba(245,158,11,0.2)',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.18)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.08)')}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
         <div ref={messagesEndRef} />
       </div>
 
@@ -561,7 +988,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={debate ? 'Ask about the debate...' : 'Waiting for debate data...'}
+            placeholder={debate ? 'Ask about the debate... (/ for commands)' : 'Waiting for debate data...'}
             disabled={!debate || generating}
             rows={2}
             style={{
@@ -587,8 +1014,12 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             }}
           >Send</button>
         </div>
-        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>
-          Enter to send, Shift+Enter for newline
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4,
+        }}>
+          <span>~{contextTokens.toLocaleString()} tokens in context</span>
+          <span>Enter send | Esc close | Ctrl+L clear</span>
         </div>
       </div>
     </div>

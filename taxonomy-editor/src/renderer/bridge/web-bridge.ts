@@ -191,6 +191,10 @@ export const api: AppAPI = {
   },
   generateTextWithSearch: (prompt, model) =>
     post('/api/ai/search', { prompt, model }),
+  startChatStream: () => Promise.reject(new Error('Streaming chat not supported in web mode')),
+  onChatStreamChunk: () => () => {},
+  onChatStreamDone: () => () => {},
+  onChatStreamError: () => () => {},
   setDebateTemperature: (temp) => post('/api/ai/temperature', { temp }).then(() => {}),
 
   // Proxy tier & usage

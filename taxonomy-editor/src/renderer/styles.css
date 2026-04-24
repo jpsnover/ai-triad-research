@@ -7772,6 +7772,22 @@ body {
   gap: 8px;
 }
 
+.debate-action-bar-secondary {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.debate-reflections-btn {
+  color: var(--text-primary);
+  border-color: #8b5cf6 !important;
+}
+
+.debate-reflections-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.1) !important;
+}
+
 .debate-opening-order {
   display: flex;
   align-items: center;

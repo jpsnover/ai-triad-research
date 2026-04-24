@@ -51,6 +51,10 @@ export interface ElectronAPI {
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number) => Promise<void>;
+  onChatStreamChunk: (callback: (chunk: string) => void) => () => void;
+  onChatStreamDone: (callback: (fullText: string) => void) => () => void;
+  onChatStreamError: (callback: (error: string) => void) => () => void;
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;
   onFocusNode: (callback: (nodeId: string) => void) => () => void;

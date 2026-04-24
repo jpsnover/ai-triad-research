@@ -42,6 +42,7 @@ import {
   entrySummarizationPrompt,
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
+  reflectionPrompt,
 } from '../prompts/debate';
 import {
   generateId,
@@ -1404,6 +1405,29 @@ function buildContextCompressionPrompt(
   return contextCompressionPrompt(entries);
 }
 
+// ── Reflection types ─────────────────────────────────────
+
+export interface ReflectionEdit {
+  edit_type: 'revise' | 'add' | 'qualify' | 'deprecate';
+  node_id: string | null;
+  category: 'Beliefs' | 'Desires' | 'Intentions';
+  current_label: string | null;
+  proposed_label: string;
+  current_description: string | null;
+  proposed_description: string;
+  rationale: string;
+  confidence: 'high' | 'medium' | 'low';
+  evidence_entries: string[];
+  status: 'pending' | 'approved' | 'dismissed';
+}
+
+export interface ReflectionResult {
+  pover: string;
+  label: string;
+  reflection_summary: string;
+  edits: ReflectionEdit[];
+}
+
 // ── Store interface ──────────────────────────────────────
 
 interface DebateStore {
@@ -1475,6 +1499,12 @@ interface DebateStore {
   requestSynthesis: () => Promise<void>;
   requestProbingQuestions: () => Promise<void>;
 
+  // Phase 6: Reflections
+  reflections: ReflectionResult[];
+  requestReflections: () => Promise<void>;
+  applyReflectionEdit: (pover: string, editIndex: number) => void;
+  dismissReflectionEdit: (pover: string, editIndex: number) => void;
+
   // Phase 7: Fact Check
   factCheckSelection: (selectedText: string, entryId: string) => Promise<void>;
 
@@ -1515,6 +1545,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateError: null,
   debateProgress: null,
   debateActivity: null,
+  reflections: [],
   inspectedNodeId: null,
   debateModel: null,
   debateTemperature: null,
@@ -3416,6 +3447,206 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     } finally {
       set({ debateGenerating: null });
     }
+  },
+
+  requestReflections: async () => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate) return;
+
+    const isStillValid = createDebateGuard(get);
+    set({ debateError: null, reflections: [] });
+
+    const model = getConfiguredModel();
+    const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
+    const povers = (activeDebate.active_povers ?? []).filter(p => p !== 'user') as Exclude<PoverId, 'user'>[];
+    const results: ReflectionResult[] = [];
+
+    for (const pover of povers) {
+      if (!isStillValid()) return;
+      const info = POVER_INFO[pover];
+      if (!info) continue;
+
+      set({ debateGenerating: pover as PoverId });
+
+      const taxState = useTaxonomyStore.getState();
+      const povKey = info.pov as 'accelerationist' | 'safetyist' | 'skeptic';
+      const povFile = taxState[povKey];
+      const nodes = (povFile?.nodes ?? []).map(n => ({
+        id: n.id,
+        category: n.category,
+        label: n.label,
+        description: n.description,
+      }));
+
+      const an = activeDebate.argument_network;
+      const anBlock = an
+        ? formatArgumentNetworkContext(
+            an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker })),
+            an.edges,
+          )
+        : undefined;
+
+      const speakerClaims = (an?.nodes || []).filter(n => n.speaker === pover);
+      const commitBlock = formatCommitments(
+        activeDebate.commitments?.[pover] || { asserted: [], conceded: [], challenged: [] },
+        speakerClaims,
+      );
+
+      const convSignals = activeDebate.convergence_signals;
+      const convBlock = convSignals && convSignals.length > 0
+        ? convSignals.slice(-5).map(s =>
+            `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<PoverId, 'user'>]?.label || s.speaker}): ` +
+            `move_disposition=${s.move_disposition?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+            `engagement_depth=${s.engagement_depth?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+            `recycling_rate=${s.recycling_rate?.max_self_overlap?.toFixed(2) ?? 'N/A'}`
+          ).join('\n')
+        : undefined;
+
+      const prompt = reflectionPrompt(
+        info.label,
+        info.pov,
+        info.personality,
+        activeDebate.topic.final,
+        nodes,
+        fullTranscript,
+        anBlock || undefined,
+        commitBlock || undefined,
+        convBlock,
+        activeDebate.audience,
+      );
+
+      try {
+        const { text } = await generateTextWithProgress(prompt, model, `${info.label} is reflecting...`, set, 120_000);
+        if (!isStillValid()) return;
+
+        const parsed = parseAIJson<{
+          reflection_summary?: string;
+          edits?: Array<{
+            edit_type: string;
+            node_id: string | null;
+            category: string;
+            current_label: string | null;
+            proposed_label: string;
+            current_description: string | null;
+            proposed_description: string;
+            rationale: string;
+            confidence?: string;
+            evidence_entries?: string[];
+          }>;
+        }>(text);
+
+        const edits: ReflectionEdit[] = (parsed?.edits ?? []).map(e => ({
+          edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
+          node_id: e.node_id,
+          category: (e.category || 'Beliefs') as ReflectionEdit['category'],
+          current_label: e.current_label,
+          proposed_label: e.proposed_label || '',
+          current_description: e.current_description,
+          proposed_description: e.proposed_description || '',
+          rationale: e.rationale || '',
+          confidence: (['high', 'medium', 'low'].includes(e.confidence || '') ? e.confidence : 'medium') as ReflectionEdit['confidence'],
+          evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
+          status: 'pending' as const,
+        }));
+
+        results.push({
+          pover: povKey,
+          label: info.label,
+          reflection_summary: parsed?.reflection_summary || '',
+          edits,
+        });
+
+        set({ reflections: [...results] });
+      } catch (err) {
+        results.push({
+          pover: povKey,
+          label: info.label,
+          reflection_summary: `Error: ${mapErrorToUserMessage(err)}`,
+          edits: [],
+        });
+        set({ reflections: [...results] });
+      }
+    }
+
+    // Add a transcript entry for the reflection
+    const summaryLines = results.map(r =>
+      `**${r.label}:** ${r.reflection_summary} (${r.edits.length} edit${r.edits.length !== 1 ? 's' : ''} proposed)`
+    );
+    const reflEntry: TranscriptEntry = {
+      id: generateId(),
+      speaker: 'system',
+      type: 'reflection',
+      content: `## Reflections\n\n${summaryLines.join('\n\n')}`,
+      timestamp: nowISO(),
+      taxonomy_refs: [],
+      metadata: { reflection_results: results },
+    };
+    set({
+      debateGenerating: null,
+      activeDebate: {
+        ...get().activeDebate!,
+        transcript: [...get().activeDebate!.transcript, reflEntry],
+        updated_at: nowISO(),
+      },
+    });
+    await saveDebate();
+  },
+
+  applyReflectionEdit: (pover: string, editIndex: number) => {
+    const { reflections } = get();
+    const reflection = reflections.find(r => r.pover === pover);
+    if (!reflection || !reflection.edits[editIndex]) return;
+
+    const edit = reflection.edits[editIndex];
+    const taxStore = useTaxonomyStore.getState();
+    const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
+
+    if (edit.edit_type === 'add') {
+      const newId = taxStore.createPovNode(povKey, edit.category);
+      if (newId) {
+        taxStore.updatePovNode(povKey, newId, {
+          label: edit.proposed_label,
+          description: edit.proposed_description,
+        });
+      }
+    } else if (edit.node_id) {
+      if (edit.edit_type === 'deprecate') {
+        const deprecatedDesc = edit.proposed_description || `[DEPRECATED] ${edit.current_description || ''}`;
+        taxStore.updatePovNode(povKey, edit.node_id, {
+          label: edit.proposed_label || edit.current_label || '',
+          description: deprecatedDesc,
+        });
+      } else {
+        taxStore.updatePovNode(povKey, edit.node_id, {
+          label: edit.proposed_label || edit.current_label || '',
+          description: edit.proposed_description,
+        });
+      }
+    }
+
+    taxStore.save();
+
+    // Mark as approved
+    const updated = reflections.map(r => {
+      if (r.pover !== pover) return r;
+      return {
+        ...r,
+        edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'approved' as const } : e),
+      };
+    });
+    set({ reflections: updated });
+  },
+
+  dismissReflectionEdit: (pover: string, editIndex: number) => {
+    const { reflections } = get();
+    const updated = reflections.map(r => {
+      if (r.pover !== pover) return r;
+      return {
+        ...r,
+        edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'dismissed' as const } : e),
+      };
+    });
+    set({ reflections: updated });
   },
 }));
 

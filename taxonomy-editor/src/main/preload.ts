@@ -136,6 +136,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>): Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }> =>
     ipcRenderer.invoke('nli-classify', pairs),
 
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number): Promise<void> =>
+    ipcRenderer.invoke('start-chat-stream', systemInstruction, messages, model, temperature),
+  onChatStreamChunk: (callback: (chunk: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk);
+    ipcRenderer.on('chat-stream-chunk', listener);
+    return () => { ipcRenderer.removeListener('chat-stream-chunk', listener); };
+  },
+  onChatStreamDone: (callback: (fullText: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, fullText: string) => callback(fullText);
+    ipcRenderer.on('chat-stream-done', listener);
+    return () => { ipcRenderer.removeListener('chat-stream-done', listener); };
+  },
+  onChatStreamError: (callback: (error: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error);
+    ipcRenderer.on('chat-stream-error', listener);
+    return () => { ipcRenderer.removeListener('chat-stream-error', listener); };
+  },
+
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => callback(progress);
     ipcRenderer.on('generate-text-progress', listener);

@@ -39,7 +39,8 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT } from './fileIO';
-import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
+import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
+import type { ChatMessage } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import { diagnosePythonEmbeddings } from './diagnosePython';
@@ -213,6 +214,23 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('set-debate-temperature', (_event, temp: number | null) => {
     setDebateTemperature(temp);
+  });
+
+  ipcMain.handle('start-chat-stream', async (event, systemInstruction: string, messages: ChatMessage[], model?: string, temperature?: number) => {
+    try {
+      const fullText = await generateChatStream(
+        systemInstruction,
+        messages,
+        (chunk) => { event.sender.send('chat-stream-chunk', chunk); },
+        model,
+        temperature,
+      );
+      event.sender.send('chat-stream-done', fullText);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[IPC] start-chat-stream failed:', msg);
+      event.sender.send('chat-stream-error', msg);
+    }
   });
 
   ipcMain.handle('generate-text-with-search', async (_event, prompt: string, model?: string) => {

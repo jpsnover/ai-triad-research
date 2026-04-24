@@ -54,6 +54,10 @@ export const api: AppAPI = {
   // AI generation
   generateText: (prompt, model, timeout, temperature) => window.electronAPI.generateText(prompt, model, timeout, temperature),
   generateTextWithSearch: (prompt, model) => window.electronAPI.generateTextWithSearch(prompt, model),
+  startChatStream: (sys, msgs, model, temp) => window.electronAPI.startChatStream(sys, msgs, model, temp),
+  onChatStreamChunk: (cb) => window.electronAPI.onChatStreamChunk(cb),
+  onChatStreamDone: (cb) => window.electronAPI.onChatStreamDone(cb),
+  onChatStreamError: (cb) => window.electronAPI.onChatStreamError(cb),
   setDebateTemperature: (temp) => window.electronAPI.setDebateTemperature(temp),
 
   // Embeddings & NLI

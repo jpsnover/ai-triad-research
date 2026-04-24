@@ -75,6 +75,10 @@ export interface AppAPI {
     searchQueries?: string[];
     citations?: GroundingCitation[];
   }>;
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number) => Promise<void>;
+  onChatStreamChunk: (callback: (chunk: string) => void) => () => void;
+  onChatStreamDone: (callback: (fullText: string) => void) => () => void;
+  onChatStreamError: (callback: (error: string) => void) => () => void;
   setDebateTemperature: (temp: number | null) => Promise<void>;
 
   // --- Proxy tier & usage ---

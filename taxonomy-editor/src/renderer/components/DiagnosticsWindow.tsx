@@ -431,17 +431,64 @@ function Highlight({ text, query: queryProp }: { text: string; query?: string })
     idx = lower.indexOf(q, lastIdx);
   }
   if (lastIdx < text.length) parts.push({ text: text.slice(lastIdx), match: false });
-  return <>{parts.map((p, i) => p.match ? <mark key={i} style={{ background: '#f59e0b', color: '#000', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
+  return <>{parts.map((p, i) => p.match ? <mark key={i} data-search-match="" style={{ background: '#f59e0b', color: '#000', borderRadius: 2, padding: '0 1px' }}>{p.text}</mark> : p.text)}</>;
 }
 
-function SearchBar({ query, setQuery, matchCount }: { query: string; setQuery: (q: string) => void; matchCount: number }) {
+function SearchBar({ query, setQuery, matchCount, inputRef }: { query: string; setQuery: (q: string) => void; matchCount: number; inputRef?: React.RefObject<HTMLInputElement | null> }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [domCount, setDomCount] = useState(0);
+
+  // Reset index when query changes
+  useEffect(() => { setCurrentIdx(0); }, [query]);
+
+  // After React commits, count marks and highlight the current one
+  useEffect(() => {
+    if (!query) { setDomCount(0); return; }
+    const raf = requestAnimationFrame(() => {
+      const marks = document.querySelectorAll('mark[data-search-match]');
+      setDomCount(marks.length);
+      // Reset all to default yellow
+      marks.forEach(m => {
+        (m as HTMLElement).style.background = '#f59e0b';
+        (m as HTMLElement).classList.remove('search-active-match');
+      });
+      // Highlight and scroll to current
+      if (currentIdx >= 0 && currentIdx < marks.length) {
+        const el = marks[currentIdx] as HTMLElement;
+        el.style.background = '#f97316';
+        el.classList.add('search-active-match');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  });
+
+  const goNext = useCallback(() => {
+    setCurrentIdx(prev => {
+      const marks = document.querySelectorAll('mark[data-search-match]').length;
+      return marks === 0 ? 0 : (prev + 1) % marks;
+    });
+  }, []);
+
+  const goPrev = useCallback(() => {
+    setCurrentIdx(prev => {
+      const marks = document.querySelectorAll('mark[data-search-match]').length;
+      return marks === 0 ? 0 : (prev - 1 + marks) % marks;
+    });
+  }, []);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
       <input
+        ref={inputRef}
         type="text"
-        placeholder="Search diagnostics..."
+        placeholder="Search diagnostics... (Ctrl+F)"
         value={query}
         onChange={e => setQuery(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? goPrev() : goNext(); }
+          if (e.key === 'Escape') { e.preventDefault(); setQuery(''); }
+        }}
         style={{
           flex: 1, padding: '4px 8px', fontSize: '0.75rem',
           background: 'var(--bg-primary)', color: 'var(--text-primary)',
@@ -451,8 +498,16 @@ function SearchBar({ query, setQuery, matchCount }: { query: string; setQuery: (
       {query && (
         <>
           <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            {matchCount} match{matchCount !== 1 ? 'es' : ''}
+            {domCount > 0 ? `${currentIdx + 1}/${domCount}` : '0 matches'}
           </span>
+          <button onClick={goPrev} title="Previous match (Shift+Enter)"
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
+            ▲
+          </button>
+          <button onClick={goNext} title="Next match (Enter)"
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 5px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: 1 }}>
+            ▼
+          </button>
           <button
             onClick={() => setQuery('')}
             style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.65rem' }}
@@ -504,7 +559,9 @@ function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) 
 }
 
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
-function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId }: {
+const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
+
+function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
@@ -512,13 +569,21 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
   isSource: boolean;
   computedStrength?: number;
   statementId?: string;
+  strengthMap?: Map<string, number>;
+  onGotoEntry?: (entryId: string) => void;
+  stmtIdByEntry?: Map<string, string>;
+  focused?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const responded = attacks.length > 0 || supports.length > 0;
   const hasChildren = attacks.length > 0 || supports.length > 0;
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focused) rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [focused]);
 
   return (
-    <div style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+    <div ref={rowRef} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid #f59e0b' : 'none', borderRadius: focused ? 4 : 0 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
         {hasChildren ? (
           <button
@@ -532,7 +597,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         )}
         <div style={{ flex: 1 }}>
           <AifBadge type="I-node" />
-          <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
+          <strong style={{ color: 'var(--accent)' }}><Highlight text={node.id} /></strong>
           {statementId && (
             <span
               title={`Source statement ${statementId}`}
@@ -544,6 +609,13 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
             >{statementId}</span>
           )}
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
+          {onGotoEntry && node.source_entry_id && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); }}
+              title={`Go to ${statementId || node.source_entry_id}`}
+              style={{ marginLeft: 4, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(249,115,22,0.4)', borderRadius: 3, background: 'none', color: '#f97316', cursor: 'pointer', fontWeight: 600 }}
+            >goto</button>
+          )}
           {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
           {(() => {
             const base = node.base_strength ?? 0.5;
@@ -568,17 +640,40 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(a => {
             const sourceNode = allNodes.find(n => n.id === a.source);
+            const srcStr = strengthMap?.get(a.source);
+            const atkMult = ATTACK_TYPE_WEIGHTS[a.attack_type ?? 'rebut'] ?? 1.0;
+            const edgeWeight = a.weight ?? 1.0;
+            const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
               <div key={a.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
                 <div>
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
+                  {contribution != null && (
+                    <span title={`Attack contribution = source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}). Rebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help' }}>
+                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}×{atkMult.toFixed(1)})</span>
+                    </span>
+                  )}
+                  {onGotoEntry && sourceNode?.source_entry_id && (
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
+                      title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
+                      style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 3, background: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
+                    >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
+                  )}
                 </div>
                 {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: <Highlight text={a.warrant} /></div>}
                 {/* Expanded: show debater attribution + full claim text */}
                 {expanded && sourceNode && (
                   <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(239,68,68,0.05)', borderRadius: 3 }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                    {onGotoEntry && sourceNode.source_entry_id && (
+                      <button
+                        onClick={() => onGotoEntry(sourceNode.source_entry_id)}
+                        title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
+                        style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(249,115,22,0.4)', borderRadius: 3, background: 'none', color: '#f97316', cursor: 'pointer', fontWeight: 600 }}
+                      >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
+                    )}
                     <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
@@ -587,17 +682,39 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
           })}
           {supports.map(s => {
             const sourceNode = allNodes.find(n => n.id === s.source);
+            const srcStrS = strengthMap?.get(s.source);
+            const edgeWeightS = s.weight ?? 1.0;
+            const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
               <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
                 <div>
                   <AifBadge type="RA-node" />
                   {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
+                  {contributionS != null && (
+                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'help' }}>
+                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStrS.toFixed(2)}×{edgeWeightS.toFixed(1)})</span>
+                    </span>
+                  )}
+                  {onGotoEntry && sourceNode?.source_entry_id && (
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
+                      title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
+                      style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                    >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
+                  )}
                 </div>
                 {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
                 {/* Expanded: show debater attribution + full claim text */}
                 {expanded && sourceNode && (
                   <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(34,197,94,0.05)', borderRadius: 3 }}>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                    {onGotoEntry && sourceNode.source_entry_id && (
+                      <button
+                        onClick={() => onGotoEntry(sourceNode.source_entry_id)}
+                        title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
+                        style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                      >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
+                    )}
                     <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
@@ -632,9 +749,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   // Reset the tax-ref detail panel whenever the selected transcript entry changes
@@ -734,8 +853,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     let count = 0;
     // AN nodes
     if (an) {
-      for (const n of an.nodes) count += countMatches(n.text, sq) + countMatches(n.speaker, sq);
-      for (const e of an.edges) count += countMatches(e.warrant || '', sq);
+      for (const n of an.nodes) count += countMatches(n.id, sq) + countMatches(n.text, sq) + countMatches(n.speaker, sq);
+      for (const e of an.edges) count += countMatches(e.source, sq) + countMatches(e.warrant || '', sq) + countMatches(e.scheme || '', sq);
     }
     // Transcript entries
     for (const e of debate.transcript) count += countMatches(e.content, sq);
@@ -749,13 +868,40 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         for (const c of diag.extracted_claims.accepted) count += countMatches(c.text, sq);
         for (const c of diag.extracted_claims.rejected) count += countMatches(c.text, sq);
       }
+      // Pipeline stage work products (brief, plan, draft, cite)
+      const stages = (diag as unknown as Record<string, unknown>).stage_diagnostics as { work_product?: Record<string, unknown> }[] | undefined;
+      if (stages) {
+        for (const stage of stages) {
+          const wp = stage.work_product;
+          if (!wp) continue;
+          for (const val of Object.values(wp)) {
+            if (typeof val === 'string') count += countMatches(val, sq);
+            else if (Array.isArray(val)) {
+              for (const item of val) {
+                if (typeof item === 'string') count += countMatches(item, sq);
+                else if (item && typeof item === 'object') {
+                  for (const v of Object.values(item as Record<string, unknown>)) {
+                    if (typeof v === 'string') count += countMatches(v, sq);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     return count;
   }, [sq, debate, an, diag]);
 
-  // Keyboard navigation: Left/Right = tabs, Up/Down/P/N = prev/next statement
+  // Keyboard navigation: Ctrl+F = search, Left/Right = tabs, Up/Down/P/N = prev/next statement
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -786,6 +932,20 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         if (!debate) return;
         e.preventDefault();
         const dir = (e.key === 'ArrowDown' || e.key === 'n' || e.key === 'N') ? 1 : -1;
+
+        // Navigate I-nodes when in argument network overview
+        if (!entry && overviewTab === 'argument-network' && an && an.nodes.length > 0) {
+          const nodeIds = an.nodes.map(n => n.id);
+          const curIdx = focusedNodeId ? nodeIds.indexOf(focusedNodeId) : -1;
+          if (curIdx < 0) {
+            setFocusedNodeId(nodeIds[dir === 1 ? 0 : nodeIds.length - 1]);
+          } else {
+            const nextIdx = curIdx + dir;
+            if (nextIdx >= 0 && nextIdx < nodeIds.length) setFocusedNodeId(nodeIds[nextIdx]);
+          }
+          return;
+        }
+
         if (!entry) {
           if (dir === 1 && debate.transcript.length > 0) {
             setSelectedEntry(debate.transcript[0].id);
@@ -803,14 +963,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [debate, entry, entryTab, overviewTab, an, commitments]);
+  }, [debate, entry, entryTab, overviewTab, an, commitments, focusedNodeId]);
 
   return (
     <DiagSearchContext.Provider value={sq}>
     <div style={{ padding: 12, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
-        {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} />}
+        {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
           onClick={async () => {
@@ -849,6 +1009,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
               { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
+              { id: 'reflections', label: 'Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
             ];
             const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
             const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';
@@ -885,6 +1046,123 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {overviewTab === 'convergence' && (
             <ConvergenceSignalsPanel debate={debate} />
           )}
+
+          {/* Reflections — taxonomy edits proposed by debaters */}
+          {overviewTab === 'reflections' && (() => {
+            const reflectionEntries = debate.transcript.filter(e => e.type === 'reflection');
+            const allResults = reflectionEntries.flatMap(e => {
+              const meta = e.metadata as Record<string, unknown> | undefined;
+              return (meta?.reflection_results as Array<{
+                pover: string; label: string; reflection_summary: string;
+                edits: Array<{
+                  edit_type: string; node_id: string | null; category: string;
+                  current_label: string | null; proposed_label: string;
+                  current_description: string | null; proposed_description: string;
+                  rationale: string; confidence?: string; evidence_entries?: string[];
+                  status: string;
+                }>;
+              }>) || [];
+            });
+            const confColors: Record<string, string> = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
+            const editTypeColors: Record<string, string> = { revise: '#3b82f6', add: '#22c55e', qualify: '#f59e0b', deprecate: '#ef4444' };
+            const totalEdits = allResults.reduce((s, r) => s + r.edits.length, 0);
+            const approved = allResults.reduce((s, r) => s + r.edits.filter(e => e.status === 'approved').length, 0);
+            return (
+              <div style={{ fontSize: '0.75rem' }}>
+                <div style={{ marginBottom: 8, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                  {allResults.length} debater{allResults.length !== 1 ? 's' : ''} reflected, {totalEdits} edit{totalEdits !== 1 ? 's' : ''} proposed{approved > 0 ? `, ${approved} applied` : ''}
+                </div>
+                {allResults.map((r, ri) => {
+                  const poverInfo = Object.values(POVER_INFO).find(p => p.pov === r.pover);
+                  const color = poverInfo?.color || '#888';
+                  return (
+                    <div key={ri} style={{ marginBottom: 16 }}>
+                      <div style={{
+                        fontWeight: 700, fontSize: '0.8rem', color,
+                        borderBottom: `2px solid ${color}`, paddingBottom: 4, marginBottom: 6,
+                      }}>
+                        {r.label}
+                        <span style={{ fontWeight: 400, fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 8 }}>
+                          {r.edits.length} edit{r.edits.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {r.reflection_summary && (
+                        <div style={{
+                          padding: '6px 10px', marginBottom: 8, fontSize: '0.72rem', lineHeight: 1.5,
+                          background: `${color}10`, borderLeft: `3px solid ${color}`,
+                          borderRadius: '0 4px 4px 0',
+                        }}>
+                          {r.reflection_summary}
+                        </div>
+                      )}
+                      {r.edits.map((edit, ei) => (
+                        <div key={ei} style={{
+                          padding: '8px 10px', marginBottom: 6, borderRadius: 6,
+                          border: `1px solid ${edit.status === 'approved' ? '#22c55e44' : 'var(--border)'}`,
+                          opacity: edit.status === 'dismissed' ? 0.5 : 1,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{
+                              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+                              background: `${editTypeColors[edit.edit_type] || '#888'}22`,
+                              color: editTypeColors[edit.edit_type] || '#888',
+                            }}>
+                              {edit.edit_type.toUpperCase()}
+                            </span>
+                            {edit.node_id && <code style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{edit.node_id}</code>}
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{edit.category}</span>
+                            {edit.confidence && (
+                              <span style={{
+                                padding: '1px 4px', borderRadius: 3, fontSize: '0.58rem', fontWeight: 700,
+                                border: `1px solid ${confColors[edit.confidence] || '#888'}44`,
+                                color: confColors[edit.confidence] || '#888',
+                              }}>
+                                {edit.confidence}
+                              </span>
+                            )}
+                            {edit.status !== 'pending' && (
+                              <span style={{
+                                marginLeft: 'auto', fontSize: '0.6rem', fontWeight: 600,
+                                color: edit.status === 'approved' ? '#22c55e' : 'var(--text-muted)',
+                              }}>
+                                {edit.status === 'approved' ? 'Applied' : 'Dismissed'}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', marginBottom: 3 }}>
+                            {edit.current_label ? (
+                              <>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>{edit.current_label}</span>
+                                {' → '}
+                                <span style={{ fontWeight: 600 }}>{edit.proposed_label}</span>
+                              </>
+                            ) : (
+                              <span style={{ fontWeight: 600 }}>{edit.proposed_label}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
+                            {edit.rationale}
+                          </div>
+                          {edit.evidence_entries && edit.evidence_entries.length > 0 && (
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                              Evidence: {edit.evidence_entries.map((ev: string, evi: number) => (
+                                <code key={evi} style={{ padding: '0 3px', marginRight: 2, borderRadius: 2, background: 'var(--bg-secondary)', fontSize: '0.62rem' }}>{ev}</code>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {allResults.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)' }}>
+                    No reflections recorded yet.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Argument Network with inline Moderator Deliberations */}
           {overviewTab === 'argument-network' && an && an.nodes.length > 0 && (() => {
@@ -1014,7 +1292,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           allNodes={an.nodes}
                           isSource={isSource}
                           computedStrength={strengthMap.get(n.id)}
+                          strengthMap={strengthMap}
                           statementId={stmtIdByEntry.get(n.source_entry_id)}
+                          onGotoEntry={(eid) => { setSelectedEntry(eid); setLocalOverride(true); }}
+                          stmtIdByEntry={stmtIdByEntry}
+                          focused={focusedNodeId === n.id}
                         />
                       );
                     })}
@@ -1217,7 +1499,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'details', label: 'Details', has: hasDetails, copy: '' },
               { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
               { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
-              { id: 'draft', label: 'Draft', has: !!draftStage, copy: JSON.stringify(draftStage?.work_product, null, 2) ?? '' },
+              { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : entry.content },
               { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
@@ -1380,27 +1662,34 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'tax-context' && (
                     taxContext ? (
-                      <textarea readOnly value={taxContext} style={textAreaStyle} />
+                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={taxContext} /></pre>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
                     )
                   )}
                   {activeTab === 'prompt' && (
                     prompt ? (
-                      <textarea readOnly value={prompt} style={textAreaStyle} />
+                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={prompt} /></pre>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No prompt captured for this entry.</div>
                     )
                   )}
                   {activeTab === 'response' && (
                     response ? (
-                      <textarea readOnly value={response} style={textAreaStyle} />
+                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={response} /></pre>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No raw response captured for this entry.</div>
                     )
                   )}
                   {activeTab === 'details' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {entry.content && (
+                        <Section title="Statement" defaultOpen copyText={entry.content}>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            <Highlight text={entry.content} />
+                          </div>
+                        </Section>
+                      )}
                       {meta?.move_types && (
                         <Section title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
                           {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
@@ -1495,14 +1784,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       </div>
                       {!!(briefStage.work_product as Record<string, unknown>).situation_assessment && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.05)', fontSize: '0.78rem' }}>
-                          {String((briefStage.work_product as Record<string, unknown>).situation_assessment)}
+                          <Highlight text={String((briefStage.work_product as Record<string, unknown>).situation_assessment)} />
                         </div>
                       )}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_claims_to_address) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Claims to Address</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string }[]).map((c, i) => (
-                              <li key={i}><strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: {c.claim}</li>
+                              <li key={i}><strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} /></li>
                             ))}
                           </ul>
                         </details>
@@ -1514,7 +1803,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                                   <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{n.node_id}</td>
-                                  <td style={{ padding: '3px 6px' }}>{n.why}</td>
+                                  <td style={{ padding: '3px 6px' }}><Highlight text={n.why} /></td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1525,14 +1814,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Edge Tensions</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).map((t, i) => (
-                              <li key={i}><strong>{t.edge}</strong>: {t.relevance}</li>
+                              <li key={i}><strong>{t.edge}</strong>: <Highlight text={t.relevance} /></li>
                             ))}
                           </ul>
                         </details>
                       )}
                       {!!(briefStage.work_product as Record<string, unknown>).phase_considerations && (
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
-                          {String((briefStage.work_product as Record<string, unknown>).phase_considerations)}
+                          <Highlight text={String((briefStage.work_product as Record<string, unknown>).phase_considerations)} />
                         </div>
                       )}
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
@@ -1553,7 +1842,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       </div>
                       {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem', fontWeight: 600 }}>
-                          {String((planStage.work_product as Record<string, unknown>).strategic_goal)}
+                          <Highlight text={String((planStage.work_product as Record<string, unknown>).strategic_goal)} />
                         </div>
                       )}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
@@ -1562,7 +1851,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
                               <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
                               {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
-                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{m.detail}</div>}
+                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
                             </div>
                           ))}
                         </details>
@@ -1570,7 +1859,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
                           <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
-                            {String((planStage.work_product as Record<string, unknown>).argument_sketch)}
+                            <Highlight text={String((planStage.work_product as Record<string, unknown>).argument_sketch)} />
                           </div>
                         </details>
                       )}
@@ -1578,7 +1867,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
-                              <li key={i}>{r}</li>
+                              <li key={i}><Highlight text={r} /></li>
                             ))}
                           </ul>
                         </details>
@@ -1591,22 +1880,38 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       </details>
                     </div>
                   )}
-                  {activeTab === 'draft' && draftStage && (
+                  {activeTab === 'draft' && (draftStage || entry.content) && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>DRAFT</span>
-                        <span>{draftStage.model}</span>
-                        <span>temp={draftStage.temperature}</span>
-                        <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
-                      </div>
-                      {!!(draftStage.work_product as Record<string, unknown>).statement && (
+                      {draftStage && (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>DRAFT</span>
+                          <span>{draftStage.model}</span>
+                          <span>temp={draftStage.temperature}</span>
+                          <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
+                        </div>
+                      )}
+                      {!draftStage && diag && (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>STATEMENT</span>
+                          <span>{diag.model}</span>
+                          {diag.response_time_ms && <span>{(diag.response_time_ms / 1000).toFixed(1)}s</span>}
+                        </div>
+                      )}
+                      {!draftStage && entry.content && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
                           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                            {String((draftStage.work_product as Record<string, unknown>).statement)}
+                            <Highlight text={entry.content} />
                           </div>
                         </details>
                       )}
-                      {Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
+                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
+                          </div>
+                        </details>
+                      )}
+                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((draftStage.work_product as Record<string, unknown>).claim_sketches as { claim: string; targets: string[] }[]).map((c, i) => (
@@ -1615,7 +1920,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
-                      {Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
+                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
                           {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
                             <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
@@ -1625,17 +1930,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           ))}
                         </details>
                       )}
-                      {!!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
+                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
                         <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
-                          <strong>Disagreement type:</strong> {String((draftStage.work_product as Record<string, unknown>).disagreement_type)}
+                          <strong>Disagreement type:</strong> <Highlight text={String((draftStage.work_product as Record<string, unknown>).disagreement_type)} />
                         </div>
                       )}
+                      {draftStage && (<>
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.prompt}</pre>
                       </details>
                       <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.raw_response}</pre>
                       </details>
+                      </>)}
                     </div>
                   )}
                   {activeTab === 'cite' && citeStage && (
@@ -1658,7 +1965,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string }[]).map((r, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                                   <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{r.node_id}</td>
-                                  <td style={{ padding: '3px 6px' }}>{r.relevance}</td>
+                                  <td style={{ padding: '3px 6px' }}><Highlight text={r.relevance} /></td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1671,7 +1978,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(251,146,60,0.3)' }}>
                               <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(251,146,60,0.2)', color: '#fb923c', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
                               {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
-                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{m.detail}</div>}
+                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
                             </div>
                           ))}
                         </details>

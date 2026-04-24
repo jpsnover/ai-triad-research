@@ -10,6 +10,7 @@ import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience } from '../t
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
+import { ReflectionsPanel } from './ReflectionsPanel';
 // DiagnosticsPanel removed — diagnostics always uses popup window
 import { ConvergencePanel } from './ConvergenceRadar';
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
@@ -1327,12 +1328,13 @@ function DebaterToggles() {
 }
 
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, audience, setAudience } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showHarvest, setShowHarvest] = useState(false);
+  const [showReflections, setShowReflections] = useState(false);
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'synthesis') || false;
@@ -1426,6 +1428,7 @@ function DebateActions() {
   return (
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
+      {/* Row 1: Input + Send + Cross-Respond */}
       <div className="debate-action-bar-inner">
         <div className="debate-input-wrapper">
           <input
@@ -1482,6 +1485,9 @@ function DebateActions() {
             ))}
           </select>
         </div>
+      </div>
+      {/* Row 2: Analysis actions + Audience */}
+      <div className="debate-action-bar-secondary">
         <button
           className="btn debate-synthesis-btn"
           onClick={() => requestSynthesis()}
@@ -1506,6 +1512,15 @@ function DebateActions() {
         >
           Harvest
         </button>
+        <button
+          className="btn debate-reflections-btn"
+          onClick={() => { setShowReflections(true); requestReflections(); }}
+          disabled={disabled}
+          title="Each debater reflects on the debate and proposes taxonomy edits"
+        >
+          Reflections
+        </button>
+        <div style={{ flex: 1 }} />
         <select
           className="debate-audience-select"
           value={audience}
@@ -1524,6 +1539,7 @@ function DebateActions() {
         </div>
       )}
       {showHarvest && <HarvestDialog onClose={() => setShowHarvest(false)} />}
+      {showReflections && <ReflectionsPanel onClose={() => setShowReflections(false)} />}
     </div>
   );
 }
