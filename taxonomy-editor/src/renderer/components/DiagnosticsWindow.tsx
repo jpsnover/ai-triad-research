@@ -6,7 +6,7 @@
  * state updates from the main window via IPC.
  */
 
-import { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
@@ -17,6 +17,8 @@ import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
+import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
+import type { NavigateCommand } from './DiagnosticsChatSidebar';
 
 const DiagSearchContext = createContext('');
 
@@ -589,7 +591,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
               <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
                 <div>
                   <AifBadge type="RA-node" />
-                  {'\u2190'} {s.source} <strong>supports</strong>
+                  {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
                 </div>
                 {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
                 {/* Expanded: show debater attribution + full claim text */}
@@ -629,12 +631,28 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [searchQuery, setSearchQuery] = useState('');
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
+  const tabContentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   // Reset the tax-ref detail panel whenever the selected transcript entry changes
   useEffect(() => { setSelectedTaxRefId(null); }, [selectedEntry]);
+
+  const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
+    if (cmd.entry !== undefined) {
+      if (cmd.entry === null) {
+        setSelectedEntry(null);
+        setLocalOverride(true);
+      } else {
+        setSelectedEntry(cmd.entry);
+        setLocalOverride(true);
+      }
+    }
+    if (cmd.tab) setEntryTab(cmd.tab as EntryTab);
+    if (cmd.overviewTab) setOverviewTab(cmd.overviewTab as OverviewTab);
+  }, []);
 
   // Load POV/situations taxonomy files once so we can resolve taxonomy_refs by id
   useEffect(() => {
@@ -1276,16 +1294,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     >Copy</button>
                   )}
                 </div>
-                <div style={{
+                <div ref={tabContentRef} tabIndex={0} style={{
                   flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
                   minHeight: 0,
+                  overflowY: 'auto',
                   background: 'var(--bg-primary)',
                   border: '1px solid var(--border)',
                   borderTop: 'none',
                   borderRadius: '0 6px 6px 6px',
                   padding: activeTab === 'tax-refs' ? '8px 10px' : 0,
+                  outline: 'none',
                 }}>
                   {activeTab === 'tax-refs' && (
                     taxRefCount > 0 ? (
@@ -1555,7 +1575,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </details>
                       )}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_responses) && ((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).length > 0 && (
-                        <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
                               <li key={i}>{r}</li>
@@ -1750,6 +1770,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         </div>
         );
       })()}
+      <DiagnosticsChatSidebar
+        debate={debate}
+        selectedEntry={selectedEntry}
+        currentTab={entryTab}
+        onNavigate={handleChatNavigate}
+      />
     </div>
     </DiagSearchContext.Provider>
   );

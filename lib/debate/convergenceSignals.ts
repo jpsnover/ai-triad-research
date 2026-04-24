@@ -8,18 +8,10 @@ import type {
   ArgumentNetworkEdge,
   ConvergenceSignals,
 } from './types';
-import { wordOverlap, getMoveName } from './helpers';
+import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers';
 import type { MoveAnnotation } from './helpers';
 import { computeQbafStrengths } from './qbaf';
 import type { QbafNode, QbafEdge } from './qbaf';
-
-const CONFRONTATIONAL_MOVES = new Set([
-  'COUNTEREXAMPLE', 'UNDERCUT', 'EMPIRICAL CHALLENGE', 'BURDEN-SHIFT', 'EXPOSE-ASSUMPTION',
-  'ESCALATE', 'REDUCE',
-]);
-const COLLABORATIVE_MOVES = new Set([
-  'CONCEDE', 'CONCEDE-AND-PIVOT', 'CONDITIONAL-AGREE', 'INTEGRATE', 'STEEL-BUILD', 'IDENTIFY-CRUX',
-]);
 
 export function computeConvergenceSignals(
   entryId: string,
@@ -37,13 +29,14 @@ export function computeConvergenceSignals(
 
   const round = entryIdx + 1;
 
-  // 1. Move disposition
+  // 1. Move disposition — uses canonical ATTACK_MOVES / SUPPORT_MOVES from helpers.ts
   let confrontational = 0;
   let collaborative = 0;
   for (const m of moveNames) {
-    const upper = m.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (CONFRONTATIONAL_MOVES.has(upper)) confrontational++;
-    if (COLLABORATIVE_MOVES.has(upper)) collaborative++;
+    const normalized = m.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    const hyphenated = normalized.replace(/ /g, '-');
+    if (ATTACK_MOVES.has(normalized) || ATTACK_MOVES.has(hyphenated)) confrontational++;
+    if (SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(hyphenated)) collaborative++;
   }
   const total = confrontational + collaborative;
   const moveRatio = total > 0 ? collaborative / total : 0;
@@ -105,8 +98,8 @@ export function computeConvergenceSignals(
   // 5. Concession opportunity — did speaker face strong attacks and use a concession move?
   const strongAttacksFaced = attacksOnSpeaker.filter(e => (strengths.get(e.source) ?? 0.5) >= 0.6).length;
   const concessionUsed = moveNames.some(m => {
-    const upper = m.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-    return upper === 'CONCEDE' || upper === 'CONCEDE AND PIVOT' || upper === 'CONDITIONAL AGREE';
+    const normalized = m.toUpperCase().replace(/[_]/g, '-').trim();
+    return SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(normalized.replace(/-/g, ' '));
   });
   const concessionOutcome: ConvergenceSignals['concession_opportunity']['outcome'] =
     strongAttacksFaced === 0 ? 'none' : concessionUsed ? 'taken' : 'missed';

@@ -1,14 +1,29 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { DebateSession, ConvergenceSignals } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId } from '../types/debate';
+import { SUPPORT_MOVES } from '@lib/debate/helpers';
 
 interface Props {
   debate: DebateSession;
 }
+
+const TOOLTIPS = {
+  collabRatio: 'Average proportion of collaborative moves (concede, integrate, steel-build, identify-crux) vs confrontational moves (counterexample, undercut, empirical challenge, burden-shift, expose-assumption). Higher = more convergence-oriented.',
+  concessions: 'How many concession opportunities were taken out of total. An opportunity = facing a strong attack with QBAF strength >= 0.6 and using a concession move (CONCEDE, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE).',
+  recycling: 'Average max word-overlap with the speaker\'s own prior turns. High values (>50%) mean the debater is repeating themselves rather than evolving their position.',
+  cruxMoves: 'Cumulative count of IDENTIFY-CRUX moves. Cruxes are key disagreement points that, if resolved, would change a debater\'s position.',
+  chartTitle: 'How each debater\'s collaborative-to-confrontational ratio evolves turn by turn. Lines trending upward indicate more collaboration as the debate matures.',
+  confCollab: 'Count of confrontational (red) vs collaborative (green) moves this turn. Confrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption. Collaborative: concede, concede-and-pivot, conditional-agree, integrate, steel-build, identify-crux.',
+  engagement: 'Fraction of this turn\'s claims that connect to existing argument network nodes (targeted) vs standalone new claims. Higher = more engaged with prior arguments.',
+  recyclingCol: 'Max word-overlap between this turn\'s content and the speaker\'s prior turns. Red (>50%) indicates high repetition.',
+  concessionCol: 'Whether the speaker faced strong attacks (QBAF >= 0.6) and used a concession move. Taken (green) = conceded. Missed (red) = faced attacks but didn\'t concede. N/A = no strong attacks faced.',
+  drift: 'How much the speaker\'s position changed since their last turn, measured as delta in word-overlap with their opening statement.',
+  cruxCol: 'Whether IDENTIFY-CRUX was used this turn (1 or 0), with cumulative count across all turns in parentheses.',
+};
 
 function speakerLabel(speaker: PoverId): string {
   if (speaker === 'user') return 'You';
@@ -73,7 +88,8 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 2 }}>
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 2, cursor: 'help' }}
+        title={TOOLTIPS.chartTitle}>
         Collaborative Ratio Over Time
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
@@ -123,11 +139,11 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: speakerColor(s.speaker as PoverId), marginBottom: 4 }}>
             {speakerLabel(s.speaker as PoverId)}
           </div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', display: 'grid', gap: 2 }}>
-            <div>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
-            <div>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
-            <div>Avg recycling: <strong>{pct(s.avgRecycling)}</strong></div>
-            <div>Crux moves: <strong>{s.cruxTotal}</strong></div>
+          <div style={{ fontSize: '0.72rem', color: '#e2e8f0', display: 'grid', gap: 2 }}>
+            <div title={TOOLTIPS.collabRatio} style={{ cursor: 'help' }}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
+            <div title={TOOLTIPS.concessions} style={{ cursor: 'help' }}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
+            <div title={TOOLTIPS.recycling} style={{ cursor: 'help' }}>Avg recycling: <strong>{pct(s.avgRecycling)}</strong></div>
+            <div title={TOOLTIPS.cruxMoves} style={{ cursor: 'help' }}>Crux moves: <strong>{s.cruxTotal}</strong></div>
           </div>
         </div>
       ))}
@@ -156,9 +172,52 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
   }
 
   const selected = selectedIdx !== null ? filtered[selectedIdx] : null;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const navigate = useCallback((delta: number) => {
+    if (filtered.length === 0) return;
+    setSelectedIdx(prev => {
+      if (prev === null) return 0;
+      const next = prev + delta;
+      if (next < 0 || next >= filtered.length) return prev;
+      return next;
+    });
+  }, [filtered.length]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: KeyboardEvent) => {
+      if (selectedIdx === null) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); navigate(1); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+      else if (e.key === 'Escape') { e.preventDefault(); setSelectedIdx(null); }
+    };
+    el.addEventListener('keydown', handler);
+    return () => el.removeEventListener('keydown', handler);
+  }, [selectedIdx, navigate]);
+
+  const concessionVerbatims = useMemo(() => {
+    if (!selected) return [];
+    const an = debate.argument_network;
+    if (!an) return [];
+    const turnNodeIds = new Set(an.nodes.filter(n => n.source_entry_id === selected.entry_id).map(n => n.id));
+    const supportEdges = an.edges.filter(e =>
+      e.type === 'supports' && turnNodeIds.has(e.source) && e.scheme &&
+      (() => {
+        const norm = e.scheme!.toUpperCase().replace(/[_]/g, '-').trim();
+        return SUPPORT_MOVES.has(norm) || SUPPORT_MOVES.has(norm.replace(/-/g, ' '));
+      })(),
+    );
+    return supportEdges.map(e => {
+      const sourceNode = an.nodes.find(n => n.id === e.source);
+      const targetNode = an.nodes.find(n => n.id === e.target);
+      return { scheme: e.scheme ?? 'supports', sourceText: sourceNode?.text ?? '', targetText: targetNode?.text ?? '', targetId: e.target, sourceId: e.source };
+    });
+  }, [selected, debate.argument_network]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+    <div ref={containerRef} tabIndex={0} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', outline: 'none' }}>
       <SummaryStats signals={signals} />
       <DispositionChart signals={signals} />
 
@@ -193,12 +252,12 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
             <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
               <th style={{ padding: '4px 6px', textAlign: 'left' }}>Rnd</th>
               <th style={{ padding: '4px 6px', textAlign: 'left' }}>Speaker</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Conf/Collab</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Engagement</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Recycling</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Concession</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Drift</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center' }}>Crux</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.engagement}>Engagement</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.concessionCol}>Concession</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.drift}>Drift</th>
+              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.cruxCol}>Crux</th>
             </tr>
           </thead>
           <tbody>
@@ -243,42 +302,120 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
         </table>
       </div>
 
-      {selected && (
-        <div style={{
-          marginTop: 8, padding: 10, background: 'var(--bg-tertiary, #2a2a2a)',
-          borderRadius: 6, fontSize: '0.65rem', maxHeight: 200, overflow: 'auto',
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: 6, color: speakerColor(selected.speaker) }}>
-            Round {selected.round} — {speakerLabel(selected.speaker)} Detail
+      {selected && (() => {
+        const md = selected.move_disposition;
+        const ed = selected.engagement_depth;
+        const rr = selected.recycling_rate;
+        const so = selected.strongest_opposing;
+        const co = selected.concession_opportunity;
+        const pd = selected.position_delta;
+        const cr = selected.crux_rate;
+        const lbl: React.CSSProperties = { color: '#94a3b8', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
+        const val: React.CSSProperties = { color: '#e2e8f0', fontSize: '0.7rem' };
+        const cell: React.CSSProperties = { padding: '3px 6px', borderRadius: 3, background: 'rgba(255,255,255,0.03)' };
+        return (
+          <div style={{
+            marginTop: 6, padding: 8, background: 'var(--bg-tertiary, #2a2a2a)',
+            borderRadius: 4, maxHeight: 280, overflow: 'auto', color: '#e2e8f0',
+            borderLeft: `3px solid ${speakerColor(selected.speaker)}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: '0.75rem', color: speakerColor(selected.speaker) }}>
+                Round {selected.round} — {speakerLabel(selected.speaker)}
+              </span>
+              <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>← → to navigate, Esc to close</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+              <div style={cell}>
+                <div style={lbl}>Disposition</div>
+                <div style={val}>
+                  <span style={{ color: '#ef4444' }}>{md.confrontational}C</span>{' / '}
+                  <span style={{ color: '#22c55e' }}>{md.collaborative}S</span>
+                  {' = '}<strong>{pct(md.ratio)}</strong>
+                  {md.ratio >= 0.5
+                    ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>cooperative</span>
+                    : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>confrontational</span>}
+                </div>
+              </div>
+              <div style={cell}>
+                <div style={lbl}>Engagement</div>
+                <div style={val}>
+                  {ed.targeted}/{ed.targeted + ed.standalone} targeted = <strong>{pct(ed.ratio)}</strong>
+                  {ed.ratio >= 0.7
+                    ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>deep</span>
+                    : ed.ratio >= 0.4
+                      ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
+                      : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>standalone</span>}
+                </div>
+              </div>
+              <div style={cell}>
+                <div style={lbl}>Recycling</div>
+                <div style={val}>
+                  avg <strong>{pct(rr.avg_self_overlap)}</strong>, max <strong>{pct(rr.max_self_overlap)}</strong>
+                  {rr.max_self_overlap >= 0.5
+                    ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>repeating</span>
+                    : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>fresh</span>}
+                </div>
+              </div>
+              <div style={cell}>
+                <div style={lbl}>Strongest Opposition</div>
+                <div style={val}>
+                  {so ? (
+                    <>{so.node_id} str={so.strength.toFixed(2)} by {speakerLabel(so.attacker as PoverId)}
+                      {so.strength >= 0.7
+                        ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>strong</span>
+                        : so.strength >= 0.5
+                          ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
+                          : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>weak</span>}
+                    </>
+                  ) : <span style={{ color: '#64748b' }}>none</span>}
+                </div>
+              </div>
+              <div style={cell}>
+                <div style={lbl}>Concession</div>
+                <div style={val}>
+                  {co.strong_attacks_faced} attacks, used: {co.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co.outcome} />
+                </div>
+              </div>
+              <div style={cell}>
+                <div style={lbl}>Position Delta</div>
+                <div style={val}>
+                  opening: <strong>{pct(pd.overlap_with_opening)}</strong>, drift: <strong>{pct(pd.drift)}</strong>
+                  {pd.overlap_with_opening >= 0.6
+                    ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>anchored</span>
+                    : pd.overlap_with_opening < 0.3
+                      ? <span style={{ color: '#3b82f6', marginLeft: 4, fontSize: '0.62rem' }}>shifted</span>
+                      : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>evolved</span>}
+                </div>
+              </div>
+              <div style={{ ...cell, gridColumn: '1 / -1' }}>
+                <div style={lbl}>Crux</div>
+                <div style={val}>
+                  this turn: {cr.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr.cumulative_count} | follow-through: {cr.cumulative_follow_through}
+                  {cr.cumulative_count > 0 && cr.cumulative_follow_through === 0 && (
+                    <span style={{ color: '#f59e0b', marginLeft: 6, fontSize: '0.62rem' }}>no follow-through</span>
+                  )}
+                  {cr.cumulative_count > 0 && cr.cumulative_follow_through > 0 && (
+                    <span style={{ color: '#22c55e', marginLeft: 6, fontSize: '0.62rem' }}>resolving</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            {concessionVerbatims.length > 0 && (
+              <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 4 }}>
+                <div style={{ ...lbl, marginBottom: 3 }}>Concession Verbatims ({concessionVerbatims.length})</div>
+                {concessionVerbatims.map((cv, i) => (
+                  <div key={i} style={{ marginBottom: 4, padding: '3px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.06)', borderLeft: '2px solid rgba(34,197,94,0.4)' }}>
+                    <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{cv.sourceId} → {cv.targetId} via {cv.scheme}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#e2e8f0', fontStyle: 'italic' }}>"{cv.sourceText}"</div>
+                    {cv.targetText && <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: 1 }}>conceding: "{cv.targetText}"</div>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
-            <div>
-              <strong>Move Disposition:</strong> {selected.move_disposition.confrontational} confrontational, {selected.move_disposition.collaborative} collaborative (ratio: {pct(selected.move_disposition.ratio)})
-            </div>
-            <div>
-              <strong>Engagement:</strong> {selected.engagement_depth.targeted} targeted, {selected.engagement_depth.standalone} standalone (ratio: {pct(selected.engagement_depth.ratio)})
-            </div>
-            <div>
-              <strong>Recycling:</strong> avg {pct(selected.recycling_rate.avg_self_overlap)}, max {pct(selected.recycling_rate.max_self_overlap)}
-            </div>
-            <div>
-              <strong>Strongest Opposing:</strong>{' '}
-              {selected.strongest_opposing
-                ? `${selected.strongest_opposing.node_id} (str: ${selected.strongest_opposing.strength.toFixed(2)}, by ${selected.strongest_opposing.attacker})`
-                : 'None'}
-            </div>
-            <div>
-              <strong>Concession:</strong> {selected.concession_opportunity.strong_attacks_faced} strong attacks faced, used: {selected.concession_opportunity.concession_used ? 'Yes' : 'No'} — <OutcomeBadge outcome={selected.concession_opportunity.outcome} />
-            </div>
-            <div>
-              <strong>Position Delta:</strong> opening overlap {pct(selected.position_delta.overlap_with_opening)}, drift {pct(selected.position_delta.drift)}
-            </div>
-            <div>
-              <strong>Crux Rate:</strong> this turn: {selected.crux_rate.used_this_turn ? 'Yes' : 'No'}, cumulative: {selected.crux_rate.cumulative_count}, follow-through: {selected.crux_rate.cumulative_follow_through}
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -55,7 +55,7 @@ import {
 } from '@lib/debate/helpers';
 import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
-import { getMoveName } from '@lib/debate/helpers';
+import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
@@ -672,17 +672,22 @@ async function extractClaimsAndUpdateAN(
           warrant: resp.warrant || undefined,
           argumentation_scheme: resp.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
         };
+        if (resp.scheme) {
+          edge.scheme = resp.scheme;
+        }
         if (resp.relationship === 'attacks') {
-          edge.attack_type = (resp.attack_type as 'rebut' | 'undercut' | 'undermine') || 'rebut';
-          edge.scheme = resp.scheme || undefined;
-          // Track as challenged
+          const VALID_ATTACK_TYPES = new Set(['rebut', 'undercut', 'undermine']);
+          const raw = (resp.attack_type ?? '').toLowerCase();
+          edge.attack_type = VALID_ATTACK_TYPES.has(raw) ? (raw as 'rebut' | 'undercut' | 'undermine') : 'rebut';
           const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
           if (targetNode) speakerCommits.challenged.push(targetNode.text);
         }
-        if (resp.scheme === 'CONCEDE') {
-          // Track as conceded
-          const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
-          if (targetNode) speakerCommits.conceded.push(targetNode.text);
+        if (resp.scheme) {
+          const normalizedScheme = resp.scheme.toUpperCase().replace(/[_]/g, '-').trim();
+          if (SUPPORT_MOVES.has(normalizedScheme) || SUPPORT_MOVES.has(normalizedScheme.replace(/-/g, ' '))) {
+            const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
+            if (targetNode) speakerCommits.conceded.push(targetNode.text);
+          }
         }
         newEdges.push(edge);
       }

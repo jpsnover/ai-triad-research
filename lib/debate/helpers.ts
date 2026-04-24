@@ -421,6 +421,69 @@ function normalizeMoveTypes(raw: unknown[]): (string | MoveAnnotation)[] {
   });
 }
 
+// ── Canonical move → edge classification ────────────────
+
+export type MoveEdgeType = 'support' | 'attack' | 'neutral';
+
+export interface MoveEdgeInfo {
+  edgeType: MoveEdgeType;
+  defaultAttackType?: 'rebut' | 'undercut' | 'undermine';
+  dual?: boolean;
+}
+
+export const MOVE_EDGE_MAP: Record<string, MoveEdgeInfo> = {
+  // Support moves — create RA-nodes / "supports" edges
+  'CONCEDE':              { edgeType: 'support' },
+  'CONCEDE-AND-PIVOT':    { edgeType: 'support', dual: true },
+  'CONDITIONAL-AGREE':    { edgeType: 'support' },
+  'INTEGRATE':            { edgeType: 'support' },
+  'STEEL-BUILD':          { edgeType: 'support' },
+  'EXTEND':               { edgeType: 'support' },
+  'ACKNOWLEDGE-PROGRESS': { edgeType: 'support' },
+
+  // Attack moves — create CA-nodes / "attacks" edges
+  'COUNTEREXAMPLE':       { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'DISTINGUISH':          { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'UNDERCUT':             { edgeType: 'attack', defaultAttackType: 'undercut' },
+  'EMPIRICAL CHALLENGE':  { edgeType: 'attack', defaultAttackType: 'undermine' },
+  'EXPOSE-ASSUMPTION':    { edgeType: 'attack', defaultAttackType: 'undercut' },
+  'BURDEN-SHIFT':         { edgeType: 'attack', defaultAttackType: 'undercut' },
+  'REFRAME':              { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'REDUCE':               { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'ESCALATE':             { edgeType: 'attack', defaultAttackType: 'rebut' },
+
+  // Neutral moves — typically produce standalone claims, no directed edge
+  'IDENTIFY-CRUX':        { edgeType: 'neutral' },
+  'SPECIFY':              { edgeType: 'neutral' },
+  'GROUND-CHECK':         { edgeType: 'neutral' },
+  'ASSERT':               { edgeType: 'neutral' },
+  'CLARIFY':              { edgeType: 'neutral' },
+  'OPERATIONALIZE':       { edgeType: 'neutral' },
+  'PROPOSE-TEST':         { edgeType: 'neutral' },
+  'PROPOSE-STANDARD':     { edgeType: 'neutral' },
+  'PROPOSE':              { edgeType: 'neutral' },
+  'RESOLVE-TENSION':      { edgeType: 'neutral' },
+  'CITE-AUTHORITY':       { edgeType: 'neutral' },
+  'APPEAL-TO-EVIDENCE':   { edgeType: 'neutral' },
+  'ANALOGY':              { edgeType: 'neutral' },
+  'PRECEDENT':            { edgeType: 'neutral' },
+  'SYNTHESIZE':           { edgeType: 'neutral' },
+  'RETRACT':              { edgeType: 'neutral' },
+  'CHALLENGE':            { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'REDUCTIO':             { edgeType: 'attack', defaultAttackType: 'rebut' },
+  'FALSIFY':              { edgeType: 'attack', defaultAttackType: 'undermine' },
+};
+
+export const SUPPORT_MOVES = new Set(
+  Object.entries(MOVE_EDGE_MAP).filter(([, v]) => v.edgeType === 'support').map(([k]) => k),
+);
+export const ATTACK_MOVES = new Set(
+  Object.entries(MOVE_EDGE_MAP).filter(([, v]) => v.edgeType === 'attack').map(([k]) => k),
+);
+export const NEUTRAL_MOVES = new Set(
+  Object.entries(MOVE_EDGE_MAP).filter(([, v]) => v.edgeType === 'neutral').map(([k]) => k),
+);
+
 /** Word-overlap ratio between two texts (words >3 chars). Shared for convergence diagnostics. */
 export function wordOverlap(a: string, b: string): number {
   const aw = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));

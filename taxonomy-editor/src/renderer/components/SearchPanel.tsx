@@ -148,7 +148,7 @@ function dedupe(results: TaxResult[]): TaxResult[] {
 // ─── Component ──────────────────────────────────────────
 interface SearchPanelProps {
   onAnalyze?: (elementB: { label: string; description: string; category: string }) => void;
-  onSelectResult?: (id: string) => void;
+  onSelectResult?: (id: string | null) => void;
 }
 
 export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
@@ -202,6 +202,17 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     }
     runSimilarSearch(nodeId, label, desc);
   }, [pendingSearchRelatedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear stale results and Pane 2 preview when query changes
+  useEffect(() => {
+    if (mode === 'taxonomy') {
+      if (isSemantic) {
+        useTaxonomyStore.setState({ semanticResults: [] });
+      }
+      onSelectResult?.(null);
+      setSelectedIndex(-1);
+    }
+  }, [findQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced semantic search
   useEffect(() => {
