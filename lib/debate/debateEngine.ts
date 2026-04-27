@@ -1175,6 +1175,7 @@ export class DebateEngine {
         recentTurns: recentTurnsForJudge,
         knownNodeIds: this.getKnownNodeIds(),
         policyIds: this.getPolicyIds(),
+        audience: this.config.audience,
         config: vConfig,
         callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
         callJudgeFallback: this.config.model !== vConfig.judgeModel

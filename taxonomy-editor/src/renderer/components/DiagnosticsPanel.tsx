@@ -1293,31 +1293,56 @@ const VERDICT_COLORS: Record<string, string> = {
   unknown: '#6b7280',
 };
 
+interface ParsedFactCheck {
+  verdict: string;
+  explanation: string;
+  checkedText: string;
+  isAuto: boolean;
+  webSearchUsed: boolean;
+  webSearchQueries: string[];
+  webSearchCitations: Array<{ url?: string; title?: string }>;
+  targetAnId?: string;
+}
+
+function parseFactCheckMeta(meta: Record<string, unknown>): ParsedFactCheck {
+  const fc = (meta.fact_check ?? meta) as Record<string, unknown>;
+  return {
+    verdict: (fc.verdict as string) ?? 'unknown',
+    explanation: (fc.explanation as string) ?? '',
+    checkedText: (fc.checked_text as string) ?? '',
+    isAuto: !!(fc.target_an_id),
+    webSearchUsed: !!(fc.web_search_used),
+    webSearchQueries: Array.isArray(fc.web_search_queries) ? fc.web_search_queries as string[] : [],
+    webSearchCitations: Array.isArray(fc.web_search_citations) ? fc.web_search_citations as Array<{ url?: string; title?: string }> : [],
+    targetAnId: fc.target_an_id as string | undefined,
+  };
+}
+
 function VerificationSection({ transcript, anNodes }: VerificationSectionProps) {
-  const stats = useMemo(() => {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const { stats, checks } = useMemo(() => {
     const factChecks = transcript.filter(e => e.type === 'fact-check');
     const verdictCounts: Record<string, number> = {};
     const autoVerdictCounts: Record<string, number> = {};
     const userVerdictCounts: Record<string, number> = {};
-    const confidenceCounts: Record<string, number> = {};
     let autoChecks = 0;
     let userChecks = 0;
+    const parsed: ParsedFactCheck[] = [];
 
     for (const fc of factChecks) {
       const meta = (fc.metadata ?? {}) as Record<string, unknown>;
-      const verdict = (meta.verdict as string | undefined) ?? 'unknown';
-      const source = (meta.source as string | undefined) === 'auto' ? 'auto' : 'user';
-      const confidence = meta.confidence as string | undefined;
+      const p = parseFactCheckMeta(meta);
+      parsed.push(p);
 
-      verdictCounts[verdict] = (verdictCounts[verdict] ?? 0) + 1;
-      if (source === 'auto') {
+      verdictCounts[p.verdict] = (verdictCounts[p.verdict] ?? 0) + 1;
+      if (p.isAuto) {
         autoChecks++;
-        autoVerdictCounts[verdict] = (autoVerdictCounts[verdict] ?? 0) + 1;
+        autoVerdictCounts[p.verdict] = (autoVerdictCounts[p.verdict] ?? 0) + 1;
       } else {
         userChecks++;
-        userVerdictCounts[verdict] = (userVerdictCounts[verdict] ?? 0) + 1;
+        userVerdictCounts[p.verdict] = (userVerdictCounts[p.verdict] ?? 0) + 1;
       }
-      if (confidence) confidenceCounts[confidence] = (confidenceCounts[confidence] ?? 0) + 1;
     }
 
     const preciseBeliefs = anNodes.filter(
@@ -1328,16 +1353,18 @@ function VerificationSection({ transcript, anNodes }: VerificationSectionProps) 
     );
 
     return {
-      totalChecks: factChecks.length,
-      autoChecks,
-      userChecks,
-      verdictCounts,
-      autoVerdictCounts,
-      userVerdictCounts,
-      confidenceCounts,
-      preciseBeliefs: preciseBeliefs.length,
-      preciseVerified: verifiedPreciseBeliefs.length,
-      coverage: preciseBeliefs.length > 0 ? verifiedPreciseBeliefs.length / preciseBeliefs.length : 0,
+      stats: {
+        totalChecks: factChecks.length,
+        autoChecks,
+        userChecks,
+        verdictCounts,
+        autoVerdictCounts,
+        userVerdictCounts,
+        preciseBeliefs: preciseBeliefs.length,
+        preciseVerified: verifiedPreciseBeliefs.length,
+        coverage: preciseBeliefs.length > 0 ? verifiedPreciseBeliefs.length / preciseBeliefs.length : 0,
+      },
+      checks: parsed,
     };
   }, [transcript, anNodes]);
 
@@ -1399,14 +1426,36 @@ function VerificationSection({ transcript, anNodes }: VerificationSectionProps) 
           </div>
         </div>
       )}
-      {Object.keys(stats.confidenceCounts).length > 0 && (
-        <div style={{ marginTop: 6 }}>
-          <span className="diag-k">Confidence:</span>
-          <div className="diag-badges">
-            {['high', 'medium', 'low'].filter(c => stats.confidenceCounts[c]).map(c => (
-              <span key={c} className="diag-badge diag-badge-move">{c} ({stats.confidenceCounts[c]})</span>
-            ))}
-          </div>
+      {checks.length > 0 && (
+        <div style={{ marginTop: 8 }} className="factcheck-detail-list">
+          {checks.map((fc, i) => (
+            <div key={i} className="factcheck-detail-row" onClick={() => setExpandedIdx(expandedIdx === i ? null : i)} role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedIdx(expandedIdx === i ? null : i); } }}>
+              <div className="factcheck-detail-header">
+                <span className="diag-badge" style={{ background: VERDICT_COLORS[fc.verdict] ?? '#6b7280', color: '#fff', fontSize: '0.55rem' }}>
+                  {fc.verdict}
+                </span>
+                <span className="factcheck-detail-claim">{fc.checkedText.length > 80 ? fc.checkedText.slice(0, 77) + '...' : fc.checkedText}</span>
+                <span className="diag-muted" style={{ fontSize: '0.55rem' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
+              </div>
+              {expandedIdx === i && (
+                <div className="factcheck-detail-expanded">
+                  <div className="factcheck-detail-explanation">{fc.explanation}</div>
+                  {fc.targetAnId && <div className="diag-muted" style={{ fontSize: '0.55rem' }}>AN node: {fc.targetAnId}</div>}
+                  {fc.webSearchQueries.length > 0 && (
+                    <div className="diag-muted" style={{ fontSize: '0.55rem' }}>Queries: {fc.webSearchQueries.slice(0, 3).join(', ')}</div>
+                  )}
+                  {fc.webSearchCitations.length > 0 && (
+                    <div style={{ fontSize: '0.55rem', marginTop: 2 }}>
+                      {fc.webSearchCitations.slice(0, 5).map((c, ci) => (
+                        <div key={ci} className="diag-muted">{c.title || c.url || 'citation'}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
       {stats.totalChecks === 0 && stats.preciseBeliefs > 0 && (

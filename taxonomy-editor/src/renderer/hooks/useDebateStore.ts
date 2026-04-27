@@ -57,6 +57,7 @@ import {
   parsePoverResponse,
 } from '@lib/debate/helpers';
 import { normalizeBdiLayer, nodeTypeFromId } from '@lib/debate';
+import { getDebatePhase } from '@lib/debate/types';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
@@ -552,7 +553,7 @@ async function extractClaimsAndUpdateAN(
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
-    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
     try {
       parsed = JSON.parse(cleaned) as typeof parsed;
     } catch (parseErr) {
@@ -640,6 +641,7 @@ async function extractClaimsAndUpdateAN(
       }
 
       const nodeId = `AN-${nextId++}`;
+      const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
       newNodes.push({
         id: nodeId,
         text: claim.text,
@@ -651,6 +653,9 @@ async function extractClaimsAndUpdateAN(
         scoring_method: typeof claim.base_strength === 'number'
           ? 'ai_rubric'
           : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+        bdi_sub_scores: claim.bdi_sub_scores && typeof claim.bdi_sub_scores === 'object'
+          ? claim.bdi_sub_scores as ArgumentNetworkNode['bdi_sub_scores'] : undefined,
+        bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
         bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
         specificity: claim.specificity as ArgumentNetworkNode['specificity'],
         steelman_of: claim.steelman_of || undefined,
@@ -1331,12 +1336,22 @@ function buildDebateResponsePrompt(
   return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience);
 }
 
+function formatGapHint(gapInjections?: GapInjection[]): string {
+  const args = gapInjections?.[0]?.arguments;
+  if (!args || args.length === 0) return '';
+  const lines = args.map((g, i) =>
+    `  ${i + 1}. [${g.gap_type}] ${g.argument} (Why missing: ${g.why_missing})`,
+  );
+  return `\n\n## Identified Debate Gaps (unaddressed)\nThe following gaps were identified mid-debate but have NOT yet been substantively addressed by any debater. Prioritize steering the conversation toward these:\n${lines.join('\n')}\n`;
+}
+
 function buildCrossRespondSelectionPrompt(
   recentTranscript: string,
   activePovers: string[],
   argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] },
   unansweredLedger?: import('@lib/debate/types').UnansweredClaimEntry[],
   round?: number,
+  gapInjections?: GapInjection[],
 ): string {
   const edgeContext = formatEdgeContext(activePovers);
   const anContext = argumentNetwork
@@ -1351,7 +1366,8 @@ function buildCrossRespondSelectionPrompt(
   const specifyHint = argumentNetwork
     ? formatSpecifyHint(argumentNetwork.nodes, argumentNetwork.edges)
     : '';
-  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext + anContext + ledgerHint + specifyHint);
+  const gapHint = formatGapHint(gapInjections);
+  return crossRespondSelectionPrompt(recentTranscript, activePovers, edgeContext + anContext + ledgerHint + specifyHint + gapHint);
 }
 
 function buildCrossRespondPrompt(
@@ -1545,6 +1561,9 @@ interface DebateStore {
   requestReflections: () => Promise<void>;
   applyReflectionEdit: (pover: string, editIndex: number) => void;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
+
+  // AN node editing
+  updateAnNodeSubScore: (nodeId: string, key: string, value: number) => void;
 
   // Phase 7: Fact Check
   factCheckSelection: (selectedText: string, entryId: string) => Promise<void>;
@@ -2479,15 +2498,17 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     // Estimate current round from cross-respond statement count
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
-    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels, activeDebate.argument_network, activeDebate.unanswered_claims_ledger, crossRespondRound);
+    const selectionPrompt = buildCrossRespondSelectionPrompt(recentTranscript, poverLabels, activeDebate.argument_network, activeDebate.unanswered_claims_ledger, crossRespondRound, activeDebate.gap_injections);
 
     let responderPover: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = '';
     let addressingLabel = 'general';
     let aiSelectedResponder: string | null = null; // Track what the AI originally picked
+    let moderatorSelectionResponse = '';
 
     try {
       const { text } = await generateTextWithProgress(selectionPrompt, model, `Selecting next responder (${model})`, set);
+      moderatorSelectionResponse = text;
       if (!isStillValid()) return;
       const modParsed = parseAIJson<{ responder?: string; focus_point?: string; addressing?: string; agreement_detected?: boolean }>(text);
       if (modParsed) {
@@ -2572,6 +2593,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         ? 'moderator_ai_selection'
         : aiSelectedResponder ? 'turn_alternation_override' : 'fallback',
       focus_point: focusPoint,
+      selection_prompt: selectionPrompt,
+      selection_response: moderatorSelectionResponse,
     };
 
     // Step 2: Generate the cross-response
@@ -2613,8 +2636,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
     const crDocAnalysis = activeDebate.document_analysis;
 
-    // Compute phase from transcript length
-    const phase = ((activeDebate.transcript.length ?? 0) < 6) ? 'thesis-antithesis' as const : 'exploration' as const;
+    // Compute phase from statement count vs total rounds
+    const stmtCount = activeDebate.transcript.filter(e => e.type === 'statement').length;
+    const totalRoundsForPhase = get().initialCrossRespondRounds || 5;
+    const phase = getDebatePhase(stmtCount + 1, totalRoundsForPhase * 3);
 
     // Collect prior move types for diversity enforcement
     const priorMoves = activeDebate.transcript
@@ -2636,6 +2661,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
 
     // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+    const debaterGapHint = formatGapHint(activeDebate.gap_injections);
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -2645,7 +2671,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       commitmentContext: commitBlock,
       establishedPoints: establishedBlock,
       edgeContext: edgeBlock,
-      concessionHint,
+      concessionHint: concessionHint + debaterGapHint,
       recentTranscript: currentTranscript,
       focusPoint,
       addressing: addressingLabel,
@@ -2710,6 +2736,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           recentTurns: recentTurnsForJudge,
           knownNodeIds,
           policyIds,
+          audience: get().audience,
           config: vConfig,
           callJudge: async (jp: string, label: string) => {
             const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
@@ -3839,6 +3866,24 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       };
     });
     set({ reflections: updated });
+  },
+
+  updateAnNodeSubScore: (nodeId: string, key: string, value: number) => {
+    const debate = get().activeDebate;
+    if (!debate?.argument_network) return;
+    const nodes = debate.argument_network.nodes.map(n => {
+      if (n.id !== nodeId || !n.bdi_sub_scores) return n;
+      const updated = { ...n.bdi_sub_scores, [key]: value };
+      const vals = Object.values(updated).filter((v): v is number => v != null);
+      const avg = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : n.base_strength;
+      return { ...n, bdi_sub_scores: updated, base_strength: avg };
+    });
+    set({
+      activeDebate: {
+        ...debate,
+        argument_network: { ...debate.argument_network, nodes },
+      },
+    });
   },
 }));
 

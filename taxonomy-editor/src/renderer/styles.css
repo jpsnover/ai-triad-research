@@ -7046,6 +7046,15 @@ body {
 .diag-commit-item { font-size: 0.7rem; margin: 2px 0; }
 .diag-overview { }
 
+/* Fact-check detail list */
+.factcheck-detail-list { display: flex; flex-direction: column; gap: 3px; }
+.factcheck-detail-row { cursor: pointer; padding: 3px 6px; border-radius: 4px; background: var(--bg-secondary); font-size: 0.65rem; }
+.factcheck-detail-row:hover { background: var(--bg-tertiary, rgba(255,255,255,0.06)); }
+.factcheck-detail-header { display: flex; align-items: center; gap: 6px; }
+.factcheck-detail-claim { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.factcheck-detail-expanded { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); }
+.factcheck-detail-explanation { font-size: 0.62rem; line-height: 1.4; white-space: pre-wrap; color: var(--text-primary); }
+
 /* Intervention diagnostics */
 .diag-verification-verified { background: rgba(34,197,94,0.15); color: #22c55e; font-size: 0.5rem; cursor: help; }
 .diag-verification-disputed { background: rgba(239,68,68,0.15); color: #ef4444; font-size: 0.5rem; cursor: help; }

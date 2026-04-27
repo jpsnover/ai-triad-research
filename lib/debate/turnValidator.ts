@@ -10,6 +10,7 @@
 
 import type {
   DebatePhase,
+  DebateAudience,
   PoverId,
   TaxonomyRef,
   TranscriptEntry,
@@ -19,7 +20,7 @@ import type {
   TaxonomyClarificationHint,
 } from './types';
 import type { PoverResponseMeta } from './helpers';
-import { parseJsonRobust, getMoveName } from './helpers';
+import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers';
 
 // ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
 const MOVE_CATALOG_RAW = [
@@ -165,6 +166,7 @@ export interface ValidateTurnParams {
   recentTurns: TranscriptEntry[];
   knownNodeIds: ReadonlySet<string>;
   policyIds: ReadonlySet<string>;
+  audience?: DebateAudience;
   config: Required<TurnValidationConfig>;
   callJudge: (prompt: string, label: string) => Promise<string>;
   /** Optional fallback judge caller using the debate's own model when the primary judge fails. */
@@ -292,6 +294,33 @@ function runStageA(p: ValidateTurnParams): StageAResult {
       target.push(msg);
     } else {
       advancementSignals.push('specific_claim');
+    }
+  }
+
+  // Rule 10: hedge density — audience-aware, phase-aware warning
+  const hedgeDensity = computeHedgeDensity(statement);
+  const hedgeThreshold = getHedgeThreshold(phase, p.audience);
+  if (hedgeDensity > hedgeThreshold) {
+    const pct = (hedgeDensity * 100).toFixed(0);
+    const thresh = (hedgeThreshold * 100).toFixed(0);
+    const msg = `Hedge density ${pct}% exceeds ${thresh}% threshold — replace qualifiers (may, might, could, perhaps, potentially) with definitive assertions. Use specific actors, timelines, and numbers.`;
+    warnings.push(msg);
+    advancementSignals.push(`high_hedge_density:${pct}%`);
+  }
+
+  // Rule 11: constructive move requirement — at least one support move after round 4
+  if (phase !== 'thesis-antithesis' && round >= 4 && meta.move_types && meta.move_types.length > 0) {
+    const resolved = meta.move_types.map(m => resolveMoveName(getMoveName(m)));
+    const hasConstructive = resolved.some(m => SUPPORT_MOVES.has(m));
+    if (!hasConstructive) {
+      const constructiveList = 'CONCEDE-AND-PIVOT, INTEGRATE, CONDITIONAL-AGREE, STEEL-BUILD, CONCEDE, EXTEND';
+      const msg = `No constructive move found — include at least one of: ${constructiveList}. Convergence requires engaging with opponents' strongest points, not just attacking.`;
+      if (phase === 'synthesis' || round >= 6) {
+        errors.push(msg);
+      } else {
+        warnings.push(msg);
+      }
+      advancementSignals.push('no_constructive_move');
     }
   }
 
@@ -563,5 +592,49 @@ export function buildRepairPrompt(
     sections.push('{ "statement": "…", "taxonomy_refs": [{"node_id":"…","relevance":"…"}], "move_types": [{"move":"…","detail":"…"}], "disagreement_type": "EMPIRICAL|VALUES|DEFINITIONAL", "my_claims": [{"claim":"…","targets":["…"]}] }');
   }
 
+  const hasHedgeWarning = v.repairHints.some(h => h.includes('Hedge density'));
+  if (hasHedgeWarning) {
+    sections.push('• Reduce hedge-stacking: replace "may potentially", "could possibly", "it seems likely" with direct assertions. Name the actor and use active voice.');
+  }
+
   return `${basePrompt}\n\n${sections.join('\n')}\n`;
+}
+
+// ── Hedge-density helpers (Rule 10) ─────────────────────────
+
+const HEDGE_MARKERS = [
+  /\bmay\b/gi, /\bmight\b/gi, /\bcould\b/gi, /\bperhaps\b/gi,
+  /\bpossibly\b/gi, /\bpotentially\b/gi, /\barguably\b/gi,
+  /\bseems?\b/gi, /\bappears?\b/gi, /\bsomewhat\b/gi,
+  /\btends?\sto\b/gi, /\bit is (possible|conceivable|plausible) that\b/gi,
+  /\bsome (argue|suggest|believe|contend)\b/gi,
+  /\bit has been (suggested|argued|noted)\b/gi,
+  /\bmay potentially\b/gi, /\bcould potentially\b/gi,
+  /\bcould possibly\b/gi, /\bmight possibly\b/gi,
+];
+
+function computeHedgeDensity(statement: string): number {
+  const sentences = statement.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  if (sentences.length === 0) return 0;
+  let hedgedSentences = 0;
+  for (const sentence of sentences) {
+    if (HEDGE_MARKERS.some(rx => rx.test(sentence))) {
+      hedgedSentences++;
+    }
+    for (const rx of HEDGE_MARKERS) rx.lastIndex = 0;
+  }
+  return hedgedSentences / sentences.length;
+}
+
+function getHedgeThreshold(phase: DebatePhase, audience?: DebateAudience): number {
+  if (audience === 'academic_community') return 0.50;
+  const byPhase: Record<DebatePhase, number> = {
+    'thesis-antithesis': 0.40,
+    exploration: 0.30,
+    synthesis: 0.20,
+  };
+  if (audience === 'general_public') {
+    return (byPhase[phase] ?? 0.30) - 0.05;
+  }
+  return byPhase[phase] ?? 0.30;
 }

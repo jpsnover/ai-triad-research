@@ -12,7 +12,7 @@ import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
-import { getMoveName } from '@lib/debate/helpers';
+import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
@@ -559,6 +559,203 @@ function ResizablePre({ text, tall = false }: { text: string; tall?: boolean }) 
   );
 }
 
+interface ModeratorTraceData {
+  selected?: string; focus_point?: string; selection_reason?: string;
+  excluded_last_speaker?: string | null; recent_scheme?: string | null;
+  convergence_score?: number | null; convergence_triggered?: boolean;
+  candidates?: { debater: string; computed_strength: number | null; rank: number }[];
+  commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
+  selection_prompt?: string; selection_response?: string;
+}
+
+function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
+  const sectionStyle: React.CSSProperties = { marginBottom: 12, padding: '8px 10px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid var(--border)' };
+  const headingStyle: React.CSSProperties = { fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#f97316', marginBottom: 6 };
+
+  // Parse the selection prompt into labeled sections
+  const promptSections = useMemo(() => {
+    if (!trace.selection_prompt) return [];
+    const sections: { title: string; content: string }[] = [];
+    const text = trace.selection_prompt;
+
+    // Split on markdown-style headings (=== or ##)
+    const headingRe = /(?:^|\n)(?:={3,}\s*(.+?)\s*={3,}|##\s*(.+?))\s*\n/g;
+    let lastIdx = 0;
+    let lastTitle = 'System Prompt';
+    let match;
+    while ((match = headingRe.exec(text)) !== null) {
+      const preceding = text.slice(lastIdx, match.index).trim();
+      if (preceding) sections.push({ title: lastTitle, content: preceding });
+      lastTitle = (match[1] || match[2]).replace(/\s*\(.*?\)\s*$/, '');
+      lastIdx = match.index + match[0].length;
+    }
+    const remaining = text.slice(lastIdx).trim();
+    if (remaining) sections.push({ title: lastTitle, content: remaining });
+    return sections;
+  }, [trace.selection_prompt]);
+
+  return (
+    <>
+      {/* Decision summary */}
+      <div style={sectionStyle}>
+        <div style={headingStyle}>Decision</div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.75rem', alignItems: 'center' }}>
+          {trace.selected && (
+            <div><strong>Selected:</strong> <span style={{ color: '#f97316', fontWeight: 700 }}>{trace.selected}</span></div>
+          )}
+          {trace.selection_reason && (
+            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#f97316', fontSize: '0.62rem', fontWeight: 600 }}>
+              {trace.selection_reason.replace(/_/g, ' ')}
+            </span>
+          )}
+          {trace.excluded_last_speaker && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>excluded: {trace.excluded_last_speaker}</div>
+          )}
+        </div>
+        {trace.focus_point && (
+          <div style={{ marginTop: 6, fontSize: '0.75rem' }}>
+            <strong>Focus:</strong> {trace.focus_point}
+          </div>
+        )}
+      </div>
+
+      {/* Candidates */}
+      {trace.candidates && trace.candidates.length > 0 && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Candidate Ranking</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {trace.candidates.map((c, i) => (
+              <div key={i} style={{
+                padding: '6px 10px', borderRadius: 6, fontSize: '0.72rem',
+                background: c.debater === trace.selected ? 'rgba(249,115,22,0.12)' : 'transparent',
+                border: `1px solid ${c.debater === trace.selected ? '#f97316' : 'var(--border)'}`,
+                fontWeight: c.debater === trace.selected ? 700 : 400,
+              }}>
+                <div>#{c.rank} {c.debater}</div>
+                {c.computed_strength != null && (
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    avg strength: {c.computed_strength.toFixed(3)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Convergence + Commitments */}
+      {(trace.convergence_score != null || trace.commitment_snapshot) && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Debate State</div>
+          {trace.convergence_score != null && (
+            <div style={{ fontSize: '0.72rem', marginBottom: 4 }}>
+              <strong>Convergence:</strong> {(trace.convergence_score * 100).toFixed(0)}%
+              {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 6, fontWeight: 700 }}>TRIGGERED</span>}
+            </div>
+          )}
+          {trace.commitment_snapshot && (
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.7rem' }}>
+              {Object.entries(trace.commitment_snapshot).map(([name, c]) => (
+                <div key={name} style={{ padding: '4px 8px', borderRadius: 4, background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>{name}</div>
+                  <div style={{ display: 'flex', gap: 8, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                    <span>{c.asserted} asserted</span>
+                    <span>{c.conceded} conceded</span>
+                    <span>{c.challenged} challenged</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selection prompt sections */}
+      {promptSections.length > 0 && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Context Sent to Moderator</div>
+          {promptSections.map((s, i) => (
+            <details key={i} style={{ marginBottom: 4 }} open={i < 2}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', color: 'var(--text-primary)', padding: '3px 0' }}>
+                {s.title}
+                <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                  {s.content.length > 500 ? `${(s.content.length / 1024).toFixed(1)}KB` : `${s.content.length} chars`}
+                </span>
+              </summary>
+              <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
+                {s.content}
+              </pre>
+            </details>
+          ))}
+        </div>
+      )}
+
+      {/* Raw AI response */}
+      {trace.selection_response && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Moderator Response</div>
+          <pre style={{ fontSize: '0.7rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 200, overflow: 'auto', margin: 0, padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
+            {trace.selection_response}
+          </pre>
+        </div>
+      )}
+    </>
+  );
+}
+
+const SUB_SCORE_TIPS: Record<string, string> = {
+  evidence_quality: 'How well-supported is this claim by cited evidence?',
+  source_reliability: 'How credible and authoritative are the sources cited?',
+  falsifiability: 'Can this claim be tested or disproven with observable evidence?',
+  values_grounding: 'Is this value claim explicitly grounded in stated values or principles?',
+  tradeoff_acknowledgment: 'Does the claim acknowledge competing tradeoffs or costs?',
+  precedent_citation: 'Does the claim cite relevant precedent, norms, or established practice?',
+  mechanism_specificity: 'How specific is the proposed mechanism, action, or implementation path?',
+  scope_bounding: 'Are the boundaries, limitations, and applicability conditions defined?',
+  failure_mode_addressing: 'Does it address what could go wrong or how failures would be handled?',
+};
+
+const BELIEF_KEYS = new Set(['evidence_quality', 'source_reliability', 'falsifiability']);
+
+function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
+  const { updateAnNodeSubScore } = useDebateStore();
+  if (!node.bdi_sub_scores) return null;
+  const isBelief = node.bdi_category === 'belief';
+
+  return (
+    <div style={{ paddingLeft: 18, marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {Object.entries(node.bdi_sub_scores).filter(([, v]) => v != null).map(([key, val]) => {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const v = val as number;
+        const c = v >= 0.7 ? '#22c55e' : v >= 0.4 ? '#f59e0b' : '#ef4444';
+        const editable = isBelief && BELIEF_KEYS.has(key);
+
+        if (!editable) {
+          return (
+            <span key={key} title={SUB_SCORE_TIPS[key] || key} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'help' }}>
+              {label}: {v.toFixed(2)}
+            </span>
+          );
+        }
+
+        return (
+          <span key={key} title={SUB_SCORE_TIPS[key]} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.58rem', fontWeight: 600 }}>
+            <span style={{ color: c }}>{label}:</span>
+            <input
+              type="range"
+              min={0} max={1} step={0.05}
+              value={v}
+              onChange={(e) => updateAnNodeSubScore(node.id, key, parseFloat(e.target.value))}
+              style={{ width: 48, height: 10, accentColor: c, cursor: 'pointer' }}
+            />
+            <span style={{ color: c, minWidth: 26 }}>{v.toFixed(2)}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
 
@@ -598,6 +795,14 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         )}
         <div style={{ flex: 1 }}>
           <AifBadge type="I-node" />
+          {node.bdi_category && (() => {
+            const letter = node.bdi_category === 'belief' ? 'B' : node.bdi_category === 'desire' ? 'D' : 'I';
+            const color = node.bdi_category === 'belief' ? '#6366f1' : node.bdi_category === 'desire' ? '#ec4899' : '#06b6d4';
+            const lowConf = node.bdi_confidence != null && node.bdi_confidence < 0.5;
+            return (
+              <span title={`${node.bdi_category} (confidence: ${node.bdi_confidence?.toFixed(2) ?? '?'})${lowConf ? ' — low AI scoring reliability' : ''}`} style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 3, fontSize: '0.6rem', fontWeight: 800, color: '#fff', background: color, marginRight: 3, opacity: lowConf ? 0.5 : 1 }}>{letter}{lowConf ? '*' : ''}</span>
+            );
+          })()}
           <strong style={{ color: 'var(--accent)' }}><Highlight text={node.id} /></strong>
           {statementId && (
             <span
@@ -635,6 +840,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
+      {node.bdi_sub_scores && <SubScoreRow node={node} />}
 
       {/* Edges — ALWAYS visible (badge + source ID + type + scheme + warrant) */}
       {hasChildren && (
@@ -747,7 +953,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -910,7 +1116,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['details', 'brief', 'plan', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['details', 'moderator', 'brief', 'plan', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -1505,8 +1711,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const draftStage = stages?.find(s => s.stage === 'draft');
             const citeStage = stages?.find(s => s.stage === 'cite');
 
+            const modTrace = (meta?.moderator_trace ?? proxiedModeratorTrace) as {
+              selected?: string; focus_point?: string; selection_reason?: string;
+              excluded_last_speaker?: string | null; recent_scheme?: string | null;
+              convergence_score?: number | null; convergence_triggered?: boolean;
+              candidates?: { debater: string; computed_strength: number | null; rank: number }[];
+              commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
+              selection_prompt?: string; selection_response?: string;
+            } | null;
+            const hasModTab = !!modTrace;
+
             const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
               { id: 'details', label: 'Details', has: hasDetails, copy: '' },
+              { id: 'moderator', label: 'Moderator', has: hasModTab, copy: modTrace?.selection_prompt ?? '' },
               { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
               { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
               { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : entry.content },
@@ -1693,7 +1910,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'details' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
-                      {entry.content && (
+                      {entry.content && entry.type === 'opening' && (
                         <Section title="Statement" defaultOpen copyText={entry.content}>
                           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
                             <Highlight text={entry.content} />
@@ -1705,9 +1922,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
                             const name = getMoveName(m);
                             const ann = typeof m === 'object' ? m as MoveAnnotation : null;
+                            const edgeInfo = MOVE_EDGE_MAP[name.toUpperCase()] || MOVE_EDGE_MAP[name];
+                            const cat = edgeInfo?.edgeType || 'neutral';
+                            const catColor = cat === 'attack' ? '#ef4444' : cat === 'support' ? '#22c55e' : '#888';
                             return (
-                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(59,130,246,0.3)' }}>
+                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
                                 <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
+                                <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: '0.6rem', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
                                 {ann?.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
                                 {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
                               </div>
@@ -1782,6 +2003,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <ResizablePre tall text={diag.argument_network_context} />
                         </Section>
                       )}
+                    </div>
+                  )}
+                  {activeTab === 'moderator' && modTrace && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      <ModeratorTab trace={modTrace} />
                     </div>
                   )}
                   {activeTab === 'brief' && briefStage && (
@@ -1914,6 +2140,63 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
+                      {/* Fact-check evidence detail — shows web search evidence, queries, and citations */}
+                      {entry.type === 'fact-check' && (() => {
+                        const fcMeta = (entry.metadata as Record<string, unknown>)?.fact_check as Record<string, unknown> | undefined;
+                        if (!fcMeta) return null;
+                        const verdict = fcMeta.verdict as string | undefined;
+                        const explanation = fcMeta.explanation as string | undefined;
+                        const checkedText = fcMeta.checked_text as string | undefined;
+                        const webEvidence = fcMeta.web_search_evidence as string | undefined;
+                        const webQueries = Array.isArray(fcMeta.web_search_queries) ? fcMeta.web_search_queries as string[] : [];
+                        const webCitations = Array.isArray(fcMeta.web_search_citations) ? fcMeta.web_search_citations as Array<{ url?: string; title?: string; startIndex?: number; endIndex?: number }> : [];
+                        const targetAnId = fcMeta.target_an_id as string | undefined;
+                        const isAuto = !!targetAnId;
+                        return (<>
+                          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Verdict</summary>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.7rem' }}>
+                              <span style={{
+                                padding: '1px 8px', borderRadius: 4, fontWeight: 600, color: '#fff',
+                                background: verdict === 'verified' || verdict === 'supported' ? '#16a34a' : verdict === 'disputed' || verdict === 'false' ? '#dc2626' : '#6b7280',
+                              }}>{verdict ?? 'unknown'}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{isAuto ? 'auto-verified' : 'user-initiated'}</span>
+                              {targetAnId && <span style={{ color: 'var(--text-muted)' }}>AN: {targetAnId}</span>}
+                            </div>
+                            {checkedText && (
+                              <div style={{ fontSize: '0.7rem', padding: '4px 8px', background: 'rgba(249,115,22,0.08)', borderRadius: 4, borderLeft: '3px solid #f97316', marginBottom: 6 }}>
+                                {checkedText}
+                              </div>
+                            )}
+                            {explanation && (
+                              <div style={{ fontSize: '0.7rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{explanation}</div>
+                            )}
+                          </details>
+                          {webQueries.length > 0 && (
+                            <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Search Queries ({webQueries.length})</summary>
+                              <ul style={{ fontSize: '0.68rem', margin: '4px 0', paddingLeft: 16, color: 'var(--text-muted)' }}>
+                                {webQueries.map((q, qi) => <li key={qi}>{q}</li>)}
+                              </ul>
+                            </details>
+                          )}
+                          {webEvidence && (
+                            <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Web Evidence</summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 4 }}>{webEvidence}</pre>
+                            </details>
+                          )}
+                          {webCitations.length > 0 && (
+                            <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Citations ({webCitations.length})</summary>
+                              <div style={{ fontSize: '0.65rem' }}>
+                                {webCitations.map((c, ci) => (
+                                  <div key={ci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
+                                    {c.title && <div style={{ fontWeight: 600 }}>{c.title}</div>}
+                                    {c.url && <div style={{ color: 'var(--text-muted)', wordBreak: 'break-all' }}>{c.url}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </>);
+                      })()}
                       {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
                           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
