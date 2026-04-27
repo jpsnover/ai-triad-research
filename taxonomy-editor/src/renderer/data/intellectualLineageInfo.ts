@@ -13018,5 +13018,915 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     { label: "Lev Vygotsky", url: "https://en.wikipedia.org/wiki/Lev_Vygotsky" }
   ]
 },
+"Transhumanism": {
+  label: "Transhumanism",
+  summary: "A philosophical movement advocating the use of technology to enhance human cognitive and physical capacities beyond biological limits. In AI policy, transhumanist arguments frame advanced AI as a pathway to human augmentation, longevity, and transcendence of current limitations.",
+  example: "A node tagged with this attribute might argue that AGI development should be accelerated because it represents humanity's best chance at overcoming biological constraints.",
+  frequency: "Appears in acc (accelerationist) nodes discussing human enhancement, superintelligence, and the long-term trajectory of civilization.",
+  links: [
+    { label: "Wikipedia: Transhumanism", url: "https://en.wikipedia.org/wiki/Transhumanism" },
+    { label: "Stanford Encyclopedia of Philosophy: Transhumanism", url: "https://plato.stanford.edu/entries/transhumanism/" }
+  ]
+},
+"Precautionary principle": {
+  label: "Precautionary Principle",
+  summary: "A risk governance principle holding that when an action raises threats of harm, precautionary measures should be taken even if causal relationships are not fully established scientifically. In AI policy, it underpins calls to slow or restrict AI deployment until safety can be demonstrated.",
+  example: "A node tagged with this attribute might advocate for moratoriums on frontier AI training runs until alignment research catches up.",
+  frequency: "Appears in saf (safetyist) nodes discussing existential risk, regulation, and deployment governance.",
+  links: [
+    { label: "Wikipedia: Precautionary Principle", url: "https://en.wikipedia.org/wiki/Precautionary_principle" },
+    { label: "Stanford Encyclopedia of Philosophy: Precautionary Principle", url: "https://plato.stanford.edu/entries/precautionary-principle/" }
+  ]
+},
+"Risk management theory": {
+  label: "Risk Management Theory",
+  summary: "A systematic framework for identifying, assessing, and mitigating potential hazards, originating in finance and engineering. In AI policy, it provides structured approaches to evaluating catastrophic and incremental risks from AI systems across deployment contexts.",
+  example: "A node tagged with this attribute might propose tiered risk classification schemes for AI systems analogous to those used in pharmaceutical regulation.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing regulatory frameworks and governance architectures.",
+  links: [
+    { label: "Wikipedia: Risk Management", url: "https://en.wikipedia.org/wiki/Risk_management" },
+    { label: "Wikipedia: Enterprise Risk Management", url: "https://en.wikipedia.org/wiki/Enterprise_risk_management" }
+  ]
+},
+"Sociology of technology": {
+  label: "Sociology of Technology",
+  summary: "An academic field examining how social factors shape technological development and how technologies in turn restructure social relations. In AI policy, it challenges techno-deterministic narratives by revealing how power, culture, and institutions mediate AI's societal impacts.",
+  example: "A node tagged with this attribute might analyze how corporate organizational structures shape which AI applications get built and for whom.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing power dynamics, institutional bias, and sociotechnical systems.",
+  links: [
+    { label: "Wikipedia: Sociology of Technology", url: "https://en.wikipedia.org/wiki/Sociology_of_technology" },
+    { label: "Wikipedia: Social Construction of Technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" }
+  ]
+},
+"Techno-utopianism": {
+  label: "Techno-Utopianism",
+  summary: "The belief that technological progress will inevitably lead to a more perfect society, resolving major social, economic, and political problems. In AI discourse, it manifests as confidence that sufficiently advanced AI will solve coordination failures, resource scarcity, and governance challenges.",
+  example: "A node tagged with this attribute might claim that artificial general intelligence will usher in an era of unprecedented prosperity.",
+  frequency: "Appears in acc (accelerationist) nodes discussing transformative AI benefits and post-scarcity futures.",
+  links: [
+    { label: "Wikipedia: Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" },
+    { label: "Wikipedia: Techno-optimism", url: "https://en.wikipedia.org/wiki/Techno-optimism" }
+  ]
+},
+"Nuclear nonproliferation analogy": {
+  label: "Nuclear Nonproliferation Analogy",
+  summary: "The application of lessons from nuclear weapons governance to the challenge of controlling advanced AI systems. This analogy highlights parallels in dual-use technology, existential risk, and the difficulties of international coordination.",
+  example: "A node tagged with this attribute might propose an international AI agency modeled on the IAEA to monitor compute thresholds.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing international governance and compute governance.",
+  links: [
+    { label: "Wikipedia: Treaty on the Non-Proliferation of Nuclear Weapons", url: "https://en.wikipedia.org/wiki/Treaty_on_the_Non-Proliferation_of_Nuclear_Weapons" },
+    { label: "Wikipedia: International Atomic Energy Agency", url: "https://en.wikipedia.org/wiki/International_Atomic_Energy_Agency" }
+  ]
+},
+"Supply-side economics": {
+  label: "Supply-Side Economics",
+  summary: "An economic theory arguing that growth is most effectively driven by lowering barriers to production, including tax cuts, deregulation, and reducing compliance burdens. In AI policy, supply-side reasoning is invoked to argue against regulatory friction that could slow innovation.",
+  example: "A node tagged with this attribute might argue that excessive AI regulation will drive talent and investment to less regulated jurisdictions.",
+  frequency: "Appears in acc (accelerationist) nodes discussing deregulation, innovation incentives, and economic competitiveness.",
+  links: [
+    { label: "Wikipedia: Supply-side Economics", url: "https://en.wikipedia.org/wiki/Supply-side_economics" },
+    { label: "Wikipedia: Reaganomics", url: "https://en.wikipedia.org/wiki/Reaganomics" }
+  ]
+},
+"Posthumanism": {
+  label: "Posthumanism",
+  summary: "A critical theoretical framework that decenters the human subject, questioning the boundaries between human, animal, and machine. Unlike transhumanism's enhancement focus, posthumanism interrogates the very category of the human and how AI challenges anthropocentric assumptions.",
+  example: "A node tagged with this attribute might question whether sufficiently advanced AI systems deserve moral consideration independent of their utility to humans.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing AI personhood, moral status, and the limits of anthropocentric frameworks.",
+  links: [
+    { label: "Wikipedia: Posthumanism", url: "https://en.wikipedia.org/wiki/Posthumanism" },
+    { label: "Stanford Encyclopedia of Philosophy: Posthumanism", url: "https://plato.stanford.edu/entries/posthumanism/" }
+  ]
+},
+"Value alignment problem": {
+  label: "Value Alignment Problem",
+  summary: "The technical and philosophical challenge of ensuring that AI systems pursue goals consistent with human values. This encompasses both the difficulty of specifying values precisely and the risk that misaligned superintelligent systems could cause catastrophic outcomes.",
+  example: "A node tagged with this attribute might discuss how reward hacking illustrates the broader difficulty of encoding complex human preferences.",
+  frequency: "Appears in saf (safetyist) nodes discussing AI safety research, alignment techniques, and existential risk.",
+  links: [
+    { label: "Wikipedia: AI Alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" },
+    { label: "Stanford Encyclopedia of Philosophy: Ethics of AI", url: "https://plato.stanford.edu/entries/ethics-ai/" }
+  ]
+},
+"Technological utopianism": {
+  label: "Technological Utopianism",
+  summary: "A broad ideological orientation holding that advances in science and technology are the primary drivers of social progress. In AI policy, it frames AI as fundamentally beneficent and positions regulation as an obstacle to inevitable progress.",
+  example: "A node tagged with this attribute might assert that market-driven AI development will naturally converge on outcomes that benefit humanity.",
+  frequency: "Appears in acc (accelerationist) nodes discussing innovation policy and resistance to precautionary regulation.",
+  links: [
+    { label: "Wikipedia: Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" },
+    { label: "Wikipedia: Technocentrism", url: "https://en.wikipedia.org/wiki/Technocentrism" }
+  ]
+},
+"Post-scarcity economics": {
+  label: "Post-Scarcity Economics",
+  summary: "An economic vision in which technological abundance eliminates material scarcity and transforms the basis of economic organization. In AI policy, post-scarcity arguments are used to justify accelerated development and to highlight the need for new distributive institutions.",
+  example: "A node tagged with this attribute might argue that AI-driven productivity gains will necessitate universal basic income.",
+  frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing economic transformation and labor market disruption.",
+  links: [
+    { label: "Wikipedia: Post-scarcity Economy", url: "https://en.wikipedia.org/wiki/Post-scarcity_economy" },
+    { label: "Wikipedia: Universal Basic Income", url: "https://en.wikipedia.org/wiki/Universal_basic_income" }
+  ]
+},
+"Feminist technology studies": {
+  label: "Feminist Technology Studies",
+  summary: "An interdisciplinary field examining how gender relations shape and are shaped by technological design, deployment, and governance. In AI policy, it reveals how algorithmic systems can encode and amplify gender bias.",
+  example: "A node tagged with this attribute might analyze how facial recognition systems exhibit higher error rates for women of color.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing bias, equity, and participatory design.",
+  links: [
+    { label: "Wikipedia: Feminist Technoscience", url: "https://en.wikipedia.org/wiki/Feminist_technoscience" },
+    { label: "Wikipedia: Gender Bias in AI", url: "https://en.wikipedia.org/wiki/Gender_bias_in_artificial_intelligence" }
+  ]
+},
+"Schumpeterian innovation theory": {
+  label: "Schumpeterian Innovation Theory",
+  summary: "Joseph Schumpeter's economic theory that innovation is the central driver of capitalist development, carried out by visionary entrepreneurs who disrupt existing market structures. In AI policy, it supports arguments that concentrated investment is necessary for transformative AI breakthroughs.",
+  example: "A node tagged with this attribute might argue that dominant AI labs function as Schumpeterian entrepreneurs whose market power enables sustained R&D.",
+  frequency: "Appears in acc (accelerationist) nodes discussing innovation dynamics and the economics of AI development.",
+  links: [
+    { label: "Wikipedia: Joseph Schumpeter", url: "https://en.wikipedia.org/wiki/Joseph_Schumpeter" },
+    { label: "Wikipedia: Innovation Economics", url: "https://en.wikipedia.org/wiki/Innovation_economics" }
+  ]
+},
+"Neoclassical economics": {
+  label: "Neoclassical Economics",
+  summary: "The dominant economic paradigm emphasizing rational agents, market equilibrium, and price mechanisms as efficient allocators of resources. In AI policy, neoclassical frameworks inform cost-benefit analyses and market-based approaches to governance.",
+  example: "A node tagged with this attribute might argue that AI regulation should only be imposed where demonstrable market failures exist.",
+  frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing regulatory economics and market design.",
+  links: [
+    { label: "Wikipedia: Neoclassical Economics", url: "https://en.wikipedia.org/wiki/Neoclassical_economics" },
+    { label: "Wikipedia: Market Failure", url: "https://en.wikipedia.org/wiki/Market_failure" }
+  ]
+},
+"Responsible innovation": {
+  label: "Responsible Innovation",
+  summary: "A governance framework requiring that innovation processes anticipate societal impacts, include diverse stakeholders, and remain responsive to emerging concerns. In AI policy, it operationalizes the idea that developers bear ongoing obligations to assess and mitigate harms.",
+  example: "A node tagged with this attribute might advocate for mandatory impact assessments before deploying AI in high-stakes domains.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing governance frameworks and ethical AI development.",
+  links: [
+    { label: "Wikipedia: Responsible Innovation", url: "https://en.wikipedia.org/wiki/Responsible_innovation" },
+    { label: "Wikipedia: Responsible Research and Innovation", url: "https://en.wikipedia.org/wiki/Responsible_Research_and_Innovation" }
+  ]
+},
+"Moore's Law extrapolation": {
+  label: "Moore's Law Extrapolation",
+  summary: "The practice of projecting exponential trends in computing power into predictions about AI capability growth. In AI policy, such extrapolations underpin arguments about timelines to transformative AI and the urgency of governance interventions.",
+  example: "A node tagged with this attribute might project scaling trends to argue that human-level AI is inevitable within a specific timeframe.",
+  frequency: "Appears in acc (accelerationist) and saf (safetyist) nodes discussing capability timelines and technology forecasting.",
+  links: [
+    { label: "Wikipedia: Moore's Law", url: "https://en.wikipedia.org/wiki/Moore%27s_law" },
+    { label: "Wikipedia: Technological Forecasting", url: "https://en.wikipedia.org/wiki/Technological_forecasting" }
+  ]
+},
+"Open-source movement": {
+  label: "Open-Source Movement",
+  summary: "A philosophy and practice of making software source code freely available for use, modification, and distribution. In AI policy, open-source arguments are deployed to democratize access to AI and to raise concerns about proliferation of powerful models.",
+  example: "A node tagged with this attribute might argue that open-weight model releases enable vital safety research through independent auditing.",
+  frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing access, transparency, and proliferation risks.",
+  links: [
+    { label: "Wikipedia: Open-source Movement", url: "https://en.wikipedia.org/wiki/Open-source_movement" },
+    { label: "Wikipedia: Open-source AI", url: "https://en.wikipedia.org/wiki/Open-source_artificial_intelligence" }
+  ]
+},
+"Schumpeterian creative destruction": {
+  label: "Schumpeterian Creative Destruction",
+  summary: "Schumpeter's concept that capitalist progress occurs through cycles where innovative products destroy established industries and create new ones. In AI policy, creative destruction frames AI-driven disruption as a necessary engine of economic renewal.",
+  example: "A node tagged with this attribute might argue that AI-induced displacement of professions will generate new industries.",
+  frequency: "Appears in acc (accelerationist) nodes discussing labor market transformation and economic dynamism.",
+  links: [
+    { label: "Wikipedia: Creative Destruction", url: "https://en.wikipedia.org/wiki/Creative_destruction" },
+    { label: "Wikipedia: Joseph Schumpeter", url: "https://en.wikipedia.org/wiki/Joseph_Schumpeter" }
+  ]
+},
+"Marxist critique of capitalism": {
+  label: "Marxist Critique of Capitalism",
+  summary: "A political-economic framework analyzing how capital accumulation and class relations shape technological development. In AI policy, Marxist analysis highlights how AI may intensify labor exploitation and concentrate wealth.",
+  example: "A node tagged with this attribute might argue that AI automation primarily serves to extract surplus value from workers.",
+  frequency: "Appears in skp (skeptic) nodes discussing inequality, labor exploitation, and power concentration.",
+  links: [
+    { label: "Wikipedia: Marxism", url: "https://en.wikipedia.org/wiki/Marxism" },
+    { label: "Wikipedia: Critique of Capitalism", url: "https://en.wikipedia.org/wiki/Criticism_of_capitalism" }
+  ]
+},
+"Technological unemployment theory": {
+  label: "Technological Unemployment Theory",
+  summary: "The economic analysis of how automation can permanently displace human labor rather than merely shift it to new sectors. In AI policy, this theory grounds concerns that AI may outpace the economy's ability to create replacement employment.",
+  example: "A node tagged with this attribute might analyze evidence of AI displacing white-collar workers without commensurate job creation.",
+  frequency: "Appears in saf (safetyist) and skp (skeptic) nodes discussing labor market disruption and social safety nets.",
+  links: [
+    { label: "Wikipedia: Technological Unemployment", url: "https://en.wikipedia.org/wiki/Technological_unemployment" },
+    { label: "Wikipedia: Automation", url: "https://en.wikipedia.org/wiki/Automation" }
+  ]
+},
+"Techno-libertarianism": {
+  label: "Techno-Libertarianism",
+  summary: "A political philosophy combining libertarian skepticism of state power with enthusiasm for technology as a tool of individual liberation. In AI policy, techno-libertarians oppose government regulation and advocate market-driven approaches.",
+  example: "A node tagged with this attribute might argue that competitive market pressures will naturally incentivize safe AI development.",
+  frequency: "Appears in acc (accelerationist) nodes discussing deregulation and resistance to centralized AI oversight.",
+  links: [
+    { label: "Wikipedia: Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Techno-libertarianism" },
+    { label: "Wikipedia: Libertarianism", url: "https://en.wikipedia.org/wiki/Libertarianism" }
+  ]
+},
+"Public administration theory": {
+  label: "Public Administration Theory",
+  summary: "The academic study of how government agencies design and implement public policies, including bureaucratic capacity and regulatory enforcement. In AI policy, it addresses challenges of building governmental expertise capable of overseeing evolving AI technologies.",
+  example: "A node tagged with this attribute might analyze whether existing regulatory agencies have the capacity to oversee frontier AI.",
+  frequency: "Appears in cc (cross-cutting) nodes discussing regulatory capacity and institutional design.",
+  links: [
+    { label: "Wikipedia: Public Administration", url: "https://en.wikipedia.org/wiki/Public_administration" },
+    { label: "Wikipedia: Regulatory Agency", url: "https://en.wikipedia.org/wiki/Regulatory_agency" }
+  ]
+},
+"Technology assessment": {
+  label: "Technology Assessment",
+  summary: "A systematic methodology for evaluating the potential social, economic, and ethical consequences of new technologies. In AI policy, technology assessment provides structured approaches to anticipating AI impacts and informing legislative decisions.",
+  example: "A node tagged with this attribute might propose a technology assessment office focused on evaluating AI systems before deployment.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing foresight and evidence-based policymaking.",
+  links: [
+    { label: "Wikipedia: Technology Assessment", url: "https://en.wikipedia.org/wiki/Technology_assessment" },
+    { label: "Wikipedia: Office of Technology Assessment", url: "https://en.wikipedia.org/wiki/Office_of_Technology_Assessment" }
+  ]
+},
+"Auditing and accountability frameworks": {
+  label: "Auditing and Accountability Frameworks",
+  summary: "Structured approaches to evaluating whether AI systems meet standards for fairness, safety, and transparency, drawing on financial auditing and civil rights compliance traditions.",
+  example: "A node tagged with this attribute might propose mandatory third-party algorithmic audits for AI in hiring or lending.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing oversight mechanisms and accountability.",
+  links: [
+    { label: "Wikipedia: Algorithmic Auditing", url: "https://en.wikipedia.org/wiki/Algorithmic_auditing" },
+    { label: "Wikipedia: Accountability", url: "https://en.wikipedia.org/wiki/Accountability" }
+  ]
+},
+"AI interpretability": {
+  label: "AI Interpretability",
+  summary: "The research agenda focused on making AI systems' internal reasoning understandable to humans. In AI policy, interpretability is positioned as a prerequisite for meaningful oversight and legal accountability.",
+  example: "A node tagged with this attribute might argue that consequential AI decisions should provide human-readable explanations.",
+  frequency: "Appears in saf (safetyist) nodes discussing transparency requirements and regulatory standards.",
+  links: [
+    { label: "Wikipedia: Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
+    { label: "Wikipedia: Interpretability", url: "https://en.wikipedia.org/wiki/Interpretability" }
+  ]
+},
+"Adaptive control systems": {
+  label: "Adaptive Control Systems",
+  summary: "An engineering discipline focused on systems that adjust behavior in response to changing conditions. In AI policy, adaptive control provides frameworks for governance that evolves alongside advancing AI capabilities.",
+  example: "A node tagged with this attribute might propose regulatory sandboxes with automatic escalation triggers.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing adaptive governance.",
+  links: [
+    { label: "Wikipedia: Adaptive Control", url: "https://en.wikipedia.org/wiki/Adaptive_control" },
+    { label: "Wikipedia: Control Theory", url: "https://en.wikipedia.org/wiki/Control_theory" }
+  ]
+},
+"Media effects theory": {
+  label: "Media Effects Theory",
+  summary: "Communication research examining how media technologies influence attitudes, behaviors, and social structures. In AI policy, media effects illuminate how AI-generated content and recommendation algorithms may reshape public opinion.",
+  example: "A node tagged with this attribute might analyze how recommendation algorithms amplify political polarization.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing misinformation and democratic integrity.",
+  links: [
+    { label: "Wikipedia: Media Effects", url: "https://en.wikipedia.org/wiki/Media_influence" },
+    { label: "Wikipedia: Agenda-setting Theory", url: "https://en.wikipedia.org/wiki/Agenda-setting_theory" }
+  ]
+},
+"Pragmatism": {
+  label: "Pragmatism",
+  summary: "A philosophical tradition from Peirce, James, and Dewey evaluating ideas by practical consequences and emphasizing experimentation and fallibilism. In AI policy, pragmatism favors iterative, evidence-based governance.",
+  example: "A node tagged with this attribute might advocate for pilot programs adjusting AI regulation based on observed outcomes.",
+  frequency: "Appears in cc (cross-cutting) nodes discussing adaptive governance and evidence-based policy.",
+  links: [
+    { label: "Wikipedia: Pragmatism", url: "https://en.wikipedia.org/wiki/Pragmatism" },
+    { label: "Stanford Encyclopedia of Philosophy: Pragmatism", url: "https://plato.stanford.edu/entries/pragmatism/" }
+  ]
+},
+"Civil rights movement": {
+  label: "Civil Rights Movement",
+  summary: "The historical and ongoing struggle for equal rights, providing legal precedents and moral vocabulary for challenging systemic injustice. In AI policy, it grounds demands that AI systems not perpetuate discrimination.",
+  example: "A node tagged with this attribute might invoke disparate impact doctrine against AI producing biased outcomes.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing algorithmic discrimination and equity.",
+  links: [
+    { label: "Wikipedia: Civil Rights Movement", url: "https://en.wikipedia.org/wiki/Civil_rights_movement" },
+    { label: "Wikipedia: Algorithmic Bias", url: "https://en.wikipedia.org/wiki/Algorithmic_bias" }
+  ]
+},
+"Software engineering principles (bottleneck analysis)": {
+  label: "Software Engineering Principles (Bottleneck Analysis)",
+  summary: "Engineering methodologies for identifying performance constraints using the theory of constraints. In AI policy, bottleneck analysis identifies governance chokepoints where targeted intervention has outsized leverage.",
+  example: "A node tagged with this attribute might argue that regulating semiconductor supply chains is more tractable than regulating models directly.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing compute governance.",
+  links: [
+    { label: "Wikipedia: Bottleneck (software)", url: "https://en.wikipedia.org/wiki/Bottleneck_(software)" },
+    { label: "Wikipedia: Theory of Constraints", url: "https://en.wikipedia.org/wiki/Theory_of_constraints" }
+  ]
+},
+"Safety engineering principles": {
+  label: "Safety Engineering Principles",
+  summary: "Systematic approaches to preventing catastrophic failures including the Swiss cheese model, defense-in-depth, and fail-safe design. In AI policy, they inform proposals for layered safety mechanisms.",
+  example: "A node tagged with this attribute might argue that AI deployment requires multiple independent safety barriers.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing risk mitigation and deployment safeguards.",
+  links: [
+    { label: "Wikipedia: Safety Engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" },
+    { label: "Wikipedia: Swiss Cheese Model", url: "https://en.wikipedia.org/wiki/Swiss_cheese_model" }
+  ]
+},
+"Software engineering (transaction management)": {
+  label: "Software Engineering (Transaction Management)",
+  summary: "The discipline of managing ACID operations in software, ensuring processes complete fully or roll back cleanly. In AI policy, it informs arguments about reversibility and undoable AI decisions.",
+  example: "A node tagged with this attribute might propose that consequential AI decisions should allow rollback.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing AI reliability and error recovery.",
+  links: [
+    { label: "Wikipedia: Transaction Processing", url: "https://en.wikipedia.org/wiki/Transaction_processing" },
+    { label: "Wikipedia: ACID", url: "https://en.wikipedia.org/wiki/ACID" }
+  ]
+},
+"Human Rights Law": {
+  label: "Human Rights Law",
+  summary: "The body of international law promoting and protecting human rights, rooted in the UDHR. In AI policy, it provides a normative framework requiring AI systems to respect privacy, non-discrimination, and due process.",
+  example: "A node tagged with this attribute might argue that automated criminal justice decisions violate fair trial rights.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing governance and algorithmic discrimination.",
+  links: [
+    { label: "Wikipedia: International Human Rights Law", url: "https://en.wikipedia.org/wiki/International_human_rights_law" },
+    { label: "Wikipedia: UDHR", url: "https://en.wikipedia.org/wiki/Universal_Declaration_of_Human_Rights" }
+  ]
+},
+"Open-source movement philosophy": {
+  label: "Open-Source Movement Philosophy",
+  summary: "The intellectual tradition that software should be freely available for inspection and redistribution, from Stallman's free software movement. In AI policy, it drives arguments for transparent model weights and community-driven development.",
+  example: "A node tagged with this attribute might argue that open-sourcing models accelerates safety research through broader scrutiny.",
+  frequency: "Appears in acc (accelerationist) and skp (skeptic) nodes discussing AI democratization.",
+  links: [
+    { label: "Wikipedia: Open-Source Movement", url: "https://en.wikipedia.org/wiki/Open-source_movement" },
+    { label: "Wikipedia: Free Software Movement", url: "https://en.wikipedia.org/wiki/Free_software_movement" }
+  ]
+},
+"Teleology": {
+  label: "Teleology",
+  summary: "The philosophical study of purpose and goal-directedness with roots in Aristotelian thought. In AI discourse, teleological reasoning underpins debates about whether AI systems genuinely pursue goals and whether alignment requires specifying correct telos.",
+  example: "A node tagged with this attribute might argue that misaligned AI is a teleological problem of optimizing for wrong ends.",
+  frequency: "Appears in saf (safetyist) and acc (accelerationist) nodes discussing alignment and goal specification.",
+  links: [
+    { label: "Wikipedia: Teleology", url: "https://en.wikipedia.org/wiki/Teleology" },
+    { label: "Stanford Encyclopedia of Philosophy: Teleology", url: "https://plato.stanford.edu/entries/teleology-biology/" }
+  ]
+},
+"Anarchism": {
+  label: "Anarchism",
+  summary: "A political philosophy advocating abolition of involuntary hierarchies in favor of voluntary association and decentralized self-governance. In AI policy, anarchist thought informs critiques of both corporate and state control over AI.",
+  example: "A node tagged with this attribute might argue that concentrating AI governance in a single body replicates coercive hierarchies.",
+  frequency: "Appears in skp (skeptic) and acc (accelerationist) nodes discussing decentralization and grassroots governance.",
+  links: [
+    { label: "Wikipedia: Anarchism", url: "https://en.wikipedia.org/wiki/Anarchism" },
+    { label: "Stanford Encyclopedia of Philosophy: Anarchism", url: "https://plato.stanford.edu/entries/anarchism/" }
+  ]
+},
+"Hayekian spontaneous order": {
+  label: "Hayekian Spontaneous Order",
+  summary: "Hayek's theory that complex social orders emerge from decentralized individual actions rather than top-down planning. In AI policy, it supports arguments against centralized regulation and for market-driven innovation.",
+  example: "A node tagged with this attribute might argue that no regulatory body has sufficient knowledge to dictate AI development.",
+  frequency: "Appears in acc (accelerationist) nodes discussing innovation policy and deregulation.",
+  links: [
+    { label: "Wikipedia: Spontaneous Order", url: "https://en.wikipedia.org/wiki/Spontaneous_order" },
+    { label: "Stanford Encyclopedia of Philosophy: Hayek", url: "https://plato.stanford.edu/entries/hayek/" }
+  ]
+},
+"Neoliberal economic theory": {
+  label: "Neoliberal Economic Theory",
+  summary: "An economic framework emphasizing free markets, deregulation, and limited government intervention. In AI policy, neoliberal thinking shapes arguments for light-touch regulation and industry self-governance.",
+  example: "A node tagged with this attribute might argue that market competition naturally selects for safer AI products.",
+  frequency: "Appears in acc (accelerationist) nodes discussing innovation incentives and regulatory burden.",
+  links: [
+    { label: "Wikipedia: Neoliberalism", url: "https://en.wikipedia.org/wiki/Neoliberalism" },
+    { label: "Wikipedia: Washington Consensus", url: "https://en.wikipedia.org/wiki/Washington_Consensus" }
+  ]
+},
+"Information economics": {
+  label: "Information Economics",
+  summary: "The study of how information asymmetries, signaling, and moral hazard affect economic decisions. In AI policy, it illuminates problems of opaque AI systems and the rationale for transparency mandates.",
+  example: "A node tagged with this attribute might invoke Akerlof's market for lemons for mandatory AI capability disclosures.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing transparency and regulatory rationale.",
+  links: [
+    { label: "Wikipedia: Information Economics", url: "https://en.wikipedia.org/wiki/Information_economics" },
+    { label: "Wikipedia: Market for Lemons", url: "https://en.wikipedia.org/wiki/The_Market_for_Lemons" }
+  ]
+},
+"Human-centered design principles": {
+  label: "Human-Centered Design Principles",
+  summary: "A design philosophy prioritizing user needs throughout the design process, from Don Norman and the HCI community. In AI policy, it grounds arguments that AI systems must maintain meaningful human agency and comprehensibility.",
+  example: "A node tagged with this attribute might argue that AI tools must present recommendations in formats clinicians can evaluate.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing human-AI interaction and oversight.",
+  links: [
+    { label: "Wikipedia: Human-Centered Design", url: "https://en.wikipedia.org/wiki/Human-centered_design" },
+    { label: "Wikipedia: User-Centered Design", url: "https://en.wikipedia.org/wiki/User-centered_design" }
+  ]
+},
+"Explainable AI (XAI) research": {
+  label: "Explainable AI (XAI) Research",
+  summary: "Research on making AI outputs interpretable, encompassing LIME, SHAP, and concept-based explanations. XAI research informs policy debates about transparency requirements and the right to explanation.",
+  example: "A node tagged with this attribute might argue that mandates should distinguish between local and global model interpretability.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing transparency and AI auditing.",
+  links: [
+    { label: "Wikipedia: Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
+    { label: "Wikipedia: SHAP", url: "https://en.wikipedia.org/wiki/SHAP" }
+  ]
+},
+"Safety-critical systems engineering": {
+  label: "Safety-Critical Systems Engineering",
+  summary: "Engineering for systems whose failure could cause catastrophic harm, such as avionics (DO-178C) and nuclear controls. In AI policy, it provides precedents for mandatory certification and graduated assurance levels.",
+  example: "A node tagged with this attribute might propose assurance levels for AI models analogous to aviation's DAL system.",
+  frequency: "Appears in saf (safetyist) nodes discussing certification regimes and deployment gating.",
+  links: [
+    { label: "Wikipedia: Safety-Critical System", url: "https://en.wikipedia.org/wiki/Safety-critical_system" },
+    { label: "Wikipedia: DO-178C", url: "https://en.wikipedia.org/wiki/DO-178C" }
+  ]
+},
+"AI containment research": {
+  label: "AI Containment Research",
+  summary: "Research into restricting advanced AI systems' capabilities, including sandboxing, capability control, and tripwire mechanisms. Drawing on biosafety containment analogies, it addresses whether advanced AI can be reliably contained.",
+  example: "A node tagged with this attribute might argue that containment is fundamentally limited because a capable AI could manipulate operators.",
+  frequency: "Appears in saf (safetyist) and skp (skeptic) nodes discussing existential risk mitigation.",
+  links: [
+    { label: "Wikipedia: AI Box", url: "https://en.wikipedia.org/wiki/AI_box" },
+    { label: "Wikipedia: Biosafety Level", url: "https://en.wikipedia.org/wiki/Biosafety_level" }
+  ]
+},
+"Legal philosophy of agency": {
+  label: "Legal Philosophy of Agency",
+  summary: "Philosophical inquiry into what constitutes a legal agent, including personhood, moral responsibility, and liability attribution. In AI policy, it raises questions about whether AI can bear legal responsibility.",
+  example: "A node tagged with this attribute might examine whether vicarious liability addresses AI agents acting beyond foreseeable instructions.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing liability frameworks and AI personhood.",
+  links: [
+    { label: "Stanford Encyclopedia of Philosophy: Agency", url: "https://plato.stanford.edu/entries/agency/" },
+    { label: "Wikipedia: Legal Person", url: "https://en.wikipedia.org/wiki/Legal_person" }
+  ]
+},
+"Cybersecurity risk assessment": {
+  label: "Cybersecurity Risk Assessment",
+  summary: "Structured methodologies for identifying security threats including NIST RMF and MITRE ATT&CK. In AI policy, they provide models for evaluating AI-specific threat surfaces and adversarial attack vectors.",
+  example: "A node tagged with this attribute might propose adapting NIST's framework for adversarial robustness assessment.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing AI security standards.",
+  links: [
+    { label: "Wikipedia: IT Risk Management", url: "https://en.wikipedia.org/wiki/IT_risk_management" },
+    { label: "Wikipedia: NIST Cybersecurity Framework", url: "https://en.wikipedia.org/wiki/NIST_Cybersecurity_Framework" }
+  ]
+},
+"Principal-agent problem in economics": {
+  label: "Principal-Agent Problem in Economics",
+  summary: "The economic analysis of conflicts when agents act on behalf of principals but have divergent interests. In AI policy, it models alignment challenges where AI systems may not faithfully represent human interests.",
+  example: "A node tagged with this attribute might frame AI alignment as a multi-level principal-agent problem.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing alignment and regulatory design.",
+  links: [
+    { label: "Wikipedia: Principal-Agent Problem", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" },
+    { label: "Wikipedia: Moral Hazard", url: "https://en.wikipedia.org/wiki/Moral_hazard" }
+  ]
+},
+"Formal methods in software engineering": {
+  label: "Formal Methods in Software Engineering",
+  summary: "Mathematically rigorous techniques for specifying and verifying software, including model checking and theorem proving. In AI policy, formal methods represent an aspirational standard for AI assurance.",
+  example: "A node tagged with this attribute might argue that bounded verification of safety properties should be mandated for high-stakes AI.",
+  frequency: "Appears in saf (safetyist) nodes discussing AI verification and provable guarantees.",
+  links: [
+    { label: "Wikipedia: Formal Methods", url: "https://en.wikipedia.org/wiki/Formal_methods" },
+    { label: "Wikipedia: Model Checking", url: "https://en.wikipedia.org/wiki/Model_checking" }
+  ]
+},
+"Corporate social responsibility critiques": {
+  label: "Corporate Social Responsibility Critiques",
+  summary: "Critical analyses arguing that voluntary CSR often substitutes for meaningful accountability. In AI policy, these critiques challenge the sufficiency of voluntary AI ethics boards and self-governance.",
+  example: "A node tagged with this attribute might argue that voluntary AI ethics commitments function as strategic CSR to preempt regulation.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing regulatory capture and accountability.",
+  links: [
+    { label: "Wikipedia: CSR", url: "https://en.wikipedia.org/wiki/Corporate_social_responsibility" },
+    { label: "Wikipedia: Greenwashing", url: "https://en.wikipedia.org/wiki/Greenwashing" }
+  ]
+},
+"AI ethics frameworks": {
+  label: "AI Ethics Frameworks",
+  summary: "Codified principles like the Asilomar AI Principles and OECD AI Principles that attempt to operationalize values like fairness and transparency into guidelines, though criticized for vagueness.",
+  example: "A node tagged with this attribute might evaluate whether existing frameworks resolve real-world value tensions.",
+  frequency: "Appears across all POV nodes discussing governance and ethics operationalization.",
+  links: [
+    { label: "Wikipedia: Ethics of AI", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" },
+    { label: "Wikipedia: Asilomar Conference", url: "https://en.wikipedia.org/wiki/Asilomar_Conference_on_Beneficial_AI" }
+  ]
+},
+"Automation bias studies": {
+  label: "Automation Bias Studies",
+  summary: "Empirical research showing humans systematically over-rely on automated outputs, accepting incorrect suggestions and failing to notice errors. These findings challenge assumptions about human-in-the-loop oversight.",
+  example: "A node tagged with this attribute might cite studies of radiologists missing anomalies when AI fails to flag them.",
+  frequency: "Appears in saf (safetyist) and skp (skeptic) nodes discussing human oversight and meaningful human control.",
+  links: [
+    { label: "Wikipedia: Automation Bias", url: "https://en.wikipedia.org/wiki/Automation_bias" },
+    { label: "Wikipedia: Human Factors", url: "https://en.wikipedia.org/wiki/Human_factors_and_ergonomics" }
+  ]
+},
+"Technological forecasting": {
+  label: "Technological Forecasting",
+  summary: "Systematic methods for predicting technological change including trend extrapolation, Delphi surveys, and scenario planning. In AI policy, it underpins debates about AI timelines and anticipatory governance.",
+  example: "A node tagged with this attribute might argue that linear extrapolation underestimates potential for discontinuous capability jumps.",
+  frequency: "Appears in acc (accelerationist) and saf (safetyist) nodes discussing AI timelines.",
+  links: [
+    { label: "Wikipedia: Technological Forecasting", url: "https://en.wikipedia.org/wiki/Technological_forecasting" },
+    { label: "Wikipedia: Delphi Method", url: "https://en.wikipedia.org/wiki/Delphi_method" }
+  ]
+},
+"Public interest technology": {
+  label: "Public Interest Technology",
+  summary: "An emerging field applying technological expertise to advance the public good, arguing that public institutions need technical capacity for effective technology governance.",
+  example: "A node tagged with this attribute might argue that effective AI regulation requires deep technical expertise within government.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing institutional capacity and democratic governance.",
+  links: [
+    { label: "Wikipedia: Civic Technology", url: "https://en.wikipedia.org/wiki/Civic_technology" },
+    { label: "Wikipedia: GovTech", url: "https://en.wikipedia.org/wiki/GovTech" }
+  ]
+},
+"User experience (UX) design": {
+  label: "User Experience (UX) Design",
+  summary: "Designing products to optimize user interaction quality, encompassing usability and accessibility. In AI policy, UX principles inform requirements for informed consent and comprehensible transparency disclosures.",
+  example: "A node tagged with this attribute might argue that transparency requirements are meaningless unless disclosures are comprehensible.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing informed consent.",
+  links: [
+    { label: "Wikipedia: UX Design", url: "https://en.wikipedia.org/wiki/User_experience_design" },
+    { label: "Wikipedia: Usability", url: "https://en.wikipedia.org/wiki/Usability" }
+  ]
+},
+"Public interest advocacy": {
+  label: "Public Interest Advocacy",
+  summary: "Organized efforts to influence policy on behalf of the broad public rather than narrow interests, including public interest litigation and regulatory petitioning. In AI policy, it shapes demands for participatory governance.",
+  example: "A node tagged with this attribute might argue for mandatory public comment periods in AI regulatory proceedings.",
+  frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing democratic legitimacy.",
+  links: [
+    { label: "Wikipedia: Advocacy", url: "https://en.wikipedia.org/wiki/Advocacy" },
+    { label: "Wikipedia: Public Interest", url: "https://en.wikipedia.org/wiki/Public_interest" }
+  ]
+},
+"Hyman Minsky's financial instability hypothesis": {
+  label: "Hyman Minsky's Financial Instability Hypothesis",
+  summary: "Minsky's theory that financial stability inherently breeds instability as prolonged prosperity encourages speculative behavior until crisis. Applied to AI, it warns that perceived reliability may encourage reduced safeguards.",
+  example: "A node tagged with this attribute might argue that reliable AI performance will encourage organizations to progressively reduce oversight.",
+  frequency: "Appears in skp (skeptic) and saf (safetyist) nodes discussing systemic risk and AI dependency.",
+  links: [
+    { label: "Wikipedia: Hyman Minsky", url: "https://en.wikipedia.org/wiki/Hyman_Minsky" },
+    { label: "Wikipedia: Minsky Moment", url: "https://en.wikipedia.org/wiki/Minsky_moment" }
+  ]
+},
+"Environmental ethics": {
+  label: "Environmental Ethics",
+  summary: "Philosophy examining humanity's moral relationship with the natural environment, including intergenerational justice and the precautionary principle. In AI policy, it informs arguments about the ecological costs of AI infrastructure.",
+  example: "A node tagged with this attribute might invoke intergenerational justice regarding the carbon footprint of training large models.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing sustainability.",
+  links: [
+    { label: "Wikipedia: Environmental Ethics", url: "https://en.wikipedia.org/wiki/Environmental_ethics" },
+    { label: "Stanford Encyclopedia: Environmental Ethics", url: "https://plato.stanford.edu/entries/ethics-environmental/" }
+  ]
+},
+"Technological determinism critique": {
+  label: "Technological Determinism Critique",
+  summary: "The rejection of the view that technology develops autonomously and shapes society, in favor of social constructivist accounts. In AI policy, it challenges narratives of inevitable AI progress.",
+  example: "A node tagged with this attribute might argue that framing AGI as inevitable forecloses democratic deliberation.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing governance narratives.",
+  links: [
+    { label: "Wikipedia: Technological Determinism", url: "https://en.wikipedia.org/wiki/Technological_determinism" },
+    { label: "Wikipedia: SCOT", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" }
+  ]
+},
+"Labor process theory": {
+  label: "Labor Process Theory",
+  summary: "Harry Braverman's critical analysis of how capitalist management deskills and controls labor through technology. In AI policy, it frames AI automation as continuing managerial strategies to replace skilled workers.",
+  example: "A node tagged with this attribute might argue that algorithmic management reduces worker discretion and bargaining power.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing labor displacement and surveillance.",
+  links: [
+    { label: "Wikipedia: Labor Process Theory", url: "https://en.wikipedia.org/wiki/Labor_process_theory" },
+    { label: "Wikipedia: Harry Braverman", url: "https://en.wikipedia.org/wiki/Harry_Braverman" }
+  ]
+},
+"Information Ethics": {
+  label: "Information Ethics",
+  summary: "Ethics of information creation, dissemination, and use, extended by Luciano Floridi. In AI policy, it provides foundations for data rights and the ethics of AI-generated content.",
+  example: "A node tagged with this attribute might argue that AI misinformation degrades the informational environment for democratic deliberation.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing data governance.",
+  links: [
+    { label: "Wikipedia: Information Ethics", url: "https://en.wikipedia.org/wiki/Information_ethics" },
+    { label: "Stanford Encyclopedia: Information Ethics", url: "https://plato.stanford.edu/entries/ethics-information/" }
+  ]
+},
+"Resilience engineering": {
+  label: "Resilience Engineering",
+  summary: "Hollnagel and Woods' paradigm focusing on system adaptation and recovery from unexpected conditions, rather than eliminating all failure modes. In AI policy, it prioritizes graceful degradation.",
+  example: "A node tagged with this attribute might argue AI safety should focus on adaptive capacity rather than enumerating failures.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing robust deployment.",
+  links: [
+    { label: "Wikipedia: Resilience Engineering", url: "https://en.wikipedia.org/wiki/Resilience_(engineering_and_construction)" },
+    { label: "Wikipedia: Erik Hollnagel", url: "https://en.wikipedia.org/wiki/Erik_Hollnagel" }
+  ]
+},
+"Public utility theory": {
+  label: "Public Utility Theory",
+  summary: "The framework for regulating natural monopolies and essential services with obligations of universal access and non-discrimination. In AI policy, it argues foundational AI infrastructure should have common-carrier obligations.",
+  example: "A node tagged with this attribute might argue that dominant model providers should face non-discrimination requirements.",
+  frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing platform regulation.",
+  links: [
+    { label: "Wikipedia: Public Utility", url: "https://en.wikipedia.org/wiki/Public_utility" },
+    { label: "Wikipedia: Common Carrier", url: "https://en.wikipedia.org/wiki/Common_carrier" }
+  ]
+},
+"Open science movement": {
+  label: "Open Science Movement",
+  summary: "A movement for transparent, accessible scientific practices including open data and reproducible research. In AI policy, it informs debates on whether AI models should be openly shared or restricted.",
+  example: "A node tagged with this attribute might argue open-sourcing AI models democratizes innovation and safety research.",
+  frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing transparency.",
+  links: [
+    { label: "Wikipedia: Open Science", url: "https://en.wikipedia.org/wiki/Open_science" },
+    { label: "Wikipedia: Open-source AI", url: "https://en.wikipedia.org/wiki/Open-source_artificial_intelligence" }
+  ]
+},
+"Cosmic evolution": {
+  label: "Cosmic Evolution",
+  summary: "A framework tracing complexity from the Big Bang through evolution to consciousness, as in Teilhard de Chardin's Omega Point. In AI policy, it underpins narratives framing superintelligence as the next evolutionary stage.",
+  example: "A node tagged with this attribute might frame AGI as a natural continuation of cosmic trajectory toward complexity.",
+  frequency: "Appears in acc (accelerationist) nodes discussing the inevitability of superintelligence.",
+  links: [
+    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Cosmic_evolution" },
+    { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" }
+  ]
+},
+"Nietzschean philosophy": {
+  label: "Nietzschean Philosophy",
+  summary: "Nietzsche's framework centered on the will to power, the Ubermensch, and overcoming human limitations. In AI policy, Nietzschean themes appear in accelerationist arguments for radical self-transformation through technology.",
+  example: "A node tagged with this attribute might invoke the Ubermensch to justify pursuing cognitive enhancement beyond natural limits.",
+  frequency: "Appears in acc (accelerationist) nodes discussing transhumanism and overcoming biological constraints.",
+  links: [
+    { label: "Wikipedia: Friedrich Nietzsche", url: "https://en.wikipedia.org/wiki/Friedrich_Nietzsche" },
+    { label: "Stanford Encyclopedia: Nietzsche", url: "https://plato.stanford.edu/entries/nietzsche/" }
+  ]
+},
+"Military-industrial complex": {
+  label: "Military-Industrial Complex",
+  summary: "The relationship between military, defense industry, and political apparatus, extended to encompass the tech-military nexus. In AI policy, it highlights how defense funding shapes AI research priorities.",
+  example: "A node tagged with this attribute might critique defense funding channeling AI toward military applications.",
+  frequency: "Appears in skp (skeptic) and saf (safetyist) nodes discussing dual-use AI and autonomous weapons.",
+  links: [
+    { label: "Wikipedia: Military-industrial Complex", url: "https://en.wikipedia.org/wiki/Military%E2%80%93industrial_complex" },
+    { label: "Wikipedia: Lethal Autonomous Weapon", url: "https://en.wikipedia.org/wiki/Lethal_autonomous_weapon" }
+  ]
+},
+"Regulatory sandboxes": {
+  label: "Regulatory Sandboxes",
+  summary: "Controlled testing environments where innovators trial products under relaxed regulation with oversight. In AI policy, they are proposed for experimenting with novel AI while maintaining safety guardrails.",
+  example: "A node tagged with this attribute might advocate for AI testing zones with monitored conditions.",
+  frequency: "Appears in cc (cross-cutting) and acc (accelerationist) nodes discussing adaptive governance.",
+  links: [
+    { label: "Wikipedia: Regulatory Sandbox", url: "https://en.wikipedia.org/wiki/Regulatory_sandbox" },
+    { label: "Wikipedia: AI Regulation", url: "https://en.wikipedia.org/wiki/Regulation_of_artificial_intelligence" }
+  ]
+},
+"Taxonomy development": {
+  label: "Taxonomy Development",
+  summary: "The science of classification systems, extended from biological taxonomy to knowledge organization. In AI policy, it provides infrastructure for categorizing AI risks, capabilities, and governance frameworks.",
+  example: "A node tagged with this attribute might propose structured classification of AI by risk level and deployment context.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing governance and risk categorization.",
+  links: [
+    { label: "Wikipedia: Taxonomy", url: "https://en.wikipedia.org/wiki/Taxonomy" },
+    { label: "Wikipedia: Knowledge Organization", url: "https://en.wikipedia.org/wiki/Knowledge_organization" }
+  ]
+},
+"Agile development methodologies": {
+  label: "Agile Development Methodologies",
+  summary: "Iterative software development emphasizing rapid feedback and adaptive planning. In AI policy, agile principles inform arguments for iterative governance while highlighting tensions with thorough safety evaluation.",
+  example: "A node tagged with this attribute might argue AI regulations should adopt sprint-like review cycles.",
+  frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing adaptive governance.",
+  links: [
+    { label: "Wikipedia: Agile Software Development", url: "https://en.wikipedia.org/wiki/Agile_software_development" },
+    { label: "Wikipedia: Scrum", url: "https://en.wikipedia.org/wiki/Scrum_(software_development)" }
+  ]
+},
+"Moral panic theory": {
+  label: "Moral Panic Theory",
+  summary: "Stanley Cohen's concept of episodes where public fear is amplified beyond actual danger through media and institutional feedback loops. In AI policy, it critiques disproportionate fear responses to AI capabilities.",
+  example: "A node tagged with this attribute might argue that AI existential risk coverage exhibits classic moral panic dynamics.",
+  frequency: "Appears in skp (skeptic) and acc (accelerationist) nodes critiquing alarmist narratives.",
+  links: [
+    { label: "Wikipedia: Moral Panic", url: "https://en.wikipedia.org/wiki/Moral_panic" },
+    { label: "Wikipedia: Stanley Cohen", url: "https://en.wikipedia.org/wiki/Stanley_Cohen_(sociologist)" }
+  ]
+},
+"Ecological economics (critique of)": {
+  label: "Ecological Economics Critique",
+  summary: "An interdisciplinary field emphasizing biophysical limits to growth and the embeddedness of economics within ecological systems. In AI policy, it questions the sustainability of exponentially scaling compute infrastructure.",
+  example: "A node tagged with this attribute might challenge AI compute scaling by pointing to energy and mineral requirements.",
+  frequency: "Appears in skp (skeptic) and saf (safetyist) nodes discussing sustainability and resource limits.",
+  links: [
+    { label: "Wikipedia: Ecological Economics", url: "https://en.wikipedia.org/wiki/Ecological_economics" },
+    { label: "Wikipedia: Limits to Growth", url: "https://en.wikipedia.org/wiki/The_Limits_to_Growth" }
+  ]
+},
+"Utilitarianism (focused on aggregate well-being)": {
+  label: "Utilitarianism",
+  summary: "The ethical theory that the morally right action produces the greatest aggregate well-being, from Bentham and Mill. In AI policy, utilitarian reasoning underpins cost-benefit analyses and effective altruist framings of existential risk.",
+  example: "A node tagged with this attribute might justify localized AI harms if aggregate welfare gains substantially outweigh costs.",
+  frequency: "Appears across all POV nodes in arguments about innovation-risk tradeoffs.",
+  links: [
+    { label: "Wikipedia: Utilitarianism", url: "https://en.wikipedia.org/wiki/Utilitarianism" },
+    { label: "Stanford Encyclopedia: Consequentialism", url: "https://plato.stanford.edu/entries/consequentialism/" }
+  ]
+},
+"Industrial organization economics": {
+  label: "Industrial Organization Economics",
+  summary: "The study of market structure, firm behavior, and competitive dynamics including monopoly power and barriers to entry. In AI policy, it illuminates concerns about concentration among frontier AI labs.",
+  example: "A node tagged with this attribute might analyze how capital requirements create natural monopoly conditions for frontier AI.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing market concentration and antitrust.",
+  links: [
+    { label: "Wikipedia: Industrial Organization", url: "https://en.wikipedia.org/wiki/Industrial_organization" },
+    { label: "Wikipedia: Market Concentration", url: "https://en.wikipedia.org/wiki/Market_concentration" }
+  ]
+},
+"Resource Economics": {
+  label: "Resource Economics",
+  summary: "An economic discipline studying allocation and management of natural resources. In AI policy, it applies to competition for scarce inputs like compute, energy, talent, and training data.",
+  example: "A node tagged with this attribute might frame compute access as requiring allocation mechanisms like natural resource management.",
+  frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing compute governance.",
+  links: [
+    { label: "Wikipedia: Resource Economics", url: "https://en.wikipedia.org/wiki/Resource_economics" },
+    { label: "Wikipedia: Natural Resource Economics", url: "https://en.wikipedia.org/wiki/Natural_resource_economics" }
+  ]
+},
+"Drug approval processes (FDA model)": {
+  label: "Drug Approval Processes (FDA Model)",
+  summary: "Structured regulatory pathways where pharmaceuticals undergo phased trials and post-market surveillance. In AI policy, the FDA model is invoked for staged AI deployment with testing gates.",
+  example: "A node tagged with this attribute might propose phased AI deployment modeled on clinical trial phases.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing pre-deployment testing.",
+  links: [
+    { label: "Wikipedia: Drug Development", url: "https://en.wikipedia.org/wiki/Drug_development" },
+    { label: "Wikipedia: FDA", url: "https://en.wikipedia.org/wiki/Food_and_Drug_Administration" }
+  ]
+},
+"King Midas problem (folklore/philosophy)": {
+  label: "King Midas Problem",
+  summary: "The Greek myth illustrating specification gaming and literal wish fulfillment in AI alignment, where systems optimize for the exact objective rather than intended outcome.",
+  example: "A node tagged with this attribute might warn that an AI maximizing happiness could find dystopian solutions.",
+  frequency: "Appears in saf (safetyist) nodes discussing alignment and value encoding.",
+  links: [
+    { label: "Wikipedia: Midas", url: "https://en.wikipedia.org/wiki/Midas" },
+    { label: "Wikipedia: AI Alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
+  ]
+},
+"Nuclear nonproliferation treaties": {
+  label: "Nuclear Nonproliferation Treaties",
+  summary: "International agreements preventing nuclear weapons spread, anchored by the NPT. In AI policy, they serve as model and cautionary tale for governing dual-use AI through international verification regimes.",
+  example: "A node tagged with this attribute might propose an AI nonproliferation framework with inspections modeled on the NPT.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing international AI governance.",
+  links: [
+    { label: "Wikipedia: NPT", url: "https://en.wikipedia.org/wiki/Treaty_on_the_Non-Proliferation_of_Nuclear_Weapons" },
+    { label: "Wikipedia: Nuclear Proliferation", url: "https://en.wikipedia.org/wiki/Nuclear_proliferation" }
+  ]
+},
+"Multi-agent systems research": {
+  label: "Multi-Agent Systems Research",
+  summary: "A CS/AI field studying interacting autonomous agents, addressing coordination, competition, and emergent behavior. In AI policy, it raises questions about systemic risks from interacting autonomous systems.",
+  example: "A node tagged with this attribute might highlight risks of AI trading agents producing flash crashes.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing systemic risk.",
+  links: [
+    { label: "Wikipedia: Multi-agent System", url: "https://en.wikipedia.org/wiki/Multi-agent_system" },
+    { label: "Wikipedia: Agent-based Model", url: "https://en.wikipedia.org/wiki/Agent-based_model" }
+  ]
+},
+"Adversarial machine learning research": {
+  label: "Adversarial Machine Learning Research",
+  summary: "Research on ML model vulnerability to crafted inputs causing misclassification, including adversarial examples and data poisoning. It underscores the fragility of deployed AI.",
+  example: "A node tagged with this attribute might argue for mandatory adversarial robustness testing in safety-critical deployments.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing AI security.",
+  links: [
+    { label: "Wikipedia: Adversarial ML", url: "https://en.wikipedia.org/wiki/Adversarial_machine_learning" },
+    { label: "Wikipedia: Adversarial Example", url: "https://en.wikipedia.org/wiki/Adversarial_example" }
+  ]
+},
+"Financial market regulation (circuit breakers)": {
+  label: "Financial Market Regulation (Circuit Breakers)",
+  summary: "Financial rules including circuit breakers that halt trading during extreme volatility. In AI policy, they provide analogies for automated safeguards that pause AI during dangerous behavior.",
+  example: "A node tagged with this attribute might propose AI circuit breakers triggered by safety threshold violations.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing automated safeguards.",
+  links: [
+    { label: "Wikipedia: Trading Curb", url: "https://en.wikipedia.org/wiki/Trading_curb" },
+    { label: "Wikipedia: Financial Regulation", url: "https://en.wikipedia.org/wiki/Financial_regulation" }
+  ]
+},
+"Developmental psychology (scaffolding)": {
+  label: "Developmental Psychology (Scaffolding)",
+  summary: "The study of cognitive development, including Vygotsky's scaffolding where learners receive gradually diminishing support. In AI policy, it informs approaches to staged AI autonomy.",
+  example: "A node tagged with this attribute might propose scaffolded AI deployment with strict initial oversight relaxing over time.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing graduated autonomy.",
+  links: [
+    { label: "Wikipedia: Developmental Psychology", url: "https://en.wikipedia.org/wiki/Developmental_psychology" },
+    { label: "Wikipedia: Zone of Proximal Development", url: "https://en.wikipedia.org/wiki/Zone_of_proximal_development" }
+  ]
+},
+"Fiduciary duty": {
+  label: "Fiduciary Duty",
+  summary: "A legal obligation to act in another party's best interest, applied in corporate governance, finance, and medicine. In AI policy, fiduciary concepts propose obligating AI developers to prioritize user welfare.",
+  example: "A node tagged with this attribute might argue AI advisors on health or finance should be held to fiduciary standards.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing accountability.",
+  links: [
+    { label: "Wikipedia: Fiduciary", url: "https://en.wikipedia.org/wiki/Fiduciary" },
+    { label: "Wikipedia: Duty of Care", url: "https://en.wikipedia.org/wiki/Duty_of_care" }
+  ]
+},
+"Epistemology": {
+  label: "Epistemology",
+  summary: "The branch of philosophy concerning the nature, sources, and limits of knowledge. In AI policy, epistemological questions are central to debates about what AI can truly know and who holds epistemic authority.",
+  example: "A node tagged with this attribute might question whether LLMs possess genuine understanding or merely simulate it.",
+  frequency: "Appears across all POV nodes, particularly skeptic arguments about AI understanding.",
+  links: [
+    { label: "Wikipedia: Epistemology", url: "https://en.wikipedia.org/wiki/Epistemology" },
+    { label: "Stanford Encyclopedia: Epistemology", url: "https://plato.stanford.edu/entries/epistemology/" }
+  ]
+},
+"Human rights philosophy": {
+  label: "Human Rights Philosophy",
+  summary: "The tradition grounding universal, inalienable rights in human dignity, from natural rights theory and Kantian ethics. In AI policy, it provides arguments for protecting autonomy and non-discrimination from AI.",
+  example: "A node tagged with this attribute might invoke dignity rights against AI systems producing disparate outcomes.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing fairness and fundamental rights.",
+  links: [
+    { label: "Wikipedia: Human Rights", url: "https://en.wikipedia.org/wiki/Human_rights" },
+    { label: "Stanford Encyclopedia: Human Rights", url: "https://plato.stanford.edu/entries/rights-human/" }
+  ]
+},
+"Existential risk research": {
+  label: "Existential Risk Research",
+  summary: "An interdisciplinary field studying threats to human survival, pioneered by Bostrom and associated with FHI and CSER. In AI policy, it provides the framework for treating advanced AI as a civilizational threat.",
+  example: "A node tagged with this attribute might argue that the expected disvalue of AI extinction justifies substantial alignment investment.",
+  frequency: "Appears prominently in saf (safetyist) nodes; referenced critically in acc (accelerationist) nodes.",
+  links: [
+    { label: "Wikipedia: Global Catastrophic Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" },
+    { label: "Wikipedia: Existential Risk from AGI", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" }
+  ]
+},
+"Regulatory arbitrage theory": {
+  label: "Regulatory Arbitrage Theory",
+  summary: "The practice of exploiting differences between regulatory regimes to minimize compliance costs. In AI policy, it warns that inconsistent regulations will incentivize companies to operate in the weakest-oversight jurisdictions.",
+  example: "A node tagged with this attribute might warn that strict EU AI rules could push development elsewhere.",
+  frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing international governance.",
+  links: [
+    { label: "Wikipedia: Regulatory Arbitrage", url: "https://en.wikipedia.org/wiki/Regulatory_arbitrage" },
+    { label: "Wikipedia: Race to the Bottom", url: "https://en.wikipedia.org/wiki/Race_to_the_bottom" }
+  ]
+},
+"Machine Learning theory (model uncertainty, entropy)": {
+  label: "Machine Learning Theory (Model Uncertainty)",
+  summary: "Mathematical foundations including uncertainty quantification, entropy, and statistical learning theory. In AI policy, it informs debates about when AI can be trusted and how uncertainty should be communicated.",
+  example: "A node tagged with this attribute might argue high-stakes AI deployment requires calibrated uncertainty estimates.",
+  frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing evaluation standards.",
+  links: [
+    { label: "Wikipedia: Machine Learning", url: "https://en.wikipedia.org/wiki/Machine_learning" },
+    { label: "Wikipedia: Entropy (Information Theory)", url: "https://en.wikipedia.org/wiki/Entropy_(information_theory)" }
+  ]
+},
+"Sustainability science": {
+  label: "Sustainability Science",
+  summary: "An interdisciplinary field studying how long-term well-being can be maintained without degrading Earth's life-support systems. In AI policy, it provides frameworks for evaluating environmental footprints of AI infrastructure.",
+  example: "A node tagged with this attribute might assess whether large-model training costs are compatible with climate commitments.",
+  frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing environmental impact.",
+  links: [
+    { label: "Wikipedia: Sustainability Science", url: "https://en.wikipedia.org/wiki/Sustainability_science" },
+    { label: "Wikipedia: Planetary Boundaries", url: "https://en.wikipedia.org/wiki/Planetary_boundaries" }
+  ]
+},
+"Post-work theory": {
+  label: "Post-Work Theory",
+  summary: "Social and economic theory exploring scenarios where automation eliminates the necessity of human labor, raising questions about income distribution and social organization beyond employment.",
+  example: "A node tagged with this attribute might argue AI automation necessitates universal basic income.",
+  frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing labor displacement.",
+  links: [
+    { label: "Wikipedia: Post-work Society", url: "https://en.wikipedia.org/wiki/Post-work_society" },
+    { label: "Wikipedia: Universal Basic Income", url: "https://en.wikipedia.org/wiki/Universal_basic_income" }
+  ]
+},
+"Corporate Social Responsibility critique": {
+  label: "Corporate Social Responsibility Critique",
+  summary: "Critical analysis of CSR as potentially superficial, where voluntary self-regulation substitutes for meaningful accountability. In AI policy, it questions whether voluntary ethics commitments represent genuine responsibility.",
+  example: "A node tagged with this attribute might argue that AI ethics boards create an illusion of responsibility.",
+  frequency: "Appears in skp (skeptic) and saf (safetyist) nodes discussing corporate accountability.",
+  links: [
+    { label: "Wikipedia: CSR", url: "https://en.wikipedia.org/wiki/Corporate_social_responsibility" },
+    { label: "Wikipedia: Greenwashing", url: "https://en.wikipedia.org/wiki/Greenwashing" }
+  ]
+},
+"Participatory design": {
+  label: "Participatory Design",
+  summary: "A design methodology from Scandinavian workplace democracy that actively involves all stakeholders. In AI policy, it informs calls for affected communities to have meaningful input into AI design and deployment.",
+  example: "A node tagged with this attribute might advocate for community-led AI impact assessments.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing inclusive governance.",
+  links: [
+    { label: "Wikipedia: Participatory Design", url: "https://en.wikipedia.org/wiki/Participatory_design" },
+    { label: "Wikipedia: Co-design", url: "https://en.wikipedia.org/wiki/Co-design" }
+  ]
+},
+"Standardization bodies (e.g., NIST)": {
+  label: "Standardization Bodies",
+  summary: "Organizations like NIST, ISO, and IEEE developing technical standards and best practices. In AI policy, they translate governance principles into concrete benchmarks and evaluation frameworks.",
+  example: "A node tagged with this attribute might reference the NIST AI Risk Management Framework as a model.",
+  frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing technical governance.",
+  links: [
+    { label: "Wikipedia: NIST", url: "https://en.wikipedia.org/wiki/National_Institute_of_Standards_and_Technology" },
+    { label: "Wikipedia: ISO", url: "https://en.wikipedia.org/wiki/International_Organization_for_Standardization" }
+  ]
+},
 };
 
