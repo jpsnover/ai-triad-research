@@ -72,9 +72,16 @@ User clicks "Start Debate"
   │     │
   │     └── NEUTRAL EVALUATOR: Midpoint checkpoint (round 3 or midpoint)
   │
+  ├── Phase 3.5: Mid-Debate Gap Injection (after midpoint round)
+  │     Unaligned LLM (no persona) surfaces 1-2 strong unmade arguments
+  │     Gap types: cross_cutting, compromise, blind_spot, unstated_assumption
+  │     Moderator directs agents to engage from their own perspectives
+  │
   ├── Phase 4: Synthesis (3-phase) + Final Neutral Evaluation (parallel)
   │     Synthesis:
   │       Phase 1: Extract agreements, disagreements, unresolved questions
+  │       Phase 1.5: Cross-Cutting Node Promotion (if 3-way agreements exist)
+  │               Auto-propose situation nodes from shared understanding
   │       Phase 2: Build AIF argument map with scheme classification
   │       Phase 3: Evaluate preferences + policy implications
   │     │
@@ -84,6 +91,8 @@ User clicks "Start Debate"
   │     1. Missing Arguments — fresh LLM flags strong unsaid arguments
   │     2. Taxonomy Refinement — suggest narrow/broaden/clarify/split/qualify/retire/new_node
   │     3. Dialectic Traces — BFS graph traversal from synthesis preferences (no AI)
+  │     4. Taxonomy Gap Diagnostics — deterministic coverage analysis per POV
+  │           Per-POV utilization, BDI balance, unmapped arguments, cross-POV gaps
   │
   ├── Phase 6: Reflections
   │     Each debater reflects using argument network + commitments + convergence signals
@@ -492,6 +501,88 @@ All proposed edits require human review before taking effect. Descriptions must 
 
 Implementation: `reflectionPrompt` in `lib/debate/prompts.ts`.
 
+## Argument Space Coverage
+
+The debate system's three agents each argue from a fixed taxonomy — the taxonomy *is* the identity. This creates a real constraint: the argument space is bounded by the combined content of the three taxonomies. Arguments that cut across perspectives, compromise positions, or gaps in any taxonomy's coverage will not surface through the agents alone.
+
+The system already contains partial mitigations: the Missing Arguments Pass identifies strong unmade arguments post-debate, Reflections give each agent a meta-cognitive pass over taxonomy gaps, and the 133 situation nodes capture shared concepts with per-POV interpretations. Three new features close the remaining gaps.
+
+### Mid-Debate Gap Injection ("Fourth Voice")
+
+**Problem:** The Missing Arguments Pass runs after the debate is over. By then, the transcript is final — unmade arguments cannot influence the exchange.
+
+**Mechanism:** After the round just past midpoint (configurable; default: `ceil(totalRounds/2) + 1`), an unaligned LLM — no persona, no taxonomy, no POV assignment — analyzes the transcript so far and identifies 1-2 strong arguments that none of the debaters have made.
+
+Each gap argument is classified:
+
+| Gap Type | Description | Example |
+|----------|-------------|---------|
+| `cross_cutting` | Cuts across POV boundaries | "Both scaling and regulation assume centralized AI — what about distributed models?" |
+| `compromise` | Partially satisfies multiple POVs | "Staged deployment with reversibility gates" |
+| `blind_spot` | Within a POV's territory but missing from its taxonomy | "Safetyist taxonomy has no node for post-deployment monitoring" |
+| `unstated_assumption` | Shared premise no debater has examined | "All three assume Western governance frameworks" |
+
+The gap arguments enter the transcript as system entries. The moderator is steered to direct an existing agent to engage — the agent does not adopt the argument, it responds from its own perspective. Each response is classified as `compatible`, `opposed`, `partial`, or `reframed`.
+
+**Cost:** 1 additional LLM call per debate at temperature 0.5 (~30 seconds). Set `gapInjectionRound: 0` to disable.
+
+**Implementation:** `midDebateGapPrompt()` in `lib/debate/prompts.ts`. Types: `GapInjection`, `GapArgument`, `GapResponse` in `lib/debate/types.ts`. Engine integration in the round loop of `lib/debate/debateEngine.ts`.
+
+### Cross-Cutting Node Promotion
+
+**Problem:** The 133 situation nodes are manually curated and do not grow from debate findings. When all three POVs agree on something during a debate, that agreement is recorded in the synthesis but does not feed back into the taxonomy's shared concepts.
+
+**Mechanism:** After synthesis phase 1 (which produces `areas_of_agreement`), the system filters for agreement points where all three POVs concur. For each three-way agreement, an LLM determines whether it maps to an existing situation node or warrants a new one. New proposals include BDI-decomposed interpretations per POV — even agreements have nuanced per-POV reasons.
+
+| Field | Content |
+|-------|---------|
+| `proposed_label` | Short label for the situation node |
+| `proposed_description` | Genus-differentia format description |
+| `interpretations` | Per-POV BDI breakdown (belief, desire, intention, summary) |
+| `linked_nodes` | POV node IDs from the debate that supported the agreement |
+| `maps_to_existing` | Existing situation node label, if applicable (null = new) |
+
+Proposals appear in the harvest dialog with three actions: **Create Situation Node**, **Map to Existing**, or **Dismiss**. All require human review.
+
+**Cost:** 1 additional LLM call per debate at temperature 0.3. Only fires when three-way agreements exist.
+
+**Implementation:** `crossCuttingNodePrompt()` in `lib/debate/prompts.ts`. Type: `CrossCuttingProposal` in `lib/debate/types.ts`. Engine integration after synthesis phase 1 in `lib/debate/debateEngine.ts`.
+
+### Taxonomy Gap Diagnostics
+
+**Problem:** Context injection instrumentation tracks per-turn node utilization, but does not aggregate into a structural coverage analysis. After a debate, there is no systematic answer to "where are the holes in each POV's taxonomy?"
+
+**Mechanism:** After all post-synthesis passes complete, a deterministic analysis computes comprehensive taxonomy coverage per debate.
+
+**Phase 1 — Per-POV Coverage (deterministic):**
+
+| Metric | Source | Purpose |
+|--------|--------|---------|
+| Total nodes | Taxonomy | Baseline |
+| Injected nodes | Context injection manifests | How many nodes were relevant |
+| Referenced nodes | Response text matching | How many the agent actually used |
+| Utilization rate | Referenced / Injected | Efficiency measure |
+| Unreferenced relevant | Primary (starred) but never cited | The taxonomy thinks these matter, the agent disagrees |
+| Category breakdown | Per BDI category | Reveals B/D/I imbalance |
+
+**Phase 2 — BDI Balance and Unmapped Arguments (deterministic):**
+
+For each POV, counts taxonomy nodes, debate citations, and argument network nodes per BDI category. Identifies the weakest category. Separately, argument network nodes with no taxonomy match (embedding similarity < 0.4) are flagged as unmapped arguments:
+
+| Unmapped Type | Meaning |
+|---------------|---------|
+| `novel_argument` | Genuinely new position with no taxonomy counterpart |
+| `cross_cutting` | Spans POV boundaries |
+| `refinement_needed` | Close to an existing node but more specific |
+
+**Phase 3 — Cross-POV Gaps (optional LLM):**
+
+Sends synthesis disagreements + BDI balance data to an LLM to identify structural gaps preventing deeper cross-POV engagement. This is the only neural component — it can be skipped for purely deterministic analysis.
+
+**Output:** Summary banner (overall coverage %, most underserved POV, most underserved BDI, unmapped argument count, cross-POV gap count, top recommendation) plus detailed per-POV breakdowns.
+
+**Implementation:** `computeTaxonomyGapAnalysis()` in `lib/debate/taxonomyGapAnalysis.ts`. Types: `TaxonomyGapAnalysis`, `PovCoverage`, `BdiBalance`, `CrossPovGap`, `UnmappedArgument`, `GapSummary` in `lib/debate/taxonomyGapAnalysis.ts`. Diagnostics UI: `TaxonomyGapPanel` component in the Gaps tab of the diagnostics window.
+
 ## Audience Targeting
 
 Debates can be tailored to five target audiences. The audience selection shapes three aspects of every prompt:
@@ -627,6 +718,9 @@ DebateSession {
   taxonomy_suggestions?: TaxonomySuggestion[]
   dialectic_traces?: DialecticTrace[]
   reflections?: ReflectionResult[]         // per-debater taxonomy edit proposals
+  gap_injections?: GapInjection[]          // mid-debate gap arguments + agent responses
+  cross_cutting_proposals?: CrossCuttingProposal[]  // proposed situation nodes from 3-way agreements
+  taxonomy_gap_analysis?: TaxonomyGapAnalysis       // per-POV coverage, BDI balance, unmapped args
 }
 ```
 

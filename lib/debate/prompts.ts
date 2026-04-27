@@ -2081,6 +2081,124 @@ Return ONLY JSON (no markdown, no code fences):
 For new_node suggestions, omit current_description and use the node_id format of the relevant POV (e.g., "acc-beliefs-NEW", "saf-desires-NEW").`;
 }
 
+// ── Mid-Debate Gap Injection ─────────────────────────────
+
+/**
+ * Mid-debate prompt for an independent (persona-free) LLM to identify
+ * strong arguments that none of the debaters have made and that their
+ * assigned perspectives would be unlikely to originate.
+ */
+export function midDebateGapPrompt(
+  topic: string,
+  transcriptSoFar: string,
+  taxonomySummary: string,
+  argumentsSoFar: string[],
+): string {
+  const argList = argumentsSoFar.length > 0
+    ? argumentsSoFar.map((a, i) => `  ${i + 1}. ${a}`).join('\n')
+    : '  (none extracted yet)';
+
+  return `You are an independent analyst reviewing a multi-perspective debate on AI policy. You have NO assigned perspective — you are looking for what is MISSING.
+
+DEBATE TOPIC: ${topic}
+
+TRANSCRIPT SO FAR:
+${transcriptSoFar}
+
+TAXONOMY NODES AVAILABLE TO DEBATERS:
+${taxonomySummary}
+
+ARGUMENTS RAISED SO FAR:
+${argList}
+
+YOUR TASK: Identify 1-2 strong arguments that NONE of the debaters have made and that their assigned perspectives would be unlikely to make. Focus on:
+- Cross-cutting positions that synthesize elements from multiple perspectives
+- Compromise proposals that no single perspective would champion
+- Blind spots where all three perspectives share an unstated assumption
+- Strong arguments that are "homeless" — too nuanced for any single camp
+
+For each argument:
+- State it in 1-2 sentences as a clear, specific claim (not vague platitudes)
+- Explain WHY no debater would make it given their assigned worldview
+- Classify the gap type: cross_cutting, compromise, blind_spot, or unstated_assumption
+- Identify which perspectives SHOULD engage with it (even if they wouldn't originate it)
+- Classify the BDI layer: belief (empirical claim), desire (normative commitment), or intention (strategic reasoning)
+
+Respond with JSON:
+{
+  "gap_arguments": [
+    {
+      "argument": "...",
+      "why_missing": "...",
+      "gap_type": "cross_cutting | compromise | blind_spot | unstated_assumption",
+      "relevant_povs": ["accelerationist", "safetyist", "skeptic"],
+      "bdi_layer": "belief | desire | intention"
+    }
+  ]
+}`;
+}
+
+// ── Cross-Cutting Node Promotion ─────────────────────────
+
+/**
+ * Post-synthesis prompt to analyze areas of three-way agreement and
+ * propose new situation nodes (or map to existing ones).
+ */
+export function crossCuttingNodePrompt(
+  agreements: { point: string; povers: string[] }[],
+  existingSituationLabels: string[],
+  topic: string,
+): string {
+  const agreementList = agreements.map((a, i) =>
+    `${i + 1}. "${a.point}" (agreed by: ${a.povers.join(', ')})`
+  ).join('\n');
+
+  const existingList = existingSituationLabels.length > 0
+    ? existingSituationLabels.map(l => `  - ${l}`).join('\n')
+    : '  (none)';
+
+  return `You are analyzing areas of agreement from a multi-perspective AI policy debate to identify candidates for shared "situation nodes" — contested concepts that all perspectives engage with.
+
+DEBATE TOPIC: ${topic}
+
+AREAS OF AGREEMENT (all three perspectives concur):
+${agreementList}
+
+EXISTING SITUATION NODES (do not duplicate):
+${existingList}
+
+YOUR TASK: For each agreement, determine:
+1. Does this already map to an existing situation node above? If so, output maps_to_existing with the label.
+2. If not, propose a new situation node with BDI-decomposed interpretations.
+
+Even when perspectives agree on a surface point, they often agree FOR DIFFERENT REASONS. Capture this nuance in the per-POV interpretations. Each interpretation should have:
+- belief: one-sentence empirical claim explaining WHY this POV accepts the agreement
+- desire: one-sentence normative commitment this agreement serves for this POV
+- intention: one-sentence strategic reasoning about HOW this POV would implement it
+- summary: headline summary of this POV's interpretation
+
+Node descriptions should follow genus-differentia format: "A situation within AI policy discourse that [differentia]. Encompasses: [scope]. Excludes: [boundaries]."
+
+Respond with JSON:
+{
+  "proposals": [
+    {
+      "agreement_text": "...",
+      "proposed_label": "Short Label",
+      "proposed_description": "A situation within AI policy discourse that ...",
+      "interpretations": {
+        "accelerationist": { "belief": "...", "desire": "...", "intention": "...", "summary": "..." },
+        "safetyist": { "belief": "...", "desire": "...", "intention": "...", "summary": "..." },
+        "skeptic": { "belief": "...", "desire": "...", "intention": "...", "summary": "..." }
+      },
+      "linked_nodes": ["acc-beliefs-001", "saf-desires-003"],
+      "rationale": "...",
+      "maps_to_existing": null
+    }
+  ]
+}`;
+}
+
 export function reflectionPrompt(
   label: string,
   pov: string,

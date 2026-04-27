@@ -550,7 +550,46 @@ To improve the rigor of policy argumentation, debate instructions incorporate th
 
 A complementary counter-tactics block equips debaters with awareness of six common argumentative maneuvers that can undermine debate quality: **burden shift** (improperly placing the burden of proof on the opponent), **fact reframing** (recharacterizing established facts to support a different conclusion), **premise stacking** (accumulating weak premises to create an illusion of strong support), **conclusion-as-finding** (presenting a desired conclusion as if it were an established finding), **point flooding** (overwhelming opponents with volume rather than quality), and **unverified authority** (citing unnamed experts or institutions without specific references). Debaters are instructed to identify and call out these tactics when encountered, improving the overall epistemic quality of the exchange.
 
-### 6.18 Evaluation (E3)
+### 6.18 Mid-Debate Gap Injection
+
+The Missing Arguments Pass (Section 6.10, intervention 5) identifies strong unmade arguments, but only runs post-synthesis — after the debate is over. Mid-debate gap injection moves this analysis to the debate midpoint, where surfaced arguments can still influence the exchange.
+
+After the round just past midpoint (configurable; default: `ceil(totalRounds/2) + 1`), an unaligned LLM — carrying no persona, no taxonomy context, and no POV assignment — receives the transcript so far, a compact taxonomy summary (node labels and BDI categories), and the list of arguments already extracted. It identifies 1-2 strong arguments that none of the debaters have made and that their assigned perspectives would be unlikely to make. Each surfaced argument is classified by gap type:
+
+| Gap Type | Description |
+|----------|-------------|
+| `cross_cutting` | Argument that cuts across POV boundaries, requiring engagement from multiple perspectives |
+| `compromise` | A position that partially satisfies multiple POVs but that no single POV would originate |
+| `blind_spot` | An argument within a POV's natural territory that its taxonomy fails to cover |
+| `unstated_assumption` | A shared premise that all debaters rely on without examining |
+
+The surfaced arguments enter the transcript as system entries. The moderator's cross-respond selection prompt already sees system entries; a steering hint ("System has surfaced gap arguments that no debater has addressed. Consider directing a debater to engage with one.") biases the moderator toward directing engagement. Critically, the receiving agent does not adopt the gap argument — it engages from its own perspective, producing responses classified as `compatible`, `opposed`, `partial`, or `reframed`.
+
+The cost is one additional LLM call per debate at temperature 0.5, adding approximately 30 seconds of latency — negligible relative to the 40+ calls in a standard 5-round debate. The feature can be disabled by setting `gapInjectionRound` to 0.
+
+### 6.19 Cross-Cutting Node Promotion
+
+The 133 situation nodes (Section 3.1) capture shared concepts with per-POV BDI-decomposed interpretations, but they are manually curated and do not grow from debate findings. Cross-cutting node promotion closes this gap by automatically detecting three-way agreements in the synthesis phase and proposing new situation nodes that capture the shared understanding.
+
+After synthesis phase 1 (which produces `areas_of_agreement`), the system filters for agreement points where all three POVs concur. For each such agreement, an LLM determines whether the agreed-upon position maps to an existing situation node or warrants a new one. When a new node is proposed, the LLM generates BDI-decomposed interpretations per POV — recognizing that even when three perspectives agree on a surface conclusion, they may agree for fundamentally different reasons. For example, all three POVs might agree that "AI systems should be reversible," but the accelerationist frames this as a market efficiency requirement (reversibility reduces deployment risk), the safetyist as a safety-critical design constraint (reversibility enables shutdown), and the skeptic as a democratic accountability mechanism (reversibility gives affected communities recourse).
+
+Proposals appear in the harvest dialog alongside taxonomy refinement suggestions, with three actions: create the situation node, map to an existing node, or dismiss. All proposals require human review. The cost is one additional LLM call per debate, at temperature 0.3, and only fires when three-way agreements exist in the synthesis.
+
+### 6.20 Taxonomy Gap Diagnostics
+
+Context injection instrumentation (Section 3.4) tracks which injected nodes the model referenced in each turn, but it does not aggregate this data into a structural coverage analysis. Taxonomy gap diagnostics computes a comprehensive per-debate coverage report answering: "Where are the holes in each POV's taxonomy?"
+
+The analysis proceeds in three phases. The first two are entirely deterministic; the third is an optional LLM call.
+
+**Phase 1 (deterministic): Per-POV coverage.** For each POV, the analysis aggregates context injection manifests across all turns: total taxonomy nodes, nodes injected at least once, nodes actually referenced in responses, and the utilization rate (referenced / injected). Primary nodes (starred as most relevant) that were never cited despite being injected are flagged as `unreferenced_relevant` — the taxonomy considers them important to this topic, but the agent found them unnecessary. Coverage is broken down by BDI category to reveal whether a POV's beliefs, desires, or intentions are disproportionately underutilized.
+
+**Phase 2 (deterministic): BDI balance and unmapped arguments.** For each POV, the analysis counts taxonomy nodes per BDI category, debate citations per BDI category, and argument network nodes per BDI category, then identifies the weakest category. Separately, argument network nodes that do not match any taxonomy node (embedding cosine similarity below 0.4 to all nodes, when embeddings are available) are flagged as unmapped arguments — novel positions that emerged during the debate and have no corresponding taxonomy entry. Each unmapped argument is classified as `novel_argument` (genuinely new), `cross_cutting` (spans POV boundaries), or `refinement_needed` (close to an existing node but more specific).
+
+**Phase 3 (optional LLM): Cross-POV gap identification.** The synthesis disagreements and BDI balance data are sent to an LLM, which identifies structural gaps that prevented deeper engagement between perspectives. This phase can be disabled for purely deterministic analysis.
+
+The output — stored as `taxonomy_gap_analysis` on the debate session — provides a summary banner (overall coverage percentage, most underserved POV and BDI category, unmapped argument count, cross-POV gap count) alongside detailed per-POV breakdowns. This data enables empirical answers to questions previously resolved by intuition: "Should this POV add more Intention nodes?" "Are accelerationist Beliefs underrepresented in debates about governance?"
+
+### 6.21 Evaluation (E3)
 
 [RESULTS PENDING]
 
@@ -660,11 +699,31 @@ This architecture addresses a fundamental tension in multi-agent debate systems.
 
 The practical consequence is that every claim the system makes about debate outcomes is backed by a verifiable computation. "This position prevailed" is backed by a dialectic trace through the QBAF. "This debate is converging" is backed by seven deterministic metrics. "This turn is valid" is backed by 9 symbolic rules plus a neural quality assessment. This dual backing makes the system suitable for policy analysis contexts where trust in computational tools requires more than "the AI said so."
 
-### 8.8 Limitations
+### 8.8 Addressing the Fixed-Role Critique
+
+A natural objection to the system's design is that three agents with permanent identities narrow the argument space. If Prometheus always argues from the accelerationist taxonomy, Sentinel always from the safetyist taxonomy, and Cassandra always from the skeptic taxonomy, then arguments that cross these boundaries — compromise positions, shared assumptions, positions that no single POV would originate — will never surface through the agents alone. The critique is valid: the argument space of the debate system is bounded by the combined content of the three taxonomies.
+
+However, the critique frequently misdiagnoses the cause. Proposals such as shadow debates (agents temporarily swap roles), role rotation (Prometheus argues the safetyist position), and devil's advocate rounds (an agent argues against its own taxonomy) assume that agent identity and taxonomy are separable — that Prometheus could meaningfully argue from Sentinel's taxonomy while remaining Prometheus. In this system, this assumption is false. The taxonomy *is* the identity. Each agent's BDI-structured context injection (Section 3.3), its commitment store, its relevance scoring, its situation node interpretations, and its validated move history are all grounded in its assigned taxonomy. "Prometheus argues the safetyist position" does not produce a novel perspective; it produces a second Sentinel with a confusing name.
+
+This architectural insight — identity is taxonomy, not persona — reframes the fixed-role limitation as a taxonomy coverage problem rather than a persona rigidity problem. The question is not "how do we make agents more flexible?" but "how do we ensure the combined taxonomy covers the argument space relevant to each debate topic?" LLMs do not accumulate identity across sessions; each debate starts fresh from whatever taxonomy context is injected. The apparent "fixedness" of the agents is precisely and only the fixedness of their taxonomy content.
+
+The system already contains partial mitigations for taxonomy coverage gaps. The Missing Arguments Pass (Section 6.10, intervention 5) identifies strong unmade arguments post-debate. Reflections (Section 6.14) give each agent a meta-cognitive pass to identify gaps between their taxonomy and what the debate actually required. Situation nodes (Section 3.1) capture shared concepts with per-POV interpretations, providing a structured space for cross-cutting engagement. Concession harvesting (Section 6.5) feeds genuine convergence back into the taxonomy across debates.
+
+Three new features close the remaining gaps while working with the identity-is-taxonomy design rather than against it:
+
+1. **Mid-debate gap injection** (Section 6.18) moves the missing arguments analysis from post-debate to mid-debate, where surfaced arguments can still influence the exchange. An unaligned LLM — one with no persona assignment and no taxonomy — identifies arguments that none of the three perspectives would originate, classified by gap type (cross-cutting, compromise, blind spot, unstated assumption). The moderator directs existing agents to engage with these arguments from their own perspectives, expanding the argument space without violating identity boundaries.
+
+2. **Cross-cutting node promotion** (Section 6.19) detects three-way agreements in synthesis and proposes new situation nodes that capture the shared understanding with nuanced per-POV BDI-decomposed interpretations. This grows the taxonomy's cross-cutting coverage from debate findings rather than relying solely on manual curation.
+
+3. **Taxonomy gap diagnostics** (Section 6.20) provides a deterministic per-debate coverage analysis — per-POV utilization rates, BDI balance, unmapped arguments, cross-POV gaps — that answers "where are the holes?" with data rather than intuition. Repeated coverage patterns across debates identify structural taxonomy gaps that curators can address.
+
+Together, these features implement the principled response to the fixed-role critique: acknowledge that the argument space is taxonomy-bounded, then systematically identify and close gaps in taxonomy coverage — through mid-debate injection of uncovered arguments, through promotion of cross-cutting agreements into the taxonomy, and through diagnostic visibility into where coverage falls short.
+
+### 8.9 Limitations
 
 **Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
-**Three-POV simplification.** The accelerationist/safetyist/skeptic trichotomy is a deliberate simplification. Real AI policy discourse includes many more perspectives (industry, government, civil society, Global South, labor, etc.). The three-POV structure provides sufficient perspectival multiplicity for demonstrating the system's capabilities while remaining manageable.
+**Three-POV simplification.** The accelerationist/safetyist/skeptic trichotomy is a deliberate simplification. Real AI policy discourse includes many more perspectives (industry, government, civil society, Global South, labor, etc.). The three-POV structure provides sufficient perspectival multiplicity for demonstrating the system's capabilities while remaining manageable. As discussed in Section 8.8, the argument space is bounded by taxonomy content rather than agent persona, and three new features — mid-debate gap injection (Section 6.18), cross-cutting node promotion (Section 6.19), and taxonomy gap diagnostics (Section 6.20) — mitigate this constraint by systematically identifying and closing coverage gaps. Nevertheless, perspectives not represented by any taxonomy remain invisible to the system regardless of these mitigations.
 
 **English only.** All documents, taxonomy nodes, and debate transcripts are in English. No cross-lingual evaluation has been conducted. The BDI framework and AIF vocabulary are language-independent, but the prompts, disambiguation tests, and genus-differentia patterns are English-specific.
 
@@ -684,7 +743,7 @@ The practical consequence is that every claim the system makes about debate outc
 
 **SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.
 
-### 8.9 Ethical Considerations
+### 8.10 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -731,6 +790,8 @@ Key findings include:
 14. **Deterministic dialectic traces explain debate outcomes without neural inference.** BFS traversal through the argument network produces human-readable narrative chains that explain why a position prevailed, grounded in verifiable QBAF computations and edge classifications. This level of explainability — where a researcher can follow the trace step by step and verify each claim — distinguishes the system from multi-agent debate systems where outcomes are assessed by another opaque neural call.
 
 15. **Post-debate reflections close the taxonomy evolution loop.** By giving each debater access to the full argument network and convergence signals post-debate, the reflections mechanism surfaces specific, evidence-grounded taxonomy edit proposals (revise, add, qualify, deprecate) with confidence levels. Combined with concession harvesting, this provides two complementary feedback channels: concession harvesting captures incremental convergence across debates, while reflections capture structural insights from individual debates.
+
+16. **Agent identity is taxonomy, not persona — and this reframes the fixed-role critique.** The observation that three fixed-perspective agents bound the argument space is correct, but the standard remedies (role rotation, shadow debates, devil's advocate rounds) assume agent identity and taxonomy are separable. In this system they are not: the taxonomy *is* the identity. This insight reframes the limitation as a taxonomy coverage problem rather than a persona rigidity problem, leading to three features — mid-debate gap injection, cross-cutting node promotion, and taxonomy gap diagnostics — that expand argument space coverage by identifying and closing gaps in taxonomy content rather than attempting to make agents argue outside their grounding.
 
 Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, systematic evaluation of metaphor reframing effectiveness across debate corpora, longitudinal analysis of neutral evaluator divergence patterns to identify which persona framings most frequently bias synthesis, and empirical validation of the neural-symbolic architecture's auditability claims through user studies with policy analysts examining dialectic traces and convergence diagnostics.
 
