@@ -18,6 +18,7 @@ import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
+import { useDebateStore } from '../hooks/useDebateStore';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 

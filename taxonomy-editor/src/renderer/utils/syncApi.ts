@@ -74,6 +74,10 @@ export interface UnsyncedFile {
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  const ct = res.headers.get('content-type') ?? '';
+  if (!ct.includes('application/json')) {
+    throw new Error(`Sync server not available (got ${ct || 'text/html'} instead of JSON). Is the server running?`);
+  }
   return res.json() as Promise<T>;
 }
 
