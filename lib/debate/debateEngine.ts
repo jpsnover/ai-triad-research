@@ -663,11 +663,11 @@ export class DebateEngine {
 
     let prompt: string;
     if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
-      prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '');
+      prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience);
     } else if (this.config.sourceType === 'situations') {
-      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '');
+      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience);
     } else {
-      prompt = clarificationPrompt(this.config.topic, this.config.sourceContent);
+      prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience);
     }
 
     const text = await this.generate(prompt, 'Clarification questions');
@@ -700,7 +700,7 @@ export class DebateEngine {
     // Auto-generate answers and synthesize refined topic
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
-    const synthPrompt = synthesisPrompt(this.config.topic, qaPairs);
+    const synthPrompt = synthesisPrompt(this.config.topic, qaPairs, this.config.audience);
     const synthText = await this.generate(synthPrompt, 'Topic synthesis');
 
     try {
@@ -1334,7 +1334,7 @@ export class DebateEngine {
       }
     }
 
-    const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc, uncoveredClaims);
+    const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc, uncoveredClaims, this.config.audience);
     const text = await this.generate(prompt, 'Probing questions');
 
     let questions: { text: string; targets: string[] }[] = [];
@@ -1452,7 +1452,7 @@ export class DebateEngine {
       return `${label}: ${e.content}`;
     }).join('\n\n');
 
-    const prompt = contextCompressionPrompt(entries);
+    const prompt = contextCompressionPrompt(entries, this.config.audience);
     const text = await this.generate(prompt, 'Context compression');
 
     try {
@@ -1650,6 +1650,7 @@ export class DebateEngine {
         this.session.topic.final,
         taxonomySummary,
         synthesisText.slice(0, 4000), // Cap synthesis text
+        this.config.audience,
       );
 
       const text = await this.generate(prompt, 'Missing arguments pass');
@@ -1722,6 +1723,7 @@ export class DebateEngine {
         synthesisText.slice(0, 4000),
         referencedNodes.slice(0, 25), // Cap nodes sent to prompt
         anSummary,
+        this.config.audience,
       );
 
       const text = await this.generate(prompt, 'Taxonomy refinement pass');

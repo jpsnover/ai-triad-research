@@ -21,7 +21,7 @@ function otherDebaters(currentLabel: string): string {
 }
 
 // ── Audience-specific directives ──────────────────────────────
-// Each audience has a READING_LEVEL (tone/language) and DETAIL_INSTRUCTION
+// Each audience has a readingLevel (tone/language) and detailInstruction
 // (structure/depth). The default ('policymakers') matches the original
 // hardcoded constants for backward compatibility.
 
@@ -64,11 +64,6 @@ function getDetailInstruction(audience?: DebateAudience): string {
 function getModeratorBias(audience?: DebateAudience): string {
   return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].moderatorBias;
 }
-
-// Keep backward-compatible constants for any internal use
-const READING_LEVEL = AUDIENCE_DIRECTIVES.policymakers.readingLevel;
-
-const DETAIL_INSTRUCTION = AUDIENCE_DIRECTIVES.policymakers.detailInstruction;
 
 // ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
@@ -698,9 +693,10 @@ function sourceReminder(sourceContent?: string): string {
 export function clarificationPrompt(
   topic: string,
   debateSourceContent?: string,
+  audience?: DebateAudience,
 ): string {
   return `You are a neutral debate facilitator preparing a multi-perspective debate on AI policy.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 A user wants to debate the following topic:
 
@@ -725,6 +721,7 @@ Respond ONLY with a JSON object in this exact format (no markdown, no code fence
 export function synthesisPrompt(
   originalTopic: string,
   qaPairs: string,
+  audience?: DebateAudience,
 ): string {
   return `A debate moderator proposed this topic:
 
@@ -735,7 +732,7 @@ ${qaPairs}
 
 Synthesize the original topic and the answers into a clear, specific debate topic statement.
 One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {"refined_topic": "the refined topic statement"}`;
@@ -1607,6 +1604,7 @@ export function debateSynthesisPrompt(
   transcript: string,
   hasSourceDocument: boolean = false,
   policyContext: string = '',
+  audience?: DebateAudience,
 ): string {
   const documentAnalysis = hasSourceDocument ? `
 7. Document vs. debater claims: Separate the claims that originate from the source document from arguments the debaters constructed independently. For each document claim that was contested, note which debaters accepted it and which challenged it.` : '';
@@ -1617,7 +1615,7 @@ export function debateSynthesisPrompt(
   ]` : '';
 
   return `You are a debate analyst. Analyze this structured debate and produce a synthesis.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 === DEBATE TOPIC ===
 "${topic}"
@@ -1692,6 +1690,7 @@ export function probingQuestionsPrompt(
   unreferencedNodes: string[],
   hasSourceDocument: boolean = false,
   uncoveredClaims?: string[],
+  audience?: DebateAudience,
 ): string {
   const unreferencedBlock = unreferencedNodes.length > 0
     ? `\n\n=== TAXONOMY NODES NOT YET REFERENCED ===\n${unreferencedNodes.join('\n')}`
@@ -1714,7 +1713,7 @@ ${uncoveredClaims.join('\n')}`
     : '';
 
   return `You are a debate facilitator. Given this debate, suggest 3-5 probing questions that would advance the discussion.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 The best probing question is a "crux" — one where a debater would say: "If the answer to that question turned out to be X, I would actually change my position." Prioritize questions that:
 - Would actually change someone's mind if answered — not just interesting-sounding questions
@@ -1745,9 +1744,10 @@ export function factCheckPrompt(
   statementContext: string,
   taxonomyNodes: string,
   conflictData: string,
+  audience?: DebateAudience,
 ): string {
   return `You are a fact-checker analyzing a claim made during a structured AI policy debate.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 === CLAIM TO CHECK ===
 "${selectedText}"
@@ -1797,9 +1797,10 @@ The "points" array should contain 1-4 discrete, specific findings from your anal
 
 export function contextCompressionPrompt(
   entries: string,
+  audience?: DebateAudience,
 ): string {
   return `Summarize the following debate segment concisely.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 Preserve:
 - Key arguments and who made them (Prometheus, Sentinel, Cassandra, Moderator)
 - Points of agreement and disagreement, including whether disagreements are empirical, values-based, or definitional
@@ -1878,13 +1879,14 @@ export function formatSituationDebateContext(cc: SituationDebateInput): string {
 export function documentClarificationPrompt(
   topic: string,
   sourceContent: string,
+  audience?: DebateAudience,
 ): string {
   const content = sourceContent.length > 50000
     ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
     : sourceContent;
 
   return `You are a neutral debate facilitator preparing a multi-perspective debate grounded in a specific document.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 The user wants to debate:
 
@@ -1915,9 +1917,10 @@ Respond ONLY with a JSON object in this exact format (no markdown, no code fence
 export function situationClarificationPrompt(
   topic: string,
   ccContext: string,
+  audience?: DebateAudience,
 ): string {
   return `You are a neutral debate facilitator preparing a structured debate grounded in a situation from an AI policy taxonomy.
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 The user wants to debate this topic:
 
@@ -1968,6 +1971,7 @@ export function missingArgumentsPrompt(
   topic: string,
   taxonomyNodesSummary: string,
   synthesisText: string,
+  audience?: DebateAudience,
 ): string {
   return `You have NOT seen the debate transcript. You receive only:
 1. The debate topic
@@ -1992,7 +1996,7 @@ For each missing argument:
 - "why_strong": Why this argument is compelling and hard to dismiss (1 sentence)
 - "bdi_layer": "belief" (empirical claim), "desire" (normative claim), or "intention" (strategic claim)
 
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 Return ONLY JSON (no markdown, no code fences):
 {
@@ -2017,6 +2021,7 @@ export function taxonomyRefinementPrompt(
   synthesisText: string,
   referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[],
   argumentMapSummary: string,
+  audience?: DebateAudience,
 ): string {
   const nodesBlock = referencedNodes.map(n =>
     `[${n.id}] (${n.pov}/${n.category}) ${n.label}\n  Description: "${n.description}"`
@@ -2025,7 +2030,7 @@ export function taxonomyRefinementPrompt(
   return `You are a taxonomy editor reviewing the outcome of a structured debate. Your job is to
 identify taxonomy nodes whose descriptions should be revised based on what the debate revealed.
 
-${READING_LEVEL}
+${getReadingLevel(audience)}
 
 DEBATE TOPIC:
 ${topic}

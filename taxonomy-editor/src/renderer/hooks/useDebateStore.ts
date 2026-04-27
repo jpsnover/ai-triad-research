@@ -878,6 +878,7 @@ async function extractClaimsAndUpdateAN(
           pNode.text,
           '',
           webContext && webContext !== '(Web search unavailable)' ? `=== WEB SEARCH RESULTS ===\n${webContext}` : '',
+          get().activeDebate?.audience,
         );
         const { text: vText } = await api.generateText(verdictPrompt, fcModel);
         let vParsed = parseAIJson(vText) as any;
@@ -1282,13 +1283,14 @@ function formatEdgeContext(activePovers: string[]): string {
 
 // ── Prompt builders (delegate to prompts/debate.ts) ──────
 
-function buildClarificationPrompt(topic: string, sourceContent?: string): string {
-  return clarificationPrompt(topic, sourceContent);
+function buildClarificationPrompt(topic: string, sourceContent?: string, audience?: DebateAudience): string {
+  return clarificationPrompt(topic, sourceContent, audience);
 }
 
 function buildSynthesisPrompt(
   originalTopic: string,
   clarifications: { speaker: string; questions: string[]; answers: string }[],
+  audience?: DebateAudience,
 ): string {
   let qaPairs = '';
   for (const c of clarifications) {
@@ -1296,7 +1298,7 @@ function buildSynthesisPrompt(
     for (const q of c.questions) qaPairs += `  - ${q}\n`;
     qaPairs += `User answered: ${c.answers}\n`;
   }
-  return synthesisPrompt(originalTopic, qaPairs);
+  return synthesisPrompt(originalTopic, qaPairs, audience);
 }
 
 function buildOpeningStatementPrompt(
@@ -1389,6 +1391,7 @@ function buildDebateSynthesisPrompt(
   topic: string,
   transcript: string,
   hasSourceDocument: boolean = false,
+  audience?: DebateAudience,
 ): string {
   // Include policy registry context for synthesis analysis
   const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
@@ -1397,7 +1400,7 @@ function buildDebateSynthesisPrompt(
     const policyLines = policyRegistry.slice(0, 30).map(p => `${p.id}: ${p.action}`);
     policyContext = `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${policyLines.join('\n')}`;
   }
-  return debateSynthesisPrompt(topic, transcript, hasSourceDocument, policyContext);
+  return debateSynthesisPrompt(topic, transcript, hasSourceDocument, policyContext, audience);
 }
 
 function buildProbingQuestionsPrompt(
@@ -1405,8 +1408,9 @@ function buildProbingQuestionsPrompt(
   transcript: string,
   unreferencedNodes: string[],
   hasSourceDocument: boolean = false,
+  audience?: DebateAudience,
 ): string {
-  return probingQuestionsPrompt(topic, transcript, unreferencedNodes, hasSourceDocument);
+  return probingQuestionsPrompt(topic, transcript, unreferencedNodes, hasSourceDocument, undefined, audience);
 }
 
 function buildFactCheckPrompt(
@@ -1414,14 +1418,16 @@ function buildFactCheckPrompt(
   statementContext: string,
   taxonomyNodes: string,
   conflictData: string,
+  audience?: DebateAudience,
 ): string {
-  return factCheckPrompt(selectedText, statementContext, taxonomyNodes, conflictData);
+  return factCheckPrompt(selectedText, statementContext, taxonomyNodes, conflictData, audience);
 }
 
 function buildContextCompressionPrompt(
   entries: string,
+  audience?: DebateAudience,
 ): string {
-  return contextCompressionPrompt(entries);
+  return contextCompressionPrompt(entries, audience);
 }
 
 // ── Reflection helpers ───────────────────────────────────
@@ -1951,10 +1957,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     set({ debateGenerating: 'system' as PoverId });
     const prompt = activeDebate.source_type === 'situations'
-      ? situationClarificationPrompt(topic, activeDebate.source_content)
+      ? situationClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience)
       : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
-        ? documentClarificationPrompt(topic, activeDebate.source_content)
-        : buildClarificationPrompt(topic, activeDebate.source_content || undefined);
+        ? documentClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience)
+        : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience);
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) return;
@@ -2021,7 +2027,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const model = getConfiguredModel();
-    const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications);
+    const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
@@ -2185,6 +2191,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     for (const poverId of aiPovers) {
       set({ debateGenerating: poverId });
 
+      try {
       const info = POVER_INFO[poverId];
       const recentText = priorStatements.map(ps => ps.statement).join('\n').slice(-500);
       const ctx = await getRelevantTaxonomyContext(info.pov, topic, recentText);
@@ -2207,7 +2214,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         get().responseLength, docAnalysis, activeDebate.audience,
       );
 
-      try {
         const t0 = Date.now();
         const { text } = await generateTextWithProgress(prompt, model, `${info.label} is preparing opening statement (${model})`, set);
         const responseTime = Date.now() - t0;
@@ -2964,7 +2970,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
     const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
-    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc);
+    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc, activeDebate.audience);
 
     try {
       const synthStartMs = Date.now();
@@ -3131,6 +3137,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           activeDebate.topic.final,
           summaryLines.slice(0, 80).join('\n'),
           synthText,
+          activeDebate.audience,
         );
         const { text: maText } = await api.generateText(maPrompt, model);
         const maParsed = parseAIJson(maText) as any;
@@ -3197,6 +3204,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                 synthText,
                 referencedNodes.slice(0, 25),
                 anSummary,
+                activeDebate.audience,
               );
               const { text: trText } = await api.generateText(trPrompt, model);
               const trParsed = parseAIJson(trText) as any;
@@ -3323,7 +3331,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }).slice(0, 20); // Limit to keep prompt reasonable
 
     const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
-    const prompt = buildProbingQuestionsPrompt(activeDebate.topic.final, fullTranscript, unreferenced, hasSourceDoc);
+    const prompt = buildProbingQuestionsPrompt(activeDebate.topic.final, fullTranscript, unreferenced, hasSourceDoc, activeDebate.audience);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating probing questions (${model})`, set);
@@ -3445,6 +3453,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       statementContext,
       allNodes.join('\n'),
       conflictLines.slice(0, 15).join('\n') + (webContext ? `\n\n=== WEB SEARCH RESULTS ===\n${webContext}` : ''),
+      activeDebate.audience,
     );
 
     try {
@@ -3633,7 +3642,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       return `${label} [${e.type}]: ${e.content}`;
     }).join('\n\n');
 
-    const prompt = buildContextCompressionPrompt(entriesText);
+    const prompt = buildContextCompressionPrompt(entriesText, activeDebate.audience);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Compressing debate history (${model})`, set);
