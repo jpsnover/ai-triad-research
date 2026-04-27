@@ -1,8 +1,8 @@
 # Debate System Overview
 
-**Status:** Current as of 2026-04-11. For review.
+**Status:** Current as of 2026-04-24.
 
-**Source of truth:** `lib/debate/` (28 TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
+**Source of truth:** `lib/debate/` (32 TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
 
 ## Purpose
 
@@ -24,6 +24,23 @@ This system draws on three intersecting fields:
 
 **AIF (Argument Interchange Format)** is a W3C-adjacent standard for representing argument structures as directed graphs of information nodes (I-nodes: claims and premises) connected by scheme nodes (S-nodes: inference, conflict, preference). Our synthesis phase produces an AIF-compatible argument map with Walton-derived scheme classification. AIF provides the interoperability layer — debate findings can be exported, visualized, and compared across sessions.
 
+## Neural-Symbolic Design
+
+The debate engine is a hybrid system. Neural components (LLMs) generate natural-language arguments, make soft judgments, and evaluate nuance. Symbolic components — QBAF strength propagation, BFS graph traversal, convergence metrics, deterministic validation rules, and move-edge classification — provide structure, verification, and explanation. Every LLM output passes through deterministic validation before entering the debate record. Every outcome can be explained through graph traversal without invoking an LLM.
+
+This dual architecture delivers both creativity and auditability:
+
+| Layer | Neural (LLM) | Symbolic (Deterministic) |
+|-------|-------------|--------------------------|
+| Turn generation | BRIEF, PLAN, DRAFT, CITE stages produce content | Structured JSON schema chains stages together |
+| Validation | Stage B: LLM judge evaluates novelty and taxonomy fitness | Stage A: 9 symbolic rules check move validity, taxonomy grounding, paragraph count, novelty, claim specificity |
+| Argument network | Claim extraction classifies schemes | QBAF propagation computes strengths; move-edge map classifies every move as support/attack/neutral |
+| Convergence tracking | None | 7 per-turn signals, all computed from graph structure and text overlap |
+| Outcome explanation | None | Dialectic traces: BFS traversal produces narrative chains explaining why positions prevailed |
+| Reflections | LLM generates taxonomy edit proposals with confidence levels | Human review required before any edit takes effect |
+
+The key differentiator from other multi-agent debate systems: the neural components are never trusted in isolation. Structure constrains generation, deterministic rules gate acceptance, and graph traversal explains outcomes. An analyst can trace any debate result back through the argument network to the specific claims, attacks, and concessions that produced it — without re-querying an LLM.
+
 ## Architecture
 
 ```
@@ -44,11 +61,14 @@ User clicks "Start Debate"
   ├── Phase 3: Cross-Respond Rounds (configurable, default 5)
   │     For each round:
   │       1. Moderator selects responder + focus point (argument network analysis)
-  │       2. Agent responds with structured output (claim, evidence, warrant, moves)
-  │       3. Claim extraction → argument network update → QBAF propagation
-  │       4. Commitment store update (asserted/conceded/challenged)
-  │       5. Context compression if transcript > 12 entries
-  │       6. Stall detection → metaphor reframe if triggered
+  │       2. Turn Pipeline: BRIEF → PLAN → DRAFT → CITE (4 sequential AI calls)
+  │       3. Turn Validation: Stage A (9 symbolic rules) → Stage B (LLM judge)
+  │          └── Repair loop (0–2 retries, hints injected into DRAFT)
+  │       4. Claim extraction → argument network update → QBAF propagation
+  │       5. Commitment store update (asserted/conceded/challenged)
+  │       6. Convergence signals computed (7 deterministic metrics)
+  │       7. Context compression if transcript > 12 entries
+  │       8. Stall detection → metaphor reframe if triggered
   │     │
   │     └── NEUTRAL EVALUATOR: Midpoint checkpoint (round 3 or midpoint)
   │
@@ -65,6 +85,11 @@ User clicks "Start Debate"
   │     2. Taxonomy Refinement — suggest narrow/broaden/clarify/split/qualify/retire/new_node
   │     3. Dialectic Traces — BFS graph traversal from synthesis preferences (no AI)
   │
+  ├── Phase 6: Reflections
+  │     Each debater reflects using argument network + commitments + convergence signals
+  │     Proposes taxonomy edits (revise/add/qualify/deprecate) with confidence levels
+  │     Human review required before any edit takes effect
+  │
   └── Post-Debate
         Harvest dialog: promote conflicts, steelman refinements, debate refs, verdicts, concepts
         Divergence view: compare neutral evaluation vs persona synthesis
@@ -80,6 +105,56 @@ User clicks "Start Debate"
 | `thesis-antithesis` | Rounds 1–2 | Stake out position; challenge opposing premises; no common-ground seeking yet |
 | `exploration` | Middle rounds | Probe deeper, force falsifiable predictions, stress-test edge cases |
 | `synthesis` | Final 2 rounds | Converge where possible, narrow disagreements, require `position_update` field in output |
+
+## Turn Pipeline
+
+Each debate turn is decomposed into four sequential AI calls. Structured JSON passes between stages, so each stage builds on the previous one's output. The pipeline separates analytical reasoning (low temperature) from creative generation (higher temperature).
+
+| Stage | Temperature | Input | Output | Purpose |
+|-------|-------------|-------|--------|---------|
+| **BRIEF** | 0.15 | Taxonomy context, transcript, focus point | `BriefWorkProduct` — dialectical situation summary | Summarize what has been argued, what is contested, what is unaddressed |
+| **PLAN** | 0.40 | Brief output + context | `PlanWorkProduct` — selected moves, argument outline, strategy | Decide which dialectical moves to use and what claims to make |
+| **DRAFT** | 0.70 | Brief + Plan outputs + context | `DraftWorkProduct` — statement text, claim sketches, assumptions | Generate the natural-language argument with structured metadata |
+| **CITE** | 0.15 | Brief + Plan + Draft outputs + context | `CiteWorkProduct` — taxonomy refs, policy refs, move annotations | Map claims to taxonomy nodes and classify moves |
+
+The low-temperature bookend stages (BRIEF and CITE) ensure deterministic structure, while the higher-temperature DRAFT stage allows creative argumentation. Stage temperatures are configurable per debate via `TurnStageConfig`. Repair hints from the validation loop (see below) are injected into the DRAFT stage prompt on retry.
+
+Implementation: `lib/debate/turnPipeline.ts`. Prompt templates: `briefStagePrompt`, `planStagePrompt`, `draftStagePrompt`, `citeStagePrompt` in `lib/debate/prompts.ts`.
+
+## Turn Validation
+
+Every turn passes through a two-stage validation gate before entering the debate record.
+
+### Stage A: Deterministic Rules
+
+Nine symbolic rules run without any LLM call. Failures at this stage produce concrete repair hints.
+
+| Rule | Check | Severity |
+|------|-------|----------|
+| 1. Move presence | `move_types` is non-empty | Error |
+| 2. Move validity | All move names exist in the canonical catalog | Warning |
+| 3. Disagreement type | Enum is EMPIRICAL, VALUES, or DEFINITIONAL | Error |
+| 4. Taxonomy grounding | Every `node_id` in `taxonomy_refs` exists in the loaded taxonomy | Error |
+| 5. Policy grounding | Every `policy_ref` exists in the policy registry | Warning |
+| 6. Relevance quality | Each `taxonomy_refs[i].relevance` is substantive (40+ chars, no filler openers) | Error |
+| 7. Paragraph count | Statement has 3-5 paragraphs (single paragraph is error) | Error/Warning |
+| 8. Novelty | At least one new taxonomy ref beyond the last two turns | Warning |
+| 9. Claim specificity | After round 3, claims must include numbers, timelines, or named entities | Warning/Error |
+
+### Stage B: LLM Judge
+
+When Stage A passes, an LLM judge (sampled at a configurable rate per phase) evaluates:
+- **Advancement** — does this turn do something the previous turns did not?
+- **Taxonomy clarification** — does it imply a taxonomy edit (narrow, broaden, split, merge, qualify, retire, new_node)?
+- **Weaknesses** — up to 3 concrete fixes the debater could apply on retry
+
+### Repair Loop
+
+If validation fails (Stage A errors or Stage B recommends retry), the turn re-enters the pipeline at the DRAFT stage with repair hints injected into the prompt. Maximum 2 retries. If all retries are exhausted, the turn is accepted with a flag for human review.
+
+Validation score: weighted composite of schema (0.4), grounding (0.3), advancement (0.2), and clarification (0.1) dimensions.
+
+Implementation: `lib/debate/turnValidator.ts`.
 
 ## Context Injection
 
@@ -152,25 +227,47 @@ Agents are instructed to match evidence to claim type. Attacking evidence should
 
 ## Dialectical Moves
 
-**Core moves (8)** — always available; debaters select 1–3 per turn via the `move_types` array:
+**Core moves (15)** — always available; debaters select 1–3 per turn via the `move_types` array:
 
-1. **DISTINGUISH** — accept opponent's evidence but show it doesn't apply here
-2. **COUNTEREXAMPLE** — specific case challenging a general claim
-3. **CONCEDE-AND-PIVOT** — acknowledge a valid point, then redirect to what it misses (genuine concession, no "but" reversal)
-4. **REFRAME** — shift framing to reveal what the current frame hides
-5. **EMPIRICAL CHALLENGE** — dispute the factual basis with specific counter-evidence
-6. **EXTEND** — build on another debater's point to strengthen or expand it
-7. **UNDERCUT** — attack the warrant (reasoning link) rather than evidence or conclusion
-8. **SPECIFY** — demand operationalization; force falsifiable predictions ("what specific outcome would make you abandon this position?")
+| # | Move | Effect | Use When |
+|---|------|--------|----------|
+| 1 | **DISTINGUISH** | Accept opponent's evidence but show it doesn't apply here | Evidence is real but context, scope, or conditions differ |
+| 2 | **COUNTEREXAMPLE** | Specific case challenging a general claim | Opponent makes a general claim and you can identify a concrete exception |
+| 3 | **CONCEDE-AND-PIVOT** | Acknowledge a valid point, then redirect to what it misses | Evidence supports their claim but the broader conclusion doesn't follow |
+| 4 | **REFRAME** | Shift framing to reveal what the current frame hides | Opponent's framing excludes important considerations |
+| 5 | **EMPIRICAL CHALLENGE** | Dispute the factual basis with specific counter-evidence | Opponent cites data, studies, or precedent you can directly contest |
+| 6 | **EXTEND** | Build on another debater's point to strengthen or expand it | An ally or opponent made a point that supports your position if taken further |
+| 7 | **UNDERCUT** | Attack the warrant (reasoning link) rather than evidence or conclusion | Evidence is real and conclusion may be right, but the reasoning is flawed |
+| 8 | **SPECIFY** | Demand operationalization; force falsifiable predictions | Opponent makes a strong claim but has never stated what would count as evidence against it |
+| 9 | **GROUND-CHECK** | Verify shared factual basis before engaging with reasoning | Opponent's conclusion rests on a framing of facts you haven't agreed to |
+| 10 | **CONDITIONAL-AGREE** | Accept a claim under specific conditions while rejecting it in general | Opponent's claim holds in some contexts but not others |
+| 11 | **IDENTIFY-CRUX** | Name the single question whose answer would resolve the disagreement | Debate is circling without progress |
+| 12 | **INTEGRATE** | Combine insights from multiple positions into a novel synthesis | Both sides have valid points that can be reconciled |
+| 13 | **STEEL-BUILD** | Strengthen the opponent's argument, then engage with that stronger version | Opponent's argument has a stronger form they haven't articulated |
+| 14 | **EXPOSE-ASSUMPTION** | Surface a hidden premise the opponent's argument depends on | Argument only works if an unstated assumption is true |
+| 15 | **BURDEN-SHIFT** | Challenge who bears the burden of proof | Opponent asserts a conclusion and demands you disprove it |
 
-**Constructive moves (4)** — injected only in `exploration` and `synthesis` phases:
+**Constructive moves (4)** — injected only in `exploration` and `synthesis` phases: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD. These steer the debate toward convergence when the phase calls for it.
 
-- **INTEGRATE** — propose a position incorporating valid elements from multiple perspectives
-- **CONDITIONAL-AGREE** — accept a position contingent on specified conditions
-- **NARROW** — reduce a broad disagreement to its precise crux
-- **STEEL-BUILD** — build on an opponent's strongest argument to reach a conclusion they haven't drawn
+**Expanded catalog (23 additional moves)** — legitimate dialectical moves LLMs frequently reach for. Accepted by the validator alongside the core 15: OPERATIONALIZE, CITE-AUTHORITY, ANALOGY, PROPOSE-TEST, REDUCTIO, SYNTHESIZE, CLARIFY, APPEAL-TO-EVIDENCE, ACKNOWLEDGE-PROGRESS, PROPOSE-STANDARD, RESOLVE-TENSION, FALSIFY, PRECEDENT, RETRACT, CHALLENGE, PROPOSE, and legacy variants (CONCEDE, REDUCE, ESCALATE, ASSERT). An alias map resolves near-synonyms (e.g., STEELMAN maps to STEEL-BUILD, SURFACE ASSUMPTION maps to EXPOSE-ASSUMPTION).
+
+### Move-Edge Classification (MOVE_EDGE_MAP)
+
+Every move is classified as **support**, **attack**, or **neutral** via a deterministic lookup table. This classification drives automatic edge creation in the argument network — no LLM judgment needed.
+
+| Classification | Moves | Effect on Argument Network |
+|----------------|-------|---------------------------|
+| **Support** | CONCEDE, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE, INTEGRATE, STEEL-BUILD, EXTEND, ACKNOWLEDGE-PROGRESS | Creates "supports" edges (RA-nodes in AIF) |
+| **Attack** | COUNTEREXAMPLE, DISTINGUISH, UNDERCUT, EMPIRICAL CHALLENGE, EXPOSE-ASSUMPTION, BURDEN-SHIFT, REFRAME, REDUCTIO, FALSIFY, CHALLENGE | Creates "attacks" edges (CA-nodes) with typed attack (rebut/undercut/undermine) |
+| **Neutral** | IDENTIFY-CRUX, SPECIFY, GROUND-CHECK, ASSERT, CLARIFY, OPERATIONALIZE, PROPOSE-TEST, ANALOGY, PRECEDENT, SYNTHESIZE, others | Produces standalone claims, no directed edge |
+
+Implementation: `MOVE_EDGE_MAP` in `lib/debate/helpers.ts`.
 
 **Move diversity enforcement:** model sees its last N `move_types` with instruction to vary. Sentence-opening variety enforced via five alternative opening templates.
+
+### Counter-Tactics
+
+Each debater is trained to recognize and counter six rhetorical patterns: Burden Shift, Fact Reframing, Premise Stacking, Conclusion as Finding, Point Flooding, and Unverified Authority. When a pattern is detected, the debater names the tactic in their statement before countering — making the rhetorical move visible to the audience.
 
 ## Argumentation Scheme Classification
 
@@ -219,6 +316,27 @@ Arguments from metaphors are classified under ARGUMENT_FROM_METAPHOR with 4 crit
 - **Beliefs:** human-assigned (AI scoring failed: r=-0.12 to 0.2 across 4 iterations)
 
 QBAF is enabled by default. Scores displayed in diagnostics and convergence panels.
+
+## Convergence Diagnostics
+
+Seven per-turn signals track how the debate is evolving. All seven are **purely symbolic/deterministic** — no LLM calls. They run after every cross-respond turn and are stored on `ConvergenceSignals[]`.
+
+| # | Signal | What It Measures | How It's Computed |
+|---|--------|-----------------|-------------------|
+| 1 | **Move Disposition** | Confrontational vs. collaborative ratio | Classifies each move via `MOVE_EDGE_MAP` as attack or support; reports `collaborative / total` |
+| 2 | **Engagement Depth** | Fraction of turn's claims that connect to prior claims | Counts argument-network nodes from this turn that have edges to external nodes |
+| 3 | **Recycling Rate** | Word overlap with prior same-speaker turns | Computes average and max word overlap (words >3 chars) between current turn and all prior turns by the same speaker |
+| 4 | **Strongest Opposing Argument** | QBAF strength of the strongest attack against this speaker | Finds the highest-strength attacker node targeting any of the speaker's claims |
+| 5 | **Concession Opportunity** | Strong attacks faced vs. concession moves used | Counts attacks with QBAF strength >= 0.6 targeting the speaker; checks whether a concession move was used. Outcome: `taken`, `missed`, or `none` |
+| 6 | **Position Delta** | Word overlap drift from opening statement | Compares current turn's text to the speaker's opening statement; tracks drift over time |
+| 7 | **Crux Rate** | IDENTIFY-CRUX usage and follow-through | Tracks whether the speaker used IDENTIFY-CRUX this turn, cumulative crux count, and whether cruxes were followed by collaborative moves |
+
+These signals serve three purposes:
+1. **Moderator steering** — the moderator uses concession opportunities and engagement depth to select focus points
+2. **Stall detection** — high recycling rates and low engagement depth indicate the debate is cycling
+3. **Post-debate analysis** — convergence trajectories show whether the debate produced genuine engagement or parallel monologues
+
+Implementation: `lib/debate/convergenceSignals.ts`.
 
 ## Commitment Tracking
 
@@ -325,11 +443,70 @@ Three-phase process:
 ### Taxonomy Refinement Suggestions
 `taxonomyRefinementPrompt` runs after synthesis over nodes referenced during the debate. Outputs `TaxonomySuggestion[]` with action types: `narrow`, `broaden`, `clarify`, `split`, `qualify`, `retire`, `new_node`. Each carries a rationale linking to specific debate turns. Stored on `DebateSession.taxonomy_suggestions` and surfaced in the harvest dialog.
 
-### Dialectic Traces
-Synchronous BFS graph traversal — no AI calls. `generateDialecticTraces()` walks the argument network from each synthesis preference backward through the attack/support edges to produce a human-readable trace: "Claim X prevailed because it survived attacks A, B; A was undercut by C; …". Stored as `DialecticTrace[]` on `DebateSession.dialectic_traces`. Gives a deterministic explanation layer over the QBAF numerical scores.
+### Dialectic Traces (Deterministic BFS)
+
+Pure symbolic — zero AI calls. `generateDialecticTraces()` performs a BFS traversal of the argument network starting from each synthesis preference. For each verdict ("Position X prevailed over Position Y"), the algorithm:
+
+1. Finds AN nodes referenced by the preference (via `claim_ids` or text-overlap matching)
+2. Expands one hop via edges to include connected claims
+3. BFS-walks from seed nodes through attack/support edges to build the argument chain
+4. Sorts by turn order to produce a narrative sequence
+5. Caps at 12 steps (first 4, last 4, and 4 most dramatic middle steps)
+
+Each step records: claim ID, speaker, claim text, action (asserted/attacked/supported/conceded/unaddressed), argumentation scheme, attack type, QBAF strength, and turn number. The result is a human-readable trace: "Claim X prevailed because it survived attacks A, B; A was undercut by C; ..."
+
+Dialectic traces provide the deterministic explanation layer over the QBAF numerical scores. An analyst can read the trace to understand *why* a position won — which attacks landed, which were deflected, which claims went unaddressed — without trusting an LLM's summary.
+
+Stored as `DialecticTrace[]` on `DebateSession.dialectic_traces`. Implementation: `lib/debate/dialecticTrace.ts`.
 
 ### Missing Arguments Pass
 (See "LLM Failure Mode Interventions" §5 below.)
+
+## Reflections
+
+After the debate concludes, each debater agent reflects on the debate using the full argument network, their commitment store, and convergence signals. The reflection prompt asks five questions:
+
+1. **Arguments you could not adequately defend** — which taxonomy nodes had the lowest QBAF strength or were successfully attacked?
+2. **Concessions you made** — does the taxonomy reflect what you conceded?
+3. **Positions argued without taxonomy backing** — strong arguments made during the debate that have no corresponding BDI node
+4. **Convergence patterns** — where is the speaker converging with opponents?
+5. **Gaps between taxonomy and actual argumentation** — nodes never referenced because they were too vague, too broad, or wrong
+
+Based on this reflection, each debater proposes specific taxonomy edits:
+
+| Edit Type | Meaning |
+|-----------|---------|
+| **REVISE** | Update an existing node's label or description to match what the debate revealed |
+| **ADD** | Create a new node for a position that emerged during debate |
+| **QUALIFY** | Add caveats or nuance to an existing node based on valid counterarguments |
+| **DEPRECATE** | Mark a node as weak/unsupported if the debate effectively refuted it |
+
+Each proposed edit includes:
+- The specific node being modified (or null for ADD)
+- Current and proposed label/description
+- A rationale citing specific debate turns as evidence
+- A confidence level (high/medium/low)
+- The evidence entries that support the change
+
+All proposed edits require human review before taking effect. Descriptions must match the taxonomy's genus-differentia format with Encompasses/Excludes clauses. The edit limit is 3-5 per debater — quality over quantity.
+
+Implementation: `reflectionPrompt` in `lib/debate/prompts.ts`.
+
+## Audience Targeting
+
+Debates can be tailored to five target audiences. The audience selection shapes three aspects of every prompt:
+
+| Audience | Reading Level | Argument Structure | Moderator Bias |
+|----------|--------------|-------------------|----------------|
+| **Policymakers** (default) | Policy reporter — active voice, named actors, quotable sentences | CRAC: Conclusion, Rule/Standard, Application, Conclusion restatement | Implementation feasibility, enforcement mechanisms |
+| **Technical Researchers** | Senior ML researcher — precise vocabulary, quantified claims | Evidence, benchmark/formal result, methodology sufficiency, strongest objection | Empirical disputes, methodology, reproducibility |
+| **Industry Leaders** | Technology executive — business-relevant conclusions, operational risks | Business conclusion, market dynamic/precedent, risk quantification, concrete action | Cost-benefit, competitive dynamics, liability |
+| **Academic Community** | Faculty seminar — theoretical grounding, intellectual honesty | Thesis, theoretical tradition, framework application with scope conditions, limitations | Conceptual precision, theoretical assumptions |
+| **General Public** | Quality newspaper reader — no jargon, relatable examples | Why it matters, plain-language claim with example, uncertainty, what to watch for | Personal impact (jobs, privacy, safety), fairness |
+
+The audience directive is injected into every debater prompt, moderator prompt, and synthesis prompt. It shapes the `statement` field only — structured metadata fields (`taxonomy_refs`, `move_types`) are not audience-facing.
+
+Implementation: `AUDIENCE_DIRECTIVES` in `lib/debate/prompts.ts`. Type: `DebateAudience` in `lib/debate/types.ts`.
 
 ## Coverage Tracking
 
@@ -369,11 +546,15 @@ Platform-specific PDF generation is provided via a `generatePdf` callback inject
 | Task | Temperature | Rationale |
 |------|-------------|-----------|
 | Claim extraction | 0.1-0.2 | Precision, minimal hallucination |
+| Turn pipeline: BRIEF | 0.15 | Analytical summary of dialectical situation |
+| Turn pipeline: CITE | 0.15 | Precise taxonomy mapping |
 | Neutral evaluation | 0.2 | Consistent analytical assessment |
 | Summary/compression | 0.3 | Faithful representation |
 | Chat: decide mode | 0.3 | Analytical precision |
+| Turn pipeline: PLAN | 0.4 | Strategic move selection with some variety |
 | Chat: inform mode | 0.4 | Balanced accuracy + readability |
-| Debate agents | 0.5 | Deliberative reasoning with variety |
+| Debate agents (legacy) | 0.5 | Deliberative reasoning with variety |
+| Turn pipeline: DRAFT | 0.7 | Creative argumentation |
 | Chat: brainstorm | 0.7 | Creative exploration |
 
 ## Embedding Relevance
@@ -433,16 +614,19 @@ DebateSession {
   argument_network: { nodes, edges }
   commitments: Record<PoverId, CommitmentStore>
   convergence_tracker: ConvergenceTracker
+  convergence_signals: ConvergenceSignals[]  // 7 per-turn diagnostic signals
   diagnostics: DebateDiagnostics
   qbaf_timeline: QbafTimelineEntry[]
   claim_coverage: ClaimCoverageEntry[]     // document-source coverage map
   neutral_evaluations: NeutralEvaluation[]
   neutral_speaker_mapping: SpeakerMapping
+  audience?: DebateAudience                // target audience for tone/language
   unanswered_claims_ledger?: UnansweredClaimEntry[]
   position_drift?: DriftSnapshot[]
   missing_arguments?: MissingArgument[]
   taxonomy_suggestions?: TaxonomySuggestion[]
   dialectic_traces?: DialecticTrace[]
+  reflections?: ReflectionResult[]         // per-debater taxonomy edit proposals
 }
 ```
 

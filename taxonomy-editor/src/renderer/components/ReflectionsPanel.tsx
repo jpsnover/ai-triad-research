@@ -13,6 +13,43 @@ const EDIT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   deprecate: { label: 'Deprecate', color: '#ef4444' },
 };
 
+function diffWords(oldText: string, newText: string): Array<{ text: string; type: 'same' | 'added' }> {
+  const oldTokens = oldText.split(/(\s+)/);
+  const newTokens = newText.split(/(\s+)/);
+  const m = oldTokens.length, n = newTokens.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = oldTokens[i - 1] === newTokens[j - 1]
+        ? dp[i - 1][j - 1] + 1
+        : Math.max(dp[i - 1][j], dp[i][j - 1]);
+
+  const raw: Array<{ text: string; type: 'same' | 'added' | 'removed' }> = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
+      raw.push({ text: newTokens[j - 1], type: 'same' });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      raw.push({ text: newTokens[j - 1], type: 'added' });
+      j--;
+    } else {
+      raw.push({ text: oldTokens[i - 1], type: 'removed' });
+      i--;
+    }
+  }
+  raw.reverse();
+
+  const merged: Array<{ text: string; type: 'same' | 'added' }> = [];
+  for (const seg of raw) {
+    if (seg.type === 'removed') continue;
+    const last = merged.length > 0 ? merged[merged.length - 1] : null;
+    if (last && last.type === seg.type) last.text += seg.text;
+    else merged.push({ text: seg.text, type: seg.type });
+  }
+  return merged;
+}
+
 const CONFIDENCE_STYLES: Record<string, { label: string; color: string; bg: string }> = {
   high: { label: 'High', color: '#22c55e', bg: '#22c55e22' },
   medium: { label: 'Med', color: '#f59e0b', bg: '#f59e0b22' },
@@ -99,10 +136,18 @@ function EditCard({ edit, pover, editIndex }: {
         whiteSpace: 'pre-wrap', marginBottom: 6,
         borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined,
       }}>
-        {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description && (
-          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e', marginBottom: 2 }}>PROPOSED</div>
+        {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
+          <>
+            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e', marginBottom: 2 }}>PROPOSED</div>
+            {diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
+              seg.type === 'added'
+                ? <mark key={i} style={{ background: 'rgba(34,197,94,0.25)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{seg.text}</mark>
+                : <span key={i}>{seg.text}</span>
+            )}
+          </>
+        ) : (
+          edit.proposed_description
         )}
-        {edit.proposed_description}
       </div>
 
       {/* Rationale */}

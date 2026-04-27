@@ -918,6 +918,11 @@ export default function KeyPointsPane() {
                                     <span className={`kp-stance-value kp-stance--${pt.stance}`}>
                                       {STANCE_LABELS[pt.stance] || pt.stance}
                                     </span>
+                                    {pt.taxNode && (
+                                      <span className="kp-node-label" title={pt.taxNode.id}>
+                                        {pt.taxNode.label}
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div className="key-point-text">{pt.keyPoint.point}</div>

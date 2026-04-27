@@ -225,7 +225,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
   }
 
   return (
-    <div style={{ padding: '4px 0', maxWidth: 820 }}>
+    <div style={{ padding: '4px 0 40px', maxWidth: 820 }}>
       {summary?.plateau_detected && (
         <div style={{
           margin: '0 0 10px', padding: '8px 10px', borderRadius: 6,
@@ -251,8 +251,11 @@ export function ExtractionTimelinePanel({ debate }: Props) {
         </div>
       )}
 
-      {summary && <GrowthChart summary={summary} traces={traces} />}
-      <RejectionSparkline traces={traces} />
+      <details open style={{ marginBottom: 4 }}>
+        <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Charts</summary>
+        {summary && <GrowthChart summary={summary} traces={traces} />}
+        <RejectionSparkline traces={traces} />
+      </details>
 
       <div style={{ marginTop: 10, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>

@@ -99,9 +99,10 @@ function Invoke-SummaryPipeline {
             $RelevantPovs = Get-DocumentPovClassification -QueryText $QueryText -ApiKey $ApiKey
             Write-Verbose "Pipeline: CHESS classified POVs: $($RelevantPovs -join ', ')"
 
+            $AllPovs = @('accelerationist', 'safetyist', 'skeptic')
             $TaxonomyJson = Get-RelevantTaxonomyNodes -Query $QueryText `
                 -Threshold 0.30 -MaxTotal 200 -MinPerCategory 3 `
-                -POV $RelevantPovs -IncludeSituations -Format context
+                -POV $AllPovs -IncludeSituations -Format context
             Write-Verbose "Pipeline: RAG selected ~$([int]($TaxonomyJson.Length / 4)) tokens of taxonomy"
         }
         catch {

@@ -82,6 +82,8 @@
         'Test-ExtractionQuality'
         'Show-WorkflowRunner'
         'Test-EdgeDirection'
+        'Test-AITJudgeModel'
+        'Repair-AITSummaryMappings'
     )
 
     # Aliases exported from this module

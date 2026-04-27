@@ -4,7 +4,7 @@
 
 ## Abstract
 
-AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. I present an integrated system for multi-perspective discourse analysis that combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. The system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection instrumented for utilization tracking, classifies arguments using a 13-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), employs metaphor reframing to break rhetorical stalls, and feeds debate findings back into the taxonomy through concession harvesting. A persona-free neutral evaluator reads debate transcripts with speaker identities stripped, producing independent claim assessments at three checkpoints (baseline, midpoint, final) whose divergence from the persona-grounded synthesis surfaces evaluation bias. Five targeted interventions address LLM-specific debate failure modes: an unanswered claims ledger that persists across the compression window, inline empirical verification via web search, NLI-based steelman validation, embedding-based sycophancy detection, and a post-synthesis missing arguments pass. I evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry I attribute to the self-contained vs. externally-verifiable nature of different claim types. I also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
+AI policy discourse involves competing empirical claims, normative commitments, and strategic reasoning that existing NLP tools compress into lossy single-label representations. I present an integrated system for multi-perspective discourse analysis built on a **neural-symbolic architecture** in which neural components (LLMs) generate content and make soft judgments while symbolic components (QBAF propagation, BFS graph traversal, deterministic validation rules, move-edge classification) provide structure, verification, and explanation. The system combines three layers: (1) ontological grounding using a composite of DOLCE D&S (perspectival multiplicity), BDI (Belief-Desire-Intention agent characterization), and AIF (Argument Interchange Format) vocabulary; (2) formal argumentation via Quantitative Bipolar Argumentation Frameworks (QBAFs) with a novel BDI-aware base score calibration that addresses the fundamental asymmetry between empirical and normative claim assessment; and (3) confidence-gated iterative claim extraction (FIRE) that replaces single-shot summarization with a per-claim verification loop guided by evidence criteria heuristics. Each debate turn is decomposed into a **4-stage pipeline** (BRIEF, PLAN, DRAFT, CITE) with per-stage temperatures and deterministic JSON chaining between stages, exemplifying the neural-symbolic approach: the pipeline structure is symbolic while each stage's content generation is neural. The system organizes AI policy literature through a four-POV taxonomy (accelerationist, safetyist, skeptic, and shared situations) with ~565 nodes, supports multi-agent debates with ontology-grounded context injection instrumented for utilization tracking, classifies arguments using a 13-scheme taxonomy derived from Walton's argumentation schemes (each with scheme-specific critical questions that guide moderator steering), employs metaphor reframing to break rhetorical stalls, and feeds debate findings back into the taxonomy through concession harvesting and post-debate **reflections** in which agents propose specific taxonomy edits with confidence levels. Seven **convergence diagnostics** — all computed deterministically from the argument network without LLM calls — track debate health across dimensions including move disposition, engagement depth, recycling rate, and concession opportunities. **Dialectic traces** use deterministic BFS traversal through the argument network to produce human-readable narrative chains explaining why a position prevailed, providing full explainability without neural inference. A persona-free neutral evaluator reads debate transcripts with speaker identities stripped, producing independent claim assessments at three checkpoints (baseline, midpoint, final) whose divergence from the persona-grounded synthesis surfaces evaluation bias. Five targeted interventions address LLM-specific debate failure modes: an unanswered claims ledger that persists across the compression window, inline empirical verification via web search, NLI-based steelman validation, embedding-based sycophancy detection, and a post-synthesis missing arguments pass. I evaluate QBAF base score calibration across BDI layers, finding that AI reliably scores normative (Desires, r=0.65) and strategic (Intentions, r=0.71) claims but not empirical (Beliefs) claims — a fundamental asymmetry I attribute to the self-contained vs. externally-verifiable nature of different claim types. I also present empirical findings on embedding-based relevance scoring calibration and the effects of temperature parameter selection on debate quality. [RESULTS PENDING for E1, E3]
 
 ## 1. Introduction
 
@@ -62,7 +62,7 @@ I adopt a composite ontology: DOLCE D&S provides the perspectival framework (thr
 
 Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks.
 
-A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002).
+A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002). Crucially, unlike prior multi-agent debate systems that treat LLM outputs as final, this system applies a neural-symbolic architecture: each debate turn passes through a 4-stage pipeline with deterministic JSON chaining, two-stage validation (9 symbolic rules + neural quality assessment), and produces outcomes explainable through deterministic graph traversal rather than further neural inference.
 
 Beyond rhetorical rigidity, LLM-based debate agents exhibit failure modes absent in human debate: sycophantic position drift (accommodating opponents without argued concession), hallucinated evidence (fabricating citations or statistics), steelman fabrication (misrepresenting opponent positions while appearing to steelman), and compression-window blindness (forgetting early claims as context is compressed). My system introduces five targeted interventions for these LLM-specific failures, each non-blocking and designed for graceful degradation when required capabilities (web search, NLI, embeddings) are unavailable. Additionally, a persona-free neutral evaluator independently assesses claims with speaker identities stripped, providing a bias-detection layer analogous to blinded peer review.
 
@@ -74,7 +74,9 @@ Analogical reasoning has been studied as a mechanism for creative problem-solvin
 
 ## 3. System Architecture
 
-The system implements a five-stage pipeline: **ingest** (document conversion and metadata extraction), **extract** (claim identification with confidence assessment), **argue** (multi-agent debate with ontology-grounded context), **synthesize** (argument mapping, preference resolution, disagreement typing), and **evolve** (taxonomy updates via debate harvest, concession accumulation, and health analysis).
+The system implements a **neural-symbolic architecture** in which every neural component (LLM-based content generation, soft judgment, scheme classification) is paired with a symbolic counterpart (deterministic validation, QBAF strength propagation, BFS graph traversal, move-edge classification) that constrains, verifies, or explains the neural output. This dual architecture is not incidental — it is the central design principle that enables both the creativity of LLM-based argumentation and the auditability required for policy analysis tools. Neural components generate argumentative content, classify reasoning patterns, and assess soft qualities like argument advancement. Symbolic components enforce structural constraints (move type validity, node existence, statement length), propagate formal argument strength (DF-QuAD gradual semantics), compute convergence diagnostics from the argument network, and produce deterministic explanations of debate outcomes through graph traversal. Every LLM output passes through symbolic validation before entering the argument network, and every outcome is explainable through deterministic computation over that network.
+
+The system implements a five-stage pipeline: **ingest** (document conversion and metadata extraction), **extract** (claim identification with confidence assessment), **argue** (multi-agent debate with ontology-grounded context), **synthesize** (argument mapping, preference resolution, disagreement typing), and **evolve** (taxonomy updates via debate harvest, concession accumulation, reflections, and health analysis).
 
 ### 3.1 Ontological Grounding Layer
 
@@ -277,9 +279,54 @@ Debates follow a structured protocol: (1) **clarification phase** — the modera
 
 Each debate agent receives its POV's taxonomy nodes organized by BDI category, with explicit framing headers. Primary nodes (most relevant to the debate topic, identified via embedding similarity) are marked with ★. Vulnerabilities known to be relevant to the topic are included with the instruction to acknowledge them when directly relevant — building credibility rather than over-conceding.
 
-### 6.2 Dialectical Move Taxonomy and Diversity
+### 6.2 Turn Pipeline: Neural-Symbolic Decomposition
 
-I define eight canonical dialectical moves available to debate agents:
+Each debate turn is decomposed into four sequential AI calls, each with a focused prompt and calibrated temperature. The pipeline exemplifies the system's neural-symbolic design: the structure is deterministic (fixed stage ordering, JSON schema chaining between stages, typed outputs) while each stage's content generation is neural (LLM inference at per-stage temperatures).
+
+| Stage | Temperature | Function | Output |
+|-------|-------------|----------|--------|
+| **BRIEF** | 0.15 | Summarize dialectical situation: identify the immediate opponent argument being addressed, relevant taxonomy nodes, prior moves, and commitment store state | Structured JSON: opponent claim summary, relevant node IDs, prior move history, dialectical context |
+| **PLAN** | 0.4 | Select 1-3 dialectical moves from the catalog, outline logical strategy, identify which taxonomy nodes to mobilize | Structured JSON: selected moves with rationale, argument outline, target nodes |
+| **DRAFT** | 0.7 | Generate argumentative text: 3-5 paragraphs with claim sketches, key assumptions, and warranted reasoning | Structured JSON: statement text, claim sketches, assumptions, move_types |
+| **CITE** | 0.15 | Map claims back to taxonomy nodes with relevance justifications (minimum 40 characters each) | Structured JSON: taxonomy_refs with node_id, relevance, and justification |
+
+The temperature gradient reflects the cognitive demands of each stage: BRIEF and CITE require precision and fidelity (low temperature), PLAN requires moderate creativity in strategy selection, and DRAFT requires the highest creativity for generating novel argumentative content. The JSON chaining between stages ensures that each stage's output constrains the next stage's input — PLAN cannot select moves that BRIEF did not identify as relevant, and CITE cannot reference nodes that were not mobilized in PLAN.
+
+This decomposition addresses a fundamental problem with single-call turn generation: when a single LLM call must simultaneously assess the dialectical situation, select moves, generate text, and cite sources, the model makes implicit tradeoffs between these tasks that are invisible to the system. The 4-stage pipeline makes each cognitive step explicit, auditable, and independently tunable. If the system produces poor citations, the problem is localized to the CITE stage; if arguments are repetitive, the problem is in PLAN. This decomposition also enables targeted repair: a failed CITE stage can be retried without regenerating the entire turn.
+
+### 6.3 Turn Validation with Repair Loop
+
+Every generated turn passes through a two-stage validation pipeline before entering the argument network. This validation embodies the neural-symbolic principle: Stage A applies deterministic symbolic rules that enforce structural correctness, while Stage B applies neural judgment to assess argumentative quality.
+
+**Stage A (Deterministic): 9 symbolic validation rules.**
+
+1. **move_types present** — the turn specifies at least one dialectical move from the catalog
+2. **disagreement_type valid** — if a disagreement is classified, it uses one of the three canonical types (EMPIRICAL, VALUES, DEFINITIONAL)
+3. **taxonomy node_ids exist** — all referenced node IDs correspond to actual nodes in the taxonomy
+4. **taxonomy_refs relevance** — each taxonomy reference includes a relevance justification of at least 40 characters
+5. **statement length** — the argumentative statement contains 3-5 paragraphs
+6. **novelty check** — the statement does not substantially repeat content from the speaker's prior turns (measured via token overlap)
+7. **move repetition check** — the selected moves are not identical to the speaker's moves in the previous two turns
+8. **claim specificity** — after round 3, claims must meet a minimum specificity threshold (no vague formulations like "AI has risks")
+9. **JSON schema conformance** — the output matches the expected structured format
+
+Stage A rules are evaluated deterministically with no LLM calls. Any rule failure produces a specific, actionable repair hint (e.g., "node_id 'acc-B-999' does not exist in taxonomy; closest match: 'acc-B-099'").
+
+**Stage B (Neural, sampled): LLM judge assessment.**
+
+A separate LLM call (at low temperature, 0.15) evaluates three soft qualities that resist deterministic assessment:
+
+1. **ADVANCES** — does the turn advance the debate beyond what has already been said, or does it merely rephrase prior arguments?
+2. **CLARIFIES_TAXONOMY** — does the turn engage meaningfully with the taxonomy nodes it cites, or does it name-drop without substantive connection?
+3. **WEAKNESSES** — does the turn identify specific weaknesses that should be addressed in a repair attempt?
+
+**Repair loop.** When validation fails (Stage A rule violation or Stage B quality below threshold), the system injects specific repair hints into the next DRAFT attempt. The repair budget is 0-2 retries — sufficient to correct most structural issues without allowing unbounded regeneration. If the turn still fails after retries, it enters the argument network with a validation warning flag, ensuring that the debate never stalls on a single turn.
+
+The two-stage design is deliberate: Stage A catches errors that are objectively wrong (a non-existent node ID is always wrong regardless of context), while Stage B catches errors that require judgment (whether a turn "advances" the debate depends on the full dialectical context). This separation ensures that deterministic errors are never left to neural judgment, while soft assessments are never reduced to brittle rules.
+
+### 6.4 Dialectical Move Taxonomy and Diversity
+
+I define fifteen core dialectical moves available to debate agents, expanded from the original eight to cover the full range of dialectical actions observed in productive policy debates:
 
 1. **DISTINGUISH** — accept the opponent's evidence but show it doesn't apply to this context
 2. **COUNTEREXAMPLE** — provide a specific case challenging the opponent's general claim
@@ -289,6 +336,19 @@ I define eight canonical dialectical moves available to debate agents:
 6. **EXTEND** — build on another debater's point to strengthen or expand it
 7. **UNDERCUT** — attack the warrant (reasoning link) rather than the evidence or conclusion
 8. **SPECIFY** — demand that the opponent operationalize their position: what specific evidence, outcome, or condition would falsify their claim?
+9. **GROUND-CHECK** — challenge an opponent to provide empirical grounding for a normative or strategic claim
+10. **CONDITIONAL-AGREE** — agree with the opponent's conclusion under specified conditions, narrowing the disagreement space
+11. **IDENTIFY-CRUX** — explicitly name the core factual or normative disagreement that, if resolved, would change conclusions
+12. **INTEGRATE** — synthesize elements from multiple perspectives into a position that addresses concerns from more than one POV
+13. **STEEL-BUILD** — construct the strongest possible version of the opponent's argument, then engage with that version
+14. **EXPOSE-ASSUMPTION** — identify an unstated premise that the opponent's argument depends on
+15. **BURDEN-SHIFT** — argue that the burden of proof lies with the opponent, not the current speaker
+
+Four constructive moves (INTEGRATE, IDENTIFY-CRUX, CONDITIONAL-AGREE, STEEL-BUILD) are injected only during exploration and synthesis phases when the debate has progressed beyond initial position staking. This phase-gating prevents premature convergence — agents must first establish and test their positions before the system encourages synthesis.
+
+**Move-edge classification.** Every move maps to a support, attack, or neutral edge type via the MOVE_EDGE_MAP. COUNTEREXAMPLE, EMPIRICAL CHALLENGE, UNDERCUT, EXPOSE-ASSUMPTION, and BURDEN-SHIFT produce attack edges. EXTEND, INTEGRATE, and STEEL-BUILD produce support edges. DISTINGUISH, REFRAME, IDENTIFY-CRUX, and SPECIFY produce neutral edges (they restructure the dialectical space without directly attacking or supporting a claim). This classification is used consistently across extraction, commitment tracking, and convergence signal computation, ensuring that the argument network's edge semantics are deterministic and auditable.
+
+**Expanded move variants.** Beyond the 15 core moves, 23 expanded variants handle LLM-generated move labels that do not exactly match the canonical forms (e.g., "COUNTER-EXAMPLE" or "counter_example"). A canonicalization mapping normalizes all variants to their core move, ensuring that the argument network and convergence diagnostics operate on a clean, consistent vocabulary regardless of LLM output variability.
 
 Three legacy moves (REDUCE, ESCALATE, CONCEDE) remain accepted in the classification pipeline for backward compatibility but are not prompted for.
 
@@ -310,7 +370,7 @@ The SPECIFY move merits particular attention. It is the only move that forces *f
 
 The temperature finding is independently significant: a systematic audit of temperature parameters across the pipeline revealed that debate agents were configured at 0.3 (optimal for extraction tasks) rather than 0.5-0.7 (appropriate for deliberative reasoning). Low temperature compounds with primacy bias — the model samples the highest-probability move (CONCEDE) more deterministically. I also introduced per-mode temperature for chat: brainstorm (0.7), inform (0.4), decide (0.3), matching the cognitive demands of each mode.
 
-### 6.3 Commitment Tracking and Concession Harvesting
+### 6.5 Commitment Tracking and Concession Harvesting
 
 Each debater maintains a commitment store tracking asserted, conceded, and challenged claims. The commitment store is injected into subsequent prompts with a consistency rule: "Do not silently contradict prior assertions."
 
@@ -324,13 +384,13 @@ Classified concessions are accumulated per taxonomy node across debates. When we
 
 This mechanism closes the loop between argumentation output and ontology evolution: repeated concessions signal that the taxonomy has drifted from defensible positions and needs revision. It also captures *convergence* — where POVs are coming together — complementing the situation nodes that capture where they diverge.
 
-### 6.4 Preference Resolution and Synthesis
+### 6.6 Preference Resolution and Synthesis
 
 Debate synthesis evaluates which arguments prevail in each area of disagreement. Each preference judgment specifies the prevailing argument, the criterion by which it prevails (empirical_evidence, logical_validity, source_authority, specificity, or scope), and the rationale. This maps to AIF preference application nodes (PA-nodes).
 
 The synthesis also produces an AIF-aligned argument map: claims with IDs, near-verbatim text, speaker attribution, and typed relationships (supported_by with scheme, attacked_by with attack_type, argumentation_scheme, and critical_question_addressed).
 
-### 6.5 Argumentation Scheme Classification
+### 6.7 Argumentation Scheme Classification
 
 Beyond the dialectical moves (what rhetorical action is taken) and attack types (what kind of challenge is made), I classify the *argumentation scheme* — the reasoning pattern underlying each argument. Drawing from Walton, Reed, and Macagno (2008), I define 13 schemes organized into four families:
 
@@ -353,7 +413,7 @@ The system uses scheme classification in three ways:
 
 This integration makes the debate system scheme-aware at every stage — extraction, steering, and synthesis — without requiring formal scheme ontology reasoning.
 
-### 6.6 Metaphor Reframing
+### 6.8 Metaphor Reframing
 
 Multi-agent debates can fall into convergence stalls — extended exchanges where agents recycle the same arguments without generating new insight. Research in conceptual metaphor theory (Lakoff and Johnson, 1980) and analogical reasoning (Gentner and Markman, 1997) suggests that introducing a novel conceptual frame can break such stalls by restructuring how agents reason about the topic.
 
@@ -376,7 +436,7 @@ I implement a two-level metaphor reframing mechanism:
 
 Arguments produced through metaphor reframing are classified under the ARGUMENT_FROM_METAPHOR scheme, with the four critical questions guiding subsequent challenges. This ensures metaphorical arguments receive the same analytical treatment as other argument types.
 
-### 6.7 Persona-Free Neutral Evaluator
+### 6.9 Persona-Free Neutral Evaluator
 
 A structural risk in multi-agent debate is *persona contamination*: the evaluator inherits framing from the agents it judges. If synthesis knows that "Prometheus" represents accelerationism, it may unconsciously weigh arguments through that lens rather than assessing reasoning quality neutrally.
 
@@ -394,7 +454,7 @@ The highest-value output is the **divergence view**: programmatic comparison of 
 
 Critically, the neutral evaluator never influences the debate: it does not affect moderator selection, debater prompts, or synthesis output. It operates as a parallel assessment channel — users see both views and draw their own conclusions from any divergence.
 
-### 6.8 LLM Failure Mode Interventions
+### 6.10 LLM Failure Mode Interventions
 
 LLM debate agents exhibit failure modes qualitatively different from human debaters. Human debaters may argue in bad faith, but they do not hallucinate evidence, fabricate opponent positions while sincerely attempting to steelman, or unconsciously drift toward their opponent's position through token-level accommodation. Five targeted interventions address these LLM-specific failures. All are non-blocking — failure in any intervention never aborts the debate — and all degrade gracefully when required capabilities are unavailable.
 
@@ -410,7 +470,7 @@ LLM debate agents exhibit failure modes qualitatively different from human debat
 
 The graceful degradation architecture is deliberate: the CLI engine's `AIAdapter` exposes only `generateText`, while the UI's bridge API provides `generateTextWithSearch`, `nliClassify`, and `computeQueryEmbedding` as optional extensions via the `ExtendedAIAdapter` interface. Each intervention checks for capability availability before executing and silently skips if unavailable. This means the full intervention suite runs in the Taxonomy Editor UI (which has access to all APIs) while the CLI engine gets a reduced set (unanswered claims ledger and missing arguments pass only), with no code path changes required.
 
-### 6.9 Disagreement Typing
+### 6.11 Disagreement Typing
 
 Each disagreement is classified into one of three types that map to BDI layers:
 
@@ -422,7 +482,75 @@ Each disagreement is classified into one of three types that map to BDI layers:
 
 This classification determines the appropriate resolution strategy: empirical disagreements call for evidence gathering, values disagreements call for tradeoff analysis, and definitional disagreements call for term disambiguation before substantive debate can proceed.
 
-### 6.10 Evaluation (E3)
+### 6.12 Convergence Diagnostics
+
+Assessing whether a multi-agent debate is progressing toward genuine understanding — rather than cycling through repetitive exchanges — requires quantitative signals. I define seven per-turn convergence diagnostics, all computed deterministically from the argument network with no LLM calls. This purely symbolic computation ensures that convergence assessment is reproducible, auditable, and independent of the neural components that generate debate content.
+
+1. **Move Disposition** — the ratio of confrontational moves (COUNTEREXAMPLE, EMPIRICAL CHALLENGE, UNDERCUT, EXPOSE-ASSUMPTION, BURDEN-SHIFT) to collaborative moves (EXTEND, INTEGRATE, CONDITIONAL-AGREE, STEEL-BUILD) across recent turns. A debate that remains purely confrontational after round 5 is likely stuck in positional warfare; one that shifts toward collaborative moves signals genuine engagement.
+
+2. **Engagement Depth** — the fraction of the speaker's taxonomy nodes that have edges connecting to nodes from other POVs in the argument network. A speaker who cites many nodes but whose nodes have no cross-POV edges is talking past opponents rather than engaging. Computed as: |nodes with external edges| / |total cited nodes|.
+
+3. **Recycling Rate** — word overlap between the current turn and prior same-speaker turns, measured via tokenized intersection over union. High recycling (>0.6) indicates the speaker has exhausted novel arguments and is paraphrasing prior content.
+
+4. **Strongest Opposing Argument** — the QBAF computed strength (via DF-QuAD) of the strongest attack edge targeting the speaker's nodes. This surfaces the single most threatening counterargument the speaker faces, enabling the moderator to direct engagement toward it.
+
+5. **Concession Opportunity** — the ratio of strong attacks faced (QBAF strength > 0.5) to concession moves made. A speaker who faces multiple strong attacks but never concedes may be exhibiting rhetorical rigidity; one who concedes more than they are attacked may be sycophantic. The diagnostic flags both extremes.
+
+6. **Position Delta** — word overlap drift between the speaker's opening statement and their most recent turn. Gradual drift without explicit concession signals sycophantic accommodation (cross-referenced with the Position Drift Detection intervention in Section 6.10). Sharp shifts coinciding with explicit concessions signal genuine position evolution.
+
+7. **Crux Rate** — the frequency of IDENTIFY-CRUX moves and whether identified cruxes are followed up in subsequent turns. An identified crux that receives no engagement in the following two turns indicates a missed opportunity for convergence.
+
+These seven signals are displayed together in the diagnostics panel as a per-turn convergence dashboard. Because all signals are computed from the argument network's graph structure and node metadata (QBAF strengths, edge types, move classifications), they are fully deterministic — running the same computation on the same argument network always produces identical results. This makes convergence assessment debuggable: if a diagnostic flags an anomaly, the underlying graph data can be inspected directly.
+
+### 6.13 Dialectic Traces
+
+When a debate concludes with a synthesis that identifies prevailing arguments and preference resolutions, a natural question arises: *why* did a particular position prevail? Dialectic traces answer this question through purely symbolic computation — deterministic BFS (breadth-first search) graph traversal through the argument network — producing human-readable narrative chains that explain outcomes without any AI calls.
+
+**Algorithm.** The trace computation proceeds in six steps:
+
+1. **Find relevant AN nodes** — starting from a synthesis preference (e.g., "the safetyist position on governance prevailed"), identify the argument network nodes that correspond to the prevailing and defeated positions.
+2. **Expand subgraph** — extract the connected subgraph containing all nodes reachable from the starting nodes within 3 hops, including all attack and support edges.
+3. **Sort by QBAF strength** — order nodes in the subgraph by their DF-QuAD computed strength, establishing the strength hierarchy.
+4. **BFS traversal** — perform breadth-first search from the prevailing node, following attack and support edges. Each traversal step records: the source node, the edge type (attack/support), the target node, and both nodes' computed strengths.
+5. **Action classification** — each traversal step is classified into a narrative action: "X attacked Y on [edge type], reducing Y's strength from [pre] to [post]" or "X supported Y, increasing Y's strength."
+6. **Narrative ordering and capping** — steps are ordered chronologically (by debate round) and capped at 12 steps maximum to produce a readable narrative rather than an exhaustive graph dump.
+
+**Output.** The trace produces a structured narrative such as: "The safetyist governance position (strength 0.78) prevailed because: (1) it was supported by the IAEA analogy argument (strength 0.72, round 2), (2) the accelerationist speed objection (strength 0.45) was undercut by the skeptic's regulatory precedent argument (strength 0.61, round 4), and (3) the accelerationist's strongest remaining attack (innovation bottleneck, strength 0.38) was never addressed but was outweighed by the accumulation of support edges."
+
+Because the entire computation is deterministic — BFS traversal, QBAF strength lookup, edge classification — dialectic traces are fully reproducible and auditable. A researcher who disagrees with a trace can inspect the underlying graph, verify the QBAF strengths, and trace the BFS path step by step. This level of explainability is a direct consequence of the neural-symbolic architecture: the neural components generated the debate content, but the symbolic components explain the outcome.
+
+### 6.14 Reflections
+
+After debate synthesis, a post-debate meta-cognitive pass gives each debater access to the full argument network, commitment store, and convergence signals, then asks: "Given everything that happened in this debate, what changes — if any — should be made to the taxonomy?" This reflections mechanism closes the loop between debate output and taxonomy evolution more systematically than concession harvesting alone.
+
+Each reflection produces a set of proposed taxonomy edits, each classified by type and accompanied by evidence:
+
+| Edit Type | Description | Example |
+|-----------|-------------|---------|
+| **revise** | Modify an existing node's description or scope | "acc-B-042 should acknowledge the regulatory precedent evidence raised in round 4" |
+| **add** | Propose a new taxonomy node | "A safetyist Intention node for 'graduated deployment frameworks' is missing from the taxonomy" |
+| **qualify** | Add a caveat or boundary condition to an existing node | "saf-D-015 should note that the IAEA analogy breaks down for dual-use commercial AI" |
+| **deprecate** | Flag a node as no longer defensible | "acc-B-071's claim about unregulated markets producing safety has been refuted across 3 debates" |
+
+Each proposed edit carries a **confidence level** (high/medium/low) based on the strength of evidence from the debate, and references specific debate entries (by round and speaker) as supporting evidence. Proposed edits must match the taxonomy's existing tone and abstraction level — a reflection that proposes adding a colloquial or overly specific node is flagged for revision.
+
+Critically, all proposed edits require **human review** before any taxonomy changes are made. The reflections mechanism surfaces candidates for evolution; it does not automate evolution. This design reflects the principle that taxonomy curation — deciding what the canonical representation of a discourse should include — is a human judgment that should be informed by debate outcomes, not delegated to them.
+
+### 6.15 Audience Targeting
+
+Debates can be tailored to specific audiences: policymakers, technical researchers, industry leaders, academic community, or general public. Per-audience directives shape tone, evidence expectations, and argumentation style. For example, policymaker-targeted debates emphasize actionable recommendations and regulatory precedent, while technical researcher-targeted debates emphasize methodological rigor and empirical evidence standards. Audience targeting is specified at debate initialization and propagated to all stage prompts (BRIEF, PLAN, DRAFT, CITE) as a contextual directive.
+
+### 6.16 Coverage Tracking
+
+For document-sourced debates — where the debate topic originates from a specific source document — the system tracks which source claims were actually discussed during the debate. Coverage is computed via a combination of embedding-based similarity (cosine similarity between source claims and debate content using all-MiniLM-L6-v2) and text-overlap matching (tokenized intersection). Each source claim receives a tri-state classification: **covered** (directly discussed with substantive engagement), **partially_covered** (mentioned or tangentially addressed), or **uncovered** (not discussed). Coverage reports surface structural gaps in debate engagement, enabling follow-up debates that target uncovered claims.
+
+### 6.17 IRAC/CRAC Legal Argument Structure
+
+To improve the rigor of policy argumentation, debate instructions incorporate the CRAC (Conclusion-Rule-Application-Conclusion) legal argument structure. Debaters are prompted to structure key arguments as: (1) state the conclusion, (2) identify the governing rule or principle, (3) apply the rule to the specific facts at hand, and (4) restate the conclusion with the application's support. This structure is particularly effective for policy debates where regulatory frameworks, precedent, and institutional design are contested.
+
+A complementary counter-tactics block equips debaters with awareness of six common argumentative maneuvers that can undermine debate quality: **burden shift** (improperly placing the burden of proof on the opponent), **fact reframing** (recharacterizing established facts to support a different conclusion), **premise stacking** (accumulating weak premises to create an illusion of strong support), **conclusion-as-finding** (presenting a desired conclusion as if it were an established finding), **point flooding** (overwhelming opponents with volume rather than quality), and **unverified authority** (citing unnamed experts or institutions without specific references). Debaters are instructed to identify and call out these tactics when encountered, improving the overall epistemic quality of the exchange.
+
+### 6.18 Evaluation (E3)
 
 [RESULTS PENDING]
 
@@ -486,7 +614,7 @@ The hybrid approach (AI for Desires/Intentions, human for Beliefs) is not a fail
 
 ### 8.3 Parameter Calibration as Complementary Intervention
 
-The rhetorical rigidity problem (Section 6.2) illustrates a broader principle: prompt engineering and parameter calibration are complementary interventions, not substitutes. The prompt-level fixes (move reordering, anti-repetition, move history) address *what the model is instructed to do*. The temperature increase (0.3 → 0.5) addresses *how the model samples from its output distribution*. Neither alone fully resolves the problem — low temperature makes even well-instructed models deterministic, while high temperature without clear instructions produces incoherent variation.
+The rhetorical rigidity problem (Section 6.4) illustrates a broader principle: prompt engineering and parameter calibration are complementary interventions, not substitutes. The prompt-level fixes (move reordering, anti-repetition, move history) address *what the model is instructed to do*. The temperature increase (0.3 → 0.5) addresses *how the model samples from its output distribution*. Neither alone fully resolves the problem — low temperature makes even well-instructed models deterministic, while high temperature without clear instructions produces incoherent variation.
 
 More broadly, a systematic audit revealed that the pipeline had accumulated temperature defaults appropriate for extraction (0.1-0.2) applied to deliberative tasks that benefit from moderate creativity (0.5-0.7). The mismatch between task type and sampling parameter was invisible in individual interactions but produced systematic quality degradation across debates. I recommend that multi-stage NLP pipelines explicitly calibrate temperature per task type rather than inheriting a single default.
 
@@ -496,7 +624,7 @@ The per-turn retrieval mechanism (Section 3.3) illustrates a related failure mod
 
 ### 8.4 Metaphor as Cognitive Reset
 
-The metaphor reframing mechanism (Section 6.6) addresses a limitation of pure logical argumentation: when agents have exhausted their repertoire of evidence-based and reasoning-based moves, introducing a novel conceptual frame can restructure the problem space. This is consistent with Lakoff and Johnson's (1980) observation that metaphors are not decorative but constitutive — they determine which aspects of a problem are salient and which are invisible.
+The metaphor reframing mechanism (Section 6.8) addresses a limitation of pure logical argumentation: when agents have exhausted their repertoire of evidence-based and reasoning-based moves, introducing a novel conceptual frame can restructure the problem space. This is consistent with Lakoff and Johnson's (1980) observation that metaphors are not decorative but constitutive — they determine which aspects of a problem are salient and which are invisible.
 
 The curated metaphor library represents a deliberate design choice: rather than allowing the AI to generate arbitrary metaphors (which risks incoherent or misleading frames), I provide eight carefully selected metaphors that each highlight genuine aspects of AI policy discourse. The stall detection mechanism ensures metaphors are introduced only when the debate has genuinely converged, preventing gratuitous reframing that could derail productive exchanges.
 
@@ -504,7 +632,7 @@ Early observations suggest that metaphor reframing is most productive when it br
 
 ### 8.5 LLM Failure Modes as a Design Category
 
-The five interventions (Section 6.8) represent a design category distinct from both prompt engineering and parameter calibration: *runtime monitoring and correction* of LLM-specific behavioral failures. Prompt engineering shapes what the model is instructed to do; parameter calibration shapes how it samples; runtime interventions detect and respond to failures *after they occur*.
+The five interventions (Section 6.10) represent a design category distinct from both prompt engineering and parameter calibration: *runtime monitoring and correction* of LLM-specific behavioral failures. Prompt engineering shapes what the model is instructed to do; parameter calibration shapes how it samples; runtime interventions detect and respond to failures *after they occur*.
 
 This distinction matters because some LLM failure modes are not preventable through instruction. Sycophantic drift is not caused by unclear instructions — the model "knows" it should maintain its position but accommodates at the token level. Hallucinated evidence is not caused by missing instructions to be truthful — the model generates fabricated statistics with the same confidence as accurate ones. These failures require detection infrastructure (embeddings for drift, web search for verification, NLI for steelman checking) that operates outside the prompt.
 
@@ -516,7 +644,23 @@ The SPECIFY move addresses what may be the single most important structural gap 
 
 The moderator bias mechanism (triggered by isolated high-strength claims with no edges between them) targets the specific argument network topology that signals the need for falsifiability demands: when two debaters have built strong, well-supported positions that simply do not engage with each other, the productive move is not another counterexample or distinction but a demand that one side operationalize their position.
 
-### 8.7 Limitations
+### 8.7 Neural-Symbolic Architecture for Explainable Argumentation
+
+The system's most distinctive architectural property is the systematic pairing of neural and symbolic computation at every layer. This is not an ad-hoc combination — it reflects a principled design philosophy: neural components handle tasks that require creativity, language understanding, and soft judgment (content generation, scheme classification, argumentative quality assessment), while symbolic components handle tasks that require precision, reproducibility, and auditability (validation, strength propagation, convergence measurement, outcome explanation).
+
+**The 4-stage turn pipeline (Section 6.2)** exemplifies this pairing at the micro level. The pipeline structure — stage ordering, JSON schemas, typed outputs, inter-stage chaining — is entirely symbolic. The content generated within each stage is entirely neural. This decomposition provides two critical properties that a single neural call cannot: *localizability* (a citation error is traced to the CITE stage, not to "the model") and *independent tunability* (the DRAFT stage can run at temperature 0.7 for creativity while CITE runs at 0.15 for precision, rather than forcing a single temperature to serve competing demands).
+
+**Turn validation (Section 6.3)** exemplifies the pairing at the quality-control level. The 9 deterministic rules of Stage A catch errors that are objectively verifiable (a non-existent node ID, a statement with only 2 paragraphs) without consuming any LLM calls. The neural Stage B assesses qualities that resist formalization (whether a turn genuinely "advances" the debate). Neither layer alone suffices: purely symbolic validation would miss argumentative quality issues, while purely neural validation would miss structural errors that the LLM generates confidently.
+
+**Convergence diagnostics (Section 6.12)** exemplify the pairing at the analysis level. All seven signals are computed from the argument network's graph structure — QBAF strengths, edge types, move classifications, token overlaps — without any LLM calls. This means convergence assessment is fully reproducible: the same argument network always produces identical diagnostics. The neural components generated the debate content that populates the argument network, but the assessment of that content's convergence properties is entirely symbolic.
+
+**Dialectic traces (Section 6.13)** exemplify the pairing at the explanation level. BFS traversal through the argument network produces deterministic narrative chains explaining why a position prevailed. A researcher can follow the trace step by step, verify each QBAF strength, inspect each edge, and confirm or challenge the explanation. This level of auditability is impossible in systems where outcomes are assessed by another neural call — "the LLM said this side won" provides no verifiable reasoning chain.
+
+This architecture addresses a fundamental tension in multi-agent debate systems. Pure neural systems (multiple LLM agents debating with unstructured outputs) are creative but opaque — they produce interesting debates whose outcomes cannot be explained or audited. Pure symbolic systems (formal argumentation frameworks with hand-coded arguments) are auditable but brittle — they cannot generate novel arguments or assess soft argumentative qualities. The neural-symbolic pairing provides both: neural creativity in content generation and symbolic rigor in validation, measurement, and explanation.
+
+The practical consequence is that every claim the system makes about debate outcomes is backed by a verifiable computation. "This position prevailed" is backed by a dialectic trace through the QBAF. "This debate is converging" is backed by seven deterministic metrics. "This turn is valid" is backed by 9 symbolic rules plus a neural quality assessment. This dual backing makes the system suitable for policy analysis contexts where trust in computational tools requires more than "the AI said so."
+
+### 8.8 Limitations
 
 **Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
@@ -540,7 +684,7 @@ The moderator bias mechanism (triggered by isolated high-strength claims with no
 
 **SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.
 
-### 8.8 Ethical Considerations
+### 8.9 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -554,7 +698,7 @@ This system analyzes discourse about AI policy — a politically sensitive domai
 
 ## 9. Conclusion
 
-I have presented an integrated system for multi-perspective AI policy discourse analysis that addresses the fundamental limitation of flat, single-label stance detection. The three-layer approach — ontological grounding (DOLCE D&S + BDI + AIF), formal argumentation (QBAF with BDI-aware calibration), and confidence-gated extraction (FIRE) — demonstrates that respecting the multi-dimensional structure of policy disagreements produces richer, more auditable analysis than compressing opinions into binary labels.
+I have presented an integrated system for multi-perspective AI policy discourse analysis that addresses the fundamental limitation of flat, single-label stance detection through a neural-symbolic architecture in which LLM-based content generation is systematically paired with symbolic validation, computation, and explanation. The three-layer approach — ontological grounding (DOLCE D&S + BDI + AIF), formal argumentation (QBAF with BDI-aware calibration), and confidence-gated extraction (FIRE) — demonstrates that respecting the multi-dimensional structure of policy disagreements produces richer, more auditable analysis than compressing opinions into binary labels.
 
 Key findings include:
 
@@ -580,7 +724,15 @@ Key findings include:
 
 11. **Falsifiability demands are the most truth-productive debate move.** The SPECIFY move — requiring a debater to state what specific evidence would change their mind — addresses a structural gap in the dialectical taxonomy. Without it, debates can run for multiple rounds with neither side ever committing to testable predictions. The moderator bias toward SPECIFY when the argument network shows isolated high-strength claims (strong positions with no direct engagement) targets the precise conditions where falsifiability demands are most productive.
 
-Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, systematic evaluation of metaphor reframing effectiveness across debate corpora, and longitudinal analysis of neutral evaluator divergence patterns to identify which persona framings most frequently bias synthesis.
+12. **Neural-symbolic decomposition enables both creativity and auditability.** The 4-stage turn pipeline (BRIEF-PLAN-DRAFT-CITE) demonstrates that decomposing LLM-based argumentation into focused stages with deterministic JSON chaining between them produces more auditable, tunable, and repairable debate turns than single-call generation. The symbolic pipeline structure constrains the neural content generation without limiting its creativity — each stage operates at an independently calibrated temperature appropriate to its cognitive demands.
+
+13. **Deterministic convergence diagnostics provide LLM-independent debate assessment.** Seven per-turn signals — all computed from the argument network's graph structure, QBAF strengths, and move classifications without any LLM calls — enable reproducible, debuggable assessment of whether debates are progressing toward genuine understanding. Because the diagnostics are purely symbolic, they are independent of the neural components that generate debate content, providing an orthogonal assessment channel.
+
+14. **Deterministic dialectic traces explain debate outcomes without neural inference.** BFS traversal through the argument network produces human-readable narrative chains that explain why a position prevailed, grounded in verifiable QBAF computations and edge classifications. This level of explainability — where a researcher can follow the trace step by step and verify each claim — distinguishes the system from multi-agent debate systems where outcomes are assessed by another opaque neural call.
+
+15. **Post-debate reflections close the taxonomy evolution loop.** By giving each debater access to the full argument network and convergence signals post-debate, the reflections mechanism surfaces specific, evidence-grounded taxonomy edit proposals (revise, add, qualify, deprecate) with confidence levels. Combined with concession harvesting, this provides two complementary feedback channels: concession harvesting captures incremental convergence across debates, while reflections capture structural insights from individual debates.
+
+Future work includes formal FIRE evaluation (E1), scaled concession harvesting validation, cross-lingual extension, integration with retrieval-augmented generation to address the Beliefs scoring gap, systematic evaluation of metaphor reframing effectiveness across debate corpora, longitudinal analysis of neutral evaluator divergence patterns to identify which persona framings most frequently bias synthesis, and empirical validation of the neural-symbolic architecture's auditability claims through user studies with policy analysts examining dialectic traces and convergence diagnostics.
 
 ## References
 

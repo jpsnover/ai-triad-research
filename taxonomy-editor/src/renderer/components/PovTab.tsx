@@ -268,6 +268,10 @@ export function PovTab({ pov }: PovTabProps) {
     if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
     const state = useTaxonomyStore.getState();
     const idType = nodeTypeFromId(searchPreviewId);
+    const openInTree = (tab: string, id: string) => {
+      useTaxonomyStore.getState().navigateToNode(tab as any, id);
+      setSearchPreviewId(null);
+    };
     if (idType === 'situation') {
       const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
@@ -277,7 +281,18 @@ export function PovTab({ pov }: PovTabProps) {
     } else {
       for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const node = state[p]?.nodes.find(n => n.id === searchPreviewId);
-        if (node) return <NodeDetail pov={p} node={node} readOnly chipDepth={0} />;
+        if (node) return (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px 0', gap: 6 }}>
+              <button
+                onClick={() => openInTree(p, node.id)}
+                title="Open this node in the tree view for full editing context"
+                style={{ padding: '2px 10px', fontSize: '0.7rem', fontWeight: 600, borderRadius: 4, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+              >Open in Tree</button>
+            </div>
+            <NodeDetail pov={p} node={node} chipDepth={0} />
+          </>
+        );
       }
     }
     return <div className="detail-panel-empty">Node not found</div>;

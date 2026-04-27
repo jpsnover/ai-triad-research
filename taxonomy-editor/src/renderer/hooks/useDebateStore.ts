@@ -12,7 +12,7 @@ import type {
   TaxonomyRef,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
+import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Category, Pov } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 
 declare const __APP_VERSION__: string;
@@ -1403,6 +1403,39 @@ function buildContextCompressionPrompt(
   entries: string,
 ): string {
   return contextCompressionPrompt(entries);
+}
+
+// ── Reflection helpers ───────────────────────────────────
+
+function defaultGraphAttributes(pov: Pov, category: Category): GraphAttributes {
+  const epistemicByCategory: Record<Category, string> = {
+    Beliefs: 'empirical_claim',
+    Desires: 'normative_prescription',
+    Intentions: 'strategic_recommendation',
+  };
+  const scopeByCategory: Record<Category, 'claim' | 'scheme'> = {
+    Beliefs: 'claim',
+    Desires: 'claim',
+    Intentions: 'scheme',
+  };
+  const rhetoricalByPov: Record<Pov, string> = {
+    accelerationist: 'techno_optimism',
+    safetyist: 'precautionary_framing',
+    skeptic: 'structural_critique',
+  };
+  const emotionalByPov: Record<Pov, string> = {
+    accelerationist: 'aspirational',
+    safetyist: 'cautionary',
+    skeptic: 'measured',
+  };
+  return {
+    epistemic_type: epistemicByCategory[category],
+    rhetorical_strategy: rhetoricalByPov[pov],
+    emotional_register: emotionalByPov[pov],
+    node_scope: scopeByCategory[category],
+    assumes: [],
+    falsifiability: 'medium',
+  };
 }
 
 // ── Reflection types ─────────────────────────────────────
@@ -3604,9 +3637,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (edit.edit_type === 'add') {
       const newId = taxStore.createPovNode(povKey, edit.category);
       if (newId) {
+        const debateId = get().activeDebateId;
         taxStore.updatePovNode(povKey, newId, {
           label: edit.proposed_label,
           description: edit.proposed_description,
+          graph_attributes: defaultGraphAttributes(povKey, edit.category),
+          debate_refs: debateId ? [debateId] : [],
         });
       }
     } else if (edit.node_id) {

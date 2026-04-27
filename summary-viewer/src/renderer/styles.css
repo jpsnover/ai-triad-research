@@ -837,6 +837,17 @@ body {
   color: #E74C3C;
 }
 
+.kp-node-label {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
 .key-point-text {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
