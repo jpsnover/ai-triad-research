@@ -104,11 +104,18 @@ def _infer_pov(instance, linked_nodes, node_meta):
 def _determine_base_strength(instance):
     """Determine base strength for a claim instance.
 
-    Uses stance as a proxy:
+    If the instance has pre-computed bdi_sub_scores, uses their average.
+    Otherwise falls back to stance as a proxy:
     - supports/disputes: 0.6 (active position, moderate confidence)
     - qualifies: 0.4 (hedged position)
     - neutral: 0.3 (weak position)
     """
+    bdi = instance.get("bdi_sub_scores")
+    if bdi and isinstance(bdi, dict):
+        values = [v for v in bdi.values() if isinstance(v, (int, float))]
+        if values:
+            return sum(values) / len(values)
+
     stance = instance.get("stance", "neutral")
     if stance in ("supports", "disputes"):
         return 0.6
@@ -243,13 +250,18 @@ def enrich_conflict(conflict, node_meta):
             "situations": "situations",
         }
 
-        qbaf_nodes_output.append({
+        node_out: dict = {
             "id": node_id,
             "text": inst.get("assertion", "")[:200],
             "source_pov": pov_map.get(pov, "situations"),
             "base_strength": base_strength,
             "computed_strength": base_strength,  # placeholder, updated below
-        })
+        }
+        if inst.get("bdi_category"):
+            node_out["bdi_category"] = inst["bdi_category"]
+        if inst.get("bdi_sub_scores"):
+            node_out["bdi_sub_scores"] = inst["bdi_sub_scores"]
+        qbaf_nodes_output.append(node_out)
 
     # Detect edges
     edges = _detect_edges(instances)

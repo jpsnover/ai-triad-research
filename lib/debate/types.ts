@@ -112,6 +112,96 @@ export const DEBATE_AUDIENCES: { id: DebateAudience; label: string }[] = [
   { id: 'general_public', label: 'General Public' },
 ];
 
+// ── Mid-Debate Gap Injection ────────────────────────────
+export interface GapArgument {
+  argument: string;
+  why_missing: string;
+  gap_type: 'cross_cutting' | 'compromise' | 'blind_spot' | 'unstated_assumption';
+  relevant_povs: string[];
+  bdi_layer: 'belief' | 'desire' | 'intention';
+}
+
+export interface GapResponse {
+  pover: string;
+  entry_id: string;
+  engaged: boolean;
+  stance: 'compatible' | 'opposed' | 'partial' | 'reframed';
+}
+
+export interface GapInjection {
+  round: number;
+  arguments: GapArgument[];
+  transcript_entry_id: string;
+  responses: GapResponse[];
+}
+
+// ── Cross-Cutting Node Promotion ────────────────────────
+export interface CrossCuttingProposal {
+  agreement_text: string;
+  proposed_label: string;
+  proposed_description: string;
+  interpretations: {
+    accelerationist: { belief: string; desire: string; intention: string; summary: string };
+    safetyist: { belief: string; desire: string; intention: string; summary: string };
+    skeptic: { belief: string; desire: string; intention: string; summary: string };
+  };
+  linked_nodes: string[];
+  rationale: string;
+  maps_to_existing?: string;
+}
+
+// ── Taxonomy Gap Analysis ───────────────────────────────
+export interface PovCoverage {
+  total_nodes: number;
+  injected_nodes: number;
+  referenced_nodes: number;
+  utilization_rate: number;
+  unreferenced_relevant: string[];
+  never_injected: string[];
+  category_breakdown: Record<string, { injected: number; referenced: number }>;
+}
+
+export interface BdiBalance {
+  beliefs: { node_count: number; cited_count: number; argument_count: number };
+  desires: { node_count: number; cited_count: number; argument_count: number };
+  intentions: { node_count: number; cited_count: number; argument_count: number };
+  weakest_category: string;
+  recommendation: string;
+}
+
+export interface CrossPovGap {
+  description: string;
+  evidence_entries: string[];
+  suggested_bdi: string;
+  suggested_pov: string;
+}
+
+export interface UnmappedArgument {
+  an_node_id: string;
+  text: string;
+  speaker: string;
+  closest_taxonomy_node?: string;
+  similarity?: number;
+  gap_type: 'novel_argument' | 'cross_cutting' | 'refinement_needed';
+}
+
+export interface GapSummary {
+  overall_coverage_pct: number;
+  most_underserved_pov: string;
+  most_underserved_bdi: string;
+  unmapped_argument_count: number;
+  cross_pov_gap_count: number;
+  recommendation: string;
+}
+
+export interface TaxonomyGapAnalysis {
+  pov_coverage: Record<string, PovCoverage>;
+  cross_pov_gaps: CrossPovGap[];
+  bdi_balance: Record<string, BdiBalance>;
+  unmapped_arguments: UnmappedArgument[];
+  summary: GapSummary;
+}
+
 export interface DebateSession {
   id: string;
   title: string;
@@ -181,6 +271,12 @@ export interface DebateSession {
   turn_validations?: Record<string, TurnValidationTrail>;
   /** Per-turn convergence diagnostic signals — computed after claim extraction. */
   convergence_signals?: ConvergenceSignals[];
+  /** Mid-debate gap injections — cross-cutting arguments surfaced by the "fourth voice" analyzer. */
+  gap_injections?: GapInjection[];
+  /** Cross-cutting node proposals — candidate situation nodes from areas of three-way agreement. */
+  cross_cutting_proposals?: CrossCuttingProposal[];
+  /** Post-debate taxonomy gap diagnostics — coverage analysis across POVs and BDI categories. */
+  taxonomy_gap_analysis?: TaxonomyGapAnalysis;
 }
 
 export interface ConvergenceSignals {
@@ -205,6 +301,7 @@ export interface ConvergenceSignals {
     node_id: string;
     strength: number;
     attacker: string;
+    bdi_category?: 'belief' | 'desire' | 'intention';
   } | null;
   concession_opportunity: {
     strong_attacks_faced: number;
@@ -283,10 +380,28 @@ export interface TurnValidationTrail {
   final: TurnValidation;
 }
 
+/** Per-BDI-criterion sub-scores. Only the 3 criteria matching the claim's bdi_category are populated. */
+export interface BdiSubScores {
+  // Beliefs criteria (Q-0 calibration: r = -0.12 to 0.20 — low AI reliability)
+  evidence_quality?: number;
+  source_reliability?: number;
+  falsifiability?: number;
+  // Desires criteria (Q-0 calibration: r = 0.65)
+  values_grounding?: number;
+  tradeoff_acknowledgment?: number;
+  precedent_citation?: number;
+  // Intentions criteria (Q-0 calibration: r = 0.71)
+  mechanism_specificity?: number;
+  scope_bounding?: number;
+  failure_mode_addressing?: number;
+}
+
 /** Per-turn snapshot of QBAF computed strengths for timeline visualization (D-Q2). */
 export interface QbafTimelineEntry {
   turn: number;
   strengths: Record<string, number>;
+  /** Per-node BDI sub-score breakdown at this snapshot. Absent in pre-BDI-separation debates. */
+  bdi_breakdown?: Record<string, BdiSubScores>;
 }
 
 /** Per-source-claim coverage entry — tracks whether a document claim was discussed in the debate (CT-1). */
@@ -338,6 +453,10 @@ export interface ArgumentNetworkNode {
   computed_strength?: number;
   /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5). */
   scoring_method?: 'ai_rubric' | 'human' | 'default_pending';
+  /** Per-BDI-criterion sub-scores from claim extraction. Absent in pre-BDI-separation debates. */
+  bdi_sub_scores?: BdiSubScores;
+  /** Q-0 calibration confidence for this BDI category (Beliefs: 0.3, Desires: 0.65, Intentions: 0.71). */
+  bdi_confidence?: number;
   /** BDI classification from claim extraction. */
   bdi_category?: 'belief' | 'desire' | 'intention';
   /** Claim specificity — precise Belief claims are auto-fact-checked. */

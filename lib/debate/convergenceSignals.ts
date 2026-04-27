@@ -91,6 +91,7 @@ export function computeConvergenceSignals(
         node_id: atk.source,
         strength: s,
         attacker: (attackerNode?.speaker as string) ?? 'unknown',
+        bdi_category: attackerNode?.bdi_category,
       };
     }
   }

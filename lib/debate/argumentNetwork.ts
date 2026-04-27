@@ -69,11 +69,15 @@ Extract 3-6 claims. Each claim must be traceable to text actually in the stateme
 
 For each claim, also classify:
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
-- "base_strength": 0.0-1.0 — how strong is this claim as an argument?
-  For belief claims: assign 0.5 (human will adjust)
-  For desire claims: consider whether it explicitly grounds in values (+), acknowledges tradeoffs (+), cites precedent (+)
-  For intention claims: consider whether it specifies a mechanism (+), bounds its scope (+), addresses failure modes (+)
-  Do NOT assign an overall holistic judgment — score based on these checkable features.
+- "base_strength": 0.0-1.0 — average of the bdi_sub_scores below (or 0.5 for beliefs).
+- "bdi_sub_scores": rate each criterion 0.0-1.0 based on the claim's bdi_category:
+  For belief claims: assign all sub-scores as 0.5 (human will adjust later).
+    {"evidence_quality": 0.5, "source_reliability": 0.5, "falsifiability": 0.5}
+  For desire claims: rate each criterion independently, then set base_strength = average.
+    {"values_grounding": 0-1 (explicitly grounded in stated values?), "tradeoff_acknowledgment": 0-1 (acknowledges tradeoffs?), "precedent_citation": 0-1 (cites precedent?)}
+  For intention claims: rate each criterion independently, then set base_strength = average.
+    {"mechanism_specificity": 0-1 (specifies a mechanism?), "scope_bounding": 0-1 (bounds its scope?), "failure_mode_addressing": 0-1 (addresses failure modes?)}
+  Do NOT assign an overall holistic judgment — score each checkable criterion separately.
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
@@ -84,6 +88,7 @@ Return ONLY JSON (no markdown):
       "text": "near-verbatim claim from the statement",
       "bdi_category": "belief or desire or intention",
       "base_strength": 0.5,
+      "bdi_sub_scores": {"values_grounding": 0.8, "tradeoff_acknowledgment": 0.5, "precedent_citation": 0.4},
       "specificity": "precise or general or abstract",
       "steelman_of": null,
       "responds_to": [
@@ -154,7 +159,11 @@ For each claim:
 
 Also classify each claim:
 - "bdi_category": "belief" (empirical/factual), "desire" (normative/value), or "intention" (strategic/methodological)
-- "base_strength": 0.0-1.0 — for beliefs assign 0.5, for desires/intentions score based on checkable features (values grounding, tradeoff acknowledgment, mechanism specificity, scope bounding)
+- "base_strength": 0.0-1.0 — average of the bdi_sub_scores (or 0.5 for beliefs)
+- "bdi_sub_scores": per-criterion scores (0-1) matching the bdi_category:
+  belief: {"evidence_quality": 0.5, "source_reliability": 0.5, "falsifiability": 0.5} (all 0.5, human adjusts)
+  desire: {"values_grounding": 0-1, "tradeoff_acknowledgment": 0-1, "precedent_citation": 0-1}
+  intention: {"mechanism_specificity": 0-1, "scope_bounding": 0-1, "failure_mode_addressing": 0-1}
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
@@ -165,6 +174,7 @@ Return ONLY JSON (no markdown):
       "text": "the debater's claim text (unchanged)",
       "bdi_category": "belief or desire or intention",
       "base_strength": 0.5,
+      "bdi_sub_scores": {"mechanism_specificity": 0.7, "scope_bounding": 0.6, "failure_mode_addressing": 0.4},
       "specificity": "precise or general or abstract",
       "steelman_of": null,
       "responds_to": [

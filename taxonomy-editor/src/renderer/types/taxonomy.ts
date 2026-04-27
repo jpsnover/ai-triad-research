@@ -136,6 +136,8 @@ export interface ConflictQbafNode {
   source_pov: string;
   base_strength: number;
   computed_strength: number;
+  bdi_category?: string;
+  bdi_sub_scores?: Record<string, number>;
 }
 
 export interface ConflictQbafEdge {

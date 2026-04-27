@@ -132,9 +132,28 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                 })}
               </div>
             )}
+            {node.bdi_sub_scores && (
+              <div className="diag-qbaf-subscores-row">
+                {Object.entries(node.bdi_sub_scores)
+                  .filter(([, v]) => v != null)
+                  .map(([key, val]) => (
+                    <span key={key} className="diag-qbaf-subscore">
+                      <span className="diag-k">{({
+                        evidence_quality: 'Evidence', source_reliability: 'Source', falsifiability: 'Falsifiable',
+                        values_grounding: 'Values', tradeoff_acknowledgment: 'Tradeoffs', precedent_citation: 'Precedent',
+                        mechanism_specificity: 'Mechanism', scope_bounding: 'Scope', failure_mode_addressing: 'Failure modes',
+                      } as Record<string, string>)[key] ?? key}:</span>
+                      <span className="diag-v">{(val as number).toFixed(2)}</span>
+                    </span>
+                  ))}
+              </div>
+            )}
             <div className="diag-qbaf-meta">
-              <span className="diag-badge diag-badge-type">{bdiLayer}</span>
+              <span className="diag-badge diag-badge-type">{bdiLayer}{node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '*' : ''}</span>
               <span className="diag-muted">Scored by: {node.scoring_method === 'ai_rubric' ? 'AI rubric (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'default_pending' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
+              {node.bdi_confidence != null && node.bdi_confidence < 0.5 && (
+                <span className="diag-muted" title="AI scoring confidence is low for Beliefs claims (Q-0 calibration r &lt; 0.2)"> (low confidence)</span>
+              )}
             </div>
             {isPending && (
               <div className="diag-qbaf-slider-row">

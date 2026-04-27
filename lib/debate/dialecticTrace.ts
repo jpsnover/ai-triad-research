@@ -43,6 +43,8 @@ export interface DialecticTraceStep {
   responds_to?: string;
   /** QBAF computed strength at time of this step. */
   strength?: number;
+  /** BDI category of the claim. */
+  bdi_category?: 'belief' | 'desire' | 'intention';
   /** Turn number in the debate. */
   turn?: number;
 }
@@ -240,6 +242,7 @@ function tracePreference(
       attack_type: attackType,
       responds_to: respondsTo,
       strength: node.computed_strength ?? node.base_strength,
+      bdi_category: node.bdi_category,
       turn: node.turn_number,
     });
 

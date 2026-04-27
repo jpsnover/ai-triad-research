@@ -361,8 +361,10 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: De
       const top = sorted.slice(0, 8);
       return ['**Top arguments by QBAF strength:**', ...top.map((n, i) => {
         const speaker = POVER_INFO[n.speaker as keyof typeof POVER_INFO]?.label ?? n.speaker;
-        return `${i + 1}. **${n.id}** (${speaker}, str=${n.computed_strength?.toFixed(2)}): ${n.text.slice(0, 100)}`;
-      })].join('\n');
+        const bdi = n.bdi_category ? ` ${n.bdi_category[0].toUpperCase()}` : '';
+        const conf = n.bdi_confidence != null && n.bdi_confidence < 0.5 ? ' *' : '';
+        return `${i + 1}. **${n.id}** (${speaker},${bdi}, str=${n.computed_strength?.toFixed(2)}${conf}): ${n.text.slice(0, 100)}`;
+      }), '', '_* = low AI scoring confidence (Beliefs)_'].join('\n');
     },
   },
   '/convergence': {

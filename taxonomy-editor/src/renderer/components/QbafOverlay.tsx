@@ -10,8 +10,23 @@
 import { useState, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useDebateStore } from '../hooks/useDebateStore';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../types/debate';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, BdiSubScores } from '../types/debate';
 import { CATEGORY_SLUGS } from '@lib/debate';
+
+const BDI_LABELS: Record<string, string> = {
+  evidence_quality: 'Evidence', source_reliability: 'Source', falsifiability: 'Falsifiable',
+  values_grounding: 'Values', tradeoff_acknowledgment: 'Tradeoffs', precedent_citation: 'Precedent',
+  mechanism_specificity: 'Mechanism', scope_bounding: 'Scope', failure_mode_addressing: 'Failure modes',
+};
+
+const BDI_LETTER: Record<string, string> = { belief: 'B', desire: 'D', intention: 'I' };
+
+function formatSubScores(scores: BdiSubScores): string {
+  return Object.entries(scores)
+    .filter(([, v]) => v != null)
+    .map(([k, v]) => `${BDI_LABELS[k] ?? k}: ${(v as number).toFixed(2)}`)
+    .join(', ');
+}
 
 interface QbafClaimBadgeProps {
   node: ArgumentNetworkNode;
@@ -36,13 +51,17 @@ export function QbafClaimBadge({ node }: QbafClaimBadgeProps) {
   const delta = computed - base;
   const band = strengthBand(computed);
   const showDelta = Math.abs(delta) > 0.1;
+  const bdiLetter = node.bdi_category ? BDI_LETTER[node.bdi_category] : '';
+  const subScoreLine = node.bdi_sub_scores ? `\n  Sub-scores: ${formatSubScores(node.bdi_sub_scores)}` : '';
+  const confLine = node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '\n  (low AI scoring confidence for this category)' : '';
 
   return (
     <span
       className={`qbaf-badge ${band.className}`}
       style={{ opacity: 0.3 + computed * 0.7 }}
-      title={`Argument strength: ${band.label} (${computed.toFixed(2)})${showDelta ? ` — ${delta > 0 ? 'gained' : 'lost'} ${Math.abs(delta).toFixed(2)} from attacks/supports` : ''}`}
+      title={`Argument strength: ${band.label} (${computed.toFixed(2)})${showDelta ? ` — ${delta > 0 ? 'gained' : 'lost'} ${Math.abs(delta).toFixed(2)} from attacks/supports` : ''}${subScoreLine}${confLine}`}
     >
+      {bdiLetter && <span className="qbaf-bdi-letter">{bdiLetter}</span>}
       {band.label}
       {showDelta && (
         <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
@@ -85,8 +104,19 @@ export function QbafScoreSlider({ node, onScoreChange }: QbafScoreSliderProps) {
   const unscored = needsHumanScore(node);
 
   if (!beliefs) {
-    // AI-scored (Desires/Intentions) — read-only badge
-    return <QbafClaimBadge node={node} />;
+    // AI-scored (Desires/Intentions) — read-only badge + sub-scores
+    return (
+      <div className="qbaf-slider-container">
+        <QbafClaimBadge node={node} />
+        {node.bdi_sub_scores && (
+          <span className="qbaf-sub-scores-inline" title={formatSubScores(node.bdi_sub_scores)}>
+            {Object.entries(node.bdi_sub_scores)
+              .filter(([, v]) => v != null)
+              .map(([k, v]) => <span key={k} className="qbaf-sub-score-pip">{BDI_LABELS[k]?.[0] ?? '?'}{(v as number).toFixed(1)}</span>)}
+          </span>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -148,6 +178,12 @@ export function QbafSummary({ nodes, edges }: QbafSummaryProps) {
   const weakest = scoredNodes.reduce((worst, n) => (n.computed_strength ?? 0) < (worst.computed_strength ?? 0) ? n : worst, scoredNodes[0]);
   const weightedEdges = edges.filter(e => e.weight != null);
 
+  const bdiGroups = { belief: [] as typeof scoredNodes, desire: [] as typeof scoredNodes, intention: [] as typeof scoredNodes };
+  for (const n of scoredNodes) {
+    const cat = n.bdi_category;
+    if (cat && cat in bdiGroups) bdiGroups[cat as keyof typeof bdiGroups].push(n);
+  }
+
   return (
     <div className="qbaf-summary">
       <div className="qbaf-summary-header">Argument Strength (QBAF)</div>
@@ -155,6 +191,19 @@ export function QbafSummary({ nodes, edges }: QbafSummaryProps) {
         <span className="qbaf-stat">{scoredNodes.length} scored claims</span>
         <span className="qbaf-stat">Avg: {strengthBand(avgStrength).label}</span>
         {weightedEdges.length > 0 && <span className="qbaf-stat">{weightedEdges.length} weighted edges</span>}
+      </div>
+      <div className="qbaf-summary-bdi">
+        {(['belief', 'desire', 'intention'] as const).map(cat => {
+          const group = bdiGroups[cat];
+          if (group.length === 0) return null;
+          const avg = group.reduce((s, n) => s + (n.computed_strength ?? 0), 0) / group.length;
+          const conf = cat === 'belief' ? 'low' : cat === 'desire' ? 'medium' : 'good';
+          return (
+            <span key={cat} className="qbaf-stat" title={`AI scoring confidence: ${conf}`}>
+              {cat[0].toUpperCase()}: {group.length} claims, avg {avg.toFixed(2)} ({conf})
+            </span>
+          );
+        })}
       </div>
       {strongest && (
         <div className="qbaf-summary-extreme">

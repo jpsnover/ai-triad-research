@@ -338,6 +338,7 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
           return (
             <div key={node.id} className={`conflict-qbaf-claim ${isPrevailing ? 'conflict-qbaf-prevailing' : ''}`}>
               <span className="conflict-qbaf-pov">{node.source_pov.slice(0, 3).toUpperCase()}</span>
+              {node.bdi_category && <span className="conflict-qbaf-bdi">{node.bdi_category[0].toUpperCase()}</span>}
               <span className="conflict-qbaf-text">{node.text.slice(0, 100)}{node.text.length > 100 ? '...' : ''}</span>
               <span className={`qbaf-badge ${band.cls}`} style={{ opacity: 0.3 + node.computed_strength * 0.7 }}>
                 {band.label}
@@ -347,6 +348,11 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
                   </span>
                 )}
               </span>
+              {node.bdi_sub_scores && (
+                <span className="conflict-qbaf-subscores" title={Object.entries(node.bdi_sub_scores).filter(([,v]) => v != null).map(([k,v]) => `${k}: ${v}`).join(', ')}>
+                  [{Object.values(node.bdi_sub_scores).filter(v => v != null).map(v => (v as number).toFixed(1)).join('/')}]
+                </span>
+              )}
             </div>
           );
         })}

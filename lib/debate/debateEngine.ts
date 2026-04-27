@@ -103,6 +103,8 @@ export interface DebateConfig {
   appVersion?: string;
   /** Target audience for tone, language, and concern prioritization. */
   audience?: import('./types').DebateAudience;
+  /** Round at which to inject gap arguments (0 = disabled, default = ceil(totalRounds/2)+1). */
+  gapInjectionRound?: number;
 }
 
 export interface DebateProgress {
@@ -845,10 +847,12 @@ export class DebateEngine {
         .sort((a, b) => (b.computed_strength ?? 0) - (a.computed_strength ?? 0))
         .slice(0, 5);
       if (unaddressed.length > 0) {
-        qbafContext = '\n\n=== STRONGEST UNADDRESSED CLAIMS (by QBAF strength) ===\nPrioritize these — they are well-supported but no one has responded to them yet.\nClaims marked [unscored] have default strength (0.5) — their actual strength is unknown pending human review.\n'
+        qbafContext = '\n\n=== STRONGEST UNADDRESSED CLAIMS (by QBAF strength) ===\nPrioritize these — they are well-supported but no one has responded to them yet.\nClaims marked [unscored] have default strength (0.5) — their actual strength is unknown pending human review.\nClaims marked [low-confidence] are Belief claims where AI scoring reliability is poor — weight them carefully.\n'
           + unaddressed.map(n => {
             const unscoredTag = n.scoring_method === 'default_pending' ? ' [unscored]' : '';
-            return `- ${n.id} (${POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}): ${n.text}`;
+            const bdiTag = n.bdi_category ? ` ${n.bdi_category[0].toUpperCase()}` : '';
+            const confTag = n.bdi_confidence != null && n.bdi_confidence < 0.5 ? ' [low-confidence]' : '';
+            return `- ${n.id} (${POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker},${bdiTag}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}${confTag}): ${n.text}`;
           }).join('\n');
       }
     }
@@ -2201,6 +2205,7 @@ Return ONLY JSON (no markdown, no code fences):
       const nodeId = `AN-${an.nodes.length + 1}`;
       accepted.push({ text: claim.text, id: nodeId, overlap_pct: Math.round(overlap * 100) });
 
+      const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
       an.nodes.push({
         id: nodeId,
         text: claim.text,
@@ -2212,6 +2217,9 @@ Return ONLY JSON (no markdown, no code fences):
         scoring_method: typeof claim.base_strength === 'number'
           ? 'ai_rubric'
           : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+        bdi_sub_scores: (claim as Record<string, unknown>).bdi_sub_scores && typeof (claim as Record<string, unknown>).bdi_sub_scores === 'object'
+          ? (claim as Record<string, unknown>).bdi_sub_scores as import('./types').BdiSubScores : undefined,
+        bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
         bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
         specificity: claim.specificity as ArgumentNetworkNode['specificity'],
         steelman_of: claim.steelman_of || undefined,
@@ -2279,10 +2287,16 @@ Return ONLY JSON (no markdown, no code fences):
       // Snapshot timeline: capture all computed_strengths at this turn
       if (!this.session.qbaf_timeline) this.session.qbaf_timeline = [];
       const strengths: Record<string, number> = {};
+      const bdiBd: Record<string, import('./types').BdiSubScores> = {};
       for (const node of an.nodes) {
         if (node.computed_strength != null) strengths[node.id] = node.computed_strength;
+        if (node.bdi_sub_scores) bdiBd[node.id] = node.bdi_sub_scores;
       }
-      this.session.qbaf_timeline.push({ turn: turnNumber, strengths });
+      this.session.qbaf_timeline.push({
+        turn: turnNumber,
+        strengths,
+        bdi_breakdown: Object.keys(bdiBd).length > 0 ? bdiBd : undefined,
+      });
 
       // Compute per-entry net delta: sum of strength changes caused by this turn's claims
       const prevSnapshot = this.session.qbaf_timeline.length >= 2
