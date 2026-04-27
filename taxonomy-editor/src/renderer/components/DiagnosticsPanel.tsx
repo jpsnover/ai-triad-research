@@ -12,8 +12,8 @@ import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
 import { getMoveName } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
-import { computeCoverageMap } from '@lib/debate/coverageTracker';
-import type { CoverageMap, CoverageMapEntry } from '@lib/debate/coverageTracker';
+import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
+import type { CoverageMap, CoverageMapEntry, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -860,7 +860,7 @@ function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
 
 /** Document Coverage section (CT-3/CT-4): shows per-claim coverage status sorted uncovered-first.
  *  Click-to-steer (CT-4): uncovered/partial claims are clickable — injects a steering question into the debate. */
-function DocumentCoverageSection({ coverageMap, onSteerToClaim }: { coverageMap: CoverageMap; onSteerToClaim?: (claimText: string) => void }) {
+function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteerToClaim }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null; onSteerToClaim?: (claimText: string) => void }) {
   const { stats, coverage, documentClaims } = coverageMap;
   const claimTextById = useMemo(() => {
     const m = new Map<string, string>();
@@ -887,6 +887,19 @@ function DocumentCoverageSection({ coverageMap, onSteerToClaim }: { coverageMap:
         <span className="coverage-stat coverage-stat-partial">{stats.partiallyCoveredCount} partial</span>
         <span className="coverage-stat coverage-stat-uncovered">{stats.uncoveredCount} uncovered</span>
       </div>
+      {strengthWeighted && (
+        <div className="coverage-summary-row coverage-strength-row">
+          <span className="coverage-stat" title="Coverage weighted by QBAF computed strength — penalizes missing load-bearing arguments">
+            Strength-weighted: {Math.round(strengthWeighted.strength_weighted_coverage)}%
+          </span>
+          {Math.abs(strengthWeighted.coverage_gap) >= 1 && (
+            <span className={`coverage-stat ${strengthWeighted.coverage_gap > 5 ? 'coverage-stat-uncovered' : 'coverage-stat-partial'}`}
+              title="Gap between raw and strength-weighted coverage. Large gap = debate is avoiding the hard arguments.">
+              gap: {strengthWeighted.coverage_gap > 0 ? '+' : ''}{Math.round(strengthWeighted.coverage_gap)}pp
+            </span>
+          )}
+        </div>
+      )}
       <div className="coverage-claim-list">
         {sortedCoverage.map(entry => {
           const claimText = claimTextById.get(entry.claimId) ?? entry.claimId;
@@ -946,6 +959,15 @@ function OverviewView() {
     }
   }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
 
+  const strengthWeighted = useMemo<StrengthWeightedCoverage | null>(() => {
+    if (!coverageMap || !an || an.nodes.length === 0) return null;
+    try {
+      return computeStrengthWeightedCoverage(coverageMap, an.nodes, an.edges);
+    } catch {
+      return null;
+    }
+  }, [coverageMap, an]);
+
   return (
     <div className="diag-overview">
       {/* Strength Timeline (D-Q5) */}
@@ -954,7 +976,7 @@ function OverviewView() {
       )}
 
       {/* Document Coverage (CT-3/CT-4) — click-to-steer injects a question about uncovered claims */}
-      {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} onSteerToClaim={debateGenerating ? undefined : (claimText) => {
+      {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} strengthWeighted={strengthWeighted} onSteerToClaim={debateGenerating ? undefined : (claimText) => {
         askQuestion(`What is your perspective on the claim that ${claimText}?`);
       }} />}
 

@@ -15,8 +15,8 @@ import { ReflectionsPanel } from './ReflectionsPanel';
 import { ConvergencePanel } from './ConvergenceRadar';
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
 import { nodePovFromId } from '@lib/debate';
-import { computeCoverageMap } from '@lib/debate/coverageTracker';
-import type { CoverageMap } from '@lib/debate/coverageTracker';
+import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
+import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -92,15 +92,18 @@ function getNodeLabel(nodeId: string): string {
 }
 
 /** Coverage badge for the debate header (CT-2). Color-coded by coverage %. */
-function CoverageBadge({ coverageMap }: { coverageMap: CoverageMap }) {
+function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
   const pct = Math.round(stats.coveragePercentage);
   const colorClass = pct > 75 ? 'coverage-badge-green' : pct >= 40 ? 'coverage-badge-yellow' : 'coverage-badge-red';
   const covered = stats.coveredCount + stats.partiallyCoveredCount;
+  const swPct = strengthWeighted ? Math.round(strengthWeighted.strength_weighted_coverage) : null;
+  const titleParts = [`${stats.coveredCount} covered, ${stats.partiallyCoveredCount} partial, ${stats.uncoveredCount} uncovered`];
+  if (swPct !== null) titleParts.push(`Strength-weighted: ${swPct}%`);
 
   return (
-    <span className={`coverage-badge ${colorClass}`} title={`${stats.coveredCount} covered, ${stats.partiallyCoveredCount} partial, ${stats.uncoveredCount} uncovered`}>
-      Coverage: {covered}/{stats.totalClaims} claims ({pct}%)
+    <span className={`coverage-badge ${colorClass}`} title={titleParts.join('\n')}>
+      Coverage: {covered}/{stats.totalClaims} ({pct}%){swPct !== null && swPct !== pct ? ` · str: ${swPct}%` : ''}
     </span>
   );
 }
@@ -1658,6 +1661,17 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     }
   }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
 
+  const strengthWeighted = useMemo<StrengthWeightedCoverage | null>(() => {
+    if (!coverageMap || !activeDebate?.argument_network) return null;
+    const { nodes, edges } = activeDebate.argument_network;
+    if (nodes.length === 0) return null;
+    try {
+      return computeStrengthWeightedCoverage(coverageMap, nodes, edges);
+    } catch {
+      return null;
+    }
+  }, [coverageMap, activeDebate?.argument_network]);
+
   useEffect(() => {
     if (!findVisible || findTotal === 0) return;
     document.querySelector(`[data-find-index="${findCurrentIndex}"]`)
@@ -1859,7 +1873,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
               {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
             </span>
           )}
-          {coverageMap && <CoverageBadge coverageMap={coverageMap} />}
+          {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
         </div>
 
         {/* Debater toggle pills */}

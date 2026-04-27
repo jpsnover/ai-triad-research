@@ -23,6 +23,8 @@ import type {
   DebatePhase,
   ClaimExtractionTrace,
   ExtractionSummary,
+  GapArgument,
+  CrossCuttingProposal,
 } from './types';
 import { POVER_INFO, getDebatePhase } from './types';
 import type { PovNode, SituationNode } from './taxonomyTypes';
@@ -46,6 +48,8 @@ import {
   entrySummarizationPrompt,
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
+  midDebateGapPrompt,
+  crossCuttingNodePrompt,
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
@@ -73,8 +77,10 @@ import {
   getMoveName,
 } from './helpers';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
-import { computeCoverageMap } from './coverageTracker';
+import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker';
 import { generateDialecticTraces } from './dialecticTrace';
+import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
+import type { ContextManifestEntry } from './taxonomyGapAnalysis';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
 import type { TurnAttempt, TurnValidation } from './types';
 import { runTurnPipeline, assemblePipelineResult } from './turnPipeline';
@@ -133,6 +139,10 @@ export class DebateEngine {
   private _midpointEvalDone = false;
   /** Cached opening statement embeddings for position drift detection. */
   private _openingEmbeddings = new Map<string, number[]>();
+  /** Whether mid-debate gap injection has already fired. */
+  private _gapInjectionDone = false;
+  /** Accumulated context manifests across turns — for taxonomy gap analysis. */
+  private _contextManifests: ContextManifestEntry[] = [];
   /** Lazy-built set of every taxonomy node id in the loaded taxonomy. */
   private _knownNodeIds: Set<string> | null = null;
   /** Lazy-built set of every policy id in the loaded policy registry. */
@@ -207,6 +217,13 @@ export class DebateEngine {
       this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
       await this.runCrossRespondRound(round, phase);
 
+      // Mid-debate gap injection — "fourth voice" analysis at the configured round
+      const gapRound = this.config.gapInjectionRound ?? Math.ceil(this.config.rounds / 2) + 1;
+      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
+        await this.runGapInjection(round);
+        this._gapInjectionDone = true;
+      }
+
       // Neutral evaluator: midpoint checkpoint
       if (round === midpointRound && !this._midpointEvalDone) {
         await this.runNeutralCheckpoint('midpoint');
@@ -239,6 +256,12 @@ export class DebateEngine {
 
     // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
     this.runDialecticTracePass();
+
+    // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
+    await this.runCrossCuttingProposalPass();
+
+    // Phase 4f: Taxonomy gap analysis (deterministic — needs transcript, AN, taxonomy, manifests)
+    this.runTaxonomyGapAnalysisPass();
 
     // Finalize
     this.session.updated_at = nowISO();
@@ -371,6 +394,29 @@ export class DebateEngine {
   private recordDiagnostic(entryId: string, data: Partial<EntryDiagnostics>): void {
     const diag = this.session.diagnostics!;
     diag.entries[entryId] = { ...diag.entries[entryId], ...data };
+  }
+
+  /**
+   * Record a context manifest entry for taxonomy gap analysis.
+   * Translates the last injection manifest (if any) into the format expected by
+   * computeTaxonomyGapAnalysis, accumulating entries across the debate.
+   */
+  private accumulateContextManifest(
+    round: number,
+    speaker: string,
+    pov: string,
+    referencedNodeIds: string[],
+  ): void {
+    const manifest = this._lastInjectionManifest;
+    if (!manifest) return;
+    this._contextManifests.push({
+      round,
+      speaker,
+      pov,
+      injected_node_ids: [...manifest.povNodeIds, ...manifest.situationNodeIds],
+      primary_node_ids: manifest.povPrimaryIds,
+      referenced_node_ids: referencedNodeIds,
+    });
   }
 
   /** Find node label + pov from the loaded taxonomy, or undefined if not present. */
@@ -792,6 +838,9 @@ export class DebateEngine {
         },
       });
 
+      // Accumulate context manifest for taxonomy gap analysis
+      this.accumulateContextManifest(0, poverId, info.pov, taxonomyRefs.map(r => r.node_id));
+
       this.recordDiagnostic(entry.id, {
         prompt,
         raw_response: text,
@@ -1183,6 +1232,9 @@ export class DebateEngine {
       },
     });
 
+    // Accumulate context manifest for taxonomy gap analysis
+    this.accumulateContextManifest(round, responder, info.pov, taxonomyRefs.map(r => r.node_id));
+
     this.session.turn_validations ||= {};
     this.session.turn_validations[entry.id] = { attempts, final: validation };
 
@@ -1256,21 +1308,25 @@ export class DebateEngine {
     const transcript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
     const hasSourceDoc = this.config.sourceType === 'document' || this.config.sourceType === 'url';
 
-    // CT-4: Compute uncovered document claims to steer probing questions toward gaps
+    // CT-4/CT-11: Compute uncovered document claims, sorted by QBAF strength weight (load-bearing first)
     let uncoveredClaims: string[] | undefined;
     if (this.session.document_analysis?.i_nodes?.length) {
       const anNodes = this.session.argument_network?.nodes ?? [];
+      const anEdges = this.session.argument_network?.edges ?? [];
       if (anNodes.length > 0) {
         try {
           const documentClaims = this.session.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
           const coverageMap = computeCoverageMap(anNodes, documentClaims);
+          const sw = computeStrengthWeightedCoverage(coverageMap, anNodes, anEdges);
+          const weightByClaimId = new Map(sw.claim_weights.map(w => [w.claimId, w.weight]));
           uncoveredClaims = coverageMap.coverage
             .filter(c => c.status === 'uncovered')
+            .sort((a, b) => (weightByClaimId.get(b.claimId) ?? 0.5) - (weightByClaimId.get(a.claimId) ?? 0.5))
             .map(c => {
               const text = documentClaims.find(dc => dc.id === c.claimId)?.text ?? c.claimId;
               return `[${c.claimId}] ${text}`;
             })
-            .slice(0, 10); // Cap at 10 to avoid prompt bloat
+            .slice(0, 10);
         } catch {
           // Coverage computation failed — proceed without uncovered claims
         }
@@ -1703,6 +1759,140 @@ export class DebateEngine {
       }
     } catch (err) {
       this.warn('Dialectic trace pass', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Mid-debate gap injection ("fourth voice") ──────────────
+
+  /**
+   * Mid-debate pass: a fresh LLM with no persona surfaces 1-2 strong arguments
+   * that no debater made — cross-cutting positions, compromises, blind spots.
+   * Non-blocking — failure never aborts the debate.
+   */
+  private async runGapInjection(round: number): Promise<void> {
+    try {
+      this.progress('gap-injection', undefined, 'Analyzing debate gaps');
+
+      const transcriptText = formatRecentTranscript(this.session.transcript, 20, this.session.context_summaries);
+
+      // Build compact taxonomy summary (same format as missing arguments pass)
+      const summaryLines: string[] = [];
+      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        const povData = this.taxonomy[povKey];
+        if (!povData?.nodes) continue;
+        for (const node of povData.nodes) {
+          const cat = (node as any).category ?? 'unknown';
+          summaryLines.push(`[${node.id}] ${node.label} (${cat}) — ${povKey}`);
+        }
+      }
+      const taxSummary = summaryLines.slice(0, 80).join('\n');
+
+      const anTexts = (this.session.argument_network?.nodes || []).map(n => n.text);
+      const gapPrompt = midDebateGapPrompt(this.session.topic.final, transcriptText, taxSummary, anTexts);
+
+      const gapResult = await this.adapter.generateText(gapPrompt, this.config.model, {
+        temperature: 0.5,
+        timeoutMs: 30_000,
+      });
+      this.apiCallCount++;
+
+      const parsed = parseJsonRobust(gapResult) as any;
+      const gapArgs: GapArgument[] = parsed?.gap_arguments ?? [];
+
+      if (gapArgs.length > 0) {
+        const gapContent = gapArgs.map((g: GapArgument, i: number) =>
+          `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`,
+        ).join('\n\n');
+
+        const entry = this.addEntry({
+          type: 'system',
+          speaker: 'system',
+          content: `## Mid-Debate Gap Analysis\n\n${gapContent}`,
+          taxonomy_refs: [],
+        });
+
+        this.recordDiagnostic(entry.id, {
+          prompt: gapPrompt,
+          raw_response: gapResult,
+          model: this.config.model,
+        });
+
+        this.session.gap_injections = [{
+          round,
+          arguments: gapArgs,
+          transcript_entry_id: entry.id,
+          responses: [],
+        }];
+      }
+    } catch (err) {
+      this.warn('Mid-debate gap injection', err, 'Non-critical — debate continues without gap analysis');
+    }
+  }
+
+  // ── Cross-cutting node promotion (post-synthesis) ──────────
+
+  /**
+   * Post-synthesis pass: when synthesis identifies areas of agreement across
+   * all three POVs, propose new situation nodes or map to existing ones.
+   * Non-blocking — failure never blocks debate results.
+   */
+  private async runCrossCuttingProposalPass(): Promise<void> {
+    try {
+      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
+      const synthesisData = synthEntry?.metadata?.synthesis as Record<string, unknown> | undefined;
+      if (!synthesisData) return;
+
+      const agreements = ((synthesisData.areas_of_agreement ?? []) as { point: string; povers: string[] }[])
+        .filter(a => (a.povers?.length ?? 0) >= 3);
+
+      if (agreements.length === 0) return;
+
+      this.progress('cross-cutting', undefined, 'Analyzing cross-cutting proposals');
+
+      const sitLabels = (this.taxonomy.situations?.nodes || []).map((n: any) => n.label);
+      const ccPrompt = crossCuttingNodePrompt(agreements, sitLabels, this.session.topic.final);
+
+      const ccResult = await this.adapter.generateText(ccPrompt, this.config.model, {
+        temperature: 0.3,
+        timeoutMs: 30_000,
+      });
+      this.apiCallCount++;
+
+      const ccParsed = parseJsonRobust(ccResult) as any;
+      this.session.cross_cutting_proposals = ccParsed?.proposals ?? [];
+    } catch (err) {
+      this.warn('Cross-cutting proposal pass', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Taxonomy gap analysis (post-synthesis, deterministic) ──
+
+  /**
+   * Post-synthesis pass: compute deterministic taxonomy coverage analysis.
+   * Identifies per-POV coverage, BDI balance, unmapped arguments, and cross-POV gaps.
+   * No LLM calls — purely deterministic computation.
+   * Non-blocking — failure never blocks debate results.
+   */
+  private runTaxonomyGapAnalysisPass(): void {
+    try {
+      const taxonomyNodes: Record<string, { id: string; label: string; category: string; description?: string }[]> = {};
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        taxonomyNodes[pov] = (this.taxonomy[pov]?.nodes || []).map((n: any) => ({
+          id: n.id, label: n.label, category: n.category, description: n.description,
+        }));
+      }
+
+      // Context manifests are accumulated during the debate via _contextManifests.
+      // In the CLI engine path, manifests may be empty if computeInjectionManifest
+      // results aren't captured per turn — pass what we have.
+      this.session.taxonomy_gap_analysis = computeTaxonomyGapAnalysis(
+        this.session.transcript,
+        this.session.argument_network?.nodes || [],
+        taxonomyNodes,
+        this._contextManifests,
+      );
+    } catch (err) {
+      this.warn('Taxonomy gap analysis', err, 'Non-critical — debate results unaffected');
     }
   }
 

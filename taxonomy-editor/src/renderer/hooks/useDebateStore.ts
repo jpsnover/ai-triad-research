@@ -20,7 +20,7 @@ import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from '../prompts/argumentNetwork';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary } from '../types/debate';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
@@ -43,6 +43,8 @@ import {
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
   reflectionPrompt,
+  midDebateGapPrompt,
+  crossCuttingNodePrompt,
 } from '../prompts/debate';
 import {
   generateId,
@@ -59,6 +61,7 @@ import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
+import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
@@ -1532,6 +1535,11 @@ interface DebateStore {
   requestSynthesis: () => Promise<void>;
   requestProbingQuestions: () => Promise<void>;
 
+  // Gap analysis features
+  gapInjections: GapInjection[];
+  crossCuttingProposals: CrossCuttingProposal[];
+  taxonomyGapAnalysis: TaxonomyGapAnalysis | null;
+
   // Phase 6: Reflections
   reflections: ReflectionResult[];
   requestReflections: () => Promise<void>;
@@ -1578,6 +1586,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateError: null,
   debateProgress: null,
   debateActivity: null,
+  gapInjections: [],
+  crossCuttingProposals: [],
+  taxonomyGapAnalysis: null,
   reflections: [],
   inspectedNodeId: null,
   debateModel: null,
@@ -2826,6 +2837,81 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         } catch { /* non-critical */ }
       }
+      // ── Mid-debate gap injection — fires once at the midpoint ──
+      try {
+        const gapDebate = get().activeDebate;
+        if (gapDebate && !gapDebate.gap_injections) {
+          const totalRounds = get().initialCrossRespondRounds || 5;
+          const gapRound = Math.ceil(totalRounds / 2) + 1;
+          const currentRound = gapDebate.transcript.filter(e => e.type === 'statement').length;
+
+          if (currentRound === gapRound) {
+            const gapModel = getConfiguredModel();
+            const gapTranscript = formatRecentTranscript(gapDebate.transcript, 20, gapDebate.context_summaries);
+            // Build taxonomy summary — same pattern as missing arguments pass
+            const gapSummaryLines: string[] = [];
+            for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+              const ctx = getTaxonomyContext(pov);
+              for (const n of ctx.povNodes) {
+                gapSummaryLines.push(`[${n.id}] ${n.label} (${(n as any).category ?? 'unknown'}) — ${pov}`);
+              }
+            }
+            const anTexts = (gapDebate.argument_network?.nodes || []).map(n => n.text);
+            const gapPrompt = midDebateGapPrompt(
+              gapDebate.topic.final,
+              gapTranscript,
+              gapSummaryLines.slice(0, 80).join('\n'),
+              anTexts,
+            );
+            const { text: gapText } = await api.generateText(gapPrompt, gapModel, 30_000);
+            const gapParsed = parseAIJson<{ gap_arguments: GapArgument[] }>(gapText);
+            const gapArgs = gapParsed?.gap_arguments ?? [];
+
+            if (gapArgs.length > 0) {
+              const gapContent = gapArgs.map((g, i) =>
+                `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`
+              ).join('\n\n');
+
+              const gapEntryId = addTranscriptEntry({
+                type: 'system',
+                speaker: 'system',
+                content: `## Mid-Debate Gap Analysis\n\n${gapContent}`,
+                taxonomy_refs: [],
+                metadata: { gap_analysis: true, gap_arguments: gapArgs },
+              });
+
+              const freshGapDebate = get().activeDebate;
+              if (freshGapDebate) {
+                set({
+                  activeDebate: {
+                    ...freshGapDebate,
+                    gap_injections: [{
+                      round: currentRound,
+                      arguments: gapArgs,
+                      transcript_entry_id: gapEntryId,
+                      responses: [],
+                    }],
+                  },
+                  gapInjections: [{
+                    round: currentRound,
+                    arguments: gapArgs,
+                    transcript_entry_id: gapEntryId,
+                    responses: [],
+                  }],
+                });
+              }
+
+              recordDiagnostic(get, set, gapEntryId, {
+                prompt: gapPrompt,
+                raw_response: gapText,
+                model: gapModel,
+              });
+            }
+          }
+        }
+      } catch (gapErr) {
+        console.warn('[Gap Injection] Mid-debate gap analysis failed (non-blocking):', gapErr);
+      }
     } catch (err) {
       addTranscriptEntry({
         type: 'system',
@@ -3098,6 +3184,76 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (trErr) {
         console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
+      }
+
+      // Cross-cutting node promotion — propose situation nodes from 3-way agreements
+      try {
+        const ccDebate = get().activeDebate;
+        const synthEntry = ccDebate?.transcript.find(e => e.type === 'synthesis');
+        const synthData = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as Record<string, unknown> | undefined;
+        const agreements = ((synthData?.areas_of_agreement ?? []) as { point: string; povers?: string[] }[])
+          .filter(a => (a.povers?.length ?? 0) >= 3);
+
+        if (agreements.length > 0 && ccDebate) {
+          const ccTaxState = useTaxonomyStore.getState();
+          const sitLabels = (ccTaxState.situations?.nodes || []).map(n => n.label);
+          const ccPrompt = crossCuttingNodePrompt(
+            agreements.map(a => ({ point: a.point, povers: a.povers ?? [] })),
+            sitLabels,
+            ccDebate.topic.final,
+          );
+          const { text: ccText } = await api.generateText(ccPrompt, model, 30_000);
+          const ccParsed = parseAIJson<{ proposals: CrossCuttingProposal[] }>(ccText);
+
+          if (ccParsed?.proposals?.length) {
+            const freshCcDebate = get().activeDebate;
+            if (freshCcDebate) {
+              set({
+                activeDebate: {
+                  ...freshCcDebate,
+                  cross_cutting_proposals: ccParsed.proposals,
+                },
+                crossCuttingProposals: ccParsed.proposals,
+              });
+            }
+          }
+        }
+      } catch (ccErr) {
+        console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);
+      }
+
+      // Taxonomy gap analysis (deterministic — no LLM calls)
+      try {
+        const gapDebate = get().activeDebate;
+        if (gapDebate) {
+          const gapTaxState = useTaxonomyStore.getState();
+          const taxonomyNodes: Record<string, { id: string; label: string; category: string; description?: string }[]> = {};
+          for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+            taxonomyNodes[pov] = (gapTaxState[pov]?.nodes || []).map(n => ({
+              id: n.id, label: n.label, category: (n as any).category ?? 'unknown', description: n.description,
+            }));
+          }
+
+          const gapAnalysis = computeTaxonomyGapAnalysis(
+            gapDebate.transcript,
+            gapDebate.argument_network?.nodes || [],
+            taxonomyNodes,
+            [],  // Context manifests — TODO: collect during turns
+          );
+
+          const freshGapDebate = get().activeDebate;
+          if (freshGapDebate) {
+            set({
+              activeDebate: {
+                ...freshGapDebate,
+                taxonomy_gap_analysis: gapAnalysis,
+              },
+              taxonomyGapAnalysis: gapAnalysis,
+            });
+          }
+        }
+      } catch (tgaErr) {
+        console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
       }
     } catch (err) {
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });

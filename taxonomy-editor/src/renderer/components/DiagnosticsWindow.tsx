@@ -19,6 +19,7 @@ import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
+import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 
 const DiagSearchContext = createContext('');
 
@@ -751,7 +752,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
@@ -914,10 +915,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
+            if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
+            if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
+            if (id === 'gaps') return !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0));
             return true;
           });
           const idx = visible.indexOf(overviewTab);
@@ -1010,6 +1014,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
               { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
               { id: 'reflections', label: 'Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
+              { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
             ];
             const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
             const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';
@@ -1045,6 +1050,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {/* Convergence Signals — per-turn diagnostic signals */}
           {overviewTab === 'convergence' && (
             <ConvergenceSignalsPanel debate={debate} />
+          )}
+
+          {/* Taxonomy Gaps — post-debate coverage analysis */}
+          {overviewTab === 'gaps' && (
+            <TaxonomyGapPanel debate={debate} />
           )}
 
           {/* Reflections — taxonomy edits proposed by debaters */}

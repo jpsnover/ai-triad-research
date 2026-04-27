@@ -12113,6 +12113,7 @@ body {
 .coverage-stat-covered { color: #16a34a; }
 .coverage-stat-partial { color: #a16207; }
 .coverage-stat-uncovered { color: #dc2626; }
+.coverage-strength-row { margin-top: -4px; font-style: italic; opacity: 0.85; }
 .coverage-claim-list { display: flex; flex-direction: column; gap: 4px; }
 .coverage-claim-row {
   padding: 4px 6px;

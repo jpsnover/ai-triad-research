@@ -12,7 +12,9 @@
 
 import { cosineSimilarity } from './taxonomyRelevance';
 import { ActionableError } from './errors';
-import type { DocumentINode, ArgumentNetworkNode, ClaimCoverageEntry } from './types';
+import type { DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ClaimCoverageEntry } from './types';
+import { computeQbafStrengths } from './qbaf';
+import type { QbafNode, QbafEdge } from './qbaf';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -267,6 +269,89 @@ export function computeCoverageMap(
         ? ((coveredCount + partiallyCoveredCount * 0.5) / totalClaims) * 100
         : 0,
     },
+  };
+}
+
+// ── Strength-weighted coverage (CT-11) ───────────────────
+
+export interface StrengthWeightedCoverage {
+  /** Raw coverage % (same as CoverageMap.stats.coveragePercentage). */
+  raw_coverage: number;
+  /** Coverage weighted by QBAF computed_strength of matched AN nodes.
+   *  Uncovered claims are weighted at 1.0 (conservative: assumed load-bearing). */
+  strength_weighted_coverage: number;
+  /** Gap between raw and weighted — large positive gap means debate avoided the hard arguments. */
+  coverage_gap: number;
+  /** Per-claim strength weights for consumers that need drill-down. */
+  claim_weights: Array<{ claimId: string; weight: number; status: CoverageStatus }>;
+}
+
+/**
+ * Enrich a CoverageMap with QBAF strength-weighted coverage.
+ *
+ * For each source claim:
+ * - Covered/partially covered: weight = computed_strength of best-matching AN node
+ * - Uncovered: weight = 1.0 (conservative — treat as potentially load-bearing)
+ *
+ * The weighted metric answers: "what fraction of argumentative weight has been
+ * engaged?" A debate can have 95% raw coverage but low strength-weighted coverage
+ * if it only engaged weak claims and left the load-bearing arguments uncovered.
+ */
+export function computeStrengthWeightedCoverage(
+  coverageMap: CoverageMap,
+  anNodes: ArgumentNetworkNode[],
+  edges: ArgumentNetworkEdge[],
+): StrengthWeightedCoverage {
+  const qbafNodes: QbafNode[] = anNodes.map(n => ({
+    id: n.id,
+    base_strength: n.base_strength ?? 0.5,
+  }));
+  const qbafEdges: QbafEdge[] = edges.map(e => ({
+    source: e.source,
+    target: e.target,
+    type: e.type as 'attacks' | 'supports',
+    weight: e.weight ?? 1.0,
+    attack_type: e.attack_type,
+  }));
+  const strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
+
+  const anStrength = (nodeId: string): number => strengths.get(nodeId) ?? 0.5;
+
+  const claimWeights: StrengthWeightedCoverage['claim_weights'] = [];
+  let weightedCoveredSum = 0;
+  let totalWeightSum = 0;
+
+  for (const entry of coverageMap.coverage) {
+    let weight: number;
+    if (entry.status === 'uncovered') {
+      weight = 1.0;
+    } else {
+      weight = Math.max(
+        ...entry.matchedAnNodes.map(id => anStrength(id)),
+        0.5,
+      );
+    }
+
+    claimWeights.push({ claimId: entry.claimId, weight, status: entry.status });
+    totalWeightSum += weight;
+
+    if (entry.status === 'covered') {
+      weightedCoveredSum += weight;
+    } else if (entry.status === 'partially_covered') {
+      weightedCoveredSum += weight * 0.5;
+    }
+  }
+
+  const rawCoverage = coverageMap.stats.coveragePercentage;
+  const strengthWeighted = totalWeightSum > 0
+    ? (weightedCoveredSum / totalWeightSum) * 100
+    : 0;
+
+  return {
+    raw_coverage: rawCoverage,
+    strength_weighted_coverage: strengthWeighted,
+    coverage_gap: rawCoverage - strengthWeighted,
+    claim_weights: claimWeights,
   };
 }
 
