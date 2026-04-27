@@ -310,7 +310,7 @@ function Test-TaxonomyIntegrity {
             $EdgesData.edges = @($EdgesData.edges | Where-Object { $ValidIds.Contains($_.source) -and $ValidIds.Contains($_.target) })
             $Removed = $OrigCount - $EdgesData.edges.Count
             if ($Removed -gt 0) {
-                $EdgesData | ConvertTo-Json -Depth 20 | Set-Content -Path $EdgesPath -Encoding UTF8 -NoNewline
+                ($EdgesData | ConvertTo-Json -Depth 20) -replace "`r`n", "`n" | Set-Content -Path $EdgesPath -Encoding UTF8 -NoNewline
                 $Repaired += $Removed
                 Write-Host "    Removed $Removed dangling edges" -ForegroundColor Yellow
             }
@@ -319,7 +319,7 @@ function Test-TaxonomyIntegrity {
         # Save modified files
         foreach ($PovKey in $Dirty.Keys) {
             $Entry = $LoadedFiles[$PovKey]
-            $Entry.Data | ConvertTo-Json -Depth 20 | Set-Content -Path $Entry.Path -Encoding UTF8 -NoNewline
+            ($Entry.Data | ConvertTo-Json -Depth 20) -replace "`r`n", "`n" | Set-Content -Path $Entry.Path -Encoding UTF8 -NoNewline
             Write-Host "    Saved $($Entry.Path)" -ForegroundColor Green
         }
 

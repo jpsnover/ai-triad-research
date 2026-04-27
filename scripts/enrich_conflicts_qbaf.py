@@ -402,7 +402,7 @@ def main():
         if args.write:
             path.write_text(
                 json.dumps(conflict, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
+                encoding="utf-8", newline="\n",
             )
 
         if (i + 1) % 50 == 0 or (i + 1) == len(to_process):

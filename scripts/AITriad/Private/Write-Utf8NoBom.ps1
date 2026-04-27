@@ -27,7 +27,7 @@ function Write-Utf8NoBom {
         }
     }
     end {
-        $text = $parts -join "`n"
+        $text = ($parts -join "`n") -replace "`r`n", "`n"
         if (-not $NoNewline -and $text.Length -gt 0 -and $text[$text.Length - 1] -ne "`n") {
             $text += "`n"
         }

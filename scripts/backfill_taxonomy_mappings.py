@@ -293,7 +293,7 @@ def main():
         }
 
     for fpath, data in files_to_update.items():
-        Path(fpath).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        Path(fpath).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
     print(f"  Updated {len(files_to_update)} summary files.", file=sys.stderr)
     print("\nDone.", file=sys.stderr)

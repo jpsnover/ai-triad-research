@@ -397,7 +397,7 @@ def write_consolidated(consolidated, source_map, output_dir, replace=False):
         out_path = output_dir / f"{cid}.json"
         out_path.write_text(
             json.dumps(conflict, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
+            encoding="utf-8", newline="\n",
         )
 
         sources = source_map.get(cid, [])
@@ -411,7 +411,7 @@ def write_consolidated(consolidated, source_map, output_dir, replace=False):
     manifest_path = output_dir / "_consolidation_manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
+        encoding="utf-8", newline="\n",
     )
 
     if replace:

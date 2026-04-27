@@ -418,7 +418,7 @@ def cmd_generate(args):
     }
 
     EMBEDDINGS_FILE.write_text(
-        json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
     print(
         f"Wrote {len(nodes_dict)} embeddings ({n} nodes + "
