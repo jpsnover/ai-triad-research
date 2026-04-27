@@ -326,6 +326,8 @@ Export-ModuleMember -Function @(
     'Test-ExtractionQuality'
     'Show-WorkflowRunner'
     'Test-EdgeDirection'
+    'Test-AITJudgeModel'
+    'Repair-AITSummaryMappings'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
