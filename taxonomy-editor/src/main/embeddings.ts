@@ -334,7 +334,7 @@ async function callGeminiBatchApi(
     const response = await net.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests }),
+      body: Buffer.from(JSON.stringify({ requests }), 'utf-8'),
     });
 
     if (response.status === 429 || response.status === 503) {
@@ -503,17 +503,18 @@ async function generateViaGemini(
 
     let response: Response;
     try {
-      response = await withTimeout(
-        net.fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      const _body = JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: temperature ?? _debateTemperature ?? 0.7,
               maxOutputTokens: 16384,
             },
-          }),
+          });
+      response = await withTimeout(
+        net.fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: Buffer.from(_body, 'utf-8'),
         }),
         timeoutMs ?? 60_000,
         'Gemini API request',
@@ -638,6 +639,12 @@ async function generateViaClaude(
   };
   console.log(`[Claude] Request body (truncated):`, JSON.stringify(requestBody, null, 2));
 
+  const _claudeBody = JSON.stringify({
+        model: apiModel,
+        max_tokens: 8192,
+        temperature: temperature ?? _debateTemperature ?? 0.7,
+        messages: [{ role: 'user', content: prompt }],
+      });
   const response = await withTimeout(
     net.fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -646,12 +653,7 @@ async function generateViaClaude(
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: apiModel,
-        max_tokens: 8192,
-        temperature: temperature ?? _debateTemperature ?? 0.7,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      body: Buffer.from(_claudeBody, 'utf-8'),
     }),
     timeoutMs ?? 120_000,
     'Claude API request',
@@ -690,6 +692,12 @@ async function generateViaGroq(
   const apiModel = getApiModelId(model);
   console.log(`[generateText] Calling Groq ${apiModel}...`);
 
+  const _groqBody = JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: temperature ?? _debateTemperature ?? 0.7,
+        max_tokens: 8192,
+      });
   const response = await withTimeout(
     net.fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -697,12 +705,7 @@ async function generateViaGroq(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: apiModel,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: temperature ?? _debateTemperature ?? 0.7,
-        max_tokens: 8192,
-      }),
+      body: Buffer.from(_groqBody, 'utf-8'),
     }),
     timeoutMs ?? 60_000,
     'Groq API request',
@@ -812,17 +815,18 @@ export async function generateChatStream(
     parts: [{ text: m.content }],
   }));
 
+  const _streamBody = JSON.stringify({
+    system_instruction: { parts: [{ text: systemInstruction }] },
+    contents,
+    generationConfig: {
+      temperature: temperature ?? 0.3,
+      maxOutputTokens: 16384,
+    },
+  });
   const response = await net.fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents,
-      generationConfig: {
-        temperature: temperature ?? 0.3,
-        maxOutputTokens: 16384,
-      },
-    }),
+    body: Buffer.from(_streamBody, 'utf-8'),
   });
 
   if (!response.ok) {
@@ -956,18 +960,19 @@ export async function generateTextWithSearch(
 
   console.log(`[AI] Grounded search: ${resolvedModel} with google_search tool`);
 
+  const _searchBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 16384,
+    },
+  });
   const response = await withTimeout(
     net.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 16384,
-        },
-      }),
+      body: Buffer.from(_searchBody, 'utf-8'),
     }),
     60_000,
     'Gemini grounded search request',
