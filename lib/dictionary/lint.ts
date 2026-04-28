@@ -81,18 +81,20 @@ export function lintText(
 
 /**
  * Lint a set of taxonomy node objects for constraint 4.
+ * @param options.skipFields — field names to exclude from linting (e.g. ['label'] for titles).
  */
 export function lintNodes(
   nodes: Array<{ id: string; label?: string; description?: string; graph_attributes?: { characteristic_language?: string[] } }>,
   loader: DictionaryLoader,
-  options?: LintOptions,
+  options?: LintOptions & { skipFields?: string[] },
 ): LintViolation[] {
   const violations: LintViolation[] = [];
+  const skip = new Set(options?.skipFields ?? []);
   for (const node of nodes) {
     const fields: Array<[string, string]> = [];
-    if (node.label) fields.push(['label', node.label]);
-    if (node.description) fields.push(['description', node.description]);
-    if (node.graph_attributes?.characteristic_language) {
+    if (node.label && !skip.has('label')) fields.push(['label', node.label]);
+    if (node.description && !skip.has('description')) fields.push(['description', node.description]);
+    if (node.graph_attributes?.characteristic_language && !skip.has('characteristic_language')) {
       for (const phrase of node.graph_attributes.characteristic_language) {
         fields.push(['characteristic_language', phrase]);
       }
@@ -200,6 +202,33 @@ function checkConstraint3(
   return violations;
 }
 
+function buildDisplayFormContext(loader: DictionaryLoader): {
+  prefixes: Map<string, string[]>;
+  qualifiers: Map<string, string[]>;
+} {
+  const prefixes = new Map<string, string[]>();
+  const qualifiers = new Map<string, string[]>();
+  const displayMap = loader.getDisplayFormMap();
+  for (const displayForm of displayMap.values()) {
+    const lower = displayForm.toLowerCase();
+    const parenIdx = lower.indexOf(' (');
+    if (parenIdx === -1) continue;
+    const prefix = lower.slice(0, parenIdx);
+    const closeIdx = lower.indexOf(')', parenIdx);
+    if (closeIdx === -1) continue;
+    const qualifier = lower.slice(parenIdx + 2, closeIdx);
+
+    const existingPfx = prefixes.get(prefix) ?? [];
+    existingPfx.push(lower);
+    prefixes.set(prefix, existingPfx);
+
+    const existingQual = qualifiers.get(prefix) ?? [];
+    existingQual.push(qualifier);
+    qualifiers.set(prefix, existingQual);
+  }
+  return { prefixes, qualifiers };
+}
+
 function checkConstraint4(
   text: string,
   loader: DictionaryLoader,
@@ -214,6 +243,21 @@ function checkConstraint4(
   const codeBlockRanges = findCodeBlockRanges(text);
   const inlineCodeRanges = findInlineCodeRanges(text);
   const textLower = text.toLowerCase();
+  const { prefixes: displayPrefixes, qualifiers: displayQualifiers } = buildDisplayFormContext(loader);
+
+  // Pre-scan for display form ranges — bare terms inside display forms are not violations
+  const displayFormRanges: Array<[number, number]> = [];
+  const displayMap = loader.getDisplayFormMap();
+  for (const displayForm of displayMap.values()) {
+    const lower = displayForm.toLowerCase();
+    let pos = 0;
+    while (pos < textLower.length) {
+      const found = textLower.indexOf(lower, pos);
+      if (found === -1) break;
+      displayFormRanges.push([found, found + lower.length]);
+      pos = found + 1;
+    }
+  }
 
   for (const term of colloquials) {
     const needle = term.colloquial_term.toLowerCase();
@@ -232,6 +276,23 @@ function checkConstraint4(
       if (isInsideQuotation(idx, quotationSpans)) continue;
       if (isInsideRange(idx, codeBlockRanges)) continue;
       if (isInsideRange(idx, inlineCodeRanges)) continue;
+      if (isInsideRange(idx, displayFormRanges)) continue;
+
+      // Skip if this bare term is part of a known display form like "capabilities (scaling)"
+      const knownForms = displayPrefixes.get(needle);
+      if (knownForms) {
+        const textAtIdx = textLower.slice(idx);
+        if (knownForms.some(form => textAtIdx.startsWith(form))) continue;
+      }
+
+      // Skip if a display-form qualifier appears within 50 chars (handles "existential risk")
+      const knownQualifiers = displayQualifiers.get(needle);
+      if (knownQualifiers) {
+        const windowStart = Math.max(0, idx - 50);
+        const windowEnd = Math.min(textLower.length, afterIdx + 50);
+        const window = textLower.slice(windowStart, windowEnd);
+        if (knownQualifiers.some(q => window.includes(q))) continue;
+      }
 
       const resolvesTo = term.resolves_to.map(r => r.standardized_term).join(', ');
       const ctx = text.slice(Math.max(0, idx - 30), Math.min(text.length, afterIdx + 30)).replace(/\n/g, ' ');
