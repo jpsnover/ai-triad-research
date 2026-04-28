@@ -1,0 +1,86 @@
+# Translation Pipeline Configuration
+# See docs/taxonomy-vocabulary-system-spec.md §4.7 for full documentation.
+#
+# This configuration controls cost, latency, and provider selection for
+# the hybrid translation pipeline (local fuzzy ensemble + LLM fallback).
+
+embedding:
+  # Embedding provider for computing context similarity.
+  # Options: voyage | openai | local (sentence-transformer)
+  provider: voyage
+
+  # Must match the embedding model used for the taxonomy index
+  # so that sense embeddings and context embeddings are comparable.
+  model: voyage-3-large
+
+  # Directory for caching embedding results across runs.
+  cache_dir: .cache/embeddings
+
+ensemble:
+  # Weights for combining embedding similarity and phrase signal.
+  # Combined score = w_e * embedding_similarity + w_p * phrase_signal
+  # These are the primary calibration targets in Phase 4.
+  w_e: 0.85
+  w_p: 0.15
+
+  # Fuzzy phrase matching function.
+  # token_sort_ratio: handles morphological + word-order variation (recommended)
+  # jaccard: similar behavior to token_sort_ratio
+  # levenshtein: handles typos but fails on word-order variation (not recommended)
+  phrase_match_function: token_sort_ratio
+
+  # Phrase scores below this threshold are treated as 0.
+  # Below this floor, matches are typically coincidental token overlap.
+  phrase_noise_floor: 0.50
+
+  # How to aggregate per-phrase scores into the phrase signal.
+  # top_k_sum: sum of top-K surviving scores, capped at 1.0 (recommended)
+  # mean: arithmetic mean of all surviving scores
+  # max: maximum surviving score (discards multi-phrase signal)
+  phrase_aggregation: top_k_sum
+
+  # Number of top phrase matches to sum (when using top_k_sum aggregation).
+  phrase_top_k: 3
+
+routing:
+  # Stage 2 commits a translation when BOTH thresholds are met.
+  # Otherwise the occurrence is routed to Stage 3 (LLM fallback).
+  top_score_threshold: 0.55
+  margin_threshold: 0.10
+
+  # Number of tokens of context captured around each occurrence.
+  context_window_tokens: 100
+
+llm_fallback:
+  # Set to false to skip Stage 3 entirely. Unresolved occurrences
+  # are committed with confidence: ambiguous. Appropriate for offline
+  # or budget-constrained operation.
+  enabled: true
+
+  # LLM provider for fallback disambiguation.
+  # Options: anthropic | openai | ollama | none
+  provider: anthropic
+
+  # Provider-specific model identifier.
+  model: claude-opus-4-7
+
+  # Required when provider == "ollama". Ignored otherwise.
+  endpoint: null
+
+  # Context window size for the LLM fallback prompt (tokens).
+  fallback_context_tokens: 500
+
+  # Retry configuration for failed LLM calls.
+  max_retries: 2
+  timeout_seconds: 30
+
+  # Number of top candidate senses passed to the LLM.
+  # Avoids stuffing the full dictionary into the prompt.
+  max_candidate_senses: 3
+
+review:
+  # First N translations on a new corpus get flagged for human review.
+  spot_check_first_n: 50
+
+  # Whether to log every LLM fallback call for audit.
+  log_all_fallback_calls: true

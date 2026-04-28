@@ -1,0 +1,1 @@
+The canonical form safety_alignment should not render.

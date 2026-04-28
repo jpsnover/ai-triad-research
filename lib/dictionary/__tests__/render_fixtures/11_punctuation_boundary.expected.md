@@ -1,0 +1,1 @@
+Is alignment (safety), alignment (commercial), or compliance alignment the right term? Yes: alignment (safety).

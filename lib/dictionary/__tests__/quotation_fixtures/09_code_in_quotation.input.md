@@ -1,0 +1,1 @@
+<q canonical-bypass>Use `safety_alignment` in code.</q>

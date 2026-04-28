@@ -1,0 +1,3 @@
+- safety_alignment is the first concern
+- commercial_alignment follows
+- alignment_compliance is third

@@ -1,0 +1,1 @@
+The safety_alignment concept, as defined in `safety_alignment`, is discussed [here](https://example.com/safety_alignment). <q canonical-bypass>The author uses safety_alignment loosely.</q> Outside: safety_alignment.

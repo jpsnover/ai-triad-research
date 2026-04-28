@@ -1,0 +1,1 @@
+Use `safety_alignment` as the canonical form in code.

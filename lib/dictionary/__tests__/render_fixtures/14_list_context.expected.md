@@ -1,0 +1,3 @@
+- alignment (safety) is the first concern
+- alignment (commercial) follows
+- compliance alignment is third

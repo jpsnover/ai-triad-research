@@ -24,6 +24,7 @@ export default defineConfig({
         : path.resolve(__dirname, 'src/renderer/bridge/index.ts'),
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
+      '@lib/dictionary': path.resolve(__dirname, '../lib/dictionary'),
       // Allow lib/debate/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),
@@ -33,6 +34,13 @@ export default defineConfig({
     outDir: '../../dist/renderer',
     emptyOutDir: true,
     minify: isWeb ? false : true, // unminified for web/container to get readable errors
+  },
+  test: {
+    include: [
+      '**/*.test.{ts,tsx}',
+      '../../../lib/**/*.test.ts',
+    ],
+    globals: false,
   },
   server: {
     port: 5173,

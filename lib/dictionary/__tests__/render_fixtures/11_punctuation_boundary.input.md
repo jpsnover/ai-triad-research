@@ -1,0 +1,1 @@
+Is safety_alignment, commercial_alignment, or alignment_compliance the right term? Yes: safety_alignment.

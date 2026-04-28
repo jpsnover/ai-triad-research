@@ -1,0 +1,1 @@
+<q canonical-bypass>See https://example.com/safety_alignment for more.</q>

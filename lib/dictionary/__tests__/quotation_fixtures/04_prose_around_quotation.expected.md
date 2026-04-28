@@ -1,0 +1,1 @@
+Before alignment (safety) renders. <q canonical-bypass>Inside safety_alignment does not.</q> After alignment (safety) renders.

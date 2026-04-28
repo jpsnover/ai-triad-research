@@ -1,0 +1,1 @@
+See [the docs](https://example.com/safety_alignment) for details on alignment (safety).

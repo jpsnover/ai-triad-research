@@ -1,0 +1,1 @@
+Both alignment (safety) alignment (commercial) should substitute.

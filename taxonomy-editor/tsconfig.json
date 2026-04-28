@@ -17,6 +17,8 @@
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
       "@lib/debate/*": ["../lib/debate/*"],
+      "@lib/dictionary": ["../lib/dictionary/index.ts"],
+      "@lib/dictionary/*": ["../lib/dictionary/*"],
       "@lib/search/*": ["../lib/search/*"],
       "zod": ["node_modules/zod"]
     }

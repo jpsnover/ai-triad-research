@@ -1,0 +1,1 @@
+In prose alignment (safety) renders, but <q canonical-bypass>safety_alignment stays</q> unchanged.
