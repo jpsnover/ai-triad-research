@@ -64,7 +64,7 @@ function Invoke-SummaryPipeline {
         [switch]$IterativeExtraction,
         [switch]$AutoFire,
         [string]$TaxonomyJsonOverride = '',
-        [int]$RagMaxTotal = 200
+        [int]$RagMaxTotal = 300
     )
 
     Set-StrictMode -Version Latest

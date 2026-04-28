@@ -69,7 +69,7 @@ function Invoke-POVSummary {
 
         [switch]$AutoFire,
 
-        [int]$RagMaxTotal = 200
+        [int]$RagMaxTotal = 300
     )
 
     Set-StrictMode -Version Latest
