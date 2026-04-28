@@ -63,7 +63,8 @@ function Invoke-SummaryPipeline {
         [switch]$FullTaxonomy,
         [switch]$IterativeExtraction,
         [switch]$AutoFire,
-        [string]$TaxonomyJsonOverride = ''
+        [string]$TaxonomyJsonOverride = '',
+        [int]$RagMaxTotal = 200
     )
 
     Set-StrictMode -Version Latest
@@ -102,7 +103,7 @@ function Invoke-SummaryPipeline {
 
             $AllPovs = @('accelerationist', 'safetyist', 'skeptic')
             $TaxonomyJson = Get-RelevantTaxonomyNodes -Query $QueryText `
-                -Threshold 0.30 -MaxTotal 200 -MinPerCategory 3 `
+                -Threshold 0.30 -MaxTotal $RagMaxTotal -MinPerCategory 3 `
                 -POV $AllPovs -IncludeSituations -Format context
             Write-Verbose "Pipeline: RAG selected ~$([int]($TaxonomyJson.Length / 4)) tokens of taxonomy"
         }

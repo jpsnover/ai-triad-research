@@ -67,7 +67,9 @@ function Invoke-POVSummary {
 
         [switch]$IterativeExtraction,
 
-        [switch]$AutoFire
+        [switch]$AutoFire,
+
+        [int]$RagMaxTotal = 200
     )
 
     Set-StrictMode -Version Latest
@@ -241,7 +243,8 @@ function Invoke-POVSummary {
         -OutputSchema          $outputSchema `
         -FullTaxonomy:$FullTaxonomy `
         -IterativeExtraction:$IterativeExtraction `
-        -AutoFire:$AutoFire
+        -AutoFire:$AutoFire `
+        -RagMaxTotal           $RagMaxTotal
 
     if (-not $pipelineResult.Success) {
         Write-Fail "Pipeline failed: $($pipelineResult.Error)"
