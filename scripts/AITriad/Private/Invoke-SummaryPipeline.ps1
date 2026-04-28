@@ -141,6 +141,10 @@ function Invoke-SummaryPipeline {
         catch { }
     }
 
+    # Vocabulary constraints (standardized terms + bare-term ban)
+    $VocabularyBlock = Build-VocabularyBlock
+    if ($VocabularyBlock) { Write-Verbose "Pipeline: vocabulary block injected ($([int]($VocabularyBlock.Length / 4)) tokens est.)" }
+
     if ($Metadata.PSObject.Properties['pov_tags']) { $PovTagLine = $Metadata.pov_tags -join ', ' } else { $PovTagLine = '' }
     if ($Metadata.PSObject.Properties['topic_tags']) { $TopicTagLine = $Metadata.topic_tags -join ', ' } else { $TopicTagLine = '' }
     if ($Metadata.PSObject.Properties['title']) { $TitleLine = $Metadata.title } else { $TitleLine = $DocId }
@@ -151,7 +155,7 @@ $SystemPrompt
 === TAXONOMY (version $TaxonomyVersion) ===
 $TaxonomyJson
 $PolicyBlock
-
+$VocabularyBlock
 === OUTPUT SCHEMA (your response must match this structure) ===
 $OutputSchema
 

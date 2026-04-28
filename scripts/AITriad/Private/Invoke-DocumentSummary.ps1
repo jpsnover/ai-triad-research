@@ -180,6 +180,8 @@ function Invoke-ChunkedSummary {
     $StartTime = Get-Date
     $ChunkResults = [System.Collections.Generic.List[object]]::new()
     $FailedChunks = 0
+    $ChunkRAGMetrics = [System.Collections.Generic.List[object]]::new()
+    $ChunkExtractionStats = @{ TotalPoints = 0; NullNodes = 0; FactualClaims = 0; UnmappedConcepts = 0; PromptChars = 0 }
 
     for ($i = 0; $i -lt $ChunkCount; $i++) {
         $ChunkNum = $i + 1
@@ -190,6 +192,7 @@ function Invoke-ChunkedSummary {
 
         # Per-chunk relevance filtering: use chunk text as query for better node selection
         $ChunkTaxonomy = $null
+        $script:LastRAGMetrics = $null
         try {
             $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText `
                 -Threshold 0.30 -MaxTotal 150 -MinPerCategory 2 `
@@ -201,6 +204,10 @@ function Invoke-ChunkedSummary {
         }
         catch {
             Write-Verbose "  Chunk $ChunkNum`: RAG fallback — using compact taxonomy"
+        }
+        if ($script:LastRAGMetrics) {
+            $null = $ChunkRAGMetrics.Add($script:LastRAGMetrics)
+            $script:LastRAGMetrics = $null
         }
         if (-not $ChunkTaxonomy) {
             $ChunkTaxonomy = Build-CompactTaxonomy
@@ -248,11 +255,21 @@ $ChunkText
 
             $ChunkResults.Add($ChunkObj)
             $ChunkPts = 0
+            $ChunkNulls = 0
             foreach ($c in @('accelerationist','safetyist','skeptic')) {
                 if ($ChunkObj.pov_summaries.$c -and $ChunkObj.pov_summaries.$c.key_points) {
-                    $ChunkPts += @($ChunkObj.pov_summaries.$c.key_points).Count
+                    $pts = @($ChunkObj.pov_summaries.$c.key_points)
+                    $ChunkPts += $pts.Count
+                    $ChunkNulls += @($pts | Where-Object { $null -eq $_.taxonomy_node_id }).Count
                 }
             }
+            $ChunkFacts = if ($ChunkObj.factual_claims) { @($ChunkObj.factual_claims).Count } else { 0 }
+            $ChunkUnmapped = if ($ChunkObj.unmapped_concepts) { @($ChunkObj.unmapped_concepts).Count } else { 0 }
+            $ChunkExtractionStats.TotalPoints += $ChunkPts
+            $ChunkExtractionStats.NullNodes += $ChunkNulls
+            $ChunkExtractionStats.FactualClaims += $ChunkFacts
+            $ChunkExtractionStats.UnmappedConcepts += $ChunkUnmapped
+            $ChunkExtractionStats.PromptChars += $ChunkPrompt.Length
             Write-Host " ✓ $ChunkPts points" -ForegroundColor Green
 
         } catch {
@@ -270,6 +287,51 @@ $ChunkText
 
     if ($FailedChunks -gt 0) {
         Write-Host "  │  ⚠ $FailedChunks/$ChunkCount chunks failed (proceeding with $($ChunkResults.Count) successful)" -ForegroundColor Yellow
+    }
+
+    # -- Context-rot: aggregated per-chunk RAG + extraction metrics -----------
+    if ($ChunkRAGMetrics.Count -gt 0) {
+        $TotalIn = 0; $TotalOut = 0; $TotalForced = 0
+        $BeliefsSum = 0; $DesiresSum = 0; $IntentionsSum = 0
+        $MinNodes = [int]::MaxValue; $MaxNodes = 0
+        foreach ($rm in $ChunkRAGMetrics) {
+            $TotalIn += $rm.in_count; $TotalOut += $rm.out_count
+            $TotalForced += ($rm.flags.below_threshold_forced ?? 0)
+            $BeliefsSum += ($rm.flags.beliefs_selected ?? 0)
+            $DesiresSum += ($rm.flags.desires_selected ?? 0)
+            $IntentionsSum += ($rm.flags.intentions_selected ?? 0)
+            if ($rm.out_count -lt $MinNodes) { $MinNodes = [int]$rm.out_count }
+            if ($rm.out_count -gt $MaxNodes) { $MaxNodes = [int]$rm.out_count }
+        }
+        $script:ContextRotStages += @(New-ContextRotStage `
+            -Stage 'rag_filtering' -InUnits 'nodes' -InCount ([int]($TotalIn / $ChunkRAGMetrics.Count)) `
+            -OutUnits 'nodes' -OutCount ([int]($TotalOut / $ChunkRAGMetrics.Count)) `
+            -Flags @{
+                chunk_count            = $ChunkRAGMetrics.Count
+                avg_nodes_selected     = [Math]::Round($TotalOut / $ChunkRAGMetrics.Count, 0)
+                min_nodes_selected     = $MinNodes
+                max_nodes_selected     = $MaxNodes
+                total_below_threshold  = $TotalForced
+                avg_beliefs            = [Math]::Round($BeliefsSum / $ChunkRAGMetrics.Count, 0)
+                avg_desires            = [Math]::Round($DesiresSum / $ChunkRAGMetrics.Count, 0)
+                avg_intentions         = [Math]::Round($IntentionsSum / $ChunkRAGMetrics.Count, 0)
+            })
+    }
+    if ($ChunkExtractionStats.TotalPoints -gt 0 -or $ChunkExtractionStats.PromptChars -gt 0) {
+        $TotalItems = $ChunkExtractionStats.TotalPoints + $ChunkExtractionStats.FactualClaims + $ChunkExtractionStats.UnmappedConcepts
+        $NullRate = if ($ChunkExtractionStats.TotalPoints -gt 0) {
+            [Math]::Round($ChunkExtractionStats.NullNodes / $ChunkExtractionStats.TotalPoints, 4)
+        } else { 0 }
+        $script:ContextRotStages += @(New-ContextRotStage `
+            -Stage 'extraction' -InUnits 'prompt_chars' -InCount $ChunkExtractionStats.PromptChars `
+            -OutUnits 'items' -OutCount $TotalItems `
+            -Flags @{
+                null_node_rate    = $NullRate
+                total_points      = $ChunkExtractionStats.TotalPoints
+                factual_claims    = $ChunkExtractionStats.FactualClaims
+                unmapped_concepts = $ChunkExtractionStats.UnmappedConcepts
+                chunk_count       = $ChunkResults.Count
+            })
     }
 
     # -- Merge chunk results --------------------------------------------------
