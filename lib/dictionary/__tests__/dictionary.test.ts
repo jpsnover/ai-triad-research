@@ -166,7 +166,7 @@ describe('DictionaryLoader', () => {
   const dataRoot = path.resolve(__dirname, '../../../../ai-triad-data');
   const dictionaryDir = path.join(dataRoot, 'dictionary');
 
-  it('loads version from empty dictionary', () => {
+  it('loads version', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const version = loader.getVersion();
     expect(version.schema_version).toBe('1.0.0');
@@ -182,24 +182,56 @@ describe('DictionaryLoader', () => {
     expect(loader.getColloquial('nonexistent')).toBeNull();
   });
 
-  it('lists empty standardized terms', () => {
+  it('loads a known standardized term', () => {
     const loader = new DictionaryLoader(dictionaryDir);
-    expect(loader.listStandardized()).toEqual([]);
+    const term = loader.getStandardized('safety_alignment');
+    expect(term).not.toBeNull();
+    expect(term!.canonical_form).toBe('safety_alignment');
+    expect(term!.display_form).toBe('alignment (safety)');
+    expect(term!.coinage_status).toBe('accepted');
   });
 
-  it('lists empty colloquial terms', () => {
+  it('loads a known colloquial term', () => {
     const loader = new DictionaryLoader(dictionaryDir);
-    expect(loader.listColloquial()).toEqual([]);
+    const term = loader.getColloquial('alignment');
+    expect(term).not.toBeNull();
+    expect(term!.colloquial_term).toBe('alignment');
+    expect(term!.status).toBe('do_not_use_bare');
+    expect(term!.resolves_to.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('returns empty canonical form set', () => {
+  it('lists all standardized terms', () => {
     const loader = new DictionaryLoader(dictionaryDir);
-    expect(loader.getCanonicalFormSet().size).toBe(0);
+    const terms = loader.listStandardized();
+    expect(terms.length).toBe(21);
+    const canonicals = terms.map(t => t.canonical_form);
+    expect(canonicals).toContain('safety_alignment');
+    expect(canonicals).toContain('commercial_alignment');
+    expect(canonicals).toContain('alignment_compliance');
   });
 
-  it('returns empty display form map', () => {
+  it('lists all colloquial terms', () => {
     const loader = new DictionaryLoader(dictionaryDir);
-    expect(loader.getDisplayFormMap().size).toBe(0);
+    const terms = loader.listColloquial();
+    expect(terms.length).toBe(10);
+    const colloquials = terms.map(t => t.colloquial_term);
+    expect(colloquials).toContain('alignment');
+    expect(colloquials).toContain('risk');
+    expect(colloquials).toContain('safety');
+  });
+
+  it('returns populated canonical form set', () => {
+    const loader = new DictionaryLoader(dictionaryDir);
+    const set = loader.getCanonicalFormSet();
+    expect(set.size).toBe(21);
+    expect(set.has('safety_alignment')).toBe(true);
+  });
+
+  it('returns populated display form map', () => {
+    const loader = new DictionaryLoader(dictionaryDir);
+    const map = loader.getDisplayFormMap();
+    expect(map.size).toBe(21);
+    expect(map.get('safety_alignment')).toBe('alignment (safety)');
   });
 
   it('invalidates cache and reloads', () => {
@@ -217,16 +249,17 @@ describe('lintDictionary', () => {
   const dataRoot = path.resolve(__dirname, '../../../../ai-triad-data');
   const dictionaryDir = path.join(dataRoot, 'dictionary');
 
-  it('empty dictionary produces no violations', () => {
+  it('populated dictionary produces no violations', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const violations = lintDictionary(loader);
     expect(violations).toEqual([]);
   });
 
-  it('empty dictionary with taxonomy node set produces no violations', () => {
+  it('populated dictionary with taxonomy node set produces no constraint-2 violations', () => {
     const loader = new DictionaryLoader(dictionaryDir);
-    const nodeIds = new Set(['saf-cross-001', 'acc-data-002']);
-    const violations = lintDictionary(loader, nodeIds);
+    const terms = loader.listStandardized();
+    const allNodeIds = new Set(terms.flatMap(t => t.used_by_nodes));
+    const violations = lintDictionary(loader, allNodeIds);
     expect(violations).toEqual([]);
   });
 
