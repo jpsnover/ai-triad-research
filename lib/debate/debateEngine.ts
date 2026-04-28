@@ -277,9 +277,9 @@ export class DebateEngine {
     // Compute cumulative context-rot retention
     if (this.session.context_rot && this.session.context_rot.stages.length > 0) {
       this.session.context_rot.measured_at = nowISO();
-      this.session.context_rot.cumulative_retention = this.session.context_rot.stages.reduce(
-        (acc, s) => acc * (s.ratio > 0 && s.ratio <= 1 ? s.ratio : 1), 1,
-      );
+      this.session.context_rot.cumulative_retention = this.session.context_rot.stages
+        .filter(s => s.in_units === s.out_units)
+        .reduce((acc, s) => acc * (s.ratio > 0 && s.ratio <= 1 ? s.ratio : 1), 1);
       this.session.context_rot.cumulative_retention = Math.round(this.session.context_rot.cumulative_retention * 10000) / 10000;
     }
 
@@ -640,6 +640,23 @@ export class DebateEngine {
     }
     const edges_used = top.map(e => ({ source: e.source, target: e.target, type: e.type, confidence: e.confidence }));
     return { text: lines.join('\n'), edges_used };
+  }
+
+  private lookupTaxonomyEdgeWeight(sourceRefs: string[], targetRefs: string[]): number | undefined {
+    const taxEdges = this.taxonomy.edges?.edges;
+    if (!taxEdges || sourceRefs.length === 0 || targetRefs.length === 0) return undefined;
+    const srcSet = new Set(sourceRefs);
+    const tgtSet = new Set(targetRefs);
+    let best: number | undefined;
+    for (const e of taxEdges) {
+      if (e.weight == null) continue;
+      const match = (srcSet.has(e.source) && tgtSet.has(e.target))
+        || (srcSet.has(e.target) && tgtSet.has(e.source));
+      if (match && (best === undefined || e.weight > best)) {
+        best = e.weight;
+      }
+    }
+    return best;
   }
 
   // ── Commitment context ─────────────────────────────────────
@@ -2381,7 +2398,7 @@ Return ONLY JSON (no markdown, no code fences):
     trace.response_chars = text.length;
     trace.response_truncated = this.looksTruncated(text);
 
-    let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
+    let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
       claims = parsed.claims ?? [];
@@ -2477,13 +2494,18 @@ Return ONLY JSON (no markdown, no code fences):
         if (!rel.prior_claim_id || !an.nodes.some(n => n.id === rel.prior_claim_id)) continue;
 
         const edgeId = `AE-${an.edges.length + 1}`;
+        let edgeWeight: number | undefined = typeof rel.weight === 'number' ? Math.max(0, Math.min(1, rel.weight)) : undefined;
+        if (edgeWeight === undefined) {
+          const targetNode = an.nodes.find(n => n.id === rel.prior_claim_id);
+          edgeWeight = this.lookupTaxonomyEdgeWeight(taxonomyRefIds, targetNode?.taxonomy_refs ?? []);
+        }
         an.edges.push({
           id: edgeId,
           source: nodeId,
           target: rel.prior_claim_id,
           type: rel.relationship === 'attacks' ? 'attacks' : 'supports',
           attack_type: rel.attack_type as 'rebut' | 'undercut' | 'undermine' | undefined,
-          weight: typeof rel.weight === 'number' ? Math.max(0, Math.min(1, rel.weight)) : undefined,
+          weight: edgeWeight,
           scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
           warrant: rel.warrant,
           argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],

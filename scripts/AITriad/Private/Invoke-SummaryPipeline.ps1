@@ -169,6 +169,7 @@ $SnapshotText
     $SummaryObject = $null
     $FireStats = $null
     $AiBackend = ''
+    $DensityCheck = $null
 
     if ($IterativeExtraction) {
         Write-Verbose "Pipeline: using FIRE iterative extraction"
@@ -285,7 +286,7 @@ $SnapshotText
 
     # ── Context-rot: extraction + RAG metrics ────────────────────────────────
     $NullNodeRate = if ($TotalPoints -gt 0) { [Math]::Round($NullNodes / $TotalPoints, 4) } else { 0 }
-    $DensityFloorHit = if ($DensityCheck -and -not $DensityCheck.Pass) { 1 } else { 0 }
+    $DensityFloorHit = if ($null -ne $DensityCheck -and -not $DensityCheck.Pass) { 1 } else { 0 }
     $script:ContextRotStages += @(New-ContextRotStage `
         -Stage 'extraction' -InUnits 'prompt_chars' -InCount $FullPrompt.Length `
         -OutUnits 'items' -OutCount ($TotalPoints + $FactualCount + $UnmappedCount) `
@@ -295,7 +296,7 @@ $SnapshotText
             total_points      = $TotalPoints
             factual_claims    = $FactualCount
             unmapped_concepts = $UnmappedCount
-            used_fire         = [int]$IterativeExtraction
+            used_fire         = if ($IterativeExtraction) { 1 } else { 0 }
         })
     if ($script:LastRAGMetrics) {
         $script:ContextRotStages += @($script:LastRAGMetrics)

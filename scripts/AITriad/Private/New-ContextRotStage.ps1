@@ -36,6 +36,10 @@ function New-ContextRotMetrics {
     )
     $CumulativeRetention = 1.0
     foreach ($s in $Stages) {
+        # Only multiply stages with comparable in/out units (actual retention).
+        # Mixed-unit stages (e.g. extraction: chars→items) are density metrics,
+        # not retention — including them collapses the product to near-zero.
+        if ($s.in_units -ne $s.out_units) { continue }
         if ($s.ratio -gt 0 -and $s.ratio -le 1) {
             $CumulativeRetention *= $s.ratio
         }
