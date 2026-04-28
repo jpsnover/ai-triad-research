@@ -203,34 +203,40 @@ describe('DictionaryLoader', () => {
   it('lists all standardized terms', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const terms = loader.listStandardized();
-    expect(terms.length).toBe(21);
+    expect(terms.length).toBe(32);
     const canonicals = terms.map(t => t.canonical_form);
     expect(canonicals).toContain('safety_alignment');
     expect(canonicals).toContain('commercial_alignment');
     expect(canonicals).toContain('alignment_compliance');
+    expect(canonicals).toContain('autonomy_machine');
+    expect(canonicals).toContain('bias_systemic');
+    expect(canonicals).toContain('fairness_procedural');
   });
 
   it('lists all colloquial terms', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const terms = loader.listColloquial();
-    expect(terms.length).toBe(10);
+    expect(terms.length).toBe(14);
     const colloquials = terms.map(t => t.colloquial_term);
     expect(colloquials).toContain('alignment');
     expect(colloquials).toContain('risk');
     expect(colloquials).toContain('safety');
+    expect(colloquials).toContain('autonomy');
+    expect(colloquials).toContain('bias');
+    expect(colloquials).toContain('fairness');
   });
 
   it('returns populated canonical form set', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const set = loader.getCanonicalFormSet();
-    expect(set.size).toBe(21);
+    expect(set.size).toBe(32);
     expect(set.has('safety_alignment')).toBe(true);
   });
 
   it('returns populated display form map', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const map = loader.getDisplayFormMap();
-    expect(map.size).toBe(21);
+    expect(map.size).toBe(32);
     expect(map.get('safety_alignment')).toBe('alignment (safety)');
   });
 
