@@ -304,7 +304,7 @@ $SnapshotText
             unmapped_concepts = $UnmappedCount
             used_fire         = if ($IterativeExtraction) { 1 } else { 0 }
         })
-    if ($script:LastRAGMetrics) {
+    if ((Test-Path variable:script:LastRAGMetrics) -and $script:LastRAGMetrics) {
         $script:ContextRotStages += @($script:LastRAGMetrics)
         $script:LastRAGMetrics = $null
     }
