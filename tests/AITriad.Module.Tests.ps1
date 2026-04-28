@@ -190,6 +190,84 @@ Describe 'Cmdlet Parameter Validation' {
     }
 }
 
+Describe 'Normalize-Markdown' {
+    It 'Should be exported from the module' {
+        Get-Command Normalize-Markdown -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Should expand ligatures' {
+        $input_ = "Arti$([char]0xFB01)cial Intelligence is a $([char]0xFB01)eld with $([char]0xFB02)exibility"
+        $result = Normalize-Markdown -Text $input_
+        $result | Should -Be 'Artificial Intelligence is a field with flexibility'
+    }
+
+    It 'Should expand ff/ffi/ffl ligatures' {
+        $input_ = "$([char]0xFB00)ect $([char]0xFB03)ne $([char]0xFB04)ow"
+        $result = Normalize-Markdown -Text $input_
+        $result | Should -Be 'ffect ffine fflow'
+    }
+
+    It 'Should replace U+FFFD runs with single space' {
+        $result = Normalize-Markdown -Text "hello$([char]0xFFFD)$([char]0xFFFD)$([char]0xFFFD)world"
+        $result | Should -Be 'hello world'
+    }
+
+    It 'Should strip control characters but keep newlines and tabs' {
+        $input_ = "line1`n`tindented$([char]0x00)$([char]0x0B)$([char]0x1F)text"
+        $result = Normalize-Markdown -Text $input_
+        $result | Should -Be "line1`n`tindentedtext"
+    }
+
+    It 'Should remove zero-width characters' {
+        $zws  = [char]0x200B
+        $zwnj = [char]0x200C
+        $zwj  = [char]0x200D
+        $result = Normalize-Markdown -Text "hello${zws}world${zwnj}test${zwj}end"
+        $result | Should -Be 'helloworldtestend'
+    }
+
+    It 'Should remove soft hyphens' {
+        $shy = [char]0x00AD
+        $result = Normalize-Markdown -Text "flex${shy}ibility"
+        $result | Should -Be 'flexibility'
+    }
+
+    It 'Should replace box-drawing characters with space' {
+        $hline = [char]0x2500
+        $result = Normalize-Markdown -Text "cell1${hline}${hline}${hline}cell2"
+        $result | Should -Be 'cell1 cell2'
+    }
+
+    It 'Should decode residual HTML entities' {
+        $result = Normalize-Markdown -Text 'Smith &amp; Wesson &mdash; established'
+        $result | Should -BeLike 'Smith & Wesson*established'
+    }
+
+    It 'Should normalize NFC' {
+        # e + combining acute accent → é (precomposed)
+        $decomposed = "caf$([char]0x0065)$([char]0x0301)"
+        $result = Normalize-Markdown -Text $decomposed
+        $result | Should -Be "café"
+    }
+
+    It 'Should collapse excessive blank lines' {
+        $result = Normalize-Markdown -Text "para1`n`n`n`n`npara2"
+        $result | Should -Be "para1`n`npara2"
+    }
+
+    It 'Should strip trailing whitespace from lines' {
+        $result = Normalize-Markdown -Text "hello   `nworld  "
+        $result | Should -Be "hello`nworld"
+    }
+
+    It 'Should be idempotent' {
+        $input_ = "Arti$([char]0xFB01)cial $([char]0xFFFD)$([char]0xFFFD) $([char]0x200B)test"
+        $once  = Normalize-Markdown -Text $input_
+        $twice = Normalize-Markdown -Text $once
+        $twice | Should -Be $once
+    }
+}
+
 Describe 'Show-AITriadHelp' {
     It 'Should have the command available' {
         Get-Command Show-AITriadHelp -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty

@@ -23,4 +23,4 @@ export type {
 export { DictionaryLoader, createLoader } from './loader';
 export { renderDisplay, reverseRender, buildReverseMap } from './render';
 export { parseQuotationMarkers, isInsideQuotation, stripQuotationMarkers } from './quotation';
-export { lintDictionary, lintText } from './lint';
+export { lintDictionary, lintText, lintNodes } from './lint';

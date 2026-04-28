@@ -283,6 +283,25 @@ $SnapshotText
     if ($SummaryObject.factual_claims) { $FactualCount = @($SummaryObject.factual_claims).Count } else { $FactualCount = 0 }
     if ($SummaryObject.unmapped_concepts) { $UnmappedCount = @($SummaryObject.unmapped_concepts).Count } else { $UnmappedCount = 0 }
 
+    # ── Context-rot: extraction + RAG metrics ────────────────────────────────
+    $NullNodeRate = if ($TotalPoints -gt 0) { [Math]::Round($NullNodes / $TotalPoints, 4) } else { 0 }
+    $DensityFloorHit = if ($DensityCheck -and -not $DensityCheck.Pass) { 1 } else { 0 }
+    $script:ContextRotStages += @(New-ContextRotStage `
+        -Stage 'extraction' -InUnits 'prompt_chars' -InCount $FullPrompt.Length `
+        -OutUnits 'items' -OutCount ($TotalPoints + $FactualCount + $UnmappedCount) `
+        -Flags @{
+            null_node_rate    = $NullNodeRate
+            density_floor_hit = $DensityFloorHit
+            total_points      = $TotalPoints
+            factual_claims    = $FactualCount
+            unmapped_concepts = $UnmappedCount
+            used_fire         = [int]$IterativeExtraction
+        })
+    if ($script:LastRAGMetrics) {
+        $script:ContextRotStages += @($script:LastRAGMetrics)
+        $script:LastRAGMetrics = $null
+    }
+
     return @{
         Success        = $true
         DocId          = $DocId

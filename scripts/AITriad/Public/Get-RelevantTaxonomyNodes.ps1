@@ -232,6 +232,22 @@ function Get-RelevantTaxonomyNodes {
 
     Write-Verbose "Selected $($Selected.Count) / $($Scores.Count) nodes (threshold=$Threshold, max=$MaxTotal)"
 
+    # Context-rot: RAG filtering metrics (module-scoped for pipeline to capture)
+    $BelowThresholdForced = @($Selected | Where-Object { $_.Similarity -lt $Threshold }).Count
+    $CatCounts = @{}
+    foreach ($S in $Selected) { $CatCounts[$S.Category] = ($CatCounts[$S.Category] ?? 0) + 1 }
+    $script:LastRAGMetrics = New-ContextRotStage `
+        -Stage 'rag_filtering' -InUnits 'nodes' -InCount $Scores.Count `
+        -OutUnits 'nodes' -OutCount $Selected.Count `
+        -Flags @{
+            threshold              = $Threshold
+            above_threshold        = $AboveThreshold.Count
+            below_threshold_forced = $BelowThresholdForced
+            beliefs_selected       = ($CatCounts['Beliefs'] ?? 0)
+            desires_selected       = ($CatCounts['Desires'] ?? 0)
+            intentions_selected    = ($CatCounts['Intentions'] ?? 0)
+        }
+
     # ── Look up full node data ────────────────────────────────────────────────
     $Results = [System.Collections.Generic.List[PSObject]]::new()
 

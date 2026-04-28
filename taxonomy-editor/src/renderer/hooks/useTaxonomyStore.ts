@@ -394,13 +394,13 @@ interface TaxonomyState {
   showRelatedEdges: (nodeId: string | null) => void;
   selectEdge: (edge: Edge | null) => void;
 
-  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | null;
-  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | null) => void;
+  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | null;
+  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | null) => void;
   pendingLineageValue: string | null;
   navigateToLineage: (value: string) => void;
   pendingSearchRelatedId: string | null;
   navigateToSearchRelated: (nodeId: string) => void;
-  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | null; nodeId: string | null } | null;
+  previousView: { panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | null; nodeId: string | null } | null;
   navigateBack: () => void;
 }
 

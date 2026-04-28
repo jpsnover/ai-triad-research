@@ -76,6 +76,7 @@ function Invoke-DocumentSummary {
     $ThisDocId = $Doc.DocId
     $Meta      = $Doc.Meta
     $ChunkThresholdTokens = 20000   # Documents above this get chunked
+    $script:ContextRotStages = @()  # accumulator for context-rot instrumentation
 
     Write-Host "`n  ┌─ $ThisDocId" -ForegroundColor White
     Write-Host "  │  pov: $($Doc.PovTags -join ', ')  |  model: $Model" -ForegroundColor Gray
@@ -157,6 +158,15 @@ function Invoke-ChunkedSummary {
     $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 8000 -MinChunkTokens 1500)
     $ChunkCount = $Chunks.Count
     Write-Host "  │  split into $ChunkCount chunks" -ForegroundColor Cyan
+
+    # -- Context-rot: chunking metrics ----------------------------------------
+    $InputTokensEst = [int]($SnapshotText.Length / 4)
+    $ChunkTokensSum = 0
+    foreach ($c in $Chunks) { $ChunkTokensSum += [int]($c.Length / 4) }
+    $script:ContextRotStages += @(New-ContextRotStage `
+        -Stage 'chunking' -InUnits 'tokens_est' -InCount $InputTokensEst `
+        -OutUnits 'tokens_est' -OutCount $ChunkTokensSum `
+        -Flags @{ chunk_count = $ChunkCount })
 
     # -- Load chunk-specific system prompt ------------------------------------
     if ($ChunkSystemPromptTemplate) {
@@ -265,6 +275,12 @@ $ChunkText
     # -- Merge chunk results --------------------------------------------------
     Write-Host "  │  merging $($ChunkResults.Count) chunk results..." -ForegroundColor Cyan
     $MergedObject = Merge-ChunkSummaries -ChunkResults @($ChunkResults)
+
+    # Capture context-rot merge metrics before stripping the internal field
+    if ($MergedObject['_merge_metrics']) {
+        $script:ContextRotStages += @($MergedObject['_merge_metrics'])
+        $MergedObject.Remove('_merge_metrics')
+    }
 
     # Convert ordered hashtable to PSCustomObject for consistent downstream handling
     $SummaryObject = [PSCustomObject]$MergedObject
@@ -581,11 +597,18 @@ function Finalize-Summary {
     }
 
     if ($SoProps['pov_summaries']) { $PovSummariesVal = $SummaryObject.pov_summaries } else { $PovSummariesVal = [ordered]@{} }
+    # -- Build context-rot metrics from stages collected during processing ----
+    $ContextRotStages = @($script:ContextRotStages)
+    $ContextRotObj = if ($ContextRotStages.Count -gt 0) {
+        New-ContextRotMetrics -Pipeline 'summary' -DocId $ThisDocId -Stages $ContextRotStages
+    } else { $null }
+
     $FinalSummary = [ordered]@{
         doc_id            = $ThisDocId
         taxonomy_version  = $TaxonomyVersion
         generated_at      = $Now
         model_info        = $ModelInfo
+        context_rot       = $ContextRotObj
         pov_summaries     = $PovSummariesVal
         factual_claims    = @($FactualClaims)
         unmapped_concepts = @($UnmappedConcs)
@@ -623,6 +646,14 @@ function Finalize-Summary {
         $MetaUpdated['claims_by_pov']     = $claimsByPov
         $MetaUpdated['total_facts']       = $TotalPoints
         $MetaUpdated['unmapped_concepts'] = $UnmappedCount
+        if ($ContextRotObj) {
+            $WorstStage = $ContextRotStages | Sort-Object ratio | Select-Object -First 1
+            $MetaUpdated['context_rot'] = [ordered]@{
+                cumulative_retention = $ContextRotObj.cumulative_retention
+                worst_stage          = $WorstStage.stage
+                worst_ratio          = $WorstStage.ratio
+            }
+        }
 
         Write-Utf8NoBom -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) 
     }

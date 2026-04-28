@@ -7,7 +7,7 @@
  * identifies cross-POV tension points, and produces a claims summary.
  */
 
-import type { DocumentAnalysis } from './types';
+import type { DocumentAnalysis, ContextRotStage } from './types';
 import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
@@ -92,26 +92,59 @@ function findLastHeading(text: string, limit: number): string | null {
   return lastMatch;
 }
 
-function truncateDocument(text: string, limit: number = 50000): string {
-  if (text.length <= limit) return text;
+interface TruncateResult {
+  text: string;
+  metrics: ContextRotStage;
+}
+
+function truncateDocument(text: string, limit: number = 50000): TruncateResult {
+  if (text.length <= limit) {
+    return {
+      text,
+      metrics: {
+        stage: 'document_truncation',
+        in_units: 'chars', in_count: text.length,
+        out_units: 'chars', out_count: text.length,
+        ratio: 1,
+        flags: { chars_truncated: 0, sections_lost: 0, truncation_limit: limit },
+      },
+    };
+  }
+  const tailContent = text.slice(limit);
+  const sectionsLost = (tailContent.match(/^#{1,4}\s/gm) || []).length;
   const lastHeading = findLastHeading(text, limit);
   const notice = lastHeading
     ? `\n\n[Document truncated at ~${Math.round(limit / 1000)}K characters. Content after '${lastHeading}' is not available.]`
     : `\n\n[Document truncated at ~${Math.round(limit / 1000)}K characters.]`;
-  return text.slice(0, limit) + notice;
+  const truncated = text.slice(0, limit) + notice;
+  return {
+    text: truncated,
+    metrics: {
+      stage: 'document_truncation',
+      in_units: 'chars', in_count: text.length,
+      out_units: 'chars', out_count: truncated.length,
+      ratio: Math.round((limit / text.length) * 10000) / 10000,
+      flags: { chars_truncated: text.length - limit, sections_lost: sectionsLost, truncation_limit: limit },
+    },
+  };
 }
 
 // ── Analysis prompt ─────────────────────────────────────
+
+export interface DocumentAnalysisPromptResult {
+  prompt: string;
+  truncationMetrics: ContextRotStage;
+}
 
 export function documentAnalysisPrompt(
   sourceContent: string,
   refinedTopic: string,
   activePovers: string[],
   taxonomySample: string,
-): string {
-  const content = truncateDocument(sourceContent);
+): DocumentAnalysisPromptResult {
+  const { text: content, metrics: truncationMetrics } = truncateDocument(sourceContent);
 
-  return `You are a neutral analyst preparing a structured breakdown of a document for a multi-perspective debate.
+  const prompt = `You are a neutral analyst preparing a structured breakdown of a document for a multi-perspective debate.
 
 The debate topic is:
 "${refinedTopic}"
@@ -166,6 +199,8 @@ Return ONLY JSON (no markdown, no code fences):
     }
   ]
 }`;
+
+  return { prompt, truncationMetrics };
 }
 
 // ── Analysis context formatter (replaces sourceContext in debater prompts) ──

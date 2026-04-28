@@ -91,6 +91,7 @@ function Resolve-UnmappedConcepts {
     $Resolved  = [System.Collections.Generic.List[PSObject]]::new()
     $Remaining = [System.Collections.Generic.List[PSObject]]::new()
 
+    $NearMissCount = 0
     foreach ($Concept in $UnmappedConcepts) {
         $Props = $Concept.PSObject.Properties
         if ($Props['suggested_label']) { $ConceptLabel = $Concept.suggested_label } else { $ConceptLabel = '' }
@@ -136,8 +137,19 @@ function Resolve-UnmappedConcepts {
         }
         else {
             $null = $Remaining.Add($Concept)
+            if ($BestScore -ge 0.30) { $NearMissCount++ }
         }
     }
+
+    # Context-rot: unmapped resolution metrics
+    $script:ContextRotStages += @(New-ContextRotStage `
+        -Stage 'unmapped_resolution' -InUnits 'concepts' -InCount $UnmappedConcepts.Count `
+        -OutUnits 'still_unmapped' -OutCount $Remaining.Count `
+        -Flags @{
+            resolved_count  = $Resolved.Count
+            near_miss_count = $NearMissCount
+            threshold       = $Threshold
+        })
 
     return [PSCustomObject]@{
         Resolved  = @($Resolved)

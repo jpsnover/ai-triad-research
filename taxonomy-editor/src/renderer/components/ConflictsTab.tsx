@@ -11,6 +11,7 @@ import { LineagePanel } from './LineagePanel';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { VocabularyPanel } from './VocabularyPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { SearchPanel } from './SearchPanel';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
@@ -138,7 +139,7 @@ export function ConflictsTab() {
     }
   };
 
-  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'console' || (toolbarPanel === 'prompts' && promptInspectorActive);
+  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'console' || (toolbarPanel === 'prompts' && promptInspectorActive);
 
   const renderLineagePreview = () => {
     if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
@@ -199,6 +200,7 @@ export function ConflictsTab() {
       case 'edges': return <EdgeBrowser />;
       case 'policyAlignment': return <PolicyAlignmentPanel />;
       case 'policyDashboard': return <PolicyDashboard />;
+      case 'vocabulary': return <VocabularyPanel />;
       case 'console': return <TerminalPanel />;
       default: return null;
     }

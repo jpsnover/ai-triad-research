@@ -84,6 +84,18 @@ function Merge-ChunkSummaries {
         Write-Verbose 'Merge-ChunkSummaries: falling back to string-prefix dedup (local model unavailable)'
     }
 
+    # ── Pre-dedup counts (for context-rot metrics) ─────────────────────────
+    $PreDedupPoints = 0; $PreDedupClaims = 0; $PreDedupConcepts = 0
+    foreach ($Chunk in $ChunkResults) {
+        foreach ($c in @('accelerationist','safetyist','skeptic')) {
+            if ($Chunk.pov_summaries.$c -and $Chunk.pov_summaries.$c.key_points) {
+                $PreDedupPoints += @($Chunk.pov_summaries.$c.key_points).Count
+            }
+        }
+        if ($Chunk.factual_claims) { $PreDedupClaims += @($Chunk.factual_claims).Count }
+        if ($Chunk.unmapped_concepts) { $PreDedupConcepts += @($Chunk.unmapped_concepts).Count }
+    }
+
     # ── Merge key_points per camp ────────────────────────────────────────────
     $Camps = @('accelerationist', 'safetyist', 'skeptic')
     $MergedPovSummaries = [ordered]@{}
@@ -185,10 +197,28 @@ function Merge-ChunkSummaries {
         }
     }
 
+    # ── Context-rot: merge/dedup metrics ─────────────────────────────────────
+    $PostDedupPoints = 0
+    foreach ($c in $Camps) { $PostDedupPoints += @($MergedPovSummaries[$c].key_points).Count }
+    $PostDedupClaims = $AllClaims.Count
+    $PostDedupConcepts = $AllUnmapped.Count
+    $TotalIn = $PreDedupPoints + $PreDedupClaims + $PreDedupConcepts
+    $TotalOut = $PostDedupPoints + $PostDedupClaims + $PostDedupConcepts
+    $MergeMetrics = New-ContextRotStage `
+        -Stage 'merge_dedup' -InUnits 'items' -InCount $TotalIn `
+        -OutUnits 'items' -OutCount $TotalOut `
+        -Flags @{
+            points_deduped   = $PreDedupPoints - $PostDedupPoints
+            claims_deduped   = $PreDedupClaims - $PostDedupClaims
+            concepts_deduped = $PreDedupConcepts - $PostDedupConcepts
+            used_embeddings  = [int]$UseEmbeddings
+        }
+
     # ── Return merged structure ──────────────────────────────────────────────
     return [ordered]@{
         pov_summaries    = $MergedPovSummaries
         factual_claims   = @($AllClaims)
         unmapped_concepts = @($AllUnmapped)
+        _merge_metrics   = $MergeMetrics
     }
 }

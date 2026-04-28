@@ -19,6 +19,8 @@
       "@lib/debate/*": ["../lib/debate/*"],
       "@lib/dictionary": ["../lib/dictionary/index.ts"],
       "@lib/dictionary/*": ["../lib/dictionary/*"],
+      "@lib/translation": ["../lib/translation/index.ts"],
+      "@lib/translation/*": ["../lib/translation/*"],
       "@lib/search/*": ["../lib/search/*"],
       "zod": ["node_modules/zod"]
     }

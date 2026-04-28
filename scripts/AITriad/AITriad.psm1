@@ -329,6 +329,9 @@ Export-ModuleMember -Function @(
     'Test-AITJudgeModel'
     'Repair-AITSummaryMappings'
     'Invoke-EdgeWeightEvaluation'
+    'Normalize-Markdown'
+    'Compare-DebateRuns'
+    'Invoke-DebateAB'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

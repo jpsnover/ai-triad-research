@@ -21,6 +21,7 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { TerminalPanel } from './TerminalPanel';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { VocabularyPanel } from './VocabularyPanel';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
 import { nodeTypeFromId } from '@lib/debate';
@@ -150,7 +151,7 @@ export function DebateTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
-        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
+        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
           {toolbarPanel === 'search' && <SearchPanel onSelectResult={(id) => setSearchPreviewId(id)} />}
           {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
@@ -158,7 +159,8 @@ export function DebateTab() {
           {toolbarPanel === 'console' && <TerminalPanel />}
           {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
           {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard'].includes(toolbarPanel) && (
+          {toolbarPanel === 'vocabulary' && <VocabularyPanel />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary'].includes(toolbarPanel) && (
             <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
           )}
         </div>

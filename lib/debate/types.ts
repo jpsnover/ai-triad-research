@@ -277,6 +277,8 @@ export interface DebateSession {
   cross_cutting_proposals?: CrossCuttingProposal[];
   /** Post-debate taxonomy gap diagnostics — coverage analysis across POVs and BDI categories. */
   taxonomy_gap_analysis?: TaxonomyGapAnalysis;
+  /** Context-rot metrics measured during this debate — tracks information loss at each pipeline stage. */
+  context_rot?: ContextRotMetrics;
 }
 
 export interface ConvergenceSignals {
@@ -692,6 +694,29 @@ export interface DebateDiagnostics {
   enabled: boolean;
   entries: Record<string, EntryDiagnostics>;
   overview: DebateOverviewDiagnostics;
+}
+
+// ── Context-rot instrumentation ─────────────────────────
+
+/** Per-stage measurement of information entering and leaving a processing step. */
+export interface ContextRotStage {
+  stage: string;
+  in_units: string;
+  in_count: number;
+  out_units: string;
+  out_count: number;
+  ratio: number;
+  flags: Record<string, number>;
+}
+
+/** Aggregate context-rot metrics for a full pipeline run (summary or debate). */
+export interface ContextRotMetrics {
+  schema_version: 1;
+  pipeline: 'summary' | 'debate';
+  doc_id: string;
+  measured_at: string;
+  stages: ContextRotStage[];
+  cumulative_retention: number;
 }
 
 export interface DebateSessionSummary {

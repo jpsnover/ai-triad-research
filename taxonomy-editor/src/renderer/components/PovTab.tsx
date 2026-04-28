@@ -29,6 +29,7 @@ import { getCategoryLabel, classifyLineage } from '../data/lineageCategories';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { VocabularyPanel } from './VocabularyPanel';
 import { nodeTypeFromId } from '@lib/debate';
 import { ConflictDetail } from './ConflictDetail';
 import { api } from '@bridge';
@@ -460,6 +461,8 @@ export function PovTab({ pov }: PovTabProps) {
         return <PolicyAlignmentPanel />;
       case 'policyDashboard':
         return <PolicyDashboard />;
+      case 'vocabulary':
+        return <VocabularyPanel />;
       default:
         return null;
     }
@@ -480,7 +483,7 @@ export function PovTab({ pov }: PovTabProps) {
         <div className="list-panel list-panel-full">
           <EdgeBrowser />
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? (
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary') ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -531,7 +534,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && toolbarPanel !== 'vocabulary' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -547,7 +550,7 @@ export function PovTab({ pov }: PovTabProps) {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard') ? null
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary') ? null
       : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />

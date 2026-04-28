@@ -85,6 +85,9 @@
         'Test-AITJudgeModel'
         'Repair-AITSummaryMappings'
         'Invoke-EdgeWeightEvaluation'
+        'Normalize-Markdown'
+        'Compare-DebateRuns'
+        'Invoke-DebateAB'
     )
 
     # Aliases exported from this module

@@ -53,6 +53,7 @@ import {
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
+import { formatVocabularyContext } from './vocabularyContext';
 import type { ContextInjectionManifest } from './taxonomyContext';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
 import type { DocumentAnalysis } from './types';
@@ -111,6 +112,11 @@ export interface DebateConfig {
   audience?: import('./types').DebateAudience;
   /** Round at which to inject gap arguments (0 = disabled, default = ceil(totalRounds/2)+1). */
   gapInjectionRound?: number;
+  /** Vocabulary terms for standardized term enforcement in persona prompts. */
+  vocabulary?: {
+    standardizedTerms: import('../dictionary/types').StandardizedTerm[];
+    colloquialTerms: import('../dictionary/types').ColloquialTerm[];
+  };
 }
 
 export interface DebateProgress {
@@ -267,6 +273,15 @@ export class DebateEngine {
     this.session.updated_at = nowISO();
     this.session.diagnostics!.overview.total_ai_calls = this.apiCallCount;
     this.session.diagnostics!.overview.total_response_time_ms = this.totalResponseTimeMs;
+
+    // Compute cumulative context-rot retention
+    if (this.session.context_rot && this.session.context_rot.stages.length > 0) {
+      this.session.context_rot.measured_at = nowISO();
+      this.session.context_rot.cumulative_retention = this.session.context_rot.stages.reduce(
+        (acc, s) => acc * (s.ratio > 0 && s.ratio <= 1 ? s.ratio : 1), 1,
+      );
+      this.session.context_rot.cumulative_retention = Math.round(this.session.context_rot.cumulative_retention * 10000) / 10000;
+    }
 
     return this.session;
   }
@@ -731,12 +746,25 @@ export class DebateEngine {
     const activePovers = this.config.activePovers.map(
       p => POVER_INFO[p].pov,
     );
-    const prompt = documentAnalysisPrompt(
+    const { prompt, truncationMetrics } = documentAnalysisPrompt(
       this.config.sourceContent ?? '',
       this.session.topic.final,
       activePovers,
       taxonomySample,
     );
+
+    // Record document truncation context-rot metrics
+    if (!this.session.context_rot) {
+      this.session.context_rot = {
+        schema_version: 1,
+        pipeline: 'debate',
+        doc_id: this.session.id,
+        measured_at: new Date().toISOString(),
+        stages: [],
+        cumulative_retention: 1,
+      };
+    }
+    this.session.context_rot.stages.push(truncationMetrics);
 
     const text = await this.generate(prompt, 'Document analysis');
 
@@ -806,7 +834,10 @@ export class DebateEngine {
         }
       }
 
-      const fullContext = taxonomyContext + commitmentContext + establishedPoints + edgeContext;
+      const vocabContext = this.config.vocabulary
+        ? '\n' + formatVocabularyContext({ pov: info.pov, ...this.config.vocabulary })
+        : '';
+      const fullContext = taxonomyContext + vocabContext + commitmentContext + establishedPoints + edgeContext;
       const prompt = openingStatementPrompt(
         info.label, info.pov, info.personality,
         this.session.topic.final, fullContext, priorBlock,
@@ -1108,12 +1139,15 @@ export class DebateEngine {
     }
 
     // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+    const turnVocabContext = this.config.vocabulary
+      ? '\n' + formatVocabularyContext({ pov: info.pov, ...this.config.vocabulary })
+      : '';
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
       personality: info.personality,
       topic: this.session.topic.final,
-      taxonomyContext,
+      taxonomyContext: taxonomyContext + turnVocabContext,
       commitmentContext,
       establishedPoints,
       edgeContext: debaterEdgeContext,
@@ -1462,6 +1496,23 @@ export class DebateEngine {
           up_to_entry_id: toCompress[toCompress.length - 1].id,
           summary: parsed.summary,
         });
+
+        // Context-rot: transcript compression metrics
+        const inChars = entries.length;
+        const outChars = parsed.summary.length;
+        if (this.session.context_rot) {
+          this.session.context_rot.stages.push({
+            stage: 'transcript_compression',
+            in_units: 'chars', in_count: inChars,
+            out_units: 'chars', out_count: outChars,
+            ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+            flags: {
+              entries_compressed: toCompress.length,
+              compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+              window_size: keepRecent,
+            },
+          });
+        }
       }
     } catch (err) {
       this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');

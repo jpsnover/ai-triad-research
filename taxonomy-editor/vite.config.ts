@@ -25,6 +25,7 @@ export default defineConfig({
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
       '@lib/dictionary': path.resolve(__dirname, '../lib/dictionary'),
+      '@lib/translation': path.resolve(__dirname, '../lib/translation'),
       // Allow lib/debate/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),

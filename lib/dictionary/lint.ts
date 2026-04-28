@@ -1,20 +1,35 @@
 import type { LintViolation, LintOptions, StandardizedTerm, ColloquialTerm } from './types';
 import type { DictionaryLoader } from './loader';
+import { parseQuotationMarkers, isInsideQuotation } from './quotation';
+import { renderDisplay, reverseRender, buildReverseMap } from './render';
+
+const BOUNDARY_RE = /[\s.,;:!?()\[\]{}"'`<>\/\\]/;
+
+function isBoundaryChar(ch: string | undefined): boolean {
+  if (ch === undefined) return true;
+  return BOUNDARY_RE.test(ch);
+}
 
 /**
  * Lint the dictionary for internal consistency.
- * Phase 1 enforces constraints 1-3 only.
  *
  * Constraint 1: Every standardized term has unique canonical_form and display_form.
  * Constraint 2: Every node ID in used_by_nodes exists in the taxonomy.
  * Constraint 3: Every standardized term referenced by resolves_to exists.
+ * Constraint 4: No text contains bare do_not_use_bare colloquial terms outside quotation/code.
+ * Constraint 5: (Persona prompts) — checked via lintText.
+ * Constraint 6: (Synthesis outputs) — checked via lintText.
+ * Constraint 7: Every accepted standardized term has a coinage_log_ref.
+ * Constraint 8: Schema version in entries matches current version.
+ * Constraint 9: Round-trip rendering produces identical output.
+ * Constraint 10: All quotation markers are well-formed.
  */
 export function lintDictionary(
   loader: DictionaryLoader,
   taxonomyNodeIds?: Set<string>,
   options?: LintOptions,
 ): LintViolation[] {
-  const constraints = options?.constraints ?? [1, 2, 3];
+  const constraints = options?.constraints ?? [1, 2, 3, 7, 8, 9, 10];
   const violations: LintViolation[] = [];
 
   const standardized = loader.listStandardized();
@@ -29,9 +44,74 @@ export function lintDictionary(
   if (constraints.includes(3)) {
     violations.push(...checkConstraint3(colloquial, standardized));
   }
+  if (constraints.includes(7)) {
+    violations.push(...checkConstraint7(standardized));
+  }
+  if (constraints.includes(8)) {
+    violations.push(...checkConstraint8(standardized, colloquial, loader));
+  }
 
   return violations;
 }
+
+/**
+ * Lint text for bare colloquial terms (constraint 4).
+ * Used for node fields, persona prompts, synthesis outputs.
+ */
+export function lintText(
+  text: string,
+  loader: DictionaryLoader,
+  options?: LintOptions & { file?: string; fieldName?: string },
+): LintViolation[] {
+  const constraints = options?.constraints ?? [4, 10];
+  const violations: LintViolation[] = [];
+
+  if (constraints.includes(4)) {
+    violations.push(...checkConstraint4(text, loader, options?.file, options?.fieldName));
+  }
+  if (constraints.includes(9)) {
+    violations.push(...checkConstraint9(text, loader, options?.file));
+  }
+  if (constraints.includes(10)) {
+    violations.push(...checkConstraint10(text, options?.file));
+  }
+
+  return violations;
+}
+
+/**
+ * Lint a set of taxonomy node objects for constraint 4.
+ */
+export function lintNodes(
+  nodes: Array<{ id: string; label?: string; description?: string; graph_attributes?: { characteristic_language?: string[] } }>,
+  loader: DictionaryLoader,
+  options?: LintOptions,
+): LintViolation[] {
+  const violations: LintViolation[] = [];
+  for (const node of nodes) {
+    const fields: Array<[string, string]> = [];
+    if (node.label) fields.push(['label', node.label]);
+    if (node.description) fields.push(['description', node.description]);
+    if (node.graph_attributes?.characteristic_language) {
+      for (const phrase of node.graph_attributes.characteristic_language) {
+        fields.push(['characteristic_language', phrase]);
+      }
+    }
+
+    for (const [fieldName, text] of fields) {
+      const textViolations = lintText(text, loader, {
+        ...options,
+        file: node.id,
+        fieldName,
+        constraints: [4],
+      });
+      violations.push(...textViolations);
+    }
+  }
+  return violations;
+}
+
+// ── Constraint implementations ──────────────────────────
 
 function checkConstraint1(terms: StandardizedTerm[]): LintViolation[] {
   const violations: LintViolation[] = [];
@@ -120,15 +200,203 @@ function checkConstraint3(
   return violations;
 }
 
-export function lintText(
+function checkConstraint4(
   text: string,
   loader: DictionaryLoader,
-  options?: LintOptions,
+  file?: string,
+  fieldName?: string,
 ): LintViolation[] {
-  const constraints = options?.constraints ?? [1, 2, 3];
-  if (!constraints.includes(4)) return [];
+  const violations: LintViolation[] = [];
+  const colloquials = loader.listColloquial({ status: 'do_not_use_bare' });
+  if (colloquials.length === 0) return violations;
 
-  // Constraint 4 is deferred to Phase 3 — this is a placeholder
-  // that will scan for do_not_use_bare colloquial terms in text
+  const { spans: quotationSpans } = parseQuotationMarkers(text);
+  const codeBlockRanges = findCodeBlockRanges(text);
+  const inlineCodeRanges = findInlineCodeRanges(text);
+  const textLower = text.toLowerCase();
+
+  for (const term of colloquials) {
+    const needle = term.colloquial_term.toLowerCase();
+    let searchFrom = 0;
+
+    while (searchFrom < textLower.length) {
+      const idx = textLower.indexOf(needle, searchFrom);
+      if (idx === -1) break;
+      searchFrom = idx + 1;
+
+      const prevChar = idx > 0 ? text[idx - 1] : undefined;
+      const afterIdx = idx + needle.length;
+      const afterChar = afterIdx < text.length ? text[afterIdx] : undefined;
+
+      if (!isBoundaryChar(prevChar) || !isBoundaryChar(afterChar)) continue;
+      if (isInsideQuotation(idx, quotationSpans)) continue;
+      if (isInsideRange(idx, codeBlockRanges)) continue;
+      if (isInsideRange(idx, inlineCodeRanges)) continue;
+
+      const resolvesTo = term.resolves_to.map(r => r.standardized_term).join(', ');
+      const ctx = text.slice(Math.max(0, idx - 30), Math.min(text.length, afterIdx + 30)).replace(/\n/g, ' ');
+      const location = fieldName ? `${file ?? ''}:${fieldName}` : file;
+
+      violations.push({
+        constraint_id: 4,
+        severity: 'warning',
+        file: location,
+        message: `Bare colloquial term '${term.colloquial_term}' at offset ${idx}. Resolves to: ${resolvesTo}. Context: "...${ctx}..."`,
+        violation_text: term.colloquial_term,
+        suggested_fix: `Replace with the appropriate standardized term (${resolvesTo}) or wrap in <q canonical-bypass>...</q>`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function checkConstraint7(terms: StandardizedTerm[]): LintViolation[] {
+  const violations: LintViolation[] = [];
+  for (const term of terms) {
+    if (term.coinage_status === 'accepted' && !term.coinage_log_ref) {
+      violations.push({
+        constraint_id: 7,
+        severity: 'error',
+        file: `standardized/${term.canonical_form}.json`,
+        message: `Accepted term '${term.canonical_form}' has no coinage_log_ref`,
+        violation_text: term.canonical_form,
+        suggested_fix: 'Add a coinage_log_ref pointing to the coinage log entry',
+      });
+    }
+    if (term.coinage_log_ref && !/^log-entry-\d+$/.test(term.coinage_log_ref)) {
+      violations.push({
+        constraint_id: 7,
+        severity: 'error',
+        file: `standardized/${term.canonical_form}.json`,
+        message: `coinage_log_ref '${term.coinage_log_ref}' does not match expected format 'log-entry-NNN'`,
+        violation_text: term.coinage_log_ref,
+      });
+    }
+  }
+  return violations;
+}
+
+function checkConstraint8(
+  standardized: StandardizedTerm[],
+  colloquial: ColloquialTerm[],
+  loader: DictionaryLoader,
+): LintViolation[] {
+  const violations: LintViolation[] = [];
+  const version = loader.getVersion().schema_version;
+
+  for (const term of standardized) {
+    if (term.$schema_version !== version) {
+      violations.push({
+        constraint_id: 8,
+        severity: 'error',
+        file: `standardized/${term.canonical_form}.json`,
+        message: `Schema version '${term.$schema_version}' does not match current '${version}'`,
+        violation_text: term.$schema_version,
+        suggested_fix: 'Run the migration script to update entries',
+      });
+    }
+  }
+
+  for (const term of colloquial) {
+    if (term.$schema_version !== version) {
+      violations.push({
+        constraint_id: 8,
+        severity: 'error',
+        file: `colloquial/${term.colloquial_term}.json`,
+        message: `Schema version '${term.$schema_version}' does not match current '${version}'`,
+        violation_text: term.$schema_version,
+        suggested_fix: 'Run the migration script to update entries',
+      });
+    }
+  }
+
+  return violations;
+}
+
+function checkConstraint9(
+  text: string,
+  loader: DictionaryLoader,
+  file?: string,
+): LintViolation[] {
+  const displayMap = loader.getDisplayFormMap();
+  if (displayMap.size === 0) return [];
+
+  const rendered = renderDisplay(text, displayMap);
+  const reverseMap = buildReverseMap(displayMap);
+  const roundTripped = reverseRender(rendered.rendered, reverseMap);
+
+  if (roundTripped.rendered !== text) {
+    return [{
+      constraint_id: 9,
+      severity: 'error',
+      file,
+      message: 'Round-trip rendering (render → reverse) does not reproduce original text',
+      violation_text: roundTripped.rendered.slice(0, 200),
+    }];
+  }
+
   return [];
+}
+
+function checkConstraint10(text: string, file?: string): LintViolation[] {
+  const { errors } = parseQuotationMarkers(text);
+  return errors.map(err => ({
+    constraint_id: 10,
+    severity: 'error',
+    file,
+    message: `Malformed quotation marker at offset ${err.offset}: ${err.message}`,
+    violation_text: text.slice(err.offset, err.offset + 40),
+  }));
+}
+
+// ── Helpers ─────────────────────────────────────────────
+
+function findCodeBlockRanges(text: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const fence = /```/g;
+  let match: RegExpExecArray | null;
+  let openPos: number | null = null;
+
+  while ((match = fence.exec(text)) !== null) {
+    if (openPos === null) {
+      openPos = match.index;
+    } else {
+      ranges.push([openPos, match.index + 3]);
+      openPos = null;
+    }
+  }
+  return ranges;
+}
+
+function findInlineCodeRanges(text: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith('```', i)) {
+      i += 3;
+      const end = text.indexOf('```', i);
+      i = end === -1 ? text.length : end + 3;
+      continue;
+    }
+    if (text[i] === '`') {
+      const start = i;
+      i++;
+      while (i < text.length && text[i] !== '`') i++;
+      if (i < text.length) {
+        ranges.push([start, i + 1]);
+        i++;
+      }
+      continue;
+    }
+    i++;
+  }
+  return ranges;
+}
+
+function isInsideRange(offset: number, ranges: Array<[number, number]>): boolean {
+  for (const [start, end] of ranges) {
+    if (offset >= start && offset < end) return true;
+  }
+  return false;
 }

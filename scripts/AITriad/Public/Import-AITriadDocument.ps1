@@ -311,6 +311,9 @@ function Import-AITriadDocument {
         }
         Write-OK "Raw file saved: raw/$RawFilename"
 
+        # -- Normalize markdown (encoding artifacts, ligatures, etc.) ----------
+        $MarkdownText = Normalize-Markdown -Text $MarkdownText
+
         # -- Add provenance header and write snapshot.md ----------------------
         $FinalMarkdown = Add-SnapshotHeader `
             -Markdown    $MarkdownText `

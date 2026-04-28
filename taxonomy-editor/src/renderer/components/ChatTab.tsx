@@ -16,6 +16,7 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { TerminalPanel } from './TerminalPanel';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { VocabularyPanel } from './VocabularyPanel';
 import { POVER_INFO } from '../types/debate';
 import type { ChatSessionSummary, ChatMode } from '../types/chat';
 
@@ -64,7 +65,7 @@ export function ChatTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
-        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
+        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
           {toolbarPanel === 'search' && <SearchPanel onSelectResult={() => {}} />}
           {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
@@ -72,7 +73,8 @@ export function ChatTab() {
           {toolbarPanel === 'console' && <TerminalPanel />}
           {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
           {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard'].includes(toolbarPanel) && (
+          {toolbarPanel === 'vocabulary' && <VocabularyPanel />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary'].includes(toolbarPanel) && (
             <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
           )}
         </div>
@@ -171,7 +173,7 @@ export function ChatTab() {
       )}
 
       {/* Right pane: context-dependent */}
-      {(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
+      {(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
         : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />

@@ -21,6 +21,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
+import { VocabularyPanel } from './VocabularyPanel';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
@@ -316,6 +317,8 @@ export function SituationsTab() {
         return <PolicyAlignmentPanel />;
       case 'policyDashboard':
         return <PolicyDashboard />;
+      case 'vocabulary':
+        return <VocabularyPanel />;
       default:
         return null;
     }
@@ -324,7 +327,7 @@ export function SituationsTab() {
   return (
     <div className="two-column">
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? (
+      {(toolbarPanel === 'search' || toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? (
         <div className="list-panel list-panel-full">
           {renderToolbarPane()}
         </div>
@@ -414,7 +417,7 @@ export function SituationsTab() {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
+      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && toolbarPanel !== 'vocabulary' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage preview, or normal detail) */}
@@ -430,7 +433,7 @@ export function SituationsTab() {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
+      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
       : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />
