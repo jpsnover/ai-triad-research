@@ -6,7 +6,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { HelpDialog } from './HelpDialog';
 import { SettingsDialog } from './SettingsDialog';
 
-type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard';
+type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary';
 
 export function Toolbar() {
   const {
@@ -38,7 +38,7 @@ export function Toolbar() {
     return () => window.removeEventListener('mousedown', handler);
   }, [showMore]);
 
-  const morePanels: ToolbarPanel[] = ['edges', 'policyAlignment', 'policyDashboard', 'fallacy'];
+  const morePanels: ToolbarPanel[] = ['edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary'];
   const moreHasActive = morePanels.includes(toolbarPanel as ToolbarPanel);
 
   // Escape key navigates back
@@ -250,6 +250,19 @@ export function Toolbar() {
                   <path d="M3.6 15.4L10.3 4.6a2 2 0 0 1 3.4 0l6.7 10.8A2 2 0 0 1 18.7 19H5.3a2 2 0 0 1-1.7-3.6z" />
                 </svg>
                 <span>Possible Fallacies</span>
+              </button>
+              <button
+                className={`toolbar-more-item${toolbarPanel === 'vocabulary' ? ' active' : ''}`}
+                onClick={() => { toggle('vocabulary'); setShowMore(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <path d="M8 7h8" />
+                  <path d="M8 11h6" />
+                  <path d="M8 15h4" />
+                </svg>
+                <span>Vocabulary</span>
               </button>
             </div>
           )}
