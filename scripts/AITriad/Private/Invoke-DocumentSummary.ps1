@@ -647,7 +647,7 @@ function Finalize-Summary {
         $MetaUpdated['total_facts']       = $TotalPoints
         $MetaUpdated['unmapped_concepts'] = $UnmappedCount
         if ($ContextRotObj) {
-            $WorstStage = $ContextRotStages | Sort-Object ratio | Select-Object -First 1
+            $WorstStage = $ContextRotStages | Sort-Object { $_.ratio } | Select-Object -First 1
             $MetaUpdated['context_rot'] = [ordered]@{
                 cumulative_retention = $ContextRotObj.cumulative_retention
                 worst_stage          = $WorstStage.stage
