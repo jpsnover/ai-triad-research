@@ -91,3 +91,6 @@ GEMINI.local.md
 **/.claude/agents/
 **/.gemini/agents/
 tmp/
+
+# One-off audit/report artifacts
+judge-audit-report.json

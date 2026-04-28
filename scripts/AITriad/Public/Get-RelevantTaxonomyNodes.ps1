@@ -56,7 +56,7 @@ function Get-RelevantTaxonomyNodes {
         [ValidateRange(0.0, 1.0)]
         [double]$Threshold = 0.30,
 
-        [ValidateRange(1, 200)]
+        [ValidateRange(1, 600)]
         [int]$MaxTotal = 50,
 
         [ValidateRange(0, 20)]
