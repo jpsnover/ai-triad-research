@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteConflictFile: (claimId: string): Promise<void> =>
     ipcRenderer.invoke('delete-conflict-file', claimId),
 
+  loadDictionary: (): Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }> =>
+    ipcRenderer.invoke('load-dictionary'),
+
   isDataAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('is-data-available'),
 

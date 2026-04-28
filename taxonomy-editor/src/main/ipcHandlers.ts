@@ -89,6 +89,37 @@ export function registerIpcHandlers(): void {
     return readConflictClusters();
   });
 
+  // Dictionary
+  ipcMain.handle('load-dictionary', () => {
+    try {
+      const dictDir = path.join(getDataRootPath(), 'dictionary');
+      const stdDir = path.join(dictDir, 'standardized');
+      const colDir = path.join(dictDir, 'colloquial');
+
+      const standardized: unknown[] = [];
+      if (fs.existsSync(stdDir)) {
+        for (const f of fs.readdirSync(stdDir).filter(f => f.endsWith('.json'))) {
+          try {
+            standardized.push(JSON.parse(fs.readFileSync(path.join(stdDir, f), 'utf-8')));
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      const colloquial: unknown[] = [];
+      if (fs.existsSync(colDir)) {
+        for (const f of fs.readdirSync(colDir).filter(f => f.endsWith('.json'))) {
+          try {
+            colloquial.push(JSON.parse(fs.readFileSync(path.join(colDir, f), 'utf-8')));
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      return { standardized, colloquial, lintViolations: [] };
+    } catch {
+      return { standardized: [], colloquial: [], lintViolations: [] };
+    }
+  });
+
   // Summaries & Sources
   ipcMain.handle('discover-sources', () => discoverSources());
   ipcMain.handle('load-summary', (_event, docId: string) => loadSummary(docId));
