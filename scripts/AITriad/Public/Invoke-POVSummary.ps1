@@ -110,6 +110,8 @@ function Invoke-POVSummary {
         throw "metadata.json not found for $DocId"
     }
 
+    $script:ContextRotStages = @()
+
     $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json
     if ((-not $Force) -and (-not $DryRun) -and ($metadata.summary_status -eq "current")) {
         Write-Warn "Summary is already current (taxonomy v$($metadata.summary_version))."
@@ -253,6 +255,12 @@ function Invoke-POVSummary {
     $taxonomyJson         = $pipelineResult.TaxonomyJson
     $fireStats            = $pipelineResult.FireStats
     $usedFire             = $pipelineResult.UsedFire
+
+    # Collect context-rot stages from pipeline
+    $ContextRotStages = @($script:ContextRotStages)
+    $ContextRotObj = if ($ContextRotStages.Count -gt 0) {
+        New-ContextRotMetrics -Pipeline 'summary' -DocId $DocId -Stages $ContextRotStages
+    } else { $null }
     $elapsed              = [TimeSpan]::FromSeconds($pipelineResult.ElapsedSeconds)
     $camps                = @('accelerationist', 'safetyist', 'skeptic')
 
@@ -318,6 +326,7 @@ function Invoke-POVSummary {
         pov_summaries     = $summaryObject.pov_summaries
         factual_claims    = $summaryObject.factual_claims
         unmapped_concepts = $summaryObject.unmapped_concepts
+        context_rot       = $ContextRotObj
     }
 
     $summaryJson = $finalSummary | ConvertTo-Json -Depth 20
@@ -363,6 +372,15 @@ function Invoke-POVSummary {
         $metaUpdated["claims_by_pov"]      = $claimsByPov
         $metaUpdated["total_facts"]        = $totalFacts
         $metaUpdated["unmapped_concepts"]  = $unmappedConceptCount
+
+        if ($ContextRotObj) {
+            $WorstStage = $ContextRotStages | Sort-Object { $_.ratio } | Select-Object -First 1
+            $metaUpdated['context_rot'] = [ordered]@{
+                cumulative_retention = $ContextRotObj.cumulative_retention
+                worst_stage          = if ($WorstStage) { $WorstStage.stage } else { $null }
+                worst_ratio          = if ($WorstStage) { $WorstStage.ratio } else { $null }
+            }
+        }
 
         Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) 
         Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
