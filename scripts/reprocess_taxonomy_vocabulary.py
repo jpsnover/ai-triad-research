@@ -194,6 +194,7 @@ def replace_bare_terms_in_text(
 
     Uses placeholder tokens to prevent display forms (which contain bare terms
     like 'oversight' in 'governance (oversight)') from being double-matched.
+    Pre-existing display forms are protected so re-runs are idempotent.
     """
     if not text or not isinstance(text, str):
         return text, []
@@ -201,6 +202,21 @@ def replace_bare_terms_in_text(
     annotations = []
     placeholders: dict[str, str] = {}
     placeholder_id = 0
+
+    # Protect pre-existing display forms so re-runs don't nest them.
+    # Sort longest first so "alignment (safety)" is matched before "safety (empirical)".
+    all_display_forms = sorted(
+        (std["display_form"] for std in standardized_terms.values() if std.get("display_form")),
+        key=len, reverse=True,
+    )
+    for df in all_display_forms:
+        pattern = re.compile(re.escape(df), re.IGNORECASE)
+        for m in reversed(list(pattern.finditer(text))):
+            token = f"{_PLACEHOLDER_PREFIX}{placeholder_id}{_PLACEHOLDER_SUFFIX}"
+            placeholders[token] = m.group(0)
+            placeholder_id += 1
+            text = text[:m.start()] + token + text[m.end():]
+
     sorted_terms = sorted(colloquial_terms.keys(), key=len, reverse=True)
 
     for bare_term in sorted_terms:
@@ -231,11 +247,11 @@ def replace_bare_terms_in_text(
                 qualifier_match = re.search(r"\(([^)]+)\)", display)
                 if qualifier_match:
                     qualifier = qualifier_match.group(1).lower()
-                    # Check 50 chars before and after for the qualifier word
+                    qual_word = qualifier.split("/")[0].split(",")[0].strip()
                     nearby = text[max(0, start - 50):min(len(text), end + 50)].lower()
-                    # Remove the bare term itself from the nearby check
                     nearby_without = nearby.replace(bare_term.lower(), "", 1)
-                    if qualifier.split("/")[0].split(",")[0].strip() in nearby_without:
+                    # Word-boundary match to avoid "safety" matching inside "safetyist"
+                    if re.search(rf"(?<![a-zA-Z]){re.escape(qual_word)}(?![a-zA-Z])", nearby_without):
                         continue
 
                 if original[0].isupper() and display[0].islower():
