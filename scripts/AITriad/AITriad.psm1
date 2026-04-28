@@ -328,6 +328,7 @@ Export-ModuleMember -Function @(
     'Test-EdgeDirection'
     'Test-AITJudgeModel'
     'Repair-AITSummaryMappings'
+    'Invoke-EdgeWeightEvaluation'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

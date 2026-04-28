@@ -439,6 +439,10 @@ $SchemaPrompt
                     discovered_at = (Get-Date).ToString('yyyy-MM-dd')
                     model         = $Model
                 }
+                if ($Edge.PSObject.Properties['weight'] -and $null -ne $Edge.weight) {
+                    $W = [double]$Edge.weight
+                    if ($W -ge 0.0 -and $W -le 1.0) { $EdgeObj['weight'] = $W }
+                }
                 if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
                 if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
 
@@ -543,6 +547,10 @@ $SchemaPrompt
                     status        = 'proposed'
                     discovered_at = (Get-Date).ToString('yyyy-MM-dd')
                     model         = $Model
+                }
+                if ($Edge.PSObject.Properties['weight'] -and $null -ne $Edge.weight) {
+                    $W = [double]$Edge.weight
+                    if ($W -ge 0.0 -and $W -le 1.0) { $EdgeObj['weight'] = $W }
                 }
                 if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
                 if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }

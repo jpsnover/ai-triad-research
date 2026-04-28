@@ -188,7 +188,7 @@ export default function PotentialEdgesPane() {
                         className={`similar-table-row${selectedIdx === i ? ' selected' : ''}`}
                         onClick={() => setSelectedIdx(prev => prev === i ? null : i)}
                       >
-                        <td className="similar-table-match">{Math.round(e.confidence * 100)}%</td>
+                        <td className="similar-table-match" title="w=weight, c=confidence">{e.weight != null ? `w${Math.round(e.weight * 100)} ` : ''}c{Math.round(e.confidence * 100)}</td>
                         <td className="potential-edge-type">
                           <span className={`edge-type-badge edge-type-${e.type.toLowerCase()}`}>
                             {e.type.replace(/_/g, ' ')}
@@ -216,7 +216,7 @@ export default function PotentialEdgesPane() {
                 <div className="similar-detail-panel">
                   <div className="similar-detail-header">
                     <span className="similar-detail-id">{selectedEdge.target}</span>
-                    <span className="similar-detail-match">{Math.round(selectedEdge.confidence * 100)}% confidence</span>
+                    <span className="similar-detail-match" title="w=weight (strength), c=confidence (certainty)">{selectedEdge.weight != null ? `w${Math.round(selectedEdge.weight * 100)}% ` : ''}c{Math.round(selectedEdge.confidence * 100)}%</span>
                   </div>
 
                   <div className="potential-edge-detail-type">

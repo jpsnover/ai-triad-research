@@ -29,12 +29,16 @@ const STATUS_LABEL: Record<EdgeStatus, string> = {
   rejected: 'Rejected',
 };
 
-function ConfidenceBar({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
+function EdgeMetrics({ confidence, weight }: { confidence: number; weight?: number }) {
+  const cPct = Math.round(confidence * 100);
+  const wPct = weight != null ? Math.round(weight * 100) : null;
+  const title = wPct != null
+    ? `w=${wPct}% (relationship strength)  c=${cPct}% (existence confidence)`
+    : `c=${cPct}% (existence confidence)`;
   return (
-    <span className="related-confidence" title={`${pct}% confidence`}>
-      <span className="related-confidence-bar" style={{ width: `${pct}%` }} />
-      <span className="related-confidence-label">{pct}%</span>
+    <span className="related-confidence" title={title}>
+      {wPct != null && <span className="related-wc-tag">w{wPct}</span>}
+      <span className="related-wc-tag">c{cPct}</span>
     </span>
   );
 }
@@ -76,7 +80,7 @@ function EdgeRow({
       </div>
       <div className="related-edge-sub">
         <span className="related-edge-id">{otherNodeId}</span>
-        <ConfidenceBar value={edge.confidence} />
+        <EdgeMetrics confidence={edge.confidence} weight={edge.weight} />
       </div>
     </div>
   );

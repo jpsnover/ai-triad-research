@@ -858,7 +858,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                   {contribution != null && (
-                    <span title={`Attack contribution = source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}). Rebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help' }}>
+                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help' }}>
                       −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}×{atkMult.toFixed(1)})</span>
                     </span>
                   )}

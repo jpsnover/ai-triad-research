@@ -84,6 +84,7 @@
         'Test-EdgeDirection'
         'Test-AITJudgeModel'
         'Repair-AITSummaryMappings'
+        'Invoke-EdgeWeightEvaluation'
     )
 
     # Aliases exported from this module

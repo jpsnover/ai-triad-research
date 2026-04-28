@@ -9326,6 +9326,14 @@ body {
   white-space: nowrap;
 }
 
+.related-wc-tag {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
 .related-edge-status {
   font-size: 0.6rem;
   font-weight: 600;
@@ -9541,6 +9549,18 @@ body {
   background: var(--focus-ring);
   border-radius: 3px;
   transition: width 0.2s ease;
+}
+
+.edge-detail-weight-fill {
+  background: #f59e0b;
+}
+
+.edge-detail-wc-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 12px;
+  text-align: center;
 }
 
 .edge-detail-confidence-pct {

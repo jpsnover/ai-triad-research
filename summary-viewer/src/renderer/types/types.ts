@@ -109,6 +109,7 @@ export interface PotentialEdge {
   inbound: boolean;
   bidirectional: boolean;
   confidence: number;
+  weight?: number;
   rationale: string;
   strength?: string;
 }

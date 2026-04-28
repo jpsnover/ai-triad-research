@@ -53,6 +53,12 @@ EDGE ATTRIBUTES:
     0.7-0.9: Strongly implied.
     0.5-0.7: Plausible but indirect.
 
+  weight (required, number 0.1-1.0):
+    How strong the relationship is (independent of confidence).
+    0.8-1.0: Central — core argument directly engages target.
+    0.5-0.8: Significant but secondary.
+    0.1-0.5: Peripheral — tangential connection.
+
   rationale (required, string): 1-2 sentences referencing content of both nodes.
 
   strength (optional, "strong" | "moderate" | "weak")
@@ -109,6 +115,7 @@ OUTPUT SCHEMA:
       "target": "saf-desires-001",
       "bidirectional": true,
       "confidence": 0.85,
+      "weight": 0.9,
       "rationale": "Explanation referencing both nodes.",
       "strength": "strong"
     }

@@ -171,6 +171,7 @@ function Get-Edge {
             Type          = $E.type
             Bidirectional = [bool]$E.bidirectional
             Confidence    = $E.confidence
+            Weight        = if ($E.PSObject.Properties['weight']) { $E.weight } else { $null }
             Status        = $E.status
             Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
             Rationale     = $E.rationale
@@ -266,6 +267,7 @@ function Get-Edge {
             Type          = $E.type
             Bidirectional = [bool]$E.bidirectional
             Confidence    = $E.confidence
+            Weight        = if ($E.PSObject.Properties['weight']) { $E.weight } else { $null }
             Status        = $E.status
             Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
             Rationale     = $E.rationale

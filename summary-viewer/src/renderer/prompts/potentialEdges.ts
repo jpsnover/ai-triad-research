@@ -53,8 +53,10 @@ EDGE ATTRIBUTES:
 
 For each proposed edge, provide:
   confidence (required, number 0.5-1.0): Your confidence the edge genuinely exists.
+  weight (required, number 0.1-1.0): How strong the relationship is (independent of
+    confidence). 0.8-1.0 = central, 0.5-0.8 = significant, 0.1-0.5 = peripheral.
   rationale (required, string): 1-2 sentences explaining WHY this edge exists.
-  strength (optional, "strong" | "moderate" | "weak"): How strong the relationship is.
+  strength (optional, "strong" | "moderate" | "weak"): Qualitative label matching weight.
 
 RULES:
   - Be precise. Every edge must be justified by the actual content of both the concept and node.
@@ -92,6 +94,7 @@ OUTPUT SCHEMA:
       "inbound": false,
       "bidirectional": true,
       "confidence": 0.85,
+      "weight": 0.9,
       "rationale": "Explanation of why this edge exists.",
       "strength": "strong"
     }

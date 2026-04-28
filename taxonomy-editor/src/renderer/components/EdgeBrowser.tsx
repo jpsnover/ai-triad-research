@@ -337,7 +337,7 @@ export function EdgeBrowser() {
               </div>
               <div className="eb-row-sub">
                 <span className="eb-row-ids">{edge.source} → {edge.target}</span>
-                <span className="eb-row-conf">{Math.round(edge.confidence * 100)}%</span>
+                <span className="eb-row-conf" title="w=weight, c=confidence">{edge.weight != null ? `w${Math.round(edge.weight * 100)} ` : ''}c{Math.round(edge.confidence * 100)}</span>
                 {edge.status !== 'approved' && <span className={`eb-row-status status-${edge.status}`}>{edge.status}</span>}
                 {edge.status === 'proposed' && (
                   <span className="eb-row-actions">
@@ -391,7 +391,8 @@ export function EdgeBrowser() {
               </div>
 
               <div className="eb-detail-meta">
-                <span>Confidence: {Math.round(selectedEdge.confidence * 100)}%</span>
+                {selectedEdge.weight != null && <span title="How strong the relationship is">Weight: {Math.round(selectedEdge.weight * 100)}%</span>}
+                <span title="How certain this edge exists">Confidence: {Math.round(selectedEdge.confidence * 100)}%</span>
                 {selectedEdge.strength && <span>Strength: {selectedEdge.strength}</span>}
                 {selectedEdge.direction_flag === 'suspect' && <span className="eb-direction-suspect">⚠ Direction suspect</span>}
               </div>

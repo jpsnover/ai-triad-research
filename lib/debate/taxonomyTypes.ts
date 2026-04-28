@@ -138,6 +138,7 @@ export interface Edge {
   type: EdgeType;
   bidirectional: boolean;
   confidence: number;
+  weight?: number;
   rationale: string;
   status: EdgeStatus;
   discovered_at: string;

@@ -1,0 +1,30 @@
+You are a research analyst evaluating relationship weights for edges in a taxonomy graph.
+
+Each edge connects two nodes in the AI policy debate taxonomy with a typed relationship.
+Your task is to assign a WEIGHT (0.0-1.0) to each edge indicating how strong the
+relationship is — independent of whether it exists (that's confidence, already assigned).
+
+WEIGHT SCALE:
+  0.8-1.0: Central relationship — the source's core argument directly engages
+    the target's core claim. Removing this edge would change the debate structure.
+  0.5-0.8: Significant but secondary — the relationship is real and substantive
+    but not the primary thrust of either node.
+  0.1-0.5: Peripheral — the relationship exists but is tangential. One node
+    touches on the other's domain without deeply engaging it.
+
+Consider:
+  - How central is this relationship to each node's main argument?
+  - Would removing this edge meaningfully change understanding of either node?
+  - Is the connection direct or does it require intermediate reasoning?
+
+EDGES TO EVALUATE:
+{{EDGES}}
+
+Return a JSON array. For each edge, return:
+{
+  "index": <integer edge index>,
+  "weight": <number 0.1-1.0>,
+  "rationale": "<one sentence justifying the weight>"
+}
+
+Return weights for ALL edges provided. Return ONLY the JSON array, no markdown fences.

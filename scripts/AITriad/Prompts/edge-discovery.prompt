@@ -71,13 +71,23 @@ For each proposed edge, provide:
       0.5-0.7: The relationship is plausible but indirect — a reader would need to
         draw an inference to connect them.
 
+  weight (required, number 0.0-1.0):
+    How strong the relationship is, independent of your confidence in its existence.
+    Confidence asks "does this edge exist?" — weight asks "how much does it matter?"
+      0.8-1.0: Central relationship — the source's core argument directly engages
+        the target's core claim. Removing this edge would change the debate structure.
+      0.5-0.8: Significant but secondary — the relationship is real and substantive
+        but not the primary thrust of either node.
+      0.1-0.5: Peripheral — the relationship exists but is tangential. One node
+        touches on the other's domain without deeply engaging it.
+
   rationale (required, string):
     1-2 sentences explaining WHY this edge exists. Be specific — reference the
     content of both nodes.
 
   strength (optional, string: "strong", "moderate", "weak"):
-    How strong the relationship is. A node might weakly support another or
-    strongly contradict it.
+    Qualitative label for the relationship strength. Should align with weight:
+    strong ≈ 0.8-1.0, moderate ≈ 0.5-0.8, weak ≈ 0.1-0.5.
 
   notes (optional, string):
     Any additional context, caveats, or nuance about this relationship.

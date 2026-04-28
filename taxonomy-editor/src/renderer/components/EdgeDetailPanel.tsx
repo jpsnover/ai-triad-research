@@ -54,6 +54,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const sourceLabel = getLabelForId(edge.source);
   const targetLabel = getLabelForId(edge.target);
   const pct = Math.round(edge.confidence * 100);
+  const wPct = edge.weight != null ? Math.round(edge.weight * 100) : null;
 
   // Find the edge type definition
   const typeDef = edgesFile?.edge_types.find((t) => t.type === edge.type);
@@ -134,10 +135,20 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           )}
         </div>
 
-        {/* Confidence */}
+        {/* Weight & Confidence */}
         <div className="edge-detail-section">
-          <div className="edge-detail-section-label">Confidence</div>
+          <div className="edge-detail-section-label" title="Weight: how strong the relationship is. Confidence: how certain the edge exists.">Weight &amp; Confidence</div>
+          {wPct != null && (
+            <div className="edge-detail-confidence" style={{ marginBottom: 4 }}>
+              <span className="edge-detail-wc-label">w</span>
+              <div className="edge-detail-confidence-track">
+                <div className="edge-detail-confidence-fill edge-detail-weight-fill" style={{ width: `${wPct}%` }} />
+              </div>
+              <span className="edge-detail-confidence-pct">{wPct}%</span>
+            </div>
+          )}
           <div className="edge-detail-confidence">
+            <span className="edge-detail-wc-label">c</span>
             <div className="edge-detail-confidence-track">
               <div className="edge-detail-confidence-fill" style={{ width: `${pct}%` }} />
             </div>

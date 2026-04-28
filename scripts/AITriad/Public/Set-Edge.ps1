@@ -45,9 +45,14 @@ function Set-Edge {
     .EXAMPLE
         Get-Edge -Source 'saf-*' -Status proposed -MinConfidence 0.85 | Set-Edge -Status approved -PassThru
         # Bulk approve and see results.
+    .PARAMETER Weight
+        New weight value (0.0-1.0). How strong the relationship is.
     .EXAMPLE
         Set-Edge -Index 7 -Confidence 0.95 -Strength strong
         # Update confidence and strength on a single edge.
+    .EXAMPLE
+        Set-Edge -Index 7 -Weight 0.8
+        # Set the relationship weight of edge 7.
     #>
     [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ByIndex')]
     param(
@@ -62,6 +67,9 @@ function Set-Edge {
 
         [ValidateRange(0.0, 1.0)]
         [double]$Confidence = -1,
+
+        [ValidateRange(0.0, 1.0)]
+        [double]$Weight = -1,
 
         [ValidateSet('strong', 'moderate', 'weak', '')]
         [string]$Strength,
@@ -99,6 +107,7 @@ function Set-Edge {
         # Validate that at least one property is being set
         $HasChange = $Status -or
                      $Confidence -ge 0 -or
+                     $Weight -ge 0 -or
                      $PSBoundParameters.ContainsKey('Strength') -or
                      $PSBoundParameters.ContainsKey('Notes') -or
                      $Type
@@ -132,6 +141,7 @@ function Set-Edge {
         $Changes = @()
         if ($Status)                               { $Changes += "status=$Status" }
         if ($Confidence -ge 0)                     { $Changes += "confidence=$Confidence" }
+        if ($Weight -ge 0)                         { $Changes += "weight=$Weight" }
         if ($PSBoundParameters.ContainsKey('Strength')) { $Changes += "strength=$Strength" }
         if ($PSBoundParameters.ContainsKey('Notes'))    { $Changes += "notes=$(if ($Notes) { $Notes.Substring(0, [Math]::Min(40, $Notes.Length)) } else { '(clear)' })" }
         if ($Type)                                 { $Changes += "type=$Type" }
@@ -144,6 +154,13 @@ function Set-Edge {
             }
             if ($Confidence -ge 0) {
                 $EdgesData.edges[$EdgeIndex].confidence = $Confidence
+            }
+            if ($Weight -ge 0) {
+                if (-not $EdgesData.edges[$EdgeIndex].PSObject.Properties['weight']) {
+                    $EdgesData.edges[$EdgeIndex] | Add-Member -NotePropertyName 'weight' -NotePropertyValue $Weight
+                } else {
+                    $EdgesData.edges[$EdgeIndex].weight = $Weight
+                }
             }
             if ($PSBoundParameters.ContainsKey('Strength')) {
                 if ($Strength) {
@@ -203,6 +220,7 @@ function Set-Edge {
                     Type          = $E.type
                     Bidirectional = [bool]$E.bidirectional
                     Confidence    = $E.confidence
+                    Weight        = if ($E.PSObject.Properties['weight']) { $E.weight } else { $null }
                     Status        = $E.status
                     Strength      = if ($E.PSObject.Properties['strength']) { $E.strength } else { $null }
                     Rationale     = $E.rationale
