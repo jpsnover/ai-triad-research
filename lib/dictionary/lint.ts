@@ -216,14 +216,15 @@ function buildDisplayFormContext(loader: DictionaryLoader): {
     const prefix = lower.slice(0, parenIdx);
     const closeIdx = lower.indexOf(')', parenIdx);
     if (closeIdx === -1) continue;
-    const qualifier = lower.slice(parenIdx + 2, closeIdx);
+    const qualifierRaw = lower.slice(parenIdx + 2, closeIdx);
+    const qualifierParts = qualifierRaw.split(/[\/,]/).map(s => s.trim()).filter(Boolean);
 
     const existingPfx = prefixes.get(prefix) ?? [];
     existingPfx.push(lower);
     prefixes.set(prefix, existingPfx);
 
     const existingQual = qualifiers.get(prefix) ?? [];
-    existingQual.push(qualifier);
+    existingQual.push(...qualifierParts);
     qualifiers.set(prefix, existingQual);
   }
   return { prefixes, qualifiers };
