@@ -88,6 +88,23 @@ CAMP_PREFERENCES = {
     "accelerationist": {
         "harm": "documented_present_harm",
     },
+    "situation": {
+        # Neutral defaults for cross-cutting situation nodes
+        "safety": "safety_empirical",
+        "risk": "risk_existential",
+        "capabilities": "capabilities_scaling",
+        "governance": "governance_oversight",
+        "oversight": "oversight_audit",
+        "control": "control_human_agency",
+        "transparency": "transparency_accountability",
+        "regulation": "regulation_precautionary",
+        "bias": "bias_systemic",
+        "harm": "documented_present_harm",
+        "fairness": "fairness_procedural",
+        "accountability": "accountability_institutional",
+        "alignment": "safety_alignment",
+        "autonomy": "autonomy_human",
+    },
 }
 
 
@@ -321,6 +338,20 @@ def process_node(
 
     node["graph_attributes"] = ga
 
+    # Process interpretations (situation nodes) — each camp's text uses that camp's resolution
+    if node.get("interpretations") and isinstance(node["interpretations"], dict):
+        for interp_camp, interp_data in node["interpretations"].items():
+            if not isinstance(interp_data, dict):
+                continue
+            resolve_camp = interp_camp  # Use the interpretation's own camp
+            for field in ("belief", "desire", "intention", "summary"):
+                if interp_data.get(field) and isinstance(interp_data[field], str):
+                    text, anns = replace_bare_terms_in_text(
+                        interp_data[field], resolve_camp, colloquial_terms, standardized_terms,
+                    )
+                    interp_data[field] = text
+                    all_annotations.extend(anns)
+
     # Add vocabulary annotations
     if all_annotations:
         # Deduplicate by canonical form
@@ -352,14 +383,15 @@ def main():
     standardized_terms = load_standardized_terms(dict_dir)
     print(f"Loaded {len(colloquial_terms)} colloquial, {len(standardized_terms)} standardized terms", file=sys.stderr)
 
-    camps = [args.camp] if args.camp else ["accelerationist", "safetyist", "skeptic"]
+    camps = [args.camp] if args.camp else ["accelerationist", "safetyist", "skeptic", "situation"]
 
     total_replacements = 0
     total_nodes = 0
     camp_stats = {}
 
     for camp in camps:
-        fpath = taxonomy_dir / f"{camp}.json"
+        fname = "situations.json" if camp == "situation" else f"{camp}.json"
+        fpath = taxonomy_dir / fname
         if not fpath.exists():
             print(f"WARNING: {fpath} not found, skipping", file=sys.stderr)
             continue
