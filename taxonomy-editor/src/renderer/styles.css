@@ -6758,6 +6758,13 @@ body {
   min-width: 0;
 }
 
+.debate-timestamp {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ─── Diagnostics Panel ──────────────────────────────── */
 .debate-diag-btn.active {
   background: color-mix(in srgb, #f59e0b 20%, var(--bg-secondary));

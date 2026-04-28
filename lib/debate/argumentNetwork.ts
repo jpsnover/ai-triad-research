@@ -6,7 +6,8 @@
  * Called after each debater's turn to extract claims and relationships.
  */
 
-import { MOVE_EDGE_MAP } from './helpers';
+import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -540,4 +541,185 @@ export function formatConcessionCandidatesHint(
   });
   lines.push('If you decline to concede, set "concession_considered": "declined" in your JSON response.');
   return lines.join('\n') + '\n';
+}
+
+// ── Shared claim processing ──────────────────────────────────
+
+export interface RawExtractedClaim {
+  text: string;
+  bdi_category?: string;
+  base_strength?: number;
+  bdi_sub_scores?: Record<string, number>;
+  specificity?: string;
+  steelman_of?: string | null;
+  responds_to?: {
+    prior_claim_id: string;
+    relationship: string;
+    attack_type?: string;
+    weight?: number;
+    scheme?: string;
+    argumentation_scheme?: string;
+    warrant?: string;
+  }[];
+}
+
+export interface ProcessClaimsOptions {
+  groundingOverlapThreshold: number;
+  duplicateOverlapThreshold?: number;
+  maxClaims?: number;
+  isClassifyPath: boolean;
+}
+
+export interface ProcessClaimsInput {
+  claims: RawExtractedClaim[];
+  statement: string;
+  speaker: string;
+  entryId: string;
+  taxonomyRefIds: string[];
+  turnNumber: number;
+  existingNodes: ArgumentNetworkNode[];
+  existingEdgeCount: number;
+  startNodeId: number;
+  taxonomyEdges?: { source: string; target: string; weight?: number }[];
+}
+
+export interface ProcessClaimsResult {
+  newNodes: ArgumentNetworkNode[];
+  newEdges: ArgumentNetworkEdge[];
+  accepted: { text: string; id: string; overlap_pct: number }[];
+  rejected: { text: string; reason: string; overlap_pct: number }[];
+  commitments: { asserted: string[]; conceded: string[]; challenged: string[] };
+  rejectionReasons: Record<string, number>;
+  rejectedOverlapPcts: number[];
+  maxOverlapVsExisting: number;
+}
+
+const VALID_ATTACK_TYPES = new Set(['rebut', 'undercut', 'undermine']);
+
+export function processExtractedClaims(
+  input: ProcessClaimsInput,
+  options: ProcessClaimsOptions,
+): ProcessClaimsResult {
+  const {
+    claims, statement, speaker, entryId, taxonomyRefIds,
+    turnNumber, existingNodes, existingEdgeCount, startNodeId, taxonomyEdges,
+  } = input;
+  const maxClaims = options.maxClaims ?? 6;
+  const dupThreshold = options.duplicateOverlapThreshold ?? 0.30;
+  const groundingThreshold = options.groundingOverlapThreshold;
+
+  const newNodes: ArgumentNetworkNode[] = [];
+  const newEdges: ArgumentNetworkEdge[] = [];
+  const accepted: ProcessClaimsResult['accepted'] = [];
+  const rejected: ProcessClaimsResult['rejected'] = [];
+  const commitments = { asserted: [] as string[], conceded: [] as string[], challenged: [] as string[] };
+  const rejectionReasons: Record<string, number> = {};
+  const rejectedOverlapPcts: number[] = [];
+  let maxOverlap = 0;
+
+  const allNodes = [...existingNodes];
+  const priorIds = new Set(existingNodes.map(n => n.id));
+  let nextNodeId = startNodeId;
+  let nextEdgeId = existingEdgeCount + 1;
+
+  const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
+
+  for (const claim of claims.slice(0, maxClaims)) {
+    if (!claim.text || claim.text.length < 10) {
+      if (claim.text) {
+        rejectionReasons['too_short'] = (rejectionReasons['too_short'] ?? 0) + 1;
+      }
+      continue;
+    }
+
+    const overlapVsAN = maxOverlapVsExisting(claim.text, allNodes);
+    if (overlapVsAN > maxOverlap) maxOverlap = overlapVsAN;
+
+    if (overlapVsAN >= dupThreshold) {
+      const pct = Math.round(overlapVsAN * 100);
+      rejected.push({ text: claim.text, reason: 'duplicate_claim', overlap_pct: pct });
+      rejectionReasons['duplicate_claim'] = (rejectionReasons['duplicate_claim'] ?? 0) + 1;
+      rejectedOverlapPcts.push(pct);
+      continue;
+    }
+
+    const overlap = wordOverlap(claim.text, statement);
+    if (overlap < groundingThreshold) {
+      const pct = Math.round(overlap * 100);
+      rejected.push({ text: claim.text, reason: 'low_overlap', overlap_pct: pct });
+      rejectionReasons['low_overlap'] = (rejectionReasons['low_overlap'] ?? 0) + 1;
+      rejectedOverlapPcts.push(pct);
+      continue;
+    }
+
+    const nodeId = `AN-${nextNodeId++}`;
+    const node: ArgumentNetworkNode = {
+      id: nodeId,
+      text: claim.text,
+      speaker,
+      source_entry_id: entryId,
+      taxonomy_refs: taxonomyRefIds,
+      turn_number: turnNumber,
+      base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
+      scoring_method: typeof claim.base_strength === 'number'
+        ? 'ai_rubric'
+        : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+      bdi_sub_scores: claim.bdi_sub_scores && typeof claim.bdi_sub_scores === 'object'
+        ? claim.bdi_sub_scores as ArgumentNetworkNode['bdi_sub_scores'] : undefined,
+      bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
+      bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
+      specificity: claim.specificity as ArgumentNetworkNode['specificity'],
+      steelman_of: claim.steelman_of || undefined,
+    };
+    newNodes.push(node);
+    allNodes.push(node);
+    priorIds.add(nodeId);
+
+    commitments.asserted.push(claim.text);
+    accepted.push({ text: claim.text, id: nodeId, overlap_pct: Math.round(overlap * 100) });
+
+    for (const rel of claim.responds_to ?? []) {
+      if (!rel.prior_claim_id || !priorIds.has(rel.prior_claim_id)) continue;
+
+      let edgeWeight: number | undefined = typeof rel.weight === 'number'
+        ? Math.max(0, Math.min(1, rel.weight)) : undefined;
+      if (edgeWeight === undefined) {
+        const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
+        edgeWeight = lookupTaxonomyEdgeWeight(taxonomyRefIds, targetNode?.taxonomy_refs ?? [], taxonomyEdges);
+      }
+
+      const raw = (rel.attack_type ?? '').toLowerCase();
+      const edge: ArgumentNetworkEdge = {
+        id: `AE-${nextEdgeId++}`,
+        source: nodeId,
+        target: rel.prior_claim_id,
+        type: rel.relationship === 'attacks' ? 'attacks' : 'supports',
+        attack_type: rel.relationship === 'attacks'
+          ? (VALID_ATTACK_TYPES.has(raw) ? raw as 'rebut' | 'undercut' | 'undermine' : 'rebut')
+          : undefined,
+        weight: edgeWeight,
+        scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
+        warrant: rel.warrant,
+        argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
+      };
+      newEdges.push(edge);
+
+      if (rel.scheme) {
+        const normalized = rel.scheme.toUpperCase().replace(/[_]/g, '-').trim();
+        if (SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(normalized.replace(/-/g, ' '))) {
+          const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
+          if (targetNode) commitments.conceded.push(targetNode.text);
+        }
+      }
+      if (rel.relationship === 'attacks') {
+        const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
+        if (targetNode) commitments.challenged.push(targetNode.text);
+      }
+    }
+  }
+
+  return {
+    newNodes, newEdges, accepted, rejected, commitments,
+    rejectionReasons, rejectedOverlapPcts, maxOverlapVsExisting: maxOverlap,
+  };
 }

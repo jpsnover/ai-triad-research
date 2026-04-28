@@ -51,7 +51,7 @@ import {
   midDebateGapPrompt,
   crossCuttingNodePrompt,
 } from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from './argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
 import { formatVocabularyContext } from './vocabularyContext';
 import type { ContextInjectionManifest } from './taxonomyContext';
@@ -640,23 +640,6 @@ export class DebateEngine {
     }
     const edges_used = top.map(e => ({ source: e.source, target: e.target, type: e.type, confidence: e.confidence }));
     return { text: lines.join('\n'), edges_used };
-  }
-
-  private lookupTaxonomyEdgeWeight(sourceRefs: string[], targetRefs: string[]): number | undefined {
-    const taxEdges = this.taxonomy.edges?.edges;
-    if (!taxEdges || sourceRefs.length === 0 || targetRefs.length === 0) return undefined;
-    const srcSet = new Set(sourceRefs);
-    const tgtSet = new Set(targetRefs);
-    let best: number | undefined;
-    for (const e of taxEdges) {
-      if (e.weight == null) continue;
-      const match = (srcSet.has(e.source) && tgtSet.has(e.target))
-        || (srcSet.has(e.target) && tgtSet.has(e.source));
-      if (match && (best === undefined || e.weight > best)) {
-        best = e.weight;
-      }
-    }
-    return best;
   }
 
   // ── Commitment context ─────────────────────────────────────
@@ -2232,24 +2215,6 @@ Return ONLY JSON (no markdown, no code fences):
     return opens !== closes;
   }
 
-  /** Word-overlap (Jaccard-ish) between two texts, using words >3 chars. */
-  private wordOverlap(a: string, b: string): number {
-    const wa = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-    const wb = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-    if (wa.size === 0) return 0;
-    return [...wa].filter(w => wb.has(w)).length / wa.size;
-  }
-
-  /** Best word-overlap of a candidate claim against existing AN node texts. */
-  private maxOverlapVsExisting(claimText: string, nodes: ArgumentNetworkNode[]): number {
-    let max = 0;
-    for (const n of nodes) {
-      const o = this.wordOverlap(claimText, n.text);
-      if (o > max) max = o;
-    }
-    return max;
-  }
-
   /** Recompute the session-level extraction summary + fire plateau system entry on first detection. */
   private updateExtractionSummary(trace: ClaimExtractionTrace): void {
     const diag = this.session.diagnostics!;
@@ -2422,105 +2387,42 @@ Return ONLY JSON (no markdown, no code fences):
       trace.status = trace.response_truncated ? 'truncated_response' : 'empty_response';
     }
 
-    const accepted: { text: string; id: string; overlap_pct: number }[] = [];
-    const rejected: { text: string; reason: string; overlap_pct: number }[] = [];
-
-    // Debater-provided claims (classifyClaimsPrompt path) are already grounded
-    // in the statement, so use a lower overlap threshold.
     const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
-
-    for (const claim of claims.slice(0, 6)) {
-      if (!claim.text || claim.text.length < 10) {
-        if (claim.text) {
-          rejected.push({ text: claim.text, reason: 'too_short', overlap_pct: 0 });
-          trace.rejection_reasons['too_short'] = (trace.rejection_reasons['too_short'] ?? 0) + 1;
-        }
-        continue;
-      }
-
-      // Validate word overlap
-      const overlap = this.wordOverlap(claim.text, statement);
-
-      // Track overlap vs. existing AN nodes — catches "saturated network" failure mode.
-      const overlapVsExisting = this.maxOverlapVsExisting(claim.text, an.nodes);
-      if (overlapVsExisting > trace.max_overlap_vs_existing) {
-        trace.max_overlap_vs_existing = overlapVsExisting;
-      }
-
-      if (overlap < overlapThreshold) {
-        const pct = Math.round(overlap * 100);
-        rejected.push({ text: claim.text, reason: 'low_overlap', overlap_pct: pct });
-        trace.rejection_reasons['low_overlap'] = (trace.rejection_reasons['low_overlap'] ?? 0) + 1;
-        trace.rejected_overlap_pcts.push(pct);
-        continue;
-      }
-
-      if (overlapVsExisting >= 0.30) {
-        const pct = Math.round(overlapVsExisting * 100);
-        rejected.push({ text: claim.text, reason: 'duplicate_claim', overlap_pct: pct });
-        trace.rejection_reasons['duplicate_claim'] = (trace.rejection_reasons['duplicate_claim'] ?? 0) + 1;
-        trace.rejected_overlap_pcts.push(pct);
-        continue;
-      }
-
-      const nodeId = `AN-${an.nodes.length + 1}`;
-      accepted.push({ text: claim.text, id: nodeId, overlap_pct: Math.round(overlap * 100) });
-
-      const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
-      an.nodes.push({
-        id: nodeId,
-        text: claim.text,
+    const claimsResult = processExtractedClaims(
+      {
+        claims,
+        statement,
         speaker,
-        source_entry_id: entryId,
-        taxonomy_refs: taxonomyRefIds,
-        turn_number: turnNumber,
-        base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
-        scoring_method: typeof claim.base_strength === 'number'
-          ? 'ai_rubric'
-          : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
-        bdi_sub_scores: (claim as Record<string, unknown>).bdi_sub_scores && typeof (claim as Record<string, unknown>).bdi_sub_scores === 'object'
-          ? (claim as Record<string, unknown>).bdi_sub_scores as import('./types').BdiSubScores : undefined,
-        bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
-        bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
-        specificity: claim.specificity as ArgumentNetworkNode['specificity'],
-        steelman_of: claim.steelman_of || undefined,
-      });
+        entryId,
+        taxonomyRefIds,
+        turnNumber,
+        existingNodes: an.nodes,
+        existingEdgeCount: an.edges.length,
+        startNodeId: an.nodes.length + 1,
+        taxonomyEdges: this.taxonomy.edges?.edges,
+      },
+      {
+        groundingOverlapThreshold: overlapThreshold,
+        isClassifyPath: !!(debaterClaims && debaterClaims.length > 0),
+      },
+    );
 
-      // Track commitment
-      this.session.commitments![speaker].asserted.push(claim.text);
+    an.nodes.push(...claimsResult.newNodes);
+    an.edges.push(...claimsResult.newEdges);
 
-      // Process relationships
-      for (const rel of claim.responds_to ?? []) {
-        if (!rel.prior_claim_id || !an.nodes.some(n => n.id === rel.prior_claim_id)) continue;
+    const commits = this.session.commitments![speaker];
+    commits.asserted.push(...claimsResult.commitments.asserted);
+    commits.conceded.push(...claimsResult.commitments.conceded);
+    commits.challenged.push(...claimsResult.commitments.challenged);
 
-        const edgeId = `AE-${an.edges.length + 1}`;
-        let edgeWeight: number | undefined = typeof rel.weight === 'number' ? Math.max(0, Math.min(1, rel.weight)) : undefined;
-        if (edgeWeight === undefined) {
-          const targetNode = an.nodes.find(n => n.id === rel.prior_claim_id);
-          edgeWeight = this.lookupTaxonomyEdgeWeight(taxonomyRefIds, targetNode?.taxonomy_refs ?? []);
-        }
-        an.edges.push({
-          id: edgeId,
-          source: nodeId,
-          target: rel.prior_claim_id,
-          type: rel.relationship === 'attacks' ? 'attacks' : 'supports',
-          attack_type: rel.attack_type as 'rebut' | 'undercut' | 'undermine' | undefined,
-          weight: edgeWeight,
-          scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
-          warrant: rel.warrant,
-          argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
-        });
+    trace.candidates_accepted = claimsResult.accepted.length;
+    trace.candidates_rejected = claimsResult.rejected.length;
+    trace.rejection_reasons = claimsResult.rejectionReasons;
+    trace.rejected_overlap_pcts = claimsResult.rejectedOverlapPcts;
+    trace.max_overlap_vs_existing = claimsResult.maxOverlapVsExisting;
 
-        // Track concessions and challenges
-        if (rel.scheme === 'CONCEDE') {
-          const targetNode = an.nodes.find(n => n.id === rel.prior_claim_id);
-          if (targetNode) this.session.commitments![speaker].conceded.push(targetNode.text);
-        } else if (rel.relationship === 'attacks') {
-          const targetNode = an.nodes.find(n => n.id === rel.prior_claim_id);
-          if (targetNode) this.session.commitments![speaker].challenged.push(targetNode.text);
-        }
-      }
-    }
+    const accepted = claimsResult.accepted;
+    const rejected = claimsResult.rejected;
 
     this.session.diagnostics!.overview.claims_accepted += accepted.length;
     this.session.diagnostics!.overview.claims_rejected += rejected.length;

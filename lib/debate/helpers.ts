@@ -565,3 +565,52 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
 
   return { statement, taxonomyRefs, meta };
 }
+
+export function hashString(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16);
+}
+
+export function looksTruncated(s: string): boolean {
+  if (!s) return false;
+  const trimmed = s.trimEnd();
+  if (trimmed.length === 0) return false;
+  let depth = 0;
+  for (const c of trimmed) {
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+  }
+  if (depth > 0) return true;
+  const last = trimmed.slice(-1);
+  return !(last === '}' || last === ']' || last === '"');
+}
+
+export function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {
+  let max = 0;
+  for (const n of existing) {
+    const o = wordOverlap(text, n.text);
+    if (o > max) max = o;
+  }
+  return max;
+}
+
+export function lookupTaxonomyEdgeWeight(
+  sourceRefs: string[],
+  targetRefs: string[],
+  taxonomyEdges?: { source: string; target: string; weight?: number }[],
+): number | undefined {
+  if (!taxonomyEdges || sourceRefs.length === 0 || targetRefs.length === 0) return undefined;
+  const srcSet = new Set(sourceRefs);
+  const tgtSet = new Set(targetRefs);
+  let best: number | undefined;
+  for (const e of taxonomyEdges) {
+    if (e.weight == null) continue;
+    const match = (srcSet.has(e.source) && tgtSet.has(e.target))
+      || (srcSet.has(e.target) && tgtSet.has(e.source));
+    if (match && (best === undefined || e.weight > best)) {
+      best = e.weight;
+    }
+  }
+  return best;
+}

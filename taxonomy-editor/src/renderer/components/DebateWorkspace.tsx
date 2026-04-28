@@ -1868,6 +1868,10 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
           </span>
           <span className="debate-topic-text">{activeDebate.topic.final}</span>
+          <span className="debate-timestamp" title={activeDebate.created_at}>
+            {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+            {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </span>
           {activeDebate.audience && (
             <span className="debate-audience-badge">
               {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
