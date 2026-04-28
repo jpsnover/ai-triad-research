@@ -19,7 +19,7 @@ declare const __APP_VERSION__: string;
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
@@ -66,6 +66,8 @@ import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
+import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
+import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
 
@@ -219,23 +221,6 @@ function looksTruncated(s: string): boolean {
   if (depth > 0) return true;
   const last = trimmed.slice(-1);
   return !(last === '}' || last === ']' || last === '"');
-}
-
-function wordOverlap(a: string, b: string): number {
-  const aw = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-  const bw = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-  if (aw.size === 0) return 0;
-  const inter = [...aw].filter(w => bw.has(w)).length;
-  return inter / aw.size;
-}
-
-function maxOverlapVsExisting(text: string, existing: { text: string }[]): number {
-  let max = 0;
-  for (const n of existing) {
-    const o = wordOverlap(text, n.text);
-    if (o > max) max = o;
-  }
-  return max;
 }
 
 /** Incrementally refresh debate.extraction_summary given a new trace. */
@@ -553,7 +538,7 @@ async function extractClaimsAndUpdateAN(
     if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
 
-    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
     try {
       parsed = JSON.parse(cleaned) as typeof parsed;
     } catch (parseErr) {
@@ -580,130 +565,42 @@ async function extractClaimsAndUpdateAN(
     extractionTrace.candidates_proposed = parsed.claims.length;
 
     const turnNumber = debate.transcript.length;
-    const newNodes: ArgumentNetworkNode[] = [];
-    const newEdges: ArgumentNetworkEdge[] = [];
-    const priorIds = new Set(an.nodes.map(n => n.id));
-    let nextId = an.nodes.length + 1;
-    const diagAccepted: { text: string; id: string; overlap_pct: number }[] = [];
-    const diagRejected: { text: string; reason: string; overlap_pct: number }[] = [];
-
-    // Commitments tracking
     const commitments = debate.commitments || {};
     const speakerCommits: CommitmentStore = commitments[speaker] || { asserted: [], conceded: [], challenged: [] };
 
-    for (const claim of parsed.claims.slice(0, 6)) {
-      if (!claim.text || claim.text.length < 10) {
-        extractionTrace.rejection_reasons.too_short = (extractionTrace.rejection_reasons.too_short ?? 0) + 1;
-        continue;
-      }
-      // Track max overlap vs. existing AN nodes — catches "saturated network" failure mode.
-      const overlapVsAN = maxOverlapVsExisting(claim.text, an.nodes);
-      if (overlapVsAN > extractionTrace.max_overlap_vs_existing) {
-        extractionTrace.max_overlap_vs_existing = overlapVsAN;
-      }
-
-      // Reject claims that are too similar to existing AN nodes (>=30% word overlap)
-      if (overlapVsAN >= 0.30) {
-        const pct = Math.round(overlapVsAN * 100);
-        console.warn(`[AN] Rejected claim — duplicate (${pct}% overlap vs existing): ${claim.text.slice(0, 60)}`);
-        diagRejected.push({ text: claim.text, reason: `Duplicate claim (${pct}% overlap with existing AN)`, overlap_pct: pct });
-        extractionTrace.rejection_reasons.duplicate_claim = (extractionTrace.rejection_reasons.duplicate_claim ?? 0) + 1;
-        extractionTrace.rejected_overlap_pcts.push(pct);
-        trace(TraceEventName.AN_EXTRACT_REJECTED_CLAIM, {
-          debate_id: debate.id,
-          turn_id: entryId,
-          speaker,
-          reason: 'duplicate_claim',
-          overlap_pct: pct,
-          claim_preview: claim.text.slice(0, 80),
-        });
-        continue;
-      }
-
-      // V1.4: Verify claim is grounded in statement (>40% word overlap)
-      const claimWords = new Set(claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-      const stmtWords = new Set(statement.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-      const overlap = [...claimWords].filter(w => stmtWords.has(w)).length / Math.max(claimWords.size, 1);
-      if (overlap < 0.3) {
-        console.warn(`[AN] Rejected claim — low overlap (${(overlap * 100).toFixed(0)}%): ${claim.text.slice(0, 60)}`);
-        diagRejected.push({ text: claim.text, reason: `Low word overlap (${(overlap * 100).toFixed(0)}%)`, overlap_pct: Math.round(overlap * 100) });
-        extractionTrace.rejection_reasons.low_overlap = (extractionTrace.rejection_reasons.low_overlap ?? 0) + 1;
-        extractionTrace.rejected_overlap_pcts.push(Math.round(overlap * 100));
-        trace(TraceEventName.AN_EXTRACT_REJECTED_CLAIM, {
-          debate_id: debate.id,
-          turn_id: entryId,
-          speaker,
-          reason: 'low_overlap',
-          overlap_pct: Math.round(overlap * 100),
-          claim_preview: claim.text.slice(0, 80),
-        });
-        continue;
-      }
-
-      const nodeId = `AN-${nextId++}`;
-      const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
-      newNodes.push({
-        id: nodeId,
-        text: claim.text,
+    const taxEdges = useTaxonomyStore.getState().edgesFile?.edges;
+    const claimsResult = processExtractedClaims(
+      {
+        claims: parsed.claims,
+        statement,
         speaker,
-        source_entry_id: entryId,
-        taxonomy_refs: taxonomyRefs,
-        turn_number: turnNumber,
-        base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
-        scoring_method: typeof claim.base_strength === 'number'
-          ? 'ai_rubric'
-          : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
-        bdi_sub_scores: claim.bdi_sub_scores && typeof claim.bdi_sub_scores === 'object'
-          ? claim.bdi_sub_scores as ArgumentNetworkNode['bdi_sub_scores'] : undefined,
-        bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
-        bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
-        specificity: claim.specificity as ArgumentNetworkNode['specificity'],
-        steelman_of: claim.steelman_of || undefined,
-      });
+        entryId,
+        taxonomyRefIds: taxonomyRefs,
+        turnNumber,
+        existingNodes: an.nodes,
+        existingEdgeCount: an.edges.length,
+        startNodeId: an.nodes.length + 1,
+        taxonomyEdges: taxEdges,
+      },
+      {
+        groundingOverlapThreshold: 0.3,
+        isClassifyPath: !!(debaterClaims && debaterClaims.length > 0),
+      },
+    );
 
-      // Track as asserted
-      speakerCommits.asserted.push(claim.text);
-      diagAccepted.push({ text: claim.text, id: nodeId, overlap_pct: Math.round(overlap * 100) });
+    const { newNodes, newEdges } = claimsResult;
+    const diagAccepted = claimsResult.accepted;
+    const diagRejected = claimsResult.rejected;
 
-      for (const resp of claim.responds_to || []) {
-        // V1.4: Verify prior claim exists
-        if (!priorIds.has(resp.prior_claim_id)) {
-          console.warn(`[AN] Skipped reference to nonexistent ${resp.prior_claim_id}`);
-          continue;
-        }
-
-        const edgeId = `AE-${an.edges.length + newEdges.length + 1}`;
-        const edge: ArgumentNetworkEdge = {
-          id: edgeId,
-          source: nodeId,
-          target: resp.prior_claim_id,
-          type: resp.relationship === 'attacks' ? 'attacks' : 'supports',
-          warrant: resp.warrant || undefined,
-          argumentation_scheme: resp.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],
-        };
-        if (resp.scheme) {
-          edge.scheme = resp.scheme;
-        }
-        if (resp.relationship === 'attacks') {
-          const VALID_ATTACK_TYPES = new Set(['rebut', 'undercut', 'undermine']);
-          const raw = (resp.attack_type ?? '').toLowerCase();
-          edge.attack_type = VALID_ATTACK_TYPES.has(raw) ? (raw as 'rebut' | 'undercut' | 'undermine') : 'rebut';
-          const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
-          if (targetNode) speakerCommits.challenged.push(targetNode.text);
-        }
-        if (resp.scheme) {
-          const normalizedScheme = resp.scheme.toUpperCase().replace(/[_]/g, '-').trim();
-          if (SUPPORT_MOVES.has(normalizedScheme) || SUPPORT_MOVES.has(normalizedScheme.replace(/-/g, ' '))) {
-            const targetNode = an.nodes.find(n => n.id === resp.prior_claim_id);
-            if (targetNode) speakerCommits.conceded.push(targetNode.text);
-          }
-        }
-        newEdges.push(edge);
-      }
-    }
+    speakerCommits.asserted.push(...claimsResult.commitments.asserted);
+    speakerCommits.conceded.push(...claimsResult.commitments.conceded);
+    speakerCommits.challenged.push(...claimsResult.commitments.challenged);
 
     extractionTrace.candidates_accepted = newNodes.length;
     extractionTrace.candidates_rejected = diagRejected.length;
+    Object.assign(extractionTrace.rejection_reasons, claimsResult.rejectionReasons);
+    extractionTrace.rejected_overlap_pcts.push(...claimsResult.rejectedOverlapPcts);
+    extractionTrace.max_overlap_vs_existing = claimsResult.maxOverlapVsExisting;
 
     if (newNodes.length === 0) {
       extractionTrace.status = 'no_new_nodes';
@@ -1510,6 +1407,7 @@ interface DebateStore {
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
   debateModel: string | null; // debate-specific model override (null = use global)
   debateTemperature: number | null; // debate-specific temperature (null = use default 0.7)
+  vocabularyTerms: { standardized: StandardizedTerm[]; colloquial: ColloquialTerm[] } | null;
   diagnosticsEnabled: boolean;
   selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
   diagPopoutOpen: boolean;
@@ -1618,6 +1516,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   inspectedNodeId: null,
   debateModel: null,
   debateTemperature: null,
+  vocabularyTerms: null,
   diagnosticsEnabled: false,
   selectedDiagEntry: null,
   diagPopoutOpen: false,
@@ -1837,7 +1736,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   closeDebate: () => {
-    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null });
+    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
     api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
   },
@@ -2146,6 +2045,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     }
 
+    // Load vocabulary terms for standardized term enforcement
+    try {
+      const dict = await api.loadDictionary();
+      if (dict.standardized.length > 0) {
+        set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
+      }
+    } catch (err) {
+      console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);
+    }
+
     updatePhase('opening');
 
     // Initialize opening order with a random shuffle of active AI POVers
@@ -2205,7 +2114,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }));
       const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
       const edgeBlock = formatDebaterEdgeContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock;
+      const vocab = get().vocabularyTerms;
+      const vocabBlock = vocab
+        ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: vocab.standardized, colloquialTerms: vocab.colloquial })
+        : '';
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + commitBlock + establishedBlock + edgeBlock + vocabBlock;
 
       const docAnalysis = activeDebate.document_analysis;
       const prompt = buildOpeningStatementPrompt(
@@ -2639,7 +2552,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           .map(n => n.id)
       : [];
 
-    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+    const crVocab = get().vocabularyTerms;
+    const crVocabBlock = crVocab
+      ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
+      : '';
+    const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
     const crDocAnalysis = activeDebate.document_analysis;
 
     // Compute phase from statement count vs total rounds

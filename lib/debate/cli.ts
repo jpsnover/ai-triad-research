@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCLIAdapter } from './aiAdapter';
-import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts } from './taxonomyLoader';
+import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader';
 import { DebateEngine } from './debateEngine';
 import type { DebateConfig } from './debateEngine';
 import type { DebateSourceType, PoverId, DebateAudience } from './types';
@@ -127,6 +127,10 @@ async function main(): Promise<void> {
   const taxonomy = loadTaxonomy(repoRoot);
   log(`Loaded: ${taxonomy.accelerationist.nodes.length} acc, ${taxonomy.safetyist.nodes.length} saf, ${taxonomy.skeptic.nodes.length} skp, ${taxonomy.situations.nodes.length} sit nodes`);
 
+  // Load vocabulary for standardized term enforcement
+  const vocab = loadVocabulary(repoRoot);
+  log(`Vocabulary: ${vocab.standardized.length} standardized, ${vocab.colloquial.length} colloquial terms`);
+
   // Resolve topic source
   let topic = config.topic ?? '';
   let sourceType: DebateSourceType = 'topic';
@@ -224,6 +228,9 @@ async function main(): Promise<void> {
     },
     appVersion: (() => { try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../taxonomy-editor/package.json'), 'utf-8')).version; } catch { return undefined; } })(),
     audience,
+    vocabulary: vocab.standardized.length > 0
+      ? { standardizedTerms: vocab.standardized as import('../dictionary/types').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types').ColloquialTerm[] }
+      : undefined,
   };
 
   // Run debate

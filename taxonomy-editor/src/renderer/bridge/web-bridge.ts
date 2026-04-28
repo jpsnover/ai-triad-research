@@ -284,6 +284,9 @@ export const api: AppAPI = {
   harvestQueueConcept: (concept) => post('/api/harvest/concept', concept),
   harvestSaveManifest: (manifest) => post('/api/harvest/manifest', manifest),
 
+  // Dictionary
+  loadDictionary: () => get('/api/dictionary'),
+
   // Proposals
   listProposals: () => get('/api/proposals'),
   saveProposal: (filename, data) => put(`/api/proposals/${encodeURIComponent(filename)}`, data),

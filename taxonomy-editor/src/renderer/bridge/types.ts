@@ -120,6 +120,9 @@ export interface AppAPI {
   harvestQueueConcept: (concept: Record<string, unknown>) => Promise<{ queued: boolean }>;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
 
+  // --- Dictionary ---
+  loadDictionary: () => Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }>;
+
   // --- Proposals ---
   listProposals: () => Promise<unknown[]>;
   saveProposal: (filename: string, data: unknown) => Promise<{ saved?: boolean; error?: string }>;

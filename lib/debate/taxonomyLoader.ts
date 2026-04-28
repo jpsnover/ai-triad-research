@@ -159,6 +159,33 @@ export function loadConflicts(repoRoot: string): ConflictFile[] {
   return files.map(f => loadJsonSafe<ConflictFile>(path.join(conflictsDir, f), null as unknown as ConflictFile)).filter(Boolean);
 }
 
+// ── Vocabulary loading ──────────────────────────────────
+
+export function loadVocabulary(repoRoot: string): { standardized: unknown[]; colloquial: unknown[] } {
+  const dataRoot = resolveDataRoot(repoRoot);
+  const dictDir = path.join(dataRoot, 'dictionary');
+  const stdDir = path.join(dictDir, 'standardized');
+  const colDir = path.join(dictDir, 'colloquial');
+
+  const standardized: unknown[] = [];
+  const colloquial: unknown[] = [];
+
+  if (fs.existsSync(stdDir)) {
+    for (const f of fs.readdirSync(stdDir).filter(f => f.endsWith('.json'))) {
+      const data = loadJsonSafe(path.join(stdDir, f), null);
+      if (data) standardized.push(data);
+    }
+  }
+  if (fs.existsSync(colDir)) {
+    for (const f of fs.readdirSync(colDir).filter(f => f.endsWith('.json'))) {
+      const data = loadJsonSafe(path.join(colDir, f), null);
+      if (data) colloquial.push(data);
+    }
+  }
+
+  return { standardized, colloquial };
+}
+
 // ── Markdown conversion via markitdown ──────────────────
 
 /**

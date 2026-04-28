@@ -188,6 +188,22 @@ Nodes are organized into three sections:
 
 Top-5 nodes per BDI category marked as primary (★). Minimum 3 per category regardless of score.
 
+### Vocabulary Enforcement
+
+When vocabulary data is available (loaded from `dictionary/standardized/` and `dictionary/colloquial/`), a `=== VOCABULARY CONSTRAINTS ===` block is appended to each agent's taxonomy context. This block contains:
+
+- **Camp-specific terms:** the agent's own standardized vocabulary with display forms and definitions
+- **Cross-camp terms:** standardized terms from other camps, labeled by origin
+- **Bare term ban list:** colloquial terms marked `do_not_use_bare` that the agent must not use without qualification
+
+The vocabulary context is injected at two points:
+1. **Opening statements** — appended to the taxonomy block alongside commitments, established points, and edge context
+2. **Cross-respond pipeline** — appended to the taxonomy block that flows through all four pipeline stages (BRIEF → PLAN → DRAFT → CITE)
+
+The CLI headless runner loads vocabulary via `loadVocabulary()` in `taxonomyLoader.ts` and passes it through `DebateConfig.vocabulary`. The Electron UI loads vocabulary via the `loadDictionary` IPC handler at debate start and stores it in the debate store.
+
+See `lib/debate/vocabularyContext.ts` for the formatting function and `docs/taxonomy-vocabulary-system-spec.md` for the full vocabulary system specification.
+
 ### Context Injection Instrumentation
 
 After each agent response, a `ContextInjectionManifest` records:

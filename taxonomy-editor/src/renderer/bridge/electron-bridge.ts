@@ -87,6 +87,9 @@ export const api: AppAPI = {
   harvestQueueConcept: (c) => window.electronAPI.harvestQueueConcept(c),
   harvestSaveManifest: (m) => window.electronAPI.harvestSaveManifest(m),
 
+  // Dictionary
+  loadDictionary: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).loadDictionary() as Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }>,
+
   // Proposals
   listProposals: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).listProposals() as Promise<unknown[]>,
   saveProposal: (f, d) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).saveProposal(f, d) as Promise<{ saved?: boolean; error?: string }>,

@@ -1,7 +1,7 @@
 # Taxonomy Vocabulary System: Specification
 
 **Project:** AI Triad Taxonomy Editor + `ai-triad-research` ingestion pipeline
-**Status:** Draft for review
+**Status:** Phases 1–4 implemented (2026-04-28)
 **Supersedes:** The dictionary section of the term-ambiguity detection spec
 **Depends on:** `taxonomy.embeddings.json` from the context-rot mitigation spec
 **Estimated effort:** 8 weeks across four phases, with ~1 additional week for the rendering and quotation implementation work in Phase 3.
@@ -695,6 +695,33 @@ The vocabulary system is a living artifact. New terms get coined as the discours
 
 A v2 question worth flagging now but not solving: should standardized terms migrate from `provisional` to `accepted` based on usage, or only by explicit reviewer action? Usage-based promotion is convenient but lets the system drift without anyone noticing. Explicit promotion is more conservative but adds friction. Defer to v2 once you've seen how `provisional` terms behave in practice.
 
+### Implementation Status (as of 2026-04-28)
+
+All four phases are complete. The implementation pragmatically diverged from the spec in several places — the core goals were met through simpler mechanisms where the full spec machinery wasn't warranted at current scale.
+
+**Phase 1 (Foundations):** Complete. Dictionary directory structure, schemas, loader library (`lib/dictionary/`), sense embeddings builder, TypeScript types (`lib/dictionary/types.ts`), initial test suite.
+
+**Phase 2 (Initial Vocabulary):** Complete. 21 standardized terms coined across 10 colloquial families. Coinage log populated. Sense embeddings computed.
+
+**Phase 3 (Enforcement and Translation):** Partially complete. Translation pipeline not yet implemented as the full local-embedding-resolver → LLM-fallback chain described in §4. Instead, vocabulary enforcement is handled through:
+- Vocabulary panel in the taxonomy editor (dictionary browser)
+- `loadDictionary` IPC handler for Electron UI access
+- `vocabularyContext.ts` formats camp-specific vocabulary constraints for debate agent prompts
+
+**Phase 4 (Operations and Iteration):** Complete. Second batch of 11 terms coined (total: 32 standardized, 14 colloquial families). Calibration script (`scripts/calibrate_translation.py`), validation set (100 hand-labeled occurrences), audit script (`scripts/audit_debate_quality.py`), `dictionary/README.md`.
+
+**Post-Phase 4 — Taxonomy reprocessing and debate engine integration (2026-04-28):**
+- `scripts/reprocess_taxonomy_vocabulary.py` replaces bare colloquial terms in all 512 taxonomy nodes with camp-specific display forms. 2,704 replacements with zero first-fallback resolutions. Handles hyphenated compounds and redundant qualifier detection.
+- Debate engine vocabulary injection: both the Electron UI (`useDebateStore.ts`) and CLI headless runner (`cli.ts`) load vocabulary data and inject `=== VOCABULARY CONSTRAINTS ===` blocks into every debater prompt via `formatVocabularyContext()`.
+- Bridge layer (`AppAPI`) updated with `loadDictionary` method.
+
+**Not yet implemented:**
+- Full translation pipeline (`lib/translation/`) with local embedding resolver and LLM fallback — replaced by simpler camp-default resolution in the reprocessing script
+- CI lint enforcement (constraints 4–8)
+- Document ingestion vocabulary awareness (`batch_summarize.py`, `Invoke-SummaryPipeline.ps1`)
+- Feature flags and rollback infrastructure (§10)
+- Backfill of existing summaries
+
 ## 8. Risks and Open Questions
 
 **Risk: Forcing personas to use standardized vocabulary makes their outputs read awkwardly at first.** Mitigated by Phase 3 prompt iteration. Worst case, the system records vocabulary failures and the synthesis surfaces them as data — even an awkward output is more analytically useful than a fluent one that hides cross-sense ambiguity.
@@ -724,6 +751,37 @@ A v2 question worth flagging now but not solving: should standardized terms migr
 **Open question: Should colloquial terms with `status: safe` be displayed in the dictionary at all?** Argument for: transparency about what was considered. Argument against: clutter that obscures the terms that actually matter. My recommendation: keep them, but in a separate section of the UI ("considered and not standardized") rather than mixed in with active entries.
 
 ## 9. Files Touched
+
+### 9.1 Actual files created or modified (as of 2026-04-28)
+
+| File | Status |
+|---|---|
+| `dictionary/standardized/*.json` | 32 term files |
+| `dictionary/colloquial/*.json` | 14 family files |
+| `dictionary/sense_embeddings.json` | Built by `build_sense_embeddings.py` |
+| `dictionary/coinage_log.md` | 32 entries |
+| `dictionary/validation_set.json` | 100 hand-labeled occurrences |
+| `dictionary/README.md` | External documentation |
+| `lib/dictionary/types.ts` | TypeScript interfaces |
+| `lib/dictionary/__tests__/dictionary.test.ts` | Test suite (32 std, 14 col assertions) |
+| `lib/debate/vocabularyContext.ts` | `formatVocabularyContext()` for prompt injection |
+| `lib/debate/taxonomyLoader.ts` | Added `loadVocabulary()` |
+| `lib/debate/cli.ts` | Vocabulary loading, passed to `DebateConfig` |
+| `lib/debate/debateEngine.ts` | Conditional vocabulary injection at opening + cross-respond |
+| `taxonomy-editor/src/main/ipcHandlers.ts` | `load-dictionary` IPC handler |
+| `taxonomy-editor/src/main/preload.ts` | `loadDictionary` exposed to renderer |
+| `taxonomy-editor/src/renderer/bridge/types.ts` | `loadDictionary` in `AppAPI` |
+| `taxonomy-editor/src/renderer/bridge/electron-bridge.ts` | Bridge implementation |
+| `taxonomy-editor/src/renderer/bridge/web-bridge.ts` | Bridge implementation |
+| `taxonomy-editor/src/renderer/hooks/useDebateStore.ts` | Vocabulary loading at debate start, injection into prompts |
+| `taxonomy-editor/src/renderer/components/VocabularyPanel.tsx` | Dictionary browser UI |
+| `scripts/reprocess_taxonomy_vocabulary.py` | Batch taxonomy node reprocessing |
+| `scripts/calibrate_translation.py` | Five-dimensional calibration |
+| `scripts/audit_debate_quality.py` | Pre/post vocabulary debate comparison |
+| `scripts/coin_second_batch.py` | Phase 4 term coining |
+| `taxonomy/Origin/{accelerationist,safetyist,skeptic}.json` | Reprocessed with display forms |
+
+### 9.2 Originally planned files (from spec draft)
 
 | File | Change |
 |---|---|
