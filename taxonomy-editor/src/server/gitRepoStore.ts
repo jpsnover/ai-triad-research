@@ -28,7 +28,7 @@ import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
 
 const execFileP = promisify(execFile);
 
-const GIT_TIMEOUT_MS = 15_000;
+const GIT_TIMEOUT_MS = 60_000;
 const GIT_INIT_TIMEOUT_MS = 120_000;
 
 function isFeatureFlagEnabled(): boolean {
@@ -125,6 +125,32 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
   }
 }
 
+// ── Stale lock recovery ──
+
+const LOCK_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Remove stale `.git/*.lock` files left by crashed git processes.
+ * Azure Files (SMB) is especially prone to these because slow I/O
+ * causes git commands to time out mid-operation.
+ */
+export function clearStaleLockFile(root?: string): boolean {
+  const gitDir = path.join(root ?? getDataRoot(), '.git');
+  let cleared = false;
+  for (const name of ['index.lock', 'ORIG_HEAD.lock', 'HEAD.lock', 'FETCH_HEAD.lock', 'config.lock']) {
+    try {
+      const lockPath = path.join(gitDir, name);
+      const st = fs.statSync(lockPath);
+      if (Date.now() - st.mtimeMs > LOCK_MAX_AGE_MS) {
+        fs.unlinkSync(lockPath);
+        console.log(`[gitRepoStore] Removed stale ${name} (age: ${Math.round((Date.now() - st.mtimeMs) / 1000)}s)`);
+        cleared = true;
+      }
+    } catch { /* file doesn't exist — normal case */ }
+  }
+  return cleared;
+}
+
 // ── Low-level git exec ──
 
 async function git(args: string[]): Promise<string> {
@@ -174,8 +200,14 @@ function authorIdentity(): { name: string; email: string } {
 let gitChain: Promise<unknown> = Promise.resolve();
 
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
-  const next = gitChain.then(fn, fn);
-  gitChain = next.catch(() => {}); // don't poison the chain on failure
+  const next = gitChain.then(() => {
+    clearStaleLockFile();
+    return fn();
+  }, () => {
+    clearStaleLockFile();
+    return fn();
+  });
+  gitChain = next.catch(() => {});
   return next;
 }
 

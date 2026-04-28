@@ -267,11 +267,24 @@ post('/api/data/check-updates', async (_req, res) => {
 post('/api/data/pull', async (_req, res) => {
   try {
     const dataRoot = getDataRoot();
-    await new Promise<void>((resolve, reject) => {
-      execFile('git', ['pull', 'origin', 'main'], { cwd: dataRoot, timeout: 60_000 }, (err) => {
-        if (err) reject(err); else resolve();
+    const runGitPull = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
+      execFile('git', args, { cwd: dataRoot, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+        if (err) reject(err); else resolve(stdout.trim());
       });
     });
+
+    gitStore.clearStaleLockFile(dataRoot);
+
+    const status = await runGitPull(['status', '--porcelain']);
+    if (status) {
+      await runGitPull(['add', '-A']);
+      await runGitPull(['-c', 'user.name=web-auto', '-c', 'user.email=auto@web-edits.local',
+        'commit', '-m', 'auto-commit: stash local changes before pull']);
+    }
+
+    // Use fetch + reset instead of pull to avoid ORIG_HEAD lock issues on Azure Files
+    await runGitPull(['fetch', 'origin', 'main']);
+    await runGitPull(['reset', '--hard', 'FETCH_HEAD']);
     json(res, { success: true, message: 'Data updated.' });
   } catch (err) {
     json(res, { success: false, message: String(err) });

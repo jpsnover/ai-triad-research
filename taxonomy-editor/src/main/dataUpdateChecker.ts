@@ -80,7 +80,25 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
 export async function pullDataUpdates(): Promise<{ success: boolean; message: string }> {
   const dataRoot = resolveDataPath('.');
   try {
-    const output = await runGit(['pull', 'origin', 'main', '--ff-only'], dataRoot);
+    // Clear stale lock file left by a crashed git process
+    const lockPath = path.join(dataRoot, '.git', 'index.lock');
+    try {
+      const st = fs.statSync(lockPath);
+      if (Date.now() - st.mtimeMs > 5 * 60 * 1000) {
+        fs.unlinkSync(lockPath);
+        console.log('[DataUpdateChecker] Removed stale index.lock');
+      }
+    } catch { /* doesn't exist — normal */ }
+
+    // Auto-commit any dirty working tree so pull doesn't fail on conflicts
+    const status = await runGit(['status', '--porcelain'], dataRoot);
+    if (status) {
+      await runGit(['add', '-A'], dataRoot);
+      await runGit(['-c', 'user.name=electron-auto', '-c', 'user.email=auto@local',
+        'commit', '-m', 'auto-commit: stash local changes before pull'], dataRoot);
+    }
+
+    const output = await runGit(['pull', '--rebase', 'origin', 'main'], dataRoot);
     return { success: true, message: output || 'Up to date' };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
