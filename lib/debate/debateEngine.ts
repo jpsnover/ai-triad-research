@@ -2483,6 +2483,7 @@ Return ONLY JSON (no markdown, no code fences):
           target: rel.prior_claim_id,
           type: rel.relationship === 'attacks' ? 'attacks' : 'supports',
           attack_type: rel.attack_type as 'rebut' | 'undercut' | 'undermine' | undefined,
+          weight: typeof rel.weight === 'number' ? Math.max(0, Math.min(1, rel.weight)) : undefined,
           scheme: rel.scheme as ArgumentNetworkEdge['scheme'],
           warrant: rel.warrant,
           argumentation_scheme: rel.argumentation_scheme as ArgumentNetworkEdge['argumentation_scheme'],

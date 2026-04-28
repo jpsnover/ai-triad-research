@@ -850,7 +850,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
             const sourceNode = allNodes.find(n => n.id === a.source);
             const srcStr = strengthMap?.get(a.source);
             const atkMult = ATTACK_TYPE_WEIGHTS[a.attack_type ?? 'rebut'] ?? 1.0;
-            const edgeWeight = a.weight ?? 1.0;
+            const hasWeight = a.weight != null;
+            const edgeWeight = a.weight ?? 0.5;
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
               <div key={a.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
@@ -858,8 +859,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                   {contribution != null && (
-                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help' }}>
-                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}×{atkMult.toFixed(1)})</span>
+                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help', opacity: hasWeight ? 1 : 0.5 }}>
+                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
                     </span>
                   )}
                   {onGotoEntry && sourceNode?.source_entry_id && (
@@ -891,7 +892,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
           {supports.map(s => {
             const sourceNode = allNodes.find(n => n.id === s.source);
             const srcStrS = strengthMap?.get(s.source);
-            const edgeWeightS = s.weight ?? 1.0;
+            const hasWeightS = s.weight != null;
+            const edgeWeightS = s.weight ?? 0.5;
             const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
               <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
@@ -899,8 +901,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="RA-node" />
                   {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
                   {contributionS != null && (
-                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'help' }}>
-                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStrS.toFixed(2)}×{edgeWeightS.toFixed(1)})</span>
+                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'help', opacity: hasWeightS ? 1 : 0.5 }}>
+                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStrS.toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
                     </span>
                   )}
                   {onGotoEntry && sourceNode?.source_entry_id && (
@@ -1394,7 +1396,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const qbafEdges: QbafEdge[] = an.edges.map(e => ({
               source: e.source, target: e.target,
               type: e.type as 'attacks' | 'supports',
-              weight: e.weight ?? 1.0,
+              weight: e.weight ?? 0.5,
               attack_type: e.attack_type,
             }));
             const qbafResult = computeQbafStrengths(qbafNodes, qbafEdges);

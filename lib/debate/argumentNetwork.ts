@@ -48,6 +48,7 @@ For each distinct claim in the statement:
      Use "supports" for concession moves: when the speaker grants, agrees with, or accepts an opponent's claim. Schemes for support: ${SUPPORT_SCHEMES}.
    - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the inference, "undermine" = attacks premise credibility) and scheme (${ATTACK_SCHEMES})
    NOTE: A CONCEDE-AND-PIVOT move often produces TWO edges — a "supports" edge for the conceded portion and an "attacks" edge for the pivot. Include both in responds_to.
+   - "weight": 0.0-1.0 — how strongly this edge supports or attacks the target claim. 1.0 = decisive (the claim is a direct, well-evidenced rebuttal or a foundational premise). 0.5 = moderate engagement. Near 0 = tangential or weak. Judge based on relevance, specificity of evidence, and directness of engagement.
    - "argumentation_scheme": classify the reasoning pattern being used. Pick ONE:
      ARGUMENT_FROM_EVIDENCE — supported by specific data or measurements
      ARGUMENT_FROM_EXPERT_OPINION — supported by expert testimony or institutional authority
@@ -96,6 +97,7 @@ Return ONLY JSON (no markdown):
           "prior_claim_id": "AN-1",
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
+          "weight": 0.7,
           "scheme": "move name — e.g. COUNTEREXAMPLE, CONCEDE, CONDITIONAL-AGREE",
           "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"
@@ -150,6 +152,7 @@ For each claim:
      inference, "undermine" = attacks premise credibility) and scheme (${ATTACK_SCHEMES})
    NOTE: A CONCEDE-AND-PIVOT move often produces TWO edges — a "supports" edge for the
    conceded portion and an "attacks" edge for the pivot. Include both in responds_to.
+   - "weight": 0.0-1.0 — how strongly this edge supports or attacks the target claim. 1.0 = decisive. 0.5 = moderate. Near 0 = tangential or weak.
    - "argumentation_scheme": classify the reasoning pattern (ARGUMENT_FROM_EVIDENCE,
      ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES,
      ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES,
@@ -182,6 +185,7 @@ Return ONLY JSON (no markdown):
           "prior_claim_id": "AN-1",
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
+          "weight": 0.7,
           "scheme": "move name — e.g. COUNTEREXAMPLE, CONCEDE, CONDITIONAL-AGREE",
           "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"

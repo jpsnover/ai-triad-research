@@ -76,7 +76,7 @@ export function computeConvergenceSignals(
   const qbafEdges: QbafEdge[] = edges.map(e => ({
     source: e.source, target: e.target,
     type: e.type as 'attacks' | 'supports',
-    weight: e.weight ?? 1.0,
+    weight: e.weight ?? 0.5,
     attack_type: e.attack_type,
   }));
   const strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
