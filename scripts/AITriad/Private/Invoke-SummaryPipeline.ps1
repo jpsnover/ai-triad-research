@@ -69,6 +69,7 @@ function Invoke-SummaryPipeline {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
     $PipelineStart = Get-Date
+    if (-not (Test-Path variable:script:ContextRotStages)) { $script:ContextRotStages = @() }
 
     $WordCount = ($SnapshotText -split '\s+').Count
     $EstimatedTokens = [int]($SnapshotText.Length / 4)

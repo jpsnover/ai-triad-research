@@ -1,13 +1,12 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Post-processes AI-generated unmapped concepts by fuzzy-matching them against
-# all taxonomy nodes (cross-POV). Concepts that match an existing node are
-# converted to mapped key_points and removed from the unmapped list.
+# Post-processes AI-generated unmapped concepts by matching them against
+# all taxonomy nodes (cross-POV). Uses embedding similarity (primary) with
+# Jaccard word-overlap fallback when embeddings are unavailable.
 
 function Get-WordTokens {
     param([string]$Text)
-    # Lowercase, strip punctuation, split on whitespace, drop stop-words
     $StopWords = [System.Collections.Generic.HashSet[string]]::new(
         [string[]]@('a','an','the','in','of','and','or','for','to','is','that','with','as','by','on','at','from','its','this','it'),
         [System.StringComparer]::OrdinalIgnoreCase
@@ -34,17 +33,15 @@ function Resolve-UnmappedConcepts {
     .SYNOPSIS
         Fuzzy-matches unmapped concepts against all taxonomy nodes across all POVs.
     .DESCRIPTION
-        For each unmapped concept, computes word-overlap (Jaccard) similarity of
-        the suggested_label against every taxonomy node label. If the best match
-        exceeds the threshold, the concept is resolved to that node.
-
-        Returns a PSCustomObject with:
-          - Resolved:  array of objects with concept + matched node info
-          - Remaining: array of unmapped concepts that did not match
+        For each unmapped concept, uses embedding similarity (cosine) against the
+        cached taxonomy embeddings. Falls back to Jaccard word-overlap when embeddings
+        are unavailable. Concepts matching above the threshold are resolved to the
+        best taxonomy node.
     .PARAMETER UnmappedConcepts
         Array of unmapped concept objects from a summary.
     .PARAMETER Threshold
-        Minimum Jaccard similarity to consider a match (default 0.40).
+        Minimum similarity to consider a match. For embeddings: cosine similarity
+        (default 0.60). For Jaccard fallback: word overlap (default 0.50).
     .PARAMETER TaxonomyData
         Optional taxonomy hashtable. If omitted, uses the module-scoped data.
     #>
@@ -54,7 +51,7 @@ function Resolve-UnmappedConcepts {
         [AllowEmptyCollection()]
         [object[]]$UnmappedConcepts,
 
-        [double]$Threshold = 0.50,
+        [double]$Threshold = 0.60,
 
         [hashtable]$TaxonomyData
     )
@@ -88,11 +85,44 @@ function Resolve-UnmappedConcepts {
         }
     }
 
+    # Try embedding-based resolution (primary strategy)
+    $UseEmbeddings = $false
+    $ConceptEmbeddings = $null
+    $NodeEmbeddings = $script:CachedEmbeddings
+
+    if ($NodeEmbeddings -and $NodeEmbeddings.Count -gt 0) {
+        $ConceptTexts = @()
+        $ConceptIds = @()
+        for ($i = 0; $i -lt $UnmappedConcepts.Count; $i++) {
+            $Props = $UnmappedConcepts[$i].PSObject.Properties
+            $Label = if ($Props['suggested_label']) { $UnmappedConcepts[$i].suggested_label } else { '' }
+            $Desc = if ($Props['suggested_description']) { $UnmappedConcepts[$i].suggested_description } else { '' }
+            if ($Label) {
+                $ConceptTexts += "$Label. $Desc"
+                $ConceptIds += $i.ToString()
+            }
+        }
+
+        if ($ConceptTexts.Count -gt 0) {
+            $ConceptEmbeddings = Get-TextEmbedding -Texts $ConceptTexts -Ids $ConceptIds
+            if ($ConceptEmbeddings -and $ConceptEmbeddings.Count -gt 0) {
+                $UseEmbeddings = $true
+                Write-Verbose "Resolve-UnmappedConcepts: using embedding similarity ($($ConceptTexts.Count) concepts × $($NodeEmbeddings.Count) nodes)"
+            }
+        }
+    }
+
+    if (-not $UseEmbeddings) {
+        Write-Verbose "Resolve-UnmappedConcepts: embeddings unavailable, falling back to Jaccard word-overlap"
+        $Threshold = [Math]::Min($Threshold, 0.50)
+    }
+
     $Resolved  = [System.Collections.Generic.List[PSObject]]::new()
     $Remaining = [System.Collections.Generic.List[PSObject]]::new()
-
     $NearMissCount = 0
-    foreach ($Concept in $UnmappedConcepts) {
+
+    for ($ci = 0; $ci -lt $UnmappedConcepts.Count; $ci++) {
+        $Concept = $UnmappedConcepts[$ci]
         $Props = $Concept.PSObject.Properties
         if ($Props['suggested_label']) { $ConceptLabel = $Concept.suggested_label } else { $ConceptLabel = '' }
         if (-not $ConceptLabel) {
@@ -100,31 +130,53 @@ function Resolve-UnmappedConcepts {
             continue
         }
 
-        $ConceptTokens = Get-WordTokens $ConceptLabel
-        # Also tokenize the description for a secondary signal
-        if ($Props['suggested_description']) { $DescTokens = Get-WordTokens $Concept.suggested_description } else { $DescTokens = @() }
-
         $BestScore = 0.0
         $BestNode  = $null
 
-        foreach ($Node in $AllNodes) {
-            # Primary: label-to-label Jaccard
-            $LabelScore = Get-JaccardSimilarity $ConceptTokens $Node.Tokens
+        if ($UseEmbeddings -and $ConceptEmbeddings.ContainsKey($ci.ToString())) {
+            $ConceptVec = $ConceptEmbeddings[$ci.ToString()]
 
-            # Secondary: concept-description vs node-label (weighted lower)
-            if ($DescTokens.Count -gt 0) {
-                $DescScore = (Get-JaccardSimilarity $DescTokens $Node.Tokens) * 0.3
-            } else { $DescScore = 0.0 }
+            foreach ($NodeId in $NodeEmbeddings.Keys) {
+                $NodeVec = $NodeEmbeddings[$NodeId]
+                if ($NodeVec.Count -ne $ConceptVec.Count) { continue }
 
-            $Combined = [Math]::Max($LabelScore, $LabelScore * 0.7 + $DescScore)
+                $DotProduct = 0.0; $NormA = 0.0; $NormB = 0.0
+                for ($j = 0; $j -lt $ConceptVec.Count; $j++) {
+                    $DotProduct += $ConceptVec[$j] * $NodeVec[$j]
+                    $NormA += $ConceptVec[$j] * $ConceptVec[$j]
+                    $NormB += $NodeVec[$j] * $NodeVec[$j]
+                }
+                $Denom = [Math]::Sqrt($NormA) * [Math]::Sqrt($NormB)
+                $Sim = if ($Denom -gt 0) { $DotProduct / $Denom } else { 0.0 }
 
-            if ($Combined -gt $BestScore) {
-                $BestScore = $Combined
-                $BestNode  = $Node
+                if ($Sim -gt $BestScore) {
+                    $BestScore = $Sim
+                    $MatchedNode = $AllNodes | Where-Object { $_.Id -eq $NodeId } | Select-Object -First 1
+                    if ($MatchedNode) { $BestNode = $MatchedNode }
+                }
+            }
+        }
+        else {
+            # Jaccard fallback
+            $ConceptTokens = Get-WordTokens $ConceptLabel
+            $DescTokens = if ($Props['suggested_description']) { Get-WordTokens $Concept.suggested_description } else { @() }
+
+            foreach ($Node in $AllNodes) {
+                $LabelScore = Get-JaccardSimilarity $ConceptTokens $Node.Tokens
+                if ($DescTokens.Count -gt 0) {
+                    $DescScore = (Get-JaccardSimilarity $DescTokens $Node.Tokens) * 0.3
+                } else { $DescScore = 0.0 }
+                $Combined = [Math]::Max($LabelScore, $LabelScore * 0.7 + $DescScore)
+
+                if ($Combined -gt $BestScore) {
+                    $BestScore = $Combined
+                    $BestNode  = $Node
+                }
             }
         }
 
         if ($BestScore -ge $Threshold -and $BestNode) {
+            Write-Verbose ("  Resolved: '{0}'  {1} (score {2})" -f $ConceptLabel, $BestNode.Id, [Math]::Round($BestScore, 3))
             $null = $Resolved.Add([PSCustomObject]@{
                 ConceptLabel = $ConceptLabel
                 MatchedNodeId    = $BestNode.Id
@@ -149,6 +201,7 @@ function Resolve-UnmappedConcepts {
             resolved_count  = $Resolved.Count
             near_miss_count = $NearMissCount
             threshold       = $Threshold
+            used_embeddings = [int]$UseEmbeddings
         })
 
     return [PSCustomObject]@{
