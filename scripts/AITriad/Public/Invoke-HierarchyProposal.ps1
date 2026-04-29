@@ -427,6 +427,55 @@ $SchemaPrompt
             }
         }
 
+        # ── Cycle detection via DFS ─────────────────────────────────────
+        $AdjList = @{}   # parent → children list
+        if ($Proposal.PSObject.Properties['parents']) {
+            foreach ($Parent in @($Proposal.parents)) {
+                $ParentId = if ($Parent.PSObject.Properties['id']) { $Parent.id }
+                            elseif ($Parent.PSObject.Properties['parent_id']) { $Parent.parent_id }
+                            elseif ($Parent.PSObject.Properties['promoted_from']) { $Parent.promoted_from }
+                            else { $null }
+                if (-not $ParentId) { continue }
+                $Kids = [System.Collections.Generic.List[string]]::new()
+                foreach ($Child in @($Parent.children)) {
+                    if ($Child.node_id) { $Kids.Add($Child.node_id) }
+                }
+                $AdjList[$ParentId] = $Kids
+            }
+        }
+        $CycleEdges = [System.Collections.Generic.List[string]]::new()
+        $Visited = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $InStack  = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $Stack    = [System.Collections.Generic.Stack[object]]::new()
+        foreach ($Root in $AdjList.Keys) {
+            if ($Visited.Contains($Root)) { continue }
+            $Stack.Push(@{ Node = $Root; Index = 0 })
+            [void]$Visited.Add($Root)
+            [void]$InStack.Add($Root)
+            while ($Stack.Count -gt 0) {
+                $Frame = $Stack.Peek()
+                $Neighbors = if ($AdjList.ContainsKey($Frame.Node)) { $AdjList[$Frame.Node] } else { @() }
+                if ($Frame.Index -ge $Neighbors.Count) {
+                    [void]$Stack.Pop()
+                    [void]$InStack.Remove($Frame.Node)
+                    continue
+                }
+                $Neighbor = $Neighbors[$Frame.Index]
+                $Frame.Index++
+                if ($InStack.Contains($Neighbor)) {
+                    $CycleEdges.Add("$($Frame.Node) -> $Neighbor")
+                }
+                elseif (-not $Visited.Contains($Neighbor)) {
+                    [void]$Visited.Add($Neighbor)
+                    [void]$InStack.Add($Neighbor)
+                    $Stack.Push(@{ Node = $Neighbor; Index = 0 })
+                }
+            }
+        }
+        if ($CycleEdges.Count -gt 0) {
+            Write-Warn "Cycle detected in hierarchy: $($CycleEdges -join '; ')"
+        }
+
         # Check coverage
         $Missing = @($NodeIds | Where-Object { -not $AssignedIds.Contains($_) })
         if ($Missing.Count -gt 0) {

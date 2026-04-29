@@ -200,7 +200,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq'] as const).map((b) => {
+            {(['gemini', 'claude', 'groq', 'openai'] as const).map((b) => {
               const r = refreshResult[b];
               return (
                 <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>

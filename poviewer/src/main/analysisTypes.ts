@@ -17,7 +17,7 @@ export type AnalysisStatus =
   | 'error';
 
 export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
-export type Alignment = 'agrees' | 'contradicts';
+export type Alignment = 'agrees' | 'contradicts' | 'extends' | 'qualifies';
 export type StrengthLevel = 'strong' | 'moderate' | 'weak';
 
 export interface RawPoint {

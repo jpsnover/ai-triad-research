@@ -110,6 +110,7 @@ function Resolve-AIApiKey {
         'gemini' = 'GEMINI_API_KEY'
         'claude' = 'ANTHROPIC_API_KEY'
         'groq'   = 'GROQ_API_KEY'
+        'openai' = 'OPENAI_API_KEY'
     }
 
     $BackendEnvVar = $EnvVarMap[$Backend]
@@ -148,10 +149,12 @@ function Resolve-AIApiKey {
     request, executes it with automatic retry on transient errors (HTTP 429,
     503, 529), and returns a uniform result object.
 
-    The result object has four properties:
+    The result object has six properties:
       Text        — the generated text content
-      Backend     — 'gemini', 'claude', or 'groq'
+      Backend     — 'gemini', 'claude', 'groq', or 'openai'
       Model       — the model ID that was used
+      Truncated   — $true if the response was cut short by max_tokens
+      Usage       — token counts (InputTokens, OutputTokens, TotalTokens) or $null
       RawResponse — the full deserialized API response
 
     Returns $null on failure (with warnings explaining the issue).
@@ -219,6 +222,7 @@ function Invoke-AIApi {
             'gemini' { 'GEMINI_API_KEY' }
             'claude' { 'ANTHROPIC_API_KEY' }
             'groq'   { 'GROQ_API_KEY' }
+            'openai' { 'OPENAI_API_KEY' }
         }
         Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
         return $null
@@ -306,6 +310,24 @@ function Invoke-AIApi {
 
             $Body = $GroqBody | ConvertTo-Json -Depth 10
         }
+
+        'openai' {
+            $Uri = 'https://api.openai.com/v1/responses'
+            $Headers = @{
+                'Authorization' = "Bearer $ResolvedKey"
+            }
+
+            $OpenAIBody = @{
+                model             = $ApiModelId
+                input             = $Prompt
+                max_output_tokens = $MaxTokens
+            }
+            if ($JsonMode) {
+                $OpenAIBody['text'] = @{ format = @{ type = 'json_object' } }
+            }
+
+            $Body = $OpenAIBody | ConvertTo-Json -Depth 10
+        }
     }
 
     # -- Call API with retry logic --------------------------------------------
@@ -372,7 +394,9 @@ function Invoke-AIApi {
     }
 
     # -- Extract text from backend-specific response envelope -----------------
-    $Text = $null
+    $Text      = $null
+    $Truncated = $false
+    $Usage     = $null
 
     switch ($Backend) {
         'gemini' {
@@ -383,7 +407,16 @@ function Invoke-AIApi {
                     Write-Warning "Gemini: generation stopped with finishReason=$FinishReason (content may have been blocked)"
                     return $null
                 }
+                $Truncated = ($FinishReason -eq 'MAX_TOKENS')
                 $Text = $Candidate.content.parts[0].text
+                $um = $Response.usageMetadata
+                if ($um) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($um.promptTokenCount)
+                        OutputTokens = [int]($um.candidatesTokenCount)
+                        TotalTokens  = [int]($um.totalTokenCount)
+                    }
+                }
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Gemini: unexpected response shape (top-level keys: $TopKeys). Expected candidates[].content.parts[].text"
@@ -393,6 +426,15 @@ function Invoke-AIApi {
         'claude' {
             try {
                 $Text = ($Response.content | Where-Object { $_.type -eq 'text' } | Select-Object -First 1).text
+                $Truncated = ($Response.stop_reason -eq 'max_tokens')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.input_tokens)
+                        OutputTokens = [int]($u.output_tokens)
+                        TotalTokens  = [int]($u.input_tokens) + [int]($u.output_tokens)
+                    }
+                }
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Claude: unexpected response shape (top-level keys: $TopKeys). Expected content[].text"
@@ -401,19 +443,54 @@ function Invoke-AIApi {
         }
         'groq' {
             try {
-                $Text = $Response.choices[0].message.content
+                $Choice = $Response.choices[0]
+                $Text = $Choice.message.content
+                $Truncated = ($Choice.finish_reason -eq 'length')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.prompt_tokens)
+                        OutputTokens = [int]($u.completion_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
             } catch {
                 $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
                 Write-Warning "Groq: unexpected response shape (top-level keys: $TopKeys). Expected choices[].message.content"
                 return $null
             }
         }
+        'openai' {
+            try {
+                $MsgOutput = $Response.output | Where-Object { $_.type -eq 'message' } | Select-Object -First 1
+                $Text = ($MsgOutput.content | Where-Object { $_.type -eq 'output_text' } | Select-Object -First 1).text
+                $Truncated = ($Response.status -eq 'incomplete')
+                $u = $Response.usage
+                if ($u) {
+                    $Usage = [PSCustomObject]@{
+                        InputTokens  = [int]($u.input_tokens)
+                        OutputTokens = [int]($u.output_tokens)
+                        TotalTokens  = [int]($u.total_tokens)
+                    }
+                }
+            } catch {
+                $TopKeys = ($Response.PSObject.Properties.Name | Select-Object -First 5) -join ', '
+                Write-Warning "OpenAI: unexpected response shape (top-level keys: $TopKeys). Expected output[].content[].text"
+                return $null
+            }
+        }
+    }
+
+    if ($Truncated) {
+        Write-Warning "$($Backend): response was truncated (max_tokens reached). Output may be incomplete."
     }
 
     return [PSCustomObject]@{
         Text        = $Text
         Backend     = $Backend
         Model       = $Model
+        Truncated   = $Truncated
+        Usage       = $Usage
         RawResponse = $Response
     }
 }
@@ -542,15 +619,72 @@ $Excerpt
         } | Where-Object { $_ })
     }
 
-    Write-Host "   ✓  AI metadata: title='$($Parsed.title)'  povs=[$($FilteredPovs -join ',')]  topics=[$($NormTopics -join ',')]" -ForegroundColor Green
+    # Validate date_published format (gap 2.1): accept YYYY, YYYY-MM, YYYY-MM-DD
+    $ValidDate = $null
+    if ($Parsed.date_published) {
+        $dp = "$($Parsed.date_published)".Trim()
+        if ($dp -match '^\d{4}(-\d{2}(-\d{2})?)?$') {
+            $ValidDate = $dp
+        } else {
+            [datetime]$parsedDt = [datetime]::MinValue
+            $fmts = @('MMMM yyyy', 'MMM yyyy', 'MMMM d, yyyy', 'MMM d, yyyy',
+                       'd MMMM yyyy', 'd MMM yyyy', 'MM/dd/yyyy', 'dd/MM/yyyy',
+                       'yyyy/MM/dd', 'MMMM dd, yyyy', 'MMM dd, yyyy')
+            foreach ($fmt in $fmts) {
+                if ([datetime]::TryParseExact($dp, $fmt,
+                        [System.Globalization.CultureInfo]::InvariantCulture,
+                        [System.Globalization.DateTimeStyles]::None, [ref]$parsedDt)) {
+                    $ValidDate = $parsedDt.ToString('yyyy-MM-dd')
+                    Write-Verbose "Normalized date_published '$dp' → '$ValidDate'"
+                    break
+                }
+            }
+            if (-not $ValidDate) {
+                Write-Warning "AI returned unrecognised date_published format: '$dp' — field cleared"
+            }
+        }
+    }
+
+    # Enforce title/one_liner length limits (gap 2.2)
+    $Title = if ($Parsed.title) { "$($Parsed.title)".Trim() } else { '' }
+    if ($Title.Length -gt 200) {
+        $Title = $Title.Substring(0, 197) + '...'
+        Write-Warning "AI returned title exceeding 200 chars — truncated"
+    }
+    if (-not $Title -and $FallbackTitle) { $Title = $FallbackTitle }
+
+    $OneLiner = if ($Parsed.one_liner) { "$($Parsed.one_liner)".Trim() } else { '' }
+    if ($OneLiner.Length -gt 300) {
+        $OneLiner = $OneLiner.Substring(0, 297) + '...'
+        Write-Warning "AI returned one_liner exceeding 300 chars — truncated"
+    }
+
+    # Deduplicate authors on normalized lowercase (gap 2.3)
+    $Authors = @()
+    if ($Parsed.authors) {
+        $seen = @{}
+        foreach ($a in $Parsed.authors) {
+            $key = "$a".Trim().ToLower()
+            if ($key -and -not $seen.ContainsKey($key)) {
+                $seen[$key] = $true
+                $Authors += "$a".Trim()
+            }
+        }
+        $dupeCount = @($Parsed.authors).Count - $Authors.Count
+        if ($dupeCount -gt 0) {
+            Write-Warning "AI returned $dupeCount duplicate author(s) — deduplicated"
+        }
+    }
+
+    Write-Host "   ✓  AI metadata: title='$Title'  povs=[$($FilteredPovs -join ',')]  topics=[$($NormTopics -join ',')]" -ForegroundColor Green
 
     return @{
-        title          = if ($Parsed.title)          { $Parsed.title }           else { $FallbackTitle }
-        authors        = if ($Parsed.authors)        { @($Parsed.authors) }      else { @() }
-        date_published = if ($Parsed.date_published) { $Parsed.date_published }  else { $null }
+        title          = $Title
+        authors        = $Authors
+        date_published = $ValidDate
         pov_tags       = $FilteredPovs
         topic_tags     = $NormTopics
-        one_liner      = if ($Parsed.one_liner)      { $Parsed.one_liner }       else { '' }
+        one_liner      = $OneLiner
     }
 }
 

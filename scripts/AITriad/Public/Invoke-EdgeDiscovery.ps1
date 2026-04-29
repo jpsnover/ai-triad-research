@@ -141,6 +141,7 @@ function Invoke-EdgeDiscovery {
         if     ($Model -match '^gemini') { $Backend = 'gemini' }
         elseif ($Model -match '^claude') { $Backend = 'claude' }
         elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
         else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -195,6 +196,16 @@ function Invoke-EdgeDiscovery {
             discovery_log   = @()
         }
     }
+
+    # Build canonical edge type set for validation (gap 7.2)
+    $ValidEdgeTypes = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($ET in @($EdgesData.edge_types)) {
+        [void]$ValidEdgeTypes.Add($ET.type)
+    }
+
+    # Build full node ID set for validation (gap 7.1)
+    $ValidNodeIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($Node in $AllNodes) { [void]$ValidNodeIds.Add($Node.id) }
 
     # Use a List for O(1) appends instead of O(N²) array concatenation
     $EdgesList = [System.Collections.Generic.List[PSObject]]::new()
@@ -415,6 +426,10 @@ $SchemaPrompt
                     Write-Warn "$($Disc.NodeId): self-edge skipped"
                     continue
                 }
+                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): unknown edge type '$($Edge.type)', skipping"
+                    continue
+                }
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) {
                     Write-Warn "$($Disc.NodeId) → $($Edge.target): confidence $Confidence < 0.5, skipping"
@@ -530,6 +545,10 @@ $SchemaPrompt
                     continue
                 }
                 if ($Edge.target -eq $Disc.NodeId) { continue }
+                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
+                    Write-Warn "$($Disc.NodeId) → $($Edge.target): unknown edge type '$($Edge.type)', skipping"
+                    continue
+                }
                 $Confidence = [double]$Edge.confidence
                 if ($Confidence -lt 0.5) { continue }
                 $EdgeKey = "$($Disc.NodeId)|$($Edge.type)|$($Edge.target)"

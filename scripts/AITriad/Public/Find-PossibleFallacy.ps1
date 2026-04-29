@@ -102,6 +102,7 @@ function Find-PossibleFallacy {
         if     ($Model -match '^gemini') { $Backend = 'gemini' }
         elseif ($Model -match '^claude') { $Backend = 'claude' }
         elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
         else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -119,6 +120,30 @@ function Find-PossibleFallacy {
     # ── Load prompts ──
     $SystemPrompt = Get-Prompt -Name 'fallacy-analysis'
     $SchemaPrompt = Get-Prompt -Name 'fallacy-analysis-schema'
+
+    # ── Canonical fallacy registry (Gap 5.1) ──
+    $CanonicalFallacies = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@(
+            'ad_hominem','appeal_to_authority','appeal_to_consequences','appeal_to_emotion',
+            'appeal_to_fear','appeal_to_nature','appeal_to_novelty','appeal_to_popularity',
+            'appeal_to_tradition','argument_from_analogy','argument_from_ignorance',
+            'argument_from_incredulity','argument_from_silence','bandwagon_fallacy',
+            'begging_the_question','burden_of_proof','cherry_picking','circular_reasoning',
+            'composition_division','continuum_fallacy','correlation_causation','equivocation',
+            'false_cause','false_dilemma','false_equivalence','gambler_fallacy',
+            'genetic_fallacy','guilt_by_association','hasty_generalization','is_ought_problem',
+            'loaded_question','middle_ground','moralistic_fallacy','moving_the_goalposts',
+            'naturalistic_fallacy','nirvana_fallacy','no_true_scotsman','red_herring',
+            'reification','slippery_slope','special_pleading','straw_man','sunk_cost',
+            'texas_sharpshooter','tu_quoque','unfalsifiability',
+            'affirming_the_consequent','denying_the_antecedent','affirming_a_disjunct',
+            'undistributed_middle',
+            'base_rate_neglect','anchoring_bias','availability_heuristic','confirmation_bias',
+            'dunning_kruger','hindsight_bias','optimism_bias','status_quo_bias',
+            'survivorship_bias'
+        ), [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $ValidConfidences = @('likely', 'possible', 'borderline')
 
     # ── Process each taxonomy file ──
     $TotalProcessed = 0
@@ -296,6 +321,60 @@ $SchemaPrompt
                 if ($NodeResult.PSObject.Properties['possible_fallacies'] -and $NodeResult.possible_fallacies) {
                     $Fallacies = @($NodeResult.possible_fallacies)
                 }
+
+                # Gap 5.1: Validate fallacy names against canonical registry
+                # Gap 5.2: Validate confidence values
+                $ValidatedFallacies = [System.Collections.Generic.List[object]]::new()
+                foreach ($f in $Fallacies) {
+                    $FallacyName = if ($f.PSObject.Properties['fallacy']) { $f.fallacy } else { $null }
+                    if (-not $FallacyName) { continue }
+
+                    $NormalizedName = $FallacyName.Trim().ToLowerInvariant() -replace '[\s\-]+','_'
+                    if (-not $CanonicalFallacies.Contains($NormalizedName)) {
+                        $BestMatch = $null; $BestScore = 0.0
+                        $NameWords = [System.Collections.Generic.HashSet[string]]::new(
+                            [string[]]($NormalizedName -split '_'),
+                            [System.StringComparer]::OrdinalIgnoreCase
+                        )
+                        foreach ($Canonical in $CanonicalFallacies) {
+                            $CanonWords = [System.Collections.Generic.HashSet[string]]::new(
+                                [string[]]($Canonical -split '_'),
+                                [System.StringComparer]::OrdinalIgnoreCase
+                            )
+                            $Intersection = [System.Collections.Generic.HashSet[string]]::new($NameWords)
+                            $Intersection.IntersectWith($CanonWords)
+                            $Union = [System.Collections.Generic.HashSet[string]]::new($NameWords)
+                            $Union.UnionWith($CanonWords)
+                            if ($Union.Count -gt 0) {
+                                $Jaccard = $Intersection.Count / $Union.Count
+                                if ($Jaccard -gt $BestScore) { $BestScore = $Jaccard; $BestMatch = $Canonical }
+                            }
+                        }
+                        if ($BestMatch -and $BestScore -ge 0.5) {
+                            Write-Warn "$NodeId`: normalized fallacy '$FallacyName' → '$BestMatch' (Jaccard $([Math]::Round($BestScore, 2)))"
+                            $f.fallacy = $BestMatch
+                        } else {
+                            Write-Warn "$NodeId`: unrecognized fallacy '$FallacyName' (kept as-is, no close match)"
+                        }
+                    } else {
+                        $f.fallacy = $NormalizedName
+                    }
+
+                    if ($f.PSObject.Properties['confidence']) {
+                        $ConfLower = $f.confidence.ToString().Trim().ToLowerInvariant()
+                        if ($ConfLower -notin $ValidConfidences) {
+                            Write-Warn "$NodeId`: invalid confidence '$($f.confidence)' → defaulting to 'possible'"
+                            $f.confidence = 'possible'
+                        } else {
+                            $f.confidence = $ConfLower
+                        }
+                    } else {
+                        $f | Add-Member -NotePropertyName 'confidence' -NotePropertyValue 'possible' -Force
+                    }
+
+                    $ValidatedFallacies.Add($f)
+                }
+                $Fallacies = @($ValidatedFallacies)
 
                 # Ensure the node has graph_attributes
                 $OrigNode = $FileData.nodes | Where-Object { $_.id -eq $NodeId }

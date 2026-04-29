@@ -20,6 +20,7 @@ function findRepoRoot(): string {
 }
 
 const PROJECT_ROOT = findRepoRoot();
+console.log(`[fileIO] PROJECT_ROOT: ${PROJECT_ROOT} (from __dirname: ${__dirname})`);
 const IS_PACKAGED = app?.isPackaged ?? false;
 
 // ── Platform-specific default data directory ──

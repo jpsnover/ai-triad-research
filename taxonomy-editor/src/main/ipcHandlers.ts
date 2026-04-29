@@ -185,11 +185,11 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('set-api-key', (_event, key: string, backend?: string) => {
-    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | undefined);
+    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
   });
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
-    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | undefined);
+    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
   });
 
   ipcMain.handle('compute-embeddings', async (_event, texts: string[], ids?: string[]) => {

@@ -10,7 +10,7 @@ function Find-PolicyAction {
         recommendations that each node's claim supports or implies. Results are
         stored in each node's graph_attributes.policy_actions field.
 
-        Each policy action includes a concrete action statement (5-15 words) and
+        Each policy action includes a concrete action statement (5-20 words) and
         a framing explanation connecting the node's claim to the policy lever.
 
         Nodes that are purely theoretical or definitional get an empty array.
@@ -91,6 +91,7 @@ function Find-PolicyAction {
         if     ($Model -match '^gemini') { $Backend = 'gemini' }
         elseif ($Model -match '^claude') { $Backend = 'claude' }
         elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
         else                             { $Backend = 'gemini'  }
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -296,6 +297,14 @@ $SchemaPrompt
             }
 
             # ── Apply policy actions to nodes ──
+            # Build registry ID set for Gap 6.1 validation
+            $RegistryIdSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            if ($Registry -and $Registry.policies) {
+                foreach ($pol in $Registry.policies) {
+                    if ($pol.id) { [void]$RegistryIdSet.Add($pol.id) }
+                }
+            }
+
             foreach ($Node in $Batch) {
                 $NodeId = $Node.id
                 if (-not $ActionData.PSObject.Properties[$NodeId]) {
@@ -310,8 +319,28 @@ $SchemaPrompt
                     $Actions = @($NodeResult.policy_actions)
                 }
 
+                # Gap 6.2: Validate action text word count (warn >25, truncate >30)
+                foreach ($Act in $Actions) {
+                    if ($Act.PSObject.Properties['action'] -and $Act.action) {
+                        $Words = @($Act.action -split '\s+' | Where-Object { $_ })
+                        if ($Words.Count -gt 30) {
+                            Write-Warn "$NodeId`: action truncated from $($Words.Count) to 30 words: '$($Act.action.Substring(0, [Math]::Min(60, $Act.action.Length)))...'"
+                            $Act.action = ($Words[0..29] -join ' ') + '...'
+                        } elseif ($Words.Count -gt 25) {
+                            Write-Warn "$NodeId`: action is $($Words.Count) words (target 5-20): '$($Act.action.Substring(0, [Math]::Min(60, $Act.action.Length)))...'"
+                        }
+                    }
+                }
+
+                # Gap 6.1: Validate reused policy_id references exist in registry
                 # Assign policy_ids for new actions (where policy_id is null or missing)
                 foreach ($Act in $Actions) {
+                    if ($Act.PSObject.Properties['policy_id'] -and $null -ne $Act.policy_id) {
+                        if ($RegistryIdSet.Count -gt 0 -and -not $RegistryIdSet.Contains($Act.policy_id)) {
+                            Write-Warn "$NodeId`: dangling policy_id '$($Act.policy_id)' not in registry — treating as new"
+                            $Act.policy_id = $null
+                        }
+                    }
                     if (-not $Act.PSObject.Properties['policy_id'] -or $null -eq $Act.policy_id) {
                         if ($Registry) {
                             # Find next available ID

@@ -161,16 +161,32 @@ Return ONLY a JSON array like:
             $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
             $Classifications = $ResponseText | ConvertFrom-Json
 
+            $AllowedScopes = @('current_state', 'predictive', 'historical', 'timeless')
+
             foreach ($C in $Classifications) {
                 $ClaimIdx = $C.index
                 $TargetClaim = $Entry.Summary.factual_claims[$ClaimIdx]
 
                 if ($TargetClaim) {
+                    $Scope = $C.temporal_scope
+                    if ($Scope -and $Scope -notin $AllowedScopes) {
+                        # Normalize near-matches
+                        switch -Regex ($Scope.ToLower().Trim()) {
+                            'current|present|now'     { $Scope = 'current_state' }
+                            'predict|future|forecast' { $Scope = 'predictive' }
+                            'histor|past'             { $Scope = 'historical' }
+                            'timeless|universal|general|permanent' { $Scope = 'timeless' }
+                            default {
+                                Write-Warning "    claim[$ClaimIdx]: unknown temporal_scope '$($C.temporal_scope)' — defaulting to 'current_state'"
+                                $Scope = 'current_state'
+                            }
+                        }
+                    }
                     if ($TargetClaim.PSObject.Properties['temporal_scope']) {
-                        $TargetClaim.temporal_scope = $C.temporal_scope
+                        $TargetClaim.temporal_scope = $Scope
                     }
                     else {
-                        $TargetClaim | Add-Member -NotePropertyName 'temporal_scope' -NotePropertyValue $C.temporal_scope -Force
+                        $TargetClaim | Add-Member -NotePropertyName 'temporal_scope' -NotePropertyValue $Scope -Force
                     }
 
                     if ($C.PSObject.Properties['temporal_bound']) { $Bound = $C.temporal_bound } else { $Bound = $null }

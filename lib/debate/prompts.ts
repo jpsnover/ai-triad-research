@@ -785,13 +785,13 @@ ${isFirst ? 'You are delivering the first opening statement.' : `You have read t
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
@@ -852,13 +852,13 @@ ${question}
 
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
@@ -1217,6 +1217,184 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 "policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
 }
 
+// ── 4-Stage opening pipeline prompts ─────────────────────────
+
+export interface OpeningStagePromptInput {
+  label: string;
+  pov: string;
+  personality: string;
+  topic: string;
+  taxonomyContext: string;
+  priorStatements: string;
+  isFirst: boolean;
+  sourceContent?: string;
+  documentAnalysis?: DocumentAnalysis;
+  audience?: DebateAudience;
+}
+
+export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
+  const documentBlock = input.documentAnalysis
+    ? documentAnalysisContext(input.documentAnalysis)
+    : sourceContext(input.sourceContent);
+
+  return `You are an analytical assistant preparing a situation brief for ${input.label}, who represents the ${input.pov} perspective on AI policy.
+
+Your task is to analyze the debate topic and identify the strongest framing strategy for ${input.label}'s opening statement. This is pure analysis — do not write any debate statement or adopt the debater's voice.
+
+${input.taxonomyContext}
+
+=== DEBATE TOPIC ===
+"${input.topic}"${documentBlock}
+${input.priorStatements}
+
+Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and produce a structured brief. Focus on:
+1. What are the key dimensions of this topic that ${input.label}'s perspective can address?
+2. Which taxonomy nodes are most relevant and should anchor the opening argument?
+3. What are the strongest claims ${input.label} can make from their perspective?
+${input.isFirst ? '4. What framing will best establish this perspective for the audience?' : `4. What positions from prior speakers should ${input.label} acknowledge or contrast with?
+5. What framing gaps or unchallenged assumptions can ${input.label} exploit?`}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
+  "strongest_angles": [
+    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective"}
+  ],
+  "relevant_taxonomy_nodes": [
+    {"node_id": "e.g. acc-beliefs-003", "why": "1 sentence: why this node should anchor the opening"}
+  ],
+  "key_tensions": [
+    {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
+  ]${input.isFirst ? '' : `,
+  "prior_positions_to_address": [
+    {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
+  ]`}
+}`;
+}
+
+export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: string): string {
+  return `You are ${input.label}, planning the structure of your opening statement.
+Your personality: ${input.personality}.
+Your perspective: ${input.pov}.
+
+=== SITUATION BRIEF ===
+${brief}
+
+Plan your opening statement strategy. This is your first appearance — you need to:
+1. Establish your core position clearly and memorably
+2. Choose which 2-4 taxonomy nodes to build your argument around
+3. Decide on the argumentative structure (claim + evidence + warrant for each main point)
+${input.isFirst ? '4. Set the terms of debate from your perspective' : '4. Decide how to position yourself relative to prior speakers — acknowledge their strongest points before diverging'}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "strategic_goal": "1-2 sentences: what your opening should accomplish",
+  "core_thesis": "1 sentence: your central claim in this debate",
+  "argument_structure": [
+    {"point": "main claim #1", "evidence": "what supports it", "taxonomy_anchor": "node_id to ground it"}
+  ],
+  "framing_choices": "2-3 sentences: how you will frame the issue and why this framing favors your perspective",
+  "anticipated_challenges": ["what opponents will likely attack", "what assumptions you're exposing"]
+}`;
+}
+
+export function draftOpeningStagePrompt(input: OpeningStagePromptInput, brief: string, plan: string): string {
+  const hasDocument = !!(input.documentAnalysis || input.sourceContent);
+
+  const documentInstructions = input.documentAnalysis
+    ? `\nThis debate is grounded in a pre-analyzed document. Your opening should: (1) engage with specific document claims (D-IDs) — state which you accept and which you challenge, (2) address the identified tension points from your perspective, and (3) reference D-IDs in your taxonomy_refs and my_claims targets, NOT in your prose text.\n`
+    : input.sourceContent
+      ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n`
+      : '';
+
+  return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
+Your personality: ${input.personality}.
+${otherDebaters(input.label)}
+${getReadingLevel(input.audience)}
+${getDetailInstruction(input.audience)}
+
+${MUST_CORE_BEHAVIORS}
+
+${MUST_EXTENDED}
+
+${STEELMAN_INSTRUCTION}
+
+=== SITUATION BRIEF ===
+${brief}
+
+=== YOUR ARGUMENT PLAN ===
+${plan}
+
+=== YOUR ASSIGNMENT ===
+Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
+${hasDocument ? documentInstructions : ''}
+${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
+
+Execute the argument plan above. Write your opening statement following the plan's structure.
+
+PARAGRAPH STRUCTURE: Your "statement" MUST contain 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+
+NODE-ID PROHIBITION: Never surface taxonomy node IDs in your statement text. Use plain language.
+
+State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong.
+
+CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence.
+
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "statement": "your opening statement text (3-5 paragraphs)",
+  "turn_symbols": [
+    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
+  ],
+  "claim_sketches": [
+    {"claim": "near-verbatim headline assertion from your statement", "targets": []},
+    {"claim": "near-verbatim supporting sub-claim or premise", "targets": []}
+  ],
+  "key_assumptions": [
+    {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
+  ]
+}`;
+}
+
+export function citeOpeningStagePrompt(
+  input: OpeningStagePromptInput,
+  brief: string,
+  plan: string,
+  draft: string,
+): string {
+  return `You are a grounding analyst. Your task is to annotate an opening debate statement with precise taxonomy references and policy connections.
+
+=== SITUATION BRIEF ===
+${brief}
+
+=== ARGUMENT PLAN ===
+${plan}
+
+=== DRAFT STATEMENT ===
+${draft}
+
+=== TAXONOMY CONTEXT ===
+${input.taxonomyContext}
+
+Ground the opening statement in the taxonomy. For each connection:
+1. TAXONOMY REFS: Tag 4-6 taxonomy nodes that the statement draws from. Cover all three BDI sections (Beliefs, Desires, Intentions). For each, explain in 1-4 sentences how the node informed the argument.
+2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
+3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "taxonomy_refs": [
+    {"node_id": "acc-beliefs-003", "relevance": "1-4 sentences: how this node informed the argument"},
+    {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
+    {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
+  ],
+  "policy_refs": ["pol-001", "pol-012"],
+  "grounding_confidence": 0.85
+}`;
+}
+
 // ── 4-Stage turn pipeline prompts ─────────────────────────
 
 export interface StagePromptInput {
@@ -1376,13 +1554,13 @@ NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement
 
 CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip in the form: "<X> is like <Symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your full debate response (3-5 paragraphs)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like <symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},

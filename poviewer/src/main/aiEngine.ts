@@ -97,6 +97,50 @@ function parseJsonArray<T>(raw: string): T[] {
   return parsed as T[];
 }
 
+// ── Validation helpers ──
+
+const VALID_ALIGNMENTS = new Set(['agrees', 'contradicts', 'extends', 'qualifies']);
+
+const ALIGNMENT_KEYWORDS: Record<string, string[]> = {
+  agrees: ['agrees', 'agree', 'supports', 'support', 'aligns', 'align', 'affirms', 'endorses', 'consistent'],
+  contradicts: ['contradicts', 'contradict', 'opposes', 'oppose', 'disagrees', 'conflicts', 'challenges', 'refutes', 'denies', 'rejects'],
+  extends: ['extends', 'extend', 'expands', 'builds', 'elaborates', 'broadens', 'adds to', 'supplements'],
+  qualifies: ['qualifies', 'qualify', 'nuances', 'limits', 'conditions', 'restricts', 'caveats', 'partially'],
+};
+
+function normalizeAlignment(raw: string): string {
+  const lower = raw.trim().toLowerCase();
+  if (VALID_ALIGNMENTS.has(lower)) return lower;
+  for (const [alignment, keywords] of Object.entries(ALIGNMENT_KEYWORDS)) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) return alignment;
+    }
+  }
+  return 'agrees';
+}
+
+function extractNodeIds(taxonomyJson: string): Set<string> {
+  const ids = new Set<string>();
+  try {
+    const taxonomy = JSON.parse(taxonomyJson);
+    if (Array.isArray(taxonomy)) {
+      for (const node of taxonomy) {
+        if (node.id) ids.add(node.id);
+      }
+    } else if (typeof taxonomy === 'object') {
+      for (const key of Object.keys(taxonomy)) {
+        const group = taxonomy[key];
+        if (group?.nodes && Array.isArray(group.nodes)) {
+          for (const node of group.nodes) {
+            if (node.id) ids.add(node.id);
+          }
+        }
+      }
+    }
+  } catch { /* taxonomy parse failed — skip validation */ }
+  return ids;
+}
+
 export async function runAnalysis(
   sourceId: string,
   sourceText: string,
@@ -159,7 +203,16 @@ export async function runAnalysis(
 
     if (signal.aborted) throw new Error('Analysis cancelled');
 
-    const mappings = parseJsonArray<RawMapping>(stage2Raw);
+    let mappings = parseJsonArray<RawMapping>(stage2Raw);
+
+    // Validate node IDs and normalize alignment
+    const validIds = extractNodeIds(taxonomyJson);
+    if (validIds.size > 0) {
+      mappings = mappings.filter(m => validIds.has(m.nodeId));
+    }
+    for (const m of mappings) {
+      m.alignment = normalizeAlignment(m.alignment) as RawMapping['alignment'];
+    }
 
     emitProgress(sourceId, 'stage2_complete', 80);
 
@@ -205,7 +258,7 @@ export interface ExcerptMapping {
   nodeLabel: string;
   category: string;
   camp: string;
-  alignment: 'agrees' | 'contradicts';
+  alignment: 'agrees' | 'contradicts' | 'extends' | 'qualifies';
   strength: 'strong' | 'moderate' | 'weak';
   explanation: string;
 }
@@ -251,5 +304,15 @@ export async function analyzeExcerpt(
 
   const controller = new AbortController();
   const raw = await callGemini(prompt, model, apiKey, controller.signal);
-  return parseJsonArray<ExcerptMapping>(raw);
+  let results = parseJsonArray<ExcerptMapping>(raw);
+
+  const validIds = extractNodeIds(taxonomyJson);
+  if (validIds.size > 0) {
+    results = results.filter(m => validIds.has(m.nodeId));
+  }
+  for (const m of results) {
+    m.alignment = normalizeAlignment(m.alignment) as ExcerptMapping['alignment'];
+  }
+
+  return results;
 }

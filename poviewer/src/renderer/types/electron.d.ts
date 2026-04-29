@@ -6,7 +6,7 @@ export interface ExcerptMappingResult {
   nodeLabel: string;
   category: string;
   camp: string;
-  alignment: 'agrees' | 'contradicts';
+  alignment: 'agrees' | 'contradicts' | 'extends' | 'qualifies';
   strength: 'strong' | 'moderate' | 'weak';
   explanation: string;
 }

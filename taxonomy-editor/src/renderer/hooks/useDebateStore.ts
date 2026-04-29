@@ -1983,7 +1983,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           .map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.pov)
           .filter(Boolean);
 
-        const analysisPrompt = documentAnalysisPrompt(
+        const { prompt: analysisPrompt } = documentAnalysisPrompt(
           activeDebate.source_content,
           activeDebate.topic.final,
           activePovers,

@@ -11,6 +11,10 @@
     {
       "id": "groq",
       "label": "Groq"
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI"
     }
   ],
   "models": [
@@ -325,6 +329,18 @@
       "apiModelId": "openai/gpt-oss-20b",
       "label": "Openai/Gpt Oss 20b",
       "backend": "groq"
+    },
+    {
+      "id": "openai-gpt-5.5",
+      "apiModelId": "gpt-5.5",
+      "label": "GPT-5.5",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.5-pro",
+      "apiModelId": "gpt-5.5-pro",
+      "label": "GPT-5.5 Pro",
+      "backend": "openai"
     }
   ],
   "defaults": {

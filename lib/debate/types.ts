@@ -613,6 +613,39 @@ export interface TurnPipelineResult {
   total_time_ms: number;
 }
 
+// ── Opening pipeline types ───────────────────────────
+
+export interface OpeningBriefWorkProduct {
+  situation_assessment: string;
+  strongest_angles: { angle: string; why: string }[];
+  relevant_taxonomy_nodes: { node_id: string; why: string }[];
+  key_tensions: { tension: string; opportunity: string }[];
+  prior_positions_to_address?: { speaker: string; position: string; response_strategy: string }[];
+}
+
+export interface OpeningPlanWorkProduct {
+  strategic_goal: string;
+  core_thesis: string;
+  argument_structure: { point: string; evidence: string; taxonomy_anchor: string }[];
+  framing_choices: string;
+  anticipated_challenges: string[];
+}
+
+export interface OpeningCiteWorkProduct {
+  taxonomy_refs: TaxonomyRef[];
+  policy_refs: string[];
+  grounding_confidence: number;
+}
+
+export interface OpeningPipelineResult {
+  brief: OpeningBriefWorkProduct;
+  plan: OpeningPlanWorkProduct;
+  draft: DraftWorkProduct;
+  cite: OpeningCiteWorkProduct;
+  stage_diagnostics: StageDiagnostics[];
+  total_time_ms: number;
+}
+
 /**
  * Per-turn trace for the claim-extraction pipeline. Used to diagnose
  * "AN nodes stop being registered" plateau failures.

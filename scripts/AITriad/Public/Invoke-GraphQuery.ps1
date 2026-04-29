@@ -72,6 +72,7 @@ function Invoke-GraphQuery {
     if     ($Model -match '^gemini') { $Backend = 'gemini' }
     elseif ($Model -match '^claude') { $Backend = 'claude' }
     elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
     else                             { $Backend = 'gemini'  }
     $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
     if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
@@ -245,6 +246,47 @@ $SchemaPrompt
             Write-Host $ResponseText -ForegroundColor DarkGray
             return
         }
+    }
+
+    # ── Step 8b: Validate cited node IDs (gap 8.1) ──
+    $UnverifiedCount = 0
+
+    if ($Response.PSObject.Properties['referenced_nodes'] -and $Response.referenced_nodes) {
+        foreach ($Ref in @($Response.referenced_nodes)) {
+            if ($Ref.PSObject.Properties['id'] -and $Ref.id) {
+                $IsValid = $NodePovMap.ContainsKey($Ref.id)
+                $Ref | Add-Member -NotePropertyName 'verified' -NotePropertyValue $IsValid -Force
+                if (-not $IsValid) { $UnverifiedCount++ }
+            }
+        }
+    }
+
+    if ($Response.PSObject.Properties['paths_traced'] -and $Response.paths_traced) {
+        foreach ($Path in @($Response.paths_traced)) {
+            if ($Path.PSObject.Properties['nodes'] -and $Path.nodes) {
+                $InvalidInPath = @($Path.nodes | Where-Object { $_ -and -not $NodePovMap.ContainsKey($_) })
+                if ($InvalidInPath.Count -gt 0) {
+                    $Path | Add-Member -NotePropertyName 'unverified_nodes' -NotePropertyValue $InvalidInPath -Force
+                    $UnverifiedCount += $InvalidInPath.Count
+                }
+            }
+        }
+    }
+
+    $UnverifiedInAnswer = @()
+    if ($Response.PSObject.Properties['answer'] -and $Response.answer) {
+        $IdPattern = '[a-z]{2,3}-[a-z]+-\d{3}'
+        $Matches = [regex]::Matches($Response.answer, $IdPattern)
+        foreach ($M in $Matches) {
+            if (-not $NodePovMap.ContainsKey($M.Value)) {
+                $UnverifiedInAnswer += $M.Value
+                $UnverifiedCount++
+            }
+        }
+    }
+
+    if ($UnverifiedCount -gt 0) {
+        Write-Warning "Graph query: $UnverifiedCount cited node ID(s) could not be verified against the taxonomy"
     }
 
     # ── Step 9: Output ──

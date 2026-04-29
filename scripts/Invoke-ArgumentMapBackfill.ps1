@@ -176,6 +176,29 @@ Return ONLY valid JSON.
         $ResponseText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
         $ArgMap = $ResponseText | ConvertFrom-Json
 
+        # Validate argument map structure
+        if (-not $ArgMap.PSObject.Properties['claims'] -or @($ArgMap.claims).Count -eq 0) {
+            Write-Warning " rejected (no claims array)"
+            $Errors++
+            continue
+        }
+        $InvalidClaims = @($ArgMap.claims | Where-Object {
+            -not $_.PSObject.Properties['id'] -or -not $_.id -or
+            -not $_.PSObject.Properties['text'] -or -not $_.text
+        })
+        if ($InvalidClaims.Count -gt 0) {
+            $ArgMap.claims = @($ArgMap.claims | Where-Object {
+                $_.PSObject.Properties['id'] -and $_.id -and
+                $_.PSObject.Properties['text'] -and $_.text
+            })
+            Write-Warning " stripped $($InvalidClaims.Count) claim(s) missing id/text"
+        }
+        if (@($ArgMap.claims).Count -eq 0) {
+            Write-Warning " rejected (no valid claims after validation)"
+            $Errors++
+            continue
+        }
+
         # Write argument_map to debate
         if ($Debate.PSObject.Properties['argument_map']) {
             $Debate.argument_map = $ArgMap

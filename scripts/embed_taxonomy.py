@@ -127,7 +127,7 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
-SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json"}
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json"}
 
 # Resolved at runtime from .aitriad.json
 CONFLICTS_DIR: Path = Path()  # set in _resolve_taxonomy_dir
@@ -377,6 +377,19 @@ def cmd_generate(args):
         + w_rhetorical * rhetorical_vecs
     )
 
+    # Detect degenerate embeddings (near-zero vectors from empty/stop-word-only text)
+    raw_norms = np.linalg.norm(node_vectors, axis=1)
+    degenerate_mask = raw_norms < 0.01
+    degenerate_count = int(np.sum(degenerate_mask))
+    if degenerate_count > 0:
+        degenerate_ids = [nodes[i][1]["id"] for i in range(n) if degenerate_mask[i]]
+        print(
+            f"Warning: {degenerate_count} degenerate embedding(s) (‖v‖ < 0.01), "
+            f"excluded from similarity: {', '.join(degenerate_ids[:10])}"
+            + (f" ... and {degenerate_count - 10} more" if degenerate_count > 10 else ""),
+            file=sys.stderr,
+        )
+
     # Re-normalize so downstream cosine similarity works correctly
     norms = np.linalg.norm(node_vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1.0  # avoid division by zero for empty nodes
@@ -385,10 +398,13 @@ def cmd_generate(args):
     # ── Build output structure ───────────────────────────────────────
     nodes_dict = {}
     for i, (pov, node) in enumerate(nodes):
-        nodes_dict[node["id"]] = {
+        entry = {
             "pov": pov,
             "vector": node_vectors[i].tolist(),
         }
+        if degenerate_mask[i]:
+            entry["degenerate"] = True
+        nodes_dict[node["id"]] = entry
 
     for i, pol in enumerate(policies):
         nodes_dict[pol["id"]] = {
@@ -464,6 +480,8 @@ def cmd_query(args):
         if type_filter == "node" and entry["pov"] == "policy":
             continue
         if type_filter == "policy" and entry["pov"] != "policy":
+            continue
+        if entry.get("degenerate"):
             continue
         node_ids.append(nid)
         vectors.append(entry["vector"])

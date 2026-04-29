@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-04-29T07:03:22Z",
+  "model": "openai-gpt-5.5-pro",
+  "taxonomy_version": "3.3.0",
+  "summary_count": 414,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "cc-064",
+      "pov": "situations",
+      "category": null,
+      "label": "AI-Intensified Democratic Power Ambivalence",
+      "description": "A situation concept that examines how AI data collection and processing can simultaneously strengthen democratic participation and expand anti-democratic losses of control_human_agency.\nEncompasses: accelerationist interpretation of data-rich civic systems as governance_adaptive capacity, safetyist interpretation of surveillance-enabled power lock-in as speculative_future_harm, and skeptic interpretation of platform data extraction as documented_present_harm to autonomy_individual.\nExcludes: authoritarian-informationalism nodes focused only on repression, federal-state rule allocation, or general governance_oversight authority debates.",
+      "vocabulary_terms": [
+        "governance_adaptive",
+        "control_human_agency",
+        "speculative_future_harm",
+        "documented_present_harm",
+        "autonomy_individual",
+        "governance_oversight"
+      ],
+      "rationale": "The unmapped concept appears in 2 document summaries with frequency 2. Nearest-node similarity data were not supplied; comparison against cc-026, cc-042, and sit-118 shows those nodes cover authoritarian information control, algorithmic power nexus formation, or AI-policy framing rather than the Janus-faced democratic affordance and threat created by AI-scale data processing.",
+      "evidence_doc_ids": [],
+      "evidence_count": 2,
+      "status": "approved"
+    }
+  ]
+}

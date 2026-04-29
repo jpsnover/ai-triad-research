@@ -98,12 +98,39 @@ function Import-AITriadDocument {
     if     ($Model -match '^gemini') { $Backend = 'gemini' }
     elseif ($Model -match '^claude') { $Backend = 'claude' }
     elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
     else                             { $Backend = 'gemini'  }
     $AIApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
 
     # =========================================================================
     # Inner function — called once per document
     # =========================================================================
+    function Find-ExistingSource {
+        param(
+            [string]$Url,
+            [string]$FilePath
+        )
+        $MetaFiles = @(Get-ChildItem -Path $SourcesDir -Filter 'metadata.json' -Recurse -Depth 1 -ErrorAction SilentlyContinue)
+        foreach ($MF in $MetaFiles) {
+            try {
+                $Meta = Get-Content $MF.FullName -Raw | ConvertFrom-Json
+            } catch { continue }
+
+            if (-not [string]::IsNullOrWhiteSpace($Url) -and $Meta.document_url -eq $Url) {
+                return $MF.Directory.Name
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($FilePath)) {
+                $FileName = [System.IO.Path]::GetFileName($FilePath)
+                $RawDir = Join-Path $MF.Directory.FullName 'raw'
+                if (Test-Path (Join-Path $RawDir $FileName)) {
+                    return $MF.Directory.Name
+                }
+            }
+        }
+        return $null
+    }
+
     function Invoke-IngestDocument {
         [CmdletBinding()]
         param(
@@ -112,6 +139,14 @@ function Import-AITriadDocument {
             [string[]]$PovTags     = @(),
             [string[]]$TopicTags   = @()
         )
+
+        # -- Idempotency check -----------------------------------------------
+        $ExistingDocId = Find-ExistingSource -Url $SourceUrl -FilePath $SourceFile
+        if ($ExistingDocId) {
+            $MatchType = if (-not [string]::IsNullOrWhiteSpace($SourceUrl)) { "URL '$SourceUrl'" } else { "file '$(Split-Path $SourceFile -Leaf)'" }
+            Write-Warn "Duplicate detected: $MatchType already ingested as '$ExistingDocId' — skipping"
+            return $ExistingDocId
+        }
 
         $RawContent   = $null
         $MarkdownText = ''

@@ -115,4 +115,16 @@ Notes on optional fields:
 - All proposed node paths must **exactly match** existing taxonomy IDs — do NOT guess or approximate. If an ID doesn't exist, reject the proposal.
 - Omit unused optional fields or set them to null.
 
+### Vocabulary / Dictionary Constraints
+
+This taxonomy uses a **controlled vocabulary** to disambiguate terms that different camps use with different meanings. The vocabulary is provided in the health data below under `VOCABULARY (STANDARDIZED TERMS)` and `VOCABULARY (COLLOQUIAL TERMS — DO NOT USE BARE)`.
+
+**Key rules for proposals:**
+
+- **Use canonical forms** (e.g., `safety_alignment`, `governance_adaptive`) in descriptions and labels — NOT bare colloquial terms like "alignment" or "governance" which are ambiguous across camps.
+- **Check `vocabulary_terms`** on existing nodes. When proposing NEW nodes, include the `vocabulary_terms` array listing which standardized terms are relevant.
+- **Avoid colloquial terms marked `do_not_use_bare`**. If a proposal's description needs a concept like "alignment", use the camp-specific standardized form instead (e.g., `safety_alignment` for safetyist, `commercial_alignment` for accelerationist).
+- **Propose new vocabulary terms** if an unmapped concept reveals a term collision: include a `vocabulary_note` string in the proposal explaining what new standardized term might be needed and why.
+- When writing descriptions in genus-differentia format, use the standardized terminology from the vocabulary rather than colloquial phrases.
+
 Return ONLY valid JSON. No markdown fences, no commentary outside the JSON object.

@@ -220,6 +220,20 @@ Return ONLY a JSON array:
                 if ($Desc -notmatch 'Excludes:') { $QualityOk = $false }
 
                 if ($QualityOk) {
+                    # Drift detection: warn if old→new word overlap is low
+                    $OldDesc = $TargetNode.description
+                    if ($OldDesc) {
+                        $OldWords = @($OldDesc.ToLower() -split '\W+' | Where-Object { $_.Length -gt 3 }) | Sort-Object -Unique
+                        $NewWords = @($Desc.ToLower() -split '\W+' | Where-Object { $_.Length -gt 3 }) | Sort-Object -Unique
+                        if ($OldWords.Count -gt 0 -and $NewWords.Count -gt 0) {
+                            $Shared = @($OldWords | Where-Object { $NewWords -contains $_ }).Count
+                            $Union = @($OldWords + $NewWords | Sort-Object -Unique).Count
+                            $Overlap = $Shared / [Math]::Max(1, $Union)
+                            if ($Overlap -lt 0.25) {
+                                Write-Warning "    $($R.id): semantic drift detected (word overlap $([Math]::Round($Overlap, 2))) — review recommended"
+                            }
+                        }
+                    }
                     $TargetNode.description = $Desc
                     $Rewritten++
                 } else {

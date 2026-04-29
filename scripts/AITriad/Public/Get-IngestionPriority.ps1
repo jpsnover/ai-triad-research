@@ -223,6 +223,7 @@ function Get-IngestionPriority {
             if     ($Model -match '^gemini') { $Backend = 'gemini' }
             elseif ($Model -match '^claude') { $Backend = 'claude' }
             elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
             else                             { $Backend = 'gemini'  }
 
             $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend

@@ -133,11 +133,11 @@ Return ONLY JSON in this shape (no prose, no code fences):
 
 function parseJudgeVerdict(raw: string): JudgeVerdict {
   const fallback: JudgeVerdict = {
-    advances: true,
-    advancement_reason: '',
+    advances: false,
+    advancement_reason: 'judge_parse_failure',
     clarifies_taxonomy: [],
     weaknesses: [],
-    recommend: 'pass',
+    recommend: 'accept_with_flag',
   };
   try {
     const parsed = parseJsonRobust(raw) as Record<string, unknown>;
@@ -310,7 +310,7 @@ async function auditDebate(
       } catch (err) {
         const elapsed = Date.now() - t0;
         verdicts[model] = {
-          verdict: { advances: true, advancement_reason: '', clarifies_taxonomy: [], weaknesses: [], recommend: 'pass' },
+          verdict: { advances: false, advancement_reason: 'judge_call_error', clarifies_taxonomy: [], weaknesses: [], recommend: 'accept_with_flag' },
           response_time_ms: elapsed, raw_response: '', error: (err as Error).message,
         };
         process.stderr.write(` ${model.split('-').slice(-2).join('-')}=ERR`);

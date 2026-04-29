@@ -7,7 +7,7 @@ export type Theme = 'light' | 'dark' | 'bkc' | 'system';
 // === POV Camps ===
 export type PovCamp = 'accelerationist' | 'safetyist' | 'skeptic' | 'situations';
 
-export type Alignment = 'agrees' | 'contradicts';
+export type Alignment = 'agrees' | 'contradicts' | 'extends' | 'qualifies';
 
 export type StrengthLevel = 'strong' | 'moderate' | 'weak';
 

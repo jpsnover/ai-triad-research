@@ -236,7 +236,7 @@ $ChunkText
                 -Temperature $Temperature `
                 -MaxTokens  65536 `
                 -JsonMode `
-                -TimeoutSec 300 `
+                -TimeoutSec 600 `
                 -MaxRetries 3 `
                 -RetryDelays @(5, 15, 45)
 
@@ -551,6 +551,47 @@ function Parse-AIResponse {
     }
 }
 
+$script:ValidStances = @('strongly_aligned','aligned','neutral','opposed','strongly_opposed','not_applicable')
+
+$script:StanceKeywordMap = @{
+    strongly_aligned = @('strongly_align','strongly_support','fully_align','fully_support',
+                         'enthusiastic','wholehearted','completely_agree','fully_endorse',
+                         'strongly agree','fully agree','totally agree','completely support')
+    aligned          = @('align','support','agree','endorse','advocate','favor','embrace',
+                         'concur','approve','accept','positive','promote','back','champion',
+                         'sympathetic','pro','affirmative','encourage')
+    opposed          = @('oppose','disagree','reject','dispute','challenge','contest','resist',
+                         'deny','refute','counter','critical','against','negative','skeptical',
+                         'pushback','push back','object','sucks','bad','wrong','flawed','harmful')
+    strongly_opposed = @('strongly_oppose','strongly_disagree','vehemently','adamant',
+                         'completely_reject','fundamentally_oppose','categorically',
+                         'strongly reject','totally reject','completely disagree','dangerous',
+                         'catastrophic','existential threat','reckless','unconscionable')
+    not_applicable   = @('not_applicable','n/a','irrelevant','no_stance','no stance','unrelated',
+                         'does not address','not relevant','outside scope')
+}
+
+function Resolve-Stance {
+    param([string]$Raw)
+
+    if ([string]::IsNullOrWhiteSpace($Raw)) { return 'neutral' }
+
+    $Lower = $Raw.Trim().ToLowerInvariant() -replace '[_\-]',' '
+
+    if ($Lower -in $script:ValidStances) { return $Lower }
+    $Normalized = $Lower -replace '\s+','_'
+    if ($Normalized -in $script:ValidStances) { return $Normalized }
+
+    foreach ($Stance in 'strongly_opposed','strongly_aligned','opposed','aligned','not_applicable') {
+        foreach ($Kw in $script:StanceKeywordMap[$Stance]) {
+            $KwNorm = $Kw -replace '[_\-]',' '
+            if ($Lower -match [regex]::Escape($KwNorm)) { return $Stance }
+        }
+    }
+
+    return 'neutral'
+}
+
 function Finalize-Summary {
     param(
         [object]$SummaryObject,
@@ -567,9 +608,43 @@ function Finalize-Summary {
         [object]$FireStats = $null
     )
 
-    # Validate stance values and gather counts
-    $ValidStances = @('strongly_aligned','aligned','neutral','opposed','strongly_opposed','not_applicable')
+    # -- Schema validation (Gap 3.4) --------------------------------------------
     $Camps        = @('accelerationist','safetyist','skeptic')
+    $SchemaErrors = [System.Collections.Generic.List[string]]::new()
+
+    $SoPropsCheck = $SummaryObject.PSObject.Properties
+    if (-not $SoPropsCheck['pov_summaries']) {
+        $SchemaErrors.Add("Missing required field: pov_summaries")
+    } else {
+        foreach ($Camp in $Camps) {
+            $CampData = $SummaryObject.pov_summaries.$Camp
+            if ($null -eq $CampData) {
+                $SchemaErrors.Add("Missing camp in pov_summaries: $Camp")
+            } elseif (-not $CampData.PSObject.Properties['key_points'] -or $CampData.key_points -isnot [System.Array]) {
+                $SchemaErrors.Add("pov_summaries.$Camp.key_points missing or not an array")
+            }
+        }
+    }
+    if (-not $SoPropsCheck['factual_claims']) {
+        $SchemaErrors.Add("Missing required field: factual_claims")
+    } elseif ($SummaryObject.factual_claims -isnot [System.Array]) {
+        $SchemaErrors.Add("factual_claims is not an array")
+    }
+    if (-not $SoPropsCheck['unmapped_concepts']) {
+        $SchemaErrors.Add("Missing required field: unmapped_concepts")
+    } elseif ($SummaryObject.unmapped_concepts -isnot [System.Array]) {
+        $SchemaErrors.Add("unmapped_concepts is not an array")
+    }
+
+    foreach ($Err in $SchemaErrors) {
+        Write-Host "  │  ✗ Schema: $Err" -ForegroundColor Red
+    }
+
+    if ($SchemaErrors.Count -gt 0 -and -not $SoPropsCheck['pov_summaries']) {
+        return @{ Success = $false; DocId = $ThisDocId; Error = "Schema validation failed: $($SchemaErrors -join '; ')" }
+    }
+
+    # -- Validate stance values and gather counts --------------------------------
     $TotalPoints  = 0
     $NullNodes    = 0
 
@@ -578,12 +653,67 @@ function Finalize-Summary {
         if ($CampData) {
             if ($CampData.key_points) {
                 foreach ($kp in $CampData.key_points) {
-                    if ($kp.stance -notin $ValidStances) { $kp.stance = 'neutral' }
+                    if ($kp.stance -notin $script:ValidStances) { $kp.stance = Resolve-Stance $kp.stance }
                 }
                 $TotalPoints += @($CampData.key_points).Count
                 $NullNodes   += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
             }
         }
+    }
+
+    # -- Validate taxonomy_node_id existence (Gap 3.1) ---------------------------
+    $InvalidNodeIds = [System.Collections.Generic.List[string]]::new()
+    $NodeIdSet = Get-TaxonomyNodeIdSet
+    if ($null -ne $NodeIdSet -and $NodeIdSet.Count -gt 0) {
+        foreach ($Camp in $Camps) {
+            $CampData = $SummaryObject.pov_summaries.$Camp
+            if (-not $CampData -or -not $CampData.key_points) { continue }
+            foreach ($kp in $CampData.key_points) {
+                if (-not $kp.taxonomy_node_id) { continue }
+                if (-not $NodeIdSet.Contains($kp.taxonomy_node_id)) {
+                    $InvalidNodeIds.Add("$Camp/$($kp.taxonomy_node_id)")
+                    $BadId = $kp.taxonomy_node_id
+                    $kp.taxonomy_node_id = $null
+                    $NullNodes++
+                    if (-not $SummaryObject.PSObject.Properties['unmapped_concepts']) {
+                        $SummaryObject | Add-Member -NotePropertyName 'unmapped_concepts' -NotePropertyValue @() -Force
+                    }
+                    $SummaryObject.unmapped_concepts = @($SummaryObject.unmapped_concepts) + @(
+                        [PSCustomObject]@{
+                            suggested_label = $BadId
+                            concept         = $kp.point
+                            reason          = "Hallucinated node ID '$BadId' not found in taxonomy — moved from $Camp key_points"
+                        }
+                    )
+                }
+            }
+        }
+        if ($InvalidNodeIds.Count -gt 0) {
+            Write-Host "  │  ⚠ Hallucinated node IDs moved to unmapped: $($InvalidNodeIds -join ', ')" -ForegroundColor Yellow
+        }
+    }
+
+    # -- Cross-camp consistency check (Gap 3.3) --------------------------------
+    $NodeStanceMap = @{}
+    $CrossCampWarnings = [System.Collections.Generic.List[string]]::new()
+    foreach ($Camp in $Camps) {
+        $CampData = $SummaryObject.pov_summaries.$Camp
+        if (-not $CampData -or -not $CampData.key_points) { continue }
+        foreach ($kp in $CampData.key_points) {
+            if (-not $kp.taxonomy_node_id) { continue }
+            $Key = "$($kp.taxonomy_node_id)|$($kp.stance)"
+            if ($NodeStanceMap.ContainsKey($Key)) {
+                $PriorCamp = $NodeStanceMap[$Key]
+                if ($PriorCamp -ne $Camp) {
+                    $CrossCampWarnings.Add("Cross-camp agreement: $PriorCamp + $Camp both '$($kp.stance)' on $($kp.taxonomy_node_id)")
+                }
+            } else {
+                $NodeStanceMap[$Key] = $Camp
+            }
+        }
+    }
+    foreach ($Warn in $CrossCampWarnings) {
+        Write-Host "  │  ⚠ $Warn" -ForegroundColor Yellow
     }
 
     $SoProps = $SummaryObject.PSObject.Properties
@@ -674,6 +804,13 @@ function Finalize-Summary {
         pov_summaries     = $PovSummariesVal
         factual_claims    = @($FactualClaims)
         unmapped_concepts = @($UnmappedConcs)
+    }
+    $AllWarnings = [System.Collections.Generic.List[string]]::new()
+    foreach ($e in $SchemaErrors)       { $AllWarnings.Add("Schema: $e") }
+    foreach ($n in $InvalidNodeIds)     { $AllWarnings.Add("Hallucinated node ID: $n") }
+    foreach ($w in $CrossCampWarnings)  { $AllWarnings.Add($w) }
+    if ($AllWarnings.Count -gt 0) {
+        $FinalSummary['warnings'] = @($AllWarnings)
     }
 
     $SummaryPath = Join-Path $SummariesDir "${ThisDocId}.json"

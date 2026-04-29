@@ -88,12 +88,13 @@ export function getProjectRoot(): string {
 
 // ── API key resolution ──
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'tavily';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily';
 
 const ENV_KEY_NAMES: Record<AIBackend, string> = {
   gemini: 'GEMINI_API_KEY',
   claude: 'ANTHROPIC_API_KEY',
   groq: 'GROQ_API_KEY',
+  openai: 'OPENAI_API_KEY',
   tavily: 'TAVILY_API_KEY',
 };
 

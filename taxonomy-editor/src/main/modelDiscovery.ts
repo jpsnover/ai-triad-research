@@ -208,6 +208,46 @@ async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
   return [...seen.values()];
 }
 
+// ── OpenAI: GET /v1/models ─────────────────────────────────────────────────
+
+interface OpenAIModelInfo {
+  id: string;
+  owned_by: string;
+}
+
+async function discoverOpenAIModels(apiKey: string): Promise<ModelEntry[]> {
+  const resp = await fetch('https://api.openai.com/v1/models', {
+    headers: { 'Authorization': `Bearer ${apiKey}` },
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`OpenAI models API ${resp.status}: ${body.slice(0, 200)}`);
+  }
+  const json = await resp.json() as { data: OpenAIModelInfo[] };
+
+  return json.data
+    .filter(m => {
+      const id = m.id.toLowerCase();
+      return id.startsWith('gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4');
+    })
+    .filter(m => {
+      const id = m.id.toLowerCase();
+      return !id.includes('realtime') && !id.includes('audio') && !id.includes('transcribe');
+    })
+    .map(m => {
+      const friendlyId = 'openai-' + m.id.toLowerCase();
+      const label = m.id
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      return {
+        id: friendlyId,
+        apiModelId: m.id,
+        label,
+        backend: 'openai',
+      };
+    });
+}
+
 function getKnownClaudeModels(): ModelEntry[] {
   return [
     { id: 'claude-opus-4',     apiModelId: 'claude-opus-4-20250514',     label: 'Opus 4',              backend: 'claude' },
@@ -222,6 +262,7 @@ export interface RefreshResult {
   gemini: { ok: boolean; count: number; error?: string };
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
+  openai: { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
 
@@ -231,6 +272,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
     gemini: { ok: false, count: 0 },
     claude: { ok: false, count: 0 },
     groq:   { ok: false, count: 0 },
+    openai: { ok: false, count: 0 },
     totalModels: 0,
   };
 
@@ -302,6 +344,25 @@ export async function refreshAIModels(): Promise<RefreshResult> {
   } else {
     newModels.push(...config.models.filter(m => m.backend === 'groq'));
     result.groq = { ok: false, count: 0, error: 'No API key configured' };
+  }
+
+  // ── OpenAI ──
+  const openaiKey = loadApiKey('openai');
+  if (openaiKey) {
+    try {
+      const models = await discoverOpenAIModels(openaiKey);
+      newModels.push(...models);
+      result.openai = { ok: true, count: models.length };
+      console.log(`[ModelDiscovery] OpenAI: discovered ${models.length} models`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      result.openai = { ok: false, count: 0, error: msg };
+      console.error(`[ModelDiscovery] OpenAI error:`, msg);
+      newModels.push(...config.models.filter(m => m.backend === 'openai'));
+    }
+  } else {
+    newModels.push(...config.models.filter(m => m.backend === 'openai'));
+    result.openai = { ok: false, count: 0, error: 'No API key configured' };
   }
 
   // ── Update config ──

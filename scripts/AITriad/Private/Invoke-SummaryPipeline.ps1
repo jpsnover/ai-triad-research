@@ -207,7 +207,7 @@ $SnapshotText
                 -Temperature $Temperature `
                 -MaxTokens   32768 `
                 -JsonMode `
-                -TimeoutSec  120
+                -TimeoutSec  600
 
             if ($null -eq $AiResult) {
                 return @{ Success = $false; DocId = $DocId; Error = 'API call returned null' }

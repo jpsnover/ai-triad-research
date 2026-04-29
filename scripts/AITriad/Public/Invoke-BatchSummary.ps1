@@ -123,6 +123,7 @@ function Invoke-BatchSummary {
     if     ($Model -match '^gemini') { $Backend = 'gemini' }
     elseif ($Model -match '^claude') { $Backend = 'claude' }
     elseif ($Model -match '^groq')   { $Backend = 'groq'   }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
     else                             { $Backend = 'gemini'  }
     $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {

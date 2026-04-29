@@ -16,7 +16,7 @@ interface NodeAggregation {
     sourceId: string;
     sourceTitle: string;
     pointCount: number;
-    alignments: { agrees: number; contradicts: number };
+    alignments: { agrees: number; contradicts: number; extends: number; qualifies: number };
     strengths: { strong: number; moderate: number; weak: number };
   }>;
   totalPoints: number;
@@ -61,7 +61,7 @@ export default function AggregationView() {
               sourceId: source.id,
               sourceTitle: source.title,
               pointCount: 0,
-              alignments: { agrees: 0, contradicts: 0 },
+              alignments: { agrees: 0, contradicts: 0, extends: 0, qualifies: 0 },
               strengths: { strong: 0, moderate: 0, weak: 0 },
             };
             node.sources.push(sourceEntry);

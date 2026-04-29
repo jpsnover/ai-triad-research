@@ -61,6 +61,7 @@ function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limit
 function resolveBackend(model: string): AIBackend {
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
+  if (model.startsWith('openai')) return 'openai';
   return 'gemini';
 }
 
@@ -83,11 +84,17 @@ function getApiModelId(friendlyId: string): string {
         }
       }
       _modelMapMtime = stat.mtimeMs;
+      console.log(`[aiBackends] Reloaded model map (${Object.keys(_modelMapCache).length} mappings)`);
     }
-  } catch {
+  } catch (err) {
+    console.warn(`[aiBackends] Failed to load model map:`, err);
     if (!_modelMapCache) _modelMapCache = {};
   }
-  return _modelMapCache![friendlyId] || friendlyId;
+  const mapped = _modelMapCache![friendlyId];
+  if (!mapped && /^(openai|claude|groq)-/.test(friendlyId)) {
+    console.warn(`[aiBackends] No API model mapping for '${friendlyId}' — sending as-is (this may fail)`);
+  }
+  return mapped || friendlyId;
 }
 
 // ── Timeout helper ──
@@ -255,6 +262,41 @@ async function generateViaGroq(
   };
 }
 
+async function generateViaOpenAI(
+  prompt: string, model: string, apiKey: string, timeoutMs?: number,
+): Promise<GenerateResult> {
+  const apiModel = getApiModelId(model);
+  const response = await withTimeout(
+    fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: apiModel,
+        input: prompt,
+        max_output_tokens: 16384,
+      }),
+    }),
+    timeoutMs ?? 120_000,
+    'OpenAI API request',
+  );
+
+  const bodyText = await withTimeout(response.text(), 30_000, 'Reading OpenAI response');
+  if (!response.ok) throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+
+  const json = JSON.parse(bodyText) as {
+    output?: { type: string; content?: { type: string; text: string }[] }[];
+    usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
+  };
+  const msgOutput = json.output?.find(o => o.type === 'message');
+  const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
+  if (!text) throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 200)}`);
+  const u = json.usage;
+  return {
+    text,
+    tokenUsage: u ? { inputTokens: u.input_tokens ?? 0, outputTokens: u.output_tokens ?? 0, totalTokens: u.total_tokens ?? 0 } : undefined,
+  };
+}
+
 // ── Public API ──
 
 export { resolveBackend };
@@ -270,13 +312,14 @@ export async function generateText(
   const backend = resolveBackend(resolved);
   const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', tavily: 'Tavily' };
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
   switch (backend) {
     case 'claude': return generateViaClaude(prompt, resolved, apiKey, timeoutMs);
     case 'groq': return generateViaGroq(prompt, resolved, apiKey, timeoutMs);
+    case 'openai': return generateViaOpenAI(prompt, resolved, apiKey, timeoutMs);
     default: return generateViaGemini(prompt, resolved, apiKey, onRetry, timeoutMs);
   }
 }

@@ -280,19 +280,28 @@ def relink_conflicts(consolidated, embeddings, model,
     # Compute similarities: (num_conflicts, num_tax_nodes)
     sims = _cosine_similarity_matrix(conflict_embeddings, filtered_vectors)
 
+    valid_tax_ids = set(tax_meta.keys())
+    stale_count = 0
+
     for i, conflict in enumerate(consolidated):
         row = sims[i]
-        # Get top-K indices above threshold
-        top_indices = np.argsort(row)[::-1][:top_k * 2]  # grab extras to filter
+        top_indices = np.argsort(row)[::-1][:top_k * 2]
         new_links = []
         for idx in top_indices:
             if row[idx] < min_sim:
                 break
-            new_links.append(filtered_ids[idx])
+            nid = filtered_ids[idx]
+            if nid not in valid_tax_ids:
+                stale_count += 1
+                continue
+            new_links.append(nid)
             if len(new_links) >= top_k:
                 break
 
         conflict["linked_taxonomy_nodes"] = new_links
+
+    if stale_count > 0:
+        _log(f"  Filtered {stale_count} stale node ID(s) not found in current taxonomy")
 
     return consolidated
 

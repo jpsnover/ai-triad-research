@@ -34,7 +34,6 @@ import {
   documentClarificationPrompt,
   situationClarificationPrompt,
   synthesisPrompt,
-  openingStatementPrompt,
   crossRespondSelectionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
@@ -84,8 +83,8 @@ import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
 import type { TurnAttempt, TurnValidation } from './types';
-import { runTurnPipeline, assemblePipelineResult } from './turnPipeline';
-import type { TurnPipelineInput } from './turnPipeline';
+import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
+import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -817,6 +816,15 @@ export class DebateEngine {
 
     const priorStatements: { speaker: string; statement: string }[] = [];
 
+    const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
+      this.progress('generating', undefined, label);
+      const start = Date.now();
+      const text = await this.adapter.generateText(prompt, model, options);
+      this.apiCallCount++;
+      this.totalResponseTimeMs += Date.now() - start;
+      return text;
+    };
+
     for (const poverId of order) {
       const info = POVER_INFO[poverId];
       this.progress('opening', poverId, `${info.label} preparing opening statement`);
@@ -838,21 +846,28 @@ export class DebateEngine {
         ? '\n' + formatVocabularyContext({ pov: info.pov, ...this.config.vocabulary })
         : '';
       const fullContext = taxonomyContext + vocabContext + commitmentContext + establishedPoints + edgeContext;
-      const prompt = openingStatementPrompt(
-        info.label, info.pov, info.personality,
-        this.session.topic.final, fullContext, priorBlock,
-        priorStatements.length === 0,
-        this.session.document_analysis ? undefined : this.config.sourceContent,
-        this.config.responseLength,
-        this.session.document_analysis,
-        this.config.audience,
+
+      // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+      const pipelineInput: OpeningPipelineInput = {
+        label: info.label,
+        pov: info.pov,
+        personality: info.personality,
+        topic: this.session.topic.final,
+        taxonomyContext: fullContext,
+        priorStatements: priorBlock,
+        isFirst: priorStatements.length === 0,
+        sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
+        documentAnalysis: this.session.document_analysis,
+        audience: this.config.audience,
+        model: this.config.model,
+      };
+
+      const pipelineResult = await runOpeningPipeline(
+        pipelineInput,
+        stageGenerate,
+        (_stage, label) => this.progress('opening', poverId, label),
       );
-
-      const start = Date.now();
-      const text = await this.generate(prompt, `${info.label} opening statement`);
-      const elapsed = Date.now() - start;
-
-      const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
+      const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, this.getKnownNodeIds());
 
       const entry = this.addEntry({
         type: 'opening',
@@ -861,7 +876,6 @@ export class DebateEngine {
         taxonomy_refs: taxonomyRefs,
         policy_refs: meta.policy_refs,
         metadata: {
-          move_types: meta.move_types,
           key_assumptions: meta.key_assumptions,
           my_claims: meta.my_claims,
           turn_symbols: meta.turn_symbols,
@@ -872,13 +886,15 @@ export class DebateEngine {
       // Accumulate context manifest for taxonomy gap analysis
       this.accumulateContextManifest(0, poverId, info.pov, taxonomyRefs.map(r => r.node_id));
 
+      const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       this.recordDiagnostic(entry.id, {
-        prompt,
-        raw_response: text,
+        prompt: draftDiag?.prompt ?? '',
+        raw_response: draftDiag?.raw_response ?? '',
         model: this.config.model,
-        response_time_ms: elapsed,
+        response_time_ms: pipelineResult.total_time_ms,
         taxonomy_context: taxonomyContext,
         commitment_context: commitmentContext,
+        stage_diagnostics: pipelineResult.stage_diagnostics,
         edges_used: openingEdgesUsed,
       });
 
@@ -1186,7 +1202,8 @@ export class DebateEngine {
       stageGenerate,
       (_stage, label) => this.progress('generating', responder, label),
     );
-    let assembled = assemblePipelineResult(pipelineResult);
+    const knownIds = this.getKnownNodeIds();
+    let assembled = assemblePipelineResult(pipelineResult, knownIds);
     let { statement, taxonomyRefs, meta } = assembled;
     let validation: TurnValidation;
 
@@ -1235,7 +1252,7 @@ export class DebateEngine {
         stageGenerate,
         (_stage, label) => this.progress('generating', responder, label),
       );
-      assembled = assemblePipelineResult(pipelineResult);
+      assembled = assemblePipelineResult(pipelineResult, knownIds);
       ({ statement, taxonomyRefs, meta } = assembled);
     }
 

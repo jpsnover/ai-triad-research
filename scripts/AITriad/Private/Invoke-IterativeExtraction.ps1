@@ -86,7 +86,7 @@ function Invoke-IterativeExtraction {
         -Temperature $Temperature `
         -MaxTokens   32768 `
         -JsonMode `
-        -TimeoutSec  300
+        -TimeoutSec  600
 
     if ($null -eq $InitialResult) {
         New-ActionableError -Goal 'FIRE initial extraction' `
@@ -153,6 +153,8 @@ function Invoke-IterativeExtraction {
     $ClaimsIterated = 0
     $ClaimsExhausted = 0
     $TerminationReason = 'all_confident'
+
+    $DriftChecks = [System.Collections.Generic.List[PSObject]]::new()
 
     Write-Verbose "FIRE Phase 2-3: Assessing $($Claims.Count) claims..."
 
@@ -334,6 +336,16 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
         if ($ClaimText -ne $OriginalText) {
             if ($ClaimText.Length -gt 70) { $NewShort = $ClaimText.Substring(0, 70) + '...' } else { $NewShort = $ClaimText }
             Write-Verbose "${Indent}→ `"$NewShort`""
+
+            # Queue drift check if claim has a taxonomy mapping (gap 4.1)
+            if ($Claim.PSObject.Properties['taxonomy_node_id'] -and $Claim.taxonomy_node_id) {
+                $null = $DriftChecks.Add([PSCustomObject]@{
+                    Index          = $i
+                    ClaimLabel     = $ClaimLabel
+                    RefinedText    = $ClaimText
+                    TaxonomyNodeId = $Claim.taxonomy_node_id
+                })
+            }
         }
 
         # Warn if claim exhausted iterations without reaching threshold
@@ -347,12 +359,80 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
 
     $Stopwatch.Stop()
 
+    # ── Post-pass: semantic drift detection for refined claims (gap 4.1) ─────
+    $DriftCount = 0
+    if ($DriftChecks.Count -gt 0) {
+        $NodeDescriptions = @{}
+        if ($script:TaxonomyData -and $script:TaxonomyData.Count -gt 0) {
+            foreach ($PovKey in $script:TaxonomyData.Keys) {
+                $Entry = $script:TaxonomyData[$PovKey]
+                if ($Entry -and $Entry.PSObject.Properties['nodes'] -and $Entry.nodes) {
+                    foreach ($Node in $Entry.nodes) {
+                        $NodeDescriptions[$Node.id] = "$($Node.label). $($Node.description)"
+                    }
+                }
+            }
+        }
+
+        $NodeEmbeddings = $script:CachedEmbeddings
+        $UseEmbeddings = $false
+        $ClaimEmbeddings = $null
+
+        if ($NodeEmbeddings -and $NodeEmbeddings.Count -gt 0) {
+            $Texts = @($DriftChecks | ForEach-Object { $_.RefinedText })
+            $EmbIds = @(0..($DriftChecks.Count - 1) | ForEach-Object { $_.ToString() })
+            $ClaimEmbeddings = Get-TextEmbedding -Texts $Texts -Ids $EmbIds
+            if ($ClaimEmbeddings -and $ClaimEmbeddings.Count -gt 0) {
+                $UseEmbeddings = $true
+                Write-Verbose "FIRE drift check: using embedding similarity for $($DriftChecks.Count) refined claim(s)"
+            }
+        }
+
+        if (-not $UseEmbeddings) {
+            Write-Verbose "FIRE drift check: embeddings unavailable, using Jaccard word-overlap fallback"
+        }
+
+        for ($di = 0; $di -lt $DriftChecks.Count; $di++) {
+            $DC = $DriftChecks[$di]
+            $Sim = -1.0
+
+            if ($UseEmbeddings -and $ClaimEmbeddings.ContainsKey($di.ToString()) -and $NodeEmbeddings.ContainsKey($DC.TaxonomyNodeId)) {
+                $ClaimVec = $ClaimEmbeddings[$di.ToString()]
+                $NodeVec = $NodeEmbeddings[$DC.TaxonomyNodeId]
+                if ($ClaimVec.Count -eq $NodeVec.Count) {
+                    $Dot = 0.0; $NA = 0.0; $NB = 0.0
+                    for ($j = 0; $j -lt $ClaimVec.Count; $j++) {
+                        $Dot += $ClaimVec[$j] * $NodeVec[$j]
+                        $NA  += $ClaimVec[$j] * $ClaimVec[$j]
+                        $NB  += $NodeVec[$j] * $NodeVec[$j]
+                    }
+                    $Denom = [Math]::Sqrt($NA) * [Math]::Sqrt($NB)
+                    $Sim = if ($Denom -gt 0) { $Dot / $Denom } else { 0.0 }
+                }
+            }
+            elseif ($NodeDescriptions.ContainsKey($DC.TaxonomyNodeId)) {
+                $ClaimTokens = Get-WordTokens $DC.RefinedText
+                $NodeTokens = Get-WordTokens $NodeDescriptions[$DC.TaxonomyNodeId]
+                $Sim = Get-JaccardSimilarity $ClaimTokens $NodeTokens
+            }
+
+            if ($Sim -ge 0 -and $Sim -lt 0.5) {
+                $DriftCount++
+                $Claims[$DC.Index] | Add-Member -NotePropertyName 'drift_warning' -NotePropertyValue $true -Force
+                Write-Warning "FIRE: $($DC.ClaimLabel) may have drifted from $($DC.TaxonomyNodeId) after refinement (similarity=$([Math]::Round($Sim, 3)))"
+            }
+        }
+    }
+
     # ── Final summary log ─────────────────────────────────────────────────────
     Write-Verbose "FIRE complete: $($Claims.Count) claims | $ClaimsConfident confident | $ClaimsIterated iterated | $TotalIter total iterations | $TotalApiCalls API calls | $([Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1))s"
     Write-Verbose "  Termination: $TerminationReason"
     Write-Verbose "  Guardrails: max_iter_per_claim=$MaxIterPerClaim, max_iter_per_doc=$MaxIterPerDoc, wall_clock=${WallClockSeconds}s, max_api_calls=$MaxApiCalls"
     if ($ClaimsExhausted -gt 0) {
         Write-Verbose "  WARNING: $ClaimsExhausted claim(s) exhausted iteration budget without reaching threshold"
+    }
+    if ($DriftCount -gt 0) {
+        Write-Verbose "  WARNING: $DriftCount claim(s) flagged for semantic drift after refinement"
     }
 
     # ── Return enriched summary ───────────────────────────────────────────────
@@ -367,6 +447,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
             claims_total        = $Claims.Count
             claims_confident    = $ClaimsConfident
             claims_iterated     = $ClaimsIterated
+            claims_drifted      = $DriftCount
             elapsed_seconds     = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)
             termination_reason  = $TerminationReason
             guardrails          = [ordered]@{

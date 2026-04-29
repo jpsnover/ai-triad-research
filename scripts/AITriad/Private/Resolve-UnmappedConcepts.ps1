@@ -194,6 +194,7 @@ function Resolve-UnmappedConcepts {
     }
 
     # Context-rot: unmapped resolution metrics
+    if (-not (Test-Path variable:script:ContextRotStages)) { $script:ContextRotStages = @() }
     $script:ContextRotStages += @(New-ContextRotStage `
         -Stage 'unmapped_resolution' -InUnits 'concepts' -InCount $UnmappedConcepts.Count `
         -OutUnits 'still_unmapped' -OutCount $Remaining.Count `

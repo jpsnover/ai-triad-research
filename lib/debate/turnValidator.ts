@@ -130,6 +130,28 @@ const DISAGREEMENT_TYPES = new Set(['EMPIRICAL', 'VALUES', 'DEFINITIONAL']);
 
 const FILLER_RELEVANCE = /^(supports|relevant|important|my view|this is)/i;
 
+const RELEVANCE_STOP_WORDS = new Set([
+  'this', 'that', 'with', 'from', 'have', 'been', 'very', 'much',
+  'also', 'just', 'some', 'more', 'most', 'such', 'than', 'then',
+  'when', 'what', 'which', 'where', 'their', 'there', 'about',
+  'would', 'could', 'should', 'because', 'important', 'relevant',
+  'supports', 'position', 'regarding', 'debate', 'point', 'view',
+  'argument', 'overall', 'general', 'clearly', 'essentially',
+  'basically', 'here', 'they', 'does', 'into', 'will', 'being',
+  'these', 'those', 'other', 'each', 'both', 'many', 'well',
+]);
+
+function isFillerRelevance(text: string): boolean {
+  if (FILLER_RELEVANCE.test(text)) return true;
+  const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+  if (words.length === 0) return true;
+  const stopCount = words.filter(w => RELEVANCE_STOP_WORDS.has(w)).length;
+  if (stopCount / words.length > 0.5) return true;
+  const hasDomainTerm = words.some(w => w.length > 6 && !RELEVANCE_STOP_WORDS.has(w));
+  if (!hasDomainTerm) return true;
+  return false;
+}
+
 // ── Config resolution ────────────────────────────────────
 
 export function resolveTurnValidationConfig(
@@ -230,7 +252,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   // Rule 5: every relevance must be substantive (error)
   const weakRelevance = taxonomyRefs.filter(
-    r => (r.relevance ?? '').trim().length < 40 || FILLER_RELEVANCE.test((r.relevance ?? '').trim()),
+    r => (r.relevance ?? '').trim().length < 40 || isFillerRelevance((r.relevance ?? '').trim()),
   );
   if (weakRelevance.length > 0) {
     const msg = `taxonomy_refs with filler or too-short 'relevance' (≥40 chars, no stock openers): ${weakRelevance.map(r => r.node_id).join(', ')}. Explain the mechanism by which the node supports or complicates your claim.`;
@@ -396,11 +418,11 @@ interface JudgeVerdict {
 
 function parseJudgeVerdict(raw: string): JudgeVerdict {
   const fallback: JudgeVerdict = {
-    advances: true,
-    advancement_reason: '',
+    advances: false,
+    advancement_reason: 'judge_parse_failure',
     clarifies_taxonomy: [],
     weaknesses: [],
-    recommend: 'pass',
+    recommend: 'accept_with_flag',
   };
   try {
     const parsed = parseJsonRobust(raw) as Record<string, unknown>;
@@ -454,8 +476,10 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
 
   let judge: JudgeVerdict | null = null;
   let judgeUsed = false;
+  let judgeAttempted = false;
   let judgeModel: string | undefined;
   if (shouldRunJudge) {
+    judgeAttempted = true;
     const judgePrompt = buildJudgePrompt(p);
     const judgeLabel = `turn-validator judge (${p.speaker} r${p.round})`;
     try {
@@ -478,12 +502,12 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     }
   }
 
-  // Compose dimensions
+  // Compose dimensions — if judge was attempted but fully failed, don't default to advances=true
   const dims: TurnValidationDimensions = {
     schema: stageA.dimensions.schema,
     grounding: stageA.dimensions.grounding,
     advancement: {
-      pass: stageA.dimensions.advancement.pass && (judge ? judge.advances : true),
+      pass: stageA.dimensions.advancement.pass && (judge ? judge.advances : !judgeAttempted),
       signals: [
         ...stageA.dimensions.advancement.signals,
         ...(judge && judge.advances ? ['judge_advances'] : []),

@@ -26,7 +26,7 @@ CONSTRAINTS:
   - The top-level keys MUST be the exact node IDs provided in the input.
   - Every node in the input MUST have a corresponding entry in the output.
   - The "policy_actions" array may be empty (0 items) or contain up to 3 items.
-  - Each "action" must be specific and concrete (5-15 words). Name the mechanism, target, and scope.
+  - Each "action" must be specific and concrete (5-20 words). Name the mechanism, target, and scope.
   - Each "framing" must be 1-3 sentences grounded in the specific node content.
   - "policy_id": If the EXISTING POLICY REGISTRY contains a matching policy, set this to its pol-NNN ID. If no match, set to null (a new ID will be assigned automatically).
   - Return ONLY the JSON object. No markdown, no commentary.

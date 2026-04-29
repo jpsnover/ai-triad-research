@@ -9,11 +9,12 @@ const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MAX_RETRIES = 5;
 
-type AIBackend = 'gemini' | 'claude' | 'groq';
+type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
 function resolveBackend(model: string): AIBackend {
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
+  if (model.startsWith('openai')) return 'openai';
   return 'gemini';
 }
 
@@ -120,35 +121,49 @@ async function generateViaClaude(
 ): Promise<string> {
   const apiModel = getApiModelId(model);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: apiModel,
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
+    });
 
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    if (response.status === 429 || response.status === 529) {
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`Claude API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+      }
+      const backoff = Math.min(2 ** attempt, 30);
+      console.log(`[generateContent] Claude ${response.status}, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+      continue;
+    }
+
+    const bodyText = await response.text();
+    if (!response.ok) {
+      throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    }
+
+    const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
+    if (!json.content || json.content.length === 0) {
+      throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
+    }
+
+    return json.content
+      .filter((c) => c.type === 'text')
+      .map((c) => c.text)
+      .join('');
   }
 
-  const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
-  if (!json.content || json.content.length === 0) {
-    throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
-  }
-
-  return json.content
-    .filter((c) => c.type === 'text')
-    .map((c) => c.text)
-    .join('');
+  throw new Error('generateViaClaude: exhausted all retry attempts');
 }
 
 // ── Groq ──
@@ -161,34 +176,112 @@ async function generateViaGroq(
 ): Promise<string> {
   const apiModel = getApiModelId(model);
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: apiModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 8192,
-    }),
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 8192,
+      }),
+    });
 
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    if (response.status === 429) {
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`Groq API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+      }
+      const backoff = Math.min(2 ** attempt, 30);
+      console.log(`[generateContent] Groq 429, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+      continue;
+    }
+
+    const bodyText = await response.text();
+    if (!response.ok) {
+      throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    }
+
+    const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
+    if (!json.choices || json.choices.length === 0) {
+      throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+    }
+
+    return json.choices[0].message.content;
   }
 
-  const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
-  if (!json.choices || json.choices.length === 0) {
-    throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+  throw new Error('generateViaGroq: exhausted all retry attempts');
+}
+
+// ── OpenAI ──
+
+async function generateViaOpenAI(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  apiKey: string,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        instructions: systemPrompt,
+        input: userPrompt,
+        max_output_tokens: 16384,
+      }),
+    });
+
+    if (response.status === 429) {
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`OpenAI API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+      }
+      const backoff = Math.min(2 ** attempt, 30);
+      console.log(`[generateContent] OpenAI 429, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+      continue;
+    }
+
+    const bodyText = await response.text();
+    if (!response.ok) {
+      throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    }
+
+    const json = JSON.parse(bodyText) as {
+      output?: { type: string; content?: { type: string; text: string }[] }[];
+    };
+    const msgOutput = json.output?.find(o => o.type === 'message');
+    const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
+    if (!text) {
+      throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 200)}`);
+    }
+
+    return text;
   }
 
-  return json.choices[0].message.content;
+  throw new Error('generateViaOpenAI: exhausted all retry attempts');
+}
+
+// ── Sanitization ──
+
+function sanitizeAiText(text: string): string {
+  return text
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<script\b[^>]*\/?>/gi, '')
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
 }
 
 // ── Main entry point ──
@@ -207,7 +300,7 @@ export async function generateContent(
   const apiKey = loadApiKey(backend);
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
@@ -221,12 +314,21 @@ export async function generateContent(
     _lastLoggedModel = resolvedModel;
   }
 
+  let result: string;
   switch (backend) {
     case 'claude':
-      return generateViaClaude(systemPrompt, userPrompt, resolvedModel, apiKey);
+      result = await generateViaClaude(systemPrompt, userPrompt, resolvedModel, apiKey);
+      break;
     case 'groq':
-      return generateViaGroq(systemPrompt, userPrompt, resolvedModel, apiKey);
+      result = await generateViaGroq(systemPrompt, userPrompt, resolvedModel, apiKey);
+      break;
+    case 'openai':
+      result = await generateViaOpenAI(systemPrompt, userPrompt, resolvedModel, apiKey);
+      break;
     default:
-      return generateViaGemini(systemPrompt, userPrompt, resolvedModel, apiKey);
+      result = await generateViaGemini(systemPrompt, userPrompt, resolvedModel, apiKey);
+      break;
   }
+
+  return sanitizeAiText(result);
 }

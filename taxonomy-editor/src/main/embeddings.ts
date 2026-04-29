@@ -207,12 +207,18 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
     };
   }
 
-  // Merge new vectors
+  // Merge new vectors (with dimension validation)
+  const expectedDim = data.dimension || 384;
   for (const node of nodes) {
     if (vectors[node.id]) {
+      const vec = vectors[node.id];
+      if (vec.length !== expectedDim) {
+        console.warn(`[embeddings] Dimension mismatch for ${node.id}: got ${vec.length}, expected ${expectedDim} — skipping`);
+        continue;
+      }
       data.nodes[node.id] = {
         pov: node.pov,
-        vector: vectors[node.id],
+        vector: vec,
       };
     }
   }
@@ -362,6 +368,8 @@ async function callGeminiBatchApi(
   throw new Error('callGeminiBatchApi: exhausted all retry attempts');
 }
 
+const EXPECTED_DIMENSION = 384;
+
 async function computeEmbeddingsViaApi(texts: string[]): Promise<number[][]> {
   const apiKey = loadApiKey();
   if (!apiKey) throw new Error('No API key configured. Set a Gemini API key or run Update-TaxEmbeddings to generate local embeddings.');
@@ -370,6 +378,9 @@ async function computeEmbeddingsViaApi(texts: string[]): Promise<number[][]> {
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
     const vectors = await callGeminiBatchApi(batch, 'RETRIEVAL_DOCUMENT', apiKey);
+    if (vectors.length > 0 && vectors[0].length !== EXPECTED_DIMENSION) {
+      console.warn(`[embeddings] API returned ${vectors[0].length}-dim vectors, expected ${EXPECTED_DIMENSION}. Cosine similarity against local embeddings may be unreliable.`);
+    }
     allVectors.push(...vectors);
   }
   return allVectors;
@@ -440,11 +451,12 @@ function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limit
   };
 }
 
-type AIBackend = 'gemini' | 'claude' | 'groq';
+type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
 function resolveBackend(model: string): AIBackend {
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
+  if (model.startsWith('openai')) return 'openai';
   return 'gemini';
 }
 
@@ -452,9 +464,21 @@ function resolveBackend(model: string): AIBackend {
 // Maps friendly IDs (e.g. "claude-sonnet-4-5") to actual API model IDs
 // (e.g. "claude-sonnet-4-5-20250514"). Rebuilt on each call from config file.
 
+/** Find ai-models.json — may be at PROJECT_ROOT or one level up (when PROJECT_ROOT is taxonomy-editor/) */
+function findModelsConfig(): string {
+  const candidates = [
+    path.join(PROJECT_ROOT, 'ai-models.json'),
+    path.join(PROJECT_ROOT, '..', 'ai-models.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return path.resolve(c);
+  }
+  return candidates[0];
+}
+
 function loadModelMap(): Record<string, string> {
+  const configPath = findModelsConfig();
   try {
-    const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
     const raw = fs.readFileSync(configPath, 'utf-8');
     const config = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
     const map: Record<string, string> = {};
@@ -463,8 +487,10 @@ function loadModelMap(): Record<string, string> {
         map[m.id] = m.apiModelId;
       }
     }
+    console.log(`[model-map] Loaded ${Object.keys(map).length} mappings from ${configPath}`);
     return map;
-  } catch {
+  } catch (err) {
+    console.error(`[model-map] FAILED to load ${configPath}: ${err instanceof Error ? err.message : err}`);
     return {};
   }
 }
@@ -475,12 +501,11 @@ let _modelMapMtime = 0;
 
 function getApiModelId(friendlyId: string): string {
   try {
-    const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+    const configPath = findModelsConfig();
     const stat = fs.statSync(configPath);
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
       _modelMapCache = loadModelMap();
       _modelMapMtime = stat.mtimeMs;
-      console.log('[embeddings] Reloaded model map from ai-models.json');
     }
   } catch {
     if (!_modelMapCache) _modelMapCache = {};
@@ -727,6 +752,53 @@ async function generateViaGroq(
   return result;
 }
 
+async function generateViaOpenAI(
+  prompt: string,
+  model: string,
+  apiKey: string,
+  timeoutMs?: number,
+  temperature?: number,
+): Promise<string> {
+  const apiModel = getApiModelId(model);
+  console.log(`[generateText] Calling OpenAI ${apiModel}...`);
+
+  const _openaiBody = JSON.stringify({
+        model: apiModel,
+        input: prompt,
+        max_output_tokens: 16384,
+      });
+  const response = await withTimeout(
+    net.fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: Buffer.from(_openaiBody, 'utf-8'),
+    }),
+    timeoutMs ?? 120_000,
+    'OpenAI API request',
+  );
+
+  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading OpenAI response');
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  const json = JSON.parse(bodyText) as {
+    output?: { type: string; content?: { type: string; text: string }[] }[];
+  };
+  const msgOutput = json.output?.find(o => o.type === 'message');
+  const result = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
+  if (!result) {
+    throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 200)}`);
+  }
+
+  console.log('[generateText] OpenAI success, result length:', result.length);
+  return result;
+}
+
 let _lastLoggedModel: string | null = null;
 let _debateTemperature: number | null = null;
 
@@ -745,24 +817,25 @@ export async function generateText(
   temperature?: number,
 ): Promise<string> {
   const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
-  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
-  const backend = resolveBackend(resolvedModel);
+  const friendlyModel = model || DEFAULT_GENERATE_MODEL;
+  const backend = resolveBackend(friendlyModel);
+  const resolvedModel = getApiModelId(friendlyModel);
 
   const apiKey = loadApiKey(backend);
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
   // Log on first call or model change
-  if (_lastLoggedModel !== resolvedModel) {
+  if (_lastLoggedModel !== friendlyModel) {
     if (_lastLoggedModel) {
-      console.log(`[AI] Model changed: ${_lastLoggedModel} → ${resolvedModel} | Backend: ${backend} | Key source: ${keySource}`);
+      console.log(`[AI] Model changed: ${_lastLoggedModel} → ${friendlyModel} (API: ${resolvedModel}) | Backend: ${backend} | Key source: ${keySource}`);
     } else {
-      console.log(`[AI] Backend: ${backend} | Model: ${resolvedModel} | Key source: ${keySource}`);
+      console.log(`[AI] Backend: ${backend} | Model: ${friendlyModel} (API: ${resolvedModel}) | Key source: ${keySource}`);
     }
-    _lastLoggedModel = resolvedModel;
+    _lastLoggedModel = friendlyModel;
   }
 
   switch (backend) {
@@ -770,6 +843,8 @@ export async function generateText(
       return generateViaClaude(prompt, resolvedModel, apiKey, timeoutMs, temperature);
     case 'groq':
       return generateViaGroq(prompt, resolvedModel, apiKey, timeoutMs, temperature);
+    case 'openai':
+      return generateViaOpenAI(prompt, resolvedModel, apiKey, timeoutMs, temperature);
     default:
       return generateViaGemini(prompt, resolvedModel, apiKey, onRetry, timeoutMs, temperature);
   }
@@ -788,12 +863,13 @@ export async function generateChatStream(
   temperature?: number,
 ): Promise<string> {
   const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
-  const resolvedModel = model || DEFAULT_MODEL;
-  const backend = resolveBackend(resolvedModel);
+  const friendlyModel = model || DEFAULT_MODEL;
+  const backend = resolveBackend(friendlyModel);
+  const resolvedModel = getApiModelId(friendlyModel);
 
   const apiKey = loadApiKey(backend);
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq' };
+    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
     throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
   }
 
@@ -803,6 +879,8 @@ export async function generateChatStream(
     ).join('\n\n') + '\n\n[Assistant]:';
     const text = backend === 'claude'
       ? await generateViaClaude(prompt, resolvedModel, apiKey, 120_000, temperature)
+      : backend === 'openai'
+      ? await generateViaOpenAI(prompt, resolvedModel, apiKey, 120_000, temperature)
       : await generateViaGroq(prompt, resolvedModel, apiKey, 60_000, temperature);
     onChunk(text);
     return text;

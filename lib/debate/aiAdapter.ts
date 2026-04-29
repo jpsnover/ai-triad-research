@@ -77,6 +77,7 @@ function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId
   if (friendlyId.startsWith('gemini')) return { apiModelId: friendlyId, backend: 'gemini' };
   if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
   if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
+  if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 
@@ -86,6 +87,7 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
   gemini: 'GEMINI_API_KEY',
   claude: 'ANTHROPIC_API_KEY',
   groq: 'GROQ_API_KEY',
+  openai: 'OPENAI_API_KEY',
   tavily: 'TAVILY_API_KEY',
 };
 
@@ -296,6 +298,60 @@ async function generateViaGroq(
   return json.choices[0].message.content;
 }
 
+// ── OpenAI ───────────────���───────────────────────────────
+
+async function generateViaOpenAI(
+  prompt: string,
+  apiModelId: string,
+  apiKey: string,
+  opts: GenerateOptions,
+): Promise<string> {
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+
+  const response = await withTimeout(
+    fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModelId,
+        input: prompt,
+        max_output_tokens: opts.maxTokens ?? 16384,
+      }),
+    }),
+    timeoutMs,
+    'OpenAI API request',
+  );
+
+  const bodyText = await withTimeout(response.text(), 60_000, 'Reading OpenAI response');
+
+  if (response.status === 429 || response.status === 503) {
+    throw new Error(`OpenAI ${response.status}: ${bodyText.slice(0, 200)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  let json: { output?: { type: string; content?: { type: string; text: string }[] }[] };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new Error(
+      `OpenAI API returned invalid JSON (${bodyText.length} bytes).\n` +
+      `First 200 chars: ${bodyText.slice(0, 200)}\n` +
+      `Check your API key and ensure the model ID '${apiModelId}' is valid.`
+    );
+  }
+  const msgOutput = json.output?.find(o => o.type === 'message');
+  const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
+  if (!text) {
+    throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 300)}`);
+  }
+  return text;
+}
+
 // ── Factory ──────────────────────────────────────────────
 
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
@@ -312,6 +368,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           return generateViaClaude(prompt, apiModelId, apiKey, opts);
         case 'groq':
           return generateViaGroq(prompt, apiModelId, apiKey, opts);
+        case 'openai':
+          return generateViaOpenAI(prompt, apiModelId, apiKey, opts);
         default:
           return generateViaGemini(prompt, apiModelId, apiKey, opts);
       }

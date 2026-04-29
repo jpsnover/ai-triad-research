@@ -49,7 +49,7 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
 export type GeminiModel =
   | 'gemini-3.1-flash-lite-preview'
@@ -68,7 +68,11 @@ export type GroqModel =
   | 'groq-llama-4-scout'
   | 'groq-llama-3.3-70b';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel;
+export type OpenAIModel =
+  | 'openai-gpt-5.5'
+  | 'openai-gpt-5.5-pro';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -76,6 +80,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'gemini', label: 'Google Gemini' },
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
+  { value: 'openai', label: 'OpenAI' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -96,6 +101,10 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'groq-llama-4-scout', label: 'Llama 4 Scout' },
     { value: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B' },
   ],
+  openai: [
+    { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
+    { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
+  ],
 };
 
 /** @deprecated Use MODELS_BY_BACKEND.gemini instead */
@@ -109,12 +118,13 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   gemini: 'gemini-3.1-flash-lite-preview',
   claude: 'claude-sonnet-4-5',
   groq: 'groq-llama-4-scout',
+  openai: 'openai-gpt-5.5',
 };
 
 function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
-    if (stored === 'gemini' || stored === 'claude' || stored === 'groq') return stored;
+    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai') return stored;
   } catch { /* ignore */ }
   return 'gemini';
 }

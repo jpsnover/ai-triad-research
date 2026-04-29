@@ -311,9 +311,24 @@ function EntryView({ entryId }: { entryId: string }) {
                     {String((s.work_product as Record<string, unknown>).situation_assessment)}
                   </div>
                 )}
+                {s.stage === 'brief' && Array.isArray((s.work_product as Record<string, unknown>).strongest_angles) && (
+                  <div style={{ marginBottom: 6 }}>
+                    {((s.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string }[]).map((a, i) => (
+                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{a.why}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).strategic_goal && (
                   <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem', fontWeight: 600 }}>
                     {String((s.work_product as Record<string, unknown>).strategic_goal)}
+                  </div>
+                )}
+                {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).core_thesis && (
+                  <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.7rem', fontStyle: 'italic' }}>
+                    {String((s.work_product as Record<string, unknown>).core_thesis)}
                   </div>
                 )}
                 {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).planned_moves) && (
@@ -323,6 +338,17 @@ function EntryView({ entryId }: { entryId: string }) {
                         <span className="diag-badge diag-badge-move">{m.move}</span>
                         {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
                         {m.detail && <div style={{ fontSize: '0.7rem', marginTop: 1 }}>{m.detail}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {s.stage === 'plan' && Array.isArray((s.work_product as Record<string, unknown>).argument_structure) && (
+                  <div style={{ marginBottom: 6 }}>
+                    {((s.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((a, i) => (
+                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.point}</div>
+                        {a.evidence && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Evidence: {a.evidence}</div>}
+                        {a.taxonomy_anchor && <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Anchor: {a.taxonomy_anchor}</div>}
                       </div>
                     ))}
                   </div>
