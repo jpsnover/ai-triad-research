@@ -30,6 +30,7 @@ interface CLIConfig {
   situationId?: string;
   activePovers?: string[];
   model?: string;
+  evaluatorModel?: string;
   rounds?: number;
   responseLength?: string;
   protocolId?: string;
@@ -216,6 +217,7 @@ async function main(): Promise<void> {
     activePovers,
     protocolId: config.protocolId ?? 'structured',
     model,
+    evaluatorModel: config.evaluatorModel,
     rounds: config.rounds ?? 3,
     responseLength: (config.responseLength ?? 'medium') as 'brief' | 'medium' | 'detailed',
     enableClarification: config.enableClarification,

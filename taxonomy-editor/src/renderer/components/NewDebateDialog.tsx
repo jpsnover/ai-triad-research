@@ -9,6 +9,21 @@ import type { PoverId, DebateSourceType, DebateAudience } from '../types/debate'
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 import { api } from '@bridge';
 
+export type DebatePacing = 'tight' | 'moderate' | 'thorough';
+export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
+
+const PACING_PRESETS: { id: DebatePacing; label: string; desc: string; maxRounds: number }[] = [
+  { id: 'tight', label: 'Tight', desc: 'Get to the point. Shorter debates, earlier transitions.', maxRounds: 8 },
+  { id: 'moderate', label: 'Moderate', desc: 'Balanced depth. Default for most topics.', maxRounds: 12 },
+  { id: 'thorough', label: 'Thorough', desc: 'Deep dive. Lets exploration run longer.', maxRounds: 15 },
+];
+
+const STYLE_PRESETS: { id: DialecticalStyle; label: string; desc: string }[] = [
+  { id: 'adversarial', label: 'Adversarial', desc: 'Direct challenge. Western academic debate norms.' },
+  { id: 'deliberative', label: 'Deliberative', desc: 'Consensus-oriented. Longer exploration, faster synthesis.' },
+  { id: 'integrative', label: 'Integrative', desc: 'Harmony-seeking. Reframing over rebuttal.' },
+];
+
 interface NewDebateDialogProps {
   onClose: () => void;
 }
@@ -61,6 +76,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [protocolId, setProtocolId] = useState('structured');
   const [temperature, setTemperature] = useState(0.7);
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
+  const [pacing, setPacing] = useState<DebatePacing>('moderate');
+  const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
+  const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Get situation nodes for potential topics
   const situationNodes = useMemo(() => {
@@ -309,21 +328,73 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               )}
             </div>
 
-            {/* Temperature */}
-            <label className="ndd-field-label">Temperature</label>
-            <div className="ndd-temperature-row">
-              <span className="ndd-temperature-value">{temperature.toFixed(1)}</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.1}
-                value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="ndd-temperature-slider"
-              />
-              <span className="ndd-temperature-label">{temperatureLabel}</span>
+            {/* Pacing */}
+            <label className="ndd-field-label">Pacing</label>
+            <div className="ndd-pacing-cards">
+              {PACING_PRESETS.map(p => (
+                <label key={p.id} className={`ndd-pacing-card${pacing === p.id ? ' active' : ''}`}>
+                  <input type="radio" name="pacing" value={p.id} checked={pacing === p.id} onChange={() => setPacing(p.id)} />
+                  <div className="ndd-pacing-text">
+                    <span className="ndd-pacing-name">{p.label}</span>
+                    <span className="ndd-pacing-desc">{p.desc}</span>
+                  </div>
+                  <span className="ndd-pacing-rounds">{p.maxRounds} max</span>
+                </label>
+              ))}
             </div>
+
+            {/* Dialectical Style */}
+            <label className="ndd-field-label">Dialectical Style</label>
+            <div className="ndd-style-cards">
+              {STYLE_PRESETS.map(s => (
+                <label key={s.id} className={`ndd-style-card${dialecticalStyle === s.id ? ' active' : ''}`}>
+                  <input type="radio" name="dialecticalStyle" value={s.id} checked={dialecticalStyle === s.id} onChange={() => setDialecticalStyle(s.id)} />
+                  <div className="ndd-style-text">
+                    <span className="ndd-style-name">{s.label}</span>
+                    <span className="ndd-style-desc">{s.desc}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Adaptive Staging toggle */}
+            <label className="ndd-adaptive-toggle">
+              <input
+                type="checkbox"
+                checked={useAdaptiveStaging}
+                onChange={(e) => setUseAdaptiveStaging(e.target.checked)}
+              />
+              <span className="ndd-adaptive-label">
+                Adaptive staging
+                <span className="ndd-adaptive-desc">Signal-driven phase transitions instead of fixed rounds</span>
+              </span>
+              {useAdaptiveStaging && <span className="ndd-adaptive-badge">Experimental</span>}
+            </label>
+
+            {/* Advanced toggle */}
+            <button className="ndd-advanced-toggle" onClick={() => setShowAdvanced(!showAdvanced)}>
+              {showAdvanced ? 'Hide advanced' : 'Advanced options'} {showAdvanced ? '▲' : '▼'}
+            </button>
+
+            {showAdvanced && (
+              <div className="ndd-advanced-section">
+                {/* Temperature */}
+                <label className="ndd-field-label">Temperature</label>
+                <div className="ndd-temperature-row">
+                  <span className="ndd-temperature-value">{temperature.toFixed(1)}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="ndd-temperature-slider"
+                  />
+                  <span className="ndd-temperature-label">{temperatureLabel}</span>
+                </div>
+              </div>
+            )}
 
             {/* Audience */}
             <label className="ndd-field-label">Target Audience</label>

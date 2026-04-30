@@ -2567,6 +2567,7 @@ export function moderatorSelectionPrompt(
   metaphorReframe?: { source: string; prompt: string; reveals: string; challenges: string } | null,
   phase?: DebatePhase,
   audience?: DebateAudience,
+  sourceDocumentSummary?: string,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
@@ -2588,9 +2589,30 @@ export function moderatorSelectionPrompt(
     ? `\nAUDIENCE CONTEXT: This debate targets ${audience.replace(/_/g, ' ')}. ${getModeratorBias(audience)}\n`
     : '';
 
+  const sourceAnchorSection = sourceDocumentSummary
+    ? `\n=== SOURCE DOCUMENT ANCHOR ===\nThe debate is grounded in the following source material. All debater claims should be evaluated against this anchor:\n${sourceDocumentSummary}\n\nWhen debaters introduce technical frameworks, implementation details, or specialized terminology not present in the source document, this is a signal of potential semantic drift. The debate should remain tethered to the concepts and claims in the source material.\n`
+    : '';
+
+  const driftDetectionBlock = `\n=== SEMANTIC DRIFT DETECTION ===
+Before making your selection, check for these drift patterns:
+
+1. METAPHOR LITERALIZATION: A debater treats a figurative term from the source (e.g., "firewall", "bridge", "shield") as a literal technical concept and begins arguing about its engineering feasibility. If the source uses a term as a policy metaphor, the debate must stay at the policy level.
+
+2. IMPLEMENTATION SPIRAL: The discussion shifts from "should we do X?" (policy) to "how would we build X?" (engineering). Unless the source document is itself a technical specification, implementation details are out of scope.
+
+3. SCOPE CREEP: Debaters introduce frameworks, technologies, or concepts (e.g., specific cryptographic protocols, particular software architectures) that have no basis in the source material.
+
+If you detect any of these patterns, you MUST recommend an intervention:
+- For metaphor literalization: use CLARIFY to anchor the term back to its source-document meaning
+- For implementation spiral: use REDIRECT to return focus to the policy-level question
+- For scope creep: use CHECK to verify whether the introduced concept appears in the source material
+
+Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
+`;
+
   return `You are a debate moderator analyzing the current state of a structured debate.
 You are procedurally authoritative but not substantively neutral — your choices about what to highlight or challenge are inherently selective. You must be transparent: describe what happened in terms of observable state, not evaluation.
-${audienceLine}${phaseObjective}
+${audienceLine}${phaseObjective}${sourceAnchorSection}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
@@ -2626,6 +2648,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "focus_point": "the specific point or question they should address",
   "agreement_detected": false,
   "metaphor_reframe": false,
+  "drift_detected": false,
   "intervene": false,
   "suggested_move": null,
   "target_debater": null,
@@ -2638,9 +2661,10 @@ If you recommend an intervention, populate:
   "intervene": true,
   "suggested_move": "MOVE_NAME",
   "target_debater": "debater name",
-  "trigger_reasoning": "why this intervention is warranted",
+  "drift_detected": true,
+  "trigger_reasoning": "why this intervention is warranted — if drift, name the pattern (metaphor literalization / implementation spiral / scope creep)",
   "trigger_evidence": {
-    "signal_name": "which signal triggered this",
+    "signal_name": "which signal triggered this (e.g. 'semantic_drift:metaphor_literalization')",
     "observed_behavior": "what you observed in the transcript",
     "source_claim": "specific claim text referenced",
     "source_round": null
@@ -2656,8 +2680,13 @@ export function moderatorInterventionPrompt(
   sourceClaim: string | undefined,
   recentTranscript: string,
   audience?: DebateAudience,
+  sourceDocumentSummary?: string,
 ): string {
   const moveSpecificInstructions = getMoveSpecificInstructions(move, targetDebater, sourceClaim);
+
+  const sourceAnchor = sourceDocumentSummary
+    ? `\n=== SOURCE DOCUMENT ANCHOR ===\n${sourceDocumentSummary}\n\nYour intervention must anchor the debate back to concepts in the source material. If a debater has drifted into implementation details or literalized a metaphor, reference specific source-document language in your intervention.\n`
+    : '';
 
   return `You are composing a moderator intervention for a structured debate.
 ${getReadingLevel(audience)}
@@ -2665,7 +2694,7 @@ ${getReadingLevel(audience)}
 Move: ${move} (family: ${family})
 Target: ${targetDebater}
 Trigger: ${triggerReason}
-${sourceClaim ? `Original claim: "${sourceClaim}"` : ''}
+${sourceClaim ? `Original claim: "${sourceClaim}"` : ''}${sourceAnchor}
 
 === RECENT TRANSCRIPT ===
 ${recentTranscript}

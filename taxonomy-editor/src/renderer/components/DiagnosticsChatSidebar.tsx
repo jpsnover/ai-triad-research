@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import { api } from '@bridge';
@@ -420,26 +419,8 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
   ].join('\n');
 }
 
-function copyStylesToPopup(popup: Window) {
-  const parentStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
-  parentStyles.forEach(node => {
-    const clone = node.cloneNode(true) as HTMLElement;
-    popup.document.head.appendChild(clone);
-  });
-  const theme = document.documentElement.getAttribute('data-theme');
-  if (theme) popup.document.documentElement.setAttribute('data-theme', theme);
-  popup.document.body.style.margin = '0';
-  popup.document.body.style.padding = '0';
-  popup.document.body.style.overflow = 'hidden';
-  popup.document.body.style.background = 'var(--bg-primary, #1a1a2e)';
-  popup.document.body.style.color = 'var(--text-primary, #e2e8f0)';
-  popup.document.body.style.fontFamily = 'inherit';
-}
-
 export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate }: Props) {
-  const [popupOpen, setPopupOpen] = useState(false);
-  const popupWindowRef = useRef<Window | null>(null);
-  const popupContainerRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(loadSessionMessages);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -478,38 +459,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     return () => { cancelled = true; };
   }, []);
 
-  const openPopup = useCallback(() => {
-    if (popupWindowRef.current && !popupWindowRef.current.closed) {
-      popupWindowRef.current.focus();
-      return;
-    }
-    const popup = window.open('', 'diagnostics-chat', 'width=420,height=600,menubar=no,toolbar=no,location=no,status=no');
-    if (!popup) return;
-    popup.document.title = 'Diagnostics Chat';
-    copyStylesToPopup(popup);
-    const container = popup.document.createElement('div');
-    container.id = 'chat-root';
-    container.style.width = '100%';
-    container.style.height = '100vh';
-    popup.document.body.appendChild(container);
-    popupWindowRef.current = popup;
-    popupContainerRef.current = container;
-    setPopupOpen(true);
-    popup.addEventListener('beforeunload', () => {
-      popupWindowRef.current = null;
-      popupContainerRef.current = null;
-      setPopupOpen(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (popupWindowRef.current && !popupWindowRef.current.closed) {
-        popupWindowRef.current.close();
-      }
-    };
-  }, []);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     saveSessionMessages(messages);
@@ -532,29 +481,19 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ctrl+Shift+D — toggle chat popup
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault();
-        if (popupOpen) {
-          popupWindowRef.current?.close();
-        } else {
-          openPopup();
-        }
+        setOpen(prev => !prev);
         return;
       }
-      if (!popupOpen) return;
-      // Escape — close popup
+      if (!open) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        popupWindowRef.current?.close();
+        setOpen(false);
         return;
       }
-      // Ctrl+L — clear chat
       if (e.ctrlKey && e.key === 'l') {
-        const active = document.activeElement;
-        const popupActive = popupWindowRef.current?.document.activeElement;
-        const isInChat = active === inputRef.current || popupActive === inputRef.current;
-        if (isInChat) {
+        if (document.activeElement === inputRef.current) {
           e.preventDefault();
           setMessages([]);
           lastSeenEntryCount.current = 0;
@@ -563,7 +502,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [popupOpen, openPopup]);
+  }, [open]);
 
   // Auto-scroll during streaming
   useEffect(() => {
@@ -635,24 +574,35 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     setInput('');
     setGenerating(true);
     setStreamingText('');
-    setActivity('Connecting...');
+    setActivity('Checking API key...');
 
+    const cleanups: (() => void)[] = [];
     try {
+      const model = getModel();
+      const backend = model.startsWith('claude') ? 'claude'
+        : model.startsWith('groq') ? 'groq'
+        : model.startsWith('openai') ? 'openai'
+        : 'gemini';
+      const hasKey = await api.hasApiKey(backend);
+      if (!hasKey) {
+        const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+        throw new Error(`No ${names[backend] ?? backend} API key configured. Open Settings to add one.`);
+      }
+
+      setActivity(`Calling ${model}...`);
+
       const systemPrompt = buildSystemPrompt(debate, taxonomies.size > 0 ? taxonomies : undefined);
 
-      // Context-aware entry injection
       const entryContext = selectedEntry ? buildEntryContext(debate, selectedEntry) : '';
       const contextNote = selectedEntry
         ? `${entryContext}\n[Current tab: ${currentTab}]`
         : '[User is viewing the overview]';
 
-      // Compact older messages if context is too large
       const compacted = compactMessages(newMessages);
       if (compacted.length < newMessages.length) {
         setMessages(compacted);
       }
 
-      // Build multi-turn messages for the API
       const apiMessages: { role: 'user' | 'model'; content: string }[] = [];
       for (const m of compacted) {
         if (m.role === 'system') {
@@ -665,7 +615,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         }
       }
 
-      // Append context to the last user message
       const lastIdx = apiMessages.length - 1;
       if (lastIdx >= 0 && apiMessages[lastIdx].role === 'user') {
         apiMessages[lastIdx] = {
@@ -674,58 +623,17 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         };
       }
 
-      const model = getModel();
-      let accumulated = '';
-
-      console.log('[DiagChat] Setting up stream listeners...');
-      console.log('[DiagChat] Model:', model);
-      console.log('[DiagChat] API messages count:', apiMessages.length);
-      console.log('[DiagChat] System prompt length:', systemPrompt.length);
-
+      // Register chunk listener for progressive streaming (best-effort)
       const unsubChunk = api.onChatStreamChunk((chunk) => {
-        accumulated += chunk;
-        setStreamingText(accumulated);
+        setStreamingText(prev => prev + chunk);
         setActivity('Generating...');
-        if (accumulated.length < 100) console.log('[DiagChat] First chunk received:', chunk.slice(0, 50));
       });
+      cleanups.push(unsubChunk);
 
-      const streamDone = new Promise<string>((resolve, reject) => {
-        console.log('[DiagChat] Registering done/error handlers...');
-        const unsubDone = api.onChatStreamDone((fullText) => {
-          console.log('[DiagChat] Stream done, length:', fullText.length);
-          unsubDone();
-          unsubErr();
-          resolve(fullText);
-        });
-        const unsubErr = api.onChatStreamError((error) => {
-          console.error('[DiagChat] Stream error:', error);
-          unsubDone();
-          unsubErr();
-          reject(new Error(error));
-        });
-      });
+      // Primary mechanism: invoke returns the full text directly
+      // Events provide progressive display but invoke is the reliable path
+      const fullText = await api.startChatStream(systemPrompt, apiMessages, model, 0.3);
 
-      console.log('[DiagChat] Calling api.startChatStream...');
-      const startFailed = new Promise<never>((_resolve, reject) => {
-        api.startChatStream(systemPrompt, apiMessages, model, 0.3)
-          .then(() => console.log('[DiagChat] startChatStream invoke resolved'))
-          .catch((err: unknown) => {
-            console.error('[DiagChat] startChatStream invoke rejected:', err);
-            reject(err);
-          });
-      });
-      const timeout = new Promise<never>((_resolve, reject) => {
-        setTimeout(() => {
-          console.error('[DiagChat] Timed out after 60s. accumulated length:', accumulated.length);
-          reject(new Error('Chat stream timed out after 60s — check that an API key is configured in Settings.'));
-        }, 60_000);
-      });
-
-      const fullText = await Promise.race([streamDone, startFailed, timeout]);
-      console.log('[DiagChat] Race resolved, fullText length:', fullText.length);
-      unsubChunk();
-
-      // Parse navigation and suggestions from the complete text
       const { content: navParsed, navigation } = parseNavigation(fullText);
       const { content: finalContent, suggestions } = parseSuggestions(navParsed);
 
@@ -753,6 +661,9 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         timestamp: new Date().toISOString(),
       }]);
     } finally {
+      for (const cleanup of cleanups) {
+        try { cleanup(); } catch {}
+      }
       setGenerating(false);
       setActivity(null);
     }
@@ -851,8 +762,16 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
         borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
       }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b', flex: 1 }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
           Diagnostics Chat
+        </span>
+        <span style={{
+          fontSize: '0.6rem', color: 'var(--text-muted)',
+          padding: '1px 6px', borderRadius: 4,
+          background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+          flex: 1,
+        }}>
+          {getModel()}
         </span>
         {messages.length > 0 && (
           <button
@@ -861,6 +780,11 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
           >Clear</button>
         )}
+        <button
+          onClick={() => setOpen(false)}
+          title="Close chat (Esc)"
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
+        >&times;</button>
       </div>
 
       {/* Messages */}
@@ -1019,24 +943,71 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     </div>
   );
 
-  return (
-    <>
+  const [width, setWidth] = useState(360);
+  const dragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(0);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartW.current = width;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const delta = dragStartX.current - ev.clientX;
+      setWidth(Math.max(240, Math.min(800, dragStartW.current + delta)));
+    };
+    const onUp = () => {
+      dragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [width]);
+
+  if (!open) {
+    return (
       <button
-        onClick={openPopup}
+        onClick={() => setOpen(true)}
         title="Open diagnostics chat (Ctrl+Shift+D)"
         style={{
           position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
           width: 44, height: 44, borderRadius: '50%',
-          background: popupOpen ? 'rgba(245,158,11,0.4)' : '#f59e0b',
-          border: popupOpen ? '2px solid #f59e0b' : 'none', cursor: 'pointer',
+          background: '#f59e0b', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          fontSize: '1.2rem', color: popupOpen ? '#f59e0b' : '#000',
+          fontSize: '1.2rem', color: '#000',
         }}
       >
         ?
       </button>
-      {popupOpen && popupContainerRef.current && createPortal(chatContent, popupContainerRef.current)}
-    </>
+    );
+  }
+
+  return (
+    <div style={{
+      width, display: 'flex', flexShrink: 0, position: 'relative',
+    }}>
+      <div
+        onMouseDown={onResizeStart}
+        style={{
+          width: 5, cursor: 'col-resize', flexShrink: 0,
+          background: 'var(--border)',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = '#f59e0b')}
+        onMouseLeave={e => { if (!dragging.current) e.currentTarget.style.background = 'var(--border)'; }}
+      />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {chatContent}
+      </div>
+    </div>
   );
 }

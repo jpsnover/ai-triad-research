@@ -7935,6 +7935,165 @@ body {
   font-size: 0.8rem;
 }
 
+.debate-continue-btn {
+  white-space: nowrap;
+  font-size: 0.8rem;
+  background: var(--bg-secondary);
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  font-weight: 600;
+}
+.debate-continue-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ─── Phase override buttons (adaptive staging) ─── */
+.debate-override-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.debate-override-keep {
+  border-color: #f59e0b !important;
+  color: #f59e0b;
+}
+.debate-override-keep:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+.debate-override-force {
+  border-color: #10b981 !important;
+  color: #10b981;
+}
+.debate-override-force:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* ─── Adaptive Phase Progress Bar ──────────────────── */
+.adaptive-phase-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.adaptive-phase-segments {
+  display: flex;
+  gap: 3px;
+  height: 24px;
+}
+.adaptive-phase-segment {
+  flex: 1;
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.adaptive-phase-segment.active {
+  border-color: color-mix(in srgb, currentColor 40%, var(--border));
+}
+.adaptive-phase-segment.completed {
+  opacity: 0.6;
+}
+.adaptive-phase-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  opacity: 0.2;
+  transition: width 0.4s ease;
+}
+.adaptive-phase-segment.active .adaptive-phase-fill {
+  opacity: 0.25;
+}
+.adaptive-phase-segment.completed .adaptive-phase-fill {
+  opacity: 0.15;
+}
+.adaptive-phase-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.adaptive-phase-segment.active .adaptive-phase-label {
+  color: var(--text-primary);
+}
+.adaptive-phase-transition-hint {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #10b981;
+  animation: phase-hint-pulse 2s ease-in-out infinite;
+}
+@keyframes phase-hint-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.adaptive-phase-rationale {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Phase Transition Cards ───────────────────────── */
+.phase-transition-card {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+.phase-transition-synthesis {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+}
+.phase-transition-regression {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+.phase-transition-commit {
+  border-left-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.06);
+}
+.phase-transition-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.phase-transition-icon {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+}
+.phase-transition-synthesis .phase-transition-icon { color: #10b981; }
+.phase-transition-regression .phase-transition-icon { color: #f59e0b; }
+.phase-transition-commit .phase-transition-icon { color: #8b5cf6; }
+.phase-transition-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.phase-transition-synthesis .phase-transition-label { color: #10b981; }
+.phase-transition-regression .phase-transition-label { color: #f59e0b; }
+.phase-transition-commit .phase-transition-label { color: #8b5cf6; }
+.phase-transition-content {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 /* ─── New Debate Dialog (NDD two-column redesign) ───── */
 
 .ndd-fullpage {
@@ -8231,6 +8390,145 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.82rem;
+}
+
+/* ── Pacing ── */
+.ndd-pacing-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ndd-pacing-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-primary);
+}
+.ndd-pacing-card:hover {
+  border-color: var(--focus-ring);
+}
+.ndd-pacing-card.active {
+  border-color: var(--focus-ring);
+  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
+}
+.ndd-pacing-card input[type="radio"] {
+  display: none;
+}
+.ndd-pacing-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.ndd-pacing-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.ndd-pacing-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.ndd-pacing-rounds {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+/* ── Dialectical Style ── */
+.ndd-style-cards {
+  display: flex;
+  gap: 6px;
+}
+.ndd-style-card {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-primary);
+}
+.ndd-style-card:hover {
+  border-color: var(--focus-ring);
+}
+.ndd-style-card.active {
+  border-color: var(--focus-ring);
+  background: color-mix(in srgb, var(--focus-ring) 8%, var(--bg-primary));
+}
+.ndd-style-card input[type="radio"] {
+  display: none;
+}
+.ndd-style-text {
+  display: flex;
+  flex-direction: column;
+}
+.ndd-style-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.ndd-style-desc {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* ── Adaptive staging toggle ── */
+.ndd-adaptive-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.ndd-adaptive-label {
+  display: flex;
+  flex-direction: column;
+}
+.ndd-adaptive-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.ndd-adaptive-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  margin-left: auto;
+}
+
+/* ── Advanced toggle ── */
+.ndd-advanced-toggle {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.ndd-advanced-toggle:hover {
+  color: var(--text-primary);
+}
+.ndd-advanced-section {
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
 }
 
 /* ── Temperature ── */

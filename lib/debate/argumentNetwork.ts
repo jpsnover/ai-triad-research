@@ -49,7 +49,11 @@ For each distinct claim in the statement:
      Use "supports" for concession moves: when the speaker grants, agrees with, or accepts an opponent's claim. Schemes for support: ${SUPPORT_SCHEMES}.
    - "attacks" with attack_type ("rebut" = contradicts conclusion, "undercut" = denies the inference, "undermine" = attacks premise credibility) and scheme (${ATTACK_SCHEMES})
    NOTE: A CONCEDE-AND-PIVOT move often produces TWO edges — a "supports" edge for the conceded portion and an "attacks" edge for the pivot. Include both in responds_to.
-   - "weight": 0.0-1.0 — how strongly this edge supports or attacks the target claim. 1.0 = decisive (the claim is a direct, well-evidenced rebuttal or a foundational premise). 0.5 = moderate engagement. Near 0 = tangential or weak. Judge based on relevance, specificity of evidence, and directness of engagement.
+   - "strength": classify the engagement strength as ONE of:
+     "decisive" — directly rebuts/supports with specific evidence or logical entailment
+     "substantial" — clear engagement with some evidence or reasoning
+     "tangential" — loosely related, weak or indirect connection
+     Do NOT output numeric weights. Use ONLY these three categories.
    - "argumentation_scheme": classify the reasoning pattern being used. Pick ONE:
      ARGUMENT_FROM_EVIDENCE — supported by specific data or measurements
      ARGUMENT_FROM_EXPERT_OPINION — supported by expert testimony or institutional authority
@@ -71,15 +75,15 @@ Extract 3-6 claims. Each claim must be traceable to text actually in the stateme
 
 For each claim, also classify:
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
-- "base_strength": 0.0-1.0 — average of the bdi_sub_scores below (or 0.5 for beliefs).
-- "bdi_sub_scores": rate each criterion 0.0-1.0 based on the claim's bdi_category:
-  For belief claims: assign all sub-scores as 0.5 (human will adjust later).
-    {"evidence_quality": 0.5, "source_reliability": 0.5, "falsifiability": 0.5}
-  For desire claims: rate each criterion independently, then set base_strength = average.
-    {"values_grounding": 0-1 (explicitly grounded in stated values?), "tradeoff_acknowledgment": 0-1 (acknowledges tradeoffs?), "precedent_citation": 0-1 (cites precedent?)}
-  For intention claims: rate each criterion independently, then set base_strength = average.
-    {"mechanism_specificity": 0-1 (specifies a mechanism?), "scope_bounding": 0-1 (bounds its scope?), "failure_mode_addressing": 0-1 (addresses failure modes?)}
-  Do NOT assign an overall holistic judgment — score each checkable criterion separately.
+- "base_strength": classify the evidential grounding as ONE of:
+  "grounded" — cites specific data, named sources, dates, or directly verifiable facts
+  "reasoned" — logical argument with internal coherence but no specific evidence
+  "asserted" — claim stated without supporting reasoning or evidence
+  Do NOT output numeric scores. Use ONLY these three categories.
+- "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
+  For belief claims: {"evidence_quality": "partial", "source_reliability": "partial", "falsifiability": "partial"} (always "partial" — human adjusts later)
+  For desire claims: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
+  For intention claims: {"mechanism_specificity": "yes/partial/no", "scope_bounding": "yes/partial/no", "failure_mode_addressing": "yes/partial/no"}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
@@ -89,8 +93,8 @@ Return ONLY JSON (no markdown):
     {
       "text": "near-verbatim claim from the statement",
       "bdi_category": "belief or desire or intention",
-      "base_strength": 0.5,
-      "bdi_sub_scores": {"values_grounding": 0.8, "tradeoff_acknowledgment": 0.5, "precedent_citation": 0.4},
+      "base_strength": "grounded or reasoned or asserted",
+      "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"},
       "specificity": "precise or general or abstract",
       "steelman_of": null,
       "responds_to": [
@@ -98,7 +102,7 @@ Return ONLY JSON (no markdown):
           "prior_claim_id": "AN-1",
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
-          "weight": 0.7,
+          "strength": "decisive or substantial or tangential",
           "scheme": "move name — e.g. COUNTEREXAMPLE, CONCEDE, CONDITIONAL-AGREE",
           "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"
@@ -153,7 +157,11 @@ For each claim:
      inference, "undermine" = attacks premise credibility) and scheme (${ATTACK_SCHEMES})
    NOTE: A CONCEDE-AND-PIVOT move often produces TWO edges — a "supports" edge for the
    conceded portion and an "attacks" edge for the pivot. Include both in responds_to.
-   - "weight": 0.0-1.0 — how strongly this edge supports or attacks the target claim. 1.0 = decisive. 0.5 = moderate. Near 0 = tangential or weak.
+   - "strength": classify the engagement strength as ONE of:
+     "decisive" — directly rebuts/supports with specific evidence or logical entailment
+     "substantial" — clear engagement with some evidence or reasoning
+     "tangential" — loosely related, weak or indirect connection
+     Do NOT output numeric weights. Use ONLY these three categories.
    - "argumentation_scheme": classify the reasoning pattern (ARGUMENT_FROM_EVIDENCE,
      ARGUMENT_FROM_EXPERT_OPINION, ARGUMENT_FROM_PRECEDENT, ARGUMENT_FROM_CONSEQUENCES,
      ARGUMENT_FROM_ANALOGY, PRACTICAL_REASONING, ARGUMENT_FROM_DEFINITION, ARGUMENT_FROM_VALUES,
@@ -163,11 +171,15 @@ For each claim:
 
 Also classify each claim:
 - "bdi_category": "belief" (empirical/factual), "desire" (normative/value), or "intention" (strategic/methodological)
-- "base_strength": 0.0-1.0 — average of the bdi_sub_scores (or 0.5 for beliefs)
-- "bdi_sub_scores": per-criterion scores (0-1) matching the bdi_category:
-  belief: {"evidence_quality": 0.5, "source_reliability": 0.5, "falsifiability": 0.5} (all 0.5, human adjusts)
-  desire: {"values_grounding": 0-1, "tradeoff_acknowledgment": 0-1, "precedent_citation": 0-1}
-  intention: {"mechanism_specificity": 0-1, "scope_bounding": 0-1, "failure_mode_addressing": 0-1}
+- "base_strength": classify the evidential grounding as ONE of:
+  "grounded" — cites specific data, named sources, dates, or directly verifiable facts
+  "reasoned" — logical argument with internal coherence but no specific evidence
+  "asserted" — claim stated without supporting reasoning or evidence
+  Do NOT output numeric scores. Use ONLY these three categories.
+- "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
+  belief: {"evidence_quality": "partial", "source_reliability": "partial", "falsifiability": "partial"} (always "partial" — human adjusts)
+  desire: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
+  intention: {"mechanism_specificity": "yes/partial/no", "scope_bounding": "yes/partial/no", "failure_mode_addressing": "yes/partial/no"}
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
@@ -177,8 +189,8 @@ Return ONLY JSON (no markdown):
     {
       "text": "the debater's claim text (unchanged)",
       "bdi_category": "belief or desire or intention",
-      "base_strength": 0.5,
-      "bdi_sub_scores": {"mechanism_specificity": 0.7, "scope_bounding": 0.6, "failure_mode_addressing": 0.4},
+      "base_strength": "grounded or reasoned or asserted",
+      "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"},
       "specificity": "precise or general or abstract",
       "steelman_of": null,
       "responds_to": [
@@ -186,7 +198,7 @@ Return ONLY JSON (no markdown):
           "prior_claim_id": "AN-1",
           "relationship": "supports or attacks",
           "attack_type": "rebut or undercut or undermine (only if attacks)",
-          "weight": 0.7,
+          "strength": "decisive or substantial or tangential",
           "scheme": "move name — e.g. COUNTEREXAMPLE, CONCEDE, CONDITIONAL-AGREE",
           "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
           "warrant": "1 sentence: WHY this claim relates to the prior claim"
@@ -543,20 +555,109 @@ export function formatConcessionCandidatesHint(
   return lines.join('\n') + '\n';
 }
 
+// ── NLI-style discrete evaluation mapping ───────────────────
+
+export type NodeStrengthCategory = 'grounded' | 'reasoned' | 'asserted';
+export type EdgeStrengthCategory = 'decisive' | 'substantial' | 'tangential';
+export type BdiTernary = 'yes' | 'partial' | 'no';
+
+const NODE_STRENGTH_MAP: Record<NodeStrengthCategory, number> = {
+  grounded: 0.8,
+  reasoned: 0.5,
+  asserted: 0.2,
+};
+
+const EDGE_STRENGTH_MAP: Record<EdgeStrengthCategory, number> = {
+  decisive: 1.0,
+  substantial: 0.7,
+  tangential: 0.3,
+};
+
+const BDI_TERNARY_MAP: Record<BdiTernary, number> = {
+  yes: 1.0,
+  partial: 0.5,
+  no: 0.0,
+};
+
+export function discreteNodeStrength(category: string): number {
+  const key = category.toLowerCase() as NodeStrengthCategory;
+  return NODE_STRENGTH_MAP[key] ?? 0.5;
+}
+
+export function discreteEdgeStrength(category: string): number {
+  const key = category.toLowerCase() as EdgeStrengthCategory;
+  return EDGE_STRENGTH_MAP[key] ?? 0.7;
+}
+
+export function discreteBdiScore(value: string): number {
+  const key = value.toLowerCase() as BdiTernary;
+  return BDI_TERNARY_MAP[key] ?? 0.5;
+}
+
+function isDiscreteNodeStrength(v: unknown): v is string {
+  return typeof v === 'string' && v.toLowerCase() in NODE_STRENGTH_MAP;
+}
+
+function isDiscreteEdgeStrength(v: unknown): v is string {
+  return typeof v === 'string' && v.toLowerCase() in EDGE_STRENGTH_MAP;
+}
+
+function isDiscreteBdi(v: unknown): v is string {
+  return typeof v === 'string' && v.toLowerCase() in BDI_TERNARY_MAP;
+}
+
+/**
+ * Normalize a raw extracted claim from discrete categorical outputs to numeric floats.
+ * Accepts both legacy float format (passthrough) and NLI-style discrete categories.
+ */
+export function normalizeExtractedClaim(claim: RawExtractedClaim): RawExtractedClaim {
+  const normalized = { ...claim };
+
+  // base_strength: accept discrete category string or legacy float
+  if (isDiscreteNodeStrength(claim.base_strength)) {
+    normalized.base_strength = discreteNodeStrength(claim.base_strength as unknown as string);
+  }
+
+  // bdi_sub_scores: accept discrete ternary strings or legacy floats
+  if (claim.bdi_sub_scores && typeof claim.bdi_sub_scores === 'object') {
+    const mapped: Record<string, number> = {};
+    for (const [key, val] of Object.entries(claim.bdi_sub_scores)) {
+      mapped[key] = isDiscreteBdi(val) ? discreteBdiScore(val as unknown as string) : (typeof val === 'number' ? val : 0.5);
+    }
+    normalized.bdi_sub_scores = mapped;
+  }
+
+  // edge weights: accept discrete "strength" field, discrete "weight" string, or legacy float
+  if (claim.responds_to) {
+    normalized.responds_to = claim.responds_to.map(rel => {
+      const raw = rel.strength ?? rel.weight;
+      if (isDiscreteEdgeStrength(raw)) {
+        return { ...rel, weight: discreteEdgeStrength(raw as string) };
+      }
+      return rel;
+    });
+  }
+
+  return normalized;
+}
+
 // ── Shared claim processing ──────────────────────────────────
 
 export interface RawExtractedClaim {
   text: string;
   bdi_category?: string;
-  base_strength?: number;
-  bdi_sub_scores?: Record<string, number>;
+  base_strength?: number | string;
+  bdi_sub_scores?: Record<string, number | string>;
   specificity?: string;
   steelman_of?: string | null;
   responds_to?: {
     prior_claim_id: string;
     relationship: string;
     attack_type?: string;
-    weight?: number;
+    /** Legacy float format */
+    weight?: number | string;
+    /** NLI-style discrete category (decisive/substantial/tangential) */
+    strength?: string;
     scheme?: string;
     argumentation_scheme?: string;
     warrant?: string;
@@ -624,7 +725,8 @@ export function processExtractedClaims(
 
   const bdiConfidenceMap: Record<string, number> = { belief: 0.3, desire: 0.65, intention: 0.71 };
 
-  for (const claim of claims.slice(0, maxClaims)) {
+  for (const rawClaim of claims.slice(0, maxClaims)) {
+    const claim = normalizeExtractedClaim(rawClaim);
     if (!claim.text || claim.text.length < 10) {
       if (claim.text) {
         rejectionReasons['too_short'] = (rejectionReasons['too_short'] ?? 0) + 1;

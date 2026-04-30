@@ -139,7 +139,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>): Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }> =>
     ipcRenderer.invoke('nli-classify', pairs),
 
-  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number): Promise<void> =>
+  startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number): Promise<string> =>
     ipcRenderer.invoke('start-chat-stream', systemInstruction, messages, model, temperature),
   onChatStreamChunk: (callback: (chunk: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk);

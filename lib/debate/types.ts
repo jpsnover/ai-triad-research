@@ -233,6 +233,8 @@ export interface DebateSession {
   generated_with_prompt_version?: string;
   /** Debate-specific AI model override. If set, used instead of the global model for this debate only. */
   debate_model?: string;
+  /** Evaluator model for claim extraction/classification. Cross-vendor split recommended. */
+  evaluator_model?: string;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */
@@ -546,6 +548,7 @@ export interface EntryDiagnostics {
   stage_diagnostics?: StageDiagnostics[];
   edges_used?: { source: string; target: string; type: string; confidence: number }[];
   convergence_signals?: ConvergenceSignals;
+  evaluator_warning?: string;
 }
 
 // ── Turn pipeline types ──────────────────────────────

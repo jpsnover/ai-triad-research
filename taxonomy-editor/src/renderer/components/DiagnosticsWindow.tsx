@@ -1466,7 +1466,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
   return (
     <DiagSearchContext.Provider value={sq}>
-    <div style={{ padding: 12, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+    <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
@@ -3098,6 +3099,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         </div>
         );
       })()}
+    </div>
       <DiagnosticsChatSidebar
         debate={debate}
         selectedEntry={selectedEntry}

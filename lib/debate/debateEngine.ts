@@ -113,6 +113,8 @@ export interface DebateConfig {
   activePovers: Exclude<PoverId, 'user'>[];
   protocolId?: string;
   model: string;
+  /** Separate model for claim extraction/classification (evaluator role). Cross-vendor recommended. Defaults to `model` if unset. */
+  evaluatorModel?: string;
   rounds: number;
   responseLength: 'brief' | 'medium' | 'detailed';
   enableClarification?: boolean;
@@ -333,6 +335,7 @@ export class DebateEngine {
       context_summaries: [],
       generated_with_prompt_version: 'cli-l2',
       debate_model: this.config.model,
+      evaluator_model: this.config.evaluatorModel,
       protocol_id: this.config.protocolId ?? 'structured',
       diagnostics: {
         enabled: true,
@@ -358,6 +361,12 @@ export class DebateEngine {
     // Initialize active moderator state
     this._moderatorState = initModeratorState(this.config.rounds, this.config.activePovers);
     this.session.moderator_state = this._moderatorState;
+
+    if (!this.config.evaluatorModel || this.config.evaluatorModel === this.config.model) {
+      this.recordDiagnostic('session_init', {
+        evaluator_warning: 'Evaluator model matches debate model — self-preference bias is unmitigated. Cross-vendor split recommended.',
+      });
+    }
   }
 
   // ── AI call wrapper ────────────────────────────────────────
@@ -367,6 +376,20 @@ export class DebateEngine {
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, this.config.model, {
       temperature: this.config.temperature ?? 0.7,
+      timeoutMs,
+    });
+    const elapsed = Date.now() - start;
+    this.apiCallCount++;
+    this.totalResponseTimeMs += elapsed;
+    return text;
+  }
+
+  private async generateWithEvaluator(prompt: string, label: string, timeoutMs?: number): Promise<string> {
+    const evalModel = this.config.evaluatorModel ?? this.config.model;
+    this.progress('generating', undefined, label);
+    const start = Date.now();
+    const text = await this.adapter.generateText(prompt, evalModel, {
+      temperature: 0,
       timeoutMs,
     });
     const elapsed = Date.now() - start;
@@ -1074,6 +1097,10 @@ export class DebateEngine {
     let selectionText = '';
     let selectionElapsed = 0;
 
+    // Source document summary for moderator drift detection — available to both synthesis and normal paths
+    const sourceDocSummary = this.session.document_analysis?.claims_summary
+      ?? (this.session.source_content ? this.session.source_content.slice(0, 2000) : undefined);
+
     if (synthesisTarget) {
       // Deterministic synthesis — skip Stage 1 LLM, fire COMMIT directly
       responder = synthesisTarget as Exclude<PoverId, 'user'>;
@@ -1101,6 +1128,7 @@ export class DebateEngine {
             undefined,
             formatRecentTranscript(this.session.transcript, 4, this.session.context_summaries),
             this.config.audience,
+            sourceDocSummary,
           );
           const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator COMMIT → ${POVER_INFO[synthesisTarget as Exclude<PoverId, 'user'>]?.label}`);
 
@@ -1145,6 +1173,7 @@ export class DebateEngine {
         edgeContext + anContext + qbafContext + ledgerHint + specifyHint,
         triggerCtxText,
         recentScheme, metaphorReframe, phase, this.config.audience,
+        sourceDocSummary,
       );
       const selectionStart = Date.now();
       selectionText = await this.generate(selectionPrompt, `Round ${round}: Moderator selection`);
@@ -1207,6 +1236,7 @@ export class DebateEngine {
                 selectionResult.trigger_evidence?.source_claim,
                 formatRecentTranscript(this.session.transcript, 4, this.session.context_summaries),
                 this.config.audience,
+                sourceDocSummary,
               );
               const stage2Start = Date.now();
               const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator intervention (${validation.validated_move})`);
@@ -2617,7 +2647,7 @@ Return ONLY JSON (no markdown, no code fences):
       prompt_token_estimate: Math.round(prompt.length / 4),
       response_chars: 0,
       response_truncated: false,
-      model: this.session.debate_model ?? '',
+      model: this.config.evaluatorModel ?? this.session.debate_model ?? '',
       response_time_ms: 0,
       candidates_proposed: 0,
       candidates_accepted: 0,
@@ -2629,13 +2659,13 @@ Return ONLY JSON (no markdown, no code fences):
       an_node_count_after: anNodeCountBefore,
       an_nodes_added_ids: [],
       prompt_hash: this.hashString(prompt),
-      extraction_prompt_version: debaterClaims && debaterClaims.length > 0 ? 'classify-v1' : 'extract-v1',
+      extraction_prompt_version: debaterClaims && debaterClaims.length > 0 ? 'classify-v2-nli' : 'extract-v2-nli',
     };
 
     let text: string;
     const extractStart = Date.now();
     try {
-      text = await this.generate(prompt, 'Claim extraction');
+      text = await this.generateWithEvaluator(prompt, 'Claim extraction');
     } catch (err) {
       trace.status = 'adapter_error';
       trace.error_message = err instanceof Error ? err.message : String(err);

@@ -37,6 +37,94 @@ const PHASE_TITLES: Record<string, string> = {
   closed: 'Debate Closed',
 };
 
+type AdaptivePhase = 'thesis-antithesis' | 'exploration' | 'synthesis';
+
+const ADAPTIVE_PHASE_LABELS: Record<AdaptivePhase, string> = {
+  'thesis-antithesis': 'Thesis-Antithesis',
+  'exploration': 'Exploration',
+  'synthesis': 'Synthesis',
+};
+
+const ADAPTIVE_PHASE_COLORS: Record<AdaptivePhase, string> = {
+  'thesis-antithesis': '#f59e0b',
+  'exploration': '#3b82f6',
+  'synthesis': '#10b981',
+};
+
+const ADAPTIVE_PHASES: AdaptivePhase[] = ['thesis-antithesis', 'exploration', 'synthesis'];
+
+function PhaseProgressBar({ currentPhase, phaseProgress, roundsInPhase, approachingTransition, rationale }: {
+  currentPhase: AdaptivePhase;
+  phaseProgress: number;
+  roundsInPhase: number;
+  approachingTransition: boolean;
+  rationale?: string;
+}) {
+  const currentIdx = ADAPTIVE_PHASES.indexOf(currentPhase);
+
+  return (
+    <div className="adaptive-phase-bar" title={rationale || `${ADAPTIVE_PHASE_LABELS[currentPhase]} phase, round ${roundsInPhase}`}>
+      <div className="adaptive-phase-segments">
+        {ADAPTIVE_PHASES.map((phase, idx) => {
+          const isActive = idx === currentIdx;
+          const isCompleted = idx < currentIdx;
+          const color = ADAPTIVE_PHASE_COLORS[phase];
+          const fillPct = isCompleted ? 100 : isActive ? Math.min(100, phaseProgress * 100) : 0;
+
+          return (
+            <div
+              key={phase}
+              className={`adaptive-phase-segment${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+              title={`${ADAPTIVE_PHASE_LABELS[phase]}${isActive ? ` — ${Math.round(phaseProgress * 100)}% (round ${roundsInPhase})` : ''}`}
+            >
+              <div
+                className="adaptive-phase-fill"
+                style={{ width: `${fillPct}%`, background: color }}
+              />
+              <span className="adaptive-phase-label">
+                {ADAPTIVE_PHASE_LABELS[phase]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {approachingTransition && (
+        <span className="adaptive-phase-transition-hint">
+          Approaching transition
+        </span>
+      )}
+      {rationale && (
+        <span className="adaptive-phase-rationale" title={rationale}>
+          {rationale.length > 80 ? rationale.slice(0, 77) + '...' : rationale}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PhaseTransitionCard({ type, content }: {
+  type: 'TRANSITION_SUMMARY' | 'REGRESSION_NOTICE' | 'FINAL_COMMIT';
+  content: string;
+}) {
+  const icon = type === 'TRANSITION_SUMMARY' ? '>>>' : type === 'REGRESSION_NOTICE' ? '<<<' : '|||';
+  const label = type === 'TRANSITION_SUMMARY' ? 'Entering Synthesis'
+    : type === 'REGRESSION_NOTICE' ? 'Returning to Exploration'
+    : 'Final Positions';
+  const colorClass = type === 'TRANSITION_SUMMARY' ? 'phase-transition-synthesis'
+    : type === 'REGRESSION_NOTICE' ? 'phase-transition-regression'
+    : 'phase-transition-commit';
+
+  return (
+    <div className={`phase-transition-card ${colorClass}`}>
+      <div className="phase-transition-header">
+        <span className="phase-transition-icon">{icon}</span>
+        <span className="phase-transition-label">{label}</span>
+      </div>
+      <div className="phase-transition-content">{content}</div>
+    </div>
+  );
+}
+
 function getPolicyAction(polId: string): string {
   const registry = useTaxonomyStore.getState().policyRegistry;
   if (!registry) return polId;
@@ -1066,12 +1154,12 @@ function ClarificationActions() {
           </div>
           <div className="debate-initial-rounds">
             <label className="debate-initial-rounds-label">
-              Cross-respond rounds after openings:
+              Rounds after openings:
               <select
                 className="debate-turns-select"
                 value={initialCrossRespondRounds}
                 onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-                title="Number of cross-respond rounds to run automatically after opening statements"
+                title="Number of rounds to run automatically after opening statements (adaptive staging will manage phase transitions)"
               >
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
                   <option key={n} value={n}>{n}</option>
@@ -1390,6 +1478,9 @@ function DebateActions() {
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'synthesis') || false;
+  const isAdaptive = (activeDebate as any)?.adaptive_staging?.enabled ?? false;
+  const adaptivePhase: AdaptivePhase | null = isAdaptive ? ((activeDebate as any).adaptive_staging?.current_phase ?? null) : null;
+  const approachingTransition = isAdaptive ? ((activeDebate as any).adaptive_staging?.approaching_transition ?? false) : false;
 
   if (!activeDebate) return null;
 
@@ -1515,31 +1606,64 @@ function DebateActions() {
         >
           Send
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+        {isAdaptive ? (
+          /* Adaptive mode: single "Continue" button that lets the engine decide */
           <button
-            className="btn debate-cross-btn"
+            className="btn debate-continue-btn"
             onClick={handleCrossRespond}
             disabled={disabled}
-            title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
-            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+            title="Let the debate engine select the next speaker and continue"
           >
-            Cross-Respond
+            Continue
           </button>
-          <select
-            className="debate-turns-select"
-            value={crossRespondTurns}
-            onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
-            disabled={disabled}
-            title="Number of cross-respond rounds"
-          >
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </div>
+        ) : (
+          /* Fixed mode: original cross-respond with turn count */
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <button
+              className="btn debate-cross-btn"
+              onClick={handleCrossRespond}
+              disabled={disabled}
+              title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
+              style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+            >
+              Cross-Respond
+            </button>
+            <select
+              className="debate-turns-select"
+              value={crossRespondTurns}
+              onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
+              disabled={disabled}
+              title="Number of cross-respond rounds"
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
-      {/* Row 2: Analysis actions + Audience */}
+      {/* Row 2: Phase overrides (adaptive) + Analysis actions + Audience */}
       <div className="debate-action-bar-secondary">
+        {isAdaptive && adaptivePhase === 'exploration' && approachingTransition && (
+          <button
+            className="btn debate-override-btn debate-override-keep"
+            onClick={() => { /* TODO: wire to store veto */ }}
+            disabled={disabled}
+            title="Veto the exploration exit for 1 more round"
+          >
+            Keep Exploring
+          </button>
+        )}
+        {isAdaptive && adaptivePhase === 'exploration' && !approachingTransition && (
+          <button
+            className="btn debate-override-btn debate-override-force"
+            onClick={() => { /* TODO: wire to store force */ }}
+            disabled={disabled}
+            title="Force transition to synthesis now"
+          >
+            Move to Synthesis
+          </button>
+        )}
         <button
           className="btn debate-synthesis-btn"
           onClick={() => requestSynthesis()}
@@ -1928,6 +2052,27 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           )}
           {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
         </div>
+
+        {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
+        {isDebatePhase && (activeDebate as any).adaptive_staging?.enabled && (() => {
+          const staging = (activeDebate as any).adaptive_staging as {
+            enabled: boolean;
+            current_phase: AdaptivePhase;
+            phase_progress: number;
+            rounds_in_phase: number;
+            approaching_transition: boolean;
+            rationale?: string;
+          };
+          return (
+            <PhaseProgressBar
+              currentPhase={staging.current_phase || 'thesis-antithesis'}
+              phaseProgress={staging.phase_progress || 0}
+              roundsInPhase={staging.rounds_in_phase || 0}
+              approachingTransition={staging.approaching_transition || false}
+              rationale={staging.rationale}
+            />
+          );
+        })()}
 
         {/* Debater toggle pills */}
         {(isDebatePhase || isOpeningPhase) && (
