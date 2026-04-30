@@ -45,7 +45,7 @@ Code lives here; data lives in `../ai-triad-data`. The file `.aitriad.json` maps
 
 ### PowerShell Module (`scripts/AITriad/`)
 
-40+ cmdlets in `Public/`, internal helpers in `Private/`, AI prompt templates in `Prompts/`. Module manifest: `AITriad.psd1` (v0.7.4). Companion modules loaded alongside: `AIEnrich.psm1` (multi-backend AI abstraction with streaming, retry, token tracking) and `DocConverters.psm1` (PDF/DOCX/HTML to Markdown via pandoc/gs).
+40+ cmdlets in `Public/`, internal helpers in `Private/`, AI prompt templates in `Prompts/`. Module manifest: `AITriad.psd1` (v0.8.0). Companion modules loaded alongside: `AIEnrich.psm1` (multi-backend AI abstraction with streaming, retry, token tracking) and `DocConverters.psm1` (PDF/DOCX/HTML to Markdown via pandoc/gs).
 
 ### Electron Apps (3 independent apps, each Vite + React 19 + Electron 35 + TypeScript)
 
