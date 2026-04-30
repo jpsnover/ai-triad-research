@@ -124,6 +124,11 @@ export interface TurnPipelineInput {
     directResponsePattern?: string;
     isTargeted: boolean;
   };
+  phaseContext?: {
+    rationale: string;
+    phase_progress: number;
+    approaching_transition: boolean;
+  };
   model: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
@@ -179,6 +184,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
     pendingIntervention: input.pendingIntervention,
+    phaseContext: input.phaseContext,
   };
 }
 

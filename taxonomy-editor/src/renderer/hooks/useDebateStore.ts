@@ -1270,6 +1270,7 @@ function buildModeratorSelectionPromptWithContext(
   gapInjections?: GapInjection[],
   phase?: import('@lib/debate/types').DebatePhase,
   audience?: import('@lib/debate/types').DebateAudience,
+  sourceDocumentSummary?: string,
 ): string {
   const edgeContext = formatEdgeContext(activePovers);
   const anContext = argumentNetwork
@@ -1298,6 +1299,7 @@ function buildModeratorSelectionPromptWithContext(
     null,
     phase,
     audience,
+    sourceDocumentSummary,
   );
 }
 
@@ -1451,7 +1453,7 @@ interface DebateStore {
   swapConvergenceIssue: (removeId: string, addTaxonomyRef: string, addLabel: string) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience) => Promise<string>;
+  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
@@ -1620,7 +1622,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature, debateAudience) => {
+  createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature, debateAudience, options) => {
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -1646,8 +1648,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       context_summaries: [],
       generated_with_prompt_version: 'dolce-phase-1',
       debate_model: debateModel || undefined,
+      evaluator_model: options?.evaluatorModel || undefined,
       protocol_id: protocolId || 'structured',
       debate_temperature: debateTemperature ?? undefined,
+      adaptive_staging: options?.useAdaptiveStaging
+        ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate' }
+        : undefined,
     };
     await api.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
@@ -2508,11 +2514,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     modState.health_history.push(healthScore);
     updateSliBreaches(healthScore, modState);
 
+    // Build source document summary for moderator drift detection
+    const sourceDocSummary = activeDebate.document_analysis?.claims_summary
+      ?? (activeDebate.source_content ? activeDebate.source_content.slice(0, 2000) : undefined);
+
     // Build the active moderator selection prompt with trigger context
     const selectionPrompt = buildModeratorSelectionPromptWithContext(
       recentTranscript, poverLabels, modState, turnCounts,
       activeDebate.argument_network, activeDebate.unanswered_claims_ledger,
       crossRespondRound, activeDebate.gap_injections, phase, activeDebate.audience,
+      sourceDocSummary,
     );
 
     let responderPover: Exclude<PoverId, 'user'> | null = null;
@@ -2602,6 +2613,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             selectionResult.trigger_evidence?.source_claim,
             recentTranscript,
             activeDebate.audience,
+            sourceDocSummary,
           );
 
           const { text: interventionText } = await generateTextWithProgress(
@@ -2623,6 +2635,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             },
             interventionParsed?.original_claim_text,
           );
+
+          // All interventions force the target as next responder
+          responderPover = engineValidation.validated_target as Exclude<PoverId, 'user'>;
 
           interventionBriefInjection = buildInterventionBriefInjection(intervention, POVER_INFO[responderPover].label);
 

@@ -1,6 +1,6 @@
 # Adaptive Debate Staging: A Signal-Driven Phase Transition Model
 
-**Status:** Proposal (rev 9 — systems review: lexical fragility, network GC, evaluator verbosity bias, state recovery; eight rounds of review)  
+**Status:** Proposal (rev 10 — AI-implementer review: v1 scope boundary, worked example, SignalContext interface, state transition table, contradiction fixes, failure mode taxonomy; nine rounds of review)  
 **Author:** Claude (computational dialectician), Jeffrey Snover  
 **Date:** 2026-04-30
 
@@ -159,6 +159,93 @@ thesis_antithesis_exit(signals, network, transcript) :=
 
 **`crux_identified`**: A *structural* detector, not a move-label check. A crux is identified when a node in the argument network has ≥2 attack edges from different POVs AND `computed_strength > 0.5` — i.e., it's a shared target of substantial attacks. This avoids Goodhart coupling with the IDENTIFY-CRUX move label: the debater may or may not label their move as IDENTIFY-CRUX, but the network topology reveals the crux regardless.
 
+#### Signal Interface and Context
+
+Every signal is a modular `Signal` object registered in the signal array. To prevent signals from coupling to engine internals, all signals consume a declared `SignalContext` interface — no direct access to engine state.
+
+```typescript
+interface Signal {
+  id: string;
+  weight: number;                                // loaded from provisional-weights.json
+  compute: (ctx: SignalContext) => number;        // returns [0, 1]
+  enabled: boolean;
+  maturity: 'v1-ship' | 'post-validation' | 'research';
+}
+
+interface SignalContext {
+  // Argument network (read-only snapshot)
+  network: {
+    nodes: ReadonlyArray<{ id: string; speaker: string; computed_strength: number;
+      base_strength_category: string; argumentation_scheme: string;
+      taxonomy_refs: ReadonlyArray<{ node_id: string; relevance: string }> }>;
+    edges: ReadonlyArray<{ source: string; target: string; relationship: string;
+      attack_type?: string; weight: number; speaker: string }>;
+    nodeCount: number;
+  };
+
+  // Transcript window
+  transcript: {
+    currentRound: number;
+    roundsInPhase: number;
+    activePovsCount: number;
+    lastNRounds(n: number): ReadonlyArray<{
+      round: number; speaker: string; text: string;
+      extraction_status: string; claims_accepted: number; claims_rejected: number;
+      category_validity_ratio: number;
+    }>;
+  };
+
+  // Prior signal values (for stability computation)
+  priorSignals: {
+    get(signalId: string, roundsBack: number): number | null;
+    movingAverage(signalId: string, window: number): number | null;
+  };
+
+  // Existing convergence signals (already computed by convergenceSignals.ts)
+  convergenceSignals: {
+    recycling_rate: { avg_self_overlap: number };
+    engagement_depth: { ratio: number };
+    position_delta: { drift: number };
+    concession_opportunity: { outcome: string; strong_attacks_faced: number };
+  };
+
+  // Phase metadata
+  phase: {
+    current: 'thesis-antithesis' | 'exploration' | 'synthesis';
+    allPovsResponded: boolean;
+    cruxNodes: ReadonlyArray<{ id: string; crossPovAttackCount: number;
+      computedStrength: number; embedding?: Float32Array }>;
+    priorCruxClusters: ReadonlyArray<ReadonlyArray<string>>;
+    regressionCount: number;
+    explorationExitThreshold: number;
+    synthesisExitThreshold: number;
+  };
+
+  // Extraction confidence (for confidence floor computation)
+  extraction: {
+    lastRoundStatus: string;         // 'ok' | 'truncated' | 'parse_error'
+    lastRoundClaimsAccepted: number;
+    lastRoundCategoryValidityRatio: number;
+  };
+}
+```
+
+Signals may read any field on `SignalContext`. Each signal definition below notes which fields it consumes. New signals added to the registry must consume only declared `SignalContext` fields — if a new signal needs data not on the interface, the interface is extended (and existing signals are verified against the change).
+
+#### Cold-Start Behavior
+
+Windowed signals reference "peak rate," "debate mean," or "last N rounds" — values undefined for the first 2-3 rounds. **Uniform cold-start rule:** during the cold-start period (rounds 1 through `min_phase_rounds` for the current phase), all windowed signals return a **neutral sentinel** of 0.5 (midpoint of [0, 1]). The sentinel value is tagged as low-confidence: `extraction_confidence` is set to 0.5 for sentinel values, ensuring the confidence floor formula treats them as uncertain but not deferred. Once `rounds_in_phase >= min_phase_rounds`, signals switch to their normal computation using all available history.
+
+This prevents:
+- `claim_rate_declining` from firing trivially on round 1 (no prior round to compare)
+- `pragmatic_convergence` from computing "debate mean" with 1 data point
+- `engagement_fatigue` from comparing against a peak that is also the only data point
+- `scheme_stagnation` from flagging low diversity when only 1-2 rounds of schemes exist
+
+#### Confidence Floor × Regression Interaction
+
+When `signal_confidence < 0.40`, all predicate evaluations are deferred — including regression evaluations. A regression that *would have* fired on a low-confidence round is reconsidered on every subsequent round until either (a) confidence recovers and the regression condition is re-evaluated with fresh signals, or (b) the phase exits via another predicate. Deferred regressions do **not** ratchet the threshold until they actually fire — the +0.10 ratchet is applied only when the engine commits to the regression and transitions back to exploration. A debate cannot get stuck in synthesis because of a single low-confidence round that masked a regression trigger.
+
 #### 2. Exploration Exit
 
 The exploration exit uses a composite saturation score as the default, with override predicates for edge cases.
@@ -168,10 +255,10 @@ The exploration exit uses a composite saturation score as the default, with over
 ```
 saturation_score =
     0.30 * recycling_pressure
-  + 0.20 * crux_maturity
+  + 0.25 * crux_maturity
   + 0.15 * concession_plateau
   + 0.15 * engagement_fatigue
-  + 0.10 * pragmatic_convergence
+  + 0.05 * pragmatic_convergence          # reduced: partially coupled to phase context (see note)
   + 0.10 * scheme_stagnation
 ```
 
@@ -181,14 +268,14 @@ Where:
 
 - **`crux_maturity`** = `min(1, cumulative_crux_count / expected_cruxes) * follow_through_ratio * scheme_coverage_factor`. A debate that has identified its expected cruxes, followed through on them, and deployed diverse argumentation schemes has mature exploration.
   - `expected_cruxes = max(1, active_povs - 1)` — scales with the number of active POVs (2 for 3-POV, 1 for 2-POV).
-  - `follow_through_ratio` = (cruxes that received ≥1 cross-POV edge within 2 rounds of identification) / (total identified cruxes). A crux is "identified" when a node gains its second cross-POV attack edge (the structural crux detector). "Follow-through" means at least one other POV produced a node with an edge targeting the crux node within 2 subsequent rounds. If no cruxes have been identified yet, `follow_through_ratio = 0`.
+  - `follow_through_ratio` = (cruxes that received ≥1 cross-POV edge within 2 rounds of identification) / (total identified cruxes). A crux is "identified" per the canonical `crux_identified` detector (§Thesis-Antithesis Exit): ≥2 cross-POV attack edges AND `computed_strength > 0.5`. "Follow-through" means at least one other POV produced a node with an edge targeting the crux node within 2 subsequent rounds. If no cruxes have been identified yet, `follow_through_ratio = 0`.
   - `scheme_coverage_factor = min(1, unique_schemes_used / min(6, available_schemes))` — penalizes debates that achieve high crux count through repetitive reasoning patterns.
 
 - **`concession_plateau`** = 1 if last 2 rounds had `concession_opportunity.outcome == 'missed'` despite `strong_attacks_faced > 0`. Debaters are ignoring strong attacks rather than engaging — a signal that positions have hardened.
 
 - **`engagement_fatigue`** = 1 − (current `engagement_depth.ratio` / peak `engagement_depth.ratio`). When targeted engagement drops relative to the debate's own peak, the conversation is becoming less interactive.
 
-- **`pragmatic_convergence`** [0, 1] = surface-form discourse signal computed from debater text (no LLM evaluation required). Three sub-signals, averaged:
+- **`pragmatic_convergence`** [0, 1] = surface-form discourse signal computed from debater text (no LLM evaluation required). **Coupling note:** This signal is partially coupled to phase context — the debater produces text with knowledge of the phase rationale and transition nudge, creating a direct prompt-to-signal feedback channel. Unlike structural signals (which measure argument network topology computed by the *evaluator*), pragmatic signals scan raw *debater* output. This coupling is acknowledged; the signal's weight (0.05) reflects its tiebreaker role rather than a primary transition driver. The Phase 5 coupling audit (item 20) must specifically measure this signal's r-value against phase-context prompts. Three sub-signals, averaged:
   - **Hedge density drop**: ratio of epistemic hedges to assertive markers in the last 2 rounds vs. the debate mean. When hedging drops, positions have crystallized.
     - Hedge lexicon (case-insensitive): "perhaps", "seems", "I suspect", "might", "could be", "it's possible", "arguably", "one might think", "it appears", "tentatively", "I would suggest", "to some extent", "not necessarily", "in some cases", "it remains unclear"
     - Assertive lexicon: "clearly", "necessarily", "entails", "obviously", "certainly", "undeniably", "without question", "it follows that", "the evidence shows", "demonstrably", "incontrovertibly", "unambiguously"
@@ -226,7 +313,9 @@ force_exploration_exit :=
        # debate is dead: high repetition + low engagement
 ```
 
-**The saturation signal weights (0.30 / 0.20 / 0.15 / 0.15 / 0.10 / 0.10) are provisional defaults** — see Validation Methodology below for the empirical protocol to replace them.
+**The saturation signal weights (0.30 / 0.25 / 0.15 / 0.15 / 0.05 / 0.10) are provisional defaults** — see Validation Methodology below for the empirical protocol to replace them. All provisional weights must be loaded from `provisional-weights.json` at runtime, not hardcoded as constants (see §Provisional Weights Config).
+
+**Force-exit / ratchet interaction (intended):** After two regressions, the ratcheted `exploration_exit_threshold` is 0.85 (0.65 + 0.20). The `force_exploration_exit` predicate (`recycling_pressure > 0.8 AND engagement_fatigue > 0.8`) can satisfy before the ratcheted threshold. This is correct: a twice-regressed debate that hits the "debate is dead" force exit has genuinely exhausted exploration — the ratchet prevents premature *scored* exits, but the force exit catches debates that are dead regardless of score. A debate that reaches the force exit after regressions is being mercifully terminated, not prematurely advanced.
 
 #### 3. Synthesis Exit
 
@@ -1171,6 +1260,67 @@ For `TRANSITION_SUMMARY`, `FINAL_COMMIT`, and `REGRESSION_NOTICE`: these are spe
 
 ## Implementation Plan
 
+### Maturity Tags
+
+Every item in this plan is tagged with a maturity level. An AI implementer asked to "implement adaptive staging" should build only `[v1-ship]` items unless explicitly instructed otherwise.
+
+| Tag | Meaning | Action |
+|---|---|---|
+| `[v1-ship]` | Required for the initial adaptive staging release behind `useAdaptiveStaging` flag | Build it |
+| `[post-validation]` | Blocked on Phase 5 empirical validation results | Design the interface; do not build the implementation |
+| `[research]` | Research program — requires tooling, corpora, or analysis infrastructure | Do not build; reference only |
+| `[future]` | Post-launch operational concern or deferred feature | Do not build; emit telemetry that enables it later |
+
+### Out of Scope for v1
+
+The following are described in this spec for completeness but **must not be built** in the initial implementation. Building them speculatively wastes effort and ships dormant code paths that accumulate rot.
+
+| Item | Why deferred | What to build instead |
+|---|---|---|
+| Learned pragmatic classifier (Phase 1b-vi) | Requires training data, benchmark, deployment infra | Use lexicon-only path; emit raw text in telemetry so the classifier can be trained later |
+| Drift detection (KS + MMD) | No baseline distributions exist until Phase 5 completes | Emit `SignalTelemetryRecord` per round; defer detection |
+| SHAP causal analysis (Phase 5 item 24) | Research task requiring annotation tooling | Reference only |
+| Markov chain simulator (Phase 5 item 25) | Research task | Reference only |
+| Red-team CI loop (Phase 5 item 26) | Requires prompt suite and analysis pipeline | Reference only |
+| Observability metric adapters | Deployment-layer concern; no infra exists | Emit metric events to a callback; write to JSON diagnostics |
+| Non-default dialectical style presets (`deliberative`, `integrative`) | Threshold adjustments are unvalidated numerology without a style-specific validation protocol | Ship `adversarial` only; define the `dialecticalStyle` config field and accept the value, but treat non-`adversarial` as `adversarial` with a diagnostic note: "Style presets other than adversarial are not yet validated" |
+| "Replay with fixed staging" UI action (Phase 4 item 16d) | Useful, not v1-blocking | Defer |
+| Cross-cultural / non-English validation (Phase 5 item 27) | Requires non-English corpus | Reference only |
+| Evaluator quality benchmark CI (weekly automated) | Requires gold-labeled corpus | Run manually for Phase 0 gate; automate later |
+
+### Provisional Weights Config
+
+All provisional signal weights are loaded from `provisional-weights.json` at runtime, not hardcoded as constants:
+
+```json
+{
+  "schema_version": 1,
+  "status": "PROVISIONAL — pending Phase 5 validation per §Validation Methodology",
+  "saturation": {
+    "recycling_pressure": 0.30,
+    "crux_maturity": 0.25,
+    "concession_plateau": 0.15,
+    "engagement_fatigue": 0.15,
+    "pragmatic_convergence": 0.05,
+    "scheme_stagnation": 0.10
+  },
+  "convergence": {
+    "qbaf_agreement_density": 0.35,
+    "position_stability": 0.25,
+    "irreducible_disagreement_ratio": 0.25,
+    "synthesis_pragmatic_signal": 0.15
+  },
+  "thresholds": {
+    "exploration_exit": 0.65,
+    "synthesis_exit": 0.70,
+    "confidence_floor": 0.40,
+    "crux_semantic_novelty": 0.70
+  }
+}
+```
+
+The engine loads this file at startup. If missing, it uses the compiled defaults and logs a warning. Phase 5 validation produces a replacement config file — a single config diff, not a code change scattered across multiple call sites.
+
 ### Phase 0: Evaluator Independence (prerequisite — benefits existing system)
 
 **Implementation status:** 0a–0e are **implemented** (merged to main). 0f and 0g are outstanding.
@@ -1183,75 +1333,77 @@ For `TRANSITION_SUMMARY`, `FINAL_COMMIT`, and `REGRESSION_NOTICE`: these are spe
 0f. Add `evaluatorModel` selector to `NewDebateDialog.tsx` with cross-vendor recommendation
 0g. Backtest: run 5 existing debate transcripts through new extraction prompts, compare QBAF output distributions against current (expect wider variance, fewer degenerate values)
 
-### Phase 1: Transition Predicates (core change)
+### Phase 1: Transition Predicates `[v1-ship]`
 
-**Architecture requirement:** Signals must be **modular**. Each signal is a `Signal` object with `{ id, weight, compute: (context) => number, enabled: boolean }`. The composite scorer iterates over the signal array, enabling A/B testing of new signals without code changes to the scorer itself. Weight overrides per dialectical style are applied as a transform on the signal array.
+**Architecture requirement:** Signals must be **modular**. Each signal is a `Signal` object implementing the `Signal` interface (see §Signal Interface and Context). The composite scorer iterates over the signal array, enabling A/B testing of new signals without code changes to the scorer itself. Weight overrides per dialectical style are applied as a transform on the signal array.
 
 **Pre-Phase 1 gate (before any adaptive code merges):**
 - Evaluator quality gate benchmark must pass (item 0g + gold-labeled extraction baseline)
 - Global kill switch (`adaptiveStagingEnabled`) must be wired (trivial: config flag check at engine start)
 
-1. Add `PhaseTransitionConfig`, `PhaseContext`, and `Signal` interface to `types.ts`
-2. Create `phaseTransitions.ts` with modular `Signal[]` registry, `evaluatePhaseTransition()`, `computeSaturationScore()`, `computeConvergenceScore()`, and override predicates
-3. Refactor `debateEngine.ts` main loop: replace fixed `for` loop with `while` loop that calls `evaluatePhaseTransition()` after each round; track phase in engine state
-4. Deprecate positional `getDebatePhase()` — replace callers with engine state lookup
-5. Add `PhaseContext` to `StagePromptInput` and update envelope builders in `envelopes.ts`
-5b. Add `SignalTelemetryRecord` emission after each round (see Online Signal Monitoring)
-5c. Implement runtime safety guardrails: kill switches (global + per-debate), argument network size cap (200 nodes), state validation on load, config validation with `ActionableError` on pathological combos
-5d. Add structured predicate logging (JSON record per predicate evaluation, see Runtime Safety Guardrails)
+1. Add `PhaseTransitionConfig`, `PhaseContext`, `Signal`, and `SignalContext` interfaces to `types.ts` (see §Signal Interface and Context for the canonical `SignalContext` definition) `[v1-ship]`
+2. Create `phaseTransitions.ts` with modular `Signal[]` registry, `evaluatePhaseTransition()`, `computeSaturationScore()`, `computeConvergenceScore()`, and override predicates. Load weights from `provisional-weights.json` `[v1-ship]`
+3. Refactor `debateEngine.ts` main loop: replace fixed `for` loop with `while` loop that calls `evaluatePhaseTransition()` after each round; track phase in engine state `[v1-ship]`
+4. Deprecate positional `getDebatePhase()` — replace callers with engine state lookup `[v1-ship]`
+5. Add `PhaseContext` to `StagePromptInput` and update envelope builders in `envelopes.ts` `[v1-ship]`
+5b. Add `SignalTelemetryRecord` emission after each round (see Online Signal Monitoring) `[v1-ship]`
+5c. Implement runtime safety guardrails: kill switches (global + per-debate), argument network GC (175→150) + hard cap (200), state validation on load (downgrade to fixed-round on corruption), config validation with `ActionableError` on pathological combos `[v1-ship]`
+5d. Add structured predicate logging (JSON record per predicate evaluation, see Runtime Safety Guardrails) `[v1-ship]`
+5e. Implement cold-start behavior: sentinel values (0.5) for windowed signals during rounds 1 through `min_phase_rounds`, tagged as low-confidence `[v1-ship]`
 
-### Phase 1b: Pragmatic Signals & Confidence (rev 5 features, parallel with Phase 1)
+### Phase 1b: Pragmatic Signals & Confidence `[v1-ship]` (parallel with Phase 1)
 
-1b-i. Create `pragmaticSignals.ts` with three lexicon `const` arrays (hedge, concessive, meta-discourse) and `computePragmaticConvergence(transcript, windowSize)` → `[0, 1]`
-1b-ii. Create `schemeStagnation.ts` with `computeSchemeStagnation(argumentNetwork, windowSize)` → `[0, 1]`, consuming already-extracted `argumentation_scheme` categories
-1b-iii. Add `synthesis_pragmatic_signal` computation to `computeConvergenceScore()` — three sub-signals (integration language, conditional agreement, diminishing qualifications) with their own lexicon arrays
-1b-iv. Implement `signalConfidence.ts` with `computeExtractionConfidence()` and `computeStabilityConfidence()` per the formulas above; wire confidence floor gating into `evaluatePhaseTransition()`
-1b-v. Add `dialecticalStyle` parameter handling: threshold modifier table and move weight override table per style preset
-1b-vi. Add learned pragmatic classifier — sentence-transformer as a parallel path for `pragmatic_convergence`, gated on F1 ≥ 0.80 benchmark. **Required for shipping** — lexicon path is the degraded fallback, not the primary signal (see Lexical Fragility defense)
-1b-vii. Add argument network GC pass: prune tangential leaf nodes and orphans when network size reaches 175, targeting ≤150. Archive pruned nodes in diagnostics.
+1b-i. Create `pragmaticSignals.ts` with three lexicon `const` arrays (hedge, concessive, meta-discourse) and `computePragmaticConvergence(transcript, windowSize)` → `[0, 1]` `[v1-ship]`
+1b-ii. Create `schemeStagnation.ts` with `computeSchemeStagnation(argumentNetwork, windowSize)` → `[0, 1]`, consuming already-extracted `argumentation_scheme` categories `[v1-ship]`
+1b-iii. Add `synthesis_pragmatic_signal` computation to `computeConvergenceScore()` — three sub-signals (integration language, conditional agreement, diminishing qualifications) with their own lexicon arrays `[v1-ship]`
+1b-iv. Implement `signalConfidence.ts` with `computeExtractionConfidence()` and `computeStabilityConfidence()` per the formulas above; wire confidence floor gating into `evaluatePhaseTransition()`, including confidence × regression deferral semantics (see §Confidence Floor × Regression Interaction) `[v1-ship]`
+1b-v. Add `dialecticalStyle` config field — accept the value but treat non-`adversarial` as `adversarial` with diagnostic note `[v1-ship]` (style-specific threshold modulation is `[post-validation]`)
+1b-vi. Add learned pragmatic classifier — sentence-transformer as a parallel path for `pragmatic_convergence`, gated on F1 ≥ 0.80 benchmark. **Required for shipping as default** — lexicon path is the degraded fallback. For v1 behind opt-in flag, lexicon-only is acceptable. `[post-validation]`
+1b-vii. Add argument network GC pass: prune tangential leaf nodes and orphans when network size reaches 175, targeting ≤150. Archive pruned nodes in diagnostics. `[v1-ship]`
 
-### Phase 2: Debater Awareness (prompt changes)
+### Phase 2: Debater Awareness `[v1-ship]`
 
-6. Add phase rationale string generation to `phaseTransitions.ts`
-7. Add move weight table to `prompts.ts`, inject into plan stage only
-8. Add transition nudge to draft envelope when `approaching_transition` is true
+6. Add phase rationale string generation to `phaseTransitions.ts` (template + string interpolation, not LLM) `[v1-ship]`
+7. Add move weight table to `prompts.ts`, inject into plan stage only `[v1-ship]`
+8. Add transition nudge to draft envelope when `approaching_transition` is true. **Gated on Phase 5 ablation** (item 20): nudge ships disabled by default; enabled only if A/B test shows no premature synthesis correlation (r ≤ 0.3) and no outcome quality degradation `[post-validation]`
 
-### Phase 3: Moderator Transition Actions
+### Phase 3: Moderator Transition Actions `[v1-ship]`
 
-9. Add `TRANSITION_SUMMARY` intervention type — fired once on exploration→synthesis transition
-10. Add `FINAL_COMMIT` intervention type — fired when approaching synthesis exit; runs as multi-round sequence across all active POVs (see Transition Awareness section)
-11. Add `REGRESSION_NOTICE` intervention type — fired on synthesis→exploration regression
+9. Add `TRANSITION_SUMMARY` intervention type — fired once on exploration→synthesis transition `[v1-ship]`
+10. Add `FINAL_COMMIT` intervention type — fired when approaching synthesis exit; runs as multi-round sequence across all active POVs (see Transition Awareness section) `[v1-ship]`
+11. Add `REGRESSION_NOTICE` intervention type — fired on synthesis→exploration regression `[v1-ship]`
 
-### Phase 4: UI Integration
+### Phase 4: UI Integration `[v1-ship]`
 
-12. Surface phase progress indicator in `DebateWorkspace.tsx` (progress bar per phase)
-13. Add pacing selector and dialectical style selector to `NewDebateDialog.tsx`
-14. Display phase transition events (including regression) in the debate transcript
-15. Expose PhaseContext (phase rationale, progress, confidence) to the debate panel so human participants can see why they're in a given phase
-16. Add **pre-emptive** human transition override buttons: "Keep exploring" (vetoes exploration exit for 1 round) and "Move to synthesis" (forces exploration exit). "Pre-emptive" means the buttons are available *before* the predicate fires — the human can vote on the next phase at any time, not just when `approaching_transition` is true. Override events are logged in diagnostics with the signal scores at the time of override, making them ground-truth labels for future weight tuning (online learning signal). These feed the same veto/force predicate system — they don't bypass it.
-16b. Add "Download signals" button for adaptive debates — exports `signals.json` (per-round signal telemetry) and `predicates.json` (structured predicate log) for debugging and analysis
-16c. Surface full per-debate adaptive staging diagnostics (phase timeline, regressions, confidence deferrals, override log, network size) in the diagnostics panel
-16d. Add "Replay with fixed staging" action on completed adaptive debates — creates a new debate with the same config + `forceFixedRounds: true` for A/B comparison
+12. Surface phase progress indicator in `DebateWorkspace.tsx` (progress bar per phase) `[v1-ship]`
+13. Add pacing selector to `NewDebateDialog.tsx` `[v1-ship]`; dialectical style selector `[post-validation]` (accept field but only `adversarial` is active)
+14. Display phase transition events (including regression) in the debate transcript `[v1-ship]`
+15. Expose PhaseContext (phase rationale, progress, confidence) to the debate panel so human participants can see why they're in a given phase `[v1-ship]`
+16. Add **pre-emptive** human transition override buttons: "Keep exploring" (vetoes exploration exit for 1 round) and "Move to synthesis" (forces exploration exit). Override events are logged in diagnostics with the signal scores at the time of override. `[v1-ship]`
+16b. Add "Download signals" button for adaptive debates — exports `signals.json` (per-round signal telemetry) and `predicates.json` (structured predicate log) `[v1-ship]`
+16c. Surface full per-debate adaptive staging diagnostics (phase timeline, regressions, confidence deferrals, override log, network size) in the diagnostics panel `[v1-ship]`
+16d. Add "Replay with fixed staging" action on completed adaptive debates `[future]`
 
-### Phase 5: Empirical Validation
+### Phase 5: Empirical Validation `[research]`
 
-**Blocking requirements before adaptive staging ships as default:**
+**Blocking requirements before adaptive staging ships as default (not as opt-in):**
 
-17. Annotate debate corpus (3 annotators, inter-annotator agreement ≥ 0.6 α)
-18. Compute single-signal baselines; drop signals that don't beat random
-19. LOOCV weight tuning on training set; evaluate on held-out set
-20. Coupling audit: measure signal-prompt correlations, flag r > 0.5 pairs. Include **prompt-variant ablation**: A/B test transition nudges on/off across 20 debates.
-21. Compare adaptive staging vs. fixed-round debates on convergence quality metrics
-22. Run adversarial debater shadow mode on first 5 debates per model version
-23. Post-debate outcome quality annotation: annotators rate (a) depth of crux resolution, (b) novelty of reframes, (c) remaining open questions worth future exploration. Use these as downstream targets when tuning saturation/convergence weights.
-24. **Causal analysis (SHAP/feature ablation):** For each signal, compute marginal contribution to outcome quality scores. Drop signals that correlate with annotator transition points but do not causally improve outcomes. Prevents optimizing for "feels right to annotators" without improving synthesis quality.
-25. **Formal simulation:** Define a Markov chain over signal states as the trajectory generator. Run 10,000 synthetic debates with varied parameters (active POVs, adversarial strategies, noise levels, signal distributions). Measure oscillation probability, average regression count, budget exhaustion rate, and parameter interaction effects. Run this *before* weight finalization to identify parameter regions that cause pathological behavior.
-26. **Red-team loop:** 100 debates with one POV explicitly prompted to game transition signals. Measure gaming success rate, detection rate (per-debater attribution + anomaly detection), and required fixes. Any gaming strategy succeeding ≥30% without detection blocks shipping.
-27. **Non-English validation subset:** ≥10% of validation debates use non-English content. Verify lexicon-based signals degrade gracefully and learned classifier fallback activates appropriately.
-28. **Evaluator quality benchmark:** Gold-label 20 debates for extraction accuracy. Verify F1 thresholds (see Evaluator Quality Gate). Baseline for ongoing weekly automated checks.
-29. **Signal baseline export:** Save per-signal distributions from the validation set as `signal-baselines.json` for ongoing drift detection (see Online Signal Monitoring).
+17. Annotate debate corpus (3 annotators, inter-annotator agreement ≥ 0.6 α) `[research]`
+17b. **Pre-tuning correlation analysis:** Compute pairwise signal correlation on the training corpus. Merge or drop signals with r > 0.7 before LOOCV weight tuning. `recycling_pressure` / `engagement_fatigue` and `scheme_stagnation` / `scheme_coverage_factor` are expected to be correlated — verify and merge if so. `[research]`
+18. Compute single-signal baselines; drop signals that don't beat random `[research]`
+19. LOOCV weight tuning on training set; evaluate on held-out set `[research]`
+20. Coupling audit: measure signal-prompt correlations, flag r > 0.5 pairs. **Specifically audit `pragmatic_convergence`** — it reads raw debater text influenced by phase context (see §Exploration Exit coupling note). Include **prompt-variant ablation**: A/B test transition nudges on/off across 20 debates. `[research]`
+21. Compare adaptive staging vs. fixed-round debates on convergence quality metrics `[research]`
+22. Run adversarial debater shadow mode on first 5 debates per model version `[research]`
+23. Post-debate outcome quality annotation `[research]`
+24. **Causal analysis (SHAP/feature ablation)** `[research]`
+25. **Formal simulation** `[research]`
+26. **Red-team loop** `[research]`
+27. **Non-English validation subset** `[research]`
+28. **Evaluator quality benchmark:** Gold-label 20 debates for extraction accuracy. Verify F1 thresholds. `[research]` (manual run for Phase 0 gate is `[v1-ship]`)
+29. **Signal baseline export** `[research]`
 
-### Phase 6: Ongoing Operations (post-launch)
+### Phase 6: Ongoing Operations `[future]`
 
 **Testing pyramid** — required test coverage before adaptive staging ships as default:
 
@@ -1391,3 +1543,129 @@ For `TRANSITION_SUMMARY`, `FINAL_COMMIT`, and `REGRESSION_NOTICE`: these are spe
 | **State corruption recovery danger** — resetting `rounds_in_phase` to zero on a saturated network causes unpredictable composite scores, potentially locking the debate in a frozen phase | Changed recovery from "reset to phase start" to **auto-downgrade to fixed-round mode** for the session's remaining duration. Do not re-initialize adaptive state over a mid-flight argument graph. |
 | **Crux farming** — debaters can hallucinate structurally distinct but substantively redundant cruxes to exhaust the regression budget and stall the debate | Added **semantic novelty check** to `novel_crux_discovered`: candidate crux must have embedding cosine similarity < 0.70 to all prior crux nodes (using existing all-MiniLM-L6-v2 embeddings). Also added semantic similarity to `regression_used_for_similar_crux`. Candidates that pass structural novelty but fail semantic novelty are logged as "semantically redundant crux" — they don't trigger regression. |
 | **Educational references** — reviewer cited Zheng et al. (2023) and van Eemeren & Grootendorst | Both were already referenced in the document (Evaluator Independence and Theoretical Foundation sections respectively). No change needed. |
+
+### Rev 10 Changes (AI-implementer review — v1 scope, worked example, interface declarations, contradiction fixes)
+
+| Issue Raised | Resolution |
+|---|---|
+| **Internal contradictions** — regression budget, `crux_identified`, and transition nudge defined differently in different sections | Fixed: `crux_identified` in `crux_maturity` now references canonical §Thesis-Antithesis Exit definition (includes strength gate). Transition nudge implementation item now explicitly gated on Phase 5 ablation. Regression budget restated in full wherever referenced (per-crux cap AND global cap of 2). |
+| **`pragmatic_convergence` is partially coupled** — reads raw debater text influenced by phase context, not structurally separated like network signals | Acknowledged coupling explicitly in the signal definition. Reduced weight from 0.10 to 0.05 (tiebreaker role). Phase 5 coupling audit must specifically measure this signal's r-value against phase-context prompts. |
+| **Signal redundancy** — `engagement_fatigue` / `recycling_pressure` and `scheme_stagnation` / `scheme_coverage_factor` likely correlated | Added pre-tuning correlation analysis step (item 17b) to Phase 5: compute pairwise r on training corpus, merge or drop signals with r > 0.7 before LOOCV. |
+| **Force-exit / ratchet interaction undocumented** — a twice-regressed debate likely exits via "debate is dead" force rather than ratcheted score | Documented as intended behavior: force exit catches genuinely exhausted debates regardless of score; ratchet prevents premature *scored* exits. |
+| **No worked example** — AI implementers reason about specs by simulating execution traces | Added Appendix A: 10-round worked example with per-round signal values, predicate evaluations, one regression, one confidence deferral. |
+| **No failure-mode taxonomy** — defenses listed without enumerating what they defend against | Added Appendix B: 10 failure modes with detection mechanism, defense, and accepted-risk flag. |
+| **No `SignalContext` interface** — `compute(context)` hand-waved; signals will couple to engine internals | Added concrete `SignalContext` TypeScript interface with all fields a signal may read. Placed before signal definitions. Phase 1 item updated to implement it. |
+| **No state-transition table** — actual state space is larger than the 3-phase flowchart | Added Appendix C: `(state × event) → (new_state, action)` transition table covering all cross-cutting concerns. |
+| **No referenced-code appendix** — AI implementer will infer behavior from names or re-implement | Added Appendix D: every referenced symbol with file path and one-line behavioral summary. |
+| **Cold-start behavior undefined** — windowed signals reference "peak" and "mean" undefined for rounds 1-2 | Added §Cold-Start Behavior: uniform sentinel rule (0.5) during cold-start period, tagged as low-confidence. |
+| **Confidence × regression interaction unspecified** — can a regression be deferred? Does it ratchet when deferred? | Added §Confidence Floor × Regression Interaction: deferred regressions reconsidered each round; ratchet applies only when fired. |
+| **No v1 scope boundary** — AI implementer will attempt the whole spec | Added "Out of Scope for v1" section and maturity tags (`[v1-ship]`, `[post-validation]`, `[research]`, `[future]`) on every implementation item. |
+| **Provisional weights will become magic numbers** — AI will hardcode `0.30` as a constant | All weights loaded from `provisional-weights.json` at runtime. Validation produces a config diff, not scattered code changes. |
+| **Dialectical style presets unvalidated** — threshold adjustments are numerology without a style-specific protocol | Non-default presets (`deliberative`, `integrative`) deferred from v1. Config field accepts the value but treats non-`adversarial` as `adversarial` with diagnostic note. |
+| **Learned classifier cost unspecified** — 1.5B model running every round is not free | Classifier is `[post-validation]` — not built for v1 behind opt-in flag. For default-mode shipping, deployment requirements specified in Appendix B (failure mode F7). |
+| **Do not split spec into multiple files** — AI may not load adjacent files | Accepted: spec remains a single document. All contracts, logs, and observability specs stay inline. |
+| **Do not cut the Design Decisions Log** — it functions as anti-regression armor | Accepted: log retained in full. |
+
+---
+
+## Appendix A: Worked Example — 10-Round Debate Trace
+
+A hypothetical 3-POV debate (`prometheus`, `sentinel`, `cassandra`) on "Should frontier AI labs be required to share safety research?" with `pacing: moderate`, `maxTotalRounds: 12`.
+
+### Round-by-Round Trace
+
+| Round | Phase | Speaker | Network Δ | Key Signal Values | Predicate | Action |
+|---|---|---|---|---|---|---|
+| 1 | thesis-anti | prometheus | +3 nodes | *cold-start: all signals = 0.5 sentinel* | thesis_exit: NO (not all POVs responded) | stay |
+| 2 | thesis-anti | sentinel | +4 nodes | *cold-start: all signals = 0.5 sentinel* | thesis_exit: NO (cassandra unheard) | stay |
+| 3 | thesis-anti | cassandra | +3 nodes, 2 cross-POV attacks | claim_rate_delta: 0.75 of peak; crux_identified: NO (only 1 cross-POV attack cluster) | thesis_exit: NO (claim_rate not declining, no crux) | stay |
+| 4 | thesis-anti | prometheus | +2 nodes, 1 node gains 2nd cross-POV attack (strength 0.6) | claim_rate: 0.50 of peak (declining); crux_identified: YES | thesis_exit: YES (all responded + crux identified) | → **exploration** |
+| 5 | exploration | sentinel | +2 nodes | recycling: 0.18, crux_mat: 0.40, concession: 0, engage_fat: 0.10, pragmatic: 0.12, scheme_stag: 0.20; **sat_score: 0.21** | exploration_exit: NO (0.21 < 0.65) | stay |
+| 6 | exploration | cassandra | +1 node, 1 concession | recycling: 0.25, crux_mat: 0.55, concession: 0, engage_fat: 0.15, pragmatic: 0.18, scheme_stag: 0.25; **sat_score: 0.28** | exploration_exit: NO (0.28 < 0.65); veto: NO | stay |
+| 7 | exploration | prometheus | +1 node | recycling: 0.45, crux_mat: 0.70, concession: 0.5 (missed), engage_fat: 0.30, pragmatic: 0.35, scheme_stag: 0.40; **sat_score: 0.48** | exploration_exit: NO (0.48 < 0.65) | stay |
+| 8 | exploration | sentinel | +0 nodes, extraction_confidence: 0.35 | *confidence < 0.40 — all predicates deferred* | **DEFERRED** | stay (confidence deferral) |
+| 9 | exploration | cassandra | +1 node | recycling: 0.60, crux_mat: 0.80, concession: 1.0, engage_fat: 0.55, pragmatic: 0.40, scheme_stag: 0.50; **sat_score: 0.65** | exploration_exit: YES (0.65 ≥ 0.65, no vetoes active) | → **synthesis** (moderator issues TRANSITION_SUMMARY) |
+| 10 | synthesis | prometheus | +1 support edge | qbaf_agree: 0.30, pos_stab: 0.60, irreduc: 0.20, synth_prag: 0.25; **conv_score: 0.34**; novel crux detected (cosine 0.45 to prior) | synthesis_exit: NO; regression: YES (novel crux, regression_count=0) | → **exploration** (regression #1, threshold ratchets to 0.75) |
+| 11 | exploration | sentinel | +2 nodes addressing new crux | recycling: 0.70, crux_mat: 0.90, concession: 1.0, engage_fat: 0.65, pragmatic: 0.50, scheme_stag: 0.55; **sat_score: 0.74** | exploration_exit: NO (0.74 < 0.75, ratcheted) | stay |
+| 12 | exploration | cassandra | +0 nodes | recycling: 0.85, crux_mat: 0.95, concession: 1.0, engage_fat: 0.82, pragmatic: 0.55, scheme_stag: 0.60; **force_exit: YES** (recycling 0.85 > 0.8 AND fatigue 0.82 > 0.8) | force_exploration_exit fires | → **synthesis** |
+
+Debate terminates at `maxTotalRounds = 12`. Moderator issues FINAL_COMMIT to each POV in a compressed sequence within the final round budget.
+
+**Key observations from this trace:**
+- Round 8 demonstrates confidence deferral — noisy extraction prevented a potentially spurious transition
+- Round 10 demonstrates regression — a novel crux in synthesis triggered return to exploration with ratcheted threshold
+- Round 12 demonstrates force-exit after regression — the "debate is dead" force exit catches the exhausted exploration with ratcheted threshold 0.75
+
+## Appendix B: Failure Mode Taxonomy
+
+| ID | Failure Mode | Detection | Defense | Risk Level |
+|---|---|---|---|---|
+| F1 | **Evaluator collapse** — extraction model degrades, producing garbage signals | Evaluator F1 benchmark (weekly); extraction_confidence < 0.4 sustained | Auto-downgrade to fixed-round; evaluator quality gate | Mitigated |
+| F2 | **Signal drift** — model updates shift signal distributions | KS + MMD drift detection per batch; shadow mode divergence | Auto-fallback to fixed-round; coupling audit rerun `[post-validation]` | Mitigated (post-v1) |
+| F3 | **Oscillation** — repeated regression/synthesis cycling | Global regression budget (hard cap 2); threshold ratchet (+0.10 per regression) | Budget cap terminates oscillation after 2 cycles; force exit catches dead debates | Mitigated |
+| F4 | **Premature synthesis** — transitions before exploration is genuinely saturated | Min round floors (2 per phase); confidence gating (0.40 floor); veto predicates | Vetoes delay 1 round; min rounds provide floor; shadow mode catches systematic early transitions `[post-validation]` | Mitigated |
+| F5 | **Runaway exploration** — debate never exits exploration | Max exploration rounds (8); force exit (recycling > 0.8 AND fatigue > 0.8); API budget soft cap | Multiple independent force exits | Mitigated |
+| F6 | **Frozen-phase deadlock** — state corruption or edge-case interaction prevents any predicate from firing | State validation on load (downgrade on corruption); max round caps per phase; `maxTotalRounds` absolute ceiling | Hard caps guarantee termination | Mitigated |
+| F7 | **Classifier latency** — learned pragmatic classifier (1.5B params) adds per-round latency | `debate_predicate_latency_ms` metric; p99 > 50ms alert | Classifier runs async with 200ms timeout; on timeout, falls back to lexicon path with diagnostic warning. Classifier is `[post-validation]`; v1 uses lexicon only. | Accepted (v1); Mitigated (post-v1) |
+| F8 | **Signal gaming** — debater manipulates structural patterns to delay/force transitions | Per-debater signal attribution (>60% dominance flag); anomaly detection (>2σ spike/drop); red-team loop `[research]` | Flagged rounds excluded from predicate evaluation; moderator BALANCE_CHECK intervention | Partially mitigated |
+| F9 | **Silent quality degradation** — adaptive staging is worse than fixed-round but not detectably broken | Shadow mode divergence (>3 rounds avg over 10 debates flags review); outcome quality annotation `[research]` | Shadow divergence metric is the primary detector. **Accepted risk:** shadow mode tells you *when* they disagree, not *which* is right. Human review required. | Accepted risk |
+| F10 | **Config explosion** — pathological parameter combinations produce unexpected behavior | Config validation at debate creation (reject extreme thresholds, warn conflicting combos) | `ActionableError` with specific conflict and fix | Mitigated |
+
+## Appendix C: State Transition Table
+
+The phase flowchart has 3 nodes, but the actual state space includes cross-cutting concerns. This table covers all combinations. States are evaluated in priority order (top to bottom); the first matching row fires.
+
+**State variables:** `phase` (thesis-anti / exploration / synthesis), `kill_switch` (active / inactive), `confidence` (ok / deferred), `veto` (active / inactive), `override` (keep_exploring / move_to_synthesis / none), `regression_budget` (0 / 1 / 2 used), `network_gc` (needed / not_needed), `budget` (ok / soft_hit / hard_hit)
+
+| State | Event | New State | Action |
+|---|---|---|---|
+| any | `kill_switch = active` | current phase | Complete current phase via positional assignment; disable all adaptive predicates |
+| any | `budget = hard_hit` | TERMINATED | Terminate immediately; log budget exhaustion |
+| any | `health_score < 0.10` | TERMINATED | Terminate immediately; log catastrophic collapse |
+| any | `health_score < 0.20` for 3 rounds | TERMINATED | Terminate; log gradual collapse |
+| any | `network.nodeCount >= 175` AND `gc_not_run_this_phase` | same phase | Run GC pass; prune to ≤150; log; set `gc_ran = true` |
+| any | `network.nodeCount >= 200` (post-GC) | synthesis | Force to synthesis; log hard cap; extraction continues at full fidelity |
+| any | `confidence < 0.40` | same phase | Defer all predicate evaluations; log deferral; continue |
+| **thesis-anti** | `all_povs_responded AND (claim_rate_declining OR crux_identified) AND round >= min` | exploration | Transition; moderator notes phase change |
+| **thesis-anti** | `round >= max_thesis_rounds` | exploration | Force transition |
+| **exploration** | `override = move_to_synthesis` | synthesis | Force transition; log human override with signal scores |
+| **exploration** | `budget = soft_hit` | synthesis | Force transition; log budget pressure |
+| **exploration** | `force_exploration_exit` (recycling > 0.8 AND fatigue > 0.8) | synthesis | Force transition; log "debate is dead" |
+| **exploration** | `round >= max_exploration_rounds` | synthesis | Force transition |
+| **exploration** | `sat_score >= threshold AND NOT veto_active` | synthesis | Normal transition; moderator issues TRANSITION_SUMMARY |
+| **exploration** | `sat_score >= threshold AND veto_active` | exploration | Veto delays 1 round; if same veto fired last round, override veto → synthesis |
+| **synthesis** | `override = keep_exploring AND regression_budget < 2` | exploration | Regression; ratchet +0.10; log human override |
+| **synthesis** | `regression fires AND regression_budget < 2` | exploration | Regression; ratchet +0.10; moderator issues REGRESSION_NOTICE |
+| **synthesis** | `regression fires AND regression_budget >= 2` | synthesis | Budget exhausted; log blocked regression; continue synthesis |
+| **synthesis** | `conv_score >= threshold` | TERMINATED | Normal exit; moderator issues FINAL_COMMIT sequence |
+| **synthesis** | `synthesis_stall` (2 rounds, delta < 0.05, recycling > 0.5) | TERMINATED | Force exit; log stall |
+| **synthesis** | `round >= max_synthesis_rounds` | TERMINATED | Force exit |
+| **synthesis** | `budget = soft_hit` | synthesis | Lower synthesis threshold by 0.10 |
+| **any** | `state deserialization fails` | fixed-round mode | Downgrade session; log corruption |
+
+## Appendix D: Referenced Existing Code
+
+Every existing symbol referenced in this spec, with file path and behavioral summary. An AI implementer should read these files before implementing; do not re-implement or infer behavior from names.
+
+| Symbol | File | Behavior |
+|---|---|---|
+| `processExtractedClaims()` | `lib/debate/argumentNetwork.ts` | Validates extracted claims against the argument network: grounding overlap check, duplicate detection, edge ID validation, attack type normalization. Returns accepted/rejected claim arrays. |
+| `normalizeExtractedClaim()` | `lib/debate/argumentNetwork.ts` | Maps categorical extraction outputs to float values (`grounded`→0.8, `reasoned`→0.5, `asserted`→0.2 etc.). Handles legacy float passthrough. Single source of truth for category→float mapping. |
+| `convergenceSignals` (module) | `lib/debate/convergenceSignals.ts` | Computes per-round convergence metrics: `recycling_rate` (self-overlap), `engagement_depth` (targeted response ratio), `position_delta` (embedding drift), `concession_opportunity` (missed concession detection). |
+| `getMoveName()` | `lib/debate/prompts.ts` | Fuzzy-matches a raw move string against the known `MOVE_NAMES` set. Returns the canonical move name or a best-effort match. |
+| `normalizeDisagreementType()` | `lib/debate/prompts.ts` | Keyword-scores raw text to classify disagreement as `EMPIRICAL`, `VALUES`, or `DEFINITIONAL`. Used in plan stage and synthesis extraction. |
+| `validateTurn()` | `lib/debate/turnPipeline.ts` | Validates a completed draft against length, format, and content constraints. Returns pass/fail with violation details. |
+| `buildRepairPrompt()` | `lib/debate/turnPipeline.ts` | Generates a repair prompt for a failed turn validation, citing the specific violation. Used in the retry loop (up to `maxRetries`). |
+| `parseJsonRobust()` | `lib/debate/aiAdapter.ts` | Strips code fences, repairs common JSON errors (trailing commas, unquoted keys), handles partial output. Returns parsed object or throws. |
+| `extractArraysFromPartialJson()` | `lib/debate/aiAdapter.ts` | Recovers complete array elements from truncated JSON responses. Used when extraction is cut off mid-array. |
+| `getDebatePhase()` | `lib/debate/debateEngine.ts` | **DEPRECATED by this spec.** Current positional phase assignment: rounds 1-2 → thesis-antithesis, last 2 rounds → synthesis, middle → exploration. Replaced by `evaluatePhaseTransition()`. |
+| `DebateEngine.generate()` | `lib/debate/debateEngine.ts` | Sends a prompt to the debate model via the AI adapter. Used for turn pipeline, moderator selection, synthesis. |
+| `DebateEngine.generateWithEvaluator()` | `lib/debate/debateEngine.ts` | Routes generation through `evaluatorModel` (cross-vendor). Used for claim extraction and classification. Implemented via `generateWithModel()`. |
+| `runTurnPipeline()` | `lib/debate/turnPipeline.ts` | Four-stage sequential pipeline: brief → plan → draft → cite. Each stage has its own temperature and schema. Stage failures abort subsequent stages. |
+| `StagePromptInput` | `lib/debate/turnPipeline.ts` | Input type for each pipeline stage. Contains transcript context, phase info, prior claims, taxonomy refs. Extended by this spec to include `PhaseContext`. |
+| `DEBATE_PROTOCOLS` | `lib/debate/types.ts` | Registry of debate protocol definitions (structured, socratic, deliberation). Each protocol can set per-protocol defaults for adaptive parameters. |
+| `computeQbafStrengths()` | `lib/debate/argumentNetwork.ts` | Runs DF-QuAD gradual semantics on the argument network. Computes `computed_strength` for all nodes. O(n²) in edges — bounded by the 200-node cap. |
+| `formatSituationDebateContext()` | `lib/debate/prompts.ts` | Builds rich context string for situation-based debates from taxonomy nodes, linked nodes, and conflict summaries. |
+| `buildDiagnosticsOutput()` | `lib/debate/formatters.ts` | Assembles the diagnostics JSON section of a completed debate session. Extended by this spec to include adaptive staging diagnostics. |
+| `POVER_INFO` | `lib/debate/types.ts` | Registry of POV character definitions (prometheus, sentinel, cassandra). Maps POV IDs to names, descriptions, and BDI profiles. |
+| `EntryDiagnostics` | `lib/debate/types.ts` | Per-transcript-entry diagnostics type. Records extraction status, claim counts, validation failures. Extended by this spec to include predicate evaluation results. |

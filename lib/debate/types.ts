@@ -11,11 +11,161 @@ export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
  */
 export type DebatePhase = 'thesis-antithesis' | 'exploration' | 'synthesis';
 
-/** Determine which debate phase a given round falls in. */
+/** Determine which debate phase a given round falls in.
+ * @deprecated Use evaluatePhaseTransition() from phaseTransitions.ts for adaptive staging.
+ * Retained as the fixed-round fallback when useAdaptiveStaging is false. */
 export function getDebatePhase(round: number, totalRounds: number): DebatePhase {
   if (round <= 2) return 'thesis-antithesis';
   if (round > totalRounds - 2) return 'synthesis';
   return 'exploration';
+}
+
+// ── Adaptive Staging Types ──────────────────────────────────────────
+
+export type DebatePacing = 'tight' | 'moderate' | 'thorough';
+export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
+
+export interface PhaseTransitionConfig {
+  useAdaptiveStaging: boolean;
+  maxTotalRounds: number;
+  pacing: DebatePacing;
+  dialecticalStyle: DialecticalStyle;
+  explorationExitThreshold: number;
+  synthesisExitThreshold: number;
+  allowEarlyTermination: boolean;
+}
+
+export interface PhaseContext {
+  phase: DebatePhase;
+  rationale: string;
+  rounds_in_phase: number;
+  phase_progress: number;
+  approaching_transition: boolean;
+}
+
+export interface PhaseState {
+  current_phase: DebatePhase;
+  rounds_in_phase: number;
+  total_rounds_elapsed: number;
+  regression_count: number;
+  exploration_exit_threshold: number;
+  synthesis_exit_threshold: number;
+  prior_crux_clusters: string[][];
+  veto_history: { round: number; veto_type: string }[];
+  gc_ran_this_phase: boolean;
+  api_calls_used: number;
+}
+
+export interface SignalContext {
+  network: {
+    nodes: ReadonlyArray<{
+      id: string; speaker: string; computed_strength: number;
+      base_strength?: number;
+      base_strength_category?: string;
+      argumentation_scheme?: string;
+      taxonomy_refs: ReadonlyArray<{ node_id: string; relevance: string }>;
+      turn_number: number;
+    }>;
+    edges: ReadonlyArray<{
+      id: string; source: string; target: string;
+      type: 'supports' | 'attacks';
+      attack_type?: string; weight: number; scheme?: string;
+      argumentation_scheme?: string;
+    }>;
+    nodeCount: number;
+  };
+
+  transcript: {
+    currentRound: number;
+    roundsInPhase: number;
+    activePovsCount: number;
+    lastNRounds(n: number): ReadonlyArray<{
+      round: number; speaker: string; text: string;
+      extraction_status: string; claims_accepted: number; claims_rejected: number;
+      category_validity_ratio: number;
+    }>;
+  };
+
+  priorSignals: {
+    get(signalId: string, roundsBack: number): number | null;
+    movingAverage(signalId: string, window: number): number | null;
+  };
+
+  convergenceSignals: {
+    recycling_rate: { avg_self_overlap: number };
+    engagement_depth: { ratio: number };
+    position_delta: { drift: number };
+    concession_opportunity: { outcome: string; strong_attacks_faced: number };
+  };
+
+  phase: {
+    current: DebatePhase;
+    allPovsResponded: boolean;
+    cruxNodes: ReadonlyArray<{
+      id: string; crossPovAttackCount: number;
+      computedStrength: number;
+    }>;
+    priorCruxClusters: ReadonlyArray<ReadonlyArray<string>>;
+    regressionCount: number;
+    explorationExitThreshold: number;
+    synthesisExitThreshold: number;
+  };
+
+  extraction: {
+    lastRoundStatus: string;
+    lastRoundClaimsAccepted: number;
+    lastRoundCategoryValidityRatio: number;
+  };
+}
+
+export type SignalMaturity = 'v1-ship' | 'post-validation' | 'research';
+
+export interface Signal {
+  id: string;
+  weight: number;
+  compute: (ctx: SignalContext) => number;
+  enabled: boolean;
+  maturity: SignalMaturity;
+}
+
+export type PredicateAction = 'stay' | 'transition' | 'force_transition' | 'regress' | 'terminate';
+
+export interface PredicateResult {
+  action: PredicateAction;
+  new_phase?: DebatePhase;
+  reason: string;
+  veto_active: boolean;
+  force_active: boolean;
+  confidence_deferred: boolean;
+  components: Record<string, number>;
+}
+
+export interface SignalTelemetryRecord {
+  round: number;
+  phase: DebatePhase;
+  signals: Record<string, number>;
+  composite: { saturation_score: number | null; convergence_score: number | null };
+  confidence: { extraction: number; stability: number; global: number };
+  predicate_result: PredicateResult;
+  phase_progress: number;
+  regression_pressure: number;
+  human_override: string | null;
+  network_size: number;
+  elapsed_ms: number;
+}
+
+export interface AdaptiveStagingDiagnostics {
+  enabled: boolean;
+  phases: { phase: DebatePhase; rounds: number[]; exit_reason: string }[];
+  regressions: { from_round: number; crux_id: string; threshold_after: number }[];
+  total_predicate_evaluations: number;
+  confidence_deferrals: number;
+  vetoes_fired: number;
+  forces_fired: number;
+  human_overrides: { round: number; type: string; signal_scores: Record<string, number> }[];
+  network_size_peak: number;
+  gc_events: { round: number; before: number; after: number; pruned: number }[];
+  signal_telemetry: SignalTelemetryRecord[];
 }
 
 /** Canonical dialectical schemes (AIF-aligned). */
@@ -239,6 +389,11 @@ export interface DebateSession {
   protocol_id?: string;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */
   debate_temperature?: number;
+  /** Adaptive staging configuration. Absent means fixed-round mode. */
+  adaptive_staging?: {
+    enabled: boolean;
+    pacing: 'tight' | 'moderate' | 'thorough';
+  };
   /** Diagnostic data captured when diagnostics mode is enabled. */
   diagnostics?: DebateDiagnostics;
   /** Incremental argument network built during debate */
@@ -286,6 +441,8 @@ export interface DebateSession {
   context_rot?: ContextRotMetrics;
   /** Active moderator state — tracks budget, cooldown, burden, health trajectory, and intervention history. */
   moderator_state?: ModeratorState;
+  /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
+  adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
 }
 
 export interface ConvergenceSignals {
@@ -1085,6 +1242,11 @@ export interface ModeratorState {
   }[];
 
   cooldown_blocked_count: number;
+
+  /** How many times the budget has been refilled (0 = initial budget). */
+  budget_epoch: number;
+  /** Cooldown gap required after each budget refill — increases with epoch. */
+  refill_gap: number;
 }
 
 export interface InterventionResponseFields {

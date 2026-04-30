@@ -1153,19 +1153,30 @@ function ClarificationActions() {
             Would you like to refine the topic with clarifying questions, or jump straight into the debate?
           </div>
           <div className="debate-initial-rounds">
-            <label className="debate-initial-rounds-label">
-              Rounds after openings:
-              <select
-                className="debate-turns-select"
-                value={initialCrossRespondRounds}
-                onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-                title="Number of rounds to run automatically after opening statements (adaptive staging will manage phase transitions)"
-              >
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </label>
+            {activeDebate.adaptive_staging?.enabled ? (
+              <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ background: '#f59e0b', color: '#000', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.75rem' }}>
+                  Adaptive
+                </span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  Signal-driven phase transitions ({activeDebate.adaptive_staging.pacing} pacing)
+                </span>
+              </span>
+            ) : (
+              <label className="debate-initial-rounds-label">
+                Rounds after openings:
+                <select
+                  className="debate-turns-select"
+                  value={initialCrossRespondRounds}
+                  onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+                  title="Number of cross-respond rounds to run automatically after opening statements"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <div className="debate-clarification-buttons">
             <button

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "status": "PROVISIONAL — pending Phase 5 validation per §Validation Methodology",
+  "saturation": {
+    "recycling_pressure": 0.30,
+    "crux_maturity": 0.25,
+    "concession_plateau": 0.15,
+    "engagement_fatigue": 0.15,
+    "pragmatic_convergence": 0.05,
+    "scheme_stagnation": 0.10
+  },
+  "convergence": {
+    "qbaf_agreement_density": 0.35,
+    "position_stability": 0.25,
+    "irreducible_disagreement_ratio": 0.25,
+    "synthesis_pragmatic_signal": 0.15
+  },
+  "thresholds": {
+    "exploration_exit": 0.65,
+    "synthesis_exit": 0.70,
+    "confidence_floor": 0.40,
+    "crux_semantic_novelty": 0.70
+  },
+  "phase_bounds": {
+    "min_thesis_rounds": 2,
+    "max_thesis_rounds": 4,
+    "min_exploration_rounds": 2,
+    "max_exploration_rounds": 8,
+    "min_synthesis_rounds": 2,
+    "max_synthesis_rounds": 3,
+    "max_total_rounds_default": 12,
+    "max_regressions": 2,
+    "regression_ratchet": 0.10
+  },
+  "pacing_presets": {
+    "tight": { "maxTotalRounds": 8, "explorationExit": 0.55, "synthesisExit": 0.60 },
+    "moderate": { "maxTotalRounds": 12, "explorationExit": 0.65, "synthesisExit": 0.70 },
+    "thorough": { "maxTotalRounds": 15, "explorationExit": 0.80, "synthesisExit": 0.80 }
+  },
+  "network": {
+    "gc_trigger": 175,
+    "gc_target": 150,
+    "hard_cap": 200
+  },
+  "budget": {
+    "soft_multiplier": 6,
+    "hard_multiplier": 10,
+    "max_soft_multiplier": 8
+  }
+}

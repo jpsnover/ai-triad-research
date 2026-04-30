@@ -107,7 +107,7 @@ describe('moderator pipeline integration', () => {
     // Update state
     updateModeratorState(state, intervention, validation, 4, 'exploration');
     expect(state.interventions_fired).toBe(1);
-    expect(state.budget_remaining).toBe(state.budget_total - 1);
+    expect(state.budget_remaining).toBeCloseTo(state.budget_total - 0.34, 1);
     expect(state.rounds_since_last_intervention).toBe(0);
     expect(state.last_target).toBe('sentinel');
     expect(state.burden_per_debater.sentinel).toBe(1.0);

@@ -43,6 +43,10 @@ interface CLIConfig {
   apiKey?: string;
   temperature?: number;
   audience?: string;
+  useAdaptiveStaging?: boolean;
+  pacing?: 'tight' | 'moderate' | 'thorough';
+  maxTotalRounds?: number;
+  allowEarlyTermination?: boolean;
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -233,10 +237,14 @@ async function main(): Promise<void> {
     vocabulary: vocab.standardized.length > 0
       ? { standardizedTerms: vocab.standardized as import('../dictionary/types').StandardizedTerm[], colloquialTerms: vocab.colloquial as import('../dictionary/types').ColloquialTerm[] }
       : undefined,
+    useAdaptiveStaging: config.useAdaptiveStaging,
+    pacing: config.pacing,
+    maxTotalRounds: config.maxTotalRounds,
+    allowEarlyTermination: config.allowEarlyTermination,
   };
 
   // Run debate
-  log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.rounds} rounds`);
+  log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
   const engine = new DebateEngine(engineConfig, adapter, taxonomy);
   const session = await engine.run((p) => {
     log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);

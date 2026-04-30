@@ -25,8 +25,32 @@ import type {
   ExtractionSummary,
   GapArgument,
   CrossCuttingProposal,
+  PhaseTransitionConfig,
+  PhaseState,
+  PhaseContext,
+  SignalContext,
+  Signal,
+  PredicateResult,
+  AdaptiveStagingDiagnostics,
+  DebatePacing,
+  ConvergenceSignals as ConvergenceSignalsType,
 } from './types';
 import { POVER_INFO, getDebatePhase } from './types';
+import {
+  loadProvisionalWeights,
+  initPhaseState,
+  buildSignalRegistry,
+  evaluatePhaseTransition,
+  applyTransition,
+  advanceRound,
+  buildPhaseContext,
+  buildSignalTelemetry,
+  initAdaptiveDiagnostics,
+  detectCruxNodes,
+  computeSaturationScore,
+  computeConvergenceScore,
+} from './phaseTransitions';
+import { pruneArgumentNetwork, needsGc } from './networkGc';
 import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { TaxonomyContext } from './taxonomyContext';
 import {
@@ -134,6 +158,18 @@ export interface DebateConfig {
     standardizedTerms: import('../dictionary/types').StandardizedTerm[];
     colloquialTerms: import('../dictionary/types').ColloquialTerm[];
   };
+  /** Enable adaptive phase transitions instead of fixed round counts. */
+  useAdaptiveStaging?: boolean;
+  /** Pacing preset — controls max rounds and exit thresholds. Default: 'moderate'. */
+  pacing?: DebatePacing;
+  /** Override max total rounds (otherwise derived from pacing preset). */
+  maxTotalRounds?: number;
+  /** Override exploration exit threshold (otherwise derived from pacing preset). */
+  explorationExitThreshold?: number;
+  /** Override synthesis exit threshold (otherwise derived from pacing preset). */
+  synthesisExitThreshold?: number;
+  /** Allow early termination on health collapse. Default: true when adaptive staging is on. */
+  allowEarlyTermination?: boolean;
 }
 
 export interface DebateProgress {
@@ -172,6 +208,18 @@ export class DebateEngine {
   private _policyIds: Set<string> | null = null;
   /** Active moderator state — tracks budget, cooldown, burden, and intervention history. */
   private _moderatorState: ModeratorState | null = null;
+  /** Adaptive staging: phase transition config. */
+  private _adaptiveConfig: PhaseTransitionConfig | null = null;
+  /** Adaptive staging: mutable phase state. */
+  private _phaseState: PhaseState | null = null;
+  /** Adaptive staging: signal registry. */
+  private _signalRegistry: Signal[] | null = null;
+  /** Adaptive staging: diagnostics accumulator. */
+  private _adaptiveDiagnostics: AdaptiveStagingDiagnostics | null = null;
+  /** Adaptive staging: per-signal historical values for moving averages. */
+  private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
+  /** Adaptive staging: peak tracker for engagement ratio and claims per round. */
+  private _peakTrackers: Map<string, number> = new Map();
 
   private getKnownNodeIds(): Set<string> {
     if (this._knownNodeIds) return this._knownNodeIds;
@@ -236,35 +284,10 @@ export class DebateEngine {
     await this.runNeutralCheckpoint('baseline');
 
     // Phase 3: Cross-respond rounds
-    const midpointRound = Math.min(3, Math.ceil(this.config.rounds / 2));
-    for (let round = 1; round <= this.config.rounds; round++) {
-      const phase = getDebatePhase(round, this.config.rounds);
-      this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
-      await this.runCrossRespondRound(round, phase);
-
-      // Mid-debate gap injection — "fourth voice" analysis at the configured round
-      const gapRound = this.config.gapInjectionRound ?? Math.ceil(this.config.rounds / 2) + 1;
-      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
-        await this.runGapInjection(round);
-        this._gapInjectionDone = true;
-      }
-
-      // Neutral evaluator: midpoint checkpoint
-      if (round === midpointRound && !this._midpointEvalDone) {
-        await this.runNeutralCheckpoint('midpoint');
-        this._midpointEvalDone = true;
-      }
-
-      // Probing questions every N rounds
-      if (this.config.enableProbing && this.config.probingInterval &&
-          round % this.config.probingInterval === 0 && round < this.config.rounds) {
-        await this.runProbingQuestions(round);
-      }
-
-      // Context compression if transcript is getting long
-      if (this.session.transcript.length >= 12) {
-        await this.compressContext();
-      }
+    if (this.config.useAdaptiveStaging && this._adaptiveConfig && this._phaseState) {
+      await this.runAdaptiveCrossRespond();
+    } else {
+      await this.runFixedCrossRespond();
     }
 
     // Phase 4: Synthesis + final neutral evaluation in parallel
@@ -367,6 +390,26 @@ export class DebateEngine {
         evaluator_warning: 'Evaluator model matches debate model — self-preference bias is unmitigated. Cross-vendor split recommended.',
       });
     }
+
+    // Initialize adaptive staging (if enabled)
+    if (this.config.useAdaptiveStaging) {
+      const w = loadProvisionalWeights();
+      const pacing = this.config.pacing ?? 'moderate';
+      const preset = w.pacing_presets[pacing] ?? w.pacing_presets.moderate;
+
+      this._adaptiveConfig = {
+        useAdaptiveStaging: true,
+        maxTotalRounds: this.config.maxTotalRounds ?? preset.maxTotalRounds,
+        pacing,
+        dialecticalStyle: 'adversarial',
+        explorationExitThreshold: this.config.explorationExitThreshold ?? preset.explorationExit,
+        synthesisExitThreshold: this.config.synthesisExitThreshold ?? preset.synthesisExit,
+        allowEarlyTermination: this.config.allowEarlyTermination ?? true,
+      };
+      this._phaseState = initPhaseState(this._adaptiveConfig);
+      this._signalRegistry = buildSignalRegistry();
+      this._adaptiveDiagnostics = initAdaptiveDiagnostics();
+    }
   }
 
   // ── AI call wrapper ────────────────────────────────────────
@@ -453,6 +496,158 @@ export class DebateEngine {
   private recordDiagnostic(entryId: string, data: Partial<EntryDiagnostics>): void {
     const diag = this.session.diagnostics!;
     diag.entries[entryId] = { ...diag.entries[entryId], ...data };
+  }
+
+  // ── Adaptive staging helpers ─────────────────────────────
+
+  private buildSignalContext(round: number): SignalContext {
+    const an = this.session.argument_network!;
+    const transcript = this.session.transcript;
+    const recentConvSignals = (this.session.convergence_signals ?? []);
+    const state = this._phaseState!;
+    const signalHistory = this._signalHistory;
+
+    const lastConvSignal = recentConvSignals.length > 0
+      ? recentConvSignals[recentConvSignals.length - 1]
+      : null;
+
+    // Build transcript accessor
+    const allStatements = transcript
+      .filter(e => e.type === 'statement' || e.type === 'opening')
+      .map(e => {
+        const meta = e.metadata as Record<string, unknown> | undefined;
+        const round = (meta?.round as number) ?? 0;
+        const trace = this.session.turn_validations?.[e.id];
+        const lastAttempt = trace?.attempts?.[trace.attempts.length - 1];
+        return {
+          round,
+          speaker: e.speaker,
+          text: e.content,
+          extraction_status: lastAttempt?.validation?.outcome ?? 'unknown',
+          claims_accepted: (meta?.extracted_claims_accepted as number) ?? 0,
+          claims_rejected: (meta?.extracted_claims_rejected as number) ?? 0,
+          category_validity_ratio: 1.0,
+        };
+      });
+
+    const lastRoundStatements = allStatements.filter(s => s.round === round);
+    const lastStatus = lastRoundStatements.length > 0
+      ? lastRoundStatements[lastRoundStatements.length - 1].extraction_status
+      : 'ok';
+    const lastClaimsAccepted = lastRoundStatements.reduce((sum, s) => sum + s.claims_accepted, 0);
+
+    return {
+      network: {
+        nodes: an.nodes.map(n => ({
+          id: n.id,
+          speaker: n.speaker,
+          computed_strength: n.computed_strength ?? 0.5,
+          base_strength: n.base_strength,
+          base_strength_category: n.bdi_category,
+          argumentation_scheme: (an.edges.find(e => e.source === n.id) as ArgumentNetworkEdge | undefined)?.argumentation_scheme,
+          taxonomy_refs: n.taxonomy_refs.map(id => ({
+            node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id,
+            relevance: 'medium',
+          })),
+          turn_number: n.turn_number,
+        })),
+        edges: an.edges.map(e => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: e.type,
+          attack_type: e.attack_type,
+          weight: e.weight ?? 0.5,
+          scheme: e.scheme,
+          argumentation_scheme: e.argumentation_scheme,
+        })),
+        nodeCount: an.nodes.length,
+      },
+
+      transcript: {
+        currentRound: round,
+        roundsInPhase: state.rounds_in_phase,
+        activePovsCount: this.config.activePovers.length,
+        lastNRounds: (n: number) => {
+          const maxRound = round;
+          const minRound = Math.max(1, maxRound - n + 1);
+          return allStatements.filter(s => s.round >= minRound && s.round <= maxRound);
+        },
+      },
+
+      priorSignals: {
+        get: (signalId: string, roundsBack: number): number | null => {
+          const history = signalHistory.get(signalId);
+          if (!history || history.length === 0) return null;
+          const idx = history.length - 1 - roundsBack;
+          return idx >= 0 ? history[idx].value : null;
+        },
+        movingAverage: (signalId: string, window: number): number | null => {
+          const history = signalHistory.get(signalId);
+          if (!history || history.length === 0) return null;
+          const recent = history.slice(-window);
+          return recent.reduce((sum, h) => sum + h.value, 0) / recent.length;
+        },
+      },
+
+      convergenceSignals: {
+        recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0 },
+        engagement_depth: { ratio: lastConvSignal?.engagement_depth?.ratio ?? 1 },
+        position_delta: { drift: lastConvSignal?.position_delta?.drift ?? 0 },
+        concession_opportunity: {
+          outcome: lastConvSignal?.concession_opportunity?.outcome ?? 'none',
+          strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
+        },
+      },
+
+      phase: {
+        current: state.current_phase,
+        allPovsResponded: this.allPovsRespondedThisRound(round),
+        cruxNodes: detectCruxNodes(
+          an.nodes.map(n => ({
+            id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5,
+            taxonomy_refs: [], turn_number: n.turn_number,
+          })),
+          an.edges.map(e => ({
+            id: e.id, source: e.source, target: e.target,
+            type: e.type, weight: e.weight ?? 0.5,
+          })),
+        ),
+        priorCruxClusters: state.prior_crux_clusters,
+        regressionCount: state.regression_count,
+        explorationExitThreshold: state.exploration_exit_threshold,
+        synthesisExitThreshold: state.synthesis_exit_threshold,
+      },
+
+      extraction: {
+        lastRoundStatus: lastStatus,
+        lastRoundClaimsAccepted: lastClaimsAccepted,
+        lastRoundCategoryValidityRatio: 1.0,
+      },
+    };
+  }
+
+  private allPovsRespondedThisRound(round: number): boolean {
+    const respondedThisRound = new Set(
+      this.session.transcript
+        .filter(e => e.type === 'statement' && (e.metadata as Record<string, unknown>)?.round === round)
+        .map(e => e.speaker),
+    );
+    return this.config.activePovers.every(p => respondedThisRound.has(p));
+  }
+
+  private recordSignalHistory(signalId: string, round: number, value: number): void {
+    if (!this._signalHistory.has(signalId)) {
+      this._signalHistory.set(signalId, []);
+    }
+    this._signalHistory.get(signalId)!.push({ round, value });
+  }
+
+  private updatePeakTracker(key: string, value: number): void {
+    const current = this._peakTrackers.get(key) ?? 0;
+    if (value > current) {
+      this._peakTrackers.set(key, value);
+    }
   }
 
   /**
@@ -973,6 +1168,244 @@ export class DebateEngine {
 
   // ── Phase: Cross-respond round ─────────────────────────────
 
+  private async runFixedCrossRespond(): Promise<void> {
+    const midpointRound = Math.min(3, Math.ceil(this.config.rounds / 2));
+    for (let round = 1; round <= this.config.rounds; round++) {
+      const phase = getDebatePhase(round, this.config.rounds);
+      this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
+      await this.runCrossRespondRound(round, phase);
+
+      const gapRound = this.config.gapInjectionRound ?? Math.ceil(this.config.rounds / 2) + 1;
+      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
+        await this.runGapInjection(round);
+        this._gapInjectionDone = true;
+      }
+
+      if (round === midpointRound && !this._midpointEvalDone) {
+        await this.runNeutralCheckpoint('midpoint');
+        this._midpointEvalDone = true;
+      }
+
+      if (this.config.enableProbing && this.config.probingInterval &&
+          round % this.config.probingInterval === 0 && round < this.config.rounds) {
+        await this.runProbingQuestions(round);
+      }
+
+      if (this.session.transcript.length >= 12) {
+        await this.compressContext();
+      }
+    }
+  }
+
+  private async runAdaptiveCrossRespond(): Promise<void> {
+    const config = this._adaptiveConfig!;
+    const signals = this._signalRegistry!;
+    const diag = this._adaptiveDiagnostics!;
+    const w = loadProvisionalWeights();
+    let state = this._phaseState!;
+
+    let round = 0;
+    let terminated = false;
+    let currentPhaseStartRound = 1;
+    let currentPhaseExitReason = '';
+
+    const midpointRound = Math.min(3, Math.ceil(config.maxTotalRounds / 2));
+
+    while (!terminated) {
+      round++;
+      state = advanceRound(state);
+      state.api_calls_used = this.apiCallCount;
+      this._phaseState = state;
+
+      const phase = state.current_phase;
+      this.progress('debate', undefined,
+        `Round ${round}/${config.maxTotalRounds} [${phase}] (adaptive)`, round);
+
+      // Run the cross-respond round
+      await this.runCrossRespondRound(round, phase);
+
+      // Update peak trackers after claims extraction
+      const thisRoundStatements = this.session.transcript
+        .filter(e => e.type === 'statement' && (e.metadata as Record<string, unknown>)?.round === round);
+      const claimsThisRound = thisRoundStatements.reduce((sum, e) => {
+        const meta = e.metadata as Record<string, unknown> | undefined;
+        return sum + ((meta?.extracted_claims_accepted as number) ?? 0);
+      }, 0);
+      this.updatePeakTracker('_peak_claims_per_round', claimsThisRound);
+
+      const lastConvSignal = (this.session.convergence_signals ?? []).slice(-1)[0];
+      if (lastConvSignal) {
+        this.updatePeakTracker('_peak_engagement_ratio', lastConvSignal.engagement_depth.ratio);
+      }
+
+      // Record peak trackers into signal history so priorSignals.get() works
+      for (const [key, val] of this._peakTrackers) {
+        this.recordSignalHistory(key, round, val);
+      }
+
+      // Build signal context and evaluate phase transition
+      const predicateStart = Date.now();
+      const ctx = this.buildSignalContext(round);
+
+      // Compute scores for telemetry
+      const coldStart = state.rounds_in_phase < (
+        state.current_phase === 'thesis-antithesis' ? w.phase_bounds.min_thesis_rounds
+        : state.current_phase === 'exploration' ? w.phase_bounds.min_exploration_rounds
+        : w.phase_bounds.min_synthesis_rounds
+      );
+      const satScore = computeSaturationScore(signals, ctx, coldStart);
+      const convScore = computeConvergenceScore(ctx, coldStart);
+
+      // Record composite scores in signal history
+      this.recordSignalHistory('_saturation_score', round, satScore);
+      this.recordSignalHistory('_convergence_score', round, convScore);
+
+      // Record individual signal values
+      for (const signal of signals) {
+        if (!signal.enabled) continue;
+        try {
+          const val = Math.max(0, Math.min(1, signal.compute(ctx)));
+          this.recordSignalHistory(signal.id, round, val);
+        } catch { /* signal computation failed — skip */ }
+      }
+
+      // Health score for early termination
+      const recentHealthSignals = (this.session.convergence_signals ?? []).slice(-3);
+      const turnCounts: Record<string, number> = {};
+      for (const p of this.config.activePovers) turnCounts[p] = 0;
+      for (const e of this.session.transcript) {
+        if (e.type === 'statement' && e.speaker !== 'system' && e.speaker !== 'moderator') {
+          turnCounts[e.speaker] = (turnCounts[e.speaker] ?? 0) + 1;
+        }
+      }
+      const referencedIds = new Set<string>();
+      for (const e of this.session.transcript.slice(-6)) {
+        for (const ref of e.taxonomy_refs) referencedIds.add(ref.node_id);
+      }
+      const relevantNodeCount = Math.max(1, (this.taxonomy.accelerationist?.nodes?.length ?? 0) +
+        (this.taxonomy.safetyist?.nodes?.length ?? 0) +
+        (this.taxonomy.skeptic?.nodes?.length ?? 0));
+      const healthScore = computeDebateHealthScore(recentHealthSignals, turnCounts, referencedIds.size, relevantNodeCount);
+
+      // Evaluate phase transition predicate
+      const result = evaluatePhaseTransition(state, ctx, signals, config, healthScore);
+      const predicateMs = Date.now() - predicateStart;
+
+      // Record telemetry
+      diag.total_predicate_evaluations++;
+      if (result.confidence_deferred) diag.confidence_deferrals++;
+      if (result.veto_active) diag.vetoes_fired++;
+      if (result.force_active) diag.forces_fired++;
+      diag.network_size_peak = Math.max(diag.network_size_peak, ctx.network.nodeCount);
+
+      const phaseCtx = buildPhaseContext(state, config, satScore, convScore);
+      const telemetry = buildSignalTelemetry(state, ctx, signals, result, phaseCtx.phase_progress, predicateMs);
+      diag.signal_telemetry.push(telemetry);
+
+      // Apply transition
+      const prevPhase = state.current_phase;
+      state = applyTransition(state, result);
+      state.api_calls_used = this.apiCallCount;
+      this._phaseState = state;
+
+      if (result.action === 'transition' || result.action === 'force_transition') {
+        diag.phases.push({
+          phase: prevPhase,
+          rounds: Array.from({ length: round - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
+          exit_reason: result.reason,
+        });
+        currentPhaseStartRound = round + 1;
+        currentPhaseExitReason = result.reason;
+
+        this.progress('debate', undefined,
+          `Phase transition: ${prevPhase} → ${state.current_phase} (${result.reason})`);
+
+        // Add system entry for transition
+        this.addEntry({
+          type: 'system', speaker: 'system',
+          content: `[Phase transition] ${prevPhase} → ${state.current_phase}: ${result.reason}`,
+          taxonomy_refs: [],
+          metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: state.current_phase, reason: result.reason },
+        });
+      }
+
+      if (result.action === 'regress') {
+        const cruxId = Object.keys(result.components).find(k => k.startsWith('crux_')) ?? 'unknown';
+        diag.regressions.push({
+          from_round: round,
+          crux_id: cruxId,
+          threshold_after: state.exploration_exit_threshold,
+        });
+
+        this.progress('debate', undefined,
+          `Regression: synthesis → exploration (${result.reason})`);
+
+        this.addEntry({
+          type: 'system', speaker: 'system',
+          content: `[Phase regression] synthesis → exploration: ${result.reason}. Threshold ratcheted to ${(state.exploration_exit_threshold * 100).toFixed(0)}%.`,
+          taxonomy_refs: [],
+          metadata: { adaptive_regression: true, reason: result.reason, new_threshold: state.exploration_exit_threshold },
+        });
+        currentPhaseStartRound = round + 1;
+      }
+
+      if (result.action === 'terminate') {
+        terminated = true;
+        diag.phases.push({
+          phase: state.current_phase,
+          rounds: Array.from({ length: round - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
+          exit_reason: result.reason,
+        });
+
+        this.addEntry({
+          type: 'system', speaker: 'system',
+          content: `[Debate terminated] ${result.reason}`,
+          taxonomy_refs: [],
+          metadata: { adaptive_termination: true, reason: result.reason },
+        });
+      }
+
+      // Network GC check
+      const an = this.session.argument_network!;
+      if (needsGc(an.nodes.length, w.network.gc_trigger) && !state.gc_ran_this_phase) {
+        const gcResult = pruneArgumentNetwork(an.nodes, an.edges, w.network.gc_target);
+        an.nodes = gcResult.nodes;
+        an.edges = gcResult.edges;
+        state.gc_ran_this_phase = true;
+        diag.gc_events.push({
+          round, before: gcResult.before,
+          after: gcResult.after, pruned: gcResult.before - gcResult.after,
+        });
+        this.progress('debate', undefined,
+          `Network GC: ${gcResult.before} → ${gcResult.after} nodes`);
+      }
+
+      // Mid-round hooks (gap injection, neutral eval, probing, compression)
+      const gapRound = this.config.gapInjectionRound ?? Math.ceil(config.maxTotalRounds / 2) + 1;
+      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
+        await this.runGapInjection(round);
+        this._gapInjectionDone = true;
+      }
+
+      if (round === midpointRound && !this._midpointEvalDone) {
+        await this.runNeutralCheckpoint('midpoint');
+        this._midpointEvalDone = true;
+      }
+
+      if (this.config.enableProbing && this.config.probingInterval &&
+          round % this.config.probingInterval === 0 && !terminated) {
+        await this.runProbingQuestions(round);
+      }
+
+      if (this.session.transcript.length >= 12) {
+        await this.compressContext();
+      }
+    }
+
+    // Store adaptive diagnostics on session
+    this.session.adaptive_staging_diagnostics = diag;
+  }
+
   private async runCrossRespondRound(round: number, phase: DebatePhase = 'exploration'): Promise<void> {
     const recentTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
     const activeLabels = this.config.activePovers.map(p => POVER_INFO[p].label);
@@ -1459,6 +1892,22 @@ export class DebateEngine {
           draft_temperature: this.config.temperature,
           cite_temperature: this.config.temperature,
         },
+      } : {}),
+      ...(this._phaseState && this._adaptiveConfig ? {
+        phaseContext: (() => {
+          const w = loadProvisionalWeights();
+          const coldStart = this._phaseState!.rounds_in_phase < (
+            this._phaseState!.current_phase === 'thesis-antithesis' ? w.phase_bounds.min_thesis_rounds
+            : this._phaseState!.current_phase === 'exploration' ? w.phase_bounds.min_exploration_rounds
+            : w.phase_bounds.min_synthesis_rounds
+          );
+          const satScore = this._signalRegistry
+            ? computeSaturationScore(this._signalRegistry, this.buildSignalContext(round), coldStart) : 0;
+          const convScore = this._signalRegistry
+            ? computeConvergenceScore(this.buildSignalContext(round), coldStart) : 0;
+          const pc = buildPhaseContext(this._phaseState!, this._adaptiveConfig!, satScore, convScore);
+          return { rationale: pc.rationale, phase_progress: pc.phase_progress, approaching_transition: pc.approaching_transition };
+        })(),
       } : {}),
     };
 

@@ -79,6 +79,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [pacing, setPacing] = useState<DebatePacing>('moderate');
   const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
   const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
+  const [evaluatorModel, setEvaluatorModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Get situation nodes for potential topics
@@ -162,6 +163,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       protocolId,
       temperature,
       audience,
+      {
+        evaluatorModel: evaluatorModel || undefined,
+        pacing: pacing !== 'moderate' ? pacing : undefined,
+        useAdaptiveStaging: useAdaptiveStaging || undefined,
+      },
     );
     await loadDebate(id);
     const store = useDebateStore.getState();
@@ -393,6 +399,22 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   />
                   <span className="ndd-temperature-label">{temperatureLabel}</span>
                 </div>
+
+                {/* Evaluator Model (cross-vendor split) */}
+                <label className="ndd-field-label" style={{ marginTop: 8 }}>Evaluator Model</label>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                  Separate model for claim extraction. Cross-vendor split reduces self-preference bias.
+                </div>
+                <select
+                  className="ndd-model-select"
+                  value={evaluatorModel}
+                  onChange={(e) => setEvaluatorModel(e.target.value)}
+                >
+                  <option value="">Same as debate model</option>
+                  {availableModels.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
               </div>
             )}
 

@@ -491,12 +491,23 @@ describe('validateRecommendation', () => {
     expect(r.suppressed_reason).toBe('engine_override');
   });
 
-  it('suppresses when budget exhausted (non-COMMIT)', () => {
-    const state = makeState({ phase: 'exploration', budget_remaining: 0, rounds_since_last_intervention: 5 });
+  it('refills budget when exhausted and proceeds (non-COMMIT)', () => {
+    const state = makeState({ phase: 'exploration', budget_remaining: 0, budget_total: 3, rounds_since_last_intervention: 5 });
     const sel = makeSelection({ suggested_move: 'PIN' });
     const r = validateRecommendation(sel, state);
-    expect(r.proceed).toBe(false);
-    expect(r.suppressed_reason).toBe('budget_exhausted');
+    expect(r.proceed).toBe(true);
+    expect(state.budget_epoch).toBe(1);
+    expect(state.budget_remaining).toBeGreaterThanOrEqual(0);
+    expect(state.refill_gap).toBe(2);
+  });
+
+  it('increases gap on each budget refill epoch', () => {
+    const state = makeState({ phase: 'exploration', budget_remaining: 0, budget_total: 4, rounds_since_last_intervention: 5, budget_epoch: 1, refill_gap: 2 });
+    const sel = makeSelection({ suggested_move: 'PIN' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(true);
+    expect(state.budget_epoch).toBe(2);
+    expect(state.refill_gap).toBe(3);
   });
 
   it('COMMIT is off-budget', () => {
@@ -612,7 +623,7 @@ describe('updateModeratorState', () => {
     updateModeratorState(state, intervention, validation, 5, 'exploration');
     expect(state.rounds_since_last_intervention).toBe(0);
     expect(state.interventions_fired).toBe(1);
-    expect(state.budget_remaining).toBe(state.budget_total - 1);
+    expect(state.budget_remaining).toBeCloseTo(state.budget_total - 0.34, 1);
   });
 
   it('COMMIT does not consume budget', () => {

@@ -1461,6 +1461,11 @@ export interface StagePromptInput {
     directResponsePattern?: string;
     isTargeted: boolean;
   };
+  phaseContext?: {
+    rationale: string;
+    phase_progress: number;
+    approaching_transition: boolean;
+  };
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1525,13 +1530,17 @@ export function planStagePrompt(input: StagePromptInput, brief: string): string 
     ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
     : '';
 
+  const phaseContextBlock = input.phaseContext
+    ? `\n=== PHASE STATUS (adaptive) ===\n${input.phaseContext.rationale}\nProgress toward transition: ${(input.phaseContext.phase_progress * 100).toFixed(0)}%${input.phaseContext.approaching_transition ? '\n⚠ Approaching phase transition — prioritize closing open threads and crystallizing positions.' : ''}\n`
+    : '';
+
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
 
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 Core moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT${constructiveMoveList}
 

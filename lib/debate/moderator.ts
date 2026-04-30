@@ -40,6 +40,25 @@ const PERSONA_PRIOR_MODIFIERS: Record<string, Partial<Record<InterventionMove, n
 
 const DECAY_RATE = 0.15;
 
+// High-value moves that directly improve debate quality cost 1/3 budget.
+// Lower-value or routine moves cost full budget.
+const MOVE_BUDGET_COST: Record<InterventionMove, number> = {
+  PIN: 0.34,
+  PROBE: 0.34,
+  CHALLENGE: 0.34,
+  REDIRECT: 0.34,
+  CLARIFY: 0.34,
+  CHECK: 0.34,
+  BALANCE: 0.67,
+  SEQUENCE: 0.67,
+  SUMMARIZE: 1.0,
+  ACKNOWLEDGE: 1.0,
+  REVOICE: 1.0,
+  'META-REFLECT': 0.34,
+  COMPRESS: 1.0,
+  COMMIT: 0,
+};
+
 const PHASE_ALLOWED_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
   'thesis-antithesis': new Set(['procedural', 'repair', 'reconciliation']),
   'exploration': new Set(['procedural', 'elicitation', 'repair', 'reconciliation', 'reflection']),
@@ -175,6 +194,8 @@ export function initModeratorState(totalRounds: number, activePovers: PoverId[])
     exploration_rounds: explorationRounds,
     intervention_history: [],
     cooldown_blocked_count: 0,
+    budget_epoch: 0,
+    refill_gap: 1,
   };
 }
 
@@ -371,9 +392,14 @@ export function validateRecommendation(
 
   const family = MOVE_TO_FAMILY[move];
 
-  // Budget check (COMMIT is off-budget)
+  // Budget check with refill (COMMIT is off-budget)
   if (move !== 'COMMIT' && state.budget_remaining <= 0) {
-    return suppress(move, selection.target_debater, 'budget_exhausted');
+    // Refill: grant a smaller budget with a longer cooldown gap
+    state.budget_epoch = (state.budget_epoch ?? 0) + 1;
+    const newBudget = Math.max(1, Math.ceil(state.budget_total / (1 + state.budget_epoch)));
+    state.budget_remaining = newBudget;
+    state.refill_gap = 1 + state.budget_epoch;
+    state.required_gap = state.refill_gap;
   }
 
   // Cooldown check (Reconciliation, COMMIT, and Elicitation exempt)
@@ -433,7 +459,8 @@ export function updateModeratorState(
 
     if (isBudgeted) {
       state.interventions_fired++;
-      state.budget_remaining = state.budget_total - state.interventions_fired;
+      const cost = MOVE_BUDGET_COST[intervention.move] ?? 1.0;
+      state.budget_remaining = Math.max(0, state.budget_remaining - cost);
     }
 
     if (family !== 'reconciliation') {
@@ -510,6 +537,8 @@ export interface TriggerEvaluationContext {
   intervention_history_summary: string;
   turn_counts: Record<string, number>;
   sli_breaches: string[];
+  budget_epoch: number;
+  refill_gap: number;
 }
 
 export function computeTriggerEvaluationContext(
@@ -553,13 +582,15 @@ export function computeTriggerEvaluationContext(
     intervention_history_summary: historySummary,
     turn_counts: { ...turnCounts },
     sli_breaches: breaches,
+    budget_epoch: state.budget_epoch ?? 0,
+    refill_gap: state.refill_gap ?? 1,
   };
 }
 
 export function formatTriggerContext(ctx: TriggerEvaluationContext): string {
   const lines: string[] = [
     `Round: ${ctx.round} | Phase: ${ctx.phase}`,
-    `Budget: ${ctx.budget_remaining}/${ctx.budget_total} interventions remaining`,
+    `Budget: ${Number.isInteger(ctx.budget_remaining) ? ctx.budget_remaining : ctx.budget_remaining.toFixed(1)}/${ctx.budget_total} interventions remaining${ctx.budget_epoch ? ` (refill #${ctx.budget_epoch}, gap ${ctx.refill_gap})` : ''} — high-value moves (PIN, PROBE, CHALLENGE, REDIRECT, CLARIFY, CHECK, META-REFLECT) cost ⅓`,
     `Cooldown: ${ctx.cooldown_rounds_left > 0 ? `${ctx.cooldown_rounds_left} round(s) before next intervention allowed` : 'ready'}`,
   ];
 
