@@ -21,6 +21,7 @@ import type {
 } from './types';
 import type { PoverResponseMeta } from './helpers';
 import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers';
+import { checkInterventionCompliance } from './moderator';
 
 // ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
 const MOVE_CATALOG_RAW = [
@@ -193,6 +194,8 @@ export interface ValidateTurnParams {
   callJudge: (prompt: string, label: string) => Promise<string>;
   /** Optional fallback judge caller using the debate's own model when the primary judge fails. */
   callJudgeFallback?: (prompt: string, label: string) => Promise<string>;
+  /** Active moderator intervention that preceded this turn — triggers compliance checks. */
+  pendingIntervention?: import('./types').ModeratorIntervention;
 }
 
 interface StageAResult {
@@ -464,6 +467,17 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
   }
 
   const stageA = runStageA(p);
+
+  // Intervention compliance check — if a moderator intervention preceded this turn,
+  // verify the debater included the required response field.
+  if (p.pendingIntervention) {
+    const rawMeta = (p.meta as Record<string, unknown>) ?? {};
+    const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
+    if (!compliance.compliant && compliance.repair_hint) {
+      stageA.errorIssues.push(compliance.repair_hint);
+    }
+  }
+
   const hasStageAError = stageA.errorIssues.length > 0;
 
   // Sample rate check — treat out-of-sample as deterministic-only.

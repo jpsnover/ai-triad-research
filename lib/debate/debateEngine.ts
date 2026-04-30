@@ -49,6 +49,8 @@ import {
   taxonomyRefinementPrompt,
   midDebateGapPrompt,
   crossCuttingNodePrompt,
+  moderatorSelectionPrompt,
+  moderatorInterventionPrompt,
 } from './prompts';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims } from './argumentNetwork';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
@@ -82,7 +84,21 @@ import { generateDialecticTraces } from './dialecticTrace';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
-import type { TurnAttempt, TurnValidation } from './types';
+import type { TurnAttempt, TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types';
+import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE } from './types';
+import {
+  initModeratorState,
+  validateRecommendation,
+  updateModeratorState,
+  computeDebateHealthScore,
+  updateSliBreaches,
+  computeTriggerEvaluationContext,
+  formatTriggerContext,
+  buildIntervention,
+  buildInterventionBriefInjection,
+  checkInterventionCompliance,
+  getSynthesisResponder,
+} from './moderator';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
 
@@ -152,6 +168,8 @@ export class DebateEngine {
   private _knownNodeIds: Set<string> | null = null;
   /** Lazy-built set of every policy id in the loaded policy registry. */
   private _policyIds: Set<string> | null = null;
+  /** Active moderator state — tracks budget, cooldown, burden, and intervention history. */
+  private _moderatorState: ModeratorState | null = null;
 
   private getKnownNodeIds(): Set<string> {
     if (this._knownNodeIds) return this._knownNodeIds;
@@ -336,6 +354,10 @@ export class DebateEngine {
     for (const pover of this.config.activePovers) {
       this.session.commitments![pover] = { asserted: [], conceded: [], challenged: [] };
     }
+
+    // Initialize active moderator state
+    this._moderatorState = initModeratorState(this.config.rounds, this.config.activePovers);
+    this.session.moderator_state = this._moderatorState;
   }
 
   // ── AI call wrapper ────────────────────────────────────────
@@ -1000,52 +1022,254 @@ export class DebateEngine {
     // SPECIFY hint — detect isolated high-strength claims that need falsifiability probing
     const specifyHint = an ? formatSpecifyHint(an.nodes, an.edges) : '';
 
-    const selectionPrompt = crossRespondSelectionPrompt(recentTranscript, activeLabels, edgeContext + anContext + qbafContext + ledgerHint + specifyHint, recentScheme, metaphorReframe, phase, this.config.audience);
-    const selectionStart = Date.now();
-    const selectionText = await this.generate(selectionPrompt, `Round ${round}: Selecting responder`);
-    const selectionElapsed = Date.now() - selectionStart;
+    // ── Active moderator: compute trigger context ──
+    const modState = this._moderatorState!;
+    modState.phase = phase;
+    modState.round = round;
+
+    // Compute turn counts for health score and trigger context
+    const turnCounts: Record<string, number> = {};
+    for (const p of this.config.activePovers) turnCounts[p] = 0;
+    for (const e of this.session.transcript) {
+      if (e.type === 'statement' && e.speaker !== 'system' && e.speaker !== 'moderator') {
+        turnCounts[e.speaker] = (turnCounts[e.speaker] ?? 0) + 1;
+      }
+    }
+
+    // Compute debate health score from recent convergence signals
+    const recentSignals = (this.session.convergence_signals ?? []).slice(-3);
+    const referencedIds = new Set<string>();
+    for (const e of this.session.transcript.slice(-6)) {
+      for (const ref of e.taxonomy_refs) referencedIds.add(ref.node_id);
+    }
+    const relevantNodeCount = Math.max(1, (this.taxonomy.accelerationist?.nodes?.length ?? 0) +
+      (this.taxonomy.safetyist?.nodes?.length ?? 0) +
+      (this.taxonomy.skeptic?.nodes?.length ?? 0));
+    const healthScore = computeDebateHealthScore(recentSignals, turnCounts, referencedIds.size, relevantNodeCount);
+    if (modState.health_history.length > 0) {
+      const prev = modState.health_history[modState.health_history.length - 1];
+      healthScore.trend = healthScore.value - prev.value;
+    }
+    healthScore.consecutive_decline = modState.consecutive_decline;
+    modState.health_history.push(healthScore);
+    updateSliBreaches(healthScore, modState);
+
+    const triggerCtx = computeTriggerEvaluationContext(modState, turnCounts);
+    const triggerCtxText = formatTriggerContext(triggerCtx);
+
+    // ── Synthesis COMMIT automation ──
+    // In synthesis phase, COMMIT fires automatically per-debater in first-appearance order,
+    // bypassing Stage 1 LLM selection.
+    const synthesisTarget = phase === 'synthesis'
+      ? getSynthesisResponder(modState, this.config.activePovers, this.session.transcript)
+      : null;
 
     let responder: Exclude<PoverId, 'user'> | null = null;
     let focusPoint = 'Continue the discussion';
     let addressing = 'general';
     let agreementDetected = false;
+    let selectionResult: Partial<SelectionResult> = {};
+    let activeIntervention: ModeratorIntervention | undefined;
+    let selectionPrompt = '';
+    let selectionText = '';
+    let selectionElapsed = 0;
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsed = parseJsonRobust(selectionText) as any;
-      // Map label back to PoverId
-      const labelMap: Record<string, Exclude<PoverId, 'user'>> = {
-        prometheus: 'prometheus', sentinel: 'sentinel', cassandra: 'cassandra',
-        Prometheus: 'prometheus', Sentinel: 'sentinel', Cassandra: 'cassandra',
+    if (synthesisTarget) {
+      // Deterministic synthesis — skip Stage 1 LLM, fire COMMIT directly
+      responder = synthesisTarget as Exclude<PoverId, 'user'>;
+      focusPoint = 'Provide your final commitment: concessions, conditions for change, and sharpest remaining disagreements';
+      addressing = 'all';
+      selectionResult = {
+        responder: synthesisTarget,
+        addressing: 'general',
+        focus_point: focusPoint,
+        agreement_detected: false,
+        intervene: true,
+        suggested_move: 'COMMIT',
+        target_debater: synthesisTarget,
+        trigger_reasoning: 'Automatic COMMIT in synthesis phase',
       };
-      responder = labelMap[String(parsed.responder ?? '').toLowerCase()] ?? null;
-      focusPoint = parsed.focus_point ?? focusPoint;
-      addressing = parsed.addressing ?? 'general';
-      agreementDetected = !!parsed.agreement_detected;
 
-      if (agreementDetected) {
-        const agreeEntry = this.addEntry({
-          type: 'system',
-          speaker: 'system',
-          content: `[Round ${round}] Moderator detected broad agreement. Focus: ${focusPoint}`,
-          taxonomy_refs: [],
-        });
-        this.recordDiagnostic(agreeEntry.id, {
-          prompt: selectionPrompt,
-          raw_response: selectionText,
-          model: this.config.model,
-          response_time_ms: selectionElapsed,
-        });
+      const validation = validateRecommendation(selectionResult as SelectionResult, modState);
+      if (validation.proceed) {
+        try {
+          const stage2Prompt = moderatorInterventionPrompt(
+            validation.validated_move,
+            validation.validated_family,
+            POVER_INFO[validation.validated_target as Exclude<PoverId, 'user'>]?.label ?? validation.validated_target,
+            'Automatic synthesis-phase COMMIT',
+            undefined,
+            formatRecentTranscript(this.session.transcript, 4, this.session.context_summaries),
+            this.config.audience,
+          );
+          const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator COMMIT → ${POVER_INFO[synthesisTarget as Exclude<PoverId, 'user'>]?.label}`);
+
+          const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
+          const interventionText = stage2Parsed.text as string;
+
+          if (interventionText && interventionText.trim().length > 0) {
+            activeIntervention = buildIntervention(
+              validation,
+              interventionText,
+              'Automatic synthesis-phase COMMIT',
+              { signal: 'synthesis_phase', round },
+            );
+
+            this.addEntry({
+              type: 'intervention',
+              speaker: 'moderator',
+              content: interventionText,
+              taxonomy_refs: [],
+              addressing: validation.validated_target,
+              intervention_metadata: {
+                family: activeIntervention.family,
+                move: activeIntervention.move,
+                force: activeIntervention.force,
+                burden: activeIntervention.burden,
+                target_debater: activeIntervention.target_debater,
+                trigger_reason: activeIntervention.trigger_reason,
+                source_evidence: activeIntervention.source_evidence,
+              },
+            });
+
+            this.progress('debate', undefined, `Moderator: COMMIT → ${POVER_INFO[synthesisTarget as Exclude<PoverId, 'user'>]?.label}`);
+          }
+        } catch (stage2Err) {
+          this.warn('Moderator synthesis COMMIT generation', stage2Err, 'Proceeding without COMMIT intervention');
+        }
       }
-    } catch (err) {
-      this.warn('Parsing moderator responder selection', err, 'Falling back to least-recently-spoken debater');
+    } else {
+      // ── Stage 1: Enhanced moderator selection (replaces crossRespondSelectionPrompt) ──
+      selectionPrompt = moderatorSelectionPrompt(
+        recentTranscript, activeLabels,
+        edgeContext + anContext + qbafContext + ledgerHint + specifyHint,
+        triggerCtxText,
+        recentScheme, metaphorReframe, phase, this.config.audience,
+      );
+      const selectionStart = Date.now();
+      selectionText = await this.generate(selectionPrompt, `Round ${round}: Moderator selection`);
+      selectionElapsed = Date.now() - selectionStart;
+
+      try {
+        const parsed = parseJsonRobust(selectionText) as Record<string, unknown>;
+        const labelMap: Record<string, Exclude<PoverId, 'user'>> = {
+          prometheus: 'prometheus', sentinel: 'sentinel', cassandra: 'cassandra',
+          Prometheus: 'prometheus', Sentinel: 'sentinel', Cassandra: 'cassandra',
+        };
+        responder = labelMap[String(parsed.responder ?? '').toLowerCase()] ?? null;
+        focusPoint = (parsed.focus_point as string) ?? focusPoint;
+        addressing = (parsed.addressing as string) ?? 'general';
+        agreementDetected = !!parsed.agreement_detected;
+
+        // Parse intervention recommendation
+        selectionResult = {
+          responder: responder ?? 'prometheus',
+          addressing: (addressing as PoverId | 'general') ?? 'general',
+          focus_point: focusPoint,
+          agreement_detected: agreementDetected,
+          intervene: !!parsed.intervene,
+          suggested_move: parsed.suggested_move as InterventionMove | undefined,
+          target_debater: labelMap[String(parsed.target_debater ?? '').toLowerCase()] ?? undefined,
+          trigger_reasoning: parsed.trigger_reasoning as string | undefined,
+          trigger_evidence: parsed.trigger_evidence as SelectionResult['trigger_evidence'] | undefined,
+        };
+
+        if (agreementDetected) {
+          const agreeEntry = this.addEntry({
+            type: 'system',
+            speaker: 'system',
+            content: `[Round ${round}] Moderator detected broad agreement. Focus: ${focusPoint}`,
+            taxonomy_refs: [],
+          });
+          this.recordDiagnostic(agreeEntry.id, {
+            prompt: selectionPrompt,
+            raw_response: selectionText,
+            model: this.config.model,
+            response_time_ms: selectionElapsed,
+          });
+        }
+
+        // ── Engine validation (deterministic) ──
+        if (selectionResult.intervene && selectionResult.suggested_move && selectionResult.target_debater) {
+          const validation = validateRecommendation(
+            selectionResult as SelectionResult,
+            modState,
+          );
+
+          if (validation.proceed) {
+            // ── Stage 2: Generate intervention text ──
+            try {
+              const stage2Prompt = moderatorInterventionPrompt(
+                validation.validated_move,
+                validation.validated_family,
+                POVER_INFO[validation.validated_target as Exclude<PoverId, 'user'>]?.label ?? validation.validated_target,
+                selectionResult.trigger_reasoning ?? '',
+                selectionResult.trigger_evidence?.source_claim,
+                formatRecentTranscript(this.session.transcript, 4, this.session.context_summaries),
+                this.config.audience,
+              );
+              const stage2Start = Date.now();
+              const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator intervention (${validation.validated_move})`);
+              const stage2Elapsed = Date.now() - stage2Start;
+
+              const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
+              const interventionText = stage2Parsed.text as string;
+
+              if (interventionText && interventionText.trim().length > 0) {
+                activeIntervention = buildIntervention(
+                  validation,
+                  interventionText,
+                  selectionResult.trigger_reasoning ?? 'Engine-validated intervention',
+                  {
+                    signal: selectionResult.trigger_evidence?.signal_name,
+                    claim: selectionResult.trigger_evidence?.source_claim,
+                    round: selectionResult.trigger_evidence?.source_round ?? undefined,
+                  },
+                  stage2Parsed.original_claim_text as string | undefined,
+                );
+
+                // Add visible moderator intervention to transcript
+                this.addEntry({
+                  type: 'intervention',
+                  speaker: 'moderator',
+                  content: interventionText,
+                  taxonomy_refs: [],
+                  addressing: validation.validated_target,
+                  intervention_metadata: {
+                    family: activeIntervention.family,
+                    move: activeIntervention.move,
+                    force: activeIntervention.force,
+                    burden: activeIntervention.burden,
+                    target_debater: activeIntervention.target_debater,
+                    trigger_reason: activeIntervention.trigger_reason,
+                    source_evidence: activeIntervention.source_evidence,
+                    prerequisite_applied: activeIntervention.prerequisite_applied,
+                    original_claim_text: activeIntervention.original_claim_text,
+                  },
+                });
+
+                this.progress('debate', undefined, `Moderator: ${activeIntervention.move} → ${POVER_INFO[validation.validated_target as Exclude<PoverId, 'user'>]?.label}`);
+
+                // REVOICE forces the original speaker as next responder
+                if (validation.validated_move === 'REVOICE') {
+                  responder = validation.validated_target as Exclude<PoverId, 'user'>;
+                }
+              }
+            } catch (stage2Err) {
+              this.warn('Moderator Stage 2 generation', stage2Err, 'Proceeding without intervention');
+            }
+          }
+        }
+      } catch (err) {
+        this.warn('Parsing moderator selection', err, 'Falling back to least-recently-spoken debater');
+      }
     }
 
     // Record moderator deliberation as a system entry with full diagnostics
     const modEntry = this.addEntry({
       type: 'system',
       speaker: 'system',
-      content: `[Round ${round}] Moderator: ${POVER_INFO[responder ?? 'prometheus']?.label ?? responder} → ${addressing} on: ${focusPoint}`,
+      content: `[Round ${round}] Moderator: ${POVER_INFO[responder ?? 'prometheus']?.label ?? responder} → ${addressing} on: ${focusPoint}${activeIntervention ? ` [${activeIntervention.move}]` : ''}`,
       taxonomy_refs: [],
       metadata: {
         moderator_trace: {
@@ -1057,7 +1281,12 @@ export class DebateEngine {
           recent_scheme: recentScheme ?? null,
           critical_questions: recentScheme ? (formatCriticalQuestions(recentScheme) || null) : null,
           metaphor_reframe_offered: metaphorReframe ? metaphorReframe.source : null,
-          metaphor_reframe_used: false, // will be updated from parsed response below
+          metaphor_reframe_used: false,
+          intervention_recommended: selectionResult.intervene ?? false,
+          intervention_move: activeIntervention?.move ?? null,
+          intervention_validated: !!activeIntervention,
+          health_score: healthScore.value,
+          budget_remaining: modState.budget_remaining,
           argument_network_snapshot: an ? {
             total_claims: an.nodes.length,
             total_edges: an.edges.length,
@@ -1085,7 +1314,7 @@ export class DebateEngine {
     // Fallback: pick pover who spoke least recently
     if (!responder || !this.config.activePovers.includes(responder)) {
       const lastSpoke = new Map<string, number>();
-      this.session.transcript.forEach((e, i) => { if (e.speaker !== 'user' && e.speaker !== 'system') lastSpoke.set(e.speaker, i); });
+      this.session.transcript.forEach((e, i) => { if (e.speaker !== 'user' && e.speaker !== 'system' && e.speaker !== 'moderator') lastSpoke.set(e.speaker, i); });
       responder = this.config.activePovers.reduce((best, p) =>
         (lastSpoke.get(p) ?? -1) < (lastSpoke.get(best) ?? -1) ? p : best,
       );
@@ -1168,12 +1397,16 @@ export class DebateEngine {
     const turnVocabContext = this.config.vocabulary
       ? '\n' + formatVocabularyContext({ pov: info.pov, ...this.config.vocabulary })
       : '';
+    // Inject moderator intervention context into the debater's BRIEF stage
+    const interventionInjection = activeIntervention
+      ? buildInterventionBriefInjection(activeIntervention)
+      : '';
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
       personality: info.personality,
       topic: this.session.topic.final,
-      taxonomyContext: taxonomyContext + turnVocabContext,
+      taxonomyContext: taxonomyContext + turnVocabContext + interventionInjection,
       commitmentContext,
       establishedPoints,
       edgeContext: debaterEdgeContext,
@@ -1262,6 +1495,7 @@ export class DebateEngine {
         callJudgeFallback: this.config.model !== vConfig.judgeModel
           ? (p, l) => this.generateWithModel(p, l, this.config.model, 20000)
           : undefined,
+        pendingIntervention: activeIntervention,
       });
 
       const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
@@ -1365,6 +1599,13 @@ export class DebateEngine {
 
     // Post-turn summarization (DT-2) — fire and forget
     this.summarizeEntry(entry).catch(() => {});
+
+    // ── Update active moderator state for next round ──
+    const validationResult = activeIntervention
+      ? { proceed: true, validated_move: activeIntervention.move, validated_family: activeIntervention.family, validated_target: activeIntervention.target_debater } as import('./types').EngineValidationResult
+      : { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as import('./types').InterventionFamily, validated_target: responder } as import('./types').EngineValidationResult;
+    updateModeratorState(modState, activeIntervention, validationResult, round, phase);
+    this.session.moderator_state = modState;
   }
 
   // ── Probing questions ──────────────────────────────────────

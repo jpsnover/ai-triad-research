@@ -45,16 +45,18 @@ function getPolicyAction(polId: string): string {
 }
 
 
-function speakerLabel(speaker: PoverId | 'system' | 'document'): string {
-  if (speaker === 'system') return 'Moderator';
+function speakerLabel(speaker: PoverId | 'system' | 'document' | 'moderator'): string {
+  if (speaker === 'system') return 'System';
+  if (speaker === 'moderator') return 'Moderator';
   if (speaker === 'user') return 'You';
   if (speaker === 'document') return 'Document';
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info ? info.label : speaker;
 }
 
-function speakerColor(speaker: PoverId | 'system' | 'document'): string | undefined {
+function speakerColor(speaker: PoverId | 'system' | 'document' | 'moderator'): string | undefined {
   if (speaker === 'system' || speaker === 'user' || speaker === 'document') return undefined;
+  if (speaker === 'moderator') return 'var(--color-moderator, #8b5cf6)';
   const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
   return info?.color;
 }

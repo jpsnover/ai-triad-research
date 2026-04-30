@@ -22,8 +22,9 @@ const AIF_TOOLTIPS = {
   'PA': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
 
-function speakerLabel(speaker: PoverId | 'system' | 'document'): string {
-  if (speaker === 'system') return 'Moderator';
+function speakerLabel(speaker: PoverId | 'system' | 'document' | 'moderator'): string {
+  if (speaker === 'system') return 'System';
+  if (speaker === 'moderator') return 'Moderator';
   if (speaker === 'user') return 'You';
   if (speaker === 'document') return 'Document';
   return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
@@ -197,6 +198,54 @@ function EntryView({ entryId }: { entryId: string }) {
           )}
         </CollapsibleSection>
       )}
+
+      {/* Moderator Intervention Metadata */}
+      {entry.type === 'intervention' && (entry as any).intervention_metadata && (() => {
+        const im = (entry as any).intervention_metadata as {
+          family: string; move: string; force: string; burden: number;
+          target_debater: string; trigger_reason: string;
+          source_evidence?: { signal?: string; claim?: string; round?: number };
+          prerequisite_applied?: string;
+          original_claim_text?: string;
+        };
+        const familyColors: Record<string, string> = {
+          procedural: '#3b82f6', elicitation: '#f59e0b', repair: '#ef4444',
+          reconciliation: '#22c55e', reflection: '#8b5cf6', synthesis: '#06b6d4',
+        };
+        return (
+          <CollapsibleSection title={`Intervention — ${im.move} [${im.family}]`} defaultOpen>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span className="diag-badge" style={{ background: `${familyColors[im.family] ?? '#6b7280'}30`, color: familyColors[im.family] ?? '#6b7280' }}>{im.family}</span>
+              <span className="diag-badge diag-badge-move">{im.move}</span>
+              <span className="diag-badge diag-badge-type">{im.force}</span>
+            </div>
+            <div className="diag-kv">
+              <span className="diag-k">Target:</span> <span className="diag-v">{speakerLabel(im.target_debater as PoverId)}</span>
+            </div>
+            <div className="diag-kv">
+              <span className="diag-k">Burden:</span> <span className="diag-v">{im.burden.toFixed(2)}</span>
+            </div>
+            <div className="diag-kv">
+              <span className="diag-k">Trigger:</span> <span className="diag-v">{im.trigger_reason}</span>
+            </div>
+            {im.prerequisite_applied && (
+              <div className="diag-kv">
+                <span className="diag-k">Prerequisite:</span> <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>{im.prerequisite_applied}</span>
+              </div>
+            )}
+            {im.source_evidence?.claim && (
+              <div className="diag-kv">
+                <span className="diag-k">Source claim:</span> <span className="diag-v">{im.source_evidence.claim}</span>
+              </div>
+            )}
+            {im.original_claim_text && (
+              <div style={{ marginTop: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4, fontSize: '0.7rem', fontStyle: 'italic' }}>
+                {im.original_claim_text}
+              </div>
+            )}
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Moderator Deliberation (t/160) */}
       {meta?.moderator_trace && (() => {
@@ -1096,6 +1145,105 @@ function OverviewView() {
         </CollapsibleSection>
       )}
 
+      {/* Active Moderator State */}
+      {(activeDebate as any).moderator_state && (() => {
+        const ms = (activeDebate as any).moderator_state as {
+          interventions_fired: number; budget_total: number; budget_remaining: number;
+          rounds_since_last_intervention: number; required_gap: number;
+          burden_per_debater: Record<string, number>; avg_burden: number;
+          health_history: { value: number; components: { engagement: number; novelty: number; responsiveness: number; coverage: number; balance: number } }[];
+          consecutive_decline: number; consecutive_rise: number;
+          phase: string; round: number; cooldown_blocked_count: number;
+          intervention_history: { round: number; move: string; family: string; target: string; burden: number }[];
+        };
+        const latestHealth = ms.health_history.length > 0 ? ms.health_history[ms.health_history.length - 1] : null;
+        const familyColors: Record<string, string> = {
+          procedural: '#3b82f6', elicitation: '#f59e0b', repair: '#ef4444',
+          reconciliation: '#22c55e', reflection: '#8b5cf6', synthesis: '#06b6d4',
+        };
+        const maxBurden = Math.max(...Object.values(ms.burden_per_debater), 0.01);
+
+        return (
+          <CollapsibleSection title={`Active Moderator — ${ms.interventions_fired} interventions, budget ${ms.budget_remaining}/${ms.budget_total}`} defaultOpen>
+            {/* Budget gauge */}
+            <div className="diag-kv">
+              <span className="diag-k">Budget:</span>
+              <span className="diag-v">{ms.budget_remaining}/{ms.budget_total} remaining</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--bg-secondary)', borderRadius: 3, overflow: 'hidden', margin: '2px 0 6px' }}>
+              <div style={{
+                width: `${ms.budget_total > 0 ? ((ms.budget_total - ms.budget_remaining) / ms.budget_total * 100) : 0}%`,
+                height: '100%',
+                background: ms.budget_remaining <= 1 ? '#ef4444' : ms.budget_remaining <= 2 ? '#f59e0b' : '#22c55e',
+                transition: 'width 0.2s',
+              }} />
+            </div>
+
+            {/* Health score */}
+            {latestHealth && (
+              <>
+                <div className="diag-kv">
+                  <span className="diag-k">Health:</span>
+                  <span className="diag-v" style={{ color: latestHealth.value >= 0.7 ? '#22c55e' : latestHealth.value >= 0.4 ? '#f59e0b' : '#ef4444' }}>
+                    {latestHealth.value.toFixed(2)}
+                  </span>
+                  {ms.consecutive_decline > 0 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: 4 }}>{ms.consecutive_decline} decline{ms.consecutive_decline > 1 ? 's' : ''}</span>}
+                  {ms.consecutive_rise >= 2 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>{ms.consecutive_rise} rises</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, margin: '4px 0 8px', fontSize: '0.6rem' }}>
+                  {(['engagement', 'novelty', 'responsiveness', 'coverage', 'balance'] as const).map(comp => (
+                    <div key={comp} style={{ textAlign: 'center' }}>
+                      <div className="diag-k" style={{ fontSize: '0.5rem' }}>{comp.slice(0, 3).toUpperCase()}</div>
+                      <div style={{ color: latestHealth.components[comp] >= 0.5 ? '#22c55e' : latestHealth.components[comp] >= 0.25 ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                        {latestHealth.components[comp].toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Burden distribution */}
+            {Object.keys(ms.burden_per_debater).length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Burden (avg {ms.avg_burden.toFixed(2)}):</span>
+                {Object.entries(ms.burden_per_debater).map(([debater, burden]) => (
+                  <div key={debater} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0' }}>
+                    <span style={{ fontSize: '0.6rem', width: 60, textAlign: 'right' }}>{speakerLabel(debater as PoverId)}</span>
+                    <div style={{ flex: 1, height: 4, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${(burden / maxBurden * 100)}%`, height: '100%', background: burden > ms.avg_burden * 1.5 ? '#ef4444' : '#3b82f6', transition: 'width 0.2s' }} />
+                    </div>
+                    <span style={{ fontSize: '0.55rem', width: 30 }}>{burden.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Cooldown & state */}
+            <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem', marginBottom: 6 }}>
+              <span><span className="diag-k">Cooldown:</span> {ms.rounds_since_last_intervention >= ms.required_gap ? <span style={{ color: '#22c55e' }}>ready</span> : <span style={{ color: '#f59e0b' }}>{ms.required_gap - ms.rounds_since_last_intervention}r left</span>}</span>
+              <span><span className="diag-k">Gap:</span> {ms.required_gap}</span>
+              {ms.cooldown_blocked_count > 0 && <span><span className="diag-k">Blocked:</span> {ms.cooldown_blocked_count}x</span>}
+            </div>
+
+            {/* Intervention history */}
+            {ms.intervention_history.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Interventions:</span>
+                {ms.intervention_history.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0', fontSize: '0.6rem' }}>
+                    <span className="diag-muted" style={{ width: 24 }}>R{h.round}</span>
+                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${familyColors[h.family] ?? '#6b7280'}30`, color: familyColors[h.family] ?? '#6b7280' }}>{h.move}</span>
+                    <span style={{ fontSize: '0.55rem' }}>{'→'} {speakerLabel(h.target as PoverId)}</span>
+                    <span className="diag-muted" style={{ fontSize: '0.5rem' }}>({h.burden.toFixed(1)})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* Moderator Deliberations — aggregate moderator_trace from system entries */}
       {(() => {
         const modEntries = activeDebate.transcript
@@ -1106,6 +1254,8 @@ function OverviewView() {
               selected: string; focus_point: string; addressing?: string;
               agreement_detected?: boolean; recent_scheme?: string | null;
               convergence_score?: number | null; convergence_triggered?: boolean;
+              intervention_recommended?: boolean; intervention_move?: string | null; intervention_validated?: boolean;
+              health_score?: number; budget_remaining?: number;
               argument_network_snapshot?: { total_claims: number; total_edges: number; unaddressed_claims: number } | null;
             },
           }));
@@ -1159,6 +1309,8 @@ function OverviewView() {
                 <div key={id} className="diag-mod-round" style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
                   <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', minWidth: 50 }}>{speakerLabel(trace.selected as PoverId)}</span>
                   <span className="diag-muted" style={{ flex: 1 }}>{trace.focus_point}</span>
+                  {trace.intervention_move && <span className="diag-badge" style={{ fontSize: '0.5rem', background: trace.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>{trace.intervention_move}{trace.intervention_validated ? '' : ' (suppressed)'}</span>}
+                  {trace.health_score != null && <span className="diag-muted" style={{ fontSize: '0.5rem' }}>H:{trace.health_score.toFixed(2)}</span>}
                   {trace.recent_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>}
                   {trace.convergence_score != null && <span className="diag-muted">{(trace.convergence_score * 100).toFixed(0)}%</span>}
                 </div>

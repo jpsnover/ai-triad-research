@@ -73,8 +73,9 @@ export interface TranscriptEntry {
     | 'probing'
     | 'fact-check'
     | 'reflection'
-    | 'system';
-  speaker: PoverId | 'system';
+    | 'system'
+    | 'intervention';
+  speaker: PoverId | 'system' | 'moderator';
   content: string;
   taxonomy_refs: TaxonomyRef[];
   /** Pre-CQ: bare string IDs. Post-CQ: objects with relevance. Check typeof. */
@@ -88,6 +89,8 @@ export interface TranscriptEntry {
   };
   /** Which detail tier to display by default. Absent = show full content. */
   display_tier?: 'brief' | 'medium' | 'detailed';
+  /** Present when type === 'intervention'. Metadata about the moderator move. */
+  intervention_metadata?: InterventionMetadata;
 }
 
 export interface ContextSummary {
@@ -279,6 +282,8 @@ export interface DebateSession {
   taxonomy_gap_analysis?: TaxonomyGapAnalysis;
   /** Context-rot metrics measured during this debate — tracks information loss at each pipeline stage. */
   context_rot?: ContextRotMetrics;
+  /** Active moderator state — tracks budget, cooldown, burden, health trajectory, and intervention history. */
+  moderator_state?: ModeratorState;
 }
 
 export interface ConvergenceSignals {
@@ -912,6 +917,214 @@ export interface TaxonomySuggestion {
   merge_with_node_ids?: string[];
   /** Transcript entry id where a turn-validator hint originated. */
   origin_entry_id?: string;
+}
+
+// ── Active Moderator types ─────────────────────────────
+
+export type InterventionFamily =
+  | 'procedural'
+  | 'elicitation'
+  | 'repair'
+  | 'reconciliation'
+  | 'reflection'
+  | 'synthesis';
+
+export type InterventionMove =
+  | 'REDIRECT' | 'BALANCE' | 'SEQUENCE'
+  | 'PIN' | 'PROBE' | 'CHALLENGE'
+  | 'CLARIFY' | 'CHECK' | 'SUMMARIZE'
+  | 'ACKNOWLEDGE' | 'REVOICE'
+  | 'META-REFLECT'
+  | 'COMPRESS' | 'COMMIT';
+
+export type InteractionalForce =
+  | 'directive'
+  | 'interrogative'
+  | 'declarative'
+  | 'reflective';
+
+export const MOVE_TO_FAMILY: Record<InterventionMove, InterventionFamily> = {
+  REDIRECT: 'procedural', BALANCE: 'procedural', SEQUENCE: 'procedural',
+  PIN: 'elicitation', PROBE: 'elicitation', CHALLENGE: 'elicitation',
+  CLARIFY: 'repair', CHECK: 'repair', SUMMARIZE: 'repair',
+  ACKNOWLEDGE: 'reconciliation', REVOICE: 'reconciliation',
+  'META-REFLECT': 'reflection',
+  COMPRESS: 'synthesis', COMMIT: 'synthesis',
+};
+
+export const MOVE_TO_FORCE: Record<InterventionMove, InteractionalForce> = {
+  REDIRECT: 'directive', BALANCE: 'directive', SEQUENCE: 'directive',
+  PIN: 'interrogative', PROBE: 'interrogative', CHALLENGE: 'interrogative',
+  CLARIFY: 'interrogative', CHECK: 'reflective', SUMMARIZE: 'declarative',
+  ACKNOWLEDGE: 'declarative', REVOICE: 'reflective',
+  'META-REFLECT': 'reflective',
+  COMPRESS: 'reflective', COMMIT: 'reflective',
+};
+
+export const FAMILY_BURDEN_WEIGHT: Record<InterventionFamily, number> = {
+  procedural: 0.5,
+  elicitation: 1.0,
+  repair: 0.75,
+  reconciliation: 0.25,
+  reflection: 0.6,
+  synthesis: 0.8,
+};
+
+export interface InterventionMetadata {
+  family: InterventionFamily;
+  move: InterventionMove;
+  force: InteractionalForce;
+  burden: number;
+  target_debater: PoverId;
+  trigger_reason: string;
+  source_evidence: {
+    signal?: string;
+    node_id?: string;
+    round?: number;
+    claim?: string;
+  };
+  prerequisite_applied?: string;
+  original_claim_text?: string;
+}
+
+export interface ModeratorIntervention {
+  family: InterventionFamily;
+  move: InterventionMove;
+  force: InteractionalForce;
+  burden: number;
+  target_debater: PoverId;
+  text: string;
+  original_claim_text?: string;
+  trigger_reason: string;
+  prerequisite_applied?: string;
+  source_evidence: {
+    signal?: string;
+    node_id?: string;
+    round?: number;
+    claim?: string;
+  };
+}
+
+export interface SelectionResult {
+  responder: PoverId;
+  addressing: PoverId | 'general';
+  focus_point: string;
+  agreement_detected: boolean;
+  metaphor_reframe?: string;
+  intervene: boolean;
+  suggested_move?: InterventionMove;
+  target_debater?: PoverId;
+  trigger_reasoning?: string;
+  trigger_evidence?: {
+    signal_name: string;
+    observed_behavior: string;
+    source_claim?: string;
+    source_round?: number;
+  };
+}
+
+export interface EngineValidationResult {
+  proceed: boolean;
+  validated_move: InterventionMove;
+  validated_family: InterventionFamily;
+  validated_target: PoverId;
+  suppressed_reason?: 'budget_exhausted' | 'cooldown_active' | 'phase_mismatch'
+    | 'same_debater_consecutive' | 'prerequisite_override' | 'burden_cap'
+    | 'engine_override';
+  prerequisite_applied?: string;
+}
+
+export interface DebateHealthScore {
+  value: number;
+  trend: number;
+  consecutive_decline: number;
+  components: {
+    engagement: number;
+    novelty: number;
+    responsiveness: number;
+    coverage: number;
+    balance: number;
+  };
+}
+
+export interface ModeratorState {
+  interventions_fired: number;
+  budget_total: number;
+  budget_remaining: number;
+  rounds_since_last_intervention: number;
+  required_gap: number;
+  last_target: PoverId | null;
+  last_family: InterventionFamily | null;
+
+  burden_per_debater: Record<string, number>;
+  avg_burden: number;
+
+  persona_trigger_counts: Record<string, Partial<Record<InterventionMove, number>>>;
+
+  health_history: DebateHealthScore[];
+  consecutive_decline: number;
+  consecutive_rise: number;
+  trajectory_freeze_until: number;
+
+  sli_consecutive_breaches: Record<string, number>;
+
+  phase: DebatePhase;
+  round: number;
+  total_rounds: number;
+  exploration_rounds: number;
+
+  intervention_history: {
+    round: number;
+    move: InterventionMove;
+    family: InterventionFamily;
+    target: PoverId;
+    burden: number;
+  }[];
+
+  cooldown_blocked_count: number;
+}
+
+export interface InterventionResponseFields {
+  pin_response?: {
+    position: 'agree' | 'disagree' | 'conditional';
+    condition?: string;
+    brief_reason: string;
+  };
+  probe_response?: {
+    evidence_type: 'empirical' | 'precedent' | 'theoretical' | 'conceded_gap';
+    evidence: string;
+    critical_question_addressed?: string;
+  };
+  challenge_response?: {
+    type: 'evolved' | 'consistent' | 'conceded';
+    explanation: string;
+  };
+  clarification?: {
+    term: string;
+    definition: string;
+    example: string;
+  };
+  check_response?: {
+    understood_correctly: boolean;
+    actual_target?: string;
+    revised_response?: string;
+  };
+  revoice_response?: {
+    accurate: boolean;
+    correction?: string;
+  };
+  reflection?: {
+    type: 'crux' | 'assumption_check' | 'reasoning_audit';
+    crux_condition?: string;
+    assumption_examined?: string;
+    conclusion: string;
+  };
+  compressed_thesis?: string;
+  commitment?: {
+    concessions: string[];
+    conditions_for_change: string[];
+    sharpest_disagreements: Record<string, string>;
+  };
 }
 
 // ── Prompt Inspector types (Phase A: type definition only) ──────────

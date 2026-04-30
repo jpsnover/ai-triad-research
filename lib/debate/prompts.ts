@@ -6,7 +6,7 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis, DebatePhase, DebateAudience } from './types';
+import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily } from './types';
 import { POVER_INFO } from './types';
 import { documentAnalysisContext } from './documentAnalysis';
 import { interpretationText } from './taxonomyTypes';
@@ -2486,6 +2486,168 @@ Confidence levels:
 - "high": Multiple debate moments clearly support this change; concessions were made or arguments failed visibly
 - "medium": Debate evidence is suggestive but not conclusive; the change would improve the taxonomy but is debatable
 - "low": A minor refinement based on a single exchange; reasonable people might disagree`;
+}
+
+// ── Active Moderator Prompts ───────────────────────────────
+
+export function moderatorSelectionPrompt(
+  recentTranscript: string,
+  activePovers: string[],
+  edgeContext: string,
+  triggerEvaluationContext: string,
+  recentScheme?: string,
+  metaphorReframe?: { source: string; prompt: string; reveals: string; challenges: string } | null,
+  phase?: DebatePhase,
+  audience?: DebateAudience,
+): string {
+  const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
+  const schemeSection = cqBlock
+    ? `\n\n=== ARGUMENTATION SCHEME ANALYSIS ===\n${cqBlock}\nConsider directing a debater to challenge this argument on one of these critical questions.\n`
+    : '';
+  const metaphorSection = metaphorReframe
+    ? `\n\n=== METAPHOR REFRAMING SUGGESTION ===\nThe debate may benefit from a fresh perspective. Consider asking a debater to engage with this reframing:\n\n"${metaphorReframe.prompt}"\n\nWhat this metaphor reveals: ${metaphorReframe.reveals}\nWhat it challenges: ${metaphorReframe.challenges}\n\nYou may include this in the focus_point if you judge it would be more productive than continuing the current line of argument. Set "metaphor_reframe": true in your response if you use it.\n`
+    : '';
+
+  const phaseObjective = phase === 'thesis-antithesis'
+    ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence.\n`
+    : phase === 'exploration'
+    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to name conditions under which they would change their mind, explore edge cases, and explicitly acknowledge agreement before exploring remaining disagreements.\n`
+    : phase === 'synthesis'
+    ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to summarize concessions, propose integrated positions, narrow remaining disagreements, and state conditional agreements.\n`
+    : '';
+
+  const audienceLine = audience
+    ? `\nAUDIENCE CONTEXT: This debate targets ${audience.replace(/_/g, ' ')}. ${getModeratorBias(audience)}\n`
+    : '';
+
+  return `You are a debate moderator analyzing the current state of a structured debate.
+You are procedurally authoritative but not substantively neutral — your choices about what to highlight or challenge are inherently selective. You must be transparent: describe what happened in terms of observable state, not evaluation.
+${getReadingLevel(audience)}${audienceLine}
+${phaseObjective}
+=== RECENT DEBATE EXCHANGE ===
+${recentTranscript}
+
+=== ACTIVE DEBATERS ===
+${activePovers.join(', ')}
+${edgeContext}${schemeSection}${metaphorSection}
+
+=== MODERATOR STATE ===
+${triggerEvaluationContext}
+
+=== TASK ===
+
+1. SELECTION: Identify which debater should respond next, to whom, and about what specific point.
+2. INTERVENTION ASSESSMENT: Based on the moderator state above and your reading of the transcript, evaluate whether a moderator intervention is warranted this round.
+
+Available intervention moves (organized by family):
+- Procedural: REDIRECT (uncovered topic), BALANCE (underrepresented debater), SEQUENCE (entangled topics)
+- Elicitation: PIN (evasion of direct question), PROBE (unsupported claim), CHALLENGE (contradiction or stagnation)
+- Repair: CLARIFY (undefined term), CHECK (misunderstanding), SUMMARIZE (periodic anchor)
+- Reconciliation: ACKNOWLEDGE (reward concession), REVOICE (translate jargon)
+- Reflection: META-REFLECT (identify cruxes, examine assumptions)
+- Synthesis: COMPRESS (force brevity), COMMIT (final position — synthesis phase only)
+
+Your recommendation is ADVISORY. The engine will validate it against budget, cooldown, phase rules, and prerequisites before acting. If the engine overrides you, the debate continues without intervention.
+
+Do NOT compose the intervention text — that is a separate stage.
+Do NOT intervene just because you can — only when the debate state warrants it.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "responder": "debater name who should speak next",
+  "addressing": "debater name they should address, or 'general'",
+  "focus_point": "the specific point or question they should address",
+  "agreement_detected": false,
+  "metaphor_reframe": false,
+  "intervene": false,
+  "suggested_move": null,
+  "target_debater": null,
+  "trigger_reasoning": null,
+  "trigger_evidence": null
+}
+
+If you recommend an intervention, populate:
+{
+  "intervene": true,
+  "suggested_move": "MOVE_NAME",
+  "target_debater": "debater name",
+  "trigger_reasoning": "why this intervention is warranted",
+  "trigger_evidence": {
+    "signal_name": "which signal triggered this",
+    "observed_behavior": "what you observed in the transcript",
+    "source_claim": "specific claim text referenced",
+    "source_round": null
+  }
+}`;
+}
+
+export function moderatorInterventionPrompt(
+  move: InterventionMove,
+  family: InterventionFamily,
+  targetDebater: string,
+  triggerReason: string,
+  sourceClaim: string | undefined,
+  recentTranscript: string,
+  audience?: DebateAudience,
+): string {
+  const moveSpecificInstructions = getMoveSpecificInstructions(move, targetDebater, sourceClaim);
+
+  return `You are composing a moderator intervention for a structured debate.
+${getReadingLevel(audience)}
+
+Move: ${move} (family: ${family})
+Target: ${targetDebater}
+Trigger: ${triggerReason}
+${sourceClaim ? `Original claim: "${sourceClaim}"` : ''}
+
+=== RECENT TRANSCRIPT ===
+${recentTranscript}
+
+=== INSTRUCTIONS ===
+${moveSpecificInstructions}
+
+You are procedurally authoritative. Describe what happened in the debate in terms of observable state (who said what, who evaded what, what topics were covered). Do NOT evaluate whether an argument is good, strong, correct, or compelling. The judge handles quality assessment.
+
+${move === 'REVOICE' ? 'For REVOICE: restate the original claim in plain language. The system will verify propositional preservation before insertion.' : ''}
+${move === 'CHECK' ? 'For CHECK: use a DIRECT QUOTE from the target debater\'s transcript, not a paraphrase.' : ''}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "text": "the intervention text"${move === 'REVOICE' ? ',\n  "original_claim_text": "the verbatim original claim being revoiced"' : ''}
+}`;
+}
+
+function getMoveSpecificInstructions(move: InterventionMove, target: string, sourceClaim?: string): string {
+  switch (move) {
+    case 'REDIRECT':
+      return `Direct ${target} to address an uncovered topic. Frame it as: "We've spent time on X. Let's shift to Y. ${target}, how does Y affect your position?"`;
+    case 'BALANCE':
+      return `Invite ${target} to advance their strongest remaining argument on their own terms. They've been responding to challenges — give them initiative.`;
+    case 'SEQUENCE':
+      return `Identify two entangled sub-topics and ask ${target} to address them one at a time.`;
+    case 'PIN':
+      return `${target} was asked a direct question and pivoted away. Pin them: "Before continuing, do you agree or disagree with {specific claim}?"${sourceClaim ? ` The claim: "${sourceClaim}"` : ''}`;
+    case 'PROBE':
+      return `${target} made a strong claim without supporting evidence. Ask for specifics: "What evidence supports this? Name a specific study, dataset, or precedent."${sourceClaim ? ` The claim: "${sourceClaim}"` : ''}`;
+    case 'CHALLENGE':
+      return `${target} has either contradicted a prior position or is repeating arguments while ignoring challenges. Confront the inconsistency or stagnation directly.${sourceClaim ? ` Reference: "${sourceClaim}"` : ''}`;
+    case 'CLARIFY':
+      return `${target} is using a term without defining it. Ask for an operational definition and a concrete example.${sourceClaim ? ` The term: "${sourceClaim}"` : ''}`;
+    case 'CHECK':
+      return `Two debaters may be talking past each other. Use a DIRECT QUOTE from the transcript to check whether ${target} is actually responding to the opponent's point.`;
+    case 'SUMMARIZE':
+      return `Take stock of where the debate stands. List: points of agreement, active disagreements, unresolved questions, and claims awaiting response. Then direct ${target} to pick up from the strongest unresolved disagreement.`;
+    case 'ACKNOWLEDGE':
+      return `${target} just made a significant concession or built on an opponent's argument. Publicly validate this move and ask the other debaters how it changes the shape of the disagreement.`;
+    case 'REVOICE':
+      return `${target} made a substantively important point that other debaters aren't engaging with — possibly due to jargon or register mismatch. Restate the point in plain, register-neutral language.`;
+    case 'META-REFLECT':
+      return `Ask ${target} to step outside their argument. What would change their mind? Or: identify a shared assumption that all debaters are relying on without examining it.`;
+    case 'COMPRESS':
+      return `Ask ${target} for their single most important reason in one sentence (max 40 words).`;
+    case 'COMMIT':
+      return `Ask ${target} for their final position. They must state: (1) what they conceded during the debate, (2) what conditions would change their remaining position, (3) their sharpest remaining disagreement with each opponent.`;
+  }
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)
