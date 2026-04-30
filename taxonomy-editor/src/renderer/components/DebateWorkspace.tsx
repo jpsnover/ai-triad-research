@@ -100,8 +100,24 @@ function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: Coverag
   const colorClass = pct > 75 ? 'coverage-badge-green' : pct >= 40 ? 'coverage-badge-yellow' : 'coverage-badge-red';
   const covered = stats.coveredCount + stats.partiallyCoveredCount;
   const swPct = strengthWeighted ? Math.round(strengthWeighted.strength_weighted_coverage) : null;
-  const titleParts = [`${stats.coveredCount} covered, ${stats.partiallyCoveredCount} partial, ${stats.uncoveredCount} uncovered`];
-  if (swPct !== null) titleParts.push(`Strength-weighted: ${swPct}%`);
+  const titleParts = [
+    `TAXONOMY COVERAGE`,
+    `Measures how many of this debate's claims are grounded in taxonomy nodes.`,
+    ``,
+    `Current: ${covered}/${stats.totalClaims} claims grounded (${pct}%)`,
+    `  ${stats.coveredCount} fully covered (claim maps to 1+ taxonomy nodes)`,
+    `  ${stats.partiallyCoveredCount} partially covered (weak or indirect mapping)`,
+    `  ${stats.uncoveredCount} uncovered (no taxonomy grounding)`,
+  ];
+  if (swPct !== null) {
+    titleParts.push(``);
+    titleParts.push(`Strength-weighted: ${swPct}%`);
+    titleParts.push(`Weights each claim by its QBAF argumentation strength,`);
+    titleParts.push(`so strongly-supported claims count more than weak ones.`);
+  }
+  titleParts.push(``);
+  titleParts.push(`Color bands: green >75% | yellow 40-75% | red <40%`);
+  titleParts.push(`Higher coverage = debate is well-grounded in the taxonomy.`);
 
   return (
     <span className={`coverage-badge ${colorClass}`} title={titleParts.join('\n')}>
@@ -538,6 +554,8 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   const activeDebate = useDebateStore(s => s.activeDebate);
   const defaultTier = useDebateStore(s => s.responseLength);
   const setEntryDisplayTier = useDebateStore(s => s.setEntryDisplayTier);
+  const askQuestion = useDebateStore(s => s.askQuestion);
+  const debateGenerating = useDebateStore(s => s.debateGenerating);
   const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
@@ -613,6 +631,29 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown remarkPlugins={[remarkGfm]}>{displayContent}</Markdown>}
       </div>
+      {entry.speaker === 'system' && entry.type === 'system' && entry.content.includes('Consider exploring:') && (() => {
+        const match = entry.content.match(/Consider exploring:\s*(.+)/s);
+        const topic = match?.[1]?.trim();
+        if (!topic) return null;
+        return (
+          <div style={{ marginTop: 8 }}>
+            <button
+              className="btn btn-sm"
+              disabled={!!debateGenerating}
+              onClick={(e) => { e.stopPropagation(); askQuestion(`Explore this: ${topic}`); }}
+              style={{
+                padding: '4px 14px', fontSize: '0.78rem', fontWeight: 600,
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 4, cursor: debateGenerating ? 'not-allowed' : 'pointer',
+                opacity: debateGenerating ? 0.5 : 1,
+              }}
+              title={`Ask debaters to explore: ${topic}`}
+            >
+              Explore
+            </button>
+          </div>
+        );
+      })()}
       <TaxonomyRefsSection
         refs={entry.taxonomy_refs}
         policyRefs={entry.policy_refs}

@@ -65,6 +65,44 @@ function getModeratorBias(audience?: DebateAudience): string {
   return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].moderatorBias;
 }
 
+// ── Context recall helpers (Lost-in-the-Middle mitigation) ───────────
+// LLMs attend most to context at the beginning and end, least to the middle.
+// These helpers build a brief recap of high-priority context near the end of
+// the prompt, ensuring starred taxonomy nodes and phase objectives get
+// end-of-context salience even when they first appeared in the middle.
+
+function extractStarredNodes(taxonomyContext: string): string[] {
+  const re = /★\s*\[([^\]]+)\]\s*([^:\n]+)/g;
+  const results: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(taxonomyContext)) !== null) {
+    results.push(`${m[1]} (${m[2].trim()})`);
+  }
+  return results;
+}
+
+function buildRecapSection(taxonomyContext: string, phase?: DebatePhase): string {
+  const starred = extractStarredNodes(taxonomyContext);
+  if (starred.length === 0 && !phase) return '';
+
+  const lines: string[] = ['', '=== RECALL ==='];
+
+  if (starred.length > 0) {
+    lines.push(`Your starred nodes: ${starred.slice(0, 5).join(', ')}`);
+  }
+
+  if (phase) {
+    const priorities: Record<DebatePhase, string> = {
+      'thesis-antithesis': 'Stake out your position; challenge opponents\' core claims.',
+      'exploration': 'Find cruxes, test edge cases, name agreements.',
+      'synthesis': 'Converge where possible; narrow remaining disagreements.',
+    };
+    lines.push(`Phase priority: ${priorities[phase]}`);
+  }
+
+  return lines.join('\n');
+}
+
 // ── Shared instruction blocks — structured as MUST / SHOULD / OUTPUT FORMAT ──
 
 const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections that structure your worldview:
@@ -784,7 +822,7 @@ ${hasDocument ? documentInstructions : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
-
+${buildRecapSection(taxonomyContext)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -842,16 +880,16 @@ ${allInstructions()}
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"${documentBlock}
+"${topic}"
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
 
 === ${addressing === 'all' ? 'QUESTION TO THE PANEL' : `QUESTION DIRECTED AT YOU`} ===
 ${question}
-
+${documentBlock}
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
-
+${buildRecapSection(taxonomyContext)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -1077,8 +1115,7 @@ export function crossRespondSelectionPrompt(
     : '';
 
   return `You are a debate moderator analyzing the current state of a structured debate.
-${getReadingLevel(audience)}${audienceLine}
-${phaseObjective}
+${audienceLine}${phaseObjective}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
@@ -1184,16 +1221,16 @@ ${allInstructions(phase)}
 ${taxonomyContext}
 
 === DEBATE TOPIC ===
-"${topic}"${documentBlock}
+"${topic}"
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
-${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.length > 0 ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your current response.\n` : ''}
+${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.length > 0 ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your current response.\n` : ''}${documentBlock}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
 Respond substantively. ${phaseDirective}
-
+${buildRecapSection(taxonomyContext, phase)}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
@@ -1415,6 +1452,15 @@ export interface StagePromptInput {
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
   audience?: DebateAudience;
+  pendingIntervention?: {
+    move: string;
+    family: string;
+    targetDebater: string;
+    responseField?: string;
+    responseSchema?: string;
+    directResponsePattern?: string;
+    isTargeted: boolean;
+  };
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1429,11 +1475,11 @@ Your task is to comprehend the current state of the debate and identify what mat
 ${input.taxonomyContext}
 
 === DEBATE TOPIC ===
-"${input.topic}"${documentBlock}
+"${input.topic}"
 
 === RECENT DEBATE HISTORY ===
 ${input.recentTranscript}
-
+${documentBlock}
 === ASSIGNMENT FOR NEXT TURN ===
 ${input.label} must address ${input.addressing === 'general' ? 'the panel' : input.addressing} on: ${input.focusPoint}
 
@@ -1523,6 +1569,28 @@ export function draftStagePrompt(input: StagePromptInput, brief: string, plan: s
   const positionUpdateField = input.phase === 'synthesis'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
+  // Build intervention response block for the Draft prompt
+  let interventionBlock = '';
+  const pi = input.pendingIntervention;
+  if (pi) {
+    if (pi.isTargeted && pi.directResponsePattern) {
+      interventionBlock = `
+=== MODERATOR DIRECTIVE — YOU MUST RESPOND DIRECTLY ===
+The moderator issued a ${pi.move} intervention directed at you.
+
+${pi.directResponsePattern}
+
+CRITICAL: Your first paragraph IS your response to the moderator. It must be unambiguous — a reader should know your answer from those 2-3 sentences alone, without reading further. Do not bury your answer in qualifications. Do not hedge across multiple paragraphs. State your position, give one reason, stop. Your substantive argument goes in paragraphs 2-4.
+`;
+    } else if (!pi.isTargeted) {
+      interventionBlock = `
+=== MODERATOR DIRECTIVE — DIRECTED AT ${pi.targetDebater.toUpperCase()} ===
+The moderator issued a ${pi.move} intervention directed at ${pi.targetDebater} (not you).
+Your first sentence should briefly acknowledge the moderator's point as it relates to your own position (e.g., "The moderator's question to ${pi.targetDebater} about [topic] also bears on my argument because..."). Keep it to 1-2 sentences, then proceed with your substantive argument.
+`;
+    }
+  }
+
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
 Your personality: ${input.personality}.
 ${otherDebaters(input.label)}
@@ -1540,7 +1608,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-
+${interventionBlock}
 === YOUR ASSIGNMENT ===
 Address ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}
 
@@ -1548,13 +1616,13 @@ ${phaseDirective}
 
 Execute the argument plan above. Write your debate statement following the plan's structure and moves. Stay in character as ${input.label}.
 
-PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.${pi?.isTargeted ? ' The first paragraph is your direct response to the moderator (short — 2-3 sentences max). Paragraphs 2-4 are your substantive argument.' : ''}
 
 NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 
 CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
 
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explain the analogy in one sentence>"}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -2522,8 +2590,7 @@ export function moderatorSelectionPrompt(
 
   return `You are a debate moderator analyzing the current state of a structured debate.
 You are procedurally authoritative but not substantively neutral — your choices about what to highlight or challenge are inherently selective. You must be transparent: describe what happened in terms of observable state, not evaluation.
-${getReadingLevel(audience)}${audienceLine}
-${phaseObjective}
+${audienceLine}${phaseObjective}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 

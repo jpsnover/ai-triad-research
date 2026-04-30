@@ -16,7 +16,7 @@ import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
-import { TaxonomyRefDetail, type TaxRefNode } from './TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from './TaxonomyRefDetail';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
 import { useDebateStore } from '../hooks/useDebateStore';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
@@ -564,9 +564,146 @@ interface ModeratorTraceData {
   selected?: string; focus_point?: string; selection_reason?: string;
   excluded_last_speaker?: string | null; recent_scheme?: string | null;
   convergence_score?: number | null; convergence_triggered?: boolean;
-  candidates?: { debater: string; computed_strength: number | null; rank: number }[];
+  candidates?: { debater: string; computed_strength: number | null; claim_count?: number; scored_count?: number; rank: number }[];
   commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
   selection_prompt?: string; selection_response?: string;
+  // Active moderator fields
+  health_score?: number; health_components?: Record<string, number>; health_trend?: number;
+  intervention_recommended?: boolean; intervention_move?: string | null;
+  intervention_validated?: boolean; intervention_suppressed_reason?: string | null;
+  intervention_target?: string | null;
+  trigger_reasoning?: string | null; trigger_evidence?: Record<string, unknown> | null;
+  budget_remaining?: number; budget_total?: number;
+  cooldown_rounds_left?: number; burden_per_debater?: Record<string, number>;
+}
+
+const DEBATER_COLORS: Record<string, string> = {
+  prometheus: '#f97316', sentinel: '#3b82f6', cassandra: '#a855f7',
+};
+function debaterColor(name: string): string {
+  return DEBATER_COLORS[name.toLowerCase()] ?? '#888';
+}
+
+function TensionsListDetail({ content }: { content: string }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const tensions = useMemo(() => {
+    const re = /^(\S+)\s+(TENSION_WITH|CONTRADICTS|SUPPORTS)\s+(\S+)\s+\(confidence:\s*([\d.]+)\)/gm;
+    const items: { source: string; relation: string; target: string; confidence: number; raw: string }[] = [];
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      items.push({ source: m[1], relation: m[2], target: m[3], confidence: parseFloat(m[4]), raw: m[0] });
+    }
+    return items;
+  }, [content]);
+
+  if (tensions.length === 0) {
+    return <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
+  }
+
+  const sel = selected != null ? tensions[selected] : null;
+  const relationColor = (r: string) => r === 'CONTRADICTS' ? '#ef4444' : r === 'TENSION_WITH' ? '#f59e0b' : '#22c55e';
+  const sourcePov = (id: string) => id.startsWith('acc-') ? 'acc' : id.startsWith('saf-') ? 'saf' : id.startsWith('skp-') ? 'skp' : id.startsWith('cc-') ? 'cc' : '';
+  const povColor = (id: string) => {
+    const p = sourcePov(id);
+    return p === 'acc' ? '#f97316' : p === 'saf' ? '#3b82f6' : p === 'skp' ? '#a855f7' : p === 'cc' ? '#22c55e' : '#888';
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
+      <div style={{ flex: '1 1 50%', maxHeight: 260, overflow: 'auto', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+        {tensions.map((t, i) => (
+          <div key={i} onClick={() => setSelected(i)} style={{
+            padding: '4px 8px', cursor: 'pointer', fontSize: '0.66rem',
+            background: selected === i ? 'rgba(249,115,22,0.12)' : 'transparent',
+            borderLeft: selected === i ? '3px solid #f97316' : '3px solid transparent',
+            borderBottom: '1px solid var(--border)',
+          }}>
+            <span style={{ color: povColor(t.source), fontWeight: 600 }}>{t.source}</span>
+            <span style={{ color: relationColor(t.relation), fontSize: '0.58rem', fontWeight: 700, margin: '0 4px' }}>
+              {t.relation === 'TENSION_WITH' ? '⟷' : t.relation === 'CONTRADICTS' ? '✕' : '✓'}
+            </span>
+            <span style={{ color: povColor(t.target), fontWeight: 600 }}>{t.target}</span>
+            <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.58rem' }}>{t.confidence.toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ flex: '1 1 50%', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-primary)', fontSize: '0.7rem', minHeight: 80 }}>
+        {sel ? (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, background: `${relationColor(sel.relation)}18`, color: relationColor(sel.relation), fontWeight: 700, fontSize: '0.68rem' }}>
+                {sel.relation.replace(/_/g, ' ')}
+              </span>
+              <span style={{ marginLeft: 8, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                Confidence: {sel.confidence.toFixed(2)}
+              </span>
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Source</div>
+              <div style={{ fontWeight: 600, color: povColor(sel.source) }}>{sel.source}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Target</div>
+              <div style={{ fontWeight: 600, color: povColor(sel.target) }}>{sel.target}</div>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Select a tension to see details</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DebateExchangeRich({ content }: { content: string }) {
+  const segments = useMemo(() => {
+    const speakerRe = /^(Prometheus|Sentinel|Cassandra)\s*(\[[^\]]*\])?:\s*/gm;
+    const matches: { index: number; end: number; speaker: string; tag?: string }[] = [];
+    let m;
+    while ((m = speakerRe.exec(content)) !== null) {
+      matches.push({ index: m.index, end: m.index + m[0].length, speaker: m[1], tag: m[2]?.replace(/[[\]]/g, '') });
+    }
+    if (matches.length === 0) return [{ text: content } as { speaker?: string; tag?: string; text: string }];
+    const parts: { speaker?: string; tag?: string; text: string }[] = [];
+    if (matches[0].index > 0) {
+      const preamble = content.slice(0, matches[0].index).trim();
+      if (preamble) parts.push({ text: preamble });
+    }
+    for (let i = 0; i < matches.length; i++) {
+      const textEnd = i + 1 < matches.length ? matches[i + 1].index : content.length;
+      parts.push({ speaker: matches[i].speaker, tag: matches[i].tag, text: content.slice(matches[i].end, textEnd).trim() });
+    }
+    return parts;
+  }, [content]);
+
+  if (segments.length <= 1 && !segments[0]?.speaker) {
+    return <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{content}</pre>;
+  }
+
+  return (
+    <div style={{ maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
+      {segments.map((seg, i) => (
+        <div key={i} style={{ marginBottom: 8 }}>
+          {seg.speaker && (
+            <div style={{ marginBottom: 3 }}>
+              <span style={{
+                display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: '0.72rem',
+                color: '#fff', background: debaterColor(seg.speaker),
+              }}>
+                {seg.speaker}
+              </span>
+              {seg.tag && (
+                <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{seg.tag}</span>
+              )}
+            </div>
+          )}
+          <div style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+            {seg.text}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
@@ -633,11 +770,25 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 fontWeight: c.debater === trace.selected ? 700 : 400,
               }}>
                 <div>#{c.rank} {c.debater}</div>
-                {c.computed_strength != null && (
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    avg strength: {c.computed_strength.toFixed(3)}
-                  </div>
-                )}
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {c.claim_count != null && <span>{c.claim_count} claim{c.claim_count !== 1 ? 's' : ''} in AN</span>}
+                  {c.computed_strength != null && (
+                    <span
+                      title="QBAF post-propagation acceptability: average computed strength across this debater's claims after attack/support edges are applied. Higher = arguments are holding up well under challenge."
+                      style={{ marginLeft: 6, cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                    >
+                      QBAF: {c.computed_strength.toFixed(3)} ({c.scored_count ?? '?'} scored)
+                    </span>
+                  )}
+                  {c.computed_strength == null && (c.claim_count ?? 0) > 0 && (
+                    <span
+                      title="QBAF strength propagation has not run yet. Strengths will appear after the debate engine computes post-propagation acceptability scores."
+                      style={{ marginLeft: 6, fontStyle: 'italic', cursor: 'help' }}
+                    >
+                      (no QBAF scores yet)
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -650,7 +801,10 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
           <div style={headingStyle}>Debate State</div>
           {trace.convergence_score != null && (
             <div style={{ fontSize: '0.72rem', marginBottom: 4 }}>
-              <strong>Convergence:</strong> {(trace.convergence_score * 100).toFixed(0)}%
+              <strong
+                title={'Convergence measures how much the debaters are moving toward agreement on the current issue.\n\nThree weighted signals:\n• Cross-speaker support ratio (40%): Of all cross-speaker edges in the argument network, what fraction are supports vs. attacks? More support edges = higher convergence.\n• Concession rate (35%): How many claims on this issue have been conceded? More concessions = debaters yielding ground.\n• Stance alignment (25%): How many speaker pairs have at least one mutual support edge? Measures breadth of agreement across all participants.\n\nScore range: 0% (pure opposition) → 50% (baseline/unknown) → 100% (full agreement).\nWhen convergence exceeds the threshold, the moderator may suggest exploring a new topic.'}
+                style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+              >Convergence:</strong> {(trace.convergence_score * 100).toFixed(0)}%
               {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 6, fontWeight: 700 }}>TRIGGERED</span>}
             </div>
           )}
@@ -671,23 +825,118 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
         </div>
       )}
 
+      {/* Active Moderator State */}
+      {(trace.health_score != null || trace.intervention_recommended || trace.budget_remaining != null) && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Active Moderator</div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.72rem', marginBottom: 6 }}>
+            {trace.health_score != null && (
+              <div>
+                <strong
+                  title={'Composite debate health score (0.0–1.0). Weighted average of 5 components:\n• Engagement ×0.25 — are debaters substantively engaging with each other\'s claims?\n• Novelty ×0.25 — are debaters introducing new ideas rather than recycling?\n• Responsiveness ×0.20 — are debaters taking concession opportunities when warranted?\n• Coverage ×0.15 — what fraction of relevant taxonomy nodes have been cited?\n• Balance ×0.15 — are all debaters getting roughly equal speaking time?\n\nComputed over a sliding window of the last 3 convergence signals.\nGreen (≥0.70): healthy debate. Amber (0.40–0.69): degrading. Red (<0.40): intervention likely needed.\nWhen a component drops below its SLI floor for 2+ consecutive turns, the moderator auto-triggers an intervention.'}
+                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                >Health:</strong>{' '}
+                <span style={{ color: trace.health_score >= 0.7 ? '#22c55e' : trace.health_score >= 0.4 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                  {trace.health_score.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {trace.budget_remaining != null && trace.budget_total != null && (
+              <div>
+                <strong
+                  title={'Intervention budget — how many moderator interventions remain.\n\nBudget = ceil(exploration_rounds / 2.5). For a 20-round debate with ~17 exploration rounds, budget ≈ 7.\nEach intervention (except COMMIT) consumes 1 budget unit.\nWhen budget reaches 0, no further interventions can fire (except off-budget COMMIT moves in synthesis phase).\nThis prevents the moderator from over-intervening and dominating the debate.'}
+                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                >Budget:</strong> {trace.budget_remaining}/{trace.budget_total}
+              </div>
+            )}
+            {trace.cooldown_rounds_left != null && (
+              <div>
+                <strong
+                  title={'Cooldown — minimum rounds that must pass before the next intervention.\n\nAfter an intervention fires, the moderator enforces a 1-round gap before acting again.\nExempt from cooldown: Reconciliation (ACKNOWLEDGE, REVOICE), Elicitation (PIN, PROBE, CHALLENGE), and COMMIT.\n\n"ready" = cooldown expired, moderator can intervene if triggered.\n"N round(s)" = must wait N more rounds before the next intervention.'}
+                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                >Cooldown:</strong> {trace.cooldown_rounds_left > 0 ? `${trace.cooldown_rounds_left} round(s)` : 'ready'}
+              </div>
+            )}
+          </div>
+          {trace.health_components && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.62rem', marginBottom: 6 }}>
+              {Object.entries(trace.health_components).map(([k, v]) => {
+                const tooltips: Record<string, string> = {
+                  engagement: 'Engagement (weight: 0.25, SLI floor: 0.25)\n\nMeasures how substantively debaters engage with each other\'s claims.\nComputed as the average engagement_depth.ratio from the last 3 convergence signals.\nengagement_depth.ratio = fraction of prior claims that were directly addressed.\n\nLow engagement means debaters are talking past each other — triggers elicitation interventions (PIN, PROBE, CHALLENGE).',
+                  novelty: 'Novelty (weight: 0.25, SLI floor: 0.25)\n\nMeasures whether debaters are introducing new ideas vs. recycling old arguments.\nComputed as: 1 − avg(recycling_rate.avg_self_overlap) over the last 3 signals.\navg_self_overlap compares each statement to the speaker\'s own prior statements via cosine similarity.\n\nLow novelty means the debate is going in circles — triggers elicitation interventions.',
+                  responsiveness: 'Responsiveness (weight: 0.20, SLI floor: 0.15)\n\nMeasures whether debaters take concession opportunities when warranted.\nComputed from convergence signals: of turns where a concession opportunity existed, what fraction were "taken" vs. "missed"?\nIf no concession opportunities arose, defaults to 1.0 (no penalty).\n\nLow responsiveness means debaters are ignoring valid challenges — triggers elicitation interventions.',
+                  coverage: 'Coverage (weight: 0.15, SLI floor: 0.20)\n\nMeasures what fraction of relevant taxonomy nodes have been cited in the debate.\nComputed as: min(cited_node_count / relevant_node_count, 1.0).\nIf no relevant nodes exist, defaults to 1.0.\n\nLow coverage means the debate is ignoring important perspectives from the taxonomy — triggers procedural interventions (REDIRECT, BALANCE, SEQUENCE).',
+                  balance: 'Balance (weight: 0.15, SLI floor: 0.30)\n\nMeasures whether all debaters are getting roughly equal speaking time.\nComputed as: 1 − (max_turns − min_turns) / total_turns.\n1.0 = perfectly balanced; 0.0 = one debater completely dominated.\n\nLow balance means one debater is being sidelined — triggers procedural interventions (BALANCE, REDIRECT).',
+                };
+                return (
+                  <span key={k} title={tooltips[k] || k} style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--bg-primary)', border: '1px solid var(--border)', cursor: 'help' }}>
+                    {k}: {(v as number).toFixed(2)}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {trace.burden_per_debater && Object.keys(trace.burden_per_debater).length > 0 && (
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+              <strong
+                title={'Burden — cumulative intervention load per debater.\n\nEach intervention adds a burden weight based on its family:\n• Elicitation (PIN, PROBE, CHALLENGE): 1.0 — most disruptive\n• Synthesis (COMPRESS, COMMIT): 0.8\n• Repair (CLARIFY, CHECK, SUMMARIZE): 0.75\n• Reflection (META-REFLECT): 0.6\n• Procedural (REDIRECT, BALANCE, SEQUENCE): 0.5\n• Reconciliation (ACKNOWLEDGE, REVOICE): 0.25 — least disruptive\n\nBurden cap: if a debater\'s burden exceeds 1.5× the average burden, high-burden moves (weight > 0.5) against that debater are suppressed.\nThis prevents the moderator from repeatedly targeting the same debater.'}
+                style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+              >Burden:</strong>{' '}
+              {Object.entries(trace.burden_per_debater).map(([d, b]) => `${d}: ${(b as number).toFixed(2)}`).join(', ')}
+            </div>
+          )}
+          {trace.intervention_recommended && (
+            <div style={{ marginTop: 4, padding: '6px 8px', borderRadius: 4, background: trace.intervention_validated ? 'rgba(139,92,246,0.1)' : 'rgba(239,68,68,0.08)', border: `1px solid ${trace.intervention_validated ? '#8b5cf6' : '#ef4444'}` }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>
+                {trace.intervention_validated ? 'Intervention Fired' : 'Intervention Suppressed'}
+                {trace.intervention_move && `: ${trace.intervention_move}`}
+                {trace.intervention_target && ` → ${trace.intervention_target}`}
+              </div>
+              {trace.intervention_suppressed_reason && !trace.intervention_validated && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Reason: {trace.intervention_suppressed_reason.replace(/_/g, ' ')}
+                </div>
+              )}
+              {trace.trigger_reasoning && (
+                <div style={{ fontSize: '0.65rem', marginTop: 4 }}>
+                  <strong>Trigger:</strong> {trace.trigger_reasoning}
+                </div>
+              )}
+              {trace.trigger_evidence && (
+                <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Signal: {String((trace.trigger_evidence as Record<string, unknown>).signal_name ?? 'unknown')}
+                  {!!(trace.trigger_evidence as Record<string, unknown>).observed_behavior && (
+                    <span> — {String((trace.trigger_evidence as Record<string, unknown>).observed_behavior)}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Selection prompt sections */}
       {promptSections.length > 0 && (
         <div style={sectionStyle}>
           <div style={headingStyle}>Context Sent to Moderator</div>
-          {promptSections.map((s, i) => (
-            <details key={i} style={{ marginBottom: 4 }} open={i < 2}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', color: 'var(--text-primary)', padding: '3px 0' }}>
-                {s.title}
-                <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  {s.content.length > 500 ? `${(s.content.length / 1024).toFixed(1)}KB` : `${s.content.length} chars`}
-                </span>
-              </summary>
-              <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
-                {s.content}
-              </pre>
-            </details>
-          ))}
+          {promptSections.map((s, i) => {
+            const isTensions = /KNOWN TENSIONS/i.test(s.title);
+            const isExchange = /RECENT DEBATE EXCHANGE/i.test(s.title);
+            return (
+              <details key={i} style={{ marginBottom: 4 }} open={i < 2}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', color: 'var(--text-primary)', padding: '3px 0' }}>
+                  {s.title}
+                  <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                    {s.content.length > 500 ? `${(s.content.length / 1024).toFixed(1)}KB` : `${s.content.length} chars`}
+                  </span>
+                </summary>
+                {isTensions ? <TensionsListDetail content={s.content} />
+                  : isExchange ? <DebateExchangeRich content={s.content} />
+                  : <pre style={{ fontSize: '0.68rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflow: 'auto', margin: '4px 0 8px', padding: '6px 8px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>{s.content}</pre>
+                }
+              </details>
+            );
+          })}
         </div>
       )}
 
@@ -702,6 +951,22 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
       )}
     </>
   );
+}
+
+function subScoreTip(key: string, val: number): string {
+  const band = val >= 0.7 ? 'Strong' : val >= 0.4 ? 'Moderate' : 'Weak';
+  const base: Record<string, string> = {
+    evidence_quality: `Evidence Quality: ${val.toFixed(2)} (${band})\n\nHow well-supported is this claim by cited evidence?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = strong evidence cited\n0.4–0.69 = partial or indirect evidence\n<0.4 = unsupported or speculative`,
+    source_reliability: `Source Reliability: ${val.toFixed(2)} (${band})\n\nHow credible and authoritative are the sources cited?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = authoritative, peer-reviewed, or official sources\n0.4–0.69 = mixed or secondary sources\n<0.4 = no sources or unreliable ones`,
+    falsifiability: `Falsifiability: ${val.toFixed(2)} (${band})\n\nCan this claim be tested or disproven with observable evidence?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = clearly testable with specific criteria\n0.4–0.69 = partially testable\n<0.4 = unfalsifiable or purely theoretical`,
+    values_grounding: `Values Grounding: ${val.toFixed(2)} (${band})\n\nIs this value claim explicitly grounded in stated values or principles?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly ties to named values, ethical frameworks, or stated principles\n0.4–0.69 = implicitly value-laden but not explicitly grounded\n<0.4 = value claim without clear normative basis`,
+    tradeoff_acknowledgment: `Tradeoff Acknowledgment: ${val.toFixed(2)} (${band})\n\nDoes the claim acknowledge competing tradeoffs or costs?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly names costs, risks, or competing values\n0.4–0.69 = mentions tradeoffs in passing\n<0.4 = presents the position as cost-free or ignores downsides`,
+    precedent_citation: `Precedent Citation: ${val.toFixed(2)} (${band})\n\nDoes the claim cite relevant precedent, norms, or established practice?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = cites specific precedents, case law, or established norms\n0.4–0.69 = references general precedent without specifics\n<0.4 = no precedent cited, purely aspirational`,
+    mechanism_specificity: `Mechanism Specificity: ${val.toFixed(2)} (${band})\n\nHow specific is the proposed mechanism, action, or implementation path?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = concrete steps, named actors, defined timelines\n0.4–0.69 = general approach without implementation detail\n<0.4 = vague aspiration with no actionable mechanism`,
+    scope_bounding: `Scope Bounding: ${val.toFixed(2)} (${band})\n\nAre the boundaries, limitations, and applicability conditions defined?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly defines where the proposal applies and where it doesn't\n0.4–0.69 = some boundaries mentioned but incomplete\n<0.4 = unbounded claim with no defined limits`,
+    failure_mode_addressing: `Failure Mode Addressing: ${val.toFixed(2)} (${band})\n\nDoes the claim address what could go wrong or how failures would be handled?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly names failure scenarios and mitigations\n0.4–0.69 = acknowledges risk without specific mitigation\n<0.4 = no consideration of failure modes`,
+  };
+  return base[key] || key;
 }
 
 const SUB_SCORE_TIPS: Record<string, string> = {
@@ -733,14 +998,14 @@ function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
 
         if (!editable) {
           return (
-            <span key={key} title={SUB_SCORE_TIPS[key] || key} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'help' }}>
+            <span key={key} title={subScoreTip(key, v)} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'help' }}>
               {label}: {v.toFixed(2)}
             </span>
           );
         }
 
         return (
-          <span key={key} title={SUB_SCORE_TIPS[key]} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.58rem', fontWeight: 600 }}>
+          <span key={key} title={subScoreTip(key, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.58rem', fontWeight: 600 }}>
             <span style={{ color: c }}>{label}:</span>
             <input
               type="range"
@@ -965,9 +1230,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
+  const [policyMap, setPolicyMap] = useState<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>>(new Map());
+  const [allEdges, setAllEdges] = useState<TaxRefEdge[]>([]);
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
-  // Reset the tax-ref detail panel whenever the selected transcript entry changes
-  useEffect(() => { setSelectedTaxRefId(null); }, [selectedEntry]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  // Reset detail panels whenever the selected transcript entry changes
+  useEffect(() => { setSelectedTaxRefId(null); setSelectedPolicyId(null); }, [selectedEntry]);
 
   const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
     if (cmd.entry !== undefined) {
@@ -1007,6 +1275,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         setTaxNodeMap(m);
       } catch {
         // non-fatal — table still renders without detail panel lookup
+      }
+      try {
+        const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
+        const policies = registryRaw?.policies;
+        if (!cancelled && Array.isArray(policies)) {
+          const pm = new Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>();
+          for (const p of policies) pm.set(p.id, p);
+          setPolicyMap(pm);
+        }
+      } catch {
+        // non-fatal
+      }
+      try {
+        const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
+        if (cancelled) return;
+        if (raw && Array.isArray(raw.edges)) setAllEdges(raw.edges);
+      } catch {
+        // non-fatal
       }
     })();
     return () => { cancelled = true; };
@@ -1541,24 +1827,50 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {debate.transcript.map((e, i) => {
               const stmtId = `S${i + 1}`;
+              const eMeta = e.metadata as Record<string, unknown> | undefined;
+              const modT = eMeta?.moderator_trace as {
+                selected?: string; focus_point?: string; selection_reason?: string;
+                convergence_score?: number | null; convergence_triggered?: boolean;
+                intervention_recommended?: boolean; intervention_move?: string | null;
+                intervention_validated?: boolean; health_score?: number;
+              } | undefined;
+              const eDiag = debate.diagnostics?.entries[e.id];
+              const hasStages = eDiag?.stage_diagnostics && eDiag.stage_diagnostics.length > 0;
               return (
                 <div
                   key={e.id}
                   onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
-                  style={{ padding: '3px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: 'var(--bg-primary)', fontSize: '0.7rem', display: 'flex', alignItems: 'baseline', gap: 6 }}
+                  style={{ padding: '4px 6px', cursor: 'pointer', borderRadius: 4, margin: '2px 0', background: selectedEntry === e.id ? 'rgba(249,115,22,0.08)' : 'var(--bg-primary)', borderLeft: selectedEntry === e.id ? '3px solid #f97316' : '3px solid transparent', fontSize: '0.7rem' }}
                 >
-                  <span
-                    title={`Statement ${stmtId}`}
-                    style={{
-                      padding: '1px 6px', borderRadius: 8,
-                      background: 'rgba(249,115,22,0.12)', color: '#f97316',
-                      fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-                      flexShrink: 0,
-                    }}
-                  >{stmtId}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span
+                      title={`Statement ${stmtId}`}
+                      style={{
+                        padding: '1px 6px', borderRadius: 8,
+                        background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                        fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                        flexShrink: 0,
+                      }}
+                    >{stmtId}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
+                    </span>
+                    {hasStages && <span title="4-stage pipeline" style={{ fontSize: '0.5rem', color: '#3b82f6', opacity: 0.7 }}>B/P/D/C</span>}
+                  </div>
+                  {modT && (
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2, paddingLeft: 36, flexWrap: 'wrap' }}>
+                      <span style={{ padding: '0 4px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontSize: '0.55rem', fontWeight: 600 }}>MOD</span>
+                      {modT.focus_point && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modT.focus_point}>{modT.focus_point}</span>}
+                      {modT.selection_reason && modT.selection_reason !== 'moderator_ai_selection' && (
+                        <span style={{ padding: '0 3px', borderRadius: 2, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.5rem' }}>{modT.selection_reason === 'turn_alternation_override' ? 'override' : modT.selection_reason}</span>
+                      )}
+                      {modT.intervention_move && (
+                        <span style={{ padding: '0 4px', borderRadius: 3, background: modT.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: modT.intervention_validated ? '#8b5cf6' : '#ef4444', fontSize: '0.5rem', fontWeight: 600 }}>{modT.intervention_move}{modT.intervention_validated ? '' : ' (suppressed)'}</span>
+                      )}
+                      {modT.convergence_score != null && <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)' }}>conv:{(modT.convergence_score * 100).toFixed(0)}%</span>}
+                      {modT.health_score != null && <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)' }}>H:{modT.health_score.toFixed(2)}</span>}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1656,8 +1968,35 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   <div style={{ marginBottom: 3 }}>
                     <strong>Candidates:</strong>{' '}
                     {t.candidates.map((c, i) => (
-                      <span key={i} style={{ marginRight: 8, fontWeight: c.debater === t.selected ? 700 : 400, opacity: c.debater === t.selected ? 1 : 0.7 }}>
-                        #{c.rank} {c.debater}{c.computed_strength != null ? ` (${c.computed_strength.toFixed(2)})` : ''}
+                      <span key={i} style={{ marginRight: 8, fontWeight: c.debater === t.selected ? 700 : 400, opacity: c.debater === t.selected ? 1 : 0.7 }}
+                        title={[
+                          `CANDIDATE RANKING — ${c.debater}`,
+                          ``,
+                          `QBAF Score: ${c.computed_strength != null ? c.computed_strength.toFixed(2) : 'n/a (no scored claims)'}`,
+                          `Claims in argument network: ${c.claim_count ?? '?'}`,
+                          `Claims with QBAF scores: ${c.scored_count ?? '?'}`,
+                          ``,
+                          `The QBAF score is the average computed_strength across all`,
+                          `of this debater's claims in the argument network.`,
+                          ``,
+                          `computed_strength uses Quantitative Bipolar Argumentation`,
+                          `Framework (QBAF) propagation: each claim starts with a`,
+                          `base_strength (0-1), then attack/support edges from other`,
+                          `claims raise or lower it. The final score reflects how well`,
+                          `a claim survives challenges and gains support.`,
+                          ``,
+                          `Interpretation:`,
+                          `  0.0-0.3  Weak — claims are heavily attacked or unsupported`,
+                          `  0.3-0.5  Below average — more attacks than support`,
+                          `  0.5       Neutral — balanced or unengaged`,
+                          `  0.5-0.7  Above average — net support from other claims`,
+                          `  0.7-1.0  Strong — well-supported, surviving challenges`,
+                          ``,
+                          `Lower-ranked candidates are selected first, as they have`,
+                          `weaker argumentation positions and greater need to respond.`,
+                        ].join('\n')}
+                      >
+                        #{c.rank} {c.debater}{c.computed_strength != null ? ` (QBAF: ${c.computed_strength.toFixed(2)})` : ''}
                       </span>
                     ))}
                   </div>
@@ -1695,7 +2034,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               diag?.extracted_claims ||
               (meta?.my_claims && (meta.my_claims as unknown[]).length > 0)
             );
+            const hasPrecedingIntervention = (() => {
+              if (!debate?.transcript || entryIdx <= 0) return false;
+              for (let i = entryIdx - 1; i >= 0; i--) {
+                const t = debate.transcript[i];
+                if (t.type === 'intervention' && t.speaker === 'moderator') return true;
+                if (t.type === 'statement' || t.type === 'opening') return false;
+              }
+              return false;
+            })();
+            const hasSuppressedIntervention = !!(
+              (meta?.moderator_trace as Record<string, unknown> | undefined)?.intervention_recommended
+              && !(meta?.moderator_trace as Record<string, unknown> | undefined)?.intervention_validated
+            );
             const hasDetails = !!(
+              hasPrecedingIntervention || hasSuppressedIntervention ||
               (meta?.key_assumptions && (meta.key_assumptions as unknown[]).length > 0) ||
               (meta?.policy_refs as string[])?.length || (entry.policy_refs?.length ?? 0) > 0 ||
               diag?.model ||
@@ -1714,6 +2067,32 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const draftStage = stages?.find(s => s.stage === 'draft');
             const citeStage = stages?.find(s => s.stage === 'cite');
 
+            // Find preceding moderator intervention for this entry
+            const precedingIntervention = (() => {
+              if (!debate?.transcript || entryIdx <= 0) return null;
+              for (let i = entryIdx - 1; i >= 0; i--) {
+                const t = debate.transcript[i];
+                if (t.type === 'intervention' && t.speaker === 'moderator') return t;
+                if (t.type === 'statement' || t.type === 'opening') break;
+              }
+              return null;
+            })();
+            const citeWorkProduct = citeStage?.work_product as Record<string, unknown> | undefined;
+            const pinResponse = citeWorkProduct?.pin_response as {
+              position?: string; condition?: string; brief_reason?: string;
+            } | undefined;
+            const interventionResponseField = (() => {
+              if (!precedingIntervention || !citeWorkProduct) return null;
+              const intMove = (precedingIntervention.intervention_metadata as { move?: string } | undefined)?.move;
+              const fieldMap: Record<string, string> = {
+                PIN: 'pin_response', PROBE: 'probe_response', CHALLENGE: 'challenge_response',
+                CLARIFY: 'clarification', CHECK: 'check_response', REVOICE: 'revoice_response',
+                'META-REFLECT': 'reflection', COMPRESS: 'compressed_thesis', COMMIT: 'commitment',
+              };
+              const field = intMove ? fieldMap[intMove] : undefined;
+              return field ? (citeWorkProduct[field] as Record<string, unknown> | string | undefined) : null;
+            })();
+
             const modTrace = (meta?.moderator_trace ?? proxiedModeratorTrace) as {
               selected?: string; focus_point?: string; selection_reason?: string;
               excluded_last_speaker?: string | null; recent_scheme?: string | null;
@@ -1721,12 +2100,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               candidates?: { debater: string; computed_strength: number | null; rank: number }[];
               commitment_snapshot?: Record<string, { asserted: number; conceded: number; challenged: number }>;
               selection_prompt?: string; selection_response?: string;
+              intervention_recommended?: boolean; intervention_move?: string | null;
+              intervention_validated?: boolean; intervention_suppressed_reason?: string | null;
+              intervention_target?: string | null; trigger_reasoning?: string | null;
             } | null;
+            const suppressedIntervention = modTrace?.intervention_recommended && !modTrace.intervention_validated
+              ? modTrace : null;
             const hasModTab = !!modTrace;
 
             const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
-              { id: 'details', label: 'Details', has: hasDetails, copy: '' },
-              { id: 'moderator', label: 'Moderator', has: hasModTab, copy: modTrace?.selection_prompt ?? '' },
+              { id: 'moderator', label: 'Moderator-Pre', has: hasModTab, copy: modTrace?.selection_prompt ?? '' },
+              { id: 'details', label: 'Overview', has: hasDetails, copy: '' },
               { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
               { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
               { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : entry.content },
@@ -1876,12 +2260,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
                             : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
                             : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                          const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
                           return (
                             <TaxonomyRefDetail
                               nodeId={selectedTaxRefId}
                               node={node}
                               pov={povOfId}
                               onClose={() => setSelectedTaxRefId(null)}
+                              edges={nodeEdges}
                             />
                           );
                         })()}
@@ -1913,12 +2299,162 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'details' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
-                      {entry.content && entry.type === 'opening' && (
-                        <Section title="Statement" defaultOpen copyText={entry.content}>
-                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                            <Highlight text={entry.content} />
+                      {precedingIntervention && (() => {
+                        const intMeta = precedingIntervention.intervention_metadata as {
+                          family?: string; move?: string; force?: string; target_debater?: string;
+                          trigger_reason?: string;
+                        } | undefined;
+                        const targetPoverId = intMeta?.target_debater;
+                        const targetLabel = targetPoverId
+                          ? (POVER_INFO[targetPoverId as Exclude<PoverId, 'user'>]?.label ?? targetPoverId)
+                          : null;
+                        const speakerIsTarget = targetLabel
+                          ? targetLabel === speakerLabel(entry.speaker)
+                          : true;
+                        const moveLabel = intMeta?.move ?? 'directive';
+                        const familyLabel = intMeta?.family ?? '';
+                        const directiveText = typeof precedingIntervention.content === 'string'
+                          ? precedingIntervention.content
+                          : JSON.stringify(precedingIntervention.content);
+
+                        const hasResponse = !!interventionResponseField;
+                        const responseObj = typeof interventionResponseField === 'object' ? interventionResponseField as Record<string, unknown> : null;
+                        const responseStr = typeof interventionResponseField === 'string' ? interventionResponseField : null;
+
+                        const complianceColor = hasResponse ? '#22c55e'
+                          : !speakerIsTarget ? '#6366f1'
+                          : '#ef4444';
+                        const complianceIcon = hasResponse ? '✓'
+                          : !speakerIsTarget ? '→'
+                          : '✗';
+
+                        const formatResponseSummary = () => {
+                          if (responseStr) return responseStr;
+                          if (!responseObj) return null;
+                          const pos = responseObj.position as string | undefined;
+                          const reason = responseObj.brief_reason as string ?? responseObj.explanation as string ?? responseObj.conclusion as string ?? '';
+                          const cond = responseObj.condition as string | undefined;
+                          if (pos) {
+                            const posLabel = pos === 'agree' ? 'Agreed' : pos === 'disagree' ? 'Disagreed' : pos === 'conditional' ? 'Conditional' : pos;
+                            return `${posLabel}${reason ? `: ${reason}` : ''}${cond && pos !== 'agree' ? ` (Condition: ${cond})` : ''}`;
+                          }
+                          const typ = responseObj.type as string | undefined;
+                          if (typ) return `${typ}${reason ? `: ${reason}` : ''}`;
+                          const term = responseObj.term as string | undefined;
+                          if (term) return `"${term}": ${responseObj.definition ?? ''}${responseObj.example ? ` (e.g., ${responseObj.example})` : ''}`;
+                          const ev = responseObj.evidence as string | undefined;
+                          if (ev) return `Evidence: ${ev}`;
+                          return JSON.stringify(responseObj);
+                        };
+
+                        return (
+                          <div style={{
+                            marginBottom: 12, padding: '10px 12px', borderRadius: 6,
+                            background: 'rgba(168,85,247,0.08)', borderLeft: '3px solid #a855f7',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontWeight: 700, color: '#a855f7', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Moderator Directive
+                              </span>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.15)', color: '#a855f7', fontSize: '0.6rem', fontWeight: 600 }}>
+                                {moveLabel}{familyLabel ? ` · ${familyLabel}` : ''}
+                              </span>
+                              {targetLabel && (
+                                <span style={{ fontSize: '0.65rem', color: !speakerIsTarget ? '#6366f1' : 'var(--text-muted)', fontWeight: !speakerIsTarget ? 600 : 400 }}>
+                                  directed at {targetLabel}{!speakerIsTarget ? ` (not ${speakerLabel(entry.speaker)})` : ''}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: 8, fontStyle: 'italic' }}>
+                              &ldquo;{directiveText}&rdquo;
+                            </div>
+                            <div style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 8,
+                              padding: '6px 10px', borderRadius: 4,
+                              background: `${complianceColor}12`,
+                              border: `1px solid ${complianceColor}30`,
+                            }}>
+                              <span style={{
+                                width: 8, height: 8, borderRadius: '50%',
+                                background: complianceColor,
+                                flexShrink: 0, marginTop: 4,
+                              }} />
+                              <div>
+                                {hasResponse && (
+                                  <>
+                                    <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
+                                      {complianceIcon} Responded
+                                    </span>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                                      {formatResponseSummary()}
+                                    </div>
+                                  </>
+                                )}
+                                {!hasResponse && !speakerIsTarget && (
+                                  <>
+                                    <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
+                                      {complianceIcon} Not targeted
+                                    </span>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                      This directive was aimed at {targetLabel}, but {speakerLabel(entry.speaker)} was selected to speak. {speakerLabel(entry.speaker)} was not required to respond.
+                                    </div>
+                                  </>
+                                )}
+                                {!hasResponse && speakerIsTarget && (
+                                  <>
+                                    <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
+                                      {complianceIcon} No response
+                                    </span>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                      The debater did not provide an explicit response to this directive.
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </Section>
+                        );
+                      })()}
+                      {suppressedIntervention && (
+                        <div style={{
+                          marginBottom: 10, padding: '8px 10px', borderRadius: 6,
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b' }}>
+                              ⚠ Suppressed Intervention
+                            </span>
+                            {suppressedIntervention.intervention_move && (
+                              <span style={{
+                                padding: '1px 6px', borderRadius: 3, fontSize: '0.65rem', fontWeight: 600,
+                                background: 'rgba(245, 158, 11, 0.18)', color: '#d97706',
+                              }}>
+                                {suppressedIntervention.intervention_move}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                            The moderator recommended a <strong>{suppressedIntervention.intervention_move ?? 'intervention'}</strong>
+                            {suppressedIntervention.intervention_target && (
+                              <> directed at <strong>{speakerLabel(suppressedIntervention.intervention_target)}</strong></>
+                            )}
+                            , but it was blocked by the engine.
+                          </div>
+                          {suppressedIntervention.intervention_suppressed_reason && (
+                            <div style={{
+                              fontSize: '0.65rem', color: '#d97706', padding: '3px 8px', borderRadius: 4,
+                              background: 'rgba(245, 158, 11, 0.1)', display: 'inline-block',
+                            }}>
+                              Reason: {suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')}
+                            </div>
+                          )}
+                          {suppressedIntervention.trigger_reasoning && (
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                              {suppressedIntervention.trigger_reasoning}
+                            </div>
+                          )}
+                        </div>
                       )}
                       {meta?.move_types && (
                         <Section title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
@@ -1947,13 +2483,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           defaultOpen
                         >
                           <TurnValidationSection trail={turnValTrail} />
-                        </Section>
-                      )}
-
-                      {diag?.model && (
-                        <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
-                          <div>Model: {diag.model}</div>
-                          {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
                         </Section>
                       )}
 
@@ -1989,9 +2518,26 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
                       {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
                         <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} defaultOpen copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
-                          {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
-                            <span key={i} style={{ display: 'inline-block', margin: '2px 4px 2px 0', padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600 }}>{p}</span>
-                          ))}
+                          <ul style={{ margin: '4px 0', paddingLeft: 0, listStyle: 'none' }}>
+                            {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => {
+                              const pol = policyMap.get(p);
+                              return (
+                                <li key={i} style={{ margin: '3px 0', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                  <span style={{ flexShrink: 0, padding: '1px 6px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontSize: '0.65rem', fontWeight: 600, fontFamily: 'monospace' }}>{p}</span>
+                                  {pol ? (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)' }}>
+                                      {pol.action}
+                                      <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                        ({pol.source_povs.join(', ')}{pol.member_count > 0 ? ` · ${pol.member_count} members` : ''})
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>not in registry</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
                         </Section>
                       )}
 
@@ -2004,6 +2550,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {diag?.argument_network_context && (
                         <Section title="Argument Network Context" defaultOpen copyText={diag.argument_network_context}>
                           <ResizablePre tall text={diag.argument_network_context} />
+                        </Section>
+                      )}
+
+                      {diag?.model && (
+                        <Section title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen copyText={`Model: ${diag.model}\nResponse: ${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'}`}>
+                          <div>Model: {diag.model}</div>
+                          {diag.response_time_ms && <div>Response: {(diag.response_time_ms / 1000).toFixed(1)}s</div>}
+                        </Section>
+                      )}
+
+                      {entry.content && entry.type === 'opening' && (
+                        <Section title="Statement" defaultOpen copyText={entry.content}>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            <Highlight text={entry.content} />
+                          </div>
                         </Section>
                       )}
                     </div>
@@ -2035,18 +2596,62 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).strongest_angles) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Strongest Angles</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string }[]).map((a, i) => (
+                              <li key={i}><strong>{a.angle}</strong>: <Highlight text={a.why} /></li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).key_tensions) && ((briefStage.work_product as Record<string, unknown>).key_tensions as { tension: string; opportunity: string }[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Tensions</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((briefStage.work_product as Record<string, unknown>).key_tensions as { tension: string; opportunity: string }[]).map((t, i) => (
+                              <li key={i}><strong>{t.tension}</strong>: <Highlight text={t.opportunity} /></li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Relevant Taxonomy Nodes</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <tbody>
-                              {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                  <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{n.node_id}</td>
-                                  <td style={{ padding: '3px 6px' }}><Highlight text={n.why} /></td>
-                                </tr>
-                              ))}
+                              {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => {
+                                const isSelected = selectedTaxRefId === n.node_id;
+                                return (
+                                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                      <button
+                                        onClick={() => setSelectedTaxRefId(isSelected ? null : n.node_id)}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                                        title="Show node details"
+                                      >{n.node_id}</button>
+                                    </td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={n.why} /></td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
+                          {selectedTaxRefId && ((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string }[]).some(n => n.node_id === selectedTaxRefId) && (() => {
+                            const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
+                            const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
+                              : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
+                              : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
+                              : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                            const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
+                            return (
+                              <TaxonomyRefDetail
+                                nodeId={selectedTaxRefId}
+                                node={node}
+                                pov={povOfId}
+                                onClose={() => setSelectedTaxRefId(null)}
+                                edges={nodeEdges}
+                              />
+                            );
+                          })()}
                         </details>
                       )}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
@@ -2095,6 +2700,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           ))}
                         </details>
                       )}
+                      {!!(planStage.work_product as Record<string, unknown>).core_thesis && (
+                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Core Thesis: </span>
+                          <Highlight text={String((planStage.work_product as Record<string, unknown>).core_thesis)} />
+                        </div>
+                      )}
+                      {!!(planStage.work_product as Record<string, unknown>).framing_choices && (
+                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.72rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Framing: </span>
+                          <Highlight text={String((planStage.work_product as Record<string, unknown>).framing_choices)} />
+                        </div>
+                      )}
                       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
                           <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
@@ -2106,6 +2723,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
                             {((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).map((r, i) => (
+                              <li key={i}><Highlight text={r} /></li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_challenges) && ((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Challenges</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).map((r, i) => (
                               <li key={i}><Highlight text={r} /></li>
                             ))}
                           </ul>
@@ -2174,13 +2800,47 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div style={{ fontSize: '0.7rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{explanation}</div>
                             )}
                           </details>
-                          {webQueries.length > 0 && (
-                            <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Search Queries ({webQueries.length})</summary>
-                              <ul style={{ fontSize: '0.68rem', margin: '4px 0', paddingLeft: 16, color: 'var(--text-muted)' }}>
-                                {webQueries.map((q, qi) => <li key={qi}>{q}</li>)}
-                              </ul>
-                            </details>
-                          )}
+                          {webQueries.length > 0 && (() => {
+                            const isDomains = webQueries.every(q => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(q.trim()));
+                            const searchText = checkedText || '';
+                            const allSameQuery = !isDomains;
+                            return (
+                              <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+                                {isDomains ? `Web Sources (${webQueries.length})` : `Search Queries (${webQueries.length})`}
+                              </summary>
+                                {isDomains && searchText && (
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>
+                                    Query: &quot;{searchText.length > 100 ? searchText.slice(0, 97) + '...' : searchText}&quot;
+                                  </div>
+                                )}
+                                <ul style={{ fontSize: '0.68rem', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
+                                  {webQueries.map((q, qi) => {
+                                    const trimmed = q.trim();
+                                    const looksLikeDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(trimmed);
+                                    const searchUrl = looksLikeDomain
+                                      ? `https://www.google.com/search?q=${encodeURIComponent(searchText + ' site:' + trimmed)}`
+                                      : `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
+                                    return (
+                                      <li key={qi} style={{ marginBottom: 2 }}>
+                                        <a
+                                          href={searchUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+                                          title={looksLikeDomain ? `Search "${searchText}" on ${trimmed}` : `Search Google for "${trimmed}"`}
+                                        >
+                                          {trimmed}
+                                        </a>
+                                        {!allSameQuery && !looksLikeDomain && (
+                                          <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: '0.6rem' }}>(query)</span>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </details>
+                            );
+                          })()}
                           {webEvidence && (
                             <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Web Evidence</summary>
                               <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 4 }}>{webEvidence}</pre>
@@ -2200,13 +2860,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           )}
                         </>);
                       })()}
-                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
-                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                            <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
-                          </div>
-                        </details>
-                      )}
                       {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -2231,6 +2884,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <strong>Disagreement type:</strong> <Highlight text={String((draftStage.work_product as Record<string, unknown>).disagreement_type)} />
                         </div>
                       )}
+                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
+                          </div>
+                        </details>
+                      )}
                       {draftStage && (<>
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.prompt}</pre>
@@ -2254,20 +2914,57 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </span>
                         )}
                       </div>
-                      {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (
+                      {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
+                        const briefNodes = new Set(
+                          Array.isArray((briefStage?.work_product as Record<string, unknown> | undefined)?.relevant_taxonomy_nodes)
+                            ? ((briefStage!.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string }[]).map(n => n.node_id)
+                            : [],
+                        );
+                        return (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <tbody>
-                              {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string }[]).map((r, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                  <td style={{ padding: '3px 6px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{r.node_id}</td>
-                                  <td style={{ padding: '3px 6px' }}><Highlight text={r.relevance} /></td>
-                                </tr>
-                              ))}
+                              {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string }[]).map((r, i) => {
+                                const isSelected = selectedTaxRefId === r.node_id;
+                                const isNew = !briefNodes.has(r.node_id);
+                                return (
+                                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                      <button
+                                        onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                                        title="Show node details"
+                                      >{r.node_id}</button>
+                                      {isNew && (
+                                        <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={r.relevance} /></td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
+                          {selectedTaxRefId && ((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string }[]).some(r => r.node_id === selectedTaxRefId) && (() => {
+                            const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
+                            const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
+                              : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
+                              : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
+                              : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                            const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
+                            return (
+                              <TaxonomyRefDetail
+                                nodeId={selectedTaxRefId}
+                                node={node}
+                                pov={povOfId}
+                                onClose={() => setSelectedTaxRefId(null)}
+                                edges={nodeEdges}
+                              />
+                            );
+                          })()}
                         </details>
-                      )}
+                        );
+                      })()}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).move_annotations) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Move Annotations</summary>
                           {((citeStage.work_product as Record<string, unknown>).move_annotations as { move: string; target?: string; detail: string }[]).map((m, i) => (
@@ -2281,11 +2978,39 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).policy_refs) && ((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Policy References</summary>
-                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
-                            {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => (
-                              <li key={i} style={{ fontFamily: 'monospace' }}>{p}</li>
-                            ))}
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
+                            {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => {
+                              const isSelected = selectedPolicyId === p;
+                              return (
+                                <li key={i} style={{ margin: '2px 0' }}>
+                                  <button
+                                    onClick={() => setSelectedPolicyId(isSelected ? null : p)}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#8b5cf6', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}
+                                    title="Show policy details"
+                                  >{p}</button>
+                                </li>
+                              );
+                            })}
                           </ul>
+                          {selectedPolicyId && (() => {
+                            const pol = policyMap.get(selectedPolicyId);
+                            return (
+                              <div style={{ margin: '6px 0', padding: '8px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#8b5cf6', fontSize: '0.72rem' }}>{selectedPolicyId}</span>
+                                  <button onClick={() => setSelectedPolicyId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}>×</button>
+                                </div>
+                                {pol ? (<>
+                                  <div style={{ fontSize: '0.75rem', lineHeight: 1.5, marginBottom: 4 }}>{pol.action}</div>
+                                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                                    POVs: {pol.source_povs.join(', ')} · {pol.member_count} member{pol.member_count !== 1 ? 's' : ''}
+                                  </div>
+                                </>) : (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Policy not found in registry</div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </details>
                       )}
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>

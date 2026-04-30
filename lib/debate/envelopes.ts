@@ -167,6 +167,28 @@ export function draftStageEnvelope(
   const positionUpdateField = input.phase === 'synthesis'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
+  // Build intervention response block
+  let interventionBlock = '';
+  const pi = input.pendingIntervention;
+  if (pi) {
+    if (pi.isTargeted && pi.directResponsePattern) {
+      interventionBlock = `\n=== MODERATOR DIRECTIVE — YOU MUST RESPOND DIRECTLY ===
+The moderator issued a ${pi.move} intervention directed at you.
+
+${pi.directResponsePattern}
+
+CRITICAL: Your first paragraph IS your response to the moderator. It must be unambiguous — a reader should know your answer from those 2-3 sentences alone, without reading further. Do not bury your answer in qualifications. Do not hedge across multiple paragraphs. State your position, give one reason, stop. Your substantive argument goes in paragraphs 2-4.\n`;
+    } else if (!pi.isTargeted) {
+      interventionBlock = `\n=== MODERATOR DIRECTIVE — DIRECTED AT ${pi.targetDebater.toUpperCase()} ===
+The moderator issued a ${pi.move} intervention directed at ${pi.targetDebater} (not you).
+Your first sentence should briefly acknowledge the moderator's point as it relates to your own position (e.g., "The moderator's question to ${pi.targetDebater} about [topic] also bears on my argument because..."). Keep it to 1-2 sentences, then proceed with your substantive argument.\n`;
+    }
+  }
+
+  const paragraphNote = pi?.isTargeted
+    ? ' The first paragraph is your direct response to the moderator (short — 2-3 sentences max). Paragraphs 2-4 are your substantive argument.'
+    : '';
+
   return {
     layer1_static: DRAFT_LAYER1,
 
@@ -185,11 +207,12 @@ export function draftStageEnvelope(
     layer4_variable: [
       `=== SITUATION BRIEF ===\n${brief}`,
       `=== YOUR ARGUMENT PLAN ===\n${plan}`,
+      interventionBlock,
       `=== YOUR ASSIGNMENT ===\nAddress ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}`,
       phaseDirective,
       `Execute the argument plan above. Write your debate statement following the plan's structure and moves. Stay in character as ${input.label}.
 
-PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.${paragraphNote}
 
 NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 

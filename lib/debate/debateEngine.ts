@@ -1250,10 +1250,8 @@ export class DebateEngine {
 
                 this.progress('debate', undefined, `Moderator: ${activeIntervention.move} → ${POVER_INFO[validation.validated_target as Exclude<PoverId, 'user'>]?.label}`);
 
-                // REVOICE forces the original speaker as next responder
-                if (validation.validated_move === 'REVOICE') {
-                  responder = validation.validated_target as Exclude<PoverId, 'user'>;
-                }
+                // All interventions force the target as next responder
+                responder = validation.validated_target as Exclude<PoverId, 'user'>;
               }
             } catch (stage2Err) {
               this.warn('Moderator Stage 2 generation', stage2Err, 'Proceeding without intervention');

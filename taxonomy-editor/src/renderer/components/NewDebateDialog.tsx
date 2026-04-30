@@ -51,8 +51,13 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     .flatMap(([backend, models]) =>
       models.map(m => ({ ...m, label: `${m.label} (${backend})` }))
     );
-  const [useCustomModel, setUseCustomModel] = useState(false);
-  const [customModel, setCustomModel] = useState(globalModel);
+  const [useCustomModel, setUseCustomModel] = useState(() => {
+    const saved = localStorage.getItem('taxonomy-editor-last-debate-model');
+    return saved ? saved !== globalModel : false;
+  });
+  const [customModel, setCustomModel] = useState(() => {
+    return localStorage.getItem('taxonomy-editor-last-debate-model') || globalModel;
+  });
   const [protocolId, setProtocolId] = useState('structured');
   const [temperature, setTemperature] = useState(0.7);
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
@@ -124,6 +129,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
     const povers = Array.from(selected);
     if (userIsPover && !povers.includes('user')) povers.push('user');
+    const effectiveModel = useCustomModel ? customModel : globalModel;
+    localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
     const debateModelOverride = useCustomModel ? customModel : undefined;
     const id = await createDebate(
       finalTopic,

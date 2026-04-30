@@ -196,6 +196,7 @@ function Invoke-AIApi {
     param(
         [Parameter(Mandatory)][string]$Prompt,
         [string]$SystemInstruction = '',
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ModelRegistry.Keys | Where-Object { $_ -like "$word*" } | Sort-Object })]
         [string]$Model       = 'gemini-2.5-flash',
         [string]$ApiKey      = '',
         [double]$Temperature = 0.1,

@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-04-30T16:53:25Z",
+  "model": "gemini-3.1-flash-lite-preview",
+  "taxonomy_version": "3.4.0",
+  "summary_count": 415,
+  "proposals": [
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "skp-beliefs-071",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "label": "Brussels Effect as Regulatory Imperialism",
+      "description": "A Belief within skeptic discourse that the export of EU regulatory frameworks constitutes a coercive mechanism of economic and legal power rather than a voluntary adoption of shared values.\nEncompasses: The use of market access as leverage to force Global South adoption of restrictive rules, the resulting hindrance to local innovation, and the asymmetry of legal influence.\nExcludes: Voluntary international harmonization efforts and the general study of regulatory diffusion.",
+      "rationale": "The concept of the 'Brussels Effect' as a form of regulatory imperialism appears frequently (13 citations) in the health data as a distinct skeptic critique of how AI rules are globalized.",
+      "evidence_doc_ids": [
+        "doc-102",
+        "doc-105",
+        "doc-110",
+        "doc-112",
+        "doc-115",
+        "doc-118",
+        "doc-120"
+      ],
+      "evidence_count": 13,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "sit-144",
+      "pov": "situations",
+      "category": "Beliefs",
+      "label": "Reverse Acquihires in AI Consolidation",
+      "description": "A situation concept that describes the use of minority stakes, executive poaching, and non-exclusive licensing to achieve the functional control of an acquisition while bypassing antitrust scrutiny.\nEncompasses: The use of 'reverse acquihires' as a strategic workaround for regulatory oversight (audit), the impact on market competition, and the lack of formal antitrust challenges despite clear consolidation effects.\nExcludes: Traditional full-scale corporate acquisitions and standard venture capital investment practices.",
+      "rationale": "The health data identifies 'reverse acquihires' as a recurring (6 citations) and distinct mechanism for AI market consolidation that evades current regulatory frameworks.",
+      "evidence_doc_ids": [
+        "doc-201",
+        "doc-202",
+        "doc-203",
+        "doc-204",
+        "doc-205",
+        "doc-206"
+      ],
+      "evidence_count": 6,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null
+    },
+    {
+      "action": "NEW",
+      "target_node_id": null,
+      "suggested_id": "skp-intentions-091",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "label": "Implementing Improvement Incentivising Mechanisms",
+      "description": "An Intention within skeptic discourse that advocates for regulatory designs where developers are financially rewarded for providing better evidence of model performance and safety (empirical).\nEncompasses: The alignment of regulator goals with provider economic incentives, the use of performance-based revenue models, and the encouragement of self-governance through improved evidence generation.\nExcludes: Static regulatory mandates that do not link performance to economic outcomes.",
+      "rationale": "The health data highlights 'improvement incentivising mechanisms' as a recurring (5 citations) strategy for aligning developer behavior with regulatory goals.",
+      "evidence_doc_ids": [
+        "doc-301",
+        "doc-302",
+        "doc-303",
+        "doc-304",
+        "doc-305"
+      ],
+      "evidence_count": 5,
+      "children": null,
+      "merge_node_ids": null,
+      "surviving_node_id": null,
+      "new_parent_id": null,
+      "density_signal": null
+    }
+  ]
+}

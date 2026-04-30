@@ -506,13 +506,13 @@ describe('validateRecommendation', () => {
     expect(r.proceed).toBe(true);
   });
 
-  it('suppresses when cooldown active (non-reconciliation)', () => {
+  it('suppresses when cooldown active (non-exempt family)', () => {
     const state = makeState({
       phase: 'exploration',
       rounds_since_last_intervention: 0,
       required_gap: 1,
     });
-    const sel = makeSelection({ suggested_move: 'PIN' });
+    const sel = makeSelection({ suggested_move: 'REDIRECT' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(false);
     expect(r.suppressed_reason).toBe('cooldown_active');
@@ -629,8 +629,8 @@ describe('updateModeratorState', () => {
     expect(state.budget_remaining).toBe(state.budget_total);
   });
 
-  it('escalates cooldown after 2 interventions', () => {
-    const state = makeState({ interventions_fired: 1 });
+  it('keeps cooldown at 1 after multiple interventions', () => {
+    const state = makeState({ interventions_fired: 3 });
     const intervention = buildIntervention(
       { proceed: true, validated_move: 'PROBE', validated_family: 'elicitation', validated_target: 'cassandra' },
       'text',
@@ -639,8 +639,18 @@ describe('updateModeratorState', () => {
     );
     const validation = { proceed: true, validated_move: 'PROBE' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'cassandra' as const };
     updateModeratorState(state, intervention, validation, 6, 'exploration');
-    // interventions_fired is now 2, so required_gap escalates to 2
-    expect(state.required_gap).toBe(2);
+    expect(state.required_gap).toBe(1);
+  });
+
+  it('elicitation family is cooldown-exempt', () => {
+    const state = makeState({
+      phase: 'exploration',
+      rounds_since_last_intervention: 0,
+      required_gap: 1,
+    });
+    const sel = makeSelection({ suggested_move: 'PIN', target_debater: 'prometheus' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(true);
   });
 
   it('tracks burden per debater', () => {
@@ -731,20 +741,34 @@ describe('buildIntervention', () => {
 // ── buildInterventionBriefInjection ──────────────────────
 
 describe('buildInterventionBriefInjection', () => {
-  it('includes required field instruction for hard-compliance moves', () => {
+  it('includes required field and response format for hard-compliance moves when targeted', () => {
     const int = buildIntervention(
       { proceed: true, validated_move: 'PIN', validated_family: 'elicitation', validated_target: 'sentinel' },
       'Pin text',
       'reason',
       'evidence',
     );
-    const injection = buildInterventionBriefInjection(int);
+    const injection = buildInterventionBriefInjection(int, 'Sentinel');
     expect(injection).toContain('pin_response');
-    expect(injection).toContain('MUST include');
+    expect(injection).toContain('MANDATORY RESPONSE FORMAT');
+    expect(injection).toContain('Pin text');
+    expect(injection).toContain('BREVITY RULE');
+  });
+
+  it('shows acknowledge instruction for non-targeted responder', () => {
+    const int = buildIntervention(
+      { proceed: true, validated_move: 'PIN', validated_family: 'elicitation', validated_target: 'sentinel' },
+      'Pin text',
+      'reason',
+      'evidence',
+    );
+    const injection = buildInterventionBriefInjection(int, 'Prometheus');
+    expect(injection).toContain('directed at sentinel');
+    expect(injection).toContain('not you');
     expect(injection).toContain('Pin text');
   });
 
-  it('omits field requirement for non-compliance moves', () => {
+  it('includes guidance for non-compliance moves', () => {
     const int = buildIntervention(
       { proceed: true, validated_move: 'ACKNOWLEDGE', validated_family: 'reconciliation', validated_target: 'sentinel' },
       'Acknowledge text',
@@ -752,8 +776,7 @@ describe('buildInterventionBriefInjection', () => {
       'evidence',
     );
     const injection = buildInterventionBriefInjection(int);
-    expect(injection).not.toContain('MUST include');
-    expect(injection).toContain('no specific response format');
+    expect(injection).not.toContain('pin_response');
     expect(injection).toContain('Acknowledge text');
   });
 });

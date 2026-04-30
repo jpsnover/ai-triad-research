@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import { api } from '@bridge';
@@ -419,10 +420,26 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
   ].join('\n');
 }
 
+function copyStylesToPopup(popup: Window) {
+  const parentStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+  parentStyles.forEach(node => {
+    const clone = node.cloneNode(true) as HTMLElement;
+    popup.document.head.appendChild(clone);
+  });
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (theme) popup.document.documentElement.setAttribute('data-theme', theme);
+  popup.document.body.style.margin = '0';
+  popup.document.body.style.padding = '0';
+  popup.document.body.style.overflow = 'hidden';
+  popup.document.body.style.background = 'var(--bg-primary, #1a1a2e)';
+  popup.document.body.style.color = 'var(--text-primary, #e2e8f0)';
+  popup.document.body.style.fontFamily = 'inherit';
+}
+
 export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate }: Props) {
-  const [expanded, setExpanded] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [width, setWidth] = useState(360);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const popupWindowRef = useRef<Window | null>(null);
+  const popupContainerRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(loadSessionMessages);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -431,8 +448,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastSeenEntryCount = useRef(0);
-  const resizing = useRef(false);
-  const savedWidth = useRef(360);
   const [taxonomies, setTaxonomies] = useState<Map<string, TaxNode[]>>(new Map());
   const promptHistory = useRef<string[]>(loadPromptHistory());
   const historyIdx = useRef(-1);
@@ -463,44 +478,42 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     return () => { cancelled = true; };
   }, []);
 
-  const startResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    resizing.current = true;
-    const startX = e.clientX;
-    const startWidth = width;
-    const onMove = (ev: MouseEvent) => {
-      if (!resizing.current) return;
-      const delta = startX - ev.clientX;
-      setWidth(Math.max(280, Math.min(window.innerWidth * 0.8, startWidth + delta)));
-    };
-    const onUp = () => {
-      resizing.current = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, [width]);
-
-  const toggleFullscreen = useCallback(() => {
-    if (fullscreen) {
-      setWidth(savedWidth.current);
-      setFullscreen(false);
-    } else {
-      savedWidth.current = width;
-      setWidth(window.innerWidth);
-      setFullscreen(true);
+  const openPopup = useCallback(() => {
+    if (popupWindowRef.current && !popupWindowRef.current.closed) {
+      popupWindowRef.current.focus();
+      return;
     }
-  }, [fullscreen, width]);
+    const popup = window.open('', 'diagnostics-chat', 'width=420,height=600,menubar=no,toolbar=no,location=no,status=no');
+    if (!popup) return;
+    popup.document.title = 'Diagnostics Chat';
+    copyStylesToPopup(popup);
+    const container = popup.document.createElement('div');
+    container.id = 'chat-root';
+    container.style.width = '100%';
+    container.style.height = '100vh';
+    popup.document.body.appendChild(container);
+    popupWindowRef.current = popup;
+    popupContainerRef.current = container;
+    setPopupOpen(true);
+    popup.addEventListener('beforeunload', () => {
+      popupWindowRef.current = null;
+      popupContainerRef.current = null;
+      setPopupOpen(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (popupWindowRef.current && !popupWindowRef.current.closed) {
+        popupWindowRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     saveSessionMessages(messages);
   }, [messages]);
-
-  useEffect(() => {
-    if (expanded && inputRef.current) inputRef.current.focus();
-  }, [expanded]);
 
   useEffect(() => {
     if (!debate || messages.length === 0) return;
@@ -519,29 +532,29 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ctrl+Shift+D — toggle chat
+      // Ctrl+Shift+D — toggle chat popup
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault();
-        setExpanded(prev => !prev);
+        if (popupOpen) {
+          popupWindowRef.current?.close();
+        } else {
+          openPopup();
+        }
         return;
       }
-      if (!expanded) return;
-      // Escape — minimize chat
+      if (!popupOpen) return;
+      // Escape — close popup
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (fullscreen) {
-          setFullscreen(false);
-          setWidth(savedWidth.current);
-        } else {
-          setExpanded(false);
-        }
+        popupWindowRef.current?.close();
         return;
       }
       // Ctrl+L — clear chat
       if (e.ctrlKey && e.key === 'l') {
         const active = document.activeElement;
-        const isInChat = inputRef.current === active || inputRef.current?.closest('.diag-chat-sidebar')?.contains(active as Node);
-        if (isInChat || active === inputRef.current) {
+        const popupActive = popupWindowRef.current?.document.activeElement;
+        const isInChat = active === inputRef.current || popupActive === inputRef.current;
+        if (isInChat) {
           e.preventDefault();
           setMessages([]);
           lastSeenEntryCount.current = 0;
@@ -550,7 +563,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [expanded, fullscreen]);
+  }, [popupOpen, openPopup]);
 
   // Auto-scroll during streaming
   useEffect(() => {
@@ -683,9 +696,14 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         });
       });
 
-      api.startChatStream(systemPrompt, apiMessages, model, 0.3);
+      const startFailed = new Promise<never>((_resolve, reject) => {
+        api.startChatStream(systemPrompt, apiMessages, model, 0.3).catch(reject);
+      });
+      const timeout = new Promise<never>((_resolve, reject) => {
+        setTimeout(() => reject(new Error('Chat stream timed out after 60s — check that an API key is configured in Settings.')), 60_000);
+      });
 
-      const fullText = await streamDone;
+      const fullText = await Promise.race([streamDone, startFailed, timeout]);
       unsubChunk();
 
       // Parse navigation and suggestions from the complete text
@@ -802,46 +820,13 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [generating]);
 
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        title="Open diagnostics chat (Ctrl+Shift+D)"
-        style={{
-          position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
-          width: 44, height: 44, borderRadius: '50%',
-          background: '#f59e0b', border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          fontSize: '1.2rem', color: '#000',
-        }}
-      >
-        ?
-      </button>
-    );
-  }
-
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
 
-  return (
+  const chatContent = (
     <div className="diag-chat-sidebar" style={{
-      position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 999,
-      width: fullscreen ? '100vw' : width, display: 'flex', flexDirection: 'column',
+      width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       background: 'var(--bg-primary, #1a1a2e)',
-      borderLeft: fullscreen ? 'none' : '2px solid #f59e0b',
-      boxShadow: '-4px 0 16px rgba(0,0,0,0.3)',
-      transition: fullscreen ? 'width 0.15s ease' : 'none',
     }}>
-      {/* Resize handle */}
-      {!fullscreen && (
-        <div
-          onMouseDown={startResize}
-          style={{
-            position: 'absolute', left: -4, top: 0, bottom: 0, width: 8,
-            cursor: 'col-resize', zIndex: 1001,
-          }}
-        />
-      )}
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
@@ -853,20 +838,10 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         {messages.length > 0 && (
           <button
             onClick={() => { setMessages([]); lastSeenEntryCount.current = 0; }}
-            title="Clear chat"
+            title="Clear chat (Ctrl+L)"
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
           >Clear</button>
         )}
-        <button
-          onClick={toggleFullscreen}
-          title={fullscreen ? 'Restore size' : 'Fullscreen'}
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}
-        >{fullscreen ? '⊞' : '⊞'}</button>
-        <button
-          onClick={() => { setExpanded(false); if (fullscreen) { setFullscreen(false); setWidth(savedWidth.current); } }}
-          title="Minimize chat"
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', padding: 0 }}
-        >&times;</button>
       </div>
 
       {/* Messages */}
@@ -923,7 +898,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             )}
           </div>
         ))}
-        {/* Streaming preview */}
         {generating && streamingText && (
           <div style={{
             alignSelf: 'flex-start', maxWidth: '90%',
@@ -947,7 +921,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             {activity || 'Thinking...'}
           </div>
         )}
-        {/* Follow-up suggestions (AI-generated or local fallback) */}
         {!generating && (() => {
           const suggestions = lastAssistantMsg?.suggestions?.length
             ? lastAssistantMsg.suggestions
@@ -1021,9 +994,30 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4,
         }}>
           <span>~{contextTokens.toLocaleString()} tokens in context</span>
-          <span>Enter send | Esc close | Ctrl+L clear</span>
+          <span>Enter send | Ctrl+L clear</span>
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <button
+        onClick={openPopup}
+        title="Open diagnostics chat (Ctrl+Shift+D)"
+        style={{
+          position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
+          width: 44, height: 44, borderRadius: '50%',
+          background: popupOpen ? 'rgba(245,158,11,0.4)' : '#f59e0b',
+          border: popupOpen ? '2px solid #f59e0b' : 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          fontSize: '1.2rem', color: popupOpen ? '#f59e0b' : '#000',
+        }}
+      >
+        ?
+      </button>
+      {popupOpen && popupContainerRef.current && createPortal(chatContent, popupContainerRef.current)}
+    </>
   );
 }

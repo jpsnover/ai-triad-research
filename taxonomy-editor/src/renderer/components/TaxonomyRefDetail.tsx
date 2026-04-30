@@ -30,6 +30,19 @@ export interface TaxRefNode {
   };
 }
 
+export interface TaxRefEdge {
+  source: string;
+  target: string;
+  type: string;
+  bidirectional: boolean;
+  confidence: number;
+  weight?: number;
+  rationale: string;
+  status: string;
+  strength?: string;
+  notes?: string;
+}
+
 type TabId = 'content' | 'related' | 'attributes';
 
 interface Props {
@@ -37,9 +50,10 @@ interface Props {
   node: TaxRefNode | undefined;
   pov: string;
   onClose: () => void;
+  edges?: TaxRefEdge[];
 }
 
-export function TaxonomyRefDetail({ nodeId, node, pov, onClose }: Props) {
+export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) {
   const [tab, setTab] = useState<TabId>('content');
   const ga = node?.graph_attributes;
 
@@ -50,7 +64,8 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose }: Props) {
     (node?.situation_refs && node.situation_refs.length > 0) ||
     (node?.conflict_ids && node.conflict_ids.length > 0) ||
     (node?.debate_refs && node.debate_refs.length > 0) ||
-    node?.interpretations
+    node?.interpretations ||
+    (edges && edges.length > 0)
   );
 
   const hasAttributes = !!(
@@ -135,7 +150,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose }: Props) {
 
           <div style={{ paddingTop: 12, fontSize: '0.82rem', lineHeight: 1.55 }}>
             {tab === 'content' && <ContentTab node={node} />}
-            {tab === 'related' && <RelatedTab node={node} />}
+            {tab === 'related' && <RelatedTab node={node} nodeId={nodeId} edges={edges} />}
             {tab === 'attributes' && <AttributesTab node={node} />}
           </div>
         </>
@@ -243,12 +258,67 @@ function ContentTab({ node }: { node: TaxRefNode }) {
   );
 }
 
-function RelatedTab({ node }: { node: TaxRefNode }) {
+const EDGE_TYPE_COLORS: Record<string, string> = {
+  SUPPORTS: '#22c55e',
+  CONTRADICTS: '#ef4444',
+  ASSUMES: '#a78bfa',
+  WEAKENS: '#f59e0b',
+  RESPONDS_TO: '#3b82f6',
+  TENSION_WITH: '#f97316',
+  INTERPRETS: '#06b6d4',
+};
+
+function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string; edges?: TaxRefEdge[] }) {
   return (
     <>
+      {edges && edges.length > 0 && (
+        <>
+          <div style={{ ...sectionHeader, marginTop: 0 }}>Edges ({edges.length})</div>
+          {edges.map((e, i) => {
+            const isSource = e.source === nodeId;
+            const other = isSource ? e.target : e.source;
+            const direction = e.bidirectional ? '↔' : isSource ? '→' : '←';
+            const typeColor = EDGE_TYPE_COLORS[e.type] || 'var(--text-secondary)';
+            return (
+              <div key={i} style={{
+                marginBottom: 6, padding: '6px 10px', borderRadius: 4,
+                border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+                fontSize: '0.78rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontSize: '0.68rem', padding: '1px 8px', borderRadius: 3,
+                    background: typeColor + '22', color: typeColor, fontWeight: 700,
+                    border: `1px solid ${typeColor}44`,
+                  }}>{e.type}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
+                  <span style={chipStyle}>{other}</span>
+                  {e.strength && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({e.strength})</span>
+                  )}
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    conf: {(e.confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+                {e.rationale && (
+                  <div style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: '0.72rem', lineHeight: 1.45 }}>
+                    {e.rationale}
+                  </div>
+                )}
+                {e.notes && (
+                  <div style={{ marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.68rem' }}>
+                    {e.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
       {node.children && node.children.length > 0 && (
         <>
-          <div style={{ ...sectionHeader, marginTop: 0 }}>Children ({node.children.length})</div>
+          <div style={{ ...sectionHeader, marginTop: edges && edges.length > 0 ? 14 : 0 }}>Children ({node.children.length})</div>
           <div>{node.children.map(c => <span key={c} style={chipStyle}>{c}</span>)}</div>
         </>
       )}

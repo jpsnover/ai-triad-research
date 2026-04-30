@@ -1,6 +1,6 @@
 # Debate System Overview
 
-**Status:** Current as of 2026-04-24.
+**Status:** Current as of 2026-04-30.
 
 **Source of truth:** `lib/debate/` (32 TypeScript files). Taxonomy Editor re-exports via `@lib/debate/*`. Entry points: `DebateEngine.run()` (programmatic), `lib/debate/cli.ts` (CLI via `npx tsx`), `Invoke-AITDebate` (PowerShell cmdlet).
 
@@ -136,7 +136,7 @@ Every turn passes through a two-stage validation gate before entering the debate
 
 ### Stage A: Deterministic Rules
 
-Nine symbolic rules run without any LLM call. Failures at this stage produce concrete repair hints.
+Ten symbolic rules run without any LLM call. Failures at this stage produce concrete repair hints.
 
 | Rule | Check | Severity |
 |------|-------|----------|
@@ -148,7 +148,8 @@ Nine symbolic rules run without any LLM call. Failures at this stage produce con
 | 6. Relevance quality | Each `taxonomy_refs[i].relevance` is substantive (40+ chars, no filler openers) | Error |
 | 7. Paragraph count | Statement has 3-5 paragraphs (single paragraph is error) | Error/Warning |
 | 8. Novelty | At least one new taxonomy ref beyond the last two turns | Warning |
-| 9. Claim specificity | After round 3, claims must include numbers, timelines, or named entities | Warning/Error |
+| 9. Claim specificity | After round 3, claims must include numbers, timelines, or named entities; escalates from warning to error after round 4 | Warning/Error |
+| 10. Hedge density | Sentence-level hedge-word detection with phase- and audience-aware thresholds; excess hedging weakens argumentation | Warning |
 
 ### Stage B: LLM Judge
 
@@ -228,6 +229,16 @@ All 133 situation nodes carry BDI-decomposed interpretations per POV:
 ```
 
 Primary situation nodes show full BDI breakdown in context; supporting nodes show summary only.
+
+### Context Positioning
+
+Variable-length context blocks (taxonomy nodes, document analysis, transcript) are positioned to mitigate the "Lost in the Middle" effect (Liu et al., 2023), where LLMs under-attend to information sandwiched in long prompts.
+
+- **Document analysis block** moved from after the topic statement to after the transcript, placing it closer to the end of the context window where attention is stronger.
+- **RECALL section** appended near the end of each debater prompt, recapping starred (primary) taxonomy nodes and the current phase priority. This ensures the most important BDI grounding is restated in a high-attention region even when the full taxonomy block appears earlier.
+- The fixed-format sections (persona, instructions, response schema) remain at the prompt boundaries where they receive natural primacy/recency attention.
+
+Implementation: prompt assembly order in `lib/debate/prompts.ts`.
 
 ## Evidence Evaluation
 
@@ -335,6 +346,26 @@ Arguments from metaphors are classified under ARGUMENT_FROM_METAPHOR with 4 crit
 - Convergence threshold: 0.001
 - Computed strengths propagated through argument network
 
+### AI-Assigned Edge Weights
+
+Each argument network edge receives a 0.0–1.0 weight assigned by the AI during claim extraction, based on relevance, evidence specificity, and directness of engagement. Edges without explicit weights default to 0.5 (previously 1.0). This separates edge *existence certainty* (confidence) from *relationship strength* (weight). The DiagnosticsWindow visually distinguishes AI-weighted from default-weighted edges.
+
+Implementation: weight is a first-class edge attribute in `lib/debate/types.ts`. Batch evaluation via `Invoke-AITEdgeWeights` (PowerShell). UI distinction in `DiagnosticsWindow.tsx`.
+
+### Per-BDI Sub-Scores
+
+Instead of a single `base_strength`, each claim carries 9 per-criterion sub-scores (3 per BDI category). The composite score is the average of the category-specific criteria:
+
+| Category | Criteria |
+|----------|----------|
+| Beliefs | source_quality, evidence_strength, falsifiability |
+| Desires | value_coherence, tradeoff_awareness, precedent_grounding |
+| Intentions | mechanism_specificity, failure_mode_awareness, implementation_feasibility |
+
+A `bdi_confidence` field carries calibration coefficients per category (Desires: 0.65, Intentions: 0.71, Beliefs: 0.5). Beliefs default to 0.5 across all sub-scores and are flagged for human review. The UI displays B/D/I badges with sub-score tooltips and confidence warnings.
+
+All sub-score fields are optional for backward compatibility with pre-sub-score debates. The QBAF engine operates on the composite; sub-scores are a metadata layer for diagnostics and human review.
+
 ### Hybrid Scoring
 - **Desires:** AI rubric (r=0.65 calibration)
 - **Intentions:** AI rubric (r=0.71 calibration)
@@ -380,6 +411,12 @@ Injected via `formatCommitments()` with two rules:
 - **Tactical** (weight 0.0): arguendo — not a real concession
 
 Accumulated across debates. Threshold (default 3.0 across 2+ debates) triggers harvest candidate.
+
+### QBAF-Grounded Concession Candidates
+
+`formatConcessionCandidatesHint()` surfaces opponent claims with QBAF `computed_strength >= 0.65` that the current speaker has neither attacked nor conceded. These are injected into the debater's prompt as explicit concession opportunities. This counterbalances the move-type rotation rule (Rule 7), which can inadvertently suppress concession moves by penalizing repetition — a debater who conceded last turn would be discouraged from conceding again, even when facing multiple strong arguments.
+
+Metadata fields `concession_candidates_offered` and `concession_considered` are recorded on transcript entries for diagnostics.
 
 ## Persona-Free Evaluator
 
@@ -435,16 +472,159 @@ Three declarative protocols in `lib/debate/protocols.ts` control UI affordances 
 
 Each phase (`clarification` / `opening` / `debate`) declares its `ProtocolAction[]` — the Debate Workspace renders these as toolbar buttons bound to store handlers.
 
-## Moderator Steering
+## Active Moderator
 
-The moderator selects the next responder and focus point based on:
-1. **Argument network analysis:** which claims have been attacked, which are unaddressed
-2. **Tier prioritization:**
-   - Tier 1: claims responding to the selected speaker's prior claims
-   - Tier 2: UNADDRESSED claims targeting the speaker
-   - Tier 3: recent claims by recency
-3. **Scheme-aware steering:** most recent argument's scheme + critical questions guide the moderator toward specific vulnerabilities
-4. **Edge tensions:** structural relationships between taxonomy nodes in the debate
+The moderator is an interventionist facilitator — it speaks visibly into the debate, not just behind the scenes. It selects the next responder (as before) but can also issue structured interventions: questions, challenges, acknowledgments, and directives that shape the next debater's response.
+
+### Two-Stage Architecture
+
+The moderator operates in two stages with a strict authority boundary: the LLM is advisory, the engine is authoritative.
+
+1. **Engine pre-computes trigger context** (deterministic): health score, trajectory modifier, adaptive persona modifiers, SLI breach state, burden per debater. Packaged as `TriggerEvaluationContext` via `computeTriggerEvaluationContext()`.
+2. **Stage 1 — Selection** (LLM call, advisory): receives trigger context + transcript, selects responder and focus point, recommends whether to intervene and which move to use. Output: `SelectionResult`.
+3. **Engine validates** (deterministic, authoritative): `validateRecommendation()` checks budget, cooldown, phase, same-debater-consecutive rule, burden cap. Any failure suppresses the intervention with a logged `suppressed_reason`. The engine always has veto power.
+4. **Stage 2 — Generation** (LLM call, only when validated): composes the intervention text and packages response constraints.
+5. **Brief injection**: `buildInterventionBriefInjection()` injects the moderator's text and required response schema into the debater's next BRIEF stage.
+
+If any stage fails (parse error, timeout, gate rejection), the round proceeds with no intervention. The debate is never blocked by moderator failures.
+
+### Intervention Moves
+
+14 moves organized into 6 families spanning the full facilitation spectrum:
+
+| Family | Moves | Interactional Force | Purpose |
+|--------|-------|---------------------|---------|
+| Procedural | REDIRECT, BALANCE, SEQUENCE | Directive | Steering participation and topic flow |
+| Elicitation | PIN, PROBE, CHALLENGE | Challenging | Demanding commitments, evidence, consistency |
+| Repair | CLARIFY, CHECK | Supportive | Resolving ambiguity and misunderstanding |
+| Reconciliation | ACKNOWLEDGE, REVOICE | Supportive | Recognizing concessions and restating positions |
+| Reflection | META-REFLECT | Challenging | Surfacing cruxes, assumptions, reasoning audits |
+| Synthesis | COMPRESS, COMMIT, SUMMARIZE | Directive | Distilling and locking positions |
+
+### Move Response Compliance
+
+Elicitation, repair, reflection, and synthesis moves impose a hard-compliance response schema. The debater's response JSON must include a specific field:
+
+| Move | Required Field | Schema (abbreviated) |
+|------|---------------|----------------------|
+| PIN | `pin_response` | `{ position: "agree"\|"disagree"\|"conditional", condition, brief_reason }` |
+| PROBE | `probe_response` | `{ evidence_type, evidence, critical_question_addressed }` |
+| CHALLENGE | `challenge_response` | `{ type: "evolved"\|"consistent"\|"conceded", explanation }` |
+| CLARIFY | `clarification` | `{ term, definition, example }` |
+| CHECK | `check_response` | `{ understood_correctly, actual_target, revised_response }` |
+| META-REFLECT | `reflection` | `{ type: "crux"\|"assumption_check"\|"reasoning_audit", conclusion }` |
+| COMPRESS | `compressed_thesis` | Single sentence, max 40 words |
+| COMMIT | `commitment` | `{ concessions[], conditions_for_change[], sharpest_disagreements }` |
+
+Compliance is verified by `checkInterventionCompliance()`. Non-compliant responses receive a repair hint and retry. Procedural and reconciliation moves (REDIRECT, BALANCE, SEQUENCE, ACKNOWLEDGE, REVOICE) have no forced format.
+
+### Debate Health Score
+
+`computeDebateHealthScore()` produces a 5-component weighted score from convergence signals (3-turn sliding window):
+
+| Component | Weight | Source |
+|-----------|--------|--------|
+| Engagement | 0.25 | `engagement_depth.ratio` average |
+| Novelty | 0.25 | `1 - recycling_rate.avg_self_overlap` average |
+| Responsiveness | 0.20 | Fraction of concession opportunities taken |
+| Coverage | 0.15 | Cited nodes / relevant nodes |
+| Balance | 0.15 | `1 - (maxTurns - minTurns) / totalTurns` |
+
+The composite score (0-1) drives trajectory modifiers and SLI breach detection. Stored in `ModeratorState.health_history`.
+
+### Budget and Cooldown
+
+- **Budget:** `ceil(explorationRounds / 2.5)` interventions per debate. COMMIT moves are off-budget (synthesis-phase automation).
+- **Cooldown:** Escalating gap — initially 1 round between interventions, increases to 2 after 2+ interventions fired. Reconciliation moves and COMMIT are cooldown-exempt.
+
+### Per-Debater Burden Tracking
+
+Each intervention family carries a burden weight (`FAMILY_BURDEN_WEIGHT`). Burden accumulates per debater across the debate. When a debater's cumulative burden exceeds 1.5x the average, high-burden moves targeting that debater are blocked (`burden_cap` suppression). This prevents over-targeting a single agent.
+
+### Adaptive Persona Modifiers
+
+Each debater has prior modifiers for specific moves reflecting persona tendencies:
+
+| Debater | Example Priors |
+|---------|----------------|
+| Prometheus | PIN=0.85 (lower threshold), COMPRESS=1.15 (higher threshold) |
+| Sentinel | CHALLENGE=1.2, COMPRESS=0.85 |
+| Cassandra | PIN=1.3, BALANCE=0.85 |
+
+Priors decay toward 1.0 as the move fires repeatedly for that debater: `adaptiveModifier(prior, count) = prior * (1-0.15)^count + 1.0 * (1 - (1-0.15)^count)`. This prevents the moderator from over-relying on persona-specific patterns.
+
+### Trajectory Modifiers
+
+Health trend adjusts intervention thresholds:
+- **Declining health** (consecutive turns): modifier drops to 0.95 (1 turn), 0.85 (2), 0.75 (3+) — lower threshold triggers interventions sooner.
+- **Rising health** (2+ consecutive turns): modifier rises to 1.15 — higher threshold suppresses interventions.
+- **Post-intervention freeze:** After an intervention fires, trajectory tracking freezes for 1 round (`trajectory_freeze_until`) to prevent misattributing the intervention's own effect as a trend change.
+
+### SLI Floor Breach Detection
+
+Per-component floors detect sustained quality collapse:
+
+| Component | Floor | Consecutive Breaches Required | Affected Family |
+|-----------|-------|-------------------------------|-----------------|
+| Engagement | 0.25 | 2 | Elicitation |
+| Novelty | 0.25 | 2 | Elicitation |
+| Responsiveness | 0.15 | 2 | Elicitation |
+| Coverage | 0.20 | 2 | Procedural |
+| Balance | 0.30 | 2 | Procedural |
+
+When 2+ consecutive breaches occur for a component, the effective threshold for that family's moves is multiplied by 0.75, making intervention more likely. Breaches reset to 0 when the component recovers above its floor.
+
+### Prerequisite Graph
+
+Three prerequisite rules override the LLM's suggested move when preconditions are met:
+
+| Rule | Condition | Override | Rationale |
+|------|-----------|----------|-----------|
+| P1 | Concession just occurred | ACKNOWLEDGE | Acknowledge concessions before further pressure |
+| P2 | Semantic divergence high + elicitation suggested | CLARIFY | Repair meaning before demanding commitments |
+| P3 | Misunderstanding detected + CHALLENGE suggested | CHECK | Verify understanding before challenging consistency |
+
+Implementation: `applyPrerequisites()`.
+
+### Phase-Gated Families
+
+Not all moves are available in all phases:
+
+| Phase | Primary Families | Secondary (restricted) |
+|-------|-----------------|----------------------|
+| Thesis-antithesis | Procedural, Repair, Reconciliation | Elicitation (after round 2) |
+| Exploration | Procedural, Elicitation, Repair, Reconciliation, Reflection | Synthesis |
+| Synthesis | Synthesis, Reconciliation | Repair |
+
+META-REFLECT is exploration-only. COMMIT is synthesis-only. Implementation: `isPhaseAppropriate()`.
+
+### Synthesis COMMIT Automation
+
+In the synthesis phase, `getSynthesisResponder()` auto-rotates COMMIT moves through debaters in transcript-appearance order. Each debater receives exactly one COMMIT intervention, which locks their final concessions, conditions for position change, and sharpest disagreements. COMMIT moves are off-budget and cooldown-exempt to ensure all debaters commit before synthesis concludes.
+
+### Validation Gates
+
+`validateRecommendation()` checks five constraints before allowing an intervention:
+
+1. **Budget** — remaining budget > 0 (COMMIT exempt)
+2. **Cooldown** — sufficient rounds elapsed since last intervention (reconciliation and COMMIT exempt)
+3. **Phase** — move is phase-appropriate
+4. **Same-debater consecutive** — cannot target the same debater twice in a row (reconciliation exempt)
+5. **Burden cap** — target debater's burden is not > 1.5x average for high-burden families
+
+Any failure produces a suppression with a logged reason (`budget_exhausted`, `cooldown_active`, `phase_mismatch`, `same_debater_consecutive`, `burden_cap`).
+
+### Effective Threshold Computation
+
+The final trigger threshold for a move combines three modifiers, clamped to [0.6, 1.4]:
+
+```
+effectiveThreshold = baseThreshold × clamp(personaMod × trajectoryMod × sliMod, 0.6, 1.4)
+```
+
+Implementation: `computeEffectiveThreshold()`.
+
+**Implementation:** `lib/debate/moderator.ts`, `lib/debate/moderator.test.ts`. Types: `ModeratorState`, `ModeratorIntervention`, `SelectionResult`, `EngineValidationResult`, `DebateHealthScore` in `lib/debate/types.ts`. Prompt integration: `buildInterventionBriefInjection()` injects moderator text into the debater pipeline via `lib/debate/prompts.ts`.
 
 ## Synthesis
 
@@ -625,6 +805,8 @@ For document-sourced debates, `coverageTracker.ts` tracks which source-document 
 
 Coverage percentage: `(covered + 0.5 × partially) / total × 100`. Uncovered claims feed into the `probingQuestionsPrompt` as steering targets; click-to-steer in the UI lets users force the moderator to address a specific uncovered claim.
 
+- **`computeStrengthWeightedCoverage`** — weights each source claim by its QBAF `computed_strength`, so high-importance claims count more toward coverage. Probing questions are sorted by strength-weighted priority, directing the moderator toward the most impactful uncovered claims first.
+
 ## Entry Summarization
 
 After each debater turn, `entrySummarizationPrompt` produces a two-tier summary of the entry text:
@@ -681,6 +863,7 @@ Relevance is recomputed **every turn**, not once per debate. `getRelevantTaxonom
 3. **Lexical fallback:** when no embedding adapter is available (e.g. CLI runs without an embedding backend), `scoreNodesLexical()` scores nodes by tokenized query ↔ label+description overlap normalized by the geometric mean of token-set sizes. This degrades gracefully instead of silently returning a static list.
 4. **Recency diversification:** `priorRefs` (the IDs the current speaker cited across their last two turns) are multiplied by `0.55` in the score map before selection. Recently-cited nodes stay eligible but must outscore alternatives by ~45% to be reselected — breaking citation lock-in without banning continuity.
 5. Top-K selected per BDI category (min 3, cap 35 POV + 15 situation).
+6. **Cross-POV citation diversity** (rounds 4+): a sample of cross-POV node IDs from shared policy actions or cross-cutting concerns is surfaced in the CITE stage prompt, enabling agents to cite opposing taxonomy when engaging directly with other debaters' claims. Cross-POV citation demonstrates understanding of the opponent's position without endorsing it.
 
 ### Edge Selection (Cross-POV Tensions)
 
@@ -758,11 +941,11 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 
 **Problem:** LLMs hallucinate evidence. Empirical claims go unchallenged when opponents lack relevant knowledge.
 
-**Solution:** After claim extraction, Belief claims with `specificity: 'precise'` are auto-fact-checked via `generateTextWithSearch` (Gemini's `google_search` tool). Cap: 2 claims per turn. Results stored on `ArgumentNetworkNode` as `verification_status` ('verified'|'disputed'|'unverifiable'|'pending') and `verification_evidence`. Disputed claims inject a `[Fact-check]` system entry before the next turn.
+**Solution:** After claim extraction, Belief claims with `specificity: 'precise'` are auto-fact-checked via web search. Gemini backends use the native `google_search` tool; non-Gemini backends use Tavily search (`TAVILY_API_KEY`) via `lib/search/tavily.ts`. Cap: 2 claims per turn. Results stored on `ArgumentNetworkNode` as `verification_status` ('verified'|'disputed'|'unverifiable'|'pending') and `verification_evidence`. Disputed claims inject a `[Fact-check]` system entry before the next turn.
 
 **New AN node fields:** `specificity`, `verification_status`, `verification_evidence`.
 
-**Graceful degradation:** CLI adapter lacks search — verification silently skips. UI path uses `api.generateTextWithSearch`.
+**Graceful degradation:** CLI adapter lacks search — verification silently skips. UI path uses `api.generateTextWithSearch`. Tavily availability is checked at debate start via the `ExtendedAIAdapter` interface.
 
 ### 3. Steelman Validation
 

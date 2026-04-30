@@ -376,8 +376,8 @@ export function validateRecommendation(
     return suppress(move, selection.target_debater, 'budget_exhausted');
   }
 
-  // Cooldown check (Reconciliation and COMMIT exempt)
-  if (family !== 'reconciliation' && move !== 'COMMIT' && state.rounds_since_last_intervention < state.required_gap) {
+  // Cooldown check (Reconciliation, COMMIT, and Elicitation exempt)
+  if (family !== 'reconciliation' && family !== 'elicitation' && move !== 'COMMIT' && state.rounds_since_last_intervention < state.required_gap) {
     return suppress(move, selection.target_debater, 'cooldown_active');
   }
 
@@ -436,9 +436,8 @@ export function updateModeratorState(
       state.budget_remaining = state.budget_total - state.interventions_fired;
     }
 
-    // Escalating cooldown
     if (family !== 'reconciliation') {
-      state.required_gap = state.interventions_fired >= 2 ? 2 : 1;
+      state.required_gap = 1;
     }
 
     state.rounds_since_last_intervention = 0;
@@ -617,30 +616,61 @@ export function buildIntervention(
 
 // ── BRIEF injection for debater ────────────────────────
 
-export function buildInterventionBriefInjection(intervention: ModeratorIntervention): string {
+const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
+  PIN: 'Your first paragraph MUST begin with "I agree that [restate the specific claim]" OR "I disagree that [restate the specific claim]" OR "I conditionally agree: [specific aspect you accept], but [specific aspect you reject]." Follow with ONE sentence of reasoning. Then a paragraph break before your substantive argument.',
+  PROBE: 'Your first paragraph MUST begin with "The evidence is [type]: [specific citation or data point]." Follow with ONE sentence connecting the evidence to the claim. Then a paragraph break before your substantive argument.',
+  CHALLENGE: 'Your first paragraph MUST begin with "My position has evolved: I now hold [X] instead of [Y] because [Z]" OR "My position is consistent: [X] and [Y] are compatible because [Z]" OR "I concede [what you concede] because [reason]." Then a paragraph break before your substantive argument.',
+  CLARIFY: 'Your first paragraph MUST begin with "By \'[term]\' I mean [precise operational definition]." Follow with "For example, [one concrete real-world case]." Then a paragraph break before your substantive argument.',
+  CHECK: 'Your first paragraph MUST begin with "I was responding to [opponent]\'s point about [specific claim]" OR "I was not responding to that point — the point I was addressing was [X]." Then a paragraph break before your substantive argument.',
+  REVOICE: 'Your first paragraph MUST begin with "That restates my point accurately" OR "That restates my point inaccurately — what I actually meant was [correction]." Then a paragraph break before your substantive argument.',
+  'META-REFLECT': 'Your first paragraph MUST begin with "I would change my position if [specific, falsifiable condition]" OR "The assumption we are all relying on without examining it is [X]." Then a paragraph break before your substantive argument.',
+  COMPRESS: 'Your ENTIRE statement must be a single sentence of 40 words or fewer. No preamble, no qualification, no additional paragraphs. Just the core thesis.',
+  COMMIT: 'Your first paragraph MUST state three things in three sentences: "I concede [X]." "I still hold [Y]." "I would change if [Z]." Then a paragraph break before elaboration.',
+  REDIRECT: '',
+  BALANCE: '',
+  SEQUENCE: 'Structure your response with explicit numbered sections: "On [sub-topic 1]: [argument]. On [sub-topic 2]: [argument]."',
+  ACKNOWLEDGE: '',
+  SUMMARIZE: '',
+};
+
+export function buildInterventionBriefInjection(intervention: ModeratorIntervention, responderLabel?: string): string {
   const config = MOVE_RESPONSE_CONFIG[intervention.move];
+  const targetLabel = intervention.target_debater;
+  const isTargeted = !responderLabel || responderLabel.toLowerCase() === targetLabel.toLowerCase();
+  const responsePattern = DIRECT_RESPONSE_PATTERNS[intervention.move] || '';
+
   if (!config.field) {
-    // Supportive/procedural — no forced format
     return `\nMODERATOR INTERVENTION (this round):
-The moderator has addressed you with a ${intervention.move} [${intervention.family}] intervention.
+The moderator has issued a ${intervention.move} [${intervention.family}] intervention${!isTargeted ? ` directed at ${targetLabel}` : ''}.
 
 Moderator's text:
 "${intervention.text}"
 
-Consider the moderator's guidance in your response, but no specific response format is required.
+${!isTargeted
+    ? `This intervention is directed at ${targetLabel}, not you. However, you must acknowledge it. Your first paragraph should briefly address the moderator's point as it relates to your position before continuing with your substantive argument.`
+    : responsePattern
+      ? `MANDATORY RESPONSE FORMAT:\n${responsePattern}`
+      : 'Consider the moderator\'s guidance in your response.'}
 `;
   }
 
   return `\nMODERATOR INTERVENTION (this round):
-The moderator has addressed you with a ${intervention.move} [${intervention.family}] intervention.
+The moderator has issued a ${intervention.move} [${intervention.family}] intervention${!isTargeted ? ` directed at ${targetLabel}` : ''}.
 
 Moderator's text:
 "${intervention.text}"
 
-You MUST include a \`${config.field}\` field in your response JSON.
-Schema: ${config.schema}
+${!isTargeted
+    ? `This intervention is directed at ${targetLabel}, not you. However, you must acknowledge it. Your first paragraph should briefly address the moderator's point as it relates to your position (1-2 sentences) before continuing with your substantive argument. You do NOT need to include the \`${config.field}\` structured field since you are not the target.`
+    : `MANDATORY RESPONSE FORMAT:
+${responsePattern}
 
-After addressing the moderator's intervention, continue with your substantive argument in the \`statement\` field.
+BREVITY RULE: The response paragraph must be SHORT — 2-3 sentences maximum. Do not hedge, qualify, or dilute your answer across multiple paragraphs. State your position, give one reason, then move on. The reader must know your answer from the first paragraph alone.
+
+You MUST also include a \`${config.field}\` field in your response JSON.
+Schema: ${config.schema}`}
+
+After the response paragraph, continue with your substantive argument in separate paragraphs.
 `;
 }
 
@@ -802,4 +832,4 @@ export function getSynthesisResponder(
 
 // ── Exports ────────────────────────────────────────────
 
-export { ALL_MOVES, DEFAULT_PRIORITY, MOVE_RESPONSE_CONFIG, SLI_FLOORS, HEALTH_WEIGHTS };
+export { ALL_MOVES, DEFAULT_PRIORITY, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS, SLI_FLOORS, HEALTH_WEIGHTS };

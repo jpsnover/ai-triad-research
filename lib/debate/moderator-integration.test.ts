@@ -88,10 +88,10 @@ describe('moderator pipeline integration', () => {
     expect(intervention.force).toBe('interrogative');
     expect(intervention.burden).toBe(1.0);
 
-    // BRIEF injection
+    // BRIEF injection (targeted — no responderLabel defaults to targeted)
     const brief = buildInterventionBriefInjection(intervention);
     expect(brief).toContain('pin_response');
-    expect(brief).toContain('MUST include');
+    expect(brief).toContain('MANDATORY RESPONSE FORMAT');
 
     // Simulate debater response compliance
     const compliant = checkInterventionCompliance('PIN', {
@@ -121,14 +121,14 @@ describe('moderator pipeline integration', () => {
     state.rounds_since_last_intervention = 0;
     state.required_gap = 1;
 
-    // Attempt intervention while in cooldown
+    // Attempt intervention while in cooldown (REDIRECT is procedural, not cooldown-exempt)
     const selection: SelectionResult = {
       responder: 'cassandra',
       addressing: 'prometheus',
       focus_point: 'test',
       agreement_detected: false,
       intervene: true,
-      suggested_move: 'PROBE',
+      suggested_move: 'REDIRECT',
       target_debater: 'cassandra',
       trigger_reasoning: 'test',
     };
@@ -306,7 +306,7 @@ describe('synthesis COMMIT automation', () => {
     );
     const brief = buildInterventionBriefInjection(intervention);
     expect(brief).toContain('commitment');
-    expect(brief).toContain('MUST include');
+    expect(brief).toContain('MANDATORY RESPONSE FORMAT');
     expect(brief).toContain('concessions');
   });
 });
@@ -383,10 +383,8 @@ describe('multi-round simulation', () => {
     // Verify budget was consumed (at most budget_total interventions)
     expect(state.interventions_fired).toBeLessThanOrEqual(state.budget_total);
 
-    // Verify cooldown escalation happened if enough interventions fired
-    if (state.interventions_fired >= 2) {
-      expect(state.required_gap).toBe(2);
-    }
+    // Verify cooldown stays at 1 (no escalation)
+    expect(state.required_gap).toBe(1);
 
     // Verify intervention history is coherent
     for (const h of state.intervention_history) {

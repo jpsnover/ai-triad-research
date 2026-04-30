@@ -115,6 +115,15 @@ export interface TurnPipelineInput {
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
   audience?: import('./types').DebateAudience;
+  pendingIntervention?: {
+    move: string;
+    family: string;
+    targetDebater: string;
+    responseField?: string;
+    responseSchema?: string;
+    directResponsePattern?: string;
+    isTargeted: boolean;
+  };
   model: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
@@ -169,6 +178,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     sourceContent: input.sourceContent,
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
+    pendingIntervention: input.pendingIntervention,
   };
 }
 
