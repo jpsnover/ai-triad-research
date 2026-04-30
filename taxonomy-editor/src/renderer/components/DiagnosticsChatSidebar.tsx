@@ -677,33 +677,52 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       const model = getModel();
       let accumulated = '';
 
+      console.log('[DiagChat] Setting up stream listeners...');
+      console.log('[DiagChat] Model:', model);
+      console.log('[DiagChat] API messages count:', apiMessages.length);
+      console.log('[DiagChat] System prompt length:', systemPrompt.length);
+
       const unsubChunk = api.onChatStreamChunk((chunk) => {
         accumulated += chunk;
         setStreamingText(accumulated);
         setActivity('Generating...');
+        if (accumulated.length < 100) console.log('[DiagChat] First chunk received:', chunk.slice(0, 50));
       });
 
       const streamDone = new Promise<string>((resolve, reject) => {
+        console.log('[DiagChat] Registering done/error handlers...');
         const unsubDone = api.onChatStreamDone((fullText) => {
+          console.log('[DiagChat] Stream done, length:', fullText.length);
           unsubDone();
           unsubErr();
           resolve(fullText);
         });
         const unsubErr = api.onChatStreamError((error) => {
+          console.error('[DiagChat] Stream error:', error);
           unsubDone();
           unsubErr();
           reject(new Error(error));
         });
       });
 
+      console.log('[DiagChat] Calling api.startChatStream...');
       const startFailed = new Promise<never>((_resolve, reject) => {
-        api.startChatStream(systemPrompt, apiMessages, model, 0.3).catch(reject);
+        api.startChatStream(systemPrompt, apiMessages, model, 0.3)
+          .then(() => console.log('[DiagChat] startChatStream invoke resolved'))
+          .catch((err: unknown) => {
+            console.error('[DiagChat] startChatStream invoke rejected:', err);
+            reject(err);
+          });
       });
       const timeout = new Promise<never>((_resolve, reject) => {
-        setTimeout(() => reject(new Error('Chat stream timed out after 60s — check that an API key is configured in Settings.')), 60_000);
+        setTimeout(() => {
+          console.error('[DiagChat] Timed out after 60s. accumulated length:', accumulated.length);
+          reject(new Error('Chat stream timed out after 60s — check that an API key is configured in Settings.'));
+        }, 60_000);
       });
 
       const fullText = await Promise.race([streamDone, startFailed, timeout]);
+      console.log('[DiagChat] Race resolved, fullText length:', fullText.length);
       unsubChunk();
 
       // Parse navigation and suggestions from the complete text

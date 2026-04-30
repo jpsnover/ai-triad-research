@@ -12,17 +12,17 @@ interface Props {
 }
 
 const TOOLTIPS = {
-  collabRatio: 'Average proportion of collaborative moves (concede, integrate, steel-build, identify-crux) vs confrontational moves (counterexample, undercut, empirical challenge, burden-shift, expose-assumption). Higher = more convergence-oriented.',
-  concessions: 'How many concession opportunities were taken out of total. An opportunity = facing a strong attack with QBAF strength >= 0.6 and using a concession move (CONCEDE, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE).',
-  recycling: 'Average max word-overlap with the speaker\'s own prior turns. High values (>50%) mean the debater is repeating themselves rather than evolving their position.',
-  cruxMoves: 'Cumulative count of IDENTIFY-CRUX moves. Cruxes are key disagreement points that, if resolved, would change a debater\'s position.',
-  chartTitle: 'How each debater\'s collaborative-to-confrontational ratio evolves turn by turn. Lines trending upward indicate more collaboration as the debate matures.',
-  confCollab: 'Count of confrontational (red) vs collaborative (green) moves this turn. Confrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption. Collaborative: concede, concede-and-pivot, conditional-agree, integrate, steel-build, identify-crux.',
-  engagement: 'Fraction of this turn\'s claims that connect to existing argument network nodes (targeted) vs standalone new claims. Higher = more engaged with prior arguments.',
-  recyclingCol: 'Max word-overlap between this turn\'s content and the speaker\'s prior turns. Red (>50%) indicates high repetition.',
-  concessionCol: 'Whether the speaker faced strong attacks (QBAF >= 0.6) and used a concession move. Taken (green) = conceded. Missed (red) = faced attacks but didn\'t concede. N/A = no strong attacks faced.',
-  drift: 'How much the speaker\'s position changed since their last turn, measured as delta in word-overlap with their opening statement.',
-  cruxCol: 'Whether IDENTIFY-CRUX was used this turn (1 or 0), with cumulative count across all turns in parentheses.',
+  collabRatio: 'Average proportion of collaborative vs confrontational moves.\nCollaborative: concede, integrate, steel-build, identify-crux.\nConfrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption.\nHigher = more convergence-oriented.',
+  concessions: 'How many concession opportunities were taken out of total.\nAn opportunity = facing a strong attack with QBAF strength >= 0.6 and using a concession move (CONCEDE, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE).',
+  recycling: 'Average max word-overlap with the speaker\'s own prior turns.\nHigh values (>50%) mean the debater is repeating themselves rather than evolving their position.',
+  cruxMoves: 'Cumulative count of IDENTIFY-CRUX moves.\nCruxes are key disagreement points that, if resolved, would change a debater\'s position.',
+  chartTitle: 'How each debater\'s collaborative-to-confrontational ratio evolves turn by turn.\nLines trending upward indicate more collaboration as the debate matures.',
+  confCollab: 'Count of confrontational (red) vs collaborative (green) moves this turn.\nConfrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption.\nCollaborative: concede, concede-and-pivot, conditional-agree, integrate, steel-build, identify-crux.',
+  engagement: 'Fraction of this turn\'s claims that connect to existing argument network nodes (targeted) vs standalone new claims.\nHigher = more engaged with prior arguments.',
+  recyclingCol: 'Max word-overlap between this turn\'s content and the speaker\'s prior turns.\nRed (>50%) indicates high repetition.',
+  concessionCol: 'Whether the speaker faced strong attacks (QBAF >= 0.6) and used a concession move.\nTaken (green) = conceded. Missed (red) = faced attacks but didn\'t concede. N/A = no strong attacks faced.',
+  drift: 'How much the speaker\'s position changed since their last turn.\nMeasured as delta in word-overlap with their opening statement.',
+  cruxCol: 'Whether IDENTIFY-CRUX was used this turn (1 or 0), with cumulative count across all turns.\nCruxes are disagreement points that, if resolved, would change a debater\'s position.',
 };
 
 function speakerLabel(speaker: PoverId): string {
@@ -247,17 +247,17 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.65rem' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: '0.65rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
-              <th style={{ padding: '4px 6px', textAlign: 'left' }}>Rnd</th>
-              <th style={{ padding: '4px 6px', textAlign: 'left' }}>Speaker</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.engagement}>Engagement</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.concessionCol}>Concession</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.drift}>Drift</th>
-              <th style={{ padding: '4px 6px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.cruxCol}>Crux</th>
+              <th style={{ padding: '4px 4px', textAlign: 'left' }}>Rnd</th>
+              <th style={{ padding: '4px 4px', textAlign: 'left' }}>Speaker</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.engagement}>Engagement</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.concessionCol}>Concession</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.drift}>Drift</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.cruxCol}>Crux</th>
             </tr>
           </thead>
           <tbody>
@@ -271,28 +271,28 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                   background: selectedIdx === i ? 'rgba(245,158,11,0.1)' : undefined,
                 }}
               >
-                <td style={{ padding: '4px 6px' }}>{sig.round}</td>
-                <td style={{ padding: '4px 6px', color: speakerColor(sig.speaker) }}>
+                <td style={{ padding: '4px 4px' }}>{sig.round}</td>
+                <td style={{ padding: '4px 4px', color: speakerColor(sig.speaker) }}>
                   {speakerLabel(sig.speaker)}
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <span style={{ color: '#ef4444' }}>{sig.move_disposition.confrontational}</span>
                   {' / '}
                   <span style={{ color: '#22c55e' }}>{sig.move_disposition.collaborative}</span>
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <MiniBar value={sig.engagement_depth.ratio} max={1} color="#3b82f6" />
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <MiniBar value={sig.recycling_rate.max_self_overlap} max={1} color={sig.recycling_rate.max_self_overlap > 0.5 ? '#ef4444' : '#22c55e'} />
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <OutcomeBadge outcome={sig.concession_opportunity.outcome} />
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   {pct(sig.position_delta.drift)}
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   {sig.crux_rate.used_this_turn ? '1' : '0'}
                   <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_rate.cumulative_count})</span>
                 </td>

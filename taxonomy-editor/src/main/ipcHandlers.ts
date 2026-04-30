@@ -248,19 +248,36 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('start-chat-stream', async (event, systemInstruction: string, messages: ChatMessage[], model?: string, temperature?: number) => {
+    console.log('[IPC] start-chat-stream called. model:', model, 'messages:', messages.length, 'sysPrompt length:', systemInstruction.length);
+    console.log('[IPC] sender webContents id:', event.sender.id, 'isDestroyed:', event.sender.isDestroyed());
     try {
       const fullText = await generateChatStream(
         systemInstruction,
         messages,
-        (chunk) => { event.sender.send('chat-stream-chunk', chunk); },
+        (chunk) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send('chat-stream-chunk', chunk);
+          } else {
+            console.warn('[IPC] chat-stream-chunk: sender destroyed, skipping');
+          }
+        },
         model,
         temperature,
       );
-      event.sender.send('chat-stream-done', fullText);
+      console.log('[IPC] start-chat-stream completed. fullText length:', fullText.length);
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('chat-stream-done', fullText);
+      } else {
+        console.warn('[IPC] chat-stream-done: sender destroyed, cannot send');
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] start-chat-stream failed:', msg);
-      event.sender.send('chat-stream-error', msg);
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('chat-stream-error', msg);
+      } else {
+        console.warn('[IPC] chat-stream-error: sender destroyed, cannot send');
+      }
     }
   });
 

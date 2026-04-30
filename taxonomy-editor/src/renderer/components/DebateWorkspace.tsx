@@ -93,7 +93,7 @@ function getNodeLabel(nodeId: string): string {
   return nodeId;
 }
 
-/** Coverage badge for the debate header (CT-2). Color-coded by coverage %. */
+/** Grounding badge for the debate header (CT-2). Color-coded by grounding %. */
 function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
   const pct = Math.round(stats.coveragePercentage);
@@ -101,13 +101,13 @@ function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: Coverag
   const covered = stats.coveredCount + stats.partiallyCoveredCount;
   const swPct = strengthWeighted ? Math.round(strengthWeighted.strength_weighted_coverage) : null;
   const titleParts = [
-    `TAXONOMY COVERAGE`,
+    `TAXONOMY GROUNDING`,
     `Measures how many of this debate's claims are grounded in taxonomy nodes.`,
     ``,
     `Current: ${covered}/${stats.totalClaims} claims grounded (${pct}%)`,
-    `  ${stats.coveredCount} fully covered (claim maps to 1+ taxonomy nodes)`,
-    `  ${stats.partiallyCoveredCount} partially covered (weak or indirect mapping)`,
-    `  ${stats.uncoveredCount} uncovered (no taxonomy grounding)`,
+    `  ${stats.coveredCount} fully grounded (claim maps to 1+ taxonomy nodes)`,
+    `  ${stats.partiallyCoveredCount} partially grounded (weak or indirect mapping)`,
+    `  ${stats.uncoveredCount} ungrounded (no taxonomy connection)`,
   ];
   if (swPct !== null) {
     titleParts.push(``);
@@ -117,11 +117,11 @@ function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: Coverag
   }
   titleParts.push(``);
   titleParts.push(`Color bands: green >75% | yellow 40-75% | red <40%`);
-  titleParts.push(`Higher coverage = debate is well-grounded in the taxonomy.`);
+  titleParts.push(`Higher grounding = debate is well-anchored in the taxonomy.`);
 
   return (
     <span className={`coverage-badge ${colorClass}`} title={titleParts.join('\n')}>
-      Coverage: {covered}/{stats.totalClaims} ({pct}%){swPct !== null && swPct !== pct ? ` · str: ${swPct}%` : ''}
+      Grounding: {covered}/{stats.totalClaims} ({pct}%){swPct !== null && swPct !== pct ? ` · str: ${swPct}%` : ''}
     </span>
   );
 }
@@ -636,20 +636,26 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         const topic = match?.[1]?.trim();
         if (!topic) return null;
         return (
-          <div style={{ marginTop: 8 }}>
+          <div style={{
+            marginTop: 10, padding: '8px 12px', borderRadius: 6,
+            background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flex: 1 }}>
+              Redirect the debate to explore this topic?
+            </span>
             <button
-              className="btn btn-sm"
               disabled={!!debateGenerating}
               onClick={(e) => { e.stopPropagation(); askQuestion(`Explore this: ${topic}`); }}
               style={{
-                padding: '4px 14px', fontSize: '0.78rem', fontWeight: 600,
-                background: 'var(--accent)', color: '#fff', border: 'none',
-                borderRadius: 4, cursor: debateGenerating ? 'not-allowed' : 'pointer',
-                opacity: debateGenerating ? 0.5 : 1,
+                padding: '6px 18px', fontSize: '0.8rem', fontWeight: 700,
+                background: '#3b82f6', color: '#fff', border: 'none',
+                borderRadius: 5, cursor: debateGenerating ? 'not-allowed' : 'pointer',
+                opacity: debateGenerating ? 0.5 : 1, whiteSpace: 'nowrap',
               }}
               title={`Ask debaters to explore: ${topic}`}
             >
-              Explore
+              Explore This
             </button>
           </div>
         );
