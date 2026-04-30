@@ -213,14 +213,16 @@ function Invoke-ChunkedSummary {
             $ChunkTaxonomy = Build-CompactTaxonomy
         }
 
-        $ChunkPrompt = @"
+        $ChunkSysInstruction = @"
 $ChunkSystemPrompt
-
-=== TAXONOMY (version $TaxonomyVersion) ===
-$ChunkTaxonomy
 
 === OUTPUT SCHEMA (your response must match this structure) ===
 $OutputSchema
+"@
+
+        $ChunkPrompt = @"
+=== TAXONOMY (version $TaxonomyVersion) ===
+$ChunkTaxonomy
 
 $DocHeader
 
@@ -231,6 +233,7 @@ $ChunkText
         try {
             $AIResult = Invoke-AIApi `
                 -Prompt     $ChunkPrompt `
+                -SystemInstruction $ChunkSysInstruction `
                 -Model      $Model `
                 -ApiKey     $ApiKey `
                 -Temperature $Temperature `

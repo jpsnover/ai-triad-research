@@ -32,6 +32,14 @@ import {
   citeOpeningStagePrompt,
 } from './prompts';
 import type { StagePromptInput, OpeningStagePromptInput } from './prompts';
+import type { GenerateRequest, GenerateResponse } from './cacheTypes';
+import { flattenEnvelope } from './cacheTypes';
+import {
+  briefStageEnvelope,
+  planStageEnvelope,
+  draftStageEnvelope,
+  citeStageEnvelope,
+} from './envelopes';
 
 // ── Disagreement type normalization ─────────────────────
 
@@ -119,6 +127,11 @@ export type StageGenerateFn = (
   label: string,
 ) => Promise<string>;
 
+export type EnvelopeGenerateFn = (
+  request: GenerateRequest,
+  label: string,
+) => Promise<GenerateResponse>;
+
 export type StageProgressFn = (stage: TurnStageId, label: string) => void;
 
 // ── Defaults ────────────────────────────────────────────
@@ -175,6 +188,7 @@ export async function runTurnPipeline(
   input: TurnPipelineInput,
   generate: StageGenerateFn,
   onProgress?: StageProgressFn,
+  envelopeGenerate?: EnvelopeGenerateFn,
 ): Promise<TurnPipelineResult> {
   const temps = {
     ...DEFAULT_STAGE_TEMPERATURES,
@@ -186,11 +200,18 @@ export async function runTurnPipeline(
 
   // ── Stage 1: BRIEF ──
   onProgress?.('brief', `${input.label} is briefing...`);
-  const briefPrompt = briefStagePrompt(stageInput);
+  let briefPrompt: string;
+  let briefRaw: string;
   let t0 = Date.now();
-  const briefRaw = await generate(
-    briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`,
-  );
+  if (envelopeGenerate) {
+    const env = briefStageEnvelope(stageInput);
+    briefPrompt = flattenEnvelope(env);
+    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
+    briefRaw = resp.text;
+  } else {
+    briefPrompt = briefStagePrompt(stageInput);
+    briefRaw = await generate(briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`);
+  }
   let elapsed = Date.now() - t0;
   const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
   stageDiags.push({
@@ -207,11 +228,18 @@ export async function runTurnPipeline(
 
   // ── Stage 2: PLAN ──
   onProgress?.('plan', `${input.label} is planning...`);
-  const planPromptText = planStagePrompt(stageInput, briefJson);
+  let planPromptText: string;
+  let planRaw: string;
   t0 = Date.now();
-  const planRaw = await generate(
-    planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`,
-  );
+  if (envelopeGenerate) {
+    const env = planStageEnvelope(stageInput, briefJson);
+    planPromptText = flattenEnvelope(env);
+    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
+    planRaw = resp.text;
+  } else {
+    planPromptText = planStagePrompt(stageInput, briefJson);
+    planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
+  }
   elapsed = Date.now() - t0;
   const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
   stageDiags.push({
@@ -228,14 +256,24 @@ export async function runTurnPipeline(
 
   // ── Stage 3: DRAFT ──
   onProgress?.('draft', `${input.label} is drafting...`);
-  let draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
-  if (input.repairHints && input.repairHints.length > 0) {
-    draftPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${input.repairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
-  }
+  let draftPromptText: string;
+  let draftRaw: string;
   t0 = Date.now();
-  const draftRaw = await generate(
-    draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`,
-  );
+  if (envelopeGenerate) {
+    const env = draftStageEnvelope(stageInput, briefJson, planJson);
+    if (input.repairHints && input.repairHints.length > 0) {
+      env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${input.repairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
+    }
+    draftPromptText = flattenEnvelope(env);
+    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
+    draftRaw = resp.text;
+  } else {
+    draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
+    if (input.repairHints && input.repairHints.length > 0) {
+      draftPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${input.repairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
+    }
+    draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
+  }
   elapsed = Date.now() - t0;
   const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
   stageDiags.push({
@@ -249,11 +287,18 @@ export async function runTurnPipeline(
 
   // ── Stage 4: CITE ──
   onProgress?.('cite', `${input.label} is citing...`);
-  const citePromptText = citeStagePrompt(stageInput, briefJson, planJson, draftJson);
+  let citePromptText: string;
+  let citeRaw: string;
   t0 = Date.now();
-  const citeRaw = await generate(
-    citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} cite`,
-  );
+  if (envelopeGenerate) {
+    const env = citeStageEnvelope(stageInput, briefJson, planJson, draftJson);
+    citePromptText = flattenEnvelope(env);
+    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
+    citeRaw = resp.text;
+  } else {
+    citePromptText = citeStagePrompt(stageInput, briefJson, planJson, draftJson);
+    citeRaw = await generate(citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} cite`);
+  }
   elapsed = Date.now() - t0;
   const citeParsed = parseStageResponse<CiteWorkProduct>(citeRaw, 'cite');
   stageDiags.push({

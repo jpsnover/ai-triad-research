@@ -289,13 +289,14 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   // Rule 8: move repetition vs most recent same-agent turn (warning)
   const lastMoves = priorTurns.length > 0
-    ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as string[] | undefined)
+    ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as (string | import('./helpers').MoveAnnotation)[] | undefined)
+        ?.map(m => getMoveName(m))
     : undefined;
   if (
     lastMoves && lastMoves.length > 0 &&
     meta.move_types && meta.move_types.length > 0 &&
     lastMoves.length === meta.move_types.length &&
-    lastMoves.every((m, i) => m === meta.move_types![i])
+    lastMoves.every((m, i) => m === getMoveName(meta.move_types![i]))
   ) {
     const msg = `move_types repeat your previous turn exactly (${lastMoves.join(', ')}). Vary your dialectical move.`;
     warnings.push(msg);

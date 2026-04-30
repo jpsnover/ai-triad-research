@@ -150,15 +150,17 @@ function Invoke-SummaryPipeline {
     if ($Metadata.PSObject.Properties['topic_tags']) { $TopicTagLine = $Metadata.topic_tags -join ', ' } else { $TopicTagLine = '' }
     if ($Metadata.PSObject.Properties['title']) { $TitleLine = $Metadata.title } else { $TitleLine = $DocId }
 
-    $FullPrompt = @"
+    $SysInstruction = @"
 $SystemPrompt
-
-=== TAXONOMY (version $TaxonomyVersion) ===
-$TaxonomyJson
 $PolicyBlock
 $VocabularyBlock
 === OUTPUT SCHEMA (your response must match this structure) ===
 $OutputSchema
+"@
+
+    $FullPrompt = @"
+=== TAXONOMY (version $TaxonomyVersion) ===
+$TaxonomyJson
 
 === DOCUMENT: $DocId ===
 Title: $TitleLine
@@ -169,7 +171,7 @@ Topic tags: $TopicTagLine
 $SnapshotText
 "@
 
-    Write-Verbose "Pipeline: prompt assembled ($([int]($FullPrompt.Length / 4)) tokens est.)"
+    Write-Verbose "Pipeline: system instruction ($([int]($SysInstruction.Length / 4)) tokens est.) + prompt ($([int]($FullPrompt.Length / 4)) tokens est.)"
 
     # ── Stage 4: AI extraction ────────────────────────────────────────────────
     $SummaryObject = $null
@@ -180,7 +182,8 @@ $SnapshotText
     if ($IterativeExtraction) {
         Write-Verbose "Pipeline: using FIRE iterative extraction"
         $FireResult = Invoke-IterativeExtraction `
-            -Prompt $FullPrompt -Model $Model -ApiKey $ApiKey -Temperature $Temperature
+            -Prompt $FullPrompt -SystemInstruction $SysInstruction `
+            -Model $Model -ApiKey $ApiKey -Temperature $Temperature
 
         $SummaryObject = $FireResult.Summary
         $AiBackend = $FireResult.Backend
@@ -202,6 +205,7 @@ $SnapshotText
 
             $AiResult = Invoke-AIApi `
                 -Prompt      $AttemptPrompt `
+                -SystemInstruction $SysInstruction `
                 -Model       $Model `
                 -ApiKey      $ApiKey `
                 -Temperature $Temperature `

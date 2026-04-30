@@ -9,6 +9,8 @@
 import fs from 'fs';
 import path from 'path';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily';
+import type { GenerateRequest, GenerateResponse, LLMBackend } from './cacheTypes';
+import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes';
 
 // ── Interface ────────────────────────────────────────────
 
@@ -28,6 +30,7 @@ export interface AIAdapter {
  * consumers must check availability before calling.
  */
 export interface ExtendedAIAdapter extends AIAdapter {
+  generate?(request: GenerateRequest): Promise<GenerateResponse>;
   generateTextWithSearch?(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }>;
   nliClassify?(pairs: { text_a: string; text_b: string }[]): Promise<{ results: { nli_label: string; nli_entailment: number }[] }>;
   computeQueryEmbedding?(text: string): Promise<{ vector: number[] }>;
@@ -141,6 +144,34 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// ── Usage telemetry ─────────────────────────────────────
+
+interface ProviderResult {
+  text: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    cachedTokens?: number;
+    totalTokens?: number;
+  };
+}
+
+function emitUsageTelemetry(
+  backend: string,
+  model: string,
+  latencyMs: number,
+  usage?: ProviderResult['usage'],
+): void {
+  const entry = {
+    ts: new Date().toISOString(),
+    backend,
+    model,
+    latencyMs: Math.round(latencyMs),
+    ...usage,
+  };
+  process.stderr.write(`[usage] ${JSON.stringify(entry)}\n`);
+}
+
 // ── Backend implementations ──────────────────────────────
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -150,7 +181,7 @@ async function generateViaGemini(
   apiModelId: string,
   apiKey: string,
   opts: GenerateOptions,
-): Promise<string> {
+): Promise<ProviderResult> {
   const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
@@ -179,7 +210,10 @@ async function generateViaGemini(
     throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
   }
 
-  let json: { candidates?: { content: { parts: { text: string }[] } }[] };
+  let json: {
+    candidates?: { content: { parts: { text: string }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
+  };
   try {
     json = JSON.parse(bodyText);
   } catch {
@@ -192,7 +226,15 @@ async function generateViaGemini(
   if (!json.candidates?.length) {
     throw new Error(`No candidates in Gemini response: ${bodyText.slice(0, 300)}`);
   }
-  return json.candidates[0].content.parts.map(p => p.text).join('');
+  const text = json.candidates[0].content.parts.map(p => p.text).join('');
+  const um = json.usageMetadata;
+  const usage = um ? {
+    promptTokens: um.promptTokenCount,
+    completionTokens: um.candidatesTokenCount,
+    cachedTokens: um.cachedContentTokenCount,
+    totalTokens: um.totalTokenCount,
+  } : undefined;
+  return { text, usage };
 }
 
 async function generateViaClaude(
@@ -200,7 +242,7 @@ async function generateViaClaude(
   apiModelId: string,
   apiKey: string,
   opts: GenerateOptions,
-): Promise<string> {
+): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 180_000;
 
   const response = await withTimeout(
@@ -231,7 +273,10 @@ async function generateViaClaude(
     throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
   }
 
-  let json: { content?: { type: string; text: string }[] };
+  let json: {
+    content?: { type: string; text: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
+  };
   try {
     json = JSON.parse(bodyText);
   } catch {
@@ -244,7 +289,15 @@ async function generateViaClaude(
   if (!json.content?.length) {
     throw new Error(`No content in Claude response: ${bodyText.slice(0, 300)}`);
   }
-  return json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const u = json.usage;
+  const usage = u ? {
+    promptTokens: u.input_tokens,
+    completionTokens: u.output_tokens,
+    cachedTokens: (u.cache_read_input_tokens ?? 0) || undefined,
+    totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
+  } : undefined;
+  return { text, usage };
 }
 
 async function generateViaGroq(
@@ -252,7 +305,7 @@ async function generateViaGroq(
   apiModelId: string,
   apiKey: string,
   opts: GenerateOptions,
-): Promise<string> {
+): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
   const response = await withTimeout(
@@ -282,7 +335,10 @@ async function generateViaGroq(
     throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
   }
 
-  let json: { choices?: { message: { content: string } }[] };
+  let json: {
+    choices?: { message: { content: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  };
   try {
     json = JSON.parse(bodyText);
   } catch {
@@ -295,7 +351,14 @@ async function generateViaGroq(
   if (!json.choices?.length) {
     throw new Error(`No choices in Groq response: ${bodyText.slice(0, 300)}`);
   }
-  return json.choices[0].message.content;
+  const text = json.choices[0].message.content;
+  const u = json.usage;
+  const usage = u ? {
+    promptTokens: u.prompt_tokens,
+    completionTokens: u.completion_tokens,
+    totalTokens: u.total_tokens,
+  } : undefined;
+  return { text, usage };
 }
 
 // ── OpenAI ───────────────���───────────────────────────────
@@ -305,7 +368,7 @@ async function generateViaOpenAI(
   apiModelId: string,
   apiKey: string,
   opts: GenerateOptions,
-): Promise<string> {
+): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
   const response = await withTimeout(
@@ -334,7 +397,10 @@ async function generateViaOpenAI(
     throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
   }
 
-  let json: { output?: { type: string; content?: { type: string; text: string }[] }[] };
+  let json: {
+    output?: { type: string; content?: { type: string; text: string }[] }[];
+    usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
+  };
   try {
     json = JSON.parse(bodyText);
   } catch {
@@ -349,7 +415,206 @@ async function generateViaOpenAI(
   if (!text) {
     throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 300)}`);
   }
-  return text;
+  const u = json.usage;
+  const usage = u ? {
+    promptTokens: u.input_tokens,
+    completionTokens: u.output_tokens,
+    cachedTokens: u.input_tokens_details?.cached_tokens,
+    totalTokens: u.total_tokens,
+  } : undefined;
+  return { text, usage };
+}
+
+// ── Envelope-based generation (structured prompt with caching) ──
+
+function envelopeSystemText(env: { layer1_static: string; layer2_persona: string; layer3_turn: string }): string {
+  return [env.layer3_turn, env.layer1_static, env.layer2_persona]
+    .filter(s => s.length > 0)
+    .join('\n\n');
+}
+
+async function generateEnvelopeViaGemini(
+  req: GenerateRequest, apiKey: string,
+): Promise<ProviderResult> {
+  const env = req.envelope;
+  const url = `${GEMINI_BASE}/${req.model}:generateContent?key=${apiKey}`;
+  const timeoutMs = req.options.timeoutMs ?? 120_000;
+
+  const body: Record<string, unknown> = {
+    systemInstruction: { parts: [{ text: envelopeSystemText(env) }] },
+    contents: [{ parts: [{ text: env.layer4_variable }] }],
+    generationConfig: {
+      temperature: req.options.temperature ?? 0.7,
+      maxOutputTokens: req.options.maxTokens ?? 16384,
+    },
+  };
+
+  const response = await withTimeout(
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    timeoutMs,
+    'Gemini envelope request',
+  );
+
+  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini envelope response');
+  if (response.status === 429 || response.status === 503) {
+    throw new Error(`Gemini ${response.status}: ${bodyText.slice(0, 200)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  let json: {
+    candidates?: { content: { parts: { text: string }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
+  };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new Error(`Gemini envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+  }
+  if (!json.candidates?.length) {
+    throw new Error(`No candidates in Gemini envelope response: ${bodyText.slice(0, 300)}`);
+  }
+  const text = json.candidates[0].content.parts.map(p => p.text).join('');
+  const um = json.usageMetadata;
+  return {
+    text,
+    usage: um ? {
+      promptTokens: um.promptTokenCount,
+      completionTokens: um.candidatesTokenCount,
+      cachedTokens: um.cachedContentTokenCount,
+      totalTokens: um.totalTokenCount,
+    } : undefined,
+  };
+}
+
+async function generateEnvelopeViaClaude(
+  req: GenerateRequest, apiKey: string,
+): Promise<ProviderResult> {
+  const env = req.envelope;
+  const timeoutMs = req.options.timeoutMs ?? 180_000;
+
+  const systemBlocks: { type: string; text: string; cache_control?: { type: string } }[] = [];
+  const sysText = envelopeSystemText(env);
+  if (sysText.length > 0) {
+    systemBlocks.push({ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } });
+  }
+
+  const response = await withTimeout(
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: req.model,
+        system: systemBlocks,
+        messages: [{ role: 'user', content: env.layer4_variable }],
+        max_tokens: req.options.maxTokens ?? 8192,
+        temperature: req.options.temperature ?? 0.7,
+      }),
+    }),
+    timeoutMs,
+    'Claude envelope request',
+  );
+
+  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Claude envelope response');
+  if (response.status === 429 || response.status === 503) {
+    throw new Error(`Claude ${response.status}: ${bodyText.slice(0, 200)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  let json: {
+    content?: { type: string; text: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
+  };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new Error(`Claude envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+  }
+  if (!json.content?.length) {
+    throw new Error(`No content in Claude envelope response: ${bodyText.slice(0, 300)}`);
+  }
+  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const u = json.usage;
+  return {
+    text,
+    usage: u ? {
+      promptTokens: u.input_tokens,
+      completionTokens: u.output_tokens,
+      cachedTokens: (u.cache_read_input_tokens ?? 0) || undefined,
+      totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
+    } : undefined,
+  };
+}
+
+async function generateEnvelopeViaChatCompletions(
+  req: GenerateRequest, apiKey: string, baseUrl: string, label: string,
+): Promise<ProviderResult> {
+  const env = req.envelope;
+  const timeoutMs = req.options.timeoutMs ?? 120_000;
+
+  const response = await withTimeout(
+    fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: req.model,
+        messages: [
+          { role: 'system', content: envelopeSystemText(env) },
+          { role: 'user', content: env.layer4_variable },
+        ],
+        temperature: req.options.temperature ?? 0.7,
+        max_tokens: req.options.maxTokens ?? 8192,
+      }),
+    }),
+    timeoutMs,
+    `${label} envelope request`,
+  );
+
+  const bodyText = await withTimeout(response.text(), 60_000, `Reading ${label} envelope response`);
+  if (response.status === 429 || response.status === 503) {
+    throw new Error(`${label} ${response.status}: ${bodyText.slice(0, 200)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`${label} API error ${response.status}: ${bodyText.slice(0, 500)}`);
+  }
+
+  let json: {
+    choices?: { message: { content: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+  };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new Error(`${label} envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+  }
+  if (!json.choices?.length) {
+    throw new Error(`No choices in ${label} envelope response: ${bodyText.slice(0, 300)}`);
+  }
+  const text = json.choices[0].message.content;
+  const u = json.usage;
+  return {
+    text,
+    usage: u ? {
+      promptTokens: u.prompt_tokens,
+      completionTokens: u.completion_tokens,
+      cachedTokens: u.prompt_tokens_details?.cached_tokens,
+      totalTokens: u.total_tokens,
+    } : undefined,
+  };
 }
 
 // ── Factory ──────────────────────────────────────────────
@@ -362,7 +627,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const apiKey = resolveApiKey(backend, explicitApiKey);
     const opts = options ?? {};
 
-    return withRetry(async () => {
+    const t0 = performance.now();
+    const result = await withRetry(async () => {
       switch (backend) {
         case 'claude':
           return generateViaClaude(prompt, apiModelId, apiKey, opts);
@@ -374,10 +640,51 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           return generateViaGemini(prompt, apiModelId, apiKey, opts);
       }
     }, 3, `${backend}/${apiModelId}`);
+    emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
+    return result.text;
+  }
+
+  async function doGenerate(request: GenerateRequest): Promise<GenerateResponse> {
+    const { apiModelId, backend } = resolveModel(registry, request.model);
+    const apiKey = resolveApiKey(backend, explicitApiKey);
+    const resolvedReq = { ...request, model: apiModelId };
+
+    const t0 = performance.now();
+    try {
+      const result = await withRetry(async () => {
+        switch (backend) {
+          case 'claude':
+            return generateEnvelopeViaClaude(resolvedReq, apiKey);
+          case 'groq':
+            return generateEnvelopeViaChatCompletions(resolvedReq, apiKey, 'https://api.groq.com/openai/v1/chat/completions', 'Groq');
+          case 'openai':
+            return generateEnvelopeViaChatCompletions(resolvedReq, apiKey, 'https://api.openai.com/v1/chat/completions', 'OpenAI');
+          default:
+            return generateEnvelopeViaGemini(resolvedReq, apiKey);
+        }
+      }, 3, `${backend}/${apiModelId}`);
+
+      const latency = performance.now() - t0;
+      const usage = buildCacheUsage({
+        inputTokens: result.usage?.promptTokens,
+        outputTokens: result.usage?.completionTokens,
+        cacheReadTokens: result.usage?.cachedTokens,
+      });
+      emitUsageTelemetry(backend, apiModelId, latency, result.usage);
+      return { text: result.text, usage, model: apiModelId, backend, responseTimeMs: Math.round(latency) };
+    } catch (err) {
+      // Graceful degradation: fall back to flat generateText
+      process.stderr.write(`[envelope-fallback] ${backend}/${apiModelId}: ${err instanceof Error ? err.message.slice(0, 100) : err}\n`);
+      const flatPrompt = flattenEnvelope(request.envelope);
+      const text = await doGenerateText(flatPrompt, request.model, request.options);
+      const latency = performance.now() - t0;
+      return { text, usage: emptyCacheUsage(), model: apiModelId, backend, responseTimeMs: Math.round(latency) };
+    }
   }
 
   const adapter: ExtendedAIAdapter = {
     generateText: doGenerateText,
+    generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> {
       const resolved = model || 'gemini-3.1-flash-lite-preview';

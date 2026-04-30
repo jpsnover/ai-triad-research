@@ -860,6 +860,14 @@ export class DebateEngine {
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
         model: this.config.model,
+        ...(this.config.temperature != null ? {
+          stageTemperatures: {
+            brief_temperature: this.config.temperature,
+            plan_temperature: this.config.temperature,
+            draft_temperature: this.config.temperature,
+            cite_temperature: this.config.temperature,
+          },
+        } : {}),
       };
 
       const pipelineResult = await runOpeningPipeline(
@@ -965,7 +973,8 @@ export class DebateEngine {
       const last3Moves = this.session.transcript
         .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
         .slice(-3)
-        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as string[]) ?? []);
+        .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
+        .map(m => getMoveName(m));
       const concedeDist = last3Moves.filter(m => m === 'CONCEDE').length;
       const distinguishDist = last3Moves.filter(m => m === 'DISTINGUISH').length;
       const isStalling = (concedeDist >= 2 && distinguishDist >= 2) || last3Moves.length === 0;
@@ -1121,7 +1130,8 @@ export class DebateEngine {
     // Collect this debater's prior move_types for diversity enforcement
     const priorMoves = this.session.transcript
       .filter(e => e.speaker === responder && e.metadata)
-      .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as string[]) ?? [])
+      .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
+      .map(m => getMoveName(m))
       .slice(-6); // Last 3 turns × ~2 moves each
 
     // Reuse priorRefsEarly (computed before retrieval) for prompt-side rotation guidance.
@@ -1181,6 +1191,14 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.config.model,
+      ...(this.config.temperature != null ? {
+        stageTemperatures: {
+          brief_temperature: this.config.temperature,
+          plan_temperature: this.config.temperature,
+          draft_temperature: this.config.temperature,
+          cite_temperature: this.config.temperature,
+        },
+      } : {}),
     };
 
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
@@ -1192,6 +1210,17 @@ export class DebateEngine {
       return text;
     };
 
+    const envelopeGenerate = this.adapter.generate
+      ? async (request: import('./cacheTypes').GenerateRequest, label: string) => {
+          this.progress('generating', undefined, label);
+          const start = Date.now();
+          const resp = await this.adapter.generate!(request);
+          this.apiCallCount++;
+          this.totalResponseTimeMs += Date.now() - start;
+          return resp;
+        }
+      : undefined;
+
     // ── Cross-respond with per-turn validation + retry loop ──
     const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
     const attempts: TurnAttempt[] = [];
@@ -1201,6 +1230,7 @@ export class DebateEngine {
       pipelineInput,
       stageGenerate,
       (_stage, label) => this.progress('generating', responder, label),
+      envelopeGenerate,
     );
     const knownIds = this.getKnownNodeIds();
     let assembled = assemblePipelineResult(pipelineResult, knownIds);
@@ -1251,6 +1281,7 @@ export class DebateEngine {
         { ...pipelineInput, repairHints: validation.repairHints },
         stageGenerate,
         (_stage, label) => this.progress('generating', responder, label),
+        envelopeGenerate,
       );
       assembled = assemblePipelineResult(pipelineResult, knownIds);
       ({ statement, taxonomyRefs, meta } = assembled);

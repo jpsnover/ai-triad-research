@@ -146,7 +146,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     // Sort by score if available, then split into primary/supporting
     let sorted = nodes;
     if (hasScores) {
-      sorted = [...nodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0));
+      sorted = [...nodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
     }
 
     for (let i = 0; i < sorted.length; i++) {
@@ -192,7 +192,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   }
   if (vulnEntries.length > 0 && (cfg.vulnEnabled ?? true)) {
     const VULN_LIMIT = cfg.vulnMax ?? 10;
-    const sorted = vulnEntries.sort((a, b) => b.score - a.score).slice(0, VULN_LIMIT);
+    const sorted = vulnEntries.sort((a, b) => b.score - a.score || a.nodeId.localeCompare(b.nodeId)).slice(0, VULN_LIMIT);
     lines.push('=== POSITIONAL VULNERABILITIES (where your position is weakest) ===');
     lines.push('These are pre-filtered for relevance to the current topic. Acknowledge when directly relevant — but do not over-concede or apologize for your core stance.');
     for (const v of sorted) {
@@ -228,7 +228,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     // Sort by relevance score if available
     let sortedSit = ctx.situationNodes;
     if (hasScores) {
-      sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0));
+      sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
     }
 
     lines.push('=== SITUATIONS (contested concepts across perspectives) ===');
@@ -275,7 +275,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         const otherInterps = otherPovs
           .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p]) }))
           .filter(o => o.text.length > 0)
-          .sort((a, b) => b.text.length - a.text.length);
+          .sort((a, b) => b.text.length - a.text.length || a.pov.localeCompare(b.pov));
 
         if (otherInterps.length > 0) {
           // Most contested in full
@@ -372,7 +372,7 @@ export function computeInjectionManifest(
   const primaryIds: string[] = [];
   for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
     const sorted = ctx.nodeScores
-      ? groups[cat].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0))
+      ? groups[cat].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id))
       : groups[cat];
     for (let i = 0; i < Math.min(PRIMARY_COUNT, sorted.length); i++) {
       primaryIds.push(sorted[i].id);

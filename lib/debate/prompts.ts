@@ -2487,3 +2487,16 @@ Confidence levels:
 - "medium": Debate evidence is suggestive but not conclusive; the change would improve the taxonomy but is debatable
 - "low": A minor refinement based on a single exchange; reasonable people might disagree`;
 }
+
+// Exported for envelope builders (lib/debate/envelopes.ts)
+export {
+  MUST_CORE_BEHAVIORS as _MUST_CORE_BEHAVIORS,
+  MUST_EXTENDED as _MUST_EXTENDED,
+  STEELMAN_INSTRUCTION as _STEELMAN_INSTRUCTION,
+  PHASE_INSTRUCTIONS as _PHASE_INSTRUCTIONS,
+  CONSTRUCTIVE_MOVES as _CONSTRUCTIVE_MOVES,
+  otherDebaters as _otherDebaters,
+  getReadingLevel as _getReadingLevel,
+  getDetailInstruction as _getDetailInstruction,
+  sourceReminder as _sourceReminder,
+};

@@ -46,6 +46,8 @@ function Invoke-IterativeExtraction {
         [Parameter(Mandatory)]
         [string]$Prompt,
 
+        [string]$SystemInstruction = '',
+
         [Parameter(Mandatory)]
         [string]$Model,
 
@@ -81,6 +83,7 @@ function Invoke-IterativeExtraction {
 
     $InitialResult = Invoke-AIApi `
         -Prompt      $Prompt `
+        -SystemInstruction $SystemInstruction `
         -Model       $Model `
         -ApiKey      $ApiKey `
         -Temperature $Temperature `
@@ -257,6 +260,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
             try {
                 $RefResult = Invoke-AIApi `
                     -Prompt      $RefinementPrompt `
+                    -SystemInstruction $SystemInstruction `
                     -Model       $Model `
                     -ApiKey      $ApiKey `
                     -Temperature $Temperature `

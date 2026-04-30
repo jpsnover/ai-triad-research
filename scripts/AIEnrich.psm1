@@ -195,6 +195,7 @@ function Invoke-AIApi {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Prompt,
+        [string]$SystemInstruction = '',
         [string]$Model       = 'gemini-2.5-flash',
         [string]$ApiKey      = '',
         [double]$Temperature = 0.1,
@@ -264,11 +265,15 @@ function Invoke-AIApi {
                 $GenConfig['responseMimeType'] = 'application/json'
             }
 
-            $Body = @{
+            $GeminiBody = @{
                 contents         = @(@{ parts = @(@{ text = $Prompt }) })
                 generationConfig = $GenConfig
                 safetySettings   = $SafetyList
-            } | ConvertTo-Json -Depth 10
+            }
+            if ($SystemInstruction) {
+                $GeminiBody['systemInstruction'] = @{ parts = @(@{ text = $SystemInstruction }) }
+            }
+            $Body = $GeminiBody | ConvertTo-Json -Depth 10
         }
 
         'claude' {
@@ -278,7 +283,7 @@ function Invoke-AIApi {
                 'anthropic-version' = '2023-06-01'
             }
 
-            $Body = @{
+            $ClaudeBody = @{
                 model      = $ApiModelId
                 max_tokens = $MaxTokens
                 messages   = @(@{
@@ -286,7 +291,11 @@ function Invoke-AIApi {
                     content = $Prompt
                 })
                 temperature = $Temperature
-            } | ConvertTo-Json -Depth 10
+            }
+            if ($SystemInstruction) {
+                $ClaudeBody['system'] = $SystemInstruction
+            }
+            $Body = $ClaudeBody | ConvertTo-Json -Depth 10
         }
 
         'groq' {
@@ -295,12 +304,15 @@ function Invoke-AIApi {
                 'Authorization' = "Bearer $ResolvedKey"
             }
 
+            $GroqMessages = [System.Collections.Generic.List[object]]::new()
+            if ($SystemInstruction) {
+                $GroqMessages.Add(@{ role = 'system'; content = $SystemInstruction })
+            }
+            $GroqMessages.Add(@{ role = 'user'; content = $Prompt })
+
             $GroqBody = @{
                 model       = $ApiModelId
-                messages    = @(@{
-                    role    = 'user'
-                    content = $Prompt
-                })
+                messages    = @($GroqMessages)
                 temperature = $Temperature
                 max_tokens  = $MaxTokens
             }
@@ -319,8 +331,13 @@ function Invoke-AIApi {
 
             $OpenAIBody = @{
                 model             = $ApiModelId
-                input             = $Prompt
                 max_output_tokens = $MaxTokens
+            }
+            if ($SystemInstruction) {
+                $OpenAIBody['instructions'] = $SystemInstruction
+                $OpenAIBody['input'] = $Prompt
+            } else {
+                $OpenAIBody['input'] = $Prompt
             }
             if ($JsonMode) {
                 $OpenAIBody['text'] = @{ format = @{ type = 'json_object' } }
@@ -411,9 +428,11 @@ function Invoke-AIApi {
                 $Text = $Candidate.content.parts[0].text
                 $um = $Response.usageMetadata
                 if ($um) {
+                    $CachedCount = if ($um.PSObject.Properties['cachedContentTokenCount']) { [int]($um.cachedContentTokenCount) } else { 0 }
                     $Usage = [PSCustomObject]@{
                         InputTokens  = [int]($um.promptTokenCount)
                         OutputTokens = [int]($um.candidatesTokenCount)
+                        CachedTokens = $CachedCount
                         TotalTokens  = [int]($um.totalTokenCount)
                     }
                 }

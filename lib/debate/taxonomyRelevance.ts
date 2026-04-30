@@ -81,7 +81,7 @@ export function selectRelevantNodes(
   // For each category: include all above threshold, guarantee minimum
   const result: ScoredPovNode[] = [];
   for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
-    const sorted = groups[cat].sort((a, b) => b.score - a.score);
+    const sorted = groups[cat].sort((a, b) => b.score - a.score || a.node.id.localeCompare(b.node.id));
     const aboveThreshold = sorted.filter(s => s.score >= threshold);
     // Take at least minPerCategory, even if below threshold
     const selected = aboveThreshold.length >= minPerCategory
@@ -105,7 +105,7 @@ export function selectRelevantSituationNodes(
 ): ScoredSituationNode[] {
   const scored = situationNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || a.node.id.localeCompare(b.node.id));
 
   const aboveThreshold = scored.filter(s => s.score >= threshold);
   const selected = aboveThreshold.length >= min
