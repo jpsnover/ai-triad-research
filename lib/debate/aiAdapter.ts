@@ -18,6 +18,8 @@ export interface GenerateOptions {
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
+  jsonMode?: boolean;
+  responseSchema?: Record<string, unknown>;
 }
 
 export interface AIAdapter {
@@ -48,6 +50,8 @@ interface ModelEntry {
 interface ModelRegistry {
   backends: { id: string; label: string }[];
   models: ModelEntry[];
+  fallbackChains?: Record<string, string[]>;
+  contextWindows?: Record<string, number>;
 }
 
 let _registry: ModelRegistry | null = null;
@@ -176,6 +180,31 @@ function emitUsageTelemetry(
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+const GEMINI_TYPE_MAP: Record<string, string> = {
+  string: 'STRING', number: 'NUMBER', integer: 'INTEGER',
+  boolean: 'BOOLEAN', array: 'ARRAY', object: 'OBJECT',
+};
+
+function toGeminiSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  if (typeof schema.type === 'string') result.type = GEMINI_TYPE_MAP[schema.type] ?? schema.type.toUpperCase();
+  if (schema.description) result.description = schema.description;
+  if (schema.enum) result.enum = schema.enum;
+  if (schema.nullable) result.nullable = schema.nullable;
+  if (schema.required) result.required = schema.required;
+  if (schema.items && typeof schema.items === 'object') {
+    result.items = toGeminiSchema(schema.items as Record<string, unknown>);
+  }
+  if (schema.properties && typeof schema.properties === 'object') {
+    const props: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(schema.properties as Record<string, unknown>)) {
+      props[k] = typeof v === 'object' && v ? toGeminiSchema(v as Record<string, unknown>) : v;
+    }
+    result.properties = props;
+  }
+  return result;
+}
+
 async function generateViaGemini(
   prompt: string,
   apiModelId: string,
@@ -185,16 +214,24 @@ async function generateViaGemini(
   const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
+  const genConfig: Record<string, unknown> = {
+    temperature: opts.temperature ?? 0.7,
+    maxOutputTokens: opts.maxTokens ?? 16384,
+  };
+  if (opts.jsonMode || opts.responseSchema) {
+    genConfig.responseMimeType = 'application/json';
+    if (opts.responseSchema) {
+      genConfig.responseSchema = toGeminiSchema(opts.responseSchema);
+    }
+  }
+
   const response = await withTimeout(
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: opts.temperature ?? 0.7,
-          maxOutputTokens: opts.maxTokens ?? 16384,
-        },
+        generationConfig: genConfig,
       }),
     }),
     timeoutMs,
@@ -257,7 +294,9 @@ async function generateViaClaude(
         model: apiModelId,
         max_tokens: opts.maxTokens ?? 8192,
         temperature: opts.temperature ?? 0.7,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: opts.responseSchema
+          ? `${prompt}\n\nYou MUST respond with a JSON object conforming to this schema:\n${JSON.stringify(opts.responseSchema, null, 2)}`
+          : prompt }],
       }),
     }),
     timeoutMs,
@@ -320,6 +359,14 @@ async function generateViaGroq(
         messages: [{ role: 'user', content: prompt }],
         temperature: opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
+        ...(opts.responseSchema ? {
+          response_format: {
+            type: 'json_schema',
+            json_schema: { name: 'response', schema: opts.responseSchema, strict: true },
+          },
+        } : opts.jsonMode ? {
+          response_format: { type: 'json_object' },
+        } : {}),
       }),
     }),
     timeoutMs,
@@ -617,10 +664,49 @@ async function generateEnvelopeViaChatCompletions(
   };
 }
 
+// ── Token counting ──────────────────────────────────────
+
+export async function countTokens(
+  text: string,
+  apiKey?: string,
+): Promise<{ tokenCount: number; accurate: boolean }> {
+  const key = apiKey ?? process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY;
+  if (key) {
+    try {
+      const url = `${GEMINI_BASE}/gemini-2.5-flash:countTokens?key=${key}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text }] }] }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (resp.ok) {
+        const data = await resp.json() as { totalTokens: number };
+        return { tokenCount: data.totalTokens, accurate: true };
+      }
+    } catch { /* fall through to heuristic */ }
+  }
+  const charsPerToken = /^\s*[\[{]/.test(text) ? 2.5 : 3.2;
+  return { tokenCount: Math.ceil(text.length / charsPerToken), accurate: false };
+}
+
 // ── Factory ──────────────────────────────────────────────
 
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
   const registry = loadRegistry(repoRoot);
+
+  async function callBackend(prompt: string, apiModelId: string, backend: string, apiKey: string, opts: GenerateOptions): Promise<ProviderResult> {
+    switch (backend) {
+      case 'claude':
+        return generateViaClaude(prompt, apiModelId, apiKey, opts);
+      case 'groq':
+        return generateViaGroq(prompt, apiModelId, apiKey, opts);
+      case 'openai':
+        return generateViaOpenAI(prompt, apiModelId, apiKey, opts);
+      default:
+        return generateViaGemini(prompt, apiModelId, apiKey, opts);
+    }
+  }
 
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend } = resolveModel(registry, model);
@@ -628,20 +714,34 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const opts = options ?? {};
 
     const t0 = performance.now();
-    const result = await withRetry(async () => {
-      switch (backend) {
-        case 'claude':
-          return generateViaClaude(prompt, apiModelId, apiKey, opts);
-        case 'groq':
-          return generateViaGroq(prompt, apiModelId, apiKey, opts);
-        case 'openai':
-          return generateViaOpenAI(prompt, apiModelId, apiKey, opts);
-        default:
-          return generateViaGemini(prompt, apiModelId, apiKey, opts);
+    try {
+      const result = await withRetry(
+        () => callBackend(prompt, apiModelId, backend, apiKey, opts),
+        3, `${backend}/${apiModelId}`,
+      );
+      emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
+      return result.text;
+    } catch (primaryErr) {
+      const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      const isAuthError = errMsg.includes('401') || errMsg.includes('403');
+      const chain = registry.fallbackChains?.[model] ?? [];
+      for (const fbModel of chain) {
+        const fb = resolveModel(registry, fbModel);
+        if (isAuthError && fb.backend === backend) continue;
+        let fbKey: string;
+        try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch { continue; }
+        process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
+        try {
+          const fbResult = await withRetry(
+            () => callBackend(prompt, fb.apiModelId, fb.backend, fbKey, opts),
+            2, `cascade:${fb.backend}/${fb.apiModelId}`,
+          );
+          emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
+          return fbResult.text;
+        } catch { continue; }
       }
-    }, 3, `${backend}/${apiModelId}`);
-    emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
-    return result.text;
+      throw primaryErr;
+    }
   }
 
   async function doGenerate(request: GenerateRequest): Promise<GenerateResponse> {

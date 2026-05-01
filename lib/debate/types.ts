@@ -364,7 +364,7 @@ export interface DebateSession {
   app_version?: string;
   /** Target audience for tone, language, and concern prioritization. */
   audience?: DebateAudience;
-  phase: 'setup' | 'clarification' | 'opening' | 'debate' | 'closed';
+  phase: 'setup' | 'clarification' | 'edit-claims' | 'opening' | 'debate' | 'closed';
   topic: {
     original: string;
     refined: string | null;

@@ -257,6 +257,26 @@ Assess:
 Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_claim": "...", "evidence_criteria": {...}, "confidence": 0.0-1.0}
 "@
 
+            $RefinementSchema = @{
+                type       = 'object'
+                properties = @{
+                    claim_label       = @{ type = 'string' }
+                    verified          = @{ type = 'boolean' }
+                    refined_claim     = @{ type = 'string' }
+                    evidence_criteria = @{
+                        type       = 'object'
+                        properties = @{
+                            specificity           = @{ type = 'string'; enum = @('precise', 'qualified', 'vague') }
+                            has_warrant           = @{ type = 'boolean' }
+                            internally_consistent = @{ type = 'boolean' }
+                        }
+                        required   = @('specificity', 'has_warrant', 'internally_consistent')
+                    }
+                    confidence        = @{ type = 'number' }
+                }
+                required   = @('claim_label', 'verified', 'refined_claim', 'evidence_criteria', 'confidence')
+            }
+
             try {
                 $RefResult = Invoke-AIApi `
                     -Prompt      $RefinementPrompt `
@@ -265,7 +285,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
                     -ApiKey      $ApiKey `
                     -Temperature $Temperature `
                     -MaxTokens   2048 `
-                    -JsonMode `
+                    -ResponseSchema $RefinementSchema `
                     -TimeoutSec  30
 
                 if ($RefResult -and $RefResult.Text) {

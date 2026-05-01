@@ -8,7 +8,8 @@
           "category": "Desires",
           "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
-          "excerpt_context": "<e.g. Section 2, paragraph 3>"
+          "excerpt_context": "<e.g. Section 2, paragraph 3>",
+          "extraction_confidence": "<0.0-1.0: how faithfully this point represents the source document>"
         },
         { "...": "repeat for EVERY relevant Desires point" },
         {
@@ -39,7 +40,8 @@
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
-          "excerpt_context": "..."
+          "excerpt_context": "...",
+          "extraction_confidence": "<0.0-1.0>"
         },
         { "...": "repeat — cover all three categories" }
       ]
@@ -52,7 +54,8 @@
           "category": "<Desires | Beliefs | Intentions>",
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
-          "excerpt_context": "..."
+          "excerpt_context": "...",
+          "extraction_confidence": "<0.0-1.0>"
         },
         { "...": "repeat — cover all three categories" }
       ]
@@ -65,6 +68,7 @@
       "doc_position": "<supports | disputes | neutral | qualifies>",
       "temporal_scope": "<current_state | predictive | historical | timeless>",
       "temporal_bound": "<specific date, date range, or null if timeless. e.g. 'by 2030', '2023-2025', null>",
+      "extraction_confidence": "<0.0-1.0: how faithfully this claim represents the source document>",
       "potential_conflict_id": "<existing conflict id if relevant, OR null>",
       "linked_taxonomy_nodes": ["<1-4 most relevant taxonomy node ids>"],
       "evidence_criteria": {

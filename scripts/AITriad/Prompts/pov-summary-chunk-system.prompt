@@ -86,6 +86,14 @@ RULES:
     it in the unmapped_concepts array.
   - Each key_point must include a stance field. stance must be ONE of:
     strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
+  - Each key_point and factual_claim must include an extraction_confidence field (0.0-1.0)
+    rating how faithfully this point represents the source document. Assign confidence
+    AFTER formulating each point — do not self-censor or skip uncertain points.
+    Calibration anchors:
+      0.9-1.0: Explicit — near-verbatim match to source text.
+      0.7-0.9: Clear inference — strongly implied, any reader would agree.
+      0.5-0.7: Reasonable interpretation — requires analytical judgment.
+      0.3-0.5: Speculative — requires significant interpretive work.
   - A single passage may be relevant to multiple POV camps — include it in each.
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied
     EXACTLY from this section (word-for-word).

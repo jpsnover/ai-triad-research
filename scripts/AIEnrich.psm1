@@ -17,6 +17,8 @@
 # Falls back to hardcoded defaults if the file is missing.
 # ─────────────────────────────────────────────────────────────────────────────
 $script:ModelRegistry = @{}
+$script:FallbackChains = @{}
+$script:ContextWindows = @{ gemini = 1048576; claude = 200000; groq = 131072; openai = 131072 }
 $script:LastApiKeySource = ''
 $script:AIApiLoggedThisSession = $false
 $script:AIApiLastModel = ''
@@ -39,7 +41,17 @@ if (Test-Path $_aiModelsPath) {
                 ApiModelId = if ($_m.PSObject.Properties['apiModelId']) { $_m.apiModelId } else { $_m.id }
             }
         }
-        Write-Verbose "AIEnrich: loaded $($script:ModelRegistry.Count) models from ai-models.json"
+        if ($_aiConfig.PSObject.Properties['fallbackChains'] -and $_aiConfig.fallbackChains) {
+            foreach ($_prop in $_aiConfig.fallbackChains.PSObject.Properties) {
+                $script:FallbackChains[$_prop.Name] = @($_prop.Value)
+            }
+        }
+        if ($_aiConfig.PSObject.Properties['contextWindows'] -and $_aiConfig.contextWindows) {
+            foreach ($_prop in $_aiConfig.contextWindows.PSObject.Properties) {
+                $script:ContextWindows[$_prop.Name] = [int]$_prop.Value
+            }
+        }
+        Write-Verbose "AIEnrich: loaded $($script:ModelRegistry.Count) models, $($script:FallbackChains.Count) fallback chains from ai-models.json"
     }
     catch {
         Write-Warning "AIEnrich: failed to load ai-models.json — $($_.Exception.Message). Using hardcoded fallback."
@@ -133,12 +145,97 @@ function Resolve-AIApiKey {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Measure-PromptTokens — pre-flight token estimation
+# ─────────────────────────────────────────────────────────────────────────────
+<#
+.SYNOPSIS
+    Estimates the token count of a prompt text.
+.DESCRIPTION
+    Uses Gemini's free countTokens API for accurate counts when a Gemini API
+    key is available. Falls back to a character-based heuristic (~3.2 chars
+    per token for prose, ~2.5 for JSON/code).
+.PARAMETER Text
+    The prompt text to measure.
+.PARAMETER ApiKey
+    Optional API key. If omitted, attempts to resolve a Gemini key from env.
+.EXAMPLE
+    $Tokens = Measure-PromptTokens -Text $MyPrompt
+    $Tokens.TokenCount  # 1523
+    $Tokens.Accurate    # $true (if Gemini countTokens was used)
+#>
+function Measure-PromptTokens {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Text,
+        [string]$ApiKey = ''
+    )
+
+    $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini'
+    if ($GeminiKey) {
+        try {
+            $CountUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens?key=$GeminiKey"
+            $CountBody = @{
+                contents = @(@{ parts = @(@{ text = $Text }) })
+            } | ConvertTo-Json -Depth 5
+            $BodyBytes = [System.Text.Encoding]::UTF8.GetBytes($CountBody)
+            $CountResponse = Invoke-RestMethod -Uri $CountUrl -Method POST -ContentType 'application/json; charset=utf-8' -Body $BodyBytes -TimeoutSec 10
+            return [PSCustomObject]@{
+                TokenCount = [int]$CountResponse.totalTokens
+                Method     = 'gemini-countTokens'
+                Accurate   = $true
+            }
+        } catch {
+            Write-Verbose "Measure-PromptTokens: Gemini countTokens failed — $($_.Exception.Message). Using heuristic."
+        }
+    }
+
+    $JsonLike = $Text -match '^\s*[\[{]' -or ($Text.Length -gt 200 -and (($Text -split '[\{\}\[\]":]').Count * 1.0 / $Text.Length) -gt 0.01)
+    $CharsPerToken = if ($JsonLike) { 2.5 } else { 3.2 }
+    $EstTokens = [Math]::Ceiling($Text.Length / $CharsPerToken)
+    return [PSCustomObject]@{
+        TokenCount = $EstTokens
+        Method     = "heuristic ($CharsPerToken chars/token)"
+        Accurate   = $false
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Invoke-AIApi — central dispatcher
 #
 # Accepts a prompt and model name, looks up the backend, builds the
 # backend-specific request, calls the API with retry logic, and returns a
 # uniform result object.
 # ─────────────────────────────────────────────────────────────────────────────
+
+function ConvertTo-GeminiSchema {
+    param([hashtable]$Schema)
+    $TypeMap = @{
+        'string'  = 'STRING'; 'number' = 'NUMBER'; 'integer' = 'INTEGER'
+        'boolean' = 'BOOLEAN'; 'array' = 'ARRAY'; 'object' = 'OBJECT'
+    }
+    $result = @{}
+    if ($Schema.ContainsKey('type')) {
+        $result['type'] = $TypeMap[$Schema['type']] ?? $Schema['type'].ToString().ToUpper()
+    }
+    if ($Schema.ContainsKey('description')) { $result['description'] = $Schema['description'] }
+    if ($Schema.ContainsKey('enum')) { $result['enum'] = $Schema['enum'] }
+    if ($Schema.ContainsKey('nullable')) { $result['nullable'] = $Schema['nullable'] }
+    if ($Schema.ContainsKey('required')) { $result['required'] = $Schema['required'] }
+    if ($Schema.ContainsKey('items') -and $Schema['items'] -is [hashtable]) {
+        $result['items'] = ConvertTo-GeminiSchema -Schema $Schema['items']
+    }
+    if ($Schema.ContainsKey('properties') -and $Schema['properties'] -is [hashtable]) {
+        $props = @{}
+        foreach ($key in $Schema['properties'].Keys) {
+            $val = $Schema['properties'][$key]
+            if ($val -is [hashtable]) { $props[$key] = ConvertTo-GeminiSchema -Schema $val }
+            else { $props[$key] = $val }
+        }
+        $result['properties'] = $props
+    }
+    return $result
+}
+
 <#
 .SYNOPSIS
     Calls an AI backend with a prompt and returns the generated text.
@@ -171,12 +268,23 @@ function Resolve-AIApiKey {
     Maximum tokens in the response.  Defaults to 1024.
 .PARAMETER JsonMode
     When specified, requests JSON-formatted output from the backend.
+.PARAMETER ResponseSchema
+    Optional JSON Schema hashtable for structured output enforcement.
+    When provided, implies -JsonMode. Gemini and Groq enforce the schema
+    via constrained decoding; Claude injects the schema into the prompt.
 .PARAMETER TimeoutSec
     HTTP request timeout in seconds.  Defaults to 120.
 .PARAMETER MaxRetries
-    Number of retry attempts on transient failures.  Defaults to 3.
+    Number of retry attempts on transient failures.  Defaults to 5.
 .PARAMETER RetryDelays
-    Array of delay durations (seconds) between retries.  Defaults to @(5, 15, 45).
+    Array of delay durations (seconds) between retries.  Defaults to @(15, 45, 90, 120).
+.PARAMETER FallbackModels
+    Ordered list of models to try if the primary model fails permanently.
+    If omitted, uses the fallback chain from ai-models.json (if defined for
+    the primary model). Pass an empty array @() to disable fallback.
+.PARAMETER SkipTokenCheck
+    Skip the pre-flight token count check that warns when a prompt exceeds
+    80% of the model's context window.
 .EXAMPLE
     $Result = Invoke-AIApi -Prompt 'Summarize this document...' -Model 'gemini-2.5-flash'
     $Result.Text  # The generated summary
@@ -190,6 +298,10 @@ function Resolve-AIApiKey {
     Invoke-AIApi -Prompt 'Hello' -Model 'groq-llama-3.3-70b' -Temperature 0.7
 
     Calls the Groq backend with higher creativity.
+.EXAMPLE
+    Invoke-AIApi -Prompt $P -Model 'gemini-2.5-flash' -FallbackModels @('groq-llama-3.3-70b-versatile')
+
+    Falls back to Groq if Gemini fails.
 #>
 function Invoke-AIApi {
     [CmdletBinding()]
@@ -202,9 +314,12 @@ function Invoke-AIApi {
         [double]$Temperature = 0.1,
         [int]   $MaxTokens   = 1024,
         [switch]$JsonMode,
+        [hashtable]$ResponseSchema,
         [int]   $TimeoutSec  = 120,
         [int]   $MaxRetries  = 5,
-        [int[]] $RetryDelays = @(15, 45, 90, 120)
+        [int[]] $RetryDelays = @(15, 45, 90, 120),
+        [string[]]$FallbackModels,
+        [switch]$SkipTokenCheck
     )
 
     # -- Resolve model info from registry -------------------------------------
@@ -243,6 +358,19 @@ function Invoke-AIApi {
     }
     $script:AIApiLastModel = $Model
 
+    # -- Pre-flight token check ---------------------------------------------------
+    if (-not $SkipTokenCheck) {
+        $PromptLength = $Prompt.Length + $SystemInstruction.Length
+        $EstTokens = [Math]::Ceiling($PromptLength / 3.2)
+        $ContextLimit = if ($script:ContextWindows.ContainsKey($Backend)) { $script:ContextWindows[$Backend] } else { 131072 }
+        if ($EstTokens -gt ($ContextLimit * 0.8)) {
+            Write-Warning "$Model`: prompt is ~$EstTokens tokens (est.), which exceeds 80% of the $ContextLimit-token context window. Consider chunking or using a model with a larger context."
+        }
+    }
+
+    # -- ResponseSchema implies JsonMode ----------------------------------------
+    if ($ResponseSchema) { $JsonMode = [switch]::Present }
+
     # -- Build backend-specific request ---------------------------------------
     $Uri         = ''
     $Headers     = @{}
@@ -264,6 +392,9 @@ function Invoke-AIApi {
             }
             if ($JsonMode) {
                 $GenConfig['responseMimeType'] = 'application/json'
+                if ($ResponseSchema) {
+                    $GenConfig['responseSchema'] = ConvertTo-GeminiSchema -Schema $ResponseSchema
+                }
             }
 
             $GeminiBody = @{
@@ -284,12 +415,18 @@ function Invoke-AIApi {
                 'anthropic-version' = '2023-06-01'
             }
 
+            $ClaudePrompt = $Prompt
+            if ($ResponseSchema) {
+                $SchemaJson = $ResponseSchema | ConvertTo-Json -Depth 10
+                $ClaudePrompt = $Prompt + "`n`nYou MUST respond with a JSON object conforming to this schema:`n$SchemaJson"
+            }
+
             $ClaudeBody = @{
                 model      = $ApiModelId
                 max_tokens = $MaxTokens
                 messages   = @(@{
                     role    = 'user'
-                    content = $Prompt
+                    content = $ClaudePrompt
                 })
                 temperature = $Temperature
             }
@@ -318,7 +455,18 @@ function Invoke-AIApi {
                 max_tokens  = $MaxTokens
             }
             if ($JsonMode) {
-                $GroqBody['response_format'] = @{ type = 'json_object' }
+                if ($ResponseSchema) {
+                    $GroqBody['response_format'] = @{
+                        type        = 'json_schema'
+                        json_schema = @{
+                            name   = 'response'
+                            schema = $ResponseSchema
+                            strict = $true
+                        }
+                    }
+                } else {
+                    $GroqBody['response_format'] = @{ type = 'json_object' }
+                }
             }
 
             $Body = $GroqBody | ConvertTo-Json -Depth 10
@@ -341,7 +489,20 @@ function Invoke-AIApi {
                 $OpenAIBody['input'] = $Prompt
             }
             if ($JsonMode) {
-                $OpenAIBody['text'] = @{ format = @{ type = 'json_object' } }
+                if ($ResponseSchema) {
+                    $OpenAIBody['text'] = @{
+                        format = @{
+                            type        = 'json_schema'
+                            json_schema = @{
+                                name   = 'response'
+                                schema = $ResponseSchema
+                                strict = $true
+                            }
+                        }
+                    }
+                } else {
+                    $OpenAIBody['text'] = @{ format = @{ type = 'json_object' } }
+                }
             }
 
             $Body = $OpenAIBody | ConvertTo-Json -Depth 10
@@ -398,7 +559,6 @@ function Invoke-AIApi {
         }
         Write-Warning "$($Backend): API call failed (HTTP $StatusCode) — $($LastError.Exception.Message)"
         if ($Hint) { Write-Warning "$($Backend): $Hint" }
-        # Capture response body for debugging
         try {
             if ($LastError.Exception.Response) {
                 $ErrStream = $LastError.Exception.Response.GetResponseStream()
@@ -408,6 +568,42 @@ function Invoke-AIApi {
                 Write-Warning "$($Backend): Response body: $ErrBody"
             }
         } catch { }
+
+        # -- Model cascade: try fallback models ----------------------------------
+        $CascadeModels = $FallbackModels
+        if ($null -eq $CascadeModels -and $script:FallbackChains.ContainsKey($Model)) {
+            $CascadeModels = $script:FallbackChains[$Model]
+        }
+        if ($CascadeModels -and $CascadeModels.Count -gt 0) {
+            foreach ($FbModel in $CascadeModels) {
+                $FbInfo = $script:ModelRegistry[$FbModel]
+                if (-not $FbInfo) { continue }
+                if ($StatusCode -in @(401, 403) -and $FbInfo.Backend -eq $Backend) { continue }
+                $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend
+                if ([string]::IsNullOrWhiteSpace($FbKey)) { continue }
+
+                Write-Warning "Cascade: falling back to $FbModel ($($FbInfo.Backend))"
+                $FbParams = @{
+                    Prompt         = $Prompt
+                    Model          = $FbModel
+                    ApiKey         = $FbKey
+                    Temperature    = $Temperature
+                    MaxTokens      = $MaxTokens
+                    TimeoutSec     = $TimeoutSec
+                    MaxRetries     = 2
+                    RetryDelays    = @(5, 15)
+                    FallbackModels = @()
+                    SkipTokenCheck = $true
+                }
+                if ($SystemInstruction) { $FbParams['SystemInstruction'] = $SystemInstruction }
+                if ($JsonMode)          { $FbParams['JsonMode'] = $true }
+                if ($ResponseSchema)    { $FbParams['ResponseSchema'] = $ResponseSchema }
+
+                $FbResult = Invoke-AIApi @FbParams
+                if ($null -ne $FbResult) { return $FbResult }
+            }
+        }
+
         return $null
     }
 
@@ -867,5 +1063,5 @@ function Repair-TruncatedJson {
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Repair-TruncatedJson `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Repair-TruncatedJson, Measure-PromptTokens `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata

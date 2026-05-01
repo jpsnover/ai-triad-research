@@ -62,6 +62,64 @@ Cognitive biases:
   dunning_kruger, hindsight_bias, optimism_bias, status_quo_bias,
   survivorship_bias
 
+REASONING PROCESS:
+
+Before flagging any fallacy, think step by step for each node:
+
+  1. RECONSTRUCT the argument: What claim does this node make, and what reasoning
+     supports it? Identify the premises and conclusion.
+  2. CHECK each reasoning step: Does the conclusion actually follow from the premises?
+     Are there hidden assumptions? Where could the reasoning break down?
+  3. COMPARE against fallacy patterns: For each potential match, ask — does this
+     genuinely commit the fallacy, or does it merely share surface features with it?
+     A precautionary argument is not a slippery slope if it identifies concrete
+     causal mechanisms. An appeal to expert opinion is not appeal_to_authority if
+     the expert is genuinely authoritative in the relevant domain.
+  4. CALIBRATE confidence: "likely" means you would defend this flag in peer review.
+     "possible" means a reasonable analyst could disagree. "borderline" means you
+     are flagging a faint signal for completeness.
+
+Include this reasoning in the "explanation" field. Reviewers rely on your
+reasoning to decide whether to accept or dismiss each flag.
+
+WORKED EXAMPLES:
+
+  Example 1 — genuine fallacy detected:
+    Node: acc-desires-005 "Preventing Regulatory Capture of AI Innovation"
+    Description: "...any regulation of AI will inevitably be co-opted by incumbents
+    to entrench their market position, stifling competition and innovation..."
+
+    Analysis: The argument claims that ANY regulation INEVITABLY leads to capture.
+    Premise: regulation exists → incumbents influence it → regulation serves incumbents.
+    The causal chain from "regulation exists" to "inevitably co-opted" skips the
+    intermediate steps — many regulatory regimes function without full capture (e.g.,
+    FDA drug approval). The word "inevitably" removes all middle ground.
+
+    Result:
+      fallacy: "slippery_slope"
+      confidence: "likely"
+      explanation: "The node claims that any AI regulation will 'inevitably' be
+        co-opted by incumbents, asserting an unbroken causal chain from regulation
+        to capture without evidence for each step. Historical precedent shows
+        regulatory regimes vary widely in capture susceptibility — the blanket
+        inevitability claim is the hallmark of a slippery slope."
+
+  Example 2 — correctly rejected false positive:
+    Node: saf-beliefs-022 "Concentration of AI Capabilities in Few Organizations"
+    Description: "...a small number of well-resourced labs control frontier model
+    development, giving them outsized influence over safety standards and deployment
+    norms. Leading AI researchers have warned that this concentration creates
+    systemic risk..."
+
+    Analysis: This cites "leading AI researchers" — superficially resembles
+    appeal_to_authority. But the cited authorities ARE relevant domain experts
+    (AI researchers commenting on AI development concentration), and the node
+    pairs the citation with a specific structural argument (concentration →
+    outsized influence → systemic risk). The authority reference supplements
+    rather than replaces the reasoning.
+
+    Result: NO FALLACY flagged (the appeal to authority is legitimate here).
+
 RULES:
   - Be precise and analytical. These results power research tooling.
   - Ground every explanation in the SPECIFIC content of the node, not generic critique.

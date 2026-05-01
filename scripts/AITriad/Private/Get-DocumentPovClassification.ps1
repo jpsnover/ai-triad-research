@@ -46,8 +46,7 @@ function Get-DocumentPovClassification {
 
     $Prompt = @"
 Classify which AI policy perspectives this document excerpt is relevant to.
-Return ONLY a JSON array of applicable perspectives from this list:
-["accelerationist", "safetyist", "skeptic"]
+Return a JSON object with a "perspectives" array containing applicable values from: "accelerationist", "safetyist", "skeptic".
 
 Rules:
 - Include a perspective if the document discusses, supports, critiques, or is relevant to that camp
@@ -59,13 +58,25 @@ Document excerpt:
 $($QueryText.Substring(0, [Math]::Min(2000, $QueryText.Length)))
 "@
 
+    $ClassificationSchema = @{
+        type       = 'object'
+        properties = @{
+            perspectives = @{
+                type  = 'array'
+                items = @{ type = 'string'; enum = @('accelerationist', 'safetyist', 'skeptic') }
+            }
+        }
+        required   = @('perspectives')
+    }
+
     try {
         $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey `
-            -Temperature 0.1 -MaxTokens 100 -JsonMode -TimeoutSec 15
+            -Temperature 0.1 -MaxTokens 100 -ResponseSchema $ClassificationSchema -TimeoutSec 15
 
         if ($Result -and $Result.Text) {
             $CleanText = $Result.Text -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
-            $Povs = $CleanText.Trim() | ConvertFrom-Json
+            $Parsed = $CleanText.Trim() | ConvertFrom-Json
+            $Povs = if ($Parsed.PSObject.Properties['perspectives']) { $Parsed.perspectives } else { @($Parsed) }
             $ValidPovs = @($Povs | Where-Object { $_ -in @('accelerationist', 'safetyist', 'skeptic') })
 
             if ($ValidPovs.Count -gt 0) {

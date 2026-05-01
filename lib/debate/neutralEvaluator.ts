@@ -271,11 +271,59 @@ export async function runNeutralEvaluation(
 
   const prompt = neutralEvaluatorPrompt(checkpoint, config.topic, strippedTranscript);
 
+  const evaluationSchema = {
+    type: 'object',
+    properties: {
+      checkpoint: { type: 'string', enum: ['baseline', 'midpoint', 'final'] },
+      timestamp: { type: 'string' },
+      cruxes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            description: { type: 'string' },
+            disagreement_type: { type: 'string', enum: ['empirical', 'values', 'definitional'] },
+            speakers_involved: { type: 'array', items: { type: 'string' } },
+            status: { type: 'string', enum: ['addressed', 'partially_addressed', 'unaddressed'] },
+            confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+          },
+          required: ['id', 'description', 'disagreement_type', 'speakers_involved', 'status', 'confidence'],
+        },
+      },
+      claims: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            speaker: { type: 'string' },
+            claim_text: { type: 'string' },
+            neutral_assessment: { type: 'string', enum: ['well_supported', 'plausible_but_underdefended', 'contested_unresolved', 'refuted', 'off_topic'] },
+            reasoning: { type: 'string' },
+            confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+          },
+          required: ['id', 'speaker', 'claim_text', 'neutral_assessment', 'reasoning', 'confidence'],
+        },
+      },
+      overall_assessment: {
+        type: 'object',
+        properties: {
+          strongest_unaddressed_claim_id: { type: 'string', nullable: true },
+          debate_is_engaging_real_disagreement: { type: 'boolean' },
+          notes: { type: 'string' },
+        },
+        required: ['debate_is_engaging_real_disagreement', 'notes'],
+      },
+    },
+    required: ['checkpoint', 'timestamp', 'cruxes', 'claims', 'overall_assessment'],
+  };
+
   const startMs = Date.now();
   const result = await config.adapter.generateText(prompt, config.model, {
-    temperature: 0.2, // Low temperature for consistent analytical assessment
+    temperature: 0.2,
     maxTokens: 8192,
-    jsonMode: true,
+    responseSchema: evaluationSchema,
   });
   const elapsedMs = Date.now() - startMs;
 

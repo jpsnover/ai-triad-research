@@ -195,7 +195,7 @@ function Invoke-ChunkedSummary {
         $script:LastRAGMetrics = $null
         try {
             $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText `
-                -Threshold 0.30 -MaxTotal 150 -MinPerCategory 2 `
+                -MaxTotal 150 -TopK 60 -MinPerCategory 2 `
                 -IncludeSituations -Format context -ApiKey $ApiKey
             if ($ChunkRelevant) {
                 $ChunkTaxonomy = $ChunkRelevant

@@ -16,10 +16,16 @@ function Get-RelevantTaxonomyNodes {
     .PARAMETER Query
         Text to find relevant nodes for (e.g., document excerpt, first 500 words).
     .PARAMETER Threshold
-        Cosine similarity threshold. Nodes below this are excluded unless needed for
-        MinPerCategory guarantee. Default: 0.30.
+        Cosine similarity floor. Nodes below this are excluded unless needed for
+        MinPerCategory guarantee. When -AdaptiveThreshold is set (default), the
+        effective threshold is the higher of this floor and the score at the
+        TopK-th percentile, adapting to query specificity. Default: 0.20.
     .PARAMETER MaxTotal
         Maximum nodes to return. Default: 50.
+    .PARAMETER TopK
+        Select the top-K nodes by similarity rank instead of using a fixed threshold.
+        Combined with Threshold as a floor — nodes below the floor are excluded even
+        if they're in the top K. Default: 40. Set to 0 to disable rank-based selection.
     .PARAMETER MinPerCategory
         Minimum nodes per BDI category (Beliefs, Desires, Intentions). Guarantees
         coverage even if one category has low similarity. Default: 3.
@@ -54,10 +60,13 @@ function Get-RelevantTaxonomyNodes {
         [string]$Query,
 
         [ValidateRange(0.0, 1.0)]
-        [double]$Threshold = 0.30,
+        [double]$Threshold = 0.20,
 
         [ValidateRange(1, 600)]
         [int]$MaxTotal = 50,
+
+        [ValidateRange(0, 500)]
+        [int]$TopK = 40,
 
         [ValidateRange(0, 20)]
         [int]$MinPerCategory = 3,
@@ -198,15 +207,24 @@ function Get-RelevantTaxonomyNodes {
         })
     }
 
-    # ── Selection: threshold + min-per-BDI + max cap ──────────────────────────
-    $AboveThreshold = @($Scores | Where-Object { $_.Similarity -ge $Threshold } | Sort-Object Similarity -Descending)
+    # ── Selection: adaptive top-K + threshold floor + min-per-BDI + max cap ──
+    $Ranked = @($Scores | Sort-Object Similarity -Descending)
 
-    # Guarantee MinPerCategory
+    # Adaptive threshold: use top-K rank to determine effective cutoff
+    $EffectiveThreshold = $Threshold
+    if ($TopK -gt 0 -and $Ranked.Count -gt $TopK) {
+        $KthScore = $Ranked[$TopK - 1].Similarity
+        $EffectiveThreshold = [Math]::Max($Threshold, $KthScore)
+    }
+
+    $AboveThreshold = @($Ranked | Where-Object { $_.Similarity -ge $EffectiveThreshold })
+
+    # Guarantee MinPerCategory (uses raw threshold floor, not adaptive)
     $Selected = [System.Collections.Generic.List[PSObject]]::new()
     $SelectedIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     foreach ($Cat in @('Beliefs', 'Desires', 'Intentions')) {
-        $CatNodes = @($Scores | Where-Object { $_.Category -eq $Cat } | Sort-Object Similarity -Descending)
+        $CatNodes = @($Ranked | Where-Object { $_.Category -eq $Cat })
         $Added = 0
         foreach ($N in $CatNodes) {
             if ($Added -ge $MinPerCategory) { break }
@@ -230,17 +248,19 @@ function Get-RelevantTaxonomyNodes {
     # Sort final selection by similarity descending
     $Selected = @($Selected | Sort-Object Similarity -Descending)
 
-    Write-Verbose "Selected $($Selected.Count) / $($Scores.Count) nodes (threshold=$Threshold, max=$MaxTotal)"
+    Write-Verbose "Selected $($Selected.Count) / $($Scores.Count) nodes (floor=$Threshold, effective=$([Math]::Round($EffectiveThreshold, 3)), topK=$TopK, max=$MaxTotal)"
 
     # Context-rot: RAG filtering metrics (module-scoped for pipeline to capture)
-    $BelowThresholdForced = @($Selected | Where-Object { $_.Similarity -lt $Threshold }).Count
+    $BelowThresholdForced = @($Selected | Where-Object { $_.Similarity -lt $EffectiveThreshold }).Count
     $CatCounts = @{}
     foreach ($S in $Selected) { $CatCounts[$S.Category] = ($CatCounts[$S.Category] ?? 0) + 1 }
     $script:LastRAGMetrics = New-ContextRotStage `
         -Stage 'rag_filtering' -InUnits 'nodes' -InCount $Scores.Count `
         -OutUnits 'nodes' -OutCount $Selected.Count `
         -Flags @{
-            threshold              = $Threshold
+            threshold_floor        = $Threshold
+            effective_threshold    = $EffectiveThreshold
+            top_k                  = $TopK
             above_threshold        = $AboveThreshold.Count
             below_threshold_forced = $BelowThresholdForced
             beliefs_selected       = ($CatCounts['Beliefs'] ?? 0)

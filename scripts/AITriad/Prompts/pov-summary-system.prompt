@@ -118,7 +118,8 @@ EXAMPLE KEY POINTS:
       "taxonomy_node_id": "saf-beliefs-014",
       "category": "Beliefs",
       "stance": "strongly_aligned",
-      "verbatim": "GPT-4 scored in the 90th percentile on the Uniform Bar Exam, a capability that was not predicted by extrapolation from GPT-3's performance."
+      "verbatim": "GPT-4 scored in the 90th percentile on the Uniform Bar Exam, a capability that was not predicted by extrapolation from GPT-3's performance.",
+      "extraction_confidence": 0.95
     }
 
   Desires example:
@@ -127,7 +128,8 @@ EXAMPLE KEY POINTS:
       "taxonomy_node_id": "acc-desires-008",
       "category": "Desires",
       "stance": "aligned",
-      "verbatim": "Without open access to foundational models, democratic oversight of AI becomes impossible — citizens cannot evaluate what they cannot inspect."
+      "verbatim": "Without open access to foundational models, democratic oversight of AI becomes impossible — citizens cannot evaluate what they cannot inspect.",
+      "extraction_confidence": 0.85
     }
 
   Intentions example:
@@ -136,7 +138,8 @@ EXAMPLE KEY POINTS:
       "taxonomy_node_id": "skp-intentions-003",
       "category": "Intentions",
       "stance": "aligned",
-      "verbatim": "Regulation should be triggered by demonstrated harm, not hypothetical capability — we do not ban automobiles because they could theoretically be weaponized."
+      "verbatim": "Regulation should be triggered by demonstrated harm, not hypothetical capability — we do not ban automobiles because they could theoretically be weaponized.",
+      "extraction_confidence": 0.90
     }
 
 EXAMPLE FACTUAL CLAIM:
@@ -146,6 +149,7 @@ EXAMPLE FACTUAL CLAIM:
       "doc_position": "supports",
       "temporal_scope": "current_state",
       "temporal_bound": "2023-03",
+      "extraction_confidence": 0.98,
       "potential_conflict_id": null,
       "linked_taxonomy_nodes": ["saf-beliefs-014"]
     }
@@ -207,6 +211,19 @@ RULES:
   - Each key_point must include a stance field. stance must be ONE of:
     strongly_aligned | aligned | neutral | opposed | strongly_opposed | not_applicable.
     Different key_points within the same POV camp may have different stances.
+  - Each key_point and factual_claim must include an extraction_confidence field (0.0-1.0)
+    rating how faithfully this point represents the source document. Assign confidence
+    AFTER formulating each point — do not self-censor or skip uncertain points.
+    Calibration anchors:
+      0.9-1.0: The document explicitly states this — near-verbatim match to source text.
+      0.7-0.9: Clear inference — the document strongly implies this and any careful
+        reader would draw the same conclusion.
+      0.5-0.7: Reasonable interpretation — requires analytical judgment; another
+        analyst might frame it differently or assign it to a different POV camp.
+      0.3-0.5: Speculative — the connection to the document exists but requires
+        significant interpretive work. Include it, but flag it honestly.
+    Extract ALL points regardless of confidence. Low-confidence points are flagged
+    for human review, not discarded.
   - A single document passage may be relevant to multiple POV camps — include it in each
     where applicable, with the appropriate lens and stance.
   - For each key_point, the "verbatim" field must contain 1-5 sentences copied

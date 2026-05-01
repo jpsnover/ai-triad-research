@@ -1473,6 +1473,11 @@ interface DebateStore {
   submitAnswersAndSynthesize: (answers: string) => Promise<void>;
   beginDebate: () => Promise<void>;
 
+  // Phase 2.5: Edit Claims (document/URL debates only)
+  updateClaim: (claimId: string, newText: string) => void;
+  deleteClaim: (claimId: string) => void;
+  proceedToOpening: () => void;
+
   // Phase 3: Opening Statements
   openingOrder: Exclude<PoverId, 'user'>[];
   setOpeningOrder: (order: Exclude<PoverId, 'user'>[]) => void;
@@ -2093,26 +2098,99 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);
     }
 
-    updatePhase('opening');
-
-    // Initialize opening order with a random shuffle of active AI POVers
-    if (activeDebate) {
-      const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
-      const shuffled = [...aiPovers];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      set({ openingOrder: shuffled });
+    // If document analysis produced claims, let the user review/edit them before opening
+    const freshDebate = get().activeDebate;
+    if (freshDebate?.document_analysis?.i_nodes?.length) {
+      updatePhase('edit-claims');
+      await saveDebate();
+      return;
     }
 
+    // No claims to edit — proceed directly to opening
+    get().proceedToOpening();
+    await saveDebate();
+  },
+
+  // ── Phase 2.5: Edit Claims ──────────────────────────────
+
+  updateClaim: (claimId: string, newText: string) => {
+    const debate = get().activeDebate;
+    if (!debate?.document_analysis) return;
+
+    const updatedINodes = debate.document_analysis.i_nodes.map(n =>
+      n.id === claimId ? { ...n, text: newText } : n,
+    );
+    const updatedAN = debate.argument_network
+      ? {
+          ...debate.argument_network,
+          nodes: debate.argument_network.nodes.map(n =>
+            n.id === claimId ? { ...n, text: newText } : n,
+          ),
+        }
+      : undefined;
+
+    set({
+      activeDebate: {
+        ...debate,
+        document_analysis: { ...debate.document_analysis, i_nodes: updatedINodes },
+        ...(updatedAN ? { argument_network: updatedAN } : {}),
+      },
+    });
+  },
+
+  deleteClaim: (claimId: string) => {
+    const debate = get().activeDebate;
+    if (!debate?.document_analysis) return;
+
+    const updatedINodes = debate.document_analysis.i_nodes.filter(n => n.id !== claimId);
+    const updatedTensions = debate.document_analysis.tension_points.map(tp => ({
+      ...tp,
+      i_node_ids: tp.i_node_ids.filter(id => id !== claimId),
+    })).filter(tp => tp.i_node_ids.length > 0);
+    const updatedAN = debate.argument_network
+      ? {
+          ...debate.argument_network,
+          nodes: debate.argument_network.nodes.filter(n => n.id !== claimId),
+          edges: debate.argument_network.edges.filter(e => e.source !== claimId && e.target !== claimId),
+        }
+      : undefined;
+
+    set({
+      activeDebate: {
+        ...debate,
+        document_analysis: {
+          ...debate.document_analysis,
+          i_nodes: updatedINodes,
+          tension_points: updatedTensions,
+        },
+        ...(updatedAN ? { argument_network: updatedAN } : {}),
+      },
+    });
+  },
+
+  proceedToOpening: () => {
+    const { activeDebate, updatePhase, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate) return;
+
+    updatePhase('opening');
+
+    const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
+    const shuffled = [...aiPovers];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    set({ openingOrder: shuffled });
+
+    const claimCount = activeDebate.document_analysis?.i_nodes?.length;
     addTranscriptEntry({
       type: 'system',
       speaker: 'system',
-      content: 'The debate begins. Opening statements will follow.',
+      content: `The debate begins${claimCount ? ` with ${claimCount} source claims` : ''}. Opening statements will follow.`,
       taxonomy_refs: [],
     });
-    await saveDebate();
+
+    saveDebate();
   },
 
   // ── Phase 3: Opening Statements ─────────────────────────

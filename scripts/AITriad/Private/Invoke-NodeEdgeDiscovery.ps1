@@ -30,7 +30,8 @@ function Invoke-NodeEdgeDiscovery {
         [Parameter(Mandatory)][string]$FullPrompt,
         [Parameter(Mandatory)][string]$Model,
         [Parameter(Mandatory)][string]$ApiKey,
-        [double]$Temperature = 0.3
+        [double]$Temperature = 0.3,
+        [hashtable]$ResponseSchema
     )
 
     $Result = [PSCustomObject]@{
@@ -43,14 +44,17 @@ function Invoke-NodeEdgeDiscovery {
 
     $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        $Response = Invoke-AIApi `
-            -Prompt     $FullPrompt `
-            -Model      $Model `
-            -ApiKey     $ApiKey `
-            -Temperature $Temperature `
-            -MaxTokens  16384 `
-            -JsonMode `
-            -TimeoutSec 120
+        $AIParams = @{
+            Prompt      = $FullPrompt
+            Model       = $Model
+            ApiKey      = $ApiKey
+            Temperature = $Temperature
+            MaxTokens   = 16384
+            TimeoutSec  = 120
+            JsonMode    = $true
+        }
+        if ($ResponseSchema) { $AIParams['ResponseSchema'] = $ResponseSchema }
+        $Response = Invoke-AIApi @AIParams
     } catch {
         $Result.Error      = "API call failed: $_"
         $Result.ElapsedSec = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)

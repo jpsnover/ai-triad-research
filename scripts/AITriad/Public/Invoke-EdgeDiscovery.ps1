@@ -273,6 +273,43 @@ function Invoke-EdgeDiscovery {
     $SystemPrompt = Get-Prompt -Name 'edge-discovery'
     $SchemaPrompt = Get-Prompt -Name 'edge-discovery-schema'
 
+    $EdgeSchema = @{
+        type       = 'object'
+        properties = @{
+            source_node_id = @{ type = 'string' }
+            edges          = @{
+                type  = 'array'
+                items = @{
+                    type       = 'object'
+                    properties = @{
+                        type          = @{ type = 'string' }
+                        target        = @{ type = 'string' }
+                        bidirectional = @{ type = 'boolean' }
+                        confidence    = @{ type = 'number' }
+                        weight        = @{ type = 'number' }
+                        rationale     = @{ type = 'string' }
+                        strength      = @{ type = 'string'; enum = @('strong', 'moderate', 'weak') }
+                        notes         = @{ type = 'string' }
+                    }
+                    required   = @('type', 'target', 'confidence', 'rationale')
+                }
+            }
+            new_edge_types = @{
+                type  = 'array'
+                items = @{
+                    type       = 'object'
+                    properties = @{
+                        type          = @{ type = 'string' }
+                        definition    = @{ type = 'string' }
+                        bidirectional = @{ type = 'boolean' }
+                    }
+                    required   = @('type', 'definition')
+                }
+            }
+        }
+        required   = @('edges')
+    }
+
     # ── Step 7: Build per-node filtered candidate list and full prompt ──
     Write-Step 'Building per-node prompts'
 
@@ -395,11 +432,12 @@ $SchemaPrompt
             Write-Step "[$NodeNum/$($NodesToProcess.Count)] $($Node.id) ($PovKey)"
 
             $Disc = Invoke-NodeEdgeDiscovery `
-                -Node        $Node `
-                -FullPrompt  $NodePrompts[$Node.id] `
-                -Model       $Model `
-                -ApiKey      $ResolvedKey `
-                -Temperature $Temperature
+                -Node            $Node `
+                -FullPrompt      $NodePrompts[$Node.id] `
+                -Model           $Model `
+                -ApiKey          $ResolvedKey `
+                -Temperature     $Temperature `
+                -ResponseSchema  $EdgeSchema
 
             # ── Process result ──
             if ($Disc.Error) {
@@ -510,11 +548,12 @@ $SchemaPrompt
 
             $Prompts = $using:NodePrompts
             $Disc = Invoke-NodeEdgeDiscovery `
-                -Node        $_ `
-                -FullPrompt  $Prompts[$_.id] `
-                -Model       $using:Model `
-                -ApiKey      $using:ResolvedKey `
-                -Temperature $using:Temperature
+                -Node            $_ `
+                -FullPrompt      $Prompts[$_.id] `
+                -Model           $using:Model `
+                -ApiKey          $using:ResolvedKey `
+                -Temperature     $using:Temperature `
+                -ResponseSchema  $using:EdgeSchema
 
             [void]($using:ParallelBag).Add($Disc)
 

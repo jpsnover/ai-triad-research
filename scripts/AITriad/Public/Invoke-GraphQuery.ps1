@@ -215,6 +215,41 @@ $SchemaPrompt
     # ── Step 7: Call AI API ──
     Write-Step 'Querying graph'
 
+    $GraphQuerySchema = @{
+        type       = 'object'
+        properties = @{
+            answer           = @{ type = 'string'; description = 'Natural language answer to the question' }
+            confidence       = @{ type = 'number' }
+            referenced_nodes = @{
+                type  = 'array'
+                items = @{
+                    type       = 'object'
+                    properties = @{
+                        id        = @{ type = 'string' }
+                        pov       = @{ type = 'string' }
+                        label     = @{ type = 'string' }
+                        relevance = @{ type = 'string' }
+                    }
+                    required   = @('id', 'relevance')
+                }
+            }
+            paths_traced     = @{
+                type  = 'array'
+                items = @{
+                    type       = 'object'
+                    properties = @{
+                        description = @{ type = 'string' }
+                        nodes       = @{ type = 'array'; items = @{ type = 'string' } }
+                        edge_types  = @{ type = 'array'; items = @{ type = 'string' } }
+                    }
+                    required   = @('description', 'nodes')
+                }
+            }
+            limitations      = @{ type = 'string' }
+        }
+        required   = @('answer', 'confidence', 'referenced_nodes')
+    }
+
     $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     try {
         $Result = Invoke-AIApi `
@@ -223,7 +258,7 @@ $SchemaPrompt
             -ApiKey $ResolvedKey `
             -Temperature $Temperature `
             -MaxTokens 8192 `
-            -JsonMode `
+            -ResponseSchema $GraphQuerySchema `
             -TimeoutSec 120
     } catch {
         Write-Fail "API call failed: $_"

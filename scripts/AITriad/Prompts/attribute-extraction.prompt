@@ -150,6 +150,76 @@ For situation nodes (id starts with "cc-"), also consider the three POV
 interpretations when generating attributes. The epistemic_type and rhetorical_strategy
 should reflect the situation concept itself, not any single POV's interpretation.
 
+REASONING PROCESS:
+
+Before generating attributes for each node, think step by step:
+
+  1. RECONSTRUCT the argument: What is this node claiming, proposing, or defining?
+     Identify the core assertion and its supporting reasoning.
+  2. CLASSIFY the discourse type: Is this an empirical claim, a value judgment, a
+     strategic proposal, or a framing device? Let the BDI category guide you but
+     override when the content doesn't match the typical pattern.
+  3. SURFACE hidden assumptions: What must be true for this node's claim to hold?
+     Look for unstated premises — economic conditions, technological trajectories,
+     institutional capacities — not just restatements of the claim itself.
+  4. TEST for fallacies honestly: Reconstruct the strongest version of the argument
+     before checking for fallacy patterns. A rhetorical strategy is only fallacious
+     when the reasoning is genuinely unsound, not when it uses persuasive framing.
+  5. FIND the steelman vulnerability: What is the single strongest objection that
+     an informed, sympathetic critic would raise against the best version of this claim?
+
+Ground every attribute in the specific content of the node. Generic analysis is
+worse than no analysis.
+
+WORKED EXAMPLE:
+
+  Input node: saf-intentions-008 "Mandating Pre-Deployment Safety Evaluations"
+    Category: Intentions | POV: safetyist
+    Description: "An Intention within safetyist discourse that advocates requiring
+      independent safety testing of frontier AI models before public deployment.
+      Encompasses: red-team exercises, capability evaluations, adversarial testing
+      protocols, third-party audit requirements.
+      Excludes: voluntary industry self-assessment, post-deployment monitoring."
+
+  Reasoning:
+    1. Core argument: Frontier models must pass mandatory safety tests before release.
+       This is a strategic policy proposal, not an empirical claim.
+    2. Discourse type: strategic_recommendation (proposes a policy mechanism).
+       Even though it's an Intentions node, I need to verify — yes, it proposes
+       a concrete action (mandatory testing), not just a reasoning framework.
+    3. Hidden assumptions: Models CAN be meaningfully evaluated pre-deployment
+       (evaluation science is mature enough). Independent testers exist with
+       sufficient capability. Safety-relevant properties are detectable in
+       controlled settings.
+    4. Fallacy check: Steelmanned, this is a reasonable policy proposal.
+       No obvious fallacy — it doesn't claim testing eliminates all risk, just
+       that it should be required. No slippery slope, no false dilemma.
+    5. Steelman vulnerability: Pre-deployment evaluation assumes dangerous
+       capabilities manifest during testing, but emergent capabilities may
+       appear only at deployment scale or in real-world contexts that
+       controlled testing cannot replicate.
+
+  Result:
+    epistemic_type: "strategic_recommendation"
+    rhetorical_strategy: "precautionary_framing"
+    assumes: [
+      "Evaluation science is mature enough to detect safety-relevant properties",
+      "Independent testing organizations with frontier-model expertise exist",
+      "Dangerous capabilities manifest in controlled test environments"
+    ]
+    falsifiability: "medium"
+    audience: "policymakers, technical_researchers"
+    emotional_register: "cautionary"
+    policy_actions: [{
+      policy_id: null,
+      action: "Require independent safety audits before frontier model deployment",
+      framing: "The node's core proposal — mandatory pre-deployment testing — translates directly into a regulatory requirement for third-party safety evaluations."
+    }]
+    intellectual_lineage: ["FDA drug approval analogy", "nuclear safety testing regimes"]
+    steelman_vulnerability: "Emergent capabilities may appear only at deployment scale or in real-world interaction patterns that controlled pre-deployment testing cannot replicate, making evaluations systematically incomplete."
+    possible_fallacies: []
+    node_scope: "scheme"
+
 RULES:
   - Be precise and analytical. These attributes power automated reasoning.
   - Do not be generic. "AI is complex" is not a useful assumption.

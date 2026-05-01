@@ -6,7 +6,7 @@ import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
-import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience } from '../types/debate';
+import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
@@ -1072,6 +1072,143 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   );
 }
 
+/** Edit Claims phase — review extracted document claims before debating */
+function ClaimsEditor() {
+  const { activeDebate, updateClaim, deleteClaim, proceedToOpening } = useDebateStore();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+
+  if (!activeDebate?.document_analysis) return null;
+
+  const claims = activeDebate.document_analysis.i_nodes;
+  const tensions = activeDebate.document_analysis.tension_points;
+
+  const startEdit = (claim: DocumentINode) => {
+    setEditingId(claim.id);
+    setEditText(claim.text);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editText.trim()) {
+      updateClaim(editingId, editText.trim());
+    }
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const typeColors: Record<string, string> = {
+    empirical: '#4a9eff',
+    normative: '#e67e22',
+    definitional: '#9b59b6',
+    assumption: '#95a5a6',
+    evidence: '#27ae60',
+  };
+
+  return (
+    <div className="debate-claims-editor">
+      <div className="claims-editor-header">
+        <h3>Review Extracted Claims</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+          {claims.length} claim{claims.length !== 1 ? 's' : ''} extracted from the source document.
+          Edit or remove claims to focus the debate. Deleted claims won't be used in opening statements or moderator analysis.
+        </p>
+      </div>
+
+      <div className="claims-editor-list">
+        {claims.map((claim, i) => (
+          <div key={claim.id} className="claims-editor-item">
+            <div className="claims-editor-item-header">
+              <span className="claims-editor-number">{i + 1}</span>
+              <span
+                className="claims-editor-type"
+                style={{ background: typeColors[claim.type] ?? '#666', color: '#fff', padding: '1px 6px', borderRadius: 3, fontSize: '0.7rem', textTransform: 'uppercase' }}
+              >
+                {claim.type}
+              </span>
+              <span className="claims-editor-id" style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: 'auto' }}>
+                {claim.id}
+              </span>
+            </div>
+
+            {editingId === claim.id ? (
+              <div className="claims-editor-edit">
+                <textarea
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  rows={3}
+                  style={{ width: '100%', resize: 'vertical', padding: 8, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '0.85rem' }}
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit();
+                    if (e.key === 'Escape') cancelEdit();
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button className="btn btn-sm btn-primary" onClick={saveEdit}>Save</button>
+                  <button className="btn btn-sm" onClick={cancelEdit}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="claims-editor-text" style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
+                {claim.text}
+              </div>
+            )}
+
+            {editingId !== claim.id && (
+              <div className="claims-editor-actions">
+                <button className="btn btn-sm" onClick={() => startEdit(claim)} title="Edit this claim">
+                  Edit
+                </button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={() => deleteClaim(claim.id)}
+                  title="Remove this claim from the debate"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {claims.length === 0 && (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
+            All claims have been removed. The debate will proceed without document-grounded claims.
+          </div>
+        )}
+      </div>
+
+      {tensions.length > 0 && (
+        <div className="claims-editor-tensions">
+          <h4 style={{ fontSize: '0.85rem', margin: '12px 0 6px' }}>Tension Points</h4>
+          {tensions.map((t, i) => (
+            <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+              {t.description}
+              <span style={{ marginLeft: 8, fontSize: '0.7rem' }}>
+                ({t.i_node_ids.filter(id => claims.some(c => c.id === id)).length}/{t.i_node_ids.length} claims active)
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="claims-editor-footer">
+        <button
+          className="btn btn-primary"
+          onClick={proceedToOpening}
+        >
+          Proceed to Opening Statements ({claims.length} claim{claims.length !== 1 ? 's' : ''})
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Clarification phase action bar */
 interface StructuredQuestion {
   question: string;
@@ -1968,6 +2105,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   }
 
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
+  const isEditClaimsPhase = activeDebate.phase === 'edit-claims';
   const isOpeningPhase = activeDebate.phase === 'opening';
   const isDebatePhase = activeDebate.phase === 'debate';
   const isCrossCutting = activeDebate.source_type === 'situations';
@@ -2145,6 +2283,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
       {/* Phase-aware action bar (fixed at bottom) */}
       {isClarificationPhase && <ClarificationActions />}
+      {isEditClaimsPhase && <ClaimsEditor />}
       {isOpeningPhase && <OpeningActions />}
 
       {isDebatePhase && <DebateActions />}

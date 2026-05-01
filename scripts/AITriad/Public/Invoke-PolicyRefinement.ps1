@@ -196,6 +196,13 @@ INSTRUCTIONS:
         }
 
         # -- Call LLM --
+        $RefinementSchema = @{
+            type       = 'object'
+            properties = @{
+                refined_action = @{ type = 'string'; description = 'POV-neutral canonical action statement, 5-15 words' }
+            }
+            required   = @('refined_action')
+        }
         try {
             $AIResult = Invoke-AIApi `
                 -Prompt    $Prompt `
@@ -204,7 +211,7 @@ INSTRUCTIONS:
                 -Temperature 0.1 `
                 -MaxTokens 2048 `
                 -TimeoutSec 120 `
-                -JsonMode
+                -ResponseSchema $RefinementSchema
 
             $ResponseText = $AIResult.Text
             if (-not $ResponseText) {

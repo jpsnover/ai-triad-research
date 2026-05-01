@@ -8922,6 +8922,73 @@ body {
   font-weight: 700;
 }
 
+/* ─── Claims Editor (edit-claims phase) ──────────────── */
+
+.debate-claims-editor {
+  border-top: 1px solid var(--border-color);
+  padding: 16px;
+  background: var(--bg-primary);
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.claims-editor-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.claims-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claims-editor-item {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+}
+
+.claims-editor-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.claims-editor-number {
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 18px;
+}
+
+.claims-editor-text {
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.claims-editor-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.claims-editor-tensions {
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.claims-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
 /* ─── Refined Topic Editor ────────────────────────────── */
 
 .debate-refined-topic {

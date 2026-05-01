@@ -33,7 +33,7 @@ This dual architecture delivers both creativity and auditability:
 | Layer | Neural (LLM) | Symbolic (Deterministic) |
 |-------|-------------|--------------------------|
 | Turn generation | BRIEF, PLAN, DRAFT, CITE stages produce content | Structured JSON schema chains stages together |
-| Validation | Stage B: LLM judge evaluates novelty and taxonomy fitness | Stage A: 9 symbolic rules check move validity, taxonomy grounding, paragraph count, novelty, claim specificity |
+| Validation | Stage B: LLM judge evaluates novelty and taxonomy fitness | Stage A: 10 symbolic rules check move validity, taxonomy grounding, paragraph count, novelty, claim specificity, hedge density |
 | Argument network | Claim extraction classifies schemes | QBAF propagation computes strengths; move-edge map classifies every move as support/attack/neutral |
 | Convergence tracking | None | 7 per-turn signals, all computed from graph structure and text overlap |
 | Outcome explanation | None | Dialectic traces: BFS traversal produces narrative chains explaining why positions prevailed |
@@ -62,7 +62,7 @@ User clicks "Start Debate"
   │     For each round:
   │       1. Moderator selects responder + focus point (argument network analysis)
   │       2. Turn Pipeline: BRIEF → PLAN → DRAFT → CITE (4 sequential AI calls)
-  │       3. Turn Validation: Stage A (9 symbolic rules) → Stage B (LLM judge)
+  │       3. Turn Validation: Stage A (10 symbolic rules) → Stage B (LLM judge)
   │          └── Repair loop (0–2 retries, hints injected into DRAFT)
   │       4. Claim extraction → argument network update → QBAF propagation
   │       5. Commitment store update (asserted/conceded/challenged)
@@ -109,11 +109,13 @@ User clicks "Start Debate"
 
 `getDebatePhase(round, totalRounds)` assigns each round to one of three phases, each with its own instruction block injected into debater prompts:
 
-| Phase | When | Instruction Focus |
-|-------|------|-------------------|
+| Phase | When (fixed mode) | Instruction Focus |
+|-------|-------------------|-------------------|
 | `thesis-antithesis` | Rounds 1–2 | Stake out position; challenge opposing premises; no common-ground seeking yet |
 | `exploration` | Middle rounds | Probe deeper, force falsifiable predictions, stress-test edge cases |
 | `synthesis` | Final 2 rounds | Converge where possible, narrow disagreements, require `position_update` field in output |
+
+When adaptive phase transitions are enabled, phases advance based on signal-driven saturation and convergence scores rather than fixed round counts. See "Adaptive Phase Transitions" section below.
 
 ## Turn Pipeline
 
@@ -532,10 +534,12 @@ Compliance is verified by `checkInterventionCompliance()`. Non-compliant respons
 
 The composite score (0-1) drives trajectory modifiers and SLI breach detection. Stored in `ModeratorState.health_history`.
 
-### Budget and Cooldown
+### Budget, Cooldown, and Per-Move Costs
 
 - **Budget:** `ceil(explorationRounds / 2.5)` interventions per debate. COMMIT moves are off-budget (synthesis-phase automation).
-- **Cooldown:** Escalating gap — initially 1 round between interventions, increases to 2 after 2+ interventions fired. Reconciliation moves and COMMIT are cooldown-exempt.
+- **Budget refill:** When the budget exhausts, the engine grants a smaller refill (`ceil(budget_total / (1 + epoch))`) with a longer cooldown gap (`1 + epoch`). Each refill increments the budget epoch, so successive refills yield progressively smaller budgets with longer gaps — the moderator can still intervene when needed but at a declining rate.
+- **Per-move costs:** High-value moves that directly improve debate quality (PIN, PROBE, CHALLENGE, REDIRECT, CLARIFY, CHECK, META-REFLECT) cost 1/3 budget per use. Routine moves (BALANCE, SEQUENCE) cost 2/3. Low-return moves (SUMMARIZE, ACKNOWLEDGE, REVOICE, COMPRESS) cost full budget. This biases the moderator toward high-impact interventions.
+- **Cooldown:** 1-round gap between interventions. Elicitation family, reconciliation moves, and COMMIT are cooldown-exempt.
 
 ### Per-Debater Burden Tracking
 
@@ -624,7 +628,95 @@ effectiveThreshold = baseThreshold × clamp(personaMod × trajectoryMod × sliMo
 
 Implementation: `computeEffectiveThreshold()`.
 
+### Semantic Drift Detection
+
+When a debate is grounded in a source document, the moderator performs semantic drift detection before each selection. The source document summary is injected into the moderator prompt as an anchor, and three drift patterns are checked:
+
+| Pattern | Description | Intervention |
+|---------|-------------|-------------|
+| Metaphor literalization | A figurative term from the source (e.g., "firewall", "bridge") is treated as a literal technical concept | CLARIFY — anchor back to source-document meaning |
+| Implementation spiral | Discussion shifts from "should we do X?" (policy) to "how would we build X?" (engineering) | REDIRECT — return to policy-level question |
+| Scope creep | Debaters introduce frameworks or concepts with no basis in the source material | CHECK — verify whether the concept appears in the source |
+
+When drift is detected, `drift_detected` is set on the selection output and the trigger reasoning identifies the specific pattern. The source document summary is also injected into the Stage 2 intervention prompt so the moderator can reference specific source-document language when anchoring the debate back.
+
 **Implementation:** `lib/debate/moderator.ts`, `lib/debate/moderator.test.ts`. Types: `ModeratorState`, `ModeratorIntervention`, `SelectionResult`, `EngineValidationResult`, `DebateHealthScore` in `lib/debate/types.ts`. Prompt integration: `buildInterventionBriefInjection()` injects moderator text into the debater pipeline via `lib/debate/prompts.ts`.
+
+## Adaptive Phase Transitions
+
+Phase transitions (thesis-antithesis → exploration → synthesis) can be driven by deterministic signals rather than fixed round counts. When enabled via `PhaseTransitionConfig`, the engine evaluates a weighted composite of signals each round and transitions when the composite crosses a threshold.
+
+### Saturation Score (Exploration Exit)
+
+Six weighted signals detect when the exploration phase has exhausted productive argumentation:
+
+| Signal | Weight | What It Measures |
+|--------|--------|-----------------|
+| `recycling_pressure` | 0.30 | Average self-overlap from recycling rate — are debaters repeating themselves? |
+| `crux_maturity` | 0.25 | Crux detection × follow-through × scheme coverage — have disagreements been identified and engaged? |
+| `concession_plateau` | 0.15 | Whether strong attacks are being missed without concession |
+| `engagement_fatigue` | 0.15 | Current engagement ratio vs. peak — is engagement declining from its high point? |
+| `pragmatic_convergence` | 0.05 | Lexicon-based detection of crystallized positions (hedge/assertive ratios, meta-discourse markers) |
+| `scheme_stagnation` | 0.10 | Scheme repertoire contraction — are recent rounds using fewer argumentation schemes than the debate overall? |
+
+When the saturation score exceeds the exploration exit threshold (default 0.65), the debate transitions to synthesis.
+
+### Convergence Score (Synthesis Exit)
+
+Four weighted signals detect when synthesis has achieved sufficient agreement:
+
+| Signal | Weight | What It Measures |
+|--------|--------|-----------------|
+| `qbaf_agreement_density` | 0.35 | Cross-POV support edges in the argument network, weighted by taxonomy grounding |
+| `position_stability` | 0.25 | Inverse position delta — are debaters' positions stable? |
+| `irreducible_disagreement_ratio` | 0.25 | Fraction of cross-POV edges that are strong attacks between strong claims — genuine deadlocks |
+| `synthesis_pragmatic_signal` | 0.15 | Synthesis integration language density (conditional agreements, "building on" phrases) |
+
+When the convergence score exceeds the synthesis exit threshold (default 0.70), the debate concludes.
+
+### Confidence Gating
+
+Phase transitions are deferred when signal data is noisy. Three-layer confidence:
+
+1. **Extraction confidence** — was claim extraction clean? (status ok vs. truncated/parse_error, claims accepted, category validity ratio)
+2. **Stability confidence** — is the signal value consistent? (deviation from 3-round moving average)
+3. **Global confidence** — product of extraction and stability; if below the confidence floor (default 0.40), the transition is deferred
+
+### Pacing Presets
+
+| Preset | Max Rounds | Exploration Exit | Synthesis Exit |
+|--------|-----------|-----------------|----------------|
+| `tight` | 8 | 0.55 | 0.60 |
+| `moderate` | 12 | 0.65 | 0.70 |
+| `thorough` | 15 | 0.80 | 0.80 |
+
+Phase bounds enforce minimums and maximums: thesis-antithesis (2-4 rounds), exploration (2-8), synthesis (2-3). Up to 2 regressions (synthesis → exploration) are allowed with a 0.10 threshold ratchet per regression.
+
+### Phase Context Injection
+
+When adaptive phase transitions are active, the PLAN stage prompt receives a `=== PHASE STATUS ===` block showing:
+- The rationale for the current phase
+- Progress toward the next transition (percentage)
+- A warning when approaching transition, prompting the debater to prioritize closing open threads
+
+### Network Garbage Collection
+
+Long debates accumulate argument network nodes that degrade QBAF performance and extraction fidelity. `pruneArgumentNetwork()` prunes low-value nodes when the network grows past a trigger threshold:
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| GC trigger | 175 nodes | Start pruning |
+| GC target | 150 nodes | Stop pruning when reached |
+| Hard cap | 200 nodes | Force-transition to synthesis if still above |
+
+Pruning tiers (lowest priority first):
+1. **Orphan nodes** — zero edges
+2. **Tangential leaf nodes** — `computed_strength < 0.3`, no support edges, ≤1 attack edge
+3. **Low-engagement nodes** — `computed_strength < 0.4`, only 1 edge total
+
+Within each tier, nodes are sorted by `computed_strength` ascending (weakest first). Pruning stops once the network is at or below the target size. Pruned nodes and edges are returned in `GcResult` for diagnostics.
+
+Implementation: `lib/debate/phaseTransitions.ts`, `lib/debate/pragmaticSignals.ts`, `lib/debate/schemeStagnation.ts`, `lib/debate/signalConfidence.ts`, `lib/debate/networkGc.ts`. Weights: `lib/debate/provisional-weights.json`. Types: `PhaseState`, `PhaseTransitionConfig`, `Signal`, `SignalContext`, `PredicateResult` in `lib/debate/types.ts`.
 
 ## Synthesis
 

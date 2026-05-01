@@ -254,6 +254,58 @@ Analyze this conflict and respond in JSON:
 $ConflictJson
 "@
 
+        $EvolutionSchema = @{
+            type       = 'object'
+            properties = @{
+                convergence_trend     = @{ type = 'string'; enum = @('converging', 'diverging', 'stable', 'insufficient_data') }
+                convergence_reasoning = @{ type = 'string' }
+                key_assumptions       = @{
+                    type  = 'array'
+                    items = @{
+                        type       = 'object'
+                        properties = @{
+                            assumption     = @{ type = 'string' }
+                            held_by        = @{ type = 'array'; items = @{ type = 'string' } }
+                            contested_by   = @{ type = 'array'; items = @{ type = 'string' } }
+                            graph_evidence = @{ type = 'string' }
+                        }
+                        required   = @('assumption')
+                    }
+                }
+                resolution_paths      = @{
+                    type  = 'array'
+                    items = @{
+                        type       = 'object'
+                        properties = @{
+                            description = @{ type = 'string' }
+                            type        = @{ type = 'string'; enum = @('empirical_evidence', 'conceptual_reframing', 'assumption_challenge', 'scope_narrowing') }
+                            feasibility = @{ type = 'string'; enum = @('high', 'medium', 'low') }
+                        }
+                        required   = @('description', 'type', 'feasibility')
+                    }
+                }
+                graph_insights        = @{ type = 'array'; items = @{ type = 'string' } }
+                pov_positions         = @{
+                    type       = 'object'
+                    properties = @{
+                        accelerationist = @{ type = 'string' }
+                        safetyist       = @{ type = 'string' }
+                        skeptic         = @{ type = 'string' }
+                    }
+                }
+                evidence_balance      = @{
+                    type       = 'object'
+                    properties = @{
+                        empirical_support = @{ type = 'string'; enum = @('strong', 'moderate', 'weak', 'none') }
+                        source_diversity  = @{ type = 'string'; enum = @('high', 'medium', 'low') }
+                        assessment        = @{ type = 'string' }
+                    }
+                    required   = @('empirical_support', 'source_diversity', 'assessment')
+                }
+            }
+            required   = @('convergence_trend', 'convergence_reasoning', 'key_assumptions', 'resolution_paths')
+        }
+
         try {
             $AIResult = Invoke-AIApi `
                 -Prompt $AnalysisPrompt `
@@ -261,7 +313,7 @@ $ConflictJson
                 -ApiKey $ResolvedKey `
                 -Temperature 0.3 `
                 -MaxTokens 4096 `
-                -JsonMode `
+                -ResponseSchema $EvolutionSchema `
                 -TimeoutSec 120
 
             $ResponseText = $AIResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''

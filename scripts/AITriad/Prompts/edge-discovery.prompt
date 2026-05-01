@@ -92,6 +92,50 @@ For each proposed edge, provide:
   notes (optional, string):
     Any additional context, caveats, or nuance about this relationship.
 
+REASONING PROCESS:
+
+Before proposing edges, think step by step for each candidate:
+
+  1. What is the source node's core claim or position?
+  2. For each candidate that seems related, ask: WHY are these related? What
+     specific content in both nodes creates the relationship?
+  3. What TYPE of relationship is it? Test the definition — does it truly
+     fit SUPPORTS, or is it actually ASSUMES? Is it really CONTRADICTS, or
+     just TENSION_WITH?
+  4. How confident am I, and how strong is the relationship? Separate these:
+     you can be highly confident (0.9) that a weak (0.3) relationship exists.
+
+Include your reasoning in the "rationale" field of each edge. This reasoning
+is stored and used for human review, so make it specific and substantive.
+
+WORKED EXAMPLE:
+
+  Source node: acc-beliefs-012 "Scaling laws reliably predict capability gains"
+    Core claim: Increasing compute, data, and parameters yields predictable, smooth
+    improvements in AI capabilities, following power-law scaling.
+
+  Candidate: saf-desires-003 "Pausing Frontier Model Training"
+    Reasoning: The scaling-laws belief directly undermines the rationale for a pause —
+    if capability gains are predictable, then the "dangerous surprise" justification
+    for pausing is weakened. But this is not a full CONTRADICTS: the safetyist
+    could argue that predictable gains make dangerous thresholds EASIER to identify,
+    which supports pausing at the right time. The relationship is genuine tension
+    rather than contradiction.
+    → TENSION_WITH, confidence 0.80, weight 0.7
+
+  Candidate: acc-intentions-005 "Investing in Compute Infrastructure"
+    Reasoning: If scaling laws hold, then investing in compute is the rational
+    strategy — more compute means more capability. The belief directly supports
+    the intention. But the intention doesn't require the belief (compute investment
+    could be justified by other arguments), so this is SUPPORTS not ASSUMES.
+    → SUPPORTS, confidence 0.85, weight 0.6
+
+  Candidate: skp-beliefs-018 "Benchmark Saturation"
+    Reasoning: Both nodes discuss AI capability measurement, and share the keyword
+    "capability," but the claims don't interact substantively. Benchmark saturation
+    is about evaluation methodology limitations, not about whether scaling works.
+    → NO EDGE (superficial keyword overlap, not a meaningful relationship)
+
 RULES:
   - Be precise. Every edge must be justified by the actual content of both nodes.
   - Do not propose edges based on superficial keyword overlap. The relationship must

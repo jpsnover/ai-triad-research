@@ -103,7 +103,7 @@ function Invoke-SummaryPipeline {
 
             $AllPovs = @('accelerationist', 'safetyist', 'skeptic')
             $TaxonomyJson = Get-RelevantTaxonomyNodes -Query $QueryText `
-                -Threshold 0.30 -MaxTotal $RagMaxTotal -MinPerCategory 3 `
+                -MaxTotal $RagMaxTotal -MinPerCategory 3 `
                 -POV $AllPovs -IncludeSituations -Format context
             Write-Verbose "Pipeline: RAG selected ~$([int]($TaxonomyJson.Length / 4)) tokens of taxonomy"
         }
@@ -262,6 +262,26 @@ $SnapshotText
                 $SummaryObject = $FireResult.Summary
                 $AiBackend = $FireResult.Backend
                 $FireStats = $FireResult.FireStats
+            }
+        }
+    }
+
+    # ── Stage 5b: Confidence backfill for single-shot claims ───────────────
+    # FIRE produces fire_confidence on factual_claims; single-shot gets
+    # extraction_confidence from the model but also needs a derived score
+    # on any factual_claim missing it, using the same evidence_criteria formula.
+    if (-not $IterativeExtraction -and $SummaryObject.factual_claims) {
+        foreach ($Claim in @($SummaryObject.factual_claims)) {
+            if (-not $Claim.PSObject.Properties['extraction_confidence'] -or $null -eq $Claim.extraction_confidence) {
+                $DerivedConf = 0.5
+                if ($Claim.PSObject.Properties['evidence_criteria']) {
+                    $EC = $Claim.evidence_criteria
+                    $DerivedConf = 0.3
+                    if ($EC.PSObject.Properties['specificity'] -and $EC.specificity -eq 'precise') { $DerivedConf += 0.2 }
+                    if ($EC.PSObject.Properties['has_warrant'] -and $EC.has_warrant) { $DerivedConf += 0.2 }
+                    if ($EC.PSObject.Properties['internally_consistent'] -and $EC.internally_consistent) { $DerivedConf += 0.1 }
+                }
+                $Claim | Add-Member -NotePropertyName 'extraction_confidence' -NotePropertyValue $DerivedConf -Force
             }
         }
     }
