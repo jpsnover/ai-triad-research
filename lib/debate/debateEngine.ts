@@ -125,6 +125,8 @@ import {
   checkInterventionCompliance,
   getSynthesisResponder,
 } from './moderator';
+import { runModeratorSelection } from './orchestration';
+import type { ModeratorSelectionCallbacks } from './orchestration';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
 import {

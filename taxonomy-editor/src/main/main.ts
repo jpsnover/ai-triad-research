@@ -132,6 +132,21 @@ function createWindow(): void {
 
   console.log('[main] BrowserWindow created, setting up event handlers...');
 
+  // S6: Restrict webview to HTTPS URLs only — prevent loading arbitrary content
+  mainWindow.webContents.on('will-attach-webview', (_event, webPreferences, params) => {
+    // Strip dangerous preferences from webviews
+    delete webPreferences.preload;
+    (webPreferences as Record<string, unknown>).preloadURL = undefined;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+
+    const src = params.src || '';
+    if (src && !src.startsWith('https://') && !src.startsWith('http://localhost')) {
+      console.warn(`[main] Blocked webview with disallowed src: ${src}`);
+      _event.preventDefault();
+    }
+  });
+
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('[main] RENDERER CRASHED:', JSON.stringify(details));
   });

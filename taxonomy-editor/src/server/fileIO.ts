@@ -12,6 +12,27 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
 
+// ── Path safety ──
+
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
+const SAFE_POV_RE = /^[a-z_-]+$/;
+const SAFE_FILENAME_RE = /^[a-zA-Z0-9_.-]+$/;
+
+function assertSafeId(value: string, label: string): void {
+  if (!value || !SAFE_ID_RE.test(value))
+    throw new Error(`Invalid ${label}: must be alphanumeric/hyphens/underscores`);
+}
+
+function assertSafePov(value: string): void {
+  if (!value || !SAFE_POV_RE.test(value))
+    throw new Error('Invalid POV name: must be lowercase alpha/hyphens/underscores');
+}
+
+function assertSafeFilename(value: string, label: string): void {
+  if (!value || !SAFE_FILENAME_RE.test(value) || value.includes('..'))
+    throw new Error(`Invalid ${label}: must be alphanumeric/hyphens/underscores/dots`);
+}
+
 // ── Taxonomy directories ──
 
 let activeTaxonomyDir = '';
@@ -69,6 +90,7 @@ export function getDataRootPath(): string {
 // ── Taxonomy CRUD ──
 
 function resolveTaxonomyFilePath(pov: string): string {
+  assertSafePov(pov);
   const taxDir = getTaxonomyDir();
   if (pov === 'situations') {
     const sitPath = path.join(taxDir, 'situations.json');
@@ -124,6 +146,7 @@ export function readAllConflictFiles(): unknown[] {
 }
 
 export function writeConflictFile(claimId: string, data: unknown): void {
+  assertSafeId(claimId, 'claimId');
   const filePath = path.join(getConflictsDir(), `${claimId}.json`);
   if (!fs.existsSync(filePath)) throw new Error(`Conflict file not found: ${claimId}`);
   const tmpPath = filePath + '.tmp';
@@ -132,6 +155,7 @@ export function writeConflictFile(claimId: string, data: unknown): void {
 }
 
 export function createConflictFile(claimId: string, data: unknown): void {
+  assertSafeId(claimId, 'claimId');
   const dir = getConflictsDir();
   fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${claimId}.json`);
@@ -140,6 +164,7 @@ export function createConflictFile(claimId: string, data: unknown): void {
 }
 
 export function deleteConflictFile(claimId: string): void {
+  assertSafeId(claimId, 'claimId');
   const filePath = path.join(getConflictsDir(), `${claimId}.json`);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
@@ -439,17 +464,20 @@ export function listDebateSessions(): unknown[] {
 }
 
 export function loadDebateSession(id: string): unknown {
+  assertSafeId(id, 'debate id');
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }
 
 export function saveDebateSession(session: unknown): void {
   const s = session as { id: string };
+  assertSafeId(s.id, 'debate id');
   const filePath = path.join(getDebatesDir(), `debate-${s.id}.json`);
   fs.writeFileSync(filePath, JSON.stringify(session, null, 2), 'utf-8');
 }
 
 export function deleteDebateSession(id: string): void {
+  assertSafeId(id, 'debate id');
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
@@ -483,15 +511,18 @@ export function listChatSessions(): unknown[] {
 }
 
 export function loadChatSession(id: string): unknown {
+  assertSafeId(id, 'chat id');
   return JSON.parse(fs.readFileSync(path.join(getChatsDir(), `chat-${id}.json`), 'utf-8'));
 }
 
 export function saveChatSession(session: unknown): void {
   const s = session as { id: string };
+  assertSafeId(s.id, 'chat id');
   fs.writeFileSync(path.join(getChatsDir(), `chat-${s.id}.json`), JSON.stringify(session, null, 2), 'utf-8');
 }
 
 export function deleteChatSession(id: string): void {
+  assertSafeId(id, 'chat id');
   const p = path.join(getChatsDir(), `chat-${id}.json`);
   if (fs.existsSync(p)) fs.unlinkSync(p);
 }
@@ -513,6 +544,7 @@ export function listProposals(): unknown[] {
 }
 
 export function saveProposal(filename: string, data: unknown): void {
+  assertSafeFilename(filename, 'proposal filename');
   fs.writeFileSync(path.join(getDataRoot(), filename), JSON.stringify(data, null, 2), 'utf-8');
 }
 
@@ -521,6 +553,7 @@ export function saveProposal(filename: string, data: unknown): void {
 export function harvestCreateConflict(conflict: Record<string, unknown>): boolean {
   const id = conflict.claim_id as string || conflict.id as string;
   if (!id) return false;
+  assertSafeId(id, 'conflict id');
   const dir = getConflictsDir();
   fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${id}.json`);
@@ -658,6 +691,7 @@ export function discoverSources(): DiscoveredSource[] {
 }
 
 export function loadSummary(docId: string): unknown | null {
+  assertSafeId(docId, 'document id');
   const summariesDir = getSummariesDir();
   const filePath = path.join(summariesDir, `${docId}.json`);
   if (!fs.existsSync(filePath)) return null;
@@ -667,6 +701,7 @@ export function loadSummary(docId: string): unknown | null {
 }
 
 export function loadSnapshot(sourceId: string): string | null {
+  assertSafeId(sourceId, 'source id');
   const sourcesDir = getSourcesDir();
   const filePath = path.join(sourcesDir, sourceId, 'snapshot.md');
   if (!fs.existsSync(filePath)) return null;
@@ -711,9 +746,54 @@ export function loadAIModels(): unknown {
 
 // ── URL content fetching ──
 
+function isPrivateIP(hostname: string): boolean {
+  const parts = hostname.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(n => isNaN(n))) return false;
+  // RFC 1918
+  if (parts[0] === 10) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  // Loopback
+  if (parts[0] === 127) return true;
+  // Link-local (includes Azure IMDS 169.254.169.254)
+  if (parts[0] === 169 && parts[1] === 254) return true;
+  // CGNAT
+  if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+  return false;
+}
+
+function validateFetchUrl(url: string): string | null {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return 'Invalid URL'; }
+
+  if (parsed.protocol !== 'https:') return 'Only HTTPS URLs are allowed';
+  if (parsed.username || parsed.password) return 'URLs with credentials are not allowed';
+
+  if (isPrivateIP(parsed.hostname)) return 'URLs targeting private/internal addresses are not allowed';
+  if (parsed.hostname === 'localhost' || parsed.hostname.endsWith('.local'))
+    return 'URLs targeting local addresses are not allowed';
+  if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.corp'))
+    return 'URLs targeting internal addresses are not allowed';
+
+  return null;
+}
+
 export async function fetchUrlContent(url: string): Promise<{ content: string; error?: string }> {
+  const validationError = validateFetchUrl(url);
+  if (validationError) return { content: '', error: validationError };
+
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(url, { redirect: 'manual' });
+    if (resp.status >= 300 && resp.status < 400) {
+      const location = resp.headers.get('location') || '';
+      const redirectError = validateFetchUrl(location);
+      if (redirectError) return { content: '', error: `Redirect blocked: ${redirectError}` };
+      const resp2 = await fetch(location, { redirect: 'manual' });
+      if (!resp2.ok) return { content: '', error: `HTTP ${resp2.status}` };
+      const html = await resp2.text();
+      const markdown = await htmlToMarkdown(html);
+      return { content: markdown };
+    }
     if (!resp.ok) return { content: '', error: `HTTP ${resp.status}` };
     const html = await resp.text();
     const markdown = await htmlToMarkdown(html);

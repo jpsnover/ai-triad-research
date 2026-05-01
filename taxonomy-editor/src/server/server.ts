@@ -899,9 +899,16 @@ function matchRoute(method: string, pathname: string): { handler: Handler; route
 
 type RawBodyReq = http.IncomingMessage & { __rawBody?: string };
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+
 async function readBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += (chunk as Buffer).length;
+    if (totalBytes > MAX_BODY_BYTES) throw new Error('Request body too large');
+    chunks.push(chunk as Buffer);
+  }
   const raw = Buffer.concat(chunks).toString('utf-8');
   // Stash raw bytes so HMAC-verified endpoints (webhook) can recompute the
   // signature. Parse-then-stringify would change whitespace and break it.
@@ -1068,6 +1075,11 @@ function buildLoginPage(showAnonymous: boolean): string {
 </html>`;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1090,7 +1102,7 @@ const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 <body>
 <div class="card">
   <h1>Access Denied</h1>
-  <p>Signed in as <span class="user">${name}</span></p>
+  <p>Signed in as <span class="user">${escapeHtml(name)}</span></p>
   <p>You are not in the authorized users list. Contact the administrator to request access.</p>
   <a class="btn" href="/.auth/logout?post_logout_redirect_uri=/">Sign out</a>
 </div>
@@ -1130,9 +1142,10 @@ const server = http.createServer(async (req, res) => {
 
   // /.auth/anonymous — sets a session cookie and redirects to the app
   if (urlPath === '/.auth/anonymous' && authOptional) {
+    const secureSuffix = process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS ? '; Secure' : '';
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': 'auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax',
+      'Set-Cookie': `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
     });
     res.end();
     return;
@@ -1220,7 +1233,34 @@ function broadcastEvent(type: string, data: unknown) {
   }
 }
 
+function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
+  const authDisabled = process.env.AUTH_DISABLED === '1';
+  if (authDisabled) return true;
+
+  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  const authOptional = process.env.AUTH_OPTIONAL === '1';
+
+  if (authOptional) {
+    if (principalName) return true;
+    const cookies = parseCookies(req);
+    return cookies['auth_anonymous'] === '1';
+  }
+
+  if (getAuthorizedUsers()) {
+    return !!principalName && isUserAuthorized(principalName, idp);
+  }
+
+  return true;
+}
+
 server.on('upgrade', (req, socket, head) => {
+  if (!isWebSocketAuthorized(req)) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
   const url = new URL(req.url!, 'http://localhost');
 
   if (url.pathname === '/ws/terminal') {

@@ -37,6 +37,7 @@ export * from './cruxResolution';
 export * from './tieredCompression';
 export * from './moderator';
 export * from './gapCheck';
+export * from './orchestration';
 
 // ── Situations Migration Normalizers ──────────────────────
 
