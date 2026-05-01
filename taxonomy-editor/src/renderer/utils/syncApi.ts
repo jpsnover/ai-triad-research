@@ -14,6 +14,8 @@
  * render a disabled UI without special-casing the network layer.
  */
 
+import { ActionableError } from '@lib/debate/errors';
+
 export interface SyncStatus {
   enabled: boolean;
   unsynced_count: number;
@@ -73,10 +75,20 @@ export interface UnsyncedFile {
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  if (!res.ok) throw new ActionableError({
+    goal: 'Fetch data from sync server',
+    problem: `GET ${path} failed with HTTP ${res.status}`,
+    location: 'syncApi.getJson',
+    nextSteps: ['Check the server is running', 'Verify your authentication'],
+  });
   const ct = res.headers.get('content-type') ?? '';
   if (!ct.includes('application/json')) {
-    throw new Error(`Sync server not available (got ${ct || 'text/html'} instead of JSON). Is the server running?`);
+    throw new ActionableError({
+      goal: 'Connect to sync server',
+      problem: `Sync server not available (got ${ct || 'text/html'} instead of JSON)`,
+      location: 'syncApi.getJson',
+      nextSteps: ['Make sure the sync server is running', 'Check the server URL configuration'],
+    });
   }
   return res.json() as Promise<T>;
 }
@@ -89,7 +101,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+    throw new ActionableError({
+      goal: 'Send data to sync server',
+      problem: `POST ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'syncApi.postJson',
+      nextSteps: ['Check the server is running', 'Verify your authentication'],
+    });
   }
   return res.json() as Promise<T>;
 }

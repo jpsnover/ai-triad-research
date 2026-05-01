@@ -9,7 +9,7 @@ import { generatePromptPreview } from '../utils/promptPreview';
 import { DataSourceCard } from './DataSourceCard';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
 import { api } from '@bridge';
-import type { PromptPreviewResult } from '@lib/debate';
+import type { PromptPreviewResult } from '@lib/debate/types';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
   'debate-setup': 'Debate Setup',

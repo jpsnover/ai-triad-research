@@ -16,7 +16,9 @@
   },
   "include": [
     "src/main/**/*",
+    "../lib/ai-client/**/*",
     "../lib/debate/debateExport.ts",
+    "../lib/debate/errors.ts",
     "../lib/debate/taxonomyLoader.ts",
     "../lib/debate/taxonomyTypes.ts",
     "../lib/debate/taxonomyContext.ts",

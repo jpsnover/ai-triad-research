@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 interface EdgeDetailPanelProps {

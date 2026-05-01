@@ -11,6 +11,7 @@ import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
+import { ActionableError } from '../../../lib/debate/errors';
 
 // ── Path safety ──
 
@@ -20,17 +21,32 @@ const SAFE_FILENAME_RE = /^[a-zA-Z0-9_.-]+$/;
 
 function assertSafeId(value: string, label: string): void {
   if (!value || !SAFE_ID_RE.test(value))
-    throw new Error(`Invalid ${label}: must be alphanumeric/hyphens/underscores`);
+    throw new ActionableError({
+      goal: 'Validate input parameter',
+      problem: `Invalid ${label}: must be alphanumeric/hyphens/underscores, got "${value}"`,
+      location: `server/fileIO.ts → assertSafeId(${label})`,
+      nextSteps: ['Check the input value contains only allowed characters (a-z, A-Z, 0-9, hyphens, underscores)'],
+    });
 }
 
 function assertSafePov(value: string): void {
   if (!value || !SAFE_POV_RE.test(value))
-    throw new Error('Invalid POV name: must be lowercase alpha/hyphens/underscores');
+    throw new ActionableError({
+      goal: 'Validate input parameter',
+      problem: `Invalid POV name: must be lowercase alpha/hyphens/underscores, got "${value}"`,
+      location: 'server/fileIO.ts → assertSafePov',
+      nextSteps: ['Check the input value contains only allowed characters (a-z, hyphens, underscores)'],
+    });
 }
 
 function assertSafeFilename(value: string, label: string): void {
   if (!value || !SAFE_FILENAME_RE.test(value) || value.includes('..'))
-    throw new Error(`Invalid ${label}: must be alphanumeric/hyphens/underscores/dots`);
+    throw new ActionableError({
+      goal: 'Validate input parameter',
+      problem: `Invalid ${label}: must be alphanumeric/hyphens/underscores/dots, got "${value}"`,
+      location: `server/fileIO.ts → assertSafeFilename(${label})`,
+      nextSteps: ['Check the input value contains only allowed characters (a-z, A-Z, 0-9, hyphens, underscores, dots)'],
+    });
 }
 
 // ── Taxonomy directories ──
@@ -148,7 +164,16 @@ export function readAllConflictFiles(): unknown[] {
 export function writeConflictFile(claimId: string, data: unknown): void {
   assertSafeId(claimId, 'claimId');
   const filePath = path.join(getConflictsDir(), `${claimId}.json`);
-  if (!fs.existsSync(filePath)) throw new Error(`Conflict file not found: ${claimId}`);
+  if (!fs.existsSync(filePath)) throw new ActionableError({
+    goal: 'Load conflict definition',
+    problem: `Conflict file not found: ${claimId}`,
+    location: 'server/fileIO.ts → writeConflictFile',
+    nextSteps: [
+      `Verify that ${claimId}.json exists in the conflicts directory`,
+      'Use createConflictFile() to create a new conflict instead of writeConflictFile()',
+      'Call readAllConflictFiles() to list available conflict files',
+    ],
+  });
   const tmpPath = filePath + '.tmp';
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
   fs.renameSync(tmpPath, filePath);
@@ -159,7 +184,15 @@ export function createConflictFile(claimId: string, data: unknown): void {
   const dir = getConflictsDir();
   fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${claimId}.json`);
-  if (fs.existsSync(filePath)) throw new Error(`Conflict file already exists: ${claimId}`);
+  if (fs.existsSync(filePath)) throw new ActionableError({
+    goal: 'Create conflict definition',
+    problem: `Conflict file already exists: ${claimId}`,
+    location: 'server/fileIO.ts → createConflictFile',
+    nextSteps: [
+      `Use writeConflictFile() to update the existing ${claimId}.json`,
+      'Delete the existing file first if you intend to replace it',
+    ],
+  });
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
 }
 

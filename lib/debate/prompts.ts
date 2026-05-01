@@ -776,6 +776,31 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {"refined_topic": "the refined topic statement"}`;
 }
 
+export function userSeedClaimsPrompt(
+  topic: string,
+  qaPairs: string,
+  audience?: DebateAudience,
+): string {
+  return `You are a neutral debate analyst.
+
+A user wants to debate the following topic:
+"${topic}"
+
+During setup, the user answered clarifying questions:
+${qaPairs}
+
+Extract 2-5 distinct position claims or framing choices the user expressed through their answers. Each claim should be a concrete, debatable assertion — not a question or a vague preference. Capture the user's actual stance, scope boundaries, and key assumptions.
+${getReadingLevel(audience)}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{"claims": [{"claim": "a clear, specific assertion the user expressed or implied", "bdi_category": "belief|desire|intention"}]}
+
+bdi_category:
+- "belief" — factual claims, assumptions about what is true
+- "desire" — value judgments, goals, what outcomes the user wants
+- "intention" — preferred methods, strategies, or approaches`;
+}
+
 export function openingStatementPrompt(
   label: string,
   pov: string,
@@ -788,6 +813,7 @@ export function openingStatementPrompt(
   _length?: string,
   documentAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
+  userSeedClaims?: { id: string; text: string; bdi_category?: string }[],
 ): string {
   const hasDocument = !!(documentAnalysis || debateSourceContent);
 
@@ -795,6 +821,10 @@ export function openingStatementPrompt(
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
     : sourceContext(debateSourceContent);
+
+  const userPositionsBlock = userSeedClaims && userSeedClaims.length > 0
+    ? `\n\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why.\n${userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n`
+    : '';
 
   const documentInstructions = documentAnalysis
     ? `\nThis debate is grounded in a pre-analyzed document. Your opening should: (1) engage with specific document claims (D-IDs) — state which you accept and which you challenge, (2) address the identified tension points from your perspective, and (3) reference D-IDs in your taxonomy_refs and my_claims targets, NOT in your prose text.\n`
@@ -815,7 +845,7 @@ ${priorBlock}
 
 The debate topic is:
 
-"${topic}"${documentBlock}
+"${topic}"${documentBlock}${userPositionsBlock}
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
@@ -1267,6 +1297,7 @@ export interface OpeningStagePromptInput {
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
   audience?: DebateAudience;
+  userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
 }
 
 export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
@@ -1282,7 +1313,7 @@ ${input.taxonomyContext}
 
 === DEBATE TOPIC ===
 "${input.topic}"${documentBlock}
-${input.priorStatements}
+${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Factor these into your analysis.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n` : ''}${input.priorStatements}
 
 Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and produce a structured brief. Focus on:
 1. What are the key dimensions of this topic that ${input.label}'s perspective can address?
@@ -1362,7 +1393,7 @@ ${brief}
 === YOUR ARGUMENT PLAN ===
 ${plan}
 
-=== YOUR ASSIGNMENT ===
+${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
 ${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}

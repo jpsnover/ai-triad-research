@@ -27,7 +27,7 @@ import { getCategoryLabel } from '../data/lineageCategories';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { nodeTypeFromId } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
 
 export function SituationsTab() {

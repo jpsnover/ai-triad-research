@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { nodePovFromId, SITUATION_PREFIX } from '@lib/debate';
+import { nodePovFromId, SITUATION_PREFIX } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 

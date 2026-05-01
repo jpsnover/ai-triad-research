@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';

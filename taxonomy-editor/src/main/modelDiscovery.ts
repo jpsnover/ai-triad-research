@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { loadApiKey } from './apiKeyStore';
 import { PROJECT_ROOT } from './fileIO';
+import { ActionableError } from '../../../lib/debate/errors';
 
 const CONFIG_PATH = path.join(PROJECT_ROOT, 'ai-models.json');
 
@@ -44,7 +45,12 @@ async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]> {
   const resp = await fetch(url);
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`Gemini models API ${resp.status}: ${body.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Discover available Gemini models',
+      problem: `Gemini models API returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.discoverGeminiModels',
+      nextSteps: ['Check your API key is valid', 'Verify network connectivity', 'The API may be temporarily unavailable'],
+    });
   }
   const json = await resp.json() as { models: GeminiModelInfo[] };
 
@@ -80,7 +86,12 @@ async function discoverGroqModels(apiKey: string): Promise<ModelEntry[]> {
   });
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`Groq models API ${resp.status}: ${body.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Discover available Groq models',
+      problem: `Groq models API returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.discoverGroqModels',
+      nextSteps: ['Check your API key is valid', 'Verify network connectivity', 'The API may be temporarily unavailable'],
+    });
   }
   const json = await resp.json() as { data: GroqModelInfo[] };
 
@@ -221,7 +232,12 @@ async function discoverOpenAIModels(apiKey: string): Promise<ModelEntry[]> {
   });
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`OpenAI models API ${resp.status}: ${body.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Discover available OpenAI models',
+      problem: `OpenAI models API returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.discoverOpenAIModels',
+      nextSteps: ['Check your API key is valid', 'Verify network connectivity', 'The API may be temporarily unavailable'],
+    });
   }
   const json = await resp.json() as { data: OpenAIModelInfo[] };
 

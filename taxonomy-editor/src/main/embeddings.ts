@@ -12,6 +12,29 @@ console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 console.log('[embeddings] Tavily import OK');
 
+// ── Shared AI-client imports ──
+import {
+  withTimeout,
+  resolveBackend,
+  GEMINI_BASE,
+  buildModelIdMap,
+  getApiModelId,
+  callProvider,
+  withRetry,
+  SERVER_RETRY_CONFIG,
+} from '../../../lib/ai-client';
+import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client';
+import type { ModelRegistry } from '../../../lib/ai-client';
+
+// ── Electron net.fetch wrapper ──
+// Electron's net.fetch requires Buffer.from for string bodies in some cases.
+const electronFetch: FetchFn = ((url: RequestInfo | URL, init?: RequestInit) => {
+  if (init?.body && typeof init.body === 'string') {
+    return net.fetch(url as string, { ...init, body: Buffer.from(init.body, 'utf-8') });
+  }
+  return net.fetch(url as string, init as Parameters<typeof net.fetch>[1]);
+}) as FetchFn;
+
 /** Find embed_taxonomy.py — may be in PROJECT_ROOT/scripts or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findEmbedScript(): string {
   const candidates = [
@@ -316,7 +339,7 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
 // ---------- Gemini API fallback ----------
 
 const GEMINI_MODEL = 'gemini-embedding-001';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+// GEMINI_BASE is imported from shared lib/ai-client
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 5;
 
@@ -436,18 +459,10 @@ async function computeQueryViaApi(text: string): Promise<number[]> {
   return vectors[0];
 }
 
-// ---------- Text generation (unchanged) ----------
+// ---------- Text generation — delegates to shared lib/ai-client ----------
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
-    ),
-  ]);
-}
-
-export type RateLimitType = 'RPM' | 'TPM' | 'RPD' | 'unknown';
+// Re-export RateLimitType from the shared package for consumers
+export type RateLimitType = SharedRateLimitType;
 
 export interface GenerateTextProgress {
   attempt: number;
@@ -457,54 +472,9 @@ export interface GenerateTextProgress {
   limitMessage: string;
 }
 
-function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limitMessage: string } {
-  try {
-    const json = JSON.parse(bodyText);
-    const msg: string = json?.error?.message ?? '';
-    const lowerMsg = msg.toLowerCase();
-
-    if (lowerMsg.includes('per minute') || lowerMsg.includes('rpm')) {
-      return {
-        limitType: 'RPM',
-        limitMessage: 'Requests per minute quota exceeded. Retry should succeed in under a minute.',
-      };
-    }
-    if (lowerMsg.includes('tokens per minute') || lowerMsg.includes('tpm')) {
-      return {
-        limitType: 'TPM',
-        limitMessage: 'Tokens per minute quota exceeded. Retry should succeed in under a minute.',
-      };
-    }
-    if (lowerMsg.includes('per day') || lowerMsg.includes('rpd')) {
-      return {
-        limitType: 'RPD',
-        limitMessage: 'Daily request quota exceeded. Try a lighter model, or wait until quota resets (usually midnight PT).',
-      };
-    }
-
-    if (msg) {
-      return { limitType: 'unknown', limitMessage: msg };
-    }
-  } catch { /* body wasn't JSON */ }
-
-  return {
-    limitType: 'unknown',
-    limitMessage: 'Rate limited by Gemini API. Retrying with exponential backoff.',
-  };
-}
-
 type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
-function resolveBackend(model: string): AIBackend {
-  if (model.startsWith('claude')) return 'claude';
-  if (model.startsWith('groq')) return 'groq';
-  if (model.startsWith('openai')) return 'openai';
-  return 'gemini';
-}
-
-// ── API model ID mapping — loaded from ai-models.json ──
-// Maps friendly IDs (e.g. "claude-sonnet-4-5") to actual API model IDs
-// (e.g. "claude-sonnet-4-5-20250514"). Rebuilt on each call from config file.
+// ── API model ID mapping — loaded from ai-models.json via shared buildModelIdMap ──
 
 /** Find ai-models.json — may be at PROJECT_ROOT or one level up (when PROJECT_ROOT is taxonomy-editor/) */
 function findModelsConfig(): string {
@@ -518,463 +488,26 @@ function findModelsConfig(): string {
   return candidates[0];
 }
 
-function loadModelMap(): Record<string, string> {
-  const configPath = findModelsConfig();
-  try {
-    const raw = fs.readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
-    const map: Record<string, string> = {};
-    for (const m of config.models) {
-      if (m.apiModelId && m.apiModelId !== m.id) {
-        map[m.id] = m.apiModelId;
-      }
-    }
-    console.log(`[model-map] Loaded ${Object.keys(map).length} mappings from ${configPath}`);
-    return map;
-  } catch (err) {
-    console.error(`[model-map] FAILED to load ${configPath}: ${err instanceof Error ? err.message : err}`);
-    return {};
-  }
-}
-
-// Cache the map, reload when ai-models.json changes
+// Cache the model ID map, reload when ai-models.json changes
 let _modelMapCache: Record<string, string> | null = null;
 let _modelMapMtime = 0;
 
-function getApiModelId(friendlyId: string): string {
+function resolveApiModelId(friendlyId: string): string {
   try {
     const configPath = findModelsConfig();
     const stat = fs.statSync(configPath);
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
-      _modelMapCache = loadModelMap();
+      const raw = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(raw) as ModelRegistry;
+      _modelMapCache = buildModelIdMap(config);
       _modelMapMtime = stat.mtimeMs;
+      console.log(`[model-map] Loaded ${Object.keys(_modelMapCache).length} mappings from ${configPath}`);
     }
-  } catch {
+  } catch (err) {
     if (!_modelMapCache) _modelMapCache = {};
+    console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
   }
-  return _modelMapCache[friendlyId] || friendlyId;
-}
-
-async function generateViaGemini(
-  prompt: string,
-  model: string,
-  apiKey: string,
-  onRetry?: (progress: GenerateTextProgress) => void,
-  timeoutMs?: number,
-  temperature?: number,
-): Promise<string> {
-  const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    console.log(`[generateText] Attempt ${attempt}/${MAX_RETRIES} - Calling Gemini ${model}...`);
-
-    let response: Response;
-    try {
-      const _body = JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: temperature ?? _debateTemperature ?? 0.7,
-              maxOutputTokens: 16384,
-            },
-          });
-      response = await withTimeout(
-        net.fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: Buffer.from(_body, 'utf-8'),
-        }),
-        timeoutMs ?? 60_000,
-        'Gemini API request',
-      );
-    } catch (err: unknown) {
-      console.error(`[generateText] Fetch failed (attempt ${attempt}/${MAX_RETRIES}):`, err);
-      if (attempt === MAX_RETRIES) {
-        throw err instanceof Error ? err : new Error(`Gemini API network error: ${err}`);
-      }
-      const backoff = Math.min(2 ** attempt, 30);
-      onRetry?.({
-        attempt,
-        maxRetries: MAX_RETRIES,
-        backoffSeconds: backoff,
-        limitType: 'unknown',
-        limitMessage: 'Network error. Retrying automatically...',
-      });
-      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
-      continue;
-    }
-
-    console.log('[generateText] Response status:', response.status);
-
-    if (response.status === 429 || response.status === 503) {
-      let retryBody = '';
-      try { retryBody = await response.text(); } catch { /* ignore */ }
-
-      if (response.status === 429) {
-        const { limitType, limitMessage } = parseRateLimitType(retryBody);
-        console.log(`[generateText] Rate limited (429) type=${limitType}: ${limitMessage}`);
-
-        if (attempt === MAX_RETRIES) {
-          const prefix = limitType === 'RPD'
-            ? 'Daily quota exhausted'
-            : `Gemini API rate limited (${limitType}) after ${MAX_RETRIES} attempts`;
-          throw new ActionableError({
-            goal: 'Generate text via Gemini API',
-            problem: `${prefix}. ${limitMessage}`,
-            location: 'embeddings.generateViaGemini',
-            nextSteps: [
-              'Check your quota at https://aistudio.google.com/apikey',
-              limitType === 'RPD'
-                ? 'Wait until quota resets (usually midnight PT), or switch to a lighter model.'
-                : 'Wait a minute and try again.',
-              'Consider switching to a different AI backend (Claude, Groq) in Settings.',
-            ],
-          });
-        }
-        const backoff = limitType === 'RPD'
-          ? Math.min(2 ** (attempt + 2), 60)
-          : Math.min(2 ** attempt, 30);
-        console.log(`[generateText] Retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
-        onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType, limitMessage });
-        await new Promise(resolve => setTimeout(resolve, backoff * 1000));
-        continue;
-      }
-
-      // 503 — model temporarily unavailable
-      console.log(`[generateText] Service unavailable (503), attempt ${attempt}/${MAX_RETRIES}`);
-      if (attempt === MAX_RETRIES) {
-        throw new ActionableError({
-          goal: 'Generate text via Gemini API',
-          problem: `Gemini model is temporarily unavailable (503) after ${MAX_RETRIES} attempts.`,
-          location: 'embeddings.generateViaGemini',
-          nextSteps: [
-            'Wait a few minutes and try again.',
-            'The model may be experiencing high demand.',
-            'Consider switching to a different AI backend (Claude, Groq) in Settings.',
-          ],
-        });
-      }
-      const backoff = Math.min(2 ** attempt, 30);
-      onRetry?.({
-        attempt,
-        maxRetries: MAX_RETRIES,
-        backoffSeconds: backoff,
-        limitType: 'unknown',
-        limitMessage: 'Model is experiencing high demand. Retrying automatically...',
-      });
-      await new Promise(resolve => setTimeout(resolve, backoff * 1000));
-      continue;
-    }
-
-    let bodyText: string;
-    try {
-      bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading response body');
-    } catch (err) {
-      console.error('[generateText] Reading body failed:', err);
-      throw err instanceof Error ? err : new Error(`Failed to read response body: ${err}`);
-    }
-
-    console.log('[generateText] Body length:', bodyText.length);
-
-    if (!response.ok) {
-      console.error('[generateText] API error:', bodyText.slice(0, 300));
-      throw new ActionableError({
-        goal: 'Generate text via Gemini API',
-        problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
-        location: 'embeddings.generateViaGemini',
-        nextSteps: [
-          'Check the API response status and error message above.',
-          'Verify your Gemini API key is valid in Settings.',
-          'If the error persists, try a different model or backend.',
-        ],
-      });
-    }
-
-    let json: unknown;
-    try {
-      json = JSON.parse(bodyText);
-    } catch {
-      throw new ActionableError({
-        goal: 'Generate text via Gemini API',
-        problem: `Gemini API returned invalid JSON: ${bodyText.slice(0, 200)}`,
-        location: 'embeddings.generateViaGemini',
-        nextSteps: [
-          'This may indicate a temporary API issue. Try again.',
-          'If the error persists, try a different model.',
-          'Check Gemini API status at https://status.cloud.google.com/',
-        ],
-      });
-    }
-
-    const candidates = (json as { candidates?: { content: { parts: { text: string }[] } }[] }).candidates;
-    if (!candidates || candidates.length === 0) {
-      console.error('[generateText] No candidates:', bodyText.slice(0, 300));
-      throw new ActionableError({
-        goal: 'Generate text via Gemini API',
-        problem: `No response candidates from Gemini. Body: ${bodyText.slice(0, 200)}`,
-        location: 'embeddings.generateViaGemini',
-        nextSteps: [
-          'The model may have filtered the response due to safety settings.',
-          'Try rephrasing the prompt or using a different model.',
-          'Check the response body above for details.',
-        ],
-      });
-    }
-
-    const result = candidates[0].content.parts.map((p) => p.text).join('');
-    console.log('[generateText] Success, result length:', result.length);
-    return result;
-  }
-
-  throw new ActionableError({
-    goal: 'Generate text via Gemini API',
-    problem: 'Exhausted all retry attempts without a successful response.',
-    location: 'embeddings.generateViaGemini',
-    nextSteps: [
-      'Wait a few minutes and try again.',
-      'Check your network connection and Gemini API status.',
-      'Consider switching to a different AI backend in Settings.',
-    ],
-  });
-}
-
-async function generateViaClaude(
-  prompt: string,
-  model: string,
-  apiKey: string,
-  timeoutMs?: number,
-  temperature?: number,
-): Promise<string> {
-  const apiModel = getApiModelId(model);
-  const maskedKey = apiKey.length > 12 ? apiKey.slice(0, 8) + '...' + apiKey.slice(-4) : '***';
-  console.log(`[Claude] model input: "${model}" → API model: "${apiModel}"`);
-  console.log(`[Claude] API key prefix: ${maskedKey}`);
-  console.log(`[Claude] URL: https://api.anthropic.com/v1/messages`);
-  console.log(`[Claude] anthropic-version: 2023-06-01`);
-
-  const requestBody = {
-    model: apiModel,
-    max_tokens: 8192,
-    messages: [{ role: 'user', content: prompt.slice(0, 100) + '...' }],
-  };
-  console.log(`[Claude] Request body (truncated):`, JSON.stringify(requestBody, null, 2));
-
-  const _claudeBody = JSON.stringify({
-        model: apiModel,
-        max_tokens: 8192,
-        temperature: temperature ?? _debateTemperature ?? 0.7,
-        messages: [{ role: 'user', content: prompt }],
-      });
-  const response = await withTimeout(
-    net.fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: Buffer.from(_claudeBody, 'utf-8'),
-    }),
-    timeoutMs ?? 120_000,
-    'Claude API request',
-  );
-
-  console.log(`[Claude] Response status: ${response.status}`);
-  console.log(`[Claude] Response headers:`, Object.fromEntries(response.headers.entries()));
-
-  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading Claude response');
-  console.log(`[Claude] Response body (first 500):`, bodyText.slice(0, 500));
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude API',
-      problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'embeddings.generateViaClaude',
-      nextSteps: [
-        'Check the API response status and error message above.',
-        'Verify your Claude API key is valid in Settings.',
-        'If rate limited, wait a moment and try again.',
-      ],
-    });
-  }
-
-  let json: { content?: { type: string; text: string }[] };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaClaude',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  if (!json.content || json.content.length === 0) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude API',
-      problem: `No content in Claude response: ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaClaude',
-      nextSteps: [
-        'The model may have filtered the response.',
-        'Try rephrasing the prompt or using a different model.',
-        'Check the response body above for details.',
-      ],
-    });
-  }
-
-  const result = json.content
-    .filter((c) => c.type === 'text')
-    .map((c) => c.text)
-    .join('');
-  console.log('[generateText] Claude success, result length:', result.length);
-  return result;
-}
-
-async function generateViaGroq(
-  prompt: string,
-  model: string,
-  apiKey: string,
-  timeoutMs?: number,
-  temperature?: number,
-): Promise<string> {
-  const apiModel = getApiModelId(model);
-  console.log(`[generateText] Calling Groq ${apiModel}...`);
-
-  const _groqBody = JSON.stringify({
-        model: apiModel,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: temperature ?? _debateTemperature ?? 0.7,
-        max_tokens: 8192,
-      });
-  const response = await withTimeout(
-    net.fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: Buffer.from(_groqBody, 'utf-8'),
-    }),
-    timeoutMs ?? 60_000,
-    'Groq API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading Groq response');
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq API',
-      problem: `Groq API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'embeddings.generateViaGroq',
-      nextSteps: [
-        'Check the API response status and error message above.',
-        'Verify your Groq API key is valid in Settings.',
-        'If rate limited, wait a moment and try again.',
-      ],
-    });
-  }
-
-  let json: { choices?: { message: { content: string } }[] };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaGroq',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  if (!json.choices || json.choices.length === 0) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq API',
-      problem: `No choices in Groq response: ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaGroq',
-      nextSteps: [
-        'The model may have filtered the response.',
-        'Try rephrasing the prompt or using a different model.',
-        'Check the response body above for details.',
-      ],
-    });
-  }
-
-  const result = json.choices[0].message.content;
-  console.log('[generateText] Groq success, result length:', result.length);
-  return result;
-}
-
-async function generateViaOpenAI(
-  prompt: string,
-  model: string,
-  apiKey: string,
-  timeoutMs?: number,
-  temperature?: number,
-): Promise<string> {
-  const apiModel = getApiModelId(model);
-  console.log(`[generateText] Calling OpenAI ${apiModel}...`);
-
-  const _openaiBody = JSON.stringify({
-        model: apiModel,
-        input: prompt,
-        max_output_tokens: 16384,
-      });
-  const response = await withTimeout(
-    net.fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: Buffer.from(_openaiBody, 'utf-8'),
-    }),
-    timeoutMs ?? 120_000,
-    'OpenAI API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading OpenAI response');
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI API',
-      problem: `OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'embeddings.generateViaOpenAI',
-      nextSteps: [
-        'Check the API response status and error message above.',
-        'Verify your OpenAI API key is valid in Settings.',
-        'If rate limited, wait a moment and try again.',
-      ],
-    });
-  }
-
-  let json: {
-    output?: { type: string; content?: { type: string; text: string }[] }[];
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaOpenAI',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  const msgOutput = json.output?.find(o => o.type === 'message');
-  const result = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
-  if (!result) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI API',
-      problem: `No message output in OpenAI response: ${bodyText.slice(0, 200)}`,
-      location: 'embeddings.generateViaOpenAI',
-      nextSteps: [
-        'The model may have filtered the response.',
-        'Try rephrasing the prompt or using a different model.',
-        'Check the response body above for details.',
-      ],
-    });
-  }
-
-  console.log('[generateText] OpenAI success, result length:', result.length);
-  return result;
+  return getApiModelId(_modelMapCache!, friendlyId);
 }
 
 let _lastLoggedModel: string | null = null;
@@ -997,7 +530,7 @@ export async function generateText(
   const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
   const friendlyModel = model || DEFAULT_GENERATE_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = getApiModelId(friendlyModel);
+  const resolvedModel = resolveApiModelId(friendlyModel);
 
   const apiKey = loadApiKey(backend);
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
@@ -1024,16 +557,33 @@ export async function generateText(
     _lastLoggedModel = friendlyModel;
   }
 
-  switch (backend) {
-    case 'claude':
-      return generateViaClaude(prompt, resolvedModel, apiKey, timeoutMs, temperature);
-    case 'groq':
-      return generateViaGroq(prompt, resolvedModel, apiKey, timeoutMs, temperature);
-    case 'openai':
-      return generateViaOpenAI(prompt, resolvedModel, apiKey, timeoutMs, temperature);
-    default:
-      return generateViaGemini(prompt, resolvedModel, apiKey, onRetry, timeoutMs, temperature);
-  }
+  const opts: GenerateOptions = {
+    temperature: temperature ?? _debateTemperature ?? 0.7,
+    timeoutMs: timeoutMs,
+  };
+
+  const result = await withRetry(
+    () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts),
+    SERVER_RETRY_CONFIG,
+    `${backend}/${resolvedModel}`,
+    (msg) => {
+      console.log(msg);
+      // Parse retry info from the log message to feed the onRetry callback
+      const attemptMatch = msg.match(/attempt (\d+)\/(\d+).*waiting (\d+)s/);
+      if (attemptMatch && onRetry) {
+        onRetry({
+          attempt: parseInt(attemptMatch[1], 10),
+          maxRetries: parseInt(attemptMatch[2], 10),
+          backoffSeconds: parseInt(attemptMatch[3], 10),
+          limitType: 'unknown',
+          limitMessage: msg,
+        });
+      }
+    },
+  );
+
+  console.log('[generateText] Success, result length:', result.text.length);
+  return result.text;
 }
 
 export interface ChatMessage {
@@ -1051,7 +601,7 @@ export async function generateChatStream(
   const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
-  const resolvedModel = getApiModelId(friendlyModel);
+  const resolvedModel = resolveApiModelId(friendlyModel);
 
   const apiKey = loadApiKey(backend);
   if (!apiKey) {
@@ -1071,17 +621,17 @@ export async function generateChatStream(
     const prompt = systemInstruction + '\n\n' + messages.map(m =>
       m.role === 'user' ? `[User]: ${m.content}` : `[Assistant]: ${m.content}`
     ).join('\n\n') + '\n\n[Assistant]:';
-    const text = backend === 'claude'
-      ? await generateViaClaude(prompt, resolvedModel, apiKey, 120_000, temperature)
-      : backend === 'openai'
-      ? await generateViaOpenAI(prompt, resolvedModel, apiKey, 120_000, temperature)
-      : await generateViaGroq(prompt, resolvedModel, apiKey, 60_000, temperature);
-    onChunk(text);
-    return text;
+    const defaultTimeout = backend === 'groq' ? 60_000 : 120_000;
+    const opts: GenerateOptions = {
+      temperature: temperature ?? 0.7,
+      timeoutMs: defaultTimeout,
+    };
+    const providerResult = await callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
+    onChunk(providerResult.text);
+    return providerResult.text;
   }
 
-  const apiModel = getApiModelId(resolvedModel);
-  const url = `${GEMINI_BASE}/${apiModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${resolvedModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
   const contents = messages.map(m => ({
     role: m.role,
     parts: [{ text: m.content }],
@@ -1253,7 +803,7 @@ export async function generateTextWithSearch(
     ],
   });
 
-  const apiModel = getApiModelId(resolvedModel);
+  const apiModel = resolveApiModelId(resolvedModel);
   const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
 
   console.log(`[AI] Grounded search: ${resolvedModel} with google_search tool`);
@@ -1267,10 +817,10 @@ export async function generateTextWithSearch(
     },
   });
   const response = await withTimeout(
-    net.fetch(url, {
+    electronFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: Buffer.from(_searchBody, 'utf-8'),
+      body: _searchBody,
     }),
     60_000,
     'Gemini grounded search request',

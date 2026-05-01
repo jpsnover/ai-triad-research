@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@bridge';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';

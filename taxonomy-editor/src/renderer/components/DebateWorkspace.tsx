@@ -15,7 +15,7 @@ import { ReflectionsPanel } from './ReflectionsPanel';
 // DiagnosticsPanel removed — diagnostics always uses popup window
 import { ConvergencePanel } from './ConvergenceRadar';
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';

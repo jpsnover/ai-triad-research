@@ -56,8 +56,12 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from '@lib/debate/helpers';
-import { normalizeBdiLayer, nodeTypeFromId, computeQbafStrengths, factCheckToBaseStrength, needsGc, pruneArgumentNetwork, GC_TRIGGER, GC_TARGET } from '@lib/debate';
-import type { QbafNode, QbafEdge } from '@lib/debate';
+import { normalizeBdiLayer } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { computeQbafStrengths } from '@lib/debate/qbaf';
+import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
+import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
+import { needsGc, pruneArgumentNetwork, GC_TRIGGER, GC_TARGET } from '@lib/debate/networkGc';
 import { getDebatePhase } from '@lib/debate/types';
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata } from '@lib/debate/types';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
@@ -159,6 +163,12 @@ async function summarizeTranscriptEntry(
     }
   }
   console.warn(`[debate] summarizeEntry: all ${MAX_RETRIES} attempts failed for entry ${entryId}. Detail level pills will be unavailable for this entry.`);
+  try {
+    const s = useDebateStore.getState();
+    if (s.debateWarnings.length < 50) {
+      useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Entry summarization failed — detail level pills unavailable'] });
+    }
+  } catch { /* store may not be ready */ }
 }
 
 /**
@@ -975,6 +985,7 @@ async function extractClaimsAndUpdateAN(
     if (factCheckMutated) {
       try { await get().saveDebate(); } catch (saveErr) {
         console.warn('[Verify] Failed to persist inline fact-check mutations:', saveErr);
+        pushWarning(get, set, 'Fact-check results could not be saved');
       }
     }
 
@@ -2091,6 +2102,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (seedErr) {
         console.warn('[debate] User seed claim extraction failed (non-fatal):', seedErr);
+        pushWarning(get, set, 'User position extraction skipped — debaters will not see your stated positions in the graph');
       }
 
       // Synthesis succeeded — auto-advance to the debate
@@ -2203,6 +2215,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     } catch (err) {
       console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);
+      pushWarning(get, set, 'Vocabulary dictionary unavailable — debates will use bare terms');
     }
 
     // If document analysis produced claims, let the user review/edit them before opening

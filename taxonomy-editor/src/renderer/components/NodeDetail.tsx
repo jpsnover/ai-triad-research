@@ -15,7 +15,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
-import { nodeTypeFromId } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
 
 interface MoveTarget {

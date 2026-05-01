@@ -25,7 +25,7 @@ import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import type { DebateSessionSummary } from '../types/debate';
 import type { Pov } from '../types/taxonomy';
-import { nodeTypeFromId } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {

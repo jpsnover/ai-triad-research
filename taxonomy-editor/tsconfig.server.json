@@ -12,6 +12,6 @@
     "rootDir": "../",
     "declaration": false
   },
-  "include": ["src/server/**/*", "../lib/search/**/*"],
+  "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/search/**/*"],
   "exclude": ["node_modules", "dist"]
 }

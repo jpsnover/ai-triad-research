@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { nodePovFromId, nodeTypeFromId } from '@lib/debate';
+import { nodePovFromId, nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';

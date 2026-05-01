@@ -30,7 +30,7 @@ import { EdgeBrowser } from './EdgeBrowser';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
-import { nodeTypeFromId } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { ConflictDetail } from './ConflictDetail';
 import { api } from '@bridge';
 

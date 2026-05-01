@@ -173,7 +173,7 @@ describe('runTurnPipeline — early abort (gap 11.6)', () => {
         },
         generate,
       ),
-    ).rejects.toThrow('Pipeline aborted: brief stage');
+    ).rejects.toThrow('Brief stage failed to parse');
   });
 
   it('throws when plan stage returns unparseable response', async () => {
@@ -206,7 +206,7 @@ describe('runTurnPipeline — early abort (gap 11.6)', () => {
         },
         generate,
       ),
-    ).rejects.toThrow('Pipeline aborted: plan stage');
+    ).rejects.toThrow('Plan stage failed to parse');
   });
 });
 

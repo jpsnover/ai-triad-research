@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { app } from 'electron';
+import { ActionableError } from '../../../lib/debate/errors';
 
 /** Walk up from __dirname to find the repo root (where .aitriad.json or scripts/ lives). */
 function findRepoRoot(): string {
@@ -156,7 +157,16 @@ export function getActiveTaxonomyDirName(): string {
 export function setActiveTaxonomyDir(dirName: string): void {
   const newDir = path.join(TAXONOMY_BASE, dirName);
   if (!fs.existsSync(newDir)) {
-    throw new Error(`Taxonomy directory not found: ${dirName}`);
+    throw new ActionableError({
+      goal: 'Load taxonomy directory',
+      problem: `Taxonomy directory not found: ${dirName}`,
+      location: 'main/fileIO.ts → setActiveTaxonomyDir',
+      nextSteps: [
+        `Verify that the directory "${dirName}" exists under ${TAXONOMY_BASE}`,
+        'Run getTaxonomyDirs() to list available taxonomy directories',
+        'Check .aitriad.json data_root points to the correct data location',
+      ],
+    });
   }
   activeTaxonomyDir = newDir;
 }
@@ -182,7 +192,17 @@ function parseJsonFile(filePath: string): unknown {
     } else {
       diagnosis = `${basename} contains malformed JSON. It may have been hand-edited incorrectly or truncated. Parse error: ${msg}`;
     }
-    throw new Error(`${diagnosis} File: ${filePath}`);
+    throw new ActionableError({
+      goal: 'Parse taxonomy data file',
+      problem: diagnosis,
+      location: `main/fileIO.ts → parseJsonFile(${path.basename(filePath)})`,
+      nextSteps: [
+        `Inspect the file at ${filePath} for syntax issues`,
+        'If a .tmp file exists alongside it, rename .tmp to the original to recover the last good write',
+        'Re-run the PowerShell pipeline to regenerate the file if it is corrupted',
+      ],
+      innerError: err,
+    });
   }
 }
 
@@ -196,8 +216,17 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
   } catch (err) {
     // Clean up tmp file if rename failed
     try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to write ${path.basename(filePath)}: ${msg}. File: ${filePath}`);
+    throw new ActionableError({
+      goal: 'Save taxonomy data',
+      problem: `Failed to write ${path.basename(filePath)}`,
+      location: `main/fileIO.ts → writeJsonFileAtomic(${path.basename(filePath)})`,
+      nextSteps: [
+        'Check that the target directory exists and is writable',
+        'Verify there is enough free disk space',
+        `Inspect the file at ${filePath} to confirm it is not locked by another process`,
+      ],
+      innerError: err,
+    });
   }
 }
 
@@ -208,7 +237,15 @@ export function readTaxonomyFile(pov: string): unknown {
   }
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
-    throw new Error(`Unknown POV: ${pov}`);
+    throw new ActionableError({
+      goal: 'Resolve taxonomy POV directory',
+      problem: `Unknown POV: "${pov}"`,
+      location: 'main/fileIO.ts → readTaxonomyFile',
+      nextSteps: [
+        `Use one of the known POV keys: ${Object.keys(POV_FILE_MAP).join(', ')}`,
+        'Check the renderer is passing the correct POV identifier',
+      ],
+    });
   }
   return parseJsonFile(path.join(activeTaxonomyDir, filename));
 }
@@ -221,7 +258,15 @@ export function writeTaxonomyFile(pov: string, data: unknown): void {
   }
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
-    throw new Error(`Unknown POV: ${pov}`);
+    throw new ActionableError({
+      goal: 'Resolve taxonomy POV directory',
+      problem: `Unknown POV: "${pov}"`,
+      location: 'main/fileIO.ts → writeTaxonomyFile',
+      nextSteps: [
+        `Use one of the known POV keys: ${Object.keys(POV_FILE_MAP).join(', ')}`,
+        'Check the renderer is passing the correct POV identifier',
+      ],
+    });
   }
   writeJsonFileAtomic(path.join(activeTaxonomyDir, filename), data);
 }
@@ -259,7 +304,16 @@ export function readAllConflictFiles(): unknown[] {
 export function writeConflictFile(claimId: string, data: unknown): void {
   const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Conflict file not found: ${claimId}`);
+    throw new ActionableError({
+      goal: 'Load conflict definition',
+      problem: `Conflict file not found: ${claimId}`,
+      location: 'main/fileIO.ts → writeConflictFile',
+      nextSteps: [
+        `Verify that ${claimId}.json exists in ${CONFLICTS_DIR}`,
+        'Use createConflictFile() to create a new conflict instead of writeConflictFile()',
+        'Run readAllConflictFiles() to list available conflict files',
+      ],
+    });
   }
   writeJsonFileAtomic(filePath, data);
 }
@@ -270,7 +324,15 @@ export function createConflictFile(claimId: string, data: unknown): void {
   }
   const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
   if (fs.existsSync(filePath)) {
-    throw new Error(`Conflict file already exists: ${claimId}`);
+    throw new ActionableError({
+      goal: 'Create conflict definition',
+      problem: `Conflict file already exists: ${claimId}`,
+      location: 'main/fileIO.ts → createConflictFile',
+      nextSteps: [
+        `Use writeConflictFile() to update the existing ${claimId}.json`,
+        'Delete the existing file first if you intend to replace it',
+      ],
+    });
   }
   writeJsonFileAtomic(filePath, data);
 }
@@ -278,7 +340,15 @@ export function createConflictFile(claimId: string, data: unknown): void {
 export function deleteConflictFile(claimId: string): void {
   const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Conflict file not found: ${claimId}`);
+    throw new ActionableError({
+      goal: 'Delete conflict definition',
+      problem: `Conflict file not found: ${claimId}`,
+      location: 'main/fileIO.ts → deleteConflictFile',
+      nextSteps: [
+        `Verify that ${claimId}.json exists in ${CONFLICTS_DIR}`,
+        'The file may have already been deleted — check if the operation can be skipped',
+      ],
+    });
   }
   fs.unlinkSync(filePath);
 }

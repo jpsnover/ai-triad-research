@@ -9,7 +9,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from '@bridge';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../types/taxonomy';
 
 // ── Types ────────────────────────────────────────────────

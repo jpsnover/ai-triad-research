@@ -365,14 +365,30 @@ export function detectCruxNodes(
   nodes: ReadonlyArray<SignalContext['network']['nodes'][0]>,
   edges: ReadonlyArray<SignalContext['network']['edges'][0]>,
 ): { id: string; crossPovAttackCount: number; computedStrength: number }[] {
-  const cruxes: { id: string; crossPovAttackCount: number; computedStrength: number }[] = [];
+  // P5: O(N+E) via pre-built indexes instead of O(N*E) nested scans
+  const nodeById = new Map<string, SignalContext['network']['nodes'][0]>();
+  for (const n of nodes) nodeById.set(n.id, n);
 
+  const attacksByTarget = new Map<string, string[]>();
+  for (const e of edges) {
+    if (e.type === 'attacks') {
+      let arr = attacksByTarget.get(e.target);
+      if (!arr) { arr = []; attacksByTarget.set(e.target, arr); }
+      arr.push(e.source);
+    }
+  }
+
+  const cruxes: { id: string; crossPovAttackCount: number; computedStrength: number }[] = [];
   for (const node of nodes) {
-    const attackEdges = edges.filter(e => e.target === node.id && e.type === 'attacks');
-    const attackerSpeakers = new Set(
-      attackEdges.map(e => nodes.find(n => n.id === e.source)?.speaker).filter(Boolean),
-    );
-    if (attackerSpeakers.size >= 2 && (node.computed_strength ?? 0) > 0.5) {
+    if ((node.computed_strength ?? 0) <= 0.5) continue;
+    const sources = attacksByTarget.get(node.id);
+    if (!sources) continue;
+    const attackerSpeakers = new Set<string>();
+    for (const srcId of sources) {
+      const src = nodeById.get(srcId);
+      if (src?.speaker) attackerSpeakers.add(src.speaker);
+    }
+    if (attackerSpeakers.size >= 2) {
       cruxes.push({ id: node.id, crossPovAttackCount: attackerSpeakers.size, computedStrength: node.computed_strength });
     }
   }

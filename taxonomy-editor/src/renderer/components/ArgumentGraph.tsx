@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from 'react';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../types/debate';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 
 // ── Colors & Constants ────────────────────────────────────
 

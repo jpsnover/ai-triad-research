@@ -7,7 +7,7 @@ import { useResizableVerticalSplit } from '../hooks/useResizablePanel';
 import type { Pov } from '../types/taxonomy';
 import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from './SituationDetail';
-import { nodeTypeFromId } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',

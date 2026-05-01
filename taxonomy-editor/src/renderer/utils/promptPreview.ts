@@ -13,7 +13,7 @@ import { formatTaxonomyContext } from './taxonomyContext';
 import type { TaxonomyContext } from './taxonomyContext';
 import type { PovNode, SituationNode } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
-import type { PromptPreviewResult } from '@lib/debate';
+import type { PromptPreviewResult } from '@lib/debate/types';
 import {
   clarificationPrompt,
   synthesisPrompt,

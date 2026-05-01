@@ -18,6 +18,7 @@ import type {
   DebatePhase,
 } from './types';
 import type { DocumentAnalysis } from './types';
+import { ActionableError } from './errors';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers';
 import type { GenerateOptions } from './aiAdapter';
 import { parseJsonRobust, wordOverlap } from './helpers';
@@ -237,7 +238,12 @@ export async function runTurnPipeline(
     parse_error: briefParsed.error,
   });
   if (briefParsed.error) {
-    throw new Error(`Pipeline aborted: brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`);
+    throw new ActionableError({
+      goal: 'Run debate turn pipeline',
+      problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
+      location: 'turnPipeline.runPipeline',
+      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+    });
   }
   const brief = briefParsed.product;
   const briefJson = JSON.stringify(brief, null, 2);
@@ -265,7 +271,12 @@ export async function runTurnPipeline(
     parse_error: planParsed.error,
   });
   if (planParsed.error) {
-    throw new Error(`Pipeline aborted: plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`);
+    throw new ActionableError({
+      goal: 'Run debate turn pipeline',
+      problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
+      location: 'turnPipeline.runPipeline',
+      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+    });
   }
   const plan = planParsed.product;
   const planJson = JSON.stringify(plan, null, 2);
@@ -400,6 +411,7 @@ export interface OpeningPipelineInput {
   audience?: import('./types').DebateAudience;
   model: string;
   stageTemperatures?: TurnStageConfig;
+  userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
 }
 
 export async function runOpeningPipeline(
@@ -422,6 +434,7 @@ export async function runOpeningPipeline(
     sourceContent: input.sourceContent,
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
+    userSeedClaims: input.userSeedClaims,
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
@@ -442,7 +455,12 @@ export async function runOpeningPipeline(
     parse_error: briefParsed.error,
   });
   if (briefParsed.error) {
-    throw new Error(`Opening pipeline aborted: brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`);
+    throw new ActionableError({
+      goal: 'Run opening statement pipeline',
+      problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
+      location: 'turnPipeline.runOpeningPipeline',
+      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+    });
   }
   const brief = briefParsed.product;
   const briefJson = JSON.stringify(brief, null, 2);
@@ -463,7 +481,12 @@ export async function runOpeningPipeline(
     parse_error: planParsed.error,
   });
   if (planParsed.error) {
-    throw new Error(`Opening pipeline aborted: plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`);
+    throw new ActionableError({
+      goal: 'Run opening statement pipeline',
+      problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
+      location: 'turnPipeline.runOpeningPipeline',
+      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+    });
   }
   const plan = planParsed.product;
   const planJson = JSON.stringify(plan, null, 2);

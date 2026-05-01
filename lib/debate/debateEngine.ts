@@ -268,6 +268,7 @@ export class DebateEngine {
     const text = await this.adapter.generateText(prompt, model, {
       temperature: 0,
       timeoutMs: timeoutMs ?? 120_000,
+      signal: this.config.signal,
     });
     this.apiCallCount++;
     this.totalResponseTimeMs += Date.now() - start;
@@ -452,6 +453,7 @@ export class DebateEngine {
     const text = await this.adapter.generateText(prompt, this.config.model, {
       temperature: this.config.temperature ?? 0.7,
       timeoutMs: timeoutMs ?? 120_000,
+      signal: this.config.signal,
     });
     const elapsed = Date.now() - start;
     this.apiCallCount++;
@@ -466,6 +468,7 @@ export class DebateEngine {
     const text = await this.adapter.generateText(prompt, evalModel, {
       temperature: 0,
       timeoutMs: timeoutMs ?? 120_000,
+      signal: this.config.signal,
     });
     const elapsed = Date.now() - start;
     this.apiCallCount++;
@@ -2156,6 +2159,9 @@ export class DebateEngine {
         this.warn('Synthesis Phase 1 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
       }
     }
+    if (Object.keys(extractData).length === 0) {
+      this.warn('Synthesis Phase 1', 'AI returned empty or unparseable output — synthesis data will be incomplete', 'Proceeding with partial synthesis');
+    }
     Object.assign(synthesisData, extractData);
 
     // Phase 2: Build argument map
@@ -2177,6 +2183,9 @@ export class DebateEngine {
         this.warn('Synthesis Phase 2 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
       }
     }
+    if (Object.keys(mapData).length === 0) {
+      this.warn('Synthesis Phase 2', 'AI returned empty or unparseable output — argument map will be incomplete', 'Proceeding with partial synthesis');
+    }
     Object.assign(synthesisData, mapData);
 
     // Phase 3: Evaluate preferences + policy implications
@@ -2197,6 +2206,9 @@ export class DebateEngine {
       } else {
         this.warn('Synthesis Phase 3 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
       }
+    }
+    if (Object.keys(evalData).length === 0) {
+      this.warn('Synthesis Phase 3', 'AI returned empty or unparseable output — evaluation data will be incomplete', 'Proceeding with partial synthesis');
     }
     Object.assign(synthesisData, evalData);
 

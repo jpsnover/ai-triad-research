@@ -7,7 +7,7 @@ import { POVER_INFO } from '../types/debate';
 import type { TaxonomyRef } from '../types/debate';
 import type { ChatEntry, ChatMode } from '../types/chat';
 import { CHAT_MODE_INFO } from '../types/chat';
-import { nodePovFromId } from '@lib/debate';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 

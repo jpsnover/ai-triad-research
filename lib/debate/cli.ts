@@ -19,6 +19,7 @@ import type { DebateSourceType, PoverId, DebateAudience } from './types';
 import { POVER_INFO, DEBATE_AUDIENCES } from './types';
 import { formatSituationDebateContext } from './prompts';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters';
+import { ActionableError } from './errors';
 
 // ── CLI Config schema ────────────────────────────────────
 
@@ -102,12 +103,30 @@ async function main(): Promise<void> {
   } else {
     const resolvedConfig = path.resolve(configPath);
     if (!fs.existsSync(resolvedConfig)) {
-      throw new Error(`Config file not found: ${resolvedConfig}\nProvide a valid JSON config file via --config <path>.`);
+      throw new ActionableError({
+        goal: 'Load debate configuration',
+        problem: `Config file not found: ${resolvedConfig}`,
+        location: 'cli.main',
+        nextSteps: [
+          'Provide a valid JSON config file path via --config <path>',
+          `Verify the file exists at: ${resolvedConfig}`,
+          'Check for typos in the file path',
+        ],
+      });
     }
     try {
       configText = fs.readFileSync(resolvedConfig, 'utf-8');
     } catch (err) {
-      throw new Error(`Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`);
+      throw new ActionableError({
+        goal: 'Load debate configuration',
+        problem: `Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`,
+        location: 'cli.main',
+        nextSteps: [
+          'Check that you have read permissions on the file',
+          `Verify the file is not locked by another process`,
+        ],
+        innerError: err,
+      });
     }
   }
 
@@ -115,10 +134,17 @@ async function main(): Promise<void> {
   try {
     config = JSON.parse(configText);
   } catch (err) {
-    throw new Error(
-      `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}\n` +
-      `First 200 chars: ${configText.slice(0, 200)}`
-    );
+    throw new ActionableError({
+      goal: 'Parse debate configuration',
+      problem: `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}`,
+      location: 'cli.main',
+      nextSteps: [
+        'Validate the config file with a JSON linter (e.g. jsonlint or VS Code)',
+        `Check the first 200 chars for syntax errors: ${configText.slice(0, 200)}`,
+        'Ensure no trailing commas, unquoted keys, or missing brackets',
+      ],
+      innerError: err,
+    });
   }
   const startTime = Date.now();
 
@@ -158,7 +184,16 @@ async function main(): Promise<void> {
     sourceType = 'situations';
     sourceRef = config.situationId;
     const sitNode = taxonomy.situations.nodes.find(n => n.id === config.situationId);
-    if (!sitNode) throw new Error(`Situation node not found: ${config.situationId}`);
+    if (!sitNode) throw new ActionableError({
+      goal: 'Load situation node for debate',
+      problem: `Situation node not found: ${config.situationId}`,
+      location: 'cli.main',
+      nextSteps: [
+        `Verify the situationId '${config.situationId}' exists in the taxonomy situations data`,
+        'List available situation IDs with: jq ".[].id" <data-root>/taxonomy/situations.json',
+        'Check for typos in the situationId field of your config',
+      ],
+    });
 
     // Build situation context
     const conflicts = loadConflicts(repoRoot);
@@ -191,20 +226,52 @@ async function main(): Promise<void> {
     log(`Loaded situation node: ${sitNode.id} — ${sitNode.label}`);
   }
 
-  if (!topic) throw new Error('No topic specified. Provide --topic, --docPath, --url, or --situationId');
+  if (!topic) throw new ActionableError({
+    goal: 'Determine debate topic',
+    problem: 'No topic specified',
+    location: 'cli.main',
+    nextSteps: [
+      'Add a "topic" field to your config JSON with the debate question or thesis',
+      'Alternatively, provide "docPath", "url", or "situationId" to derive the topic from a source',
+    ],
+  });
 
   // Validate debaters
   const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<PoverId, 'user'>[];
-  if (activePovers.length < 2) throw new Error('At least 2 debaters required');
+  if (activePovers.length < 2) throw new ActionableError({
+    goal: 'Validate debate configuration',
+    problem: `At least 2 debaters required, but only ${activePovers.length} specified`,
+    location: 'cli.main',
+    nextSteps: [
+      'Add at least 2 entries to the "activePovers" array in your config',
+      'Valid debaters: prometheus, sentinel, cassandra',
+    ],
+  });
   for (const p of activePovers) {
-    if (!POVER_INFO[p]) throw new Error(`Unknown debater: ${p}. Valid: prometheus, sentinel, cassandra`);
+    if (!POVER_INFO[p]) throw new ActionableError({
+      goal: 'Validate debate configuration',
+      problem: `Unknown debater: ${p}`,
+      location: 'cli.main',
+      nextSteps: [
+        `Replace '${p}' with one of: prometheus, sentinel, cassandra`,
+        'Check the "activePovers" array in your config for typos',
+      ],
+    });
   }
 
   // Create adapter
   // Validate audience
   const validAudienceIds = DEBATE_AUDIENCES.map(a => a.id);
   const audience = config.audience
-    ? (validAudienceIds.includes(config.audience as DebateAudience) ? config.audience as DebateAudience : (() => { throw new Error(`Unknown audience: ${config.audience}. Valid: ${validAudienceIds.join(', ')}`); })())
+    ? (validAudienceIds.includes(config.audience as DebateAudience) ? config.audience as DebateAudience : (() => { throw new ActionableError({
+        goal: 'Validate debate configuration',
+        problem: `Unknown audience: ${config.audience}`,
+        location: 'cli.main',
+        nextSteps: [
+          `Replace '${config.audience}' with one of: ${validAudienceIds.join(', ')}`,
+          'Check the "audience" field in your config for typos',
+        ],
+      }); })())
     : undefined;
 
   const adapter = createCLIAdapter(repoRoot, config.apiKey);
@@ -256,10 +323,17 @@ async function main(): Promise<void> {
   try {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (err) {
-    throw new Error(
-      `Failed to create output directory '${outputDir}': ${err instanceof Error ? err.message : err}\n` +
-      `Check that the parent directory exists and you have write permissions.`
-    );
+    throw new ActionableError({
+      goal: 'Create debate output directory',
+      problem: `Failed to create output directory '${outputDir}': ${err instanceof Error ? err.message : err}`,
+      location: 'cli.main',
+      nextSteps: [
+        `Check that the parent directory of '${outputDir}' exists`,
+        'Verify you have write permissions to the target location',
+        'Try specifying a different "outputDir" in your config',
+      ],
+      innerError: err,
+    });
   }
 
   const outputFormat = config.outputFormat ?? 'json';
@@ -269,11 +343,17 @@ async function main(): Promise<void> {
       fs.writeFileSync(filePath, content, 'utf-8');
       log(`Wrote ${description}: ${filePath}`);
     } catch (err) {
-      throw new Error(
-        `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}\n` +
-        `The debate completed successfully but output could not be saved. Check disk space and permissions.\n` +
-        `Debate ID: ${session.id} (${session.transcript.length} entries)`
-      );
+      throw new ActionableError({
+        goal: 'Write debate output file',
+        problem: `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}`,
+        location: 'cli.writeOutput',
+        nextSteps: [
+          'Check available disk space',
+          `Verify write permissions on '${outputDir}'`,
+          `The debate completed successfully (ID: ${session.id}, ${session.transcript.length} entries) — re-run to regenerate output`,
+        ],
+        innerError: err,
+      });
     }
   }
 

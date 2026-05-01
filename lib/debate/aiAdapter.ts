@@ -4,23 +4,40 @@
 /**
  * Multi-backend AI client for CLI debate runner.
  * Supports Gemini, Claude, and Groq with retry logic.
+ *
+ * Provider implementations, retry/timeout helpers, model resolution, and
+ * type definitions are imported from the shared `lib/ai-client` package.
+ * This module keeps CLI-specific concerns: filesystem registry loading,
+ * env-var key resolution, envelope generation, fallback chains, and
+ * the `ExtendedAIAdapter` factory.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily';
 import { ActionableError } from './errors';
-import type { GenerateRequest, GenerateResponse, LLMBackend } from './cacheTypes';
+import type { GenerateRequest, GenerateResponse } from './cacheTypes';
 import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes';
+
+// ── Shared ai-client imports ────────────────────────────
+import {
+  callProvider,
+  withRetry,
+  withTimeout,
+  CLI_RETRY_CONFIG,
+  resolveModel,
+  GEMINI_BASE,
+} from '../ai-client';
+import type {
+  ProviderResult,
+  GenerateOptions as SharedGenerateOptions,
+  ModelRegistry,
+} from '../ai-client';
 
 // ── Interface ────────────────────────────────────────────
 
-export interface GenerateOptions {
-  temperature?: number;
-  maxTokens?: number;
-  timeoutMs?: number;
-  jsonMode?: boolean;
-  responseSchema?: Record<string, unknown>;
+export interface GenerateOptions extends SharedGenerateOptions {
+  signal?: AbortSignal;
 }
 
 export interface AIAdapter {
@@ -39,21 +56,7 @@ export interface ExtendedAIAdapter extends AIAdapter {
   computeQueryEmbedding?(text: string): Promise<{ vector: number[] }>;
 }
 
-// ── Model registry ───────────────────────────────────────
-
-interface ModelEntry {
-  id: string;
-  apiModelId: string;
-  label: string;
-  backend: string;
-}
-
-interface ModelRegistry {
-  backends: { id: string; label: string }[];
-  models: ModelEntry[];
-  fallbackChains?: Record<string, string[]>;
-  contextWindows?: Record<string, number>;
-}
+// ── Model registry (filesystem loading) ─────────────────
 
 let _registry: ModelRegistry | null = null;
 
@@ -82,17 +85,6 @@ function loadRegistry(repoRoot: string): ModelRegistry {
   return _registry;
 }
 
-function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId: string; backend: string } {
-  const entry = registry.models.find(m => m.id === friendlyId);
-  if (entry) return { apiModelId: entry.apiModelId, backend: entry.backend };
-  // Infer backend from prefix
-  if (friendlyId.startsWith('gemini')) return { apiModelId: friendlyId, backend: 'gemini' };
-  if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
-  if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
-  if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
-  return { apiModelId: friendlyId, backend: 'gemini' };
-}
-
 // ── API key resolution ───────────────────────────────────
 
 const BACKEND_ENV_KEYS: Record<string, string> = {
@@ -117,63 +109,7 @@ function resolveApiKey(backend: string, explicitKey?: string): string {
   });
 }
 
-// ── Retry helper ─────────────────────────────────────────
-
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  label: string = 'API call',
-): Promise<T> {
-  const delays = [5, 15, 45]; // seconds
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const lower = msg.toLowerCase();
-      const isRetryable =
-        msg.includes('429') || msg.includes('503') ||
-        lower.includes('rate') || lower.includes('unavailable') ||
-        lower.includes('fetch failed') || lower.includes('econnreset') ||
-        lower.includes('etimedout') || lower.includes('enotfound') ||
-        lower.includes('socket hang up') || lower.includes('network') ||
-        lower.includes('timed out');
-      if (!isRetryable || attempt === maxRetries) throw err;
-      const delay = delays[attempt - 1] ?? 45;
-      process.stderr.write(`[retry] ${label} attempt ${attempt}/${maxRetries} failed (${msg.slice(0, 80)}), waiting ${delay}s...\n`);
-      await new Promise(r => setTimeout(r, delay * 1000));
-    }
-  }
-  throw new ActionableError({
-    goal: `Complete ${label}`,
-    problem: `${label} failed after ${maxRetries} retries`,
-    location: 'aiAdapter.withRetry',
-    nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
-  });
-}
-
-// ── Timeout helper ───────────────────────────────────────
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
-    ),
-  ]);
-}
-
 // ── Usage telemetry ─────────────────────────────────────
-
-interface ProviderResult {
-  text: string;
-  usage?: {
-    promptTokens?: number;
-    completionTokens?: number;
-    cachedTokens?: number;
-    totalTokens?: number;
-  };
-}
 
 function emitUsageTelemetry(
   backend: string,
@@ -189,366 +125,6 @@ function emitUsageTelemetry(
     ...usage,
   };
   process.stderr.write(`[usage] ${JSON.stringify(entry)}\n`);
-}
-
-// ── Backend implementations ──────────────────────────────
-
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-
-const GEMINI_TYPE_MAP: Record<string, string> = {
-  string: 'STRING', number: 'NUMBER', integer: 'INTEGER',
-  boolean: 'BOOLEAN', array: 'ARRAY', object: 'OBJECT',
-};
-
-function toGeminiSchema(schema: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  if (typeof schema.type === 'string') result.type = GEMINI_TYPE_MAP[schema.type] ?? schema.type.toUpperCase();
-  if (schema.description) result.description = schema.description;
-  if (schema.enum) result.enum = schema.enum;
-  if (schema.nullable) result.nullable = schema.nullable;
-  if (schema.required) result.required = schema.required;
-  if (schema.items && typeof schema.items === 'object') {
-    result.items = toGeminiSchema(schema.items as Record<string, unknown>);
-  }
-  if (schema.properties && typeof schema.properties === 'object') {
-    const props: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(schema.properties as Record<string, unknown>)) {
-      props[k] = typeof v === 'object' && v ? toGeminiSchema(v as Record<string, unknown>) : v;
-    }
-    result.properties = props;
-  }
-  return result;
-}
-
-async function generateViaGemini(
-  prompt: string,
-  apiModelId: string,
-  apiKey: string,
-  opts: GenerateOptions,
-): Promise<ProviderResult> {
-  const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-
-  const genConfig: Record<string, unknown> = {
-    temperature: opts.temperature ?? 0.7,
-    maxOutputTokens: opts.maxTokens ?? 16384,
-  };
-  if (opts.jsonMode || opts.responseSchema) {
-    genConfig.responseMimeType = 'application/json';
-    if (opts.responseSchema) {
-      genConfig.responseSchema = toGeminiSchema(opts.responseSchema);
-    }
-  }
-
-  const response = await withTimeout(
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: genConfig,
-      }),
-    }),
-    timeoutMs,
-    'Gemini API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini response');
-
-  if (response.status === 429 || response.status === 503) {
-    throw new ActionableError({
-      goal: 'Generate text via Gemini',
-      problem: `Gemini ${response.status}: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaGemini',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
-    });
-  }
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Gemini',
-      problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'aiAdapter.generateViaGemini',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    candidates?: { content: { parts: { text: string }[] } }[];
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Parse Gemini API response',
-      problem: `Gemini API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaGemini',
-      nextSteps: ['Retry the request', 'Check the API key and model ID'],
-    });
-  }
-  if (!json.candidates?.length) {
-    throw new ActionableError({
-      goal: 'Generate text via Gemini',
-      problem: `No candidates in Gemini response: ${bodyText.slice(0, 300)}`,
-      location: 'aiAdapter.generateViaGemini',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const text = json.candidates[0].content.parts.map(p => p.text).join('');
-  const um = json.usageMetadata;
-  const usage = um ? {
-    promptTokens: um.promptTokenCount,
-    completionTokens: um.candidatesTokenCount,
-    cachedTokens: um.cachedContentTokenCount,
-    totalTokens: um.totalTokenCount,
-  } : undefined;
-  return { text, usage };
-}
-
-async function generateViaClaude(
-  prompt: string,
-  apiModelId: string,
-  apiKey: string,
-  opts: GenerateOptions,
-): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 180_000;
-
-  const response = await withTimeout(
-    fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: apiModelId,
-        max_tokens: opts.maxTokens ?? 8192,
-        temperature: opts.temperature ?? 0.7,
-        messages: [{ role: 'user', content: opts.responseSchema
-          ? `${prompt}\n\nYou MUST respond with a JSON object conforming to this schema:\n${JSON.stringify(opts.responseSchema, null, 2)}`
-          : prompt }],
-      }),
-    }),
-    timeoutMs,
-    'Claude API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Claude response');
-
-  if (response.status === 429 || response.status === 503) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `Claude ${response.status}: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaClaude',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
-    });
-  }
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'aiAdapter.generateViaClaude',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    content?: { type: string; text: string }[];
-    usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Parse Claude API response',
-      problem: `Claude API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaClaude',
-      nextSteps: ['Retry the request', 'Check the API key and model ID'],
-    });
-  }
-  if (!json.content?.length) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `No content in Claude response: ${bodyText.slice(0, 300)}`,
-      location: 'aiAdapter.generateViaClaude',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
-  const u = json.usage;
-  const usage = u ? {
-    promptTokens: u.input_tokens,
-    completionTokens: u.output_tokens,
-    cachedTokens: (u.cache_read_input_tokens ?? 0) || undefined,
-    totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
-  } : undefined;
-  return { text, usage };
-}
-
-async function generateViaGroq(
-  prompt: string,
-  apiModelId: string,
-  apiKey: string,
-  opts: GenerateOptions,
-): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-
-  const response = await withTimeout(
-    fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: apiModelId,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: opts.temperature ?? 0.7,
-        max_tokens: opts.maxTokens ?? 8192,
-        ...(opts.responseSchema ? {
-          response_format: {
-            type: 'json_schema',
-            json_schema: { name: 'response', schema: opts.responseSchema, strict: true },
-          },
-        } : opts.jsonMode ? {
-          response_format: { type: 'json_object' },
-        } : {}),
-      }),
-    }),
-    timeoutMs,
-    'Groq API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Groq response');
-
-  if (response.status === 429 || response.status === 503) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `Groq ${response.status}: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaGroq',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
-    });
-  }
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `Groq API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'aiAdapter.generateViaGroq',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    choices?: { message: { content: string } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Parse Groq API response',
-      problem: `Groq API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaGroq',
-      nextSteps: ['Retry the request', 'Check the API key and model ID'],
-    });
-  }
-  if (!json.choices?.length) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `No choices in Groq response: ${bodyText.slice(0, 300)}`,
-      location: 'aiAdapter.generateViaGroq',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const text = json.choices[0].message.content;
-  const u = json.usage;
-  const usage = u ? {
-    promptTokens: u.prompt_tokens,
-    completionTokens: u.completion_tokens,
-    totalTokens: u.total_tokens,
-  } : undefined;
-  return { text, usage };
-}
-
-// ── OpenAI ───────────────���───────────────────────────────
-
-async function generateViaOpenAI(
-  prompt: string,
-  apiModelId: string,
-  apiKey: string,
-  opts: GenerateOptions,
-): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-
-  const response = await withTimeout(
-    fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: apiModelId,
-        input: prompt,
-        max_output_tokens: opts.maxTokens ?? 16384,
-      }),
-    }),
-    timeoutMs,
-    'OpenAI API request',
-  );
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading OpenAI response');
-
-  if (response.status === 429 || response.status === 503) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `OpenAI ${response.status}: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaOpenAI',
-      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
-    });
-  }
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`,
-      location: 'aiAdapter.generateViaOpenAI',
-      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    output?: { type: string; content?: { type: string; text: string }[] }[];
-    usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Parse OpenAI API response',
-      problem: `OpenAI API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
-      location: 'aiAdapter.generateViaOpenAI',
-      nextSteps: ['Retry the request', 'Check the API key and model ID'],
-    });
-  }
-  const msgOutput = json.output?.find(o => o.type === 'message');
-  const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
-  if (!text) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `No message output in OpenAI response: ${bodyText.slice(0, 300)}`,
-      location: 'aiAdapter.generateViaOpenAI',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const u = json.usage;
-  const usage = u ? {
-    promptTokens: u.input_tokens,
-    completionTokens: u.output_tokens,
-    cachedTokens: u.input_tokens_details?.cached_tokens,
-    totalTokens: u.total_tokens,
-  } : undefined;
-  return { text, usage };
 }
 
 // ── Envelope-based generation (structured prompt with caching) ──
@@ -834,18 +410,7 @@ export async function countTokens(
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
   const registry = loadRegistry(repoRoot);
 
-  async function callBackend(prompt: string, apiModelId: string, backend: string, apiKey: string, opts: GenerateOptions): Promise<ProviderResult> {
-    switch (backend) {
-      case 'claude':
-        return generateViaClaude(prompt, apiModelId, apiKey, opts);
-      case 'groq':
-        return generateViaGroq(prompt, apiModelId, apiKey, opts);
-      case 'openai':
-        return generateViaOpenAI(prompt, apiModelId, apiKey, opts);
-      default:
-        return generateViaGemini(prompt, apiModelId, apiKey, opts);
-    }
-  }
+  const retryLog = (msg: string) => process.stderr.write(msg + '\n');
 
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend } = resolveModel(registry, model);
@@ -855,8 +420,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const t0 = performance.now();
     try {
       const result = await withRetry(
-        () => callBackend(prompt, apiModelId, backend, apiKey, opts),
-        3, `${backend}/${apiModelId}`,
+        () => callProvider(fetch, backend, prompt, apiModelId, apiKey, opts),
+        CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog,
       );
       emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
       return result.text;
@@ -872,8 +437,8 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
         try {
           const fbResult = await withRetry(
-            () => callBackend(prompt, fb.apiModelId, fb.backend, fbKey, opts),
-            2, `cascade:${fb.backend}/${fb.apiModelId}`,
+            () => callProvider(fetch, fb.backend, prompt, fb.apiModelId, fbKey, opts),
+            { ...CLI_RETRY_CONFIG, maxRetries: 2 }, `cascade:${fb.backend}/${fb.apiModelId}`, retryLog,
           );
           emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
           return fbResult.text;
@@ -901,7 +466,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           default:
             return generateEnvelopeViaGemini(resolvedReq, apiKey);
         }
-      }, 3, `${backend}/${apiModelId}`);
+      }, CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog);
 
       const latency = performance.now() - t0;
       const usage = buildCacheUsage({

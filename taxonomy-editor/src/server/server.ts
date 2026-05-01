@@ -921,10 +921,17 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 // ── HTTP server ──
 
 // Resolve allowed CORS origins from ALLOWED_ORIGINS env var (comma-separated).
-// Falls back to '*' for local development.
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : null; // null = allow all (development mode)
+// In production, rejects cross-origin requests when unset (S8).
+const ALLOWED_ORIGINS = (() => {
+  if (process.env.ALLOWED_ORIGINS) {
+    return process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[security] ALLOWED_ORIGINS not set in production — CORS will reject cross-origin requests');
+    return [];
+  }
+  return null; // null = allow all (development mode)
+})();
 
 function getCorsOrigin(req: http.IncomingMessage): string {
   if (!ALLOWED_ORIGINS) return '*';
@@ -1109,7 +1116,22 @@ const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 </body>
 </html>`;
 
+// S9: Only trust Easy Auth headers when running on Azure with auth enabled.
+// Without this gate, clients can spoof X-MS-CLIENT-PRINCIPAL-NAME if the
+// container is exposed directly (not behind Azure's front-end proxy).
+const AZURE_AUTH_ENABLED = process.env.WEBSITE_AUTH_ENABLED === 'True'
+  || process.env.WEBSITE_AUTH_ENABLED === 'true';
+
 const server = http.createServer(async (req, res) => {
+  // S10: Security headers on all responses
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; font-src 'self'");
+  }
+
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -1118,10 +1140,13 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // Extract Easy Auth headers up front so the per-request user context is
-  // available to deep call sites (keyStore, AI backends) via AsyncLocalStorage.
-  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  // S9: Only read Easy Auth headers when Azure auth is confirmed via env var.
+  const principalName = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-name'] as string) || ''
+    : '';
+  const idp = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-idp'] as string) || ''
+    : '';
 
   // Auth gate — only enforced when authorized-users.json exists
   const urlPath = req.url?.split('?')[0] || '';

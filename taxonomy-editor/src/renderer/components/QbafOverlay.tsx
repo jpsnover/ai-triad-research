@@ -11,7 +11,7 @@ import { useState, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useDebateStore } from '../hooks/useDebateStore';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, BdiSubScores } from '../types/debate';
-import { CATEGORY_SLUGS } from '@lib/debate';
+import { CATEGORY_SLUGS } from '@lib/debate/nodeIdUtils';
 
 const BDI_LABELS: Record<string, string> = {
   evidence_quality: 'Evidence', source_reliability: 'Source', falsifiability: 'Falsifiable',

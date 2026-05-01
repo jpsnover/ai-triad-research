@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
+import { ActionableError } from './errors';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -47,7 +48,16 @@ export function resolveRepoRoot(startDir: string): string {
     if (fs.existsSync(path.join(dir, '.aitriad.json'))) return dir;
     dir = path.dirname(dir);
   }
-  throw new Error('Cannot find .aitriad.json — are you inside the ai-triad-research repo?');
+  throw new ActionableError({
+    goal: 'Resolve data repository root',
+    problem: 'Cannot find .aitriad.json in any parent directory',
+    location: 'taxonomyLoader.resolveRepoRoot',
+    nextSteps: [
+      'Ensure you are running from within the ai-triad-research repository',
+      `Verify that .aitriad.json exists in the repo root (searched upward from: ${startDir})`,
+      'If the file is missing, restore it from git: git checkout -- .aitriad.json',
+    ],
+  });
 }
 
 export function resolveDataRoot(repoRoot: string): string {
@@ -55,20 +65,32 @@ export function resolveDataRoot(repoRoot: string): string {
   if (process.env.AI_TRIAD_DATA_ROOT) {
     const envRoot = path.resolve(process.env.AI_TRIAD_DATA_ROOT);
     if (!fs.existsSync(envRoot)) {
-      throw new Error(
-        `AI_TRIAD_DATA_ROOT is set to '${envRoot}' but that directory does not exist.\n` +
-        `Either create it, fix the environment variable, or unset it to use .aitriad.json.`
-      );
+      throw new ActionableError({
+        goal: 'Resolve data repository root',
+        problem: `AI_TRIAD_DATA_ROOT is set to '${envRoot}' but that directory does not exist`,
+        location: 'taxonomyLoader.resolveDataRoot',
+        nextSteps: [
+          `Create the missing directory: mkdir -p "${envRoot}"`,
+          'Fix the AI_TRIAD_DATA_ROOT environment variable to point to the correct data directory',
+          'Unset AI_TRIAD_DATA_ROOT to fall back to .aitriad.json resolution',
+        ],
+      });
     }
     return envRoot;
   }
   const config = loadConfig(repoRoot);
   const dataRoot = path.resolve(repoRoot, config.data_root);
   if (!fs.existsSync(dataRoot)) {
-    throw new Error(
-      `Data root '${dataRoot}' (from .aitriad.json data_root: '${config.data_root}') does not exist.\n` +
-      `Run Install-AITriadData to set up the data repository, or set AI_TRIAD_DATA_ROOT to an existing directory.`
-    );
+    throw new ActionableError({
+      goal: 'Resolve data repository root',
+      problem: `Data root '${dataRoot}' (from .aitriad.json data_root: '${config.data_root}') does not exist`,
+      location: 'taxonomyLoader.resolveDataRoot',
+      nextSteps: [
+        'Run Install-AITriadData to set up the data repository',
+        `Set AI_TRIAD_DATA_ROOT to an existing data directory`,
+        `Verify the data_root value in .aitriad.json points to a valid relative path (currently: '${config.data_root}')`,
+      ],
+    });
   }
   return dataRoot;
 }
@@ -76,18 +98,31 @@ export function resolveDataRoot(repoRoot: string): string {
 function loadConfig(repoRoot: string): AiTriadConfig {
   const configPath = path.join(repoRoot, '.aitriad.json');
   if (!fs.existsSync(configPath)) {
-    throw new Error(
-      `Configuration file not found: ${configPath}\n` +
-      `Ensure you are running from the ai-triad-research repo root.`
-    );
+    throw new ActionableError({
+      goal: 'Load AI model configuration',
+      problem: `Configuration file not found: ${configPath}`,
+      location: 'taxonomyLoader.loadConfig',
+      nextSteps: [
+        'Ensure you are running from the ai-triad-research repo root',
+        'Verify that .aitriad.json exists in the repository root',
+        'If the file is missing, restore it from git: git checkout -- .aitriad.json',
+      ],
+    });
   }
   try {
     return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
   } catch (err) {
-    throw new Error(
-      `Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}\n` +
-      `The file exists but contains invalid JSON.`
-    );
+    throw new ActionableError({
+      goal: 'Parse AI model configuration',
+      problem: `Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}`,
+      location: 'taxonomyLoader.loadConfig',
+      nextSteps: [
+        `Open ${configPath} and fix the JSON syntax (trailing commas, unquoted keys, etc.)`,
+        'Run the file through a JSON linter: npx jsonlint .aitriad.json',
+        'If the file is corrupted, restore it from git: git checkout -- .aitriad.json',
+      ],
+      innerError: err,
+    });
   }
 }
 
@@ -195,7 +230,16 @@ export function loadVocabulary(repoRoot: string): { standardized: unknown[]; col
 export async function convertToMarkdown(filePath: string): Promise<string> {
   const resolved = path.resolve(filePath);
   if (!fs.existsSync(resolved)) {
-    throw new Error(`File not found: ${resolved}`);
+    throw new ActionableError({
+      goal: 'Load debate source document',
+      problem: `File not found: ${resolved}`,
+      location: 'taxonomyLoader.convertToMarkdown',
+      nextSteps: [
+        `Verify the file path is correct: ${resolved}`,
+        'Check that the file has not been moved or renamed',
+        'If using a relative path, ensure you are running from the repository root',
+      ],
+    });
   }
 
   // For .md files, just read directly
@@ -261,7 +305,19 @@ export async function loadSourceContent(filePath: string): Promise<string> {
 
 export async function fetchUrlContent(url: string): Promise<string> {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  if (!response.ok) {
+    throw new ActionableError({
+      goal: 'Fetch debate source URL',
+      problem: `HTTP ${response.status} fetching ${url}`,
+      location: 'taxonomyLoader.fetchUrlContent',
+      nextSteps: [
+        'Verify the URL is correct and publicly accessible',
+        'Check your network connection and any proxy settings',
+        `Open the URL in a browser to confirm it loads: ${url}`,
+        'If the resource requires authentication, download it manually and use a local file path instead',
+      ],
+    });
+  }
   const html = await response.text();
   return htmlToMarkdown(html);
 }

@@ -10,8 +10,8 @@ import { useState, useEffect, useMemo, useRef, useCallback, createContext, useCo
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
-import { computeQbafStrengths } from '@lib/debate';
-import type { QbafNode, QbafEdge } from '@lib/debate';
+import { computeQbafStrengths } from '@lib/debate/qbaf';
+import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';

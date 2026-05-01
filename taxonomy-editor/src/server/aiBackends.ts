@@ -4,6 +4,9 @@
 /**
  * AI backend service — mirrors main/embeddings.ts without Electron's net.fetch.
  * Uses standard fetch (Node 22+).
+ *
+ * Provider logic (Gemini, Claude, Groq, OpenAI), retry, and utility functions
+ * are delegated to the shared lib/ai-client package.
  */
 
 import fs from 'fs';
@@ -12,12 +15,24 @@ import { execFile } from 'child_process';
 import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config';
 import { ActionableError } from '../../../lib/debate/errors';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
+import {
+  resolveBackend,
+  callProvider,
+  withRetry,
+  withTimeout,
+  buildModelIdMap,
+  getApiModelId as getApiModelIdFromMap,
+  GEMINI_BASE,
+  SERVER_RETRY_CONFIG,
+  type GenerateOptions,
+  type ProviderResult,
+  type RateLimitType,
+} from '../../../lib/ai-client';
 
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 // ── Constants ──
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MAX_RETRIES = 5;
 const BATCH_SIZE = 100;
 
@@ -29,9 +44,9 @@ export function setDebateTemperature(temp: number | null): void {
   _debateTemperature = temp;
 }
 
-// ── Rate limit parsing ──
+// ── Re-export shared types ──
 
-export type RateLimitType = 'RPM' | 'TPM' | 'RPD' | 'unknown';
+export type { RateLimitType };
 
 export interface GenerateTextProgress {
   attempt: number;
@@ -41,49 +56,19 @@ export interface GenerateTextProgress {
   limitMessage: string;
 }
 
-function parseRateLimitType(bodyText: string): { limitType: RateLimitType; limitMessage: string } {
-  try {
-    const json = JSON.parse(bodyText);
-    const msg: string = json?.error?.message ?? '';
-    const lower = msg.toLowerCase();
-    if (lower.includes('per minute') || lower.includes('rpm'))
-      return { limitType: 'RPM', limitMessage: 'Requests per minute quota exceeded. Retry should succeed in under a minute.' };
-    if (lower.includes('tokens per minute') || lower.includes('tpm'))
-      return { limitType: 'TPM', limitMessage: 'Tokens per minute quota exceeded. Retry should succeed in under a minute.' };
-    if (lower.includes('per day') || lower.includes('rpd'))
-      return { limitType: 'RPD', limitMessage: 'Daily request quota exceeded. Try a lighter model, or wait until quota resets (usually midnight PT).' };
-    if (msg) return { limitType: 'unknown', limitMessage: msg };
-  } catch { /* not JSON */ }
-  return { limitType: 'unknown', limitMessage: 'Rate limited by API. Retrying with exponential backoff.' };
-}
-
-// ── Backend resolution ──
-
-function resolveBackend(model: string): AIBackend {
-  if (model.startsWith('claude')) return 'claude';
-  if (model.startsWith('groq')) return 'groq';
-  if (model.startsWith('openai')) return 'openai';
-  return 'gemini';
-}
-
-// ── Model ID mapping ──
+// ── Model ID mapping (mtime-cached) ──
 
 let _modelMapCache: Record<string, string> | null = null;
 let _modelMapMtime = 0;
 
-function getApiModelId(friendlyId: string): string {
+function loadModelMap(): Record<string, string> {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
     const stat = fs.statSync(configPath);
     if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
       const raw = fs.readFileSync(configPath, 'utf-8');
-      const config = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
-      _modelMapCache = {};
-      for (const m of config.models) {
-        if (m.apiModelId && m.apiModelId !== m.id) {
-          _modelMapCache[m.id] = m.apiModelId;
-        }
-      }
+      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
+      _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _modelMapMtime = stat.mtimeMs;
       console.log(`[aiBackends] Reloaded model map (${Object.keys(_modelMapCache).length} mappings)`);
     }
@@ -91,22 +76,16 @@ function getApiModelId(friendlyId: string): string {
     console.warn(`[aiBackends] Failed to load model map:`, err);
     if (!_modelMapCache) _modelMapCache = {};
   }
-  const mapped = _modelMapCache![friendlyId];
-  if (!mapped && /^(openai|claude|groq)-/.test(friendlyId)) {
-    console.warn(`[aiBackends] No API model mapping for '${friendlyId}' — sending as-is (this may fail)`);
-  }
-  return mapped || friendlyId;
+  return _modelMapCache!;
 }
 
-// ── Timeout helper ──
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
-    ),
-  ]);
+function getApiModelId(friendlyId: string): string {
+  const map = loadModelMap();
+  const mapped = getApiModelIdFromMap(map, friendlyId);
+  if (mapped === friendlyId && /^(openai|claude|groq)-/.test(friendlyId)) {
+    console.warn(`[aiBackends] No API model mapping for '${friendlyId}' — sending as-is (this may fail)`);
+  }
+  return mapped;
 }
 
 // ── Token usage tracking ──
@@ -122,356 +101,13 @@ export interface GenerateResult {
   tokenUsage?: TokenUsage;
 }
 
-// ── Shared retry helper for API fetch calls ──
-
-async function retryableFetch(opts: {
-  label: string;
-  url: string;
-  init: RequestInit;
-  timeoutMs: number;
-  maxRetries?: number;
-  onRetry?: (p: GenerateTextProgress) => void;
-}): Promise<{ response: Response; bodyText: string }> {
-  const maxRetries = opts.maxRetries ?? MAX_RETRIES;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    let response: Response;
-    try {
-      response = await withTimeout(fetch(opts.url, opts.init), opts.timeoutMs, opts.label);
-    } catch (err: unknown) {
-      if (attempt === maxRetries) throw err instanceof Error ? err : new Error(String(err));
-      const backoff = Math.min(2 ** attempt, 30);
-      opts.onRetry?.({ attempt, maxRetries, backoffSeconds: backoff, limitType: 'unknown', limitMessage: 'Network error. Retrying...' });
-      await new Promise(r => setTimeout(r, backoff * 1000));
-      continue;
-    }
-
-    if (response.status === 429 || response.status === 503) {
-      let retryBody = '';
-      try { retryBody = await response.text(); } catch { /* ignore */ }
-      const { limitType, limitMessage } = parseRateLimitType(retryBody);
-      if (attempt === maxRetries) {
-        throw new ActionableError({
-          goal: `Generate text via ${opts.label}`,
-          problem: `${response.status === 429 ? 'Rate limited' : 'Service unavailable'} after ${maxRetries} attempts. ${limitMessage}`,
-          location: `aiBackends.retryableFetch(${opts.label})`,
-          nextSteps: [
-            'Wait a minute and retry the operation',
-            'Switch to a different model in Settings',
-            'Check the API provider status page for outages',
-          ],
-        });
-      }
-      const backoff = limitType === 'RPD' ? Math.min(2 ** (attempt + 2), 60) : Math.min(2 ** attempt, 30);
-      opts.onRetry?.({ attempt, maxRetries, backoffSeconds: backoff, limitType, limitMessage });
-      await new Promise(r => setTimeout(r, backoff * 1000));
-      continue;
-    }
-
-    const bodyText = await withTimeout(response.text(), 30_000, `Reading ${opts.label} response`);
-    return { response, bodyText };
-  }
-  throw new ActionableError({
-    goal: `Generate text via ${opts.label}`,
-    problem: `Exhausted ${maxRetries} retry attempts`,
-    location: `aiBackends.retryableFetch(${opts.label})`,
-    nextSteps: ['Wait and retry', 'Switch to a different backend in Settings'],
-  });
-}
-
-// ── Backend-specific generation ──
-
-async function generateViaGemini(
-  prompt: string, model: string, apiKey: string,
-  onRetry?: (p: GenerateTextProgress) => void, timeoutMs?: number,
-): Promise<GenerateResult> {
-  const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    let response: Response;
-    try {
-      response = await withTimeout(
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: _debateTemperature ?? 0.7, maxOutputTokens: 16384 },
-          }),
-        }),
-        timeoutMs ?? 60_000,
-        'Gemini API request',
-      );
-    } catch (err: unknown) {
-      if (attempt === MAX_RETRIES) throw err instanceof Error ? err : new Error(String(err));
-      const backoff = Math.min(2 ** attempt, 30);
-      onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType: 'unknown', limitMessage: 'Network error. Retrying...' });
-      await new Promise(r => setTimeout(r, backoff * 1000));
-      continue;
-    }
-
-    if (response.status === 429 || response.status === 503) {
-      let retryBody = '';
-      try { retryBody = await response.text(); } catch { /* ignore */ }
-      if (response.status === 429) {
-        const { limitType, limitMessage } = parseRateLimitType(retryBody);
-        if (attempt === MAX_RETRIES) {
-          throw new ActionableError({
-            goal: 'Generate text via Gemini',
-            problem: `Rate limited (${limitType}) after ${MAX_RETRIES} attempts. ${limitMessage}`,
-            location: 'aiBackends.generateViaGemini',
-            nextSteps: ['Wait a minute and retry', 'Switch to a lighter model', 'Check Gemini API quota in Google AI Studio'],
-          });
-        }
-        const backoff = limitType === 'RPD' ? Math.min(2 ** (attempt + 2), 60) : Math.min(2 ** attempt, 30);
-        onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType, limitMessage });
-        await new Promise(r => setTimeout(r, backoff * 1000));
-        continue;
-      }
-      if (attempt === MAX_RETRIES) {
-        throw new ActionableError({
-          goal: 'Generate text via Gemini',
-          problem: `Model unavailable (503) after ${MAX_RETRIES} attempts`,
-          location: 'aiBackends.generateViaGemini',
-          nextSteps: ['Wait and retry — the model may be experiencing high demand', 'Switch to a different model in Settings'],
-        });
-      }
-      const backoff = Math.min(2 ** attempt, 30);
-      onRetry?.({ attempt, maxRetries: MAX_RETRIES, backoffSeconds: backoff, limitType: 'unknown', limitMessage: 'Model experiencing high demand.' });
-      await new Promise(r => setTimeout(r, backoff * 1000));
-      continue;
-    }
-
-    const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading response');
-    if (!response.ok) {
-      throw new ActionableError({
-        goal: 'Generate text via Gemini',
-        problem: `API error ${response.status}: ${bodyText.slice(0, 500)}`,
-        location: 'aiBackends.generateViaGemini',
-        nextSteps: ['Check your Gemini API key in Settings', 'Verify the model name is correct', 'Try a different model'],
-      });
-    }
-
-    let json: {
-      candidates?: { content: { parts: { text: string }[] } }[];
-      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
-    };
-    try {
-      json = JSON.parse(bodyText);
-    } catch {
-      throw new ActionableError({
-        goal: 'Generate text via Gemini',
-        problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-        location: 'aiBackends.generateViaGemini',
-        nextSteps: ['Retry the request', 'Check your API key and model ID'],
-      });
-    }
-    if (!json.candidates?.length) {
-      throw new ActionableError({
-        goal: 'Generate text via Gemini',
-        problem: `No candidates in response: ${bodyText.slice(0, 200)}`,
-        location: 'aiBackends.generateViaGemini',
-        nextSteps: ['Retry the request', 'Check if the prompt triggers a safety filter', 'Try a different model'],
-      });
-    }
-    const text = json.candidates[0].content.parts.map(p => p.text).join('');
-    const um = json.usageMetadata;
-    return {
-      text,
-      tokenUsage: um ? { inputTokens: um.promptTokenCount ?? 0, outputTokens: um.candidatesTokenCount ?? 0, totalTokens: um.totalTokenCount ?? 0 } : undefined,
-    };
-  }
-  throw new ActionableError({
-    goal: 'Generate text via Gemini',
-    problem: `Exhausted ${MAX_RETRIES} retry attempts`,
-    location: 'aiBackends.generateViaGemini',
-    nextSteps: ['Wait and retry', 'Switch to a different backend in Settings'],
-  });
-}
-
-async function generateViaClaude(
-  prompt: string, model: string, apiKey: string,
-  onRetry?: (p: GenerateTextProgress) => void, timeoutMs?: number,
-): Promise<GenerateResult> {
-  const apiModel = getApiModelId(model);
-  const { response, bodyText } = await retryableFetch({
-    label: 'Claude API',
-    url: 'https://api.anthropic.com/v1/messages',
-    init: {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: apiModel,
-        max_tokens: 8192,
-        temperature: _debateTemperature ?? 0.7,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    },
-    timeoutMs: timeoutMs ?? 120_000,
-    onRetry,
-  });
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `API error ${response.status}: ${bodyText.slice(0, 300)}`,
-      location: 'aiBackends.generateViaClaude',
-      nextSteps: ['Check your Claude API key in Settings', 'Verify the model is available at status.anthropic.com', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    content?: { type: string; text: string }[];
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaClaude',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  if (!json.content?.length) {
-    throw new ActionableError({
-      goal: 'Generate text via Claude',
-      problem: `Empty response: ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaClaude',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
-  const u = json.usage;
+/** Convert shared ProviderResult.usage to the local TokenUsage shape. */
+function mapUsage(usage: ProviderResult['usage']): TokenUsage | undefined {
+  if (!usage) return undefined;
   return {
-    text,
-    tokenUsage: u ? { inputTokens: u.input_tokens ?? 0, outputTokens: u.output_tokens ?? 0, totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) } : undefined,
-  };
-}
-
-async function generateViaGroq(
-  prompt: string, model: string, apiKey: string,
-  onRetry?: (p: GenerateTextProgress) => void, timeoutMs?: number,
-): Promise<GenerateResult> {
-  const apiModel = getApiModelId(model);
-  const { response, bodyText } = await retryableFetch({
-    label: 'Groq API',
-    url: 'https://api.groq.com/openai/v1/chat/completions',
-    init: {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: apiModel,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: _debateTemperature ?? 0.7,
-        max_tokens: 8192,
-      }),
-    },
-    timeoutMs: timeoutMs ?? 60_000,
-    onRetry,
-  });
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `API error ${response.status}: ${bodyText.slice(0, 300)}`,
-      location: 'aiBackends.generateViaGroq',
-      nextSteps: ['Check your Groq API key in Settings', 'Verify the model is available', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    choices?: { message: { content: string } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaGroq',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  if (!json.choices?.length) {
-    throw new ActionableError({
-      goal: 'Generate text via Groq',
-      problem: `Empty response: ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaGroq',
-      nextSteps: ['Retry the request', 'Try a different model'],
-    });
-  }
-  const text = json.choices[0].message.content;
-  const u = json.usage;
-  return {
-    text,
-    tokenUsage: u ? { inputTokens: u.prompt_tokens ?? 0, outputTokens: u.completion_tokens ?? 0, totalTokens: u.total_tokens ?? 0 } : undefined,
-  };
-}
-
-async function generateViaOpenAI(
-  prompt: string, model: string, apiKey: string,
-  onRetry?: (p: GenerateTextProgress) => void, timeoutMs?: number,
-): Promise<GenerateResult> {
-  const apiModel = getApiModelId(model);
-  const { response, bodyText } = await retryableFetch({
-    label: 'OpenAI API',
-    url: 'https://api.openai.com/v1/responses',
-    init: {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: apiModel,
-        input: prompt,
-        max_output_tokens: 16384,
-      }),
-    },
-    timeoutMs: timeoutMs ?? 120_000,
-    onRetry,
-  });
-
-  if (!response.ok) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `API error ${response.status}: ${bodyText.slice(0, 300)}`,
-      location: 'aiBackends.generateViaOpenAI',
-      nextSteps: ['Check your OpenAI API key in Settings', 'Verify the model is available', 'Try a different model'],
-    });
-  }
-
-  let json: {
-    output?: { type: string; content?: { type: string; text: string }[] }[];
-    usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-  };
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaOpenAI',
-      nextSteps: ['Retry the request', 'Check your API key and model ID'],
-    });
-  }
-  const msgOutput = json.output?.find(o => o.type === 'message');
-  const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
-  if (!text) {
-    throw new ActionableError({
-      goal: 'Generate text via OpenAI',
-      problem: `No message output in response: ${bodyText.slice(0, 200)}`,
-      location: 'aiBackends.generateViaOpenAI',
-      nextSteps: ['Retry the request', 'Check if the prompt triggers content filtering', 'Try a different model'],
-    });
-  }
-  const u = json.usage;
-  return {
-    text,
-    tokenUsage: u ? { inputTokens: u.input_tokens ?? 0, outputTokens: u.output_tokens ?? 0, totalTokens: u.total_tokens ?? 0 } : undefined,
+    inputTokens: usage.promptTokens ?? 0,
+    outputTokens: usage.completionTokens ?? 0,
+    totalTokens: usage.totalTokens ?? ((usage.promptTokens ?? 0) + (usage.completionTokens ?? 0)),
   };
 }
 
@@ -499,12 +135,34 @@ export async function generateText(
     });
   }
 
-  switch (backend) {
-    case 'claude': return generateViaClaude(prompt, resolved, apiKey, onRetry, timeoutMs);
-    case 'groq': return generateViaGroq(prompt, resolved, apiKey, onRetry, timeoutMs);
-    case 'openai': return generateViaOpenAI(prompt, resolved, apiKey, onRetry, timeoutMs);
-    default: return generateViaGemini(prompt, resolved, apiKey, onRetry, timeoutMs);
-  }
+  const apiModel = getApiModelId(resolved);
+  const opts: GenerateOptions = {
+    temperature: _debateTemperature ?? 0.7,
+    timeoutMs,
+  };
+
+  const result = await withRetry(
+    () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
+    SERVER_RETRY_CONFIG,
+    `${backend}/${apiModel}`,
+    onRetry
+      ? (msg) => {
+          // Extract attempt info from the retry log message for the progress callback.
+          // Format: "[retry] label attempt N/M failed (reason), waiting Ds..."
+          const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);
+          const backoffMatch = msg.match(/waiting (\d+)s/);
+          onRetry({
+            attempt: attemptMatch ? parseInt(attemptMatch[1], 10) : 1,
+            maxRetries: attemptMatch ? parseInt(attemptMatch[2], 10) : SERVER_RETRY_CONFIG.maxRetries,
+            backoffSeconds: backoffMatch ? parseInt(backoffMatch[1], 10) : 5,
+            limitType: 'unknown',
+            limitMessage: msg,
+          });
+        }
+      : undefined,
+  );
+
+  return { text: result.text, tokenUsage: mapUsage(result.usage) };
 }
 
 export interface GroundingSegment {

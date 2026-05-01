@@ -21,8 +21,6 @@ export * from './aiAdapter';
 export * from './taxonomyLoader';
 export * from './debateEngine';
 export * from './formatters';
-// schemas.ts deliberately excluded from barrel — it imports zod.
-// Import directly: import { PovNodeSchema } from 'lib/debate/schemas';
 export * from './validators';
 export * from './nodeIdUtils';
 export * from './qbaf';
@@ -39,6 +37,22 @@ export * from './moderator';
 export * from './gapCheck';
 export * from './orchestration';
 export * from './sessionPruning';
+export * from './documentAnalysis';
+export * from './turnValidator';
+export * from './taxonomyGapAnalysis';
+export * from './vocabularyContext';
+export * from './neutralEvaluator';
+export * from './signalConfidence';
+export * from './pragmaticSignals';
+export * from './schemeStagnation';
+export * from './dialecticTrace';
+export * from './envelopes';
+export * from './cacheTypes';
+// schemas.ts deliberately excluded from barrel — it imports zod.
+// cli.ts deliberately excluded from barrel — it is the CLI entry point.
+// phaseTransitions.ts excluded — imports fs/path (Node.js only).
+// repairTranscript.ts excluded — CLI script importing fs.
+// judgeAudit.ts excluded — CLI script importing fs/path.
 
 // ── Situations Migration Normalizers ──────────────────────
 

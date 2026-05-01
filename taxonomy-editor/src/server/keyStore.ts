@@ -34,25 +34,57 @@ class LocalFileKeyStore implements KeyStore {
     return path.join(this.resolveDataRoot(), `.aitriad-key-${backend}.enc`);
   }
 
+  // S11: Derive key from random material stored on disk instead of hostname.
   private derivedKey(): Buffer {
-    const salt = 'aitriad-server-key-v1';
-    return crypto.pbkdf2Sync(os.hostname() + salt, salt, 100_000, 32, 'sha256');
+    const keyFile = path.join(this.resolveDataRoot(), '.aitriad-key-material');
+    let material: Buffer;
+    if (fs.existsSync(keyFile)) {
+      material = fs.readFileSync(keyFile);
+      if (material.length < 32) {
+        material = crypto.randomBytes(64);
+        fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+        fs.writeFileSync(keyFile, material, { mode: 0o600 });
+      }
+    } else {
+      material = crypto.randomBytes(64);
+      fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+      fs.writeFileSync(keyFile, material, { mode: 0o600 });
+    }
+    return crypto.pbkdf2Sync(material, 'aitriad-server-key-v2', 100_000, 32, 'sha256');
+  }
+
+  private legacyDerivedKey(): Buffer {
+    return crypto.pbkdf2Sync(
+      os.hostname() + 'aitriad-server-key-v1', 'aitriad-server-key-v1', 100_000, 32, 'sha256',
+    );
+  }
+
+  private decrypt(filepath: string, key: Buffer): string {
+    const combined = fs.readFileSync(filepath);
+    const iv = combined.subarray(0, 16);
+    const tag = combined.subarray(16, 32);
+    const encrypted = combined.subarray(32);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(encrypted) + decipher.final('utf-8');
   }
 
   async get(backend: AIBackend, _userId: string): Promise<string | null> {
     const p = this.filePath(backend);
     if (!fs.existsSync(p)) return null;
     try {
-      const combined = fs.readFileSync(p);
-      const iv = combined.subarray(0, 16);
-      const tag = combined.subarray(16, 32);
-      const encrypted = combined.subarray(32);
-      const decipher = crypto.createDecipheriv('aes-256-gcm', this.derivedKey(), iv);
-      decipher.setAuthTag(tag);
-      return decipher.update(encrypted) + decipher.final('utf-8');
-    } catch (err) {
-      console.warn(`[keyStore/local] Failed to decrypt ${p}:`, err);
-      return null;
+      return this.decrypt(p, this.derivedKey());
+    } catch {
+      // Migrate from legacy hostname-based key
+      try {
+        const value = this.decrypt(p, this.legacyDerivedKey());
+        await this.set(backend, _userId, value);
+        console.log(`[keyStore/local] Migrated ${backend} key to new key material`);
+        return value;
+      } catch (err) {
+        console.warn(`[keyStore/local] Failed to decrypt ${p} with current and legacy keys:`, err);
+        return null;
+      }
     }
   }
 

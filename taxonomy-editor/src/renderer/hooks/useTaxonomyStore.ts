@@ -34,8 +34,10 @@ import {
 } from '../utils/idGenerator';
 import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
-import { normalizeNodeProperties, validateTaxonomy, nodeTypeFromId } from '@lib/debate';
-import type { ValidationResult } from '@lib/debate';
+import { normalizeNodeProperties } from '@lib/debate';
+import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { validateTaxonomy } from '@lib/debate/validators';
+import type { ValidationResult } from '@lib/debate/validators';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
 import { api } from '@bridge';

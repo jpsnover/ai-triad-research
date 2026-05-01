@@ -6,12 +6,18 @@
  * Used when the app runs in a browser served by the container.
  */
 import type { AppAPI } from './types';
+import { ActionableError } from '@lib/debate/errors';
 
 // ── HTTP helpers ──
 
 async function get<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path);
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  if (!res.ok) throw new ActionableError({
+    goal: 'Fetch data from server',
+    problem: `GET ${path} failed with HTTP ${res.status}`,
+    location: 'web-bridge.get',
+    nextSteps: ['Check the server is running', 'Verify your authentication'],
+  });
   return res.json();
 }
 
@@ -26,11 +32,21 @@ async function post<T = unknown>(path: string, body?: unknown): Promise<T> {
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
-    throw new Error(msg);
+    throw new ActionableError({
+      goal: 'Call AI backend',
+      problem: msg,
+      location: 'web-bridge.post',
+      nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
+    });
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+    throw new ActionableError({
+      goal: 'Send data to server',
+      problem: `POST ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'web-bridge.post',
+      nextSteps: ['Check the server is running', 'Verify your authentication'],
+    });
   }
   return res.json();
 }
@@ -41,13 +57,23 @@ async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`PUT ${path} failed: ${res.status}`);
+  if (!res.ok) throw new ActionableError({
+    goal: 'Update data on server',
+    problem: `PUT ${path} failed with HTTP ${res.status}`,
+    location: 'web-bridge.put',
+    nextSteps: ['Check the server is running', 'Verify your authentication'],
+  });
   return res.json();
 }
 
 async function del<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
+  if (!res.ok) throw new ActionableError({
+    goal: 'Delete data on server',
+    problem: `DELETE ${path} failed with HTTP ${res.status}`,
+    location: 'web-bridge.del',
+    nextSteps: ['Check the server is running', 'Verify your authentication'],
+  });
   return res.json();
 }
 
