@@ -375,7 +375,7 @@ the change. If you now believe differently, say "I previously argued X, but on r
 
 // ── Unanswered Claims Ledger ────────────────────────────
 
-import type { UnansweredClaimEntry, ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
+import type { UnansweredClaimEntry } from './types';
 
 /**
  * Update the unanswered claims ledger after claim extraction.
