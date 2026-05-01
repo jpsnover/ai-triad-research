@@ -1,8 +1,21 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { api } from '@bridge';
+
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
+
+const DOCS = [
+  { title: 'Architecture Overview', path: 'docs/architecture-overview.md',
+    desc: 'Two-repo split, Electron apps, AI backends, and data model' },
+  { title: 'Debate Engine Design', path: 'docs/debate-engine-design.md',
+    desc: 'Three-agent BDI debate system, QBAF scoring, and moderator' },
+  { title: 'Theory of Success', path: 'docs/theory-of-success.md',
+    desc: 'What success looks like for debate, step-by-step execution, weaknesses' },
+] as const;
+
+const REPO_URL = 'https://github.com/jpsnover/ai-triad-research';
 
 function getRuntime(): string {
   const target = import.meta.env.VITE_TARGET;
@@ -75,6 +88,22 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <p><strong>Pin</strong> - Pin any item to compare it side-by-side with the active item.</p>
           <p><strong>Search</strong> - Full-text search with raw, wildcard, and regex modes. Scope by POV and/or category.</p>
           <p><strong>Resize</strong> - Drag the border between the list and detail panels to resize.</p>
+        </div>
+
+        <div className="help-section">
+          <h4>Documentation</h4>
+          {DOCS.map((doc) => (
+            <p key={doc.path}>
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); api.openExternal(`${REPO_URL}/blob/main/${doc.path}`); }}
+                style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                <strong>{doc.title}</strong>
+              </a>
+              {' — '}{doc.desc}
+            </p>
+          ))}
         </div>
 
         <div className="help-section help-about">
