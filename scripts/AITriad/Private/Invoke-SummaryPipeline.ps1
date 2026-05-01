@@ -286,6 +286,20 @@ $SnapshotText
         }
     }
 
+    # ── Stage 5c: Semantic deduplication ────────────────────────────────────
+    try {
+        $DedupResult = Remove-DuplicateClaims -SummaryObject $SummaryObject -SimilarityThreshold 0.85
+        $SummaryObject = $DedupResult.Summary
+        $DedupMetrics = $DedupResult.Metrics
+        if ($DedupMetrics.points_removed -gt 0 -or $DedupMetrics.claims_removed -gt 0) {
+            Write-Verbose "Pipeline dedup: removed $($DedupMetrics.points_removed) key_points, $($DedupMetrics.claims_removed) factual_claims"
+        }
+    }
+    catch {
+        Write-Verbose "Pipeline dedup: skipped — $($_.Exception.Message)"
+        $DedupMetrics = $null
+    }
+
     # ── Stage 6: Unmapped concept resolution ──────────────────────────────────
     if ($SummaryObject.unmapped_concepts -and @($SummaryObject.unmapped_concepts).Count -gt 0) {
         try {
@@ -327,6 +341,8 @@ $SnapshotText
             factual_claims    = $FactualCount
             unmapped_concepts = $UnmappedCount
             used_fire         = if ($IterativeExtraction) { 1 } else { 0 }
+            dedup_points_removed = if ($DedupMetrics) { $DedupMetrics.points_removed } else { 0 }
+            dedup_claims_removed = if ($DedupMetrics) { $DedupMetrics.claims_removed } else { 0 }
         })
     if ((Test-Path variable:script:LastRAGMetrics) -and $script:LastRAGMetrics) {
         $script:ContextRotStages += @($script:LastRAGMetrics)
