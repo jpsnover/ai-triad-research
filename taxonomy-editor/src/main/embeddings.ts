@@ -7,6 +7,7 @@ import { execFile } from 'child_process';
 import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 import { PROJECT_ROOT } from './fileIO';
+import { ActionableError } from '../../../lib/debate/errors';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 console.log('[embeddings] Tavily import OK');
@@ -346,9 +347,16 @@ async function callGeminiBatchApi(
     if (response.status === 429 || response.status === 503) {
       if (attempt === MAX_RETRIES) {
         const label = response.status === 503 ? 'temporarily unavailable' : 'rate limited';
-        throw new Error(
-          `Gemini Embedding API ${label} after ${MAX_RETRIES} attempts. Please try again later.`,
-        );
+        throw new ActionableError({
+          goal: 'Batch-embed texts via Gemini Embedding API',
+          problem: `Gemini Embedding API ${label} after ${MAX_RETRIES} attempts.`,
+          location: 'embeddings.callGeminiBatchApi',
+          nextSteps: [
+            'Wait a few minutes and try again.',
+            'Check your Gemini API quota at https://aistudio.google.com/apikey',
+            'Consider using local Python embeddings with Update-TaxEmbeddings.',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       console.log(`[batchEmbed] ${response.status}, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
@@ -358,21 +366,47 @@ async function callGeminiBatchApi(
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Gemini API error ${response.status}: ${body}`);
+      throw new ActionableError({
+        goal: 'Batch-embed texts via Gemini Embedding API',
+        problem: `Gemini API error ${response.status}: ${body}`,
+        location: 'embeddings.callGeminiBatchApi',
+        nextSteps: [
+          'Check the API response status and error message above.',
+          'Verify your Gemini API key is valid in Settings.',
+          'Check your quota at https://aistudio.google.com/apikey',
+        ],
+      });
     }
 
     const json = (await response.json()) as GeminiBatchResponse;
     return json.embeddings.map(e => e.values);
   }
 
-  throw new Error('callGeminiBatchApi: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Batch-embed texts via Gemini Embedding API',
+    problem: 'Exhausted all retry attempts without a successful response.',
+    location: 'embeddings.callGeminiBatchApi',
+    nextSteps: [
+      'Wait a few minutes and try again.',
+      'Check your network connection and Gemini API status.',
+      'Consider using local Python embeddings with Update-TaxEmbeddings.',
+    ],
+  });
 }
 
 const EXPECTED_DIMENSION = 384;
 
 async function computeEmbeddingsViaApi(texts: string[]): Promise<number[][]> {
   const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured. Set a Gemini API key or run Update-TaxEmbeddings to generate local embeddings.');
+  if (!apiKey) throw new ActionableError({
+    goal: 'Compute embeddings via Gemini API',
+    problem: 'No Gemini API key configured.',
+    location: 'embeddings.computeEmbeddingsViaApi',
+    nextSteps: [
+      'Set a Gemini API key in Settings.',
+      'Or run Update-TaxEmbeddings to generate local embeddings without an API key.',
+    ],
+  });
 
   const allVectors: number[][] = [];
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
@@ -388,7 +422,15 @@ async function computeEmbeddingsViaApi(texts: string[]): Promise<number[][]> {
 
 async function computeQueryViaApi(text: string): Promise<number[]> {
   const apiKey = loadApiKey();
-  if (!apiKey) throw new Error('No API key configured. Set a Gemini API key or install Python with sentence-transformers.');
+  if (!apiKey) throw new ActionableError({
+    goal: 'Compute query embedding via Gemini API',
+    problem: 'No Gemini API key configured.',
+    location: 'embeddings.computeQueryViaApi',
+    nextSteps: [
+      'Set a Gemini API key in Settings.',
+      'Or install Python with sentence-transformers for local embeddings.',
+    ],
+  });
 
   const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
   return vectors[0];
@@ -575,9 +617,18 @@ async function generateViaGemini(
           const prefix = limitType === 'RPD'
             ? 'Daily quota exhausted'
             : `Gemini API rate limited (${limitType}) after ${MAX_RETRIES} attempts`;
-          throw new Error(
-            `${prefix}. ${limitMessage} Check your quota at https://aistudio.google.com/apikey`,
-          );
+          throw new ActionableError({
+            goal: 'Generate text via Gemini API',
+            problem: `${prefix}. ${limitMessage}`,
+            location: 'embeddings.generateViaGemini',
+            nextSteps: [
+              'Check your quota at https://aistudio.google.com/apikey',
+              limitType === 'RPD'
+                ? 'Wait until quota resets (usually midnight PT), or switch to a lighter model.'
+                : 'Wait a minute and try again.',
+              'Consider switching to a different AI backend (Claude, Groq) in Settings.',
+            ],
+          });
         }
         const backoff = limitType === 'RPD'
           ? Math.min(2 ** (attempt + 2), 60)
@@ -591,9 +642,16 @@ async function generateViaGemini(
       // 503 — model temporarily unavailable
       console.log(`[generateText] Service unavailable (503), attempt ${attempt}/${MAX_RETRIES}`);
       if (attempt === MAX_RETRIES) {
-        throw new Error(
-          `Gemini model is temporarily unavailable (503) after ${MAX_RETRIES} attempts. Please try again later.`,
-        );
+        throw new ActionableError({
+          goal: 'Generate text via Gemini API',
+          problem: `Gemini model is temporarily unavailable (503) after ${MAX_RETRIES} attempts.`,
+          location: 'embeddings.generateViaGemini',
+          nextSteps: [
+            'Wait a few minutes and try again.',
+            'The model may be experiencing high demand.',
+            'Consider switching to a different AI backend (Claude, Groq) in Settings.',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       onRetry?.({
@@ -619,20 +677,47 @@ async function generateViaGemini(
 
     if (!response.ok) {
       console.error('[generateText] API error:', bodyText.slice(0, 300));
-      throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
+      throw new ActionableError({
+        goal: 'Generate text via Gemini API',
+        problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
+        location: 'embeddings.generateViaGemini',
+        nextSteps: [
+          'Check the API response status and error message above.',
+          'Verify your Gemini API key is valid in Settings.',
+          'If the error persists, try a different model or backend.',
+        ],
+      });
     }
 
     let json: unknown;
     try {
       json = JSON.parse(bodyText);
     } catch {
-      throw new Error(`Gemini API returned invalid JSON: ${bodyText.slice(0, 200)}`);
+      throw new ActionableError({
+        goal: 'Generate text via Gemini API',
+        problem: `Gemini API returned invalid JSON: ${bodyText.slice(0, 200)}`,
+        location: 'embeddings.generateViaGemini',
+        nextSteps: [
+          'This may indicate a temporary API issue. Try again.',
+          'If the error persists, try a different model.',
+          'Check Gemini API status at https://status.cloud.google.com/',
+        ],
+      });
     }
 
     const candidates = (json as { candidates?: { content: { parts: { text: string }[] } }[] }).candidates;
     if (!candidates || candidates.length === 0) {
       console.error('[generateText] No candidates:', bodyText.slice(0, 300));
-      throw new Error(`No response candidates from Gemini. Body: ${bodyText.slice(0, 200)}`);
+      throw new ActionableError({
+        goal: 'Generate text via Gemini API',
+        problem: `No response candidates from Gemini. Body: ${bodyText.slice(0, 200)}`,
+        location: 'embeddings.generateViaGemini',
+        nextSteps: [
+          'The model may have filtered the response due to safety settings.',
+          'Try rephrasing the prompt or using a different model.',
+          'Check the response body above for details.',
+        ],
+      });
     }
 
     const result = candidates[0].content.parts.map((p) => p.text).join('');
@@ -640,7 +725,16 @@ async function generateViaGemini(
     return result;
   }
 
-  throw new Error('generateText: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Generate text via Gemini API',
+    problem: 'Exhausted all retry attempts without a successful response.',
+    location: 'embeddings.generateViaGemini',
+    nextSteps: [
+      'Wait a few minutes and try again.',
+      'Check your network connection and Gemini API status.',
+      'Consider switching to a different AI backend in Settings.',
+    ],
+  });
 }
 
 async function generateViaClaude(
@@ -691,12 +785,30 @@ async function generateViaClaude(
   console.log(`[Claude] Response body (first 500):`, bodyText.slice(0, 500));
 
   if (!response.ok) {
-    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Claude API',
+      problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'embeddings.generateViaClaude',
+      nextSteps: [
+        'Check the API response status and error message above.',
+        'Verify your Claude API key is valid in Settings.',
+        'If rate limited, wait a moment and try again.',
+      ],
+    });
   }
 
   const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
   if (!json.content || json.content.length === 0) {
-    throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Claude API',
+      problem: `No content in Claude response: ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaClaude',
+      nextSteps: [
+        'The model may have filtered the response.',
+        'Try rephrasing the prompt or using a different model.',
+        'Check the response body above for details.',
+      ],
+    });
   }
 
   const result = json.content
@@ -739,12 +851,30 @@ async function generateViaGroq(
   const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading Groq response');
 
   if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Groq API',
+      problem: `Groq API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'embeddings.generateViaGroq',
+      nextSteps: [
+        'Check the API response status and error message above.',
+        'Verify your Groq API key is valid in Settings.',
+        'If rate limited, wait a moment and try again.',
+      ],
+    });
   }
 
   const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
   if (!json.choices || json.choices.length === 0) {
-    throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Groq API',
+      problem: `No choices in Groq response: ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaGroq',
+      nextSteps: [
+        'The model may have filtered the response.',
+        'Try rephrasing the prompt or using a different model.',
+        'Check the response body above for details.',
+      ],
+    });
   }
 
   const result = json.choices[0].message.content;
@@ -783,7 +913,16 @@ async function generateViaOpenAI(
   const bodyText = await withTimeout(response.text(), timeoutMs ? Math.max(timeoutMs / 2, 30_000) : 30_000, 'Reading OpenAI response');
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI API',
+      problem: `OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'embeddings.generateViaOpenAI',
+      nextSteps: [
+        'Check the API response status and error message above.',
+        'Verify your OpenAI API key is valid in Settings.',
+        'If rate limited, wait a moment and try again.',
+      ],
+    });
   }
 
   const json = JSON.parse(bodyText) as {
@@ -792,7 +931,16 @@ async function generateViaOpenAI(
   const msgOutput = json.output?.find(o => o.type === 'message');
   const result = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
   if (!result) {
-    throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI API',
+      problem: `No message output in OpenAI response: ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaOpenAI',
+      nextSteps: [
+        'The model may have filtered the response.',
+        'Try rephrasing the prompt or using a different model.',
+        'Check the response body above for details.',
+      ],
+    });
   }
 
   console.log('[generateText] OpenAI success, result length:', result.length);
@@ -825,7 +973,15 @@ export async function generateText(
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
-    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+    throw new ActionableError({
+      goal: `Generate text via ${names[backend]} API`,
+      problem: `No ${names[backend]} API key configured.`,
+      location: 'embeddings.generateText',
+      nextSteps: [
+        `Set a ${names[backend]} API key in Settings.`,
+        'Or switch to a different AI backend that has a key configured.',
+      ],
+    });
   }
 
   // Log on first call or model change
@@ -870,7 +1026,15 @@ export async function generateChatStream(
   const apiKey = loadApiKey(backend);
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
-    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+    throw new ActionableError({
+      goal: `Stream chat response via ${names[backend]} API`,
+      problem: `No ${names[backend]} API key configured.`,
+      location: 'embeddings.generateChatStream',
+      nextSteps: [
+        `Set a ${names[backend]} API key in Settings.`,
+        'Or switch to a different AI backend that has a key configured.',
+      ],
+    });
   }
 
   if (backend !== 'gemini') {
@@ -909,11 +1073,29 @@ export async function generateChatStream(
 
   if (!response.ok) {
     const errBody = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errBody.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Stream chat response via Gemini API',
+      problem: `Gemini API error ${response.status}: ${errBody.slice(0, 500)}`,
+      location: 'embeddings.generateChatStream',
+      nextSteps: [
+        'Check the API response status and error message above.',
+        'Verify your Gemini API key is valid in Settings.',
+        'If rate limited, wait a moment and try again.',
+      ],
+    });
   }
 
   const reader = response.body?.getReader();
-  if (!reader) throw new Error('No response body reader available');
+  if (!reader) throw new ActionableError({
+    goal: 'Stream chat response via Gemini API',
+    problem: 'No response body reader available from the Gemini streaming response.',
+    location: 'embeddings.generateChatStream',
+    nextSteps: [
+      'This may indicate a network or Electron fetch issue.',
+      'Try again or restart the application.',
+      'If the problem persists, switch to a non-streaming backend.',
+    ],
+  });
 
   const decoder = new TextDecoder();
   let fullText = '';
@@ -1031,7 +1213,15 @@ export async function generateTextWithSearch(
   }
 
   const apiKey = loadApiKey(backend);
-  if (!apiKey) throw new Error('No Gemini API key configured.');
+  if (!apiKey) throw new ActionableError({
+    goal: 'Generate text with web search grounding via Gemini',
+    problem: 'No Gemini API key configured.',
+    location: 'embeddings.generateTextWithSearch',
+    nextSteps: [
+      'Set a Gemini API key in Settings.',
+      'Or switch to a different AI backend with a Tavily key for search grounding.',
+    ],
+  });
 
   const apiModel = getApiModelId(resolvedModel);
   const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
@@ -1058,7 +1248,16 @@ export async function generateTextWithSearch(
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Gemini search grounding error ${response.status}: ${body.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate text with web search grounding via Gemini',
+      problem: `Gemini search grounding error ${response.status}: ${body.slice(0, 300)}`,
+      location: 'embeddings.generateTextWithSearch',
+      nextSteps: [
+        'Check the API response status and error message above.',
+        'Verify your Gemini API key is valid in Settings.',
+        'The google_search tool may not be available for this model. Try a different model.',
+      ],
+    });
   }
 
   const json = await response.json() as Record<string, unknown>;
@@ -1076,7 +1275,16 @@ export async function generateTextWithSearch(
       };
     }[];
   }).candidates;
-  if (!candidates?.length) throw new Error('No candidates from Gemini grounded search');
+  if (!candidates?.length) throw new ActionableError({
+    goal: 'Generate text with web search grounding via Gemini',
+    problem: 'No candidates returned from Gemini grounded search.',
+    location: 'embeddings.generateTextWithSearch',
+    nextSteps: [
+      'The model may have filtered the response due to safety settings.',
+      'Try rephrasing the prompt or using a different model.',
+      'Retry the request — this may be a transient issue.',
+    ],
+  });
 
   let text = candidates[0].content.parts
     .filter(p => typeof p.text === 'string')

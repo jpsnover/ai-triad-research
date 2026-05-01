@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily';
+import { ActionableError } from './errors';
 import type { GenerateRequest, GenerateResponse, LLMBackend } from './cacheTypes';
 import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes';
 
@@ -60,19 +61,23 @@ function loadRegistry(repoRoot: string): ModelRegistry {
   if (_registry) return _registry;
   const configPath = path.join(repoRoot, 'ai-models.json');
   if (!fs.existsSync(configPath)) {
-    throw new Error(
-      `Model registry not found at: ${configPath}\n` +
-      `This file is required for AI model resolution.\n` +
-      `Ensure you are running from the ai-triad-research repo root, or set the working directory correctly.`
-    );
+    throw new ActionableError({
+      goal: 'Load AI model registry',
+      problem: `Model registry not found at: ${configPath}`,
+      location: 'aiAdapter.loadRegistry',
+      nextSteps: ['Run from the ai-triad-research repo root', 'Check ai-models.json exists'],
+    });
   }
   try {
     _registry = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
-    throw new Error(
-      `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}\n` +
-      `The file exists but contains invalid JSON. Check for syntax errors.`
-    );
+    throw new ActionableError({
+      goal: 'Parse AI model registry',
+      problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
+      location: 'aiAdapter.loadRegistry',
+      nextSteps: ['Run from the ai-triad-research repo root', 'Check ai-models.json exists'],
+      innerError: err,
+    });
   }
   return _registry;
 }
@@ -104,7 +109,12 @@ function resolveApiKey(backend: string, explicitKey?: string): string {
   if (backendKey) return backendKey;
   const fallback = process.env.AI_API_KEY;
   if (fallback) return fallback;
-  throw new Error(`No API key for ${backend}. Set ${BACKEND_ENV_KEYS[backend] ?? 'AI_API_KEY'} environment variable.`);
+  throw new ActionableError({
+    goal: `Resolve API key for ${backend} backend`,
+    problem: `No API key for ${backend}`,
+    location: 'aiAdapter.resolveApiKey',
+    nextSteps: [`Set the ${BACKEND_ENV_KEYS[backend] ?? 'AI_API_KEY'} environment variable or Register-AIBackend`],
+  });
 }
 
 // ── Retry helper ─────────────────────────────────────────
@@ -134,7 +144,12 @@ async function withRetry<T>(
       await new Promise(r => setTimeout(r, delay * 1000));
     }
   }
-  throw new Error(`${label} failed after ${maxRetries} retries`);
+  throw new ActionableError({
+    goal: `Complete ${label}`,
+    problem: `${label} failed after ${maxRetries} retries`,
+    location: 'aiAdapter.withRetry',
+    nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+  });
 }
 
 // ── Timeout helper ───────────────────────────────────────
@@ -241,10 +256,20 @@ async function generateViaGemini(
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini response');
 
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`Gemini ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `Gemini ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaGemini',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateViaGemini',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -254,14 +279,20 @@ async function generateViaGemini(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(
-      `Gemini API returned invalid JSON (${bodyText.length} bytes).\n` +
-      `First 200 chars: ${bodyText.slice(0, 200)}\n` +
-      `This usually means the response was truncated or the API returned an HTML error page. Check your API key and model ID.`
-    );
+    throw new ActionableError({
+      goal: 'Parse Gemini API response',
+      problem: `Gemini API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaGemini',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.candidates?.length) {
-    throw new Error(`No candidates in Gemini response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Gemini',
+      problem: `No candidates in Gemini response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateViaGemini',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.candidates[0].content.parts.map(p => p.text).join('');
   const um = json.usageMetadata;
@@ -306,10 +337,20 @@ async function generateViaClaude(
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Claude response');
 
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`Claude ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `Claude ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaClaude',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateViaClaude',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -319,14 +360,20 @@ async function generateViaClaude(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(
-      `Claude API returned invalid JSON (${bodyText.length} bytes).\n` +
-      `First 200 chars: ${bodyText.slice(0, 200)}\n` +
-      `Check your API key and ensure the model ID '${apiModelId}' is valid.`
-    );
+    throw new ActionableError({
+      goal: 'Parse Claude API response',
+      problem: `Claude API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaClaude',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.content?.length) {
-    throw new Error(`No content in Claude response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `No content in Claude response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateViaClaude',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
   const u = json.usage;
@@ -376,10 +423,20 @@ async function generateViaGroq(
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Groq response');
 
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`Groq ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Groq',
+      problem: `Groq ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaGroq',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Groq',
+      problem: `Groq API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateViaGroq',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -389,14 +446,20 @@ async function generateViaGroq(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(
-      `Groq API returned invalid JSON (${bodyText.length} bytes).\n` +
-      `First 200 chars: ${bodyText.slice(0, 200)}\n` +
-      `Check your API key and ensure the model ID '${apiModelId}' is valid.`
-    );
+    throw new ActionableError({
+      goal: 'Parse Groq API response',
+      problem: `Groq API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaGroq',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.choices?.length) {
-    throw new Error(`No choices in Groq response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate text via Groq',
+      problem: `No choices in Groq response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateViaGroq',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.choices[0].message.content;
   const u = json.usage;
@@ -438,10 +501,20 @@ async function generateViaOpenAI(
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading OpenAI response');
 
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`OpenAI ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI',
+      problem: `OpenAI ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaOpenAI',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI',
+      problem: `OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateViaOpenAI',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -451,16 +524,22 @@ async function generateViaOpenAI(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(
-      `OpenAI API returned invalid JSON (${bodyText.length} bytes).\n` +
-      `First 200 chars: ${bodyText.slice(0, 200)}\n` +
-      `Check your API key and ensure the model ID '${apiModelId}' is valid.`
-    );
+    throw new ActionableError({
+      goal: 'Parse OpenAI API response',
+      problem: `OpenAI API returned invalid JSON (${bodyText.length} bytes). First 200 chars: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateViaOpenAI',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   const msgOutput = json.output?.find(o => o.type === 'message');
   const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
   if (!text) {
-    throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI',
+      problem: `No message output in OpenAI response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateViaOpenAI',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const u = json.usage;
   const usage = u ? {
@@ -508,10 +587,20 @@ async function generateEnvelopeViaGemini(
 
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini envelope response');
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`Gemini ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Gemini',
+      problem: `Gemini ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaGemini',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Gemini',
+      problem: `Gemini API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateEnvelopeViaGemini',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -521,10 +610,20 @@ async function generateEnvelopeViaGemini(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(`Gemini envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Parse Gemini envelope response',
+      problem: `Gemini envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaGemini',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.candidates?.length) {
-    throw new Error(`No candidates in Gemini envelope response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Gemini',
+      problem: `No candidates in Gemini envelope response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateEnvelopeViaGemini',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.candidates[0].content.parts.map(p => p.text).join('');
   const um = json.usageMetadata;
@@ -573,10 +672,20 @@ async function generateEnvelopeViaClaude(
 
   const bodyText = await withTimeout(response.text(), 60_000, 'Reading Claude envelope response');
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`Claude ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Claude',
+      problem: `Claude ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaClaude',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Claude',
+      problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateEnvelopeViaClaude',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -586,10 +695,20 @@ async function generateEnvelopeViaClaude(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(`Claude envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Parse Claude envelope response',
+      problem: `Claude envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaClaude',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.content?.length) {
-    throw new Error(`No content in Claude envelope response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: 'Generate envelope response via Claude',
+      problem: `No content in Claude envelope response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateEnvelopeViaClaude',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
   const u = json.usage;
@@ -633,10 +752,20 @@ async function generateEnvelopeViaChatCompletions(
 
   const bodyText = await withTimeout(response.text(), 60_000, `Reading ${label} envelope response`);
   if (response.status === 429 || response.status === 503) {
-    throw new Error(`${label} ${response.status}: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: `Generate envelope response via ${label}`,
+      problem: `${label} ${response.status}: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaChatCompletions',
+      nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
+    });
   }
   if (!response.ok) {
-    throw new Error(`${label} API error ${response.status}: ${bodyText.slice(0, 500)}`);
+    throw new ActionableError({
+      goal: `Generate envelope response via ${label}`,
+      problem: `${label} API error ${response.status}: ${bodyText.slice(0, 500)}`,
+      location: 'aiAdapter.generateEnvelopeViaChatCompletions',
+      nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+    });
   }
 
   let json: {
@@ -646,10 +775,20 @@ async function generateEnvelopeViaChatCompletions(
   try {
     json = JSON.parse(bodyText);
   } catch {
-    throw new Error(`${label} envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: `Parse ${label} envelope response`,
+      problem: `${label} envelope returned invalid JSON (${bodyText.length} bytes). First 200: ${bodyText.slice(0, 200)}`,
+      location: 'aiAdapter.generateEnvelopeViaChatCompletions',
+      nextSteps: ['Retry the request', 'Check the API key and model ID'],
+    });
   }
   if (!json.choices?.length) {
-    throw new Error(`No choices in ${label} envelope response: ${bodyText.slice(0, 300)}`);
+    throw new ActionableError({
+      goal: `Generate envelope response via ${label}`,
+      problem: `No choices in ${label} envelope response: ${bodyText.slice(0, 300)}`,
+      location: 'aiAdapter.generateEnvelopeViaChatCompletions',
+      nextSteps: ['Retry the request', 'Try a different model'],
+    });
   }
   const text = json.choices[0].message.content;
   const u = json.usage;
@@ -812,13 +951,23 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
         if (!response.ok) {
           const body = await response.text();
-          throw new Error(`Gemini search error ${response.status}: ${body.slice(0, 300)}`);
+          throw new ActionableError({
+            goal: 'Generate text with Gemini grounded search',
+            problem: `Gemini search error ${response.status}: ${body.slice(0, 300)}`,
+            location: 'aiAdapter.generateTextWithSearch',
+            nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+          });
         }
 
         const json = await response.json() as {
           candidates?: { content: { parts: { text: string }[] }; groundingMetadata?: { groundingChunks?: { web?: { title?: string } }[] } }[];
         };
-        if (!json.candidates?.length) throw new Error('No candidates from Gemini grounded search');
+        if (!json.candidates?.length) throw new ActionableError({
+          goal: 'Generate text with Gemini grounded search',
+          problem: 'No candidates from Gemini grounded search',
+          location: 'aiAdapter.generateTextWithSearch',
+          nextSteps: ['Retry the request', 'Try a different model'],
+        });
 
         const text = json.candidates[0].content.parts.map(p => p.text).join('');
         const chunks = json.candidates[0].groundingMetadata?.groundingChunks ?? [];

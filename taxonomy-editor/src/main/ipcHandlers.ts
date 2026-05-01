@@ -45,6 +45,7 @@ import { refreshAIModels } from './modelDiscovery';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import { diagnosePythonEmbeddings } from './diagnosePython';
 import type { NodeEmbeddingInput, NliPair } from './embeddings';
+import { ActionableError } from '../../../lib/debate/errors';
 import path from 'path';
 
 export function registerIpcHandlers(): void {
@@ -199,7 +200,16 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-embeddings failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
-      throw new Error(`Embedding computation failed: ${msg}. ${diagnosis}`);
+      throw new ActionableError({
+        goal: 'Compute text embeddings for taxonomy nodes',
+        problem: `Embedding computation failed: ${msg}. ${diagnosis}`,
+        location: 'ipcHandlers.computeEmbeddings',
+        nextSteps: [
+          'Verify Python is installed and accessible on PATH',
+          'Run "pip install sentence-transformers" to install the embedding model',
+          'Check the console log for detailed Python diagnostics',
+        ],
+      });
     }
   });
 
@@ -210,7 +220,16 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-query-embedding failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
-      throw new Error(`Query embedding failed: ${msg}. ${diagnosis}`);
+      throw new ActionableError({
+        goal: 'Compute embedding for a search query',
+        problem: `Query embedding failed: ${msg}. ${diagnosis}`,
+        location: 'ipcHandlers.computeQueryEmbedding',
+        nextSteps: [
+          'Verify Python is installed and accessible on PATH',
+          'Run "pip install sentence-transformers" to install the embedding model',
+          'Check the console log for detailed Python diagnostics',
+        ],
+      });
     }
   });
 
@@ -221,7 +240,16 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] update-node-embeddings failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
-      throw new Error(`Embedding update failed for ${nodes.length} node(s): ${msg}. ${diagnosis}`);
+      throw new ActionableError({
+        goal: `Update embeddings for ${nodes.length} taxonomy node(s)`,
+        problem: `Embedding update failed: ${msg}. ${diagnosis}`,
+        location: 'ipcHandlers.updateNodeEmbeddings',
+        nextSteps: [
+          'Verify Python is installed and accessible on PATH',
+          'Run "pip install sentence-transformers" to install the embedding model',
+          'Check the console log for detailed Python diagnostics',
+        ],
+      });
     }
   });
 
@@ -239,7 +267,16 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text failed:', msg);
-      throw new Error(`AI generation failed: ${msg}`);
+      throw new ActionableError({
+        goal: 'Generate text via AI backend',
+        problem: `AI generation failed: ${msg}`,
+        location: 'ipcHandlers.generateText',
+        nextSteps: [
+          'Verify your API key is set (Settings > API Keys)',
+          'Check that the selected AI model is available and not rate-limited',
+          'Try a different AI backend if the current one is unreachable',
+        ],
+      });
     }
   });
 
@@ -270,7 +307,16 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text-with-search failed:', msg);
-      throw new Error(`AI grounded search failed: ${msg}`);
+      throw new ActionableError({
+        goal: 'Generate AI text with grounded web search',
+        problem: `AI grounded search failed: ${msg}`,
+        location: 'ipcHandlers.generateTextWithSearch',
+        nextSteps: [
+          'Verify your API key is set (Settings > API Keys)',
+          'Check that the selected model supports grounded search (e.g. Gemini)',
+          'Try the request again — transient network errors are common',
+        ],
+      });
     }
   });
 
@@ -461,9 +507,25 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('update-edge-status', (_event, index: number, status: string) => {
     const data = readEdgesFile() as Record<string, unknown>;
-    if (!data) throw new Error('No edges.json found');
+    if (!data) throw new ActionableError({
+      goal: 'Update the status of a taxonomy edge',
+      problem: 'No edges.json found in the active taxonomy directory',
+      location: 'ipcHandlers.updateEdgeStatus',
+      nextSteps: [
+        'Verify the data directory is configured correctly (Settings > Data Root)',
+        'Check that edges.json exists in the active taxonomy directory',
+      ],
+    });
     const edges = data['edges'] as Record<string, unknown>[];
-    if (index < 0 || index >= edges.length) throw new Error(`Index ${index} out of range`);
+    if (index < 0 || index >= edges.length) throw new ActionableError({
+      goal: 'Update the status of a taxonomy edge',
+      problem: `Edge index ${index} is out of range (0..${edges.length - 1})`,
+      location: 'ipcHandlers.updateEdgeStatus',
+      nextSteps: [
+        'Reload the edges list to get the current indices',
+        'This may indicate a stale UI — try refreshing the page',
+      ],
+    });
     edges[index]['status'] = status;
     if (status === 'approved') {
       delete edges[index]['direction_flag'];
@@ -474,9 +536,25 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('swap-edge-direction', (_event, index: number) => {
     const data = readEdgesFile() as Record<string, unknown>;
-    if (!data) throw new Error('No edges.json found');
+    if (!data) throw new ActionableError({
+      goal: 'Swap the direction of a taxonomy edge',
+      problem: 'No edges.json found in the active taxonomy directory',
+      location: 'ipcHandlers.swapEdgeDirection',
+      nextSteps: [
+        'Verify the data directory is configured correctly (Settings > Data Root)',
+        'Check that edges.json exists in the active taxonomy directory',
+      ],
+    });
     const edges = data['edges'] as Record<string, unknown>[];
-    if (index < 0 || index >= edges.length) throw new Error(`Index ${index} out of range`);
+    if (index < 0 || index >= edges.length) throw new ActionableError({
+      goal: 'Swap the direction of a taxonomy edge',
+      problem: `Edge index ${index} is out of range (0..${edges.length - 1})`,
+      location: 'ipcHandlers.swapEdgeDirection',
+      nextSteps: [
+        'Reload the edges list to get the current indices',
+        'This may indicate a stale UI — try refreshing the page',
+      ],
+    });
     const edge = edges[index];
     const tmp = edge['source'];
     edge['source'] = edge['target'];
@@ -488,7 +566,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('bulk-update-edges', (_event, indices: number[], status: string) => {
     const data = readEdgesFile() as Record<string, unknown>;
-    if (!data) throw new Error('No edges.json found');
+    if (!data) throw new ActionableError({
+      goal: 'Bulk-update the status of taxonomy edges',
+      problem: 'No edges.json found in the active taxonomy directory',
+      location: 'ipcHandlers.bulkUpdateEdges',
+      nextSteps: [
+        'Verify the data directory is configured correctly (Settings > Data Root)',
+        'Check that edges.json exists in the active taxonomy directory',
+      ],
+    });
     const edges = data['edges'] as Record<string, unknown>[];
     let updated = 0;
     for (const idx of indices) {
