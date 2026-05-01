@@ -672,121 +672,112 @@ async function extractClaimsAndUpdateAN(
       duration_ms: Date.now() - extractStartedAt,
     });
 
-    // Update convergence tracker
-    const updatedDebate = get().activeDebate;
-    if (updatedDebate?.argument_network) {
-      const getLabelForId = useTaxonomyStore.getState().getLabelForId;
-      const turnNumber = updatedDebate.argument_network.nodes.length;
-      const ct = updateConvergenceTracker(
-        updatedDebate.convergence_tracker,
-        updatedDebate.argument_network,
-        updatedDebate.commitments || {},
-        turnNumber,
-        getLabelForId,
-      );
-      set({ activeDebate: { ...updatedDebate, convergence_tracker: ct } });
-    }
+    // ── Post-extraction analytics (batched into a single set() to avoid re-render storm) ──
+    const baseDebate = get().activeDebate;
+    if (baseDebate?.argument_network) {
+      const an = baseDebate.argument_network;
+      const patches: Partial<typeof baseDebate> = {};
 
-    // Update unanswered claims ledger
-    const postLedgerDebate = get().activeDebate;
-    if (postLedgerDebate?.argument_network) {
-      const ledger = updateUnansweredLedger(
-        postLedgerDebate.unanswered_claims_ledger ?? [],
-        postLedgerDebate.argument_network.nodes,
-        postLedgerDebate.argument_network.edges,
-        postLedgerDebate.transcript.length,
-      );
-      set({ activeDebate: { ...postLedgerDebate, unanswered_claims_ledger: ledger } });
-    }
-
-    // Convergence signals computation (with semantic recycling when embeddings available)
-    const postConvDebate = get().activeDebate;
-    if (postConvDebate?.argument_network && entryId) {
-      try {
-        // Build turn embeddings map from cache + new embedding for current entry
-        let turnEmbeddings: Map<string, number[]> | undefined;
-        const cachedEmbeddings = postConvDebate.turn_embeddings ?? {};
-        try {
-          const currentEntry = postConvDebate.transcript.find((e: { id: string }) => e.id === entryId);
-          if (currentEntry) {
-            const { vector } = await api.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
-            cachedEmbeddings[entryId] = vector;
-            set({ activeDebate: { ...get().activeDebate!, turn_embeddings: { ...cachedEmbeddings } } });
-          }
-          turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
-        } catch {
-          // Embedding unavailable — fall back to lexical-only recycling detection
-          if (Object.keys(cachedEmbeddings).length > 0) {
-            turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
-          }
-        }
-
-        const latestDebate = get().activeDebate!;
-        const sig = computeConvergenceSignals(
-          entryId,
-          speaker,
-          latestDebate.transcript,
-          latestDebate.argument_network!.nodes,
-          latestDebate.argument_network!.edges,
-          latestDebate.convergence_signals ?? [],
-          turnEmbeddings,
-        );
-        const updatedSignals = [...(latestDebate.convergence_signals ?? []), sig];
-        set({ activeDebate: { ...latestDebate, convergence_signals: updatedSignals } });
-      } catch (convErr) {
-        console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
-      }
-    }
-
-    // QBAF strength propagation — update computed_strength on all AN nodes
-    const postQbafDebate = get().activeDebate;
-    if (postQbafDebate?.argument_network) {
-      const qbafAn = postQbafDebate.argument_network;
-      const qNodes: QbafNode[] = qbafAn.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-      const qEdges: QbafEdge[] = qbafAn.edges.map(e => ({
+      // 1. QBAF strength propagation — computed ONCE, reused by convergence signals and GC
+      const qNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+      const qEdges: QbafEdge[] = an.edges.map(e => ({
         source: e.source, target: e.target,
         type: e.type as 'attacks' | 'supports',
         weight: e.weight ?? 0.5,
         attack_type: e.attack_type,
       }));
-      const qResult = computeQbafStrengths(qNodes, qEdges);
-      const updatedNodes = qbafAn.nodes.map(n => ({
+      const qbafResult = computeQbafStrengths(qNodes, qEdges);
+      let currentNodes = an.nodes.map(n => ({
         ...n,
-        computed_strength: qResult.strengths.get(n.id) ?? n.computed_strength,
+        computed_strength: qbafResult.strengths.get(n.id) ?? n.computed_strength,
       }));
-      set({ activeDebate: { ...postQbafDebate, argument_network: { ...qbafAn, nodes: updatedNodes } } });
-    }
+      let currentEdges = an.edges;
 
-    // Network GC — prune low-value nodes when network grows too large (fixed and adaptive mode)
-    const postGcDebate = get().activeDebate;
-    if (postGcDebate?.argument_network && needsGc(postGcDebate.argument_network.nodes.length, GC_TRIGGER)) {
-      const gcResult = pruneArgumentNetwork(
-        postGcDebate.argument_network.nodes,
-        postGcDebate.argument_network.edges,
-        GC_TARGET,
+      // 2. Convergence tracker
+      const getLabelForId = useTaxonomyStore.getState().getLabelForId;
+      const turnNumber = an.nodes.length;
+      patches.convergence_tracker = updateConvergenceTracker(
+        baseDebate.convergence_tracker,
+        { ...an, nodes: currentNodes },
+        baseDebate.commitments || {},
+        turnNumber,
+        getLabelForId,
       );
-      if (gcResult.prunedNodes.length > 0) {
-        set({ activeDebate: { ...postGcDebate, argument_network: { nodes: gcResult.nodes, edges: gcResult.edges } } });
-        console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
-      }
-    }
 
-    // Crux resolution tracking
-    const postCruxDebate = get().activeDebate;
-    if (postCruxDebate?.argument_network) {
+      // 3. Unanswered claims ledger
+      patches.unanswered_claims_ledger = updateUnansweredLedger(
+        baseDebate.unanswered_claims_ledger ?? [],
+        currentNodes,
+        currentEdges,
+        baseDebate.transcript.length,
+      );
+
+      // 4. Convergence signals (reuses QBAF strengths via precomputedStrengths param)
+      if (entryId) {
+        try {
+          let turnEmbeddings: Map<string, number[]> | undefined;
+          const cachedEmbeddings = { ...(baseDebate.turn_embeddings ?? {}) };
+          try {
+            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
+            if (currentEntry) {
+              const { vector } = await api.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
+              cachedEmbeddings[entryId] = vector;
+            }
+            turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+          } catch {
+            if (Object.keys(cachedEmbeddings).length > 0) {
+              turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+            }
+          }
+          patches.turn_embeddings = cachedEmbeddings;
+
+          const sig = computeConvergenceSignals(
+            entryId,
+            speaker,
+            baseDebate.transcript,
+            currentNodes,
+            currentEdges,
+            baseDebate.convergence_signals ?? [],
+            turnEmbeddings,
+            qbafResult.strengths,
+          );
+          patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
+        } catch (convErr) {
+          console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
+        }
+      }
+
+      // 5. Network GC (uses QBAF-updated computed_strength already on nodes)
+      if (needsGc(currentNodes.length, GC_TRIGGER)) {
+        const gcResult = pruneArgumentNetwork(currentNodes, currentEdges, GC_TARGET);
+        if (gcResult.prunedNodes.length > 0) {
+          currentNodes = gcResult.nodes;
+          currentEdges = gcResult.edges;
+          console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
+        }
+      }
+
+      // 6. Crux resolution tracking
       try {
-        const turnNumber = postCruxDebate.argument_network.nodes.length;
-        const updatedCruxTracker = updateCruxTracker(
-          postCruxDebate.crux_tracker,
-          postCruxDebate.argument_network.nodes,
-          postCruxDebate.argument_network.edges,
-          postCruxDebate.commitments ?? {},
+        patches.crux_tracker = updateCruxTracker(
+          baseDebate.crux_tracker,
+          currentNodes,
+          currentEdges,
+          baseDebate.commitments ?? {},
           turnNumber,
         );
-        set({ activeDebate: { ...postCruxDebate, crux_tracker: updatedCruxTracker } });
       } catch (cruxErr) {
         console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
       }
+
+      // Single batched state update — one spread, one React re-render
+      set({
+        activeDebate: {
+          ...baseDebate,
+          ...patches,
+          argument_network: { ...an, nodes: currentNodes, edges: currentEdges },
+        },
+      });
     }
 
     // Steelman validation (non-blocking)

@@ -24,6 +24,7 @@ export function computeConvergenceSignals(
   edges: ArgumentNetworkEdge[],
   existingSignals: ConvergenceSignals[],
   turnEmbeddings?: Map<string, number[]>,
+  precomputedStrengths?: Map<string, number>,
 ): ConvergenceSignals {
   const entryIdx = transcript.findIndex(e => e.id === entryId);
   const entry = transcript[entryIdx];
@@ -97,14 +98,19 @@ export function computeConvergenceSignals(
 
   // 4. Strongest opposing argument — find the strongest attack against this speaker's nodes
   const speakerNodeIds = new Set(nodes.filter(n => n.speaker === speaker).map(n => n.id));
-  const qbafNodes: QbafNode[] = nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-  const qbafEdges: QbafEdge[] = edges.map(e => ({
-    source: e.source, target: e.target,
-    type: e.type as 'attacks' | 'supports',
-    weight: e.weight ?? 0.5,
-    attack_type: e.attack_type,
-  }));
-  const strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
+  let strengths: Map<string, number>;
+  if (precomputedStrengths) {
+    strengths = precomputedStrengths;
+  } else {
+    const qbafNodes: QbafNode[] = nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+    const qbafEdges: QbafEdge[] = edges.map(e => ({
+      source: e.source, target: e.target,
+      type: e.type as 'attacks' | 'supports',
+      weight: e.weight ?? 0.5,
+      attack_type: e.attack_type,
+    }));
+    strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
+  }
 
   let strongestOpposing: ConvergenceSignals['strongest_opposing'] = null;
   const attacksOnSpeaker = edges.filter(e => e.type === 'attacks' && speakerNodeIds.has(e.target));
