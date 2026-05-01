@@ -332,6 +332,7 @@ Export-ModuleMember -Function @(
     'Normalize-Markdown'
     'Compare-DebateRuns'
     'Invoke-DebateAB'
+    'Get-AICostReport'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
