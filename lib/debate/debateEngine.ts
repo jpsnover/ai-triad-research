@@ -1135,6 +1135,10 @@ export class DebateEngine {
       const fullContext = taxonomyContext + vocabContext + commitmentContext + establishedPoints + edgeContext;
 
       // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
+      const userSeeds = (this.session.argument_network?.nodes || [])
+        .filter(n => n.speaker === 'user' && n.id.startsWith('user-seed-'))
+        .map(n => ({ id: n.id, text: n.text, bdi_category: n.bdi_category }));
+
       const pipelineInput: OpeningPipelineInput = {
         label: info.label,
         pov: info.pov,
@@ -1147,6 +1151,7 @@ export class DebateEngine {
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
         model: this.config.model,
+        userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         ...(this.config.temperature != null ? {
           stageTemperatures: {
             brief_temperature: this.config.temperature,

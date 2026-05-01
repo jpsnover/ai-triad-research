@@ -31,6 +31,7 @@ import {
   documentClarificationPrompt,
   formatSituationDebateContext,
   synthesisPrompt,
+  userSeedClaimsPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
   crossRespondPrompt,
@@ -2039,6 +2040,59 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: [],
         metadata: { refined_topic: refinedTopic },
       });
+
+      // Extract user seed claims from Q&A and inject into argument network
+      try {
+        let qaPairsForClaims = '';
+        for (const c of clarifications) {
+          qaPairsForClaims += `\nQuestions:\n`;
+          for (const q of c.questions) qaPairsForClaims += `  - ${q}\n`;
+          qaPairsForClaims += `User answered: ${c.answers}\n`;
+        }
+        const seedPrompt = userSeedClaimsPrompt(refinedTopic, qaPairsForClaims, activeDebate.audience);
+        const { text: seedText } = await generateTextWithProgress(seedPrompt, model, `Extracting user positions (${model})`, set);
+        if (isStillValid()) {
+          const seedParsed = parseAIJson<{ claims?: { claim: string; bdi_category?: string }[] }>(seedText);
+          if (seedParsed?.claims && seedParsed.claims.length > 0) {
+            const debate = get().activeDebate!;
+            const existingAN = debate.argument_network ?? { nodes: [], edges: [] };
+            const answerEntry = debate.transcript.find(e => e.type === 'answer');
+            const sourceEntryId = answerEntry?.id ?? '';
+
+            const seedNodes: ArgumentNetworkNode[] = seedParsed.claims.slice(0, 5).map((c, i) => ({
+              id: `user-seed-${String(i + 1).padStart(3, '0')}`,
+              text: c.claim,
+              speaker: 'user' as ArgumentNetworkNode['speaker'],
+              source_entry_id: sourceEntryId,
+              taxonomy_refs: [],
+              turn_number: 0,
+              bdi_category: (['belief', 'desire', 'intention'].includes(c.bdi_category ?? '') ? c.bdi_category : undefined) as ArgumentNetworkNode['bdi_category'],
+              base_strength: 0.5,
+            }));
+
+            set({
+              activeDebate: {
+                ...debate,
+                argument_network: {
+                  nodes: [...existingAN.nodes, ...seedNodes],
+                  edges: [...existingAN.edges],
+                },
+              },
+            });
+
+            addTranscriptEntry({
+              type: 'system',
+              speaker: 'system',
+              content: `Extracted ${seedNodes.length} user position${seedNodes.length > 1 ? 's' : ''} into the argument network:\n${seedNodes.map(n => `- [${n.id}] ${n.text}`).join('\n')}`,
+              taxonomy_refs: [],
+              metadata: { user_seed_claims: seedNodes.map(n => ({ id: n.id, text: n.text, bdi_category: n.bdi_category })) },
+            });
+          }
+        }
+      } catch (seedErr) {
+        console.warn('[debate] User seed claim extraction failed (non-fatal):', seedErr);
+      }
+
       // Synthesis succeeded — auto-advance to the debate
       set({ debateGenerating: null });
       await saveDebate();
@@ -2314,6 +2368,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
 
+        const userSeeds = (get().activeDebate?.argument_network?.nodes || [])
+          .filter(n => n.speaker === 'user' && n.id.startsWith('user-seed-'))
+          .map(n => ({ id: n.id, text: n.text, bdi_category: n.bdi_category }));
+
         const pipelineInput: OpeningPipelineInput = {
           label: info.label,
           pov: info.pov,
@@ -2326,6 +2384,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           documentAnalysis: docAnalysis,
           audience: activeDebate.audience,
           model,
+          userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         };
 
         const pipelineResult = await runOpeningPipeline(

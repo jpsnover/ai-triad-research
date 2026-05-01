@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { PoverId, DebateSourceType, DebateAudience } from '../types/debate';
@@ -51,7 +52,9 @@ const DEBATER_ICONS: Record<string, string> = {
 };
 
 export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
-  const { createDebate, loadDebate } = useDebateStore();
+  const { createDebate, loadDebate } = useDebateStore(
+    useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
+  );
   const [topic, setTopic] = useState('');
   const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
   const [sourceRef, setSourceRef] = useState('');

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId } from '../types/debate';
@@ -61,7 +62,9 @@ function EditCard({ edit, pover, editIndex }: {
   pover: string;
   editIndex: number;
 }) {
-  const { applyReflectionEdit, dismissReflectionEdit } = useDebateStore();
+  const { applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
+    useShallow(s => ({ applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
+  );
   const typeInfo = EDIT_TYPE_LABELS[edit.edit_type] || EDIT_TYPE_LABELS.revise;
   const resolved = edit.status !== 'pending';
 
@@ -236,7 +239,9 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
 }
 
 export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
-  const { reflections, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit } = useDebateStore();
+  const { reflections, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
+    useShallow(s => ({ reflections: s.reflections, debateGenerating: s.debateGenerating, requestReflections: s.requestReflections, applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
+  );
   const isGenerating = debateGenerating != null;
 
   const totalPending = reflections.reduce((sum, r) => sum + r.edits.filter(e => e.status === 'pending').length, 0);

@@ -172,7 +172,7 @@ interface ConvergencePanelProps {
 }
 
 export function ConvergencePanel({ tracker }: ConvergencePanelProps) {
-  const { swapConvergenceIssue } = useDebateStore();
+  const swapConvergenceIssue = useDebateStore(s => s.swapConvergenceIssue);
   const [swapTarget, setSwapTarget] = useState<string | null>(null);
 
   const hasOverflow = tracker.available_issues.length > 0;

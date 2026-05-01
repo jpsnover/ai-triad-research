@@ -1052,7 +1052,7 @@ const SUB_SCORE_TIPS: Record<string, string> = {
 const BELIEF_KEYS = new Set(['evidence_quality', 'source_reliability', 'falsifiability']);
 
 function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
-  const { updateAnNodeSubScore } = useDebateStore();
+  const updateAnNodeSubScore = useDebateStore(s => s.updateAnNodeSubScore);
   if (!node.bdi_sub_scores) return null;
   const isBelief = node.bdi_category === 'belief';
 

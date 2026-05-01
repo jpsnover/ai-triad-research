@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { NewDebateDialog } from './NewDebateDialog';
@@ -71,7 +72,13 @@ export function DebateTab() {
     sessions, sessionsLoading, loadSessions,
     activeDebateId, activeDebate, loadDebate, deleteDebate, renameDebate,
     inspectedNodeId, inspectNode,
-  } = useDebateStore();
+  } = useDebateStore(
+    useShallow(s => ({
+      sessions: s.sessions, sessionsLoading: s.sessionsLoading, loadSessions: s.loadSessions,
+      activeDebateId: s.activeDebateId, activeDebate: s.activeDebate, loadDebate: s.loadDebate, deleteDebate: s.deleteDebate, renameDebate: s.renameDebate,
+      inspectedNodeId: s.inspectedNodeId, inspectNode: s.inspectNode,
+    }))
+  );
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);

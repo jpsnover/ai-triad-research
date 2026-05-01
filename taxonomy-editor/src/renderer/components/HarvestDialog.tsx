@@ -33,7 +33,7 @@ interface HarvestDialogProps {
 }
 
 export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
-  const { activeDebate } = useDebateStore();
+  const activeDebate = useDebateStore(s => s.activeDebate);
   const taxState = useTaxonomyStore.getState();
 
   const [conflicts, setConflicts] = useState<HarvestConflictItem[]>([]);

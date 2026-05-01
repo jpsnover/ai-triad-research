@@ -220,7 +220,7 @@ export function SituationsTab() {
     }
   };
 
-  const { createSituationDebate } = useDebateStore();
+  const createSituationDebate = useDebateStore(s => s.createSituationDebate);
   const handleDebate = useCallback(async () => {
     if (!selectedNode) return;
     await createSituationDebate(selectedNode.id);

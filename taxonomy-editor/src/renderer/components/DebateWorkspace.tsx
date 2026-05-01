@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
@@ -328,7 +329,9 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
 
 /** Shows LLM activity, model, and retry info during generation */
 function ProgressIndicator() {
-  const { debateActivity, debateProgress } = useDebateStore();
+  const { debateActivity, debateProgress } = useDebateStore(
+    useShallow(s => ({ debateActivity: s.debateActivity, debateProgress: s.debateProgress }))
+  );
 
   if (!debateActivity) return null;
 
@@ -541,7 +544,9 @@ function handleExplainEntry(entry: TranscriptEntry) {
 function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   entry: TranscriptEntry; totalEntries: number; entryIndex: number;
 }) {
-  const { deleteTranscriptEntries, activeDebate } = useDebateStore();
+  const { deleteTranscriptEntries, activeDebate } = useDebateStore(
+    useShallow(s => ({ deleteTranscriptEntries: s.deleteTranscriptEntries, activeDebate: s.activeDebate }))
+  );
   const [confirmMode, setConfirmMode] = useState<'single' | 'after' | null>(null);
 
   const handleDeleteSingle = async () => {
@@ -759,7 +764,9 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
 
 /** Probing questions card — clicking a question inserts it as the user's next question */
 function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statementId?: string }) {
-  const { askQuestion, debateGenerating } = useDebateStore();
+  const { askQuestion, debateGenerating } = useDebateStore(
+    useShallow(s => ({ askQuestion: s.askQuestion, debateGenerating: s.debateGenerating }))
+  );
   const questions = (entry.metadata?.probing_questions as { text: string; targets: string[]; threatens?: string; type?: string }[]) || [];
 
   const handleAsk = async (q: { text: string; targets: string[] }) => {
@@ -828,7 +835,9 @@ function DebateContextMenu({
   onClose: () => void;
   onSimilarPovSearch: (query: string) => void;
 }) {
-  const { factCheckSelection, debateGenerating } = useDebateStore();
+  const { factCheckSelection, debateGenerating } = useDebateStore(
+    useShallow(s => ({ factCheckSelection: s.factCheckSelection, debateGenerating: s.debateGenerating }))
+  );
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1074,7 +1083,9 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
 
 /** Edit Claims phase — review extracted document claims before debating */
 function ClaimsEditor() {
-  const { activeDebate, updateClaim, deleteClaim, proceedToOpening } = useDebateStore();
+  const { activeDebate, updateClaim, deleteClaim, proceedToOpening } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, updateClaim: s.updateClaim, deleteClaim: s.deleteClaim, proceedToOpening: s.proceedToOpening }))
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
@@ -1220,7 +1231,13 @@ function ClarificationActions() {
     activeDebate, debateGenerating, debateError,
     runClarification, submitAnswersAndSynthesize, beginDebate,
     initialCrossRespondRounds, setInitialCrossRespondRounds,
-  } = useDebateStore();
+  } = useDebateStore(
+    useShallow(s => ({
+      activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
+      runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate,
+      initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
+    }))
+  );
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
@@ -1436,7 +1453,9 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder, initialCrossRespondRounds, setInitialCrossRespondRounds } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder, initialCrossRespondRounds, setInitialCrossRespondRounds } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, submitUserOpening: s.submitUserOpening, runOpeningStatements: s.runOpeningStatements, openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder, initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds }))
+  );
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -1585,7 +1604,9 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
 ];
 
 function DebaterToggles() {
-  const { activeDebate, togglePover, debateGenerating } = useDebateStore();
+  const { activeDebate, togglePover, debateGenerating } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, togglePover: s.togglePover, debateGenerating: s.debateGenerating }))
+  );
   if (!activeDebate) return null;
 
   const allPovers: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
@@ -1616,7 +1637,9 @@ function DebaterToggles() {
 }
 
 function DebateActions() {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore();
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
+  );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -1870,7 +1893,9 @@ function DebateActions() {
 
 /** Editable refined topic display */
 function RefinedTopicEditor() {
-  const { activeDebate, updateTopic, saveDebate } = useDebateStore();
+  const { activeDebate, updateTopic, saveDebate } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, updateTopic: s.updateTopic, saveDebate: s.saveDebate }))
+  );
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
 
@@ -1926,7 +1951,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
     diagPopoutOpen, setDiagPopoutOpen,
-  } = useDebateStore();
+  } = useDebateStore(
+    useShallow(s => ({
+      activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
+      runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
+      diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
+      diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
+    }))
+  );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 

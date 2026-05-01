@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
@@ -169,7 +170,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
 }
 
 function EntryView({ entryId }: { entryId: string }) {
-  const { activeDebate } = useDebateStore();
+  const activeDebate = useDebateStore(s => s.activeDebate);
   if (!activeDebate) return null;
 
   const entry = activeDebate.transcript.find(e => e.id === entryId);
@@ -1013,7 +1014,9 @@ function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteerToClaim
 }
 
 function OverviewView() {
-  const { activeDebate, askQuestion, debateGenerating } = useDebateStore();
+  const { activeDebate, askQuestion, debateGenerating } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, askQuestion: s.askQuestion, debateGenerating: s.debateGenerating }))
+  );
   if (!activeDebate) return null;
 
   const an = activeDebate.argument_network;
@@ -1646,7 +1649,9 @@ function VerificationSection({ transcript, anNodes }: VerificationSectionProps) 
 }
 
 export function DiagnosticsPanel() {
-  const { selectedDiagEntry, selectDiagEntry } = useDebateStore();
+  const { selectedDiagEntry, selectDiagEntry } = useDebateStore(
+    useShallow(s => ({ selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry }))
+  );
   const [height, setHeight] = useState(() => {
     try { return parseInt(localStorage.getItem('diag-panel-height') || '250', 10); } catch { return 250; }
   });
