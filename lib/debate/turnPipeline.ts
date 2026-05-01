@@ -372,6 +372,15 @@ export function assemblePipelineResult(
       policy_refs: result.cite.policy_refs?.length ? result.cite.policy_refs : undefined,
       position_update: result.draft.position_update || undefined,
       turn_symbols: result.draft.turn_symbols?.length ? result.draft.turn_symbols : undefined,
+      pin_response: result.draft.pin_response,
+      probe_response: result.draft.probe_response,
+      challenge_response: result.draft.challenge_response,
+      clarification: result.draft.clarification,
+      check_response: result.draft.check_response,
+      revoice_response: result.draft.revoice_response,
+      reflection: result.draft.reflection,
+      compressed_thesis: result.draft.compressed_thesis,
+      commitment: result.draft.commitment,
     },
   };
 }

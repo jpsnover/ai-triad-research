@@ -3039,6 +3039,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
             return r.text;
           },
+          pendingIntervention: intervention,
         });
 
         const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');

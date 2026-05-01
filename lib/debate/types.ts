@@ -804,6 +804,15 @@ export interface DraftWorkProduct {
   key_assumptions: { assumption: string; if_wrong: string }[];
   disagreement_type: string;
   position_update?: string;
+  pin_response?: Record<string, unknown>;
+  probe_response?: Record<string, unknown>;
+  challenge_response?: Record<string, unknown>;
+  clarification?: Record<string, unknown>;
+  check_response?: Record<string, unknown>;
+  revoice_response?: Record<string, unknown>;
+  reflection?: Record<string, unknown>;
+  compressed_thesis?: string;
+  commitment?: Record<string, unknown>;
 }
 
 export interface CiteWorkProduct {

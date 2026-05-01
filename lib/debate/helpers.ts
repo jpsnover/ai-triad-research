@@ -222,6 +222,15 @@ export interface PoverResponseMeta {
   policy_refs?: string[];
   position_update?: string;
   turn_symbols?: { symbol: string; tooltip: string }[];
+  pin_response?: Record<string, unknown>;
+  probe_response?: Record<string, unknown>;
+  challenge_response?: Record<string, unknown>;
+  clarification?: Record<string, unknown>;
+  check_response?: Record<string, unknown>;
+  revoice_response?: Record<string, unknown>;
+  reflection?: Record<string, unknown>;
+  compressed_thesis?: string;
+  commitment?: Record<string, unknown>;
 }
 
 /** Try to parse JSON, with repair fallback for LLM formatting issues */
