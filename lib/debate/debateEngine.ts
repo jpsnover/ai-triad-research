@@ -108,9 +108,10 @@ import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker';
 import { generateDialecticTraces } from './dialecticTrace';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
+import { ActionableError } from './errors';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis';
-import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from './turnValidator';
-import type { TurnAttempt, TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types';
+import { resolveTurnValidationConfig } from './turnValidator';
+import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types';
 import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE } from './types';
 import {
   initModeratorState,
@@ -125,8 +126,9 @@ import {
   checkInterventionCompliance,
   getSynthesisResponder,
 } from './moderator';
-import { runModeratorSelection } from './orchestration';
-import type { ModeratorSelectionCallbacks, ModeratorSelectionInput } from './orchestration';
+import { runModeratorSelection, executeTurnWithRetry } from './orchestration';
+import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration';
+import { pruneSessionData, pruneModeratorState } from './sessionPruning';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
 import {
@@ -186,6 +188,8 @@ export interface DebateConfig {
   synthesisExitThreshold?: number;
   /** Allow early termination on health collapse. Default: true when adaptive staging is on. */
   allowEarlyTermination?: boolean;
+  /** AbortSignal for external cancellation. When aborted, the engine stops at the next checkpoint. */
+  signal?: AbortSignal;
 }
 
 export interface DebateProgress {
@@ -263,7 +267,7 @@ export class DebateEngine {
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, model, {
       temperature: 0,
-      timeoutMs,
+      timeoutMs: timeoutMs ?? 120_000,
     });
     this.apiCallCount++;
     this.totalResponseTimeMs += Date.now() - start;
@@ -280,52 +284,64 @@ export class DebateEngine {
     this.onProgress = onProgress;
     this.initSession();
 
-    // Phase 1: Clarification (optional)
-    if (this.config.enableClarification) {
-      await this.runClarification();
+    try {
+      // Phase 1: Clarification (optional)
+      if (this.config.enableClarification) {
+        await this.runClarification();
+      }
+
+      // Phase 1.5: Document pre-analysis
+      if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
+        await this.runDocumentAnalysis();
+      }
+
+      // Phase 2: Opening statements
+      await this.runOpeningStatements();
+
+      // Cache opening embeddings for position drift detection
+      await this.cacheOpeningEmbeddings();
+
+      // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
+      await this.runNeutralCheckpoint('baseline');
+
+      // Phase 3: Cross-respond rounds
+      if (this.config.useAdaptiveStaging && this._adaptiveConfig && this._phaseState) {
+        await this.runAdaptiveCrossRespond();
+      } else {
+        await this.runFixedCrossRespond();
+      }
+
+      // Phase 4: Synthesis + final neutral evaluation in parallel
+      await Promise.all([
+        this.runSynthesis(),
+        this.runNeutralCheckpoint('final'),
+      ]);
+
+      // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
+      await this.runMissingArgumentsPass();
+
+      // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
+      await this.runTaxonomyRefinementPass();
+
+      // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
+      this.runDialecticTracePass();
+
+      // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
+      await this.runCrossCuttingProposalPass();
+
+      // Phase 4f: Taxonomy gap analysis (deterministic — needs transcript, AN, taxonomy, manifests)
+      this.runTaxonomyGapAnalysisPass();
+    } catch (err) {
+      // If the debate was cancelled via AbortSignal, set phase to cancelled and return partial session
+      if (this.config.signal?.aborted) {
+        this.session.phase = 'cancelled';
+        this.session.updated_at = nowISO();
+        this.session.diagnostics!.overview.total_ai_calls = this.apiCallCount;
+        this.session.diagnostics!.overview.total_response_time_ms = this.totalResponseTimeMs;
+        return this.session;
+      }
+      throw err;
     }
-
-    // Phase 1.5: Document pre-analysis
-    if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
-      await this.runDocumentAnalysis();
-    }
-
-    // Phase 2: Opening statements
-    await this.runOpeningStatements();
-
-    // Cache opening embeddings for position drift detection
-    await this.cacheOpeningEmbeddings();
-
-    // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
-    await this.runNeutralCheckpoint('baseline');
-
-    // Phase 3: Cross-respond rounds
-    if (this.config.useAdaptiveStaging && this._adaptiveConfig && this._phaseState) {
-      await this.runAdaptiveCrossRespond();
-    } else {
-      await this.runFixedCrossRespond();
-    }
-
-    // Phase 4: Synthesis + final neutral evaluation in parallel
-    await Promise.all([
-      this.runSynthesis(),
-      this.runNeutralCheckpoint('final'),
-    ]);
-
-    // Phase 4b: Missing arguments pass (needs synthesis output, so runs after)
-    await this.runMissingArgumentsPass();
-
-    // Phase 4c: Taxonomy refinement suggestions (needs synthesis + argument network)
-    await this.runTaxonomyRefinementPass();
-
-    // Phase 4d: Dialectic trace generation (needs synthesis preferences + argument network)
-    this.runDialecticTracePass();
-
-    // Phase 4e: Cross-cutting node promotion (needs synthesis areas_of_agreement)
-    await this.runCrossCuttingProposalPass();
-
-    // Phase 4f: Taxonomy gap analysis (deterministic — needs transcript, AN, taxonomy, manifests)
-    this.runTaxonomyGapAnalysisPass();
 
     // Finalize
     this.session.updated_at = nowISO();
@@ -435,7 +451,7 @@ export class DebateEngine {
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, this.config.model, {
       temperature: this.config.temperature ?? 0.7,
-      timeoutMs,
+      timeoutMs: timeoutMs ?? 120_000,
     });
     const elapsed = Date.now() - start;
     this.apiCallCount++;
@@ -449,7 +465,7 @@ export class DebateEngine {
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, evalModel, {
       temperature: 0,
-      timeoutMs,
+      timeoutMs: timeoutMs ?? 120_000,
     });
     const elapsed = Date.now() - start;
     this.apiCallCount++;
@@ -473,6 +489,18 @@ export class DebateEngine {
     const warning = `[WARNING] ${operation}: ${msg}. Recovery: ${recovery}`;
     process.stderr.write(`[debate-engine] ${warning}\n`);
     this.onProgress?.({ phase: 'warning', message: warning });
+  }
+
+  /** Check if the debate has been cancelled via AbortSignal. Throws ActionableError if aborted. */
+  private checkAborted(): void {
+    if (this.config.signal?.aborted) {
+      throw new ActionableError({
+        goal: 'Continue debate execution',
+        problem: 'Debate was cancelled by user',
+        location: 'DebateEngine.checkAborted',
+        nextSteps: ['Start a new debate if desired'],
+      });
+    }
   }
 
   /** Post-turn summarization (DT-2): generate brief + medium summaries. Non-blocking — failure is logged, not thrown. */
@@ -1193,6 +1221,7 @@ export class DebateEngine {
     let gcRan = false;
 
     for (let round = 1; round <= this.config.rounds; round++) {
+      this.checkAborted();
       const phase = getDebatePhase(round, this.config.rounds);
       this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
       await this.runCrossRespondRound(round, phase);
@@ -1208,6 +1237,7 @@ export class DebateEngine {
           `Network GC: ${gcResult.before} → ${gcResult.after} nodes`);
       }
 
+      this.checkAborted();
       const gapRound = this.config.gapInjectionRound ?? Math.ceil(this.config.rounds / 2) + 1;
       if (gapRound > 0 && round === gapRound && this._gapInjectionCount === 0) {
         await this.runGapInjection(round, 'scheduled');
@@ -1246,6 +1276,7 @@ export class DebateEngine {
     const midpointRound = Math.min(3, Math.ceil(config.maxTotalRounds / 2));
 
     while (!terminated) {
+      this.checkAborted();
       round++;
       state = advanceRound(state);
       state.api_calls_used = this.apiCallCount;
@@ -1415,6 +1446,7 @@ export class DebateEngine {
       }
 
       // Mid-round hooks (gap injection, neutral eval, probing, compression)
+      this.checkAborted();
       const gapRound = this.config.gapInjectionRound ?? Math.ceil(config.maxTotalRounds / 2) + 1;
       if (gapRound > 0 && round === gapRound && this._gapInjectionCount === 0) {
         await this.runGapInjection(round, 'scheduled');
@@ -1442,11 +1474,13 @@ export class DebateEngine {
   }
 
   private async runCrossRespondRound(round: number, phase: DebatePhase = 'exploration'): Promise<void> {
+    this.checkAborted();
+
     const sourceDocSummary = this.session.document_analysis?.claims_summary
       ?? (this.session.source_content ? this.session.source_content.slice(0, 2000) : undefined);
 
     const selectionCallbacks: ModeratorSelectionCallbacks = {
-      generate: async (prompt, _model, _options, label) => this.generate(prompt, label),
+      generate: async (prompt, _model, options, label) => this.generate(prompt, label, options?.timeoutMs),
       addEntry: (entry) => this.addEntry(entry).id,
       progress: (ph, speaker, message) => this.progress(ph, speaker, message),
       warn: (context, err, recovery) => this.warn(context, err, recovery),
@@ -1679,71 +1713,43 @@ export class DebateEngine {
       : undefined;
 
     // ── Cross-respond with per-turn validation + retry loop ──
-    const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
-    const attempts: TurnAttempt[] = [];
-
-    let attemptIdx = 0;
-    let pipelineResult = await runTurnPipeline(
-      pipelineInput,
-      stageGenerate,
-      (_stage, label) => this.progress('generating', responder, label),
-      envelopeGenerate,
-    );
     const knownIds = this.getKnownNodeIds();
-    let assembled = assemblePipelineResult(pipelineResult, knownIds);
-    let { statement, taxonomyRefs, meta } = assembled;
-    let validation: TurnValidation;
+    const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
 
-    const priorSameAgent = this.session.transcript
-      .filter(e => e.speaker === responder && e.type !== 'opening')
-      .slice(-2);
-    const recentTurnsForJudge = this.session.transcript
-      .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
-      .slice(-2);
-
-    for (;;) {
-      validation = await validateTurn({
-        statement,
-        taxonomyRefs,
-        meta,
-        phase,
-        speaker: responder,
-        round,
-        priorTurns: priorSameAgent,
-        recentTurns: recentTurnsForJudge,
-        knownNodeIds: this.getKnownNodeIds(),
-        policyIds: this.getPolicyIds(),
-        audience: this.config.audience,
-        config: vConfig,
-        callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
-        callJudgeFallback: this.config.model !== vConfig.judgeModel
-          ? (p, l) => this.generateWithModel(p, l, this.config.model, 20000)
-          : undefined,
-        pendingIntervention: activeIntervention,
-      });
-
-      const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
-      attempts.push({
-        attempt: attemptIdx,
-        model: this.config.model,
-        prompt_delta: '',
-        raw_response: draftDiag?.raw_response ?? '',
-        response_time_ms: pipelineResult.total_time_ms,
-        validation,
-      });
-
-      if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
-
-      attemptIdx += 1;
-      pipelineResult = await runTurnPipeline(
-        { ...pipelineInput, repairHints: validation.repairHints },
-        stageGenerate,
+    const retryCallbacks: TurnRetryCallbacks = {
+      runPipeline: (input) => runTurnPipeline(
+        input, stageGenerate,
         (_stage, label) => this.progress('generating', responder, label),
         envelopeGenerate,
-      );
-      assembled = assemblePipelineResult(pipelineResult, knownIds);
-      ({ statement, taxonomyRefs, meta } = assembled);
-    }
+      ),
+      assembleResult: (result) => assemblePipelineResult(result, knownIds),
+      callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),
+      callJudgeFallback: this.config.model !== vConfig.judgeModel
+        ? (p, l) => this.generateWithModel(p, l, this.config.model, 20000)
+        : undefined,
+    };
+
+    const retryInput: TurnRetryInput = {
+      pipelineInput,
+      validationConfig: this.config.turnValidation,
+      model: this.config.model,
+      speaker: responder,
+      round,
+      priorTurns: this.session.transcript
+        .filter(e => e.speaker === responder && e.type !== 'opening')
+        .slice(-2),
+      recentTurns: this.session.transcript
+        .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+        .slice(-2),
+      knownNodeIds: this.getKnownNodeIds(),
+      policyIds: this.getPolicyIds(),
+      audience: this.config.audience,
+      pendingIntervention: activeIntervention,
+    };
+
+    this.checkAborted();
+    const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
+    const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
 
     const entry = this.addEntry({
       type: 'statement',
@@ -1808,6 +1814,7 @@ export class DebateEngine {
     }
 
     // Extract claims
+    this.checkAborted();
     const anNodesBefore = this.session.argument_network!.nodes.length;
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
     const newNodes = this.session.argument_network!.nodes.slice(anNodesBefore);
@@ -1830,6 +1837,9 @@ export class DebateEngine {
       : { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as import('./types').InterventionFamily, validated_target: responder } as import('./types').EngineValidationResult;
     updateModeratorState(this._moderatorState!, activeIntervention, validationResult, round, phase);
     this.session.moderator_state = this._moderatorState!;
+
+    pruneSessionData(this.session);
+    pruneModeratorState(this._moderatorState!);
   }
 
   // ── Probing questions ──────────────────────────────────────
@@ -2121,6 +2131,7 @@ export class DebateEngine {
     let synthesisData: Record<string, unknown> = {};
 
     // Phase 1: Extract core synthesis
+    this.checkAborted();
     this.progress('synthesis', undefined, 'Phase 1/3: Extracting agreements and disagreements');
     const cruxContext = (this.session.crux_tracker?.length ?? 0) > 0
       ? formatCruxResolutionContext(this.session.crux_tracker!)
@@ -2130,11 +2141,20 @@ export class DebateEngine {
       'Synthesis Phase 1: Extract', 60_000,
     );
     let extractData: Record<string, unknown> = {};
-    try { extractData = parseJsonRobust(extractText) as any; }
-    catch { extractData = extractArraysFromPartialJson(stripCodeFences(extractText)); }
+    try {
+      extractData = parseJsonRobust(extractText) as any;
+    } catch {
+      extractData = extractArraysFromPartialJson(stripCodeFences(extractText));
+      if (Object.keys(extractData).length === 0) {
+        this.warn('Synthesis Phase 1 parse', 'Both JSON parsers returned empty — synthesis data will be incomplete', 'Proceeding with partial synthesis');
+      } else {
+        this.warn('Synthesis Phase 1 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
+      }
+    }
     Object.assign(synthesisData, extractData);
 
     // Phase 2: Build argument map
+    this.checkAborted();
     this.progress('synthesis', undefined, 'Phase 2/3: Building argument map');
     const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
     const mapText = await this.generate(
@@ -2142,11 +2162,20 @@ export class DebateEngine {
       'Synthesis Phase 2: Map', 60_000,
     );
     let mapData: Record<string, unknown> = {};
-    try { mapData = parseJsonRobust(mapText) as any; }
-    catch { mapData = extractArraysFromPartialJson(stripCodeFences(mapText)); }
+    try {
+      mapData = parseJsonRobust(mapText) as any;
+    } catch {
+      mapData = extractArraysFromPartialJson(stripCodeFences(mapText));
+      if (Object.keys(mapData).length === 0) {
+        this.warn('Synthesis Phase 2 parse', 'Both JSON parsers returned empty — argument map data will be incomplete', 'Proceeding with partial synthesis');
+      } else {
+        this.warn('Synthesis Phase 2 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
+      }
+    }
     Object.assign(synthesisData, mapData);
 
     // Phase 3: Evaluate preferences + policy implications
+    this.checkAborted();
     this.progress('synthesis', undefined, 'Phase 3/3: Evaluating preferences');
     const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
     const evalText = await this.generate(
@@ -2154,8 +2183,16 @@ export class DebateEngine {
       'Synthesis Phase 3: Evaluate', 60_000,
     );
     let evalData: Record<string, unknown> = {};
-    try { evalData = parseJsonRobust(evalText) as any; }
-    catch { evalData = extractArraysFromPartialJson(stripCodeFences(evalText)); }
+    try {
+      evalData = parseJsonRobust(evalText) as any;
+    } catch {
+      evalData = extractArraysFromPartialJson(stripCodeFences(evalText));
+      if (Object.keys(evalData).length === 0) {
+        this.warn('Synthesis Phase 3 parse', 'Both JSON parsers returned empty — evaluation data will be incomplete', 'Proceeding with partial synthesis');
+      } else {
+        this.warn('Synthesis Phase 3 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
+      }
+    }
     Object.assign(synthesisData, evalData);
 
     const elapsed = Date.now() - start;

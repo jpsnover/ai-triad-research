@@ -26,6 +26,12 @@ import type {
   DebateAudience,
   GapInjection,
   UnansweredClaimEntry,
+  TurnPipelineResult,
+  TurnPipelineInput,
+  TurnValidation,
+  TurnAttempt,
+  TaxonomyRef,
+  TurnValidationConfig,
 } from './types';
 
 import {
@@ -56,7 +62,9 @@ import {
 
 import { parseAIJson } from './helpers';
 import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers';
+import type { PoverResponseMeta } from './helpers';
 import type { GenerateOptions } from './aiAdapter';
+import { validateTurn, resolveTurnValidationConfig } from './turnValidator';
 
 // ── Callback Interfaces ─────────────────────────────────
 
@@ -309,7 +317,7 @@ export async function runModeratorSelection(
           sourceDocSummary,
         );
         const stage2Text = await callbacks.generate(
-          stage2Prompt, model, { temperature: 0.7 },
+          stage2Prompt, model, { temperature: 0.7, timeoutMs: 60_000 },
           `Round ${round}: Moderator COMMIT → ${poverInfo[synthesisTarget]?.label}`,
         );
 
@@ -358,7 +366,7 @@ export async function runModeratorSelection(
 
     const selectionStart = Date.now();
     selectionText = await callbacks.generate(
-      selectionPrompt, model, { temperature: 0.7 },
+      selectionPrompt, model, { temperature: 0.7, timeoutMs: 60_000 },
       `Round ${round}: Moderator selection`,
     );
     selectionElapsed = Date.now() - selectionStart;
@@ -445,7 +453,7 @@ export async function runModeratorSelection(
             );
 
             const stage2Text = await callbacks.generate(
-              stage2Prompt, model, { temperature: 0.7 },
+              stage2Prompt, model, { temperature: 0.7, timeoutMs: 60_000 },
               `Round ${round}: Moderator intervention (${validation.validated_move})`,
             );
 
@@ -574,3 +582,116 @@ function buildEarlyReturn(
     earlyReturn: true,
   };
 }
+
+
+// ══════════════════════════════════════════════════════════
+// Stage 2: Turn execution with validation retry loop
+// ══════════════════════════════════════════════════════════
+
+export interface TurnRetryCallbacks {
+  runPipeline: (input: TurnPipelineInput) => Promise<TurnPipelineResult>;
+  assembleResult: (result: TurnPipelineResult) => { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta };
+  callJudge: (prompt: string, label: string) => Promise<string>;
+  callJudgeFallback?: (prompt: string, label: string) => Promise<string>;
+  isAborted?: () => boolean;
+}
+
+export interface TurnRetryInput {
+  pipelineInput: TurnPipelineInput;
+  validationConfig?: TurnValidationConfig;
+  model: string;
+  speaker: PoverId;
+  round: number;
+  priorTurns: TranscriptEntry[];
+  recentTurns: TranscriptEntry[];
+  knownNodeIds: ReadonlySet<string>;
+  policyIds: ReadonlySet<string>;
+  audience?: DebateAudience;
+  pendingIntervention?: ModeratorIntervention;
+}
+
+export interface TurnRetryResult {
+  statement: string;
+  taxonomyRefs: TaxonomyRef[];
+  meta: PoverResponseMeta;
+  validation: TurnValidation;
+  attempts: TurnAttempt[];
+  pipelineResult: TurnPipelineResult;
+  aborted: boolean;
+}
+
+export async function executeTurnWithRetry(
+  input: TurnRetryInput,
+  callbacks: TurnRetryCallbacks,
+): Promise<TurnRetryResult> {
+  const vConfig = resolveTurnValidationConfig(input.validationConfig);
+  const attempts: TurnAttempt[] = [];
+  let attemptIdx = 0;
+
+  let pipelineResult = await callbacks.runPipeline(input.pipelineInput);
+  if (callbacks.isAborted?.()) {
+    const a = callbacks.assembleResult(pipelineResult);
+    return { ...a, validation: SKIPPED_VALIDATION, attempts: [], pipelineResult, aborted: true };
+  }
+
+  let assembled = callbacks.assembleResult(pipelineResult);
+  let { statement, taxonomyRefs, meta } = assembled;
+  let validation: TurnValidation;
+
+  for (;;) {
+    validation = await validateTurn({
+      statement, taxonomyRefs, meta,
+      phase: input.pipelineInput.phase,
+      speaker: input.speaker,
+      round: input.round,
+      priorTurns: input.priorTurns,
+      recentTurns: input.recentTurns,
+      knownNodeIds: input.knownNodeIds,
+      policyIds: input.policyIds,
+      audience: input.audience,
+      config: vConfig,
+      callJudge: callbacks.callJudge,
+      callJudgeFallback: callbacks.callJudgeFallback,
+      pendingIntervention: input.pendingIntervention,
+    });
+
+    const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+    attempts.push({
+      attempt: attemptIdx,
+      model: input.model,
+      prompt_delta: '',
+      raw_response: draftDiag?.raw_response ?? '',
+      response_time_ms: pipelineResult.total_time_ms,
+      validation,
+    });
+
+    if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
+
+    attemptIdx += 1;
+    pipelineResult = await callbacks.runPipeline({
+      ...input.pipelineInput,
+      repairHints: validation.repairHints,
+    });
+    if (callbacks.isAborted?.()) {
+      return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: true };
+    }
+    assembled = callbacks.assembleResult(pipelineResult);
+    ({ statement, taxonomyRefs, meta } = assembled);
+  }
+
+  return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: false };
+}
+
+const SKIPPED_VALIDATION: TurnValidation = {
+  outcome: 'skipped',
+  score: 1,
+  dimensions: {
+    schema:      { pass: true, issues: [] },
+    grounding:   { pass: true, issues: [] },
+    advancement: { pass: true, signals: [] },
+    clarifies:   { pass: true, signals: [] },
+  },
+  repairHints: [],
+  clarifies_taxonomy: [],
+  judge_used: false,
+};

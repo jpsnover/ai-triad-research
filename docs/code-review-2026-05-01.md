@@ -38,11 +38,11 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | Scope | Impact | Status |
 |---|---------|-------|--------|--------|
-| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **IN PROGRESS** — Stage 1 (moderator selection) **DONE**, Stages 2-3 pending |
+| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **DONE** — Stages 1-2 extracted, Stage 3 deferred (post-turn logic intentionally divergent) |
 | A2 | **AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines) | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends | |
 
 **Fixes:**
-- A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()`. Both consumers wired — engine reduced 3,458→3,170 lines, store reduced 4,200→4,033 lines. *(Stage 1 complete; Stages 2-3 pending: turn execution + post-turn processing)*
+- A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()` (Stage 1) and `executeTurnWithRetry()` (Stage 2). Both consumers wired — engine reduced 3,458→3,141 lines, store reduced 4,200→4,003 lines. Stage 3 (post-turn processing) deferred: analysis showed the two consumers' post-turn logic is intentionally divergent (engine has steelman validation, context manifests; store has sycophancy detection, gap injection, different state management) — extracting would create a leaky abstraction.
 - A2: Extract `lib/ai-client/` shared package. Inject `fetch` as dependency. Eliminates ~1,500 lines.
 
 ### Performance
@@ -74,22 +74,22 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 | # | Finding | Scope |
 |---|---------|-------|
 | E1 | **145 bare `throw new Error`** — only 2 uses of `ActionableError` in entire codebase despite project mandate | `aiAdapter.ts` (34), `embeddings.ts` (24), `aiBackends.ts` (21), `ipcHandlers.ts` (10) |
-| E2 | **Non-Gemini backends have zero retry** in Electron — single 429 from Claude/Groq kills the turn | `server/aiBackends.ts:191-298` |
-| E3 | **Bare `JSON.parse(bodyText)` without try/catch** on 7 API response parse sites in Electron | `aiBackends.ts:176,217,252,286`, `embeddings.ts:697,745,789` |
-| E4 | **No timeout on most `generate()` calls** — moderator selection, compression, missing-args have no timeoutMs | `debateEngine.ts` (8 call sites) |
+| E2 | ~~**Non-Gemini backends have zero retry** in Electron — single 429 from Claude/Groq kills the turn~~ | `server/aiBackends.ts:191-298` | **DONE** — `retryableFetch()` already handles 429/503 retry for all backends |
+| E3 | ~~**Bare `JSON.parse(bodyText)` without try/catch** on 7 API response parse sites in Electron~~ | **DONE** — all parse sites already have try/catch with ActionableError |
+| E4 | ~~**No timeout on most `generate()` calls** — moderator selection, compression, missing-args have no timeoutMs~~ | `debateEngine.ts` (8 call sites) | **DONE** — default 120s timeout on `generate`/`generateWithEvaluator`/`generateWithModel`; 60s on orchestration moderator calls |
 
 ### Architecture
 
 | # | Finding | Scope |
 |---|---------|-------|
 | A3 | **Barrel export missing 15 modules** — consumers bypass barrel with deep imports (`@lib/debate/documentAnalysis`, etc.) | `lib/debate/index.ts` |
-| A4 | **DebateSession grows unboundedly** — transcript, diagnostics (full prompts), convergence_signals, position_drift, turn_embeddings, health_history never pruned | `types.ts`, session JSON can reach 2-5 MB |
+| A4 | ~~**DebateSession grows unboundedly** — transcript, diagnostics (full prompts), convergence_signals, position_drift, turn_embeddings, health_history never pruned~~ | **DONE** — `pruneSessionData()` caps convergence_signals (30), position_drift (30), turn_embeddings (20), diagnostics (15); `pruneModeratorState()` caps health_history (20). Called after each turn in both consumers. |
 
 ### Test Coverage
 
 | # | Finding | Risk |
 |---|---------|------|
-| T1 | **`helpers.ts` `parseAIJson`/`repairJson`** — 0 tests for the LLM output parser every AI response flows through. Has 3 cascading strategies with character-level heuristic walking. | Silent data corruption |
+| T1 | ~~**`helpers.ts` `parseAIJson`/`repairJson`** — 0 tests for the LLM output parser every AI response flows through. Has 3 cascading strategies with character-level heuristic walking.~~ | **DONE** — 103 tests covering all 3 strategies, repair heuristics, adversarial edge cases, and realistic LLM output |
 | T2 | **`debateEngine.ts`** — 0 tests for 3,456-line core orchestrator with 36 catch blocks | No safety net |
 | T3 | **`phaseTransitions.ts`** — 0 tests for phase state machine (18 exported functions, complex predicate evaluation) | Debates stuck or transitioning wrong |
 | T4 | **`aiAdapter.ts`** — 0 tests for retry/fallback/timeout across 3 backends | Backend changes break silently |
@@ -196,16 +196,16 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 6. ~~S6: Webview URL restriction~~ — **DONE** (c056268)
 7. ~~S7: Cookie Secure flag~~ — **DONE** (c056268)
 
-### Next 2 weeks (stability) — partially done
+### Next 2 weeks (stability) — ALL DONE
 6. ~~P1+P2: QBAF single-compute + batch Zustand mutations~~ — **DONE** (57eff97)
-7. E2: Add retry logic to non-Gemini backends
-8. T1: Tests for parseAIJson/repairJson (highest fragility)
-9. E4: Add timeoutMs to all generate() calls
-10. A4: Prune turn_embeddings, convergence_signals, diagnostics
+7. ~~E2: Add retry logic to non-Gemini backends~~ — **DONE** (already had `retryableFetch` for all backends)
+8. ~~T1: Tests for parseAIJson/repairJson (highest fragility)~~ — **DONE** (103 tests)
+9. ~~E4: Add timeoutMs to all generate() calls~~ — **DONE** (default 120s + 60s for orchestration)
+10. ~~A4: Prune turn_embeddings, convergence_signals, diagnostics~~ — **DONE** (`pruneSessionData` + `pruneModeratorState`)
 
-### Next month (architecture) — A1 in progress
+### Next month (architecture) — A1 done
 11. A2: Extract shared AI client library (eliminates triple duplication + fixes retry gap)
-12. A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic) — **IN PROGRESS** (Stage 1 done, Stages 2-3 pending)
+12. ~~A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic)~~ — **DONE** (Stages 1-2 extracted; Stage 3 deferred as intentional divergence)
 13. T2-T4: Tests for debateEngine, phaseTransitions, aiAdapter
 14. P3: Add Zustand selectors to all 15+ unselectored components
 15. A3: Complete barrel exports

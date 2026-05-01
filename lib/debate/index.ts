@@ -38,6 +38,7 @@ export * from './tieredCompression';
 export * from './moderator';
 export * from './gapCheck';
 export * from './orchestration';
+export * from './sessionPruning';
 
 // ── Situations Migration Normalizers ──────────────────────
 

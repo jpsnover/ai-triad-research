@@ -672,4 +672,96 @@ describe('repairJson (via parseAIJson)', () => {
     expect(result!.statement).toContain('safety');
     expect(result!.move_types).toEqual(['DISTINGUISH']);
   });
+
+  it('handles quote followed by colon inside prose (false structural signal)', () => {
+    const input = '{"statement": "The ratio is 3:1 and the "key" metric matters"}';
+    const result = parseAIJson<{ statement: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('3:1');
+  });
+
+  it('handles backslash at end of string value before closing quote', () => {
+    const input = '{"path": "C:\\\\Users\\\\test"}';
+    const result = parseAIJson<{ path: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.path).toContain('Users');
+  });
+
+  it('returns null for literal tab characters in strings (not repaired)', () => {
+    const input = '{"statement": "col1\tcol2\tcol3"}';
+    expect(parseAIJson(input)).toBeNull();
+  });
+
+  it('handles string value containing JSON-like content', () => {
+    const input = '{"statement": "The config is {\\\"key\\\": \\\"value\\\"} in the file"}';
+    const result = parseAIJson<{ statement: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('config');
+  });
+
+  it('extracts first valid JSON when multiple objects present', () => {
+    const input = 'First: {"a": 1} Second: {"b": 2}';
+    const result = parseAIJson<{ a?: number; b?: number }>(input);
+    expect(result).toEqual({ a: 1 });
+  });
+});
+
+// ── repairJson adversarial edge cases ──────────────────
+
+describe('repairJson adversarial cases (via parseAIJson)', () => {
+  it('handles empty string values between structural quotes', () => {
+    const input = '{"a": "", "b": "value"}';
+    const result = parseAIJson<{ a: string; b: string }>(input);
+    expect(result).toEqual({ a: '', b: 'value' });
+  });
+
+  it('handles consecutive unescaped quotes (empty "quoted" word)', () => {
+    const input = '{"statement": "They called it ""innovation"" but it was not"}';
+    const result = parseAIJson<{ statement: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('innovation');
+  });
+
+  it('handles many newlines in a single string value', () => {
+    const lines = Array.from({ length: 20 }, (_, i) => `Line ${i + 1}`).join('\n');
+    const input = `{"statement": "${lines}"}`;
+    const result = parseAIJson<{ statement: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('Line 1');
+    expect(result!.statement).toContain('Line 20');
+  });
+
+  it('handles mixed \\r\\n and \\n line endings', () => {
+    const input = '{"statement": "line1\r\nline2\nline3\r\nline4"}';
+    const result = parseAIJson<{ statement: string }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('line1');
+    expect(result!.statement).toContain('line4');
+  });
+
+  it('handles string value ending with unescaped quote before comma', () => {
+    const input = '{"a": "She said "yes"", "b": 1}';
+    const result = parseAIJson<{ a: string; b: number }>(input);
+    expect(result).not.toBeNull();
+    expect(result!.b).toBe(1);
+  });
+
+  it('round-trips a large realistic LLM response', () => {
+    const realisticInput = `\`\`\`json
+{
+  "statement": "The accelerationist position on AI governance fundamentally misunderstands the nature of technological risk. When we examine historical precedents — from nuclear energy to genetic engineering — we consistently find that "move fast and break things" approaches lead to catastrophic outcomes.\\n\\nConsider the following evidence:\\n1. The Chernobyl disaster resulted from rushed deployment\\n2. Thalidomide caused birth defects due to inadequate testing\\n\\nAs Sentinel, I must emphasize that safety frameworks are not obstacles to progress — they are prerequisites for sustainable innovation.",
+  "taxonomy_refs": [{"node_id": "saf-B-001", "relevance": "direct"}, {"node_id": "saf-D-003", "relevance": "indirect"}],
+  "move_types": [{"move": "EMPIRICAL CHALLENGE", "target": "prometheus", "detail": "historical precedent analysis"}],
+  "key_assumptions": [{"assumption": "Historical precedents generalize to AI", "if_wrong": "AI may be fundamentally different from prior technologies"}],
+  "disagreement_type": "empirical",
+  "position_update": "Strengthened conviction that precautionary frameworks are essential"
+}
+\`\`\``;
+    const result = parseAIJson<{ statement: string; taxonomy_refs: unknown[]; move_types: unknown[] }>(realisticInput);
+    expect(result).not.toBeNull();
+    expect(result!.statement).toContain('accelerationist');
+    expect(result!.statement).toContain('sustainable innovation');
+    expect(result!.taxonomy_refs).toHaveLength(2);
+    expect(result!.move_types).toHaveLength(1);
+  });
 });

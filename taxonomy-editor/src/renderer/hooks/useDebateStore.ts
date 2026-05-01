@@ -61,7 +61,7 @@ import { getDebatePhase } from '@lib/debate/types';
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata } from '@lib/debate/types';
 import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
-import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
+import { resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { updateCruxTracker } from '@lib/debate/cruxResolution';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
@@ -70,8 +70,9 @@ import {
   MOVE_RESPONSE_CONFIG,
   DIRECT_RESPONSE_PATTERNS,
 } from '@lib/debate/moderator';
-import { runModeratorSelection } from '@lib/debate/orchestration';
-import type { ModeratorSelectionCallbacks, ModeratorSelectionInput } from '@lib/debate/orchestration';
+import { runModeratorSelection, executeTurnWithRetry } from '@lib/debate/orchestration';
+import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from '@lib/debate/orchestration';
+import { pruneSessionData, pruneModeratorState } from '@lib/debate/sessionPruning';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
@@ -167,6 +168,7 @@ async function summarizeTranscriptEntry(
 function createDebateGuard(get: () => { activeDebateId: string | null }): () => boolean {
   const capturedId = get().activeDebateId;
   return () => {
+    if (_abortController?.signal.aborted) return false;
     if (capturedId !== get().activeDebateId) {
       console.warn(`[debate] Active debate changed during async operation (was ${capturedId}, now ${get().activeDebateId}). Discarding stale results.`);
       return false;
@@ -175,7 +177,26 @@ function createDebateGuard(get: () => { activeDebateId: string | null }): () => 
   };
 }
 
+let _abortController: AbortController | null = null;
+
 const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
+
+/** Maximum number of turn embeddings to retain (enough for recycling detection). */
+const TURN_EMBEDDING_WINDOW = 30;
+
+/** Push a user-visible warning into debateWarnings state (capped at 50). */
+function pushWarning(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get: () => any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: (partial: any) => void,
+  msg: string,
+): void {
+  const current: string[] = get().debateWarnings ?? [];
+  if (current.length < 50) {
+    set({ debateWarnings: [...current, msg] });
+  }
+}
 
 /** Record diagnostic data for a transcript entry (only when diagnostics enabled) */
 function recordDiagnostic(
@@ -722,6 +743,13 @@ async function extractClaimsAndUpdateAN(
               turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
             }
           }
+          // Prune stale turn embeddings — keep only the most recent N entries
+          const recentEntryIds = new Set(
+            baseDebate.transcript.slice(-TURN_EMBEDDING_WINDOW).map((e: { id: string }) => e.id),
+          );
+          for (const key of Object.keys(cachedEmbeddings)) {
+            if (!recentEntryIds.has(key)) delete cachedEmbeddings[key];
+          }
           patches.turn_embeddings = cachedEmbeddings;
 
           const sig = computeConvergenceSignals(
@@ -737,6 +765,7 @@ async function extractClaimsAndUpdateAN(
           patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
         } catch (convErr) {
           console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
+          pushWarning(get, set, 'Convergence analysis skipped this turn');
         }
       }
 
@@ -761,6 +790,7 @@ async function extractClaimsAndUpdateAN(
         );
       } catch (cruxErr) {
         console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
+        pushWarning(get, set, 'Crux resolution tracking skipped');
       }
 
       // Single batched state update — one spread, one React re-render
@@ -811,6 +841,7 @@ async function extractClaimsAndUpdateAN(
         }
       } catch (nliErr) {
         console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
+        pushWarning(get, set, 'Steelman validation skipped this turn');
       }
     }
 
@@ -838,6 +869,7 @@ async function extractClaimsAndUpdateAN(
           webCitations = searchResult.citations || [];
         } catch (searchErr) {
           console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
+          pushWarning(get, set, 'Web verification unavailable for some claims');
           webContext = '(Web search unavailable)';
         }
 
@@ -935,6 +967,7 @@ async function extractClaimsAndUpdateAN(
         }
       } catch (verifyErr) {
         console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
+        pushWarning(get, set, 'Claim verification skipped');
         pNode.verification_status = 'pending';
       }
     }
@@ -954,6 +987,7 @@ async function extractClaimsAndUpdateAN(
     try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
+    pushWarning(get, set, 'Argument extraction skipped this turn');
     if (!extractionTrace.error_message) extractionTrace.error_message = String(err);
     if (extractionTrace.status === 'ok') extractionTrace.status = 'adapter_error';
     try { commitTrace(); } catch { /* ignore */ }
@@ -1142,6 +1176,13 @@ async function getRelevantTaxonomyContext(
     return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
+    // Surface warning via store — useDebateStore is defined below but accessible at call time
+    try {
+      const s = useDebateStore.getState();
+      if (s.debateWarnings.length < 50) {
+        useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
+      }
+    } catch { /* store may not be ready during init */ }
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     // Fallback: first 21 POV nodes + first 10 CC nodes
     return {
@@ -1446,8 +1487,11 @@ interface DebateStore {
   diagnosticsEnabled: boolean;
   selectedDiagEntry: string | null; // transcript entry ID selected for diagnostics
   diagPopoutOpen: boolean;
+  debateWarnings: string[];
 
   // Actions
+  clearWarnings: () => void;
+  cancelDebate: () => void;
   toggleDiagnostics: () => void;
   selectDiagEntry: (entryId: string | null) => void;
   setDiagPopoutOpen: (open: boolean) => void;
@@ -1560,7 +1604,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   diagnosticsEnabled: false,
   selectedDiagEntry: null,
   diagPopoutOpen: false,
+  debateWarnings: [],
 
+  clearWarnings: () => set({ debateWarnings: [] }),
+  cancelDebate: () => {
+    _abortController?.abort();
+    _abortController = null;
+    set({ debateGenerating: null, debateActivity: null });
+  },
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;
     set({ diagnosticsEnabled: enabled });
@@ -1720,7 +1771,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   loadDebate: async (id) => {
-    set({ debateLoading: true, debateError: null });
+    set({ debateLoading: true, debateError: null, debateWarnings: [] });
     try {
       const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
@@ -1780,7 +1831,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   closeDebate: () => {
-    set({ activeDebateId: null, activeDebate: null, debateError: null, debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
+    set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
     api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
   },
@@ -1894,7 +1945,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (activeDebate.transcript.some(e => e.type === 'clarification')) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null });
+    set({ debateError: null, debateWarnings: [] });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
@@ -1952,7 +2003,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    set({ debateError: null, debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
 
     const clarifications: { speaker: string; questions: string[]; answers: string }[] = [];
     const clarEntries = get().activeDebate!.transcript.filter((e) => e.type === 'clarification');
@@ -2077,6 +2128,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (err) {
         console.warn('[debate] Document analysis failed:', err);
+        pushWarning(get, set, 'Document analysis could not be completed');
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
@@ -2200,8 +2252,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null });
+    set({ debateError: null, debateWarnings: [] });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
@@ -2416,7 +2469,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate || !input.trim()) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null });
+    set({ debateError: null, debateWarnings: [] });
 
     // Parse @-mentions to determine targets
     const { targets, cleanedInput } = parseAtMention(input);
@@ -2540,8 +2593,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null });
+    set({ debateError: null, debateWarnings: [] });
 
     // Lazy-load edges for moderator context
     const taxState = useTaxonomyStore.getState();
@@ -2822,72 +2876,42 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     try {
       // ── Per-turn validation + retry loop ──
-      const vConfig = resolveTurnValidationConfig(undefined);
-      const attempts: TurnAttempt[] = [];
       const activeSnapshot = get().activeDebate;
-      const priorSameAgent = (activeSnapshot?.transcript ?? [])
-        .filter(e => e.speaker === responderPover && e.type !== 'opening')
-        .slice(-2);
-      const recentTurnsForJudge = (activeSnapshot?.transcript ?? [])
-        .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
-        .slice(-2);
-      const knownNodeIds = getAllKnownNodeIds();
-      const policyIds = getAllPolicyIds();
+      const vConfig = resolveTurnValidationConfig(undefined);
 
-      let attemptIdx = 0;
-      let pipelineResult = await runTurnPipeline(
-        pipelineInput,
-        stageGenerate,
-        (_stage, label) => set({ debateActivity: label }),
-      );
-      if (!isStillValid()) return;
-      let assembled = assemblePipelineResult(pipelineResult);
-      let { statement, taxonomyRefs, meta } = assembled;
-      let validation: TurnValidation;
-
-      for (;;) {
-        validation = await validateTurn({
-          statement,
-          taxonomyRefs,
-          meta,
-          phase,
-          speaker: responderPover,
-          round: crossRespondRound,
-          priorTurns: priorSameAgent,
-          recentTurns: recentTurnsForJudge,
-          knownNodeIds,
-          policyIds,
-          audience: get().audience,
-          config: vConfig,
-          callJudge: async (jp: string, label: string) => {
-            const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
-            return r.text;
-          },
-          pendingIntervention: intervention,
-        });
-
-        const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
-        attempts.push({
-          attempt: attemptIdx,
-          model,
-          prompt_delta: '',
-          raw_response: draftDiag?.raw_response ?? '',
-          response_time_ms: pipelineResult.total_time_ms,
-          validation,
-        });
-
-        if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
-
-        attemptIdx += 1;
-        pipelineResult = await runTurnPipeline(
-          { ...pipelineInput, repairHints: validation.repairHints },
-          stageGenerate,
+      const retryCallbacks: TurnRetryCallbacks = {
+        runPipeline: (input) => runTurnPipeline(
+          input, stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
-        );
-        if (!isStillValid()) return;
-        assembled = assemblePipelineResult(pipelineResult);
-        ({ statement, taxonomyRefs, meta } = assembled);
-      }
+        ),
+        assembleResult: (result) => assemblePipelineResult(result),
+        callJudge: async (jp: string, label: string) => {
+          const r = await generateTextWithProgress(jp, vConfig.judgeModel, label, set);
+          return r.text;
+        },
+        isAborted: () => !isStillValid(),
+      };
+
+      const retryInput: TurnRetryInput = {
+        pipelineInput,
+        model,
+        speaker: responderPover,
+        round: crossRespondRound,
+        priorTurns: (activeSnapshot?.transcript ?? [])
+          .filter(e => e.speaker === responderPover && e.type !== 'opening')
+          .slice(-2),
+        recentTurns: (activeSnapshot?.transcript ?? [])
+          .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+          .slice(-2),
+        knownNodeIds: getAllKnownNodeIds(),
+        policyIds: getAllPolicyIds(),
+        audience: get().audience,
+        pendingIntervention: intervention,
+      };
+
+      const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
+      if (turnResult.aborted) return;
+      const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
 
       addTranscriptEntry({
         type: 'statement',
@@ -3062,6 +3086,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (gapErr) {
         console.warn('[Gap Injection] Mid-debate gap analysis failed (non-blocking):', gapErr);
+        pushWarning(get, set, 'Gap analysis skipped this turn');
       }
     } catch (err) {
       addTranscriptEntry({
@@ -3070,6 +3095,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
+    }
+
+    const postDebate = get().activeDebate;
+    if (postDebate) {
+      pruneSessionData(postDebate);
+      if (postDebate.moderator_state) pruneModeratorState(postDebate.moderator_state);
+      set({ activeDebate: { ...postDebate } });
     }
 
     set({ debateGenerating: null });
@@ -3082,8 +3114,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
+    _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -3267,6 +3300,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (maErr) {
         console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
+        pushWarning(get, set, 'Missing argument detection skipped');
       }
 
       // Taxonomy refinement pass — suggest node revisions based on debate evidence
@@ -3337,6 +3371,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (trErr) {
         console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
+        pushWarning(get, set, 'Taxonomy refinement suggestions skipped');
       }
 
       // Cross-cutting node promotion — propose situation nodes from 3-way agreements
@@ -3373,6 +3408,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (ccErr) {
         console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);
+        pushWarning(get, set, 'Cross-cutting proposal detection skipped');
       }
 
       // Taxonomy gap analysis (deterministic — no LLM calls)
@@ -3407,6 +3443,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } catch (tgaErr) {
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
+        pushWarning(get, set, 'Taxonomy gap analysis skipped');
       }
     } catch (err) {
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
@@ -3421,7 +3458,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -3495,7 +3532,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
 
@@ -3561,6 +3598,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       webCitations = searchResult.citations || [];
     } catch (err) {
       console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
+      pushWarning(get, set, 'Web search unavailable for fact-check');
       webContext = '(Web search unavailable)';
     }
     if (!isStillValid()) return;
@@ -3750,7 +3788,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (toCompress.length < 4) return; // Not enough to bother
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
 
     const model = getConfiguredModel();
     const entriesText = toCompress.map((e) => {
@@ -3797,7 +3835,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, reflections: [] });
+    set({ debateError: null, debateWarnings: [], reflections: [] });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
