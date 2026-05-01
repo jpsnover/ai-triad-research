@@ -12,7 +12,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 **Top 5 actions by leverage:**
 1. ~~Fix the 3 P0 security vulnerabilities (SSRF, unauthenticated WebSocket, XSS)~~ — **DONE** (c056268)
-2. Extract shared DebateOrchestrator to eliminate the dual-maintenance monolith — **IN PROGRESS** (`orchestration.ts` scaffolded, wiring pending)
+2. Extract shared DebateOrchestrator to eliminate the dual-maintenance monolith — **IN PROGRESS** (Stage 1 moderator selection done, Stages 2-3 pending)
 3. Add tests for `parseAIJson`/`helpers.ts` — 1 day, covers the single most fragile code path
 4. ~~Compute QBAF once per turn instead of 3x~~ — **DONE** (57eff97)
 5. ~~Add path traversal guards to `fileIO.ts`~~ — **DONE** (c056268)
@@ -38,11 +38,11 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | Scope | Impact | Status |
 |---|---------|-------|--------|--------|
-| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **IN PROGRESS** — `orchestration.ts` scaffolded with `runModeratorSelection()`, wiring into consumers pending |
+| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **IN PROGRESS** — Stage 1 (moderator selection) **DONE**, Stages 2-3 pending |
 | A2 | **AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines) | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends | |
 
 **Fixes:**
-- A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()`. Zustand store and CLI engine both delegate to it. *(Stage 1 scaffolded, wiring pending)*
+- A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()`. Both consumers wired — engine reduced 3,458→3,170 lines, store reduced 4,200→4,033 lines. *(Stage 1 complete; Stages 2-3 pending: turn execution + post-turn processing)*
 - A2: Extract `lib/ai-client/` shared package. Inject `fetch` as dependency. Eliminates ~1,500 lines.
 
 ### Performance
@@ -205,7 +205,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 ### Next month (architecture) — A1 in progress
 11. A2: Extract shared AI client library (eliminates triple duplication + fixes retry gap)
-12. A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic) — **IN PROGRESS** (`orchestration.ts` scaffolded)
+12. A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic) — **IN PROGRESS** (Stage 1 done, Stages 2-3 pending)
 13. T2-T4: Tests for debateEngine, phaseTransitions, aiAdapter
 14. P3: Add Zustand selectors to all 15+ unselectored components
 15. A3: Complete barrel exports

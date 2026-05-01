@@ -72,7 +72,7 @@ export interface ModeratorSelectionCallbacks {
   addEntry(entry: Omit<TranscriptEntry, 'id' | 'timestamp'>): string;
   progress(phase: string, speaker?: string, message?: string): void;
   warn(context: string, err: unknown, recovery: string): void;
-  formatEdgeContext(activePovers: string[]): { text: string; edges_used?: string[] };
+  formatEdgeContext(activePovers: string[]): { text: string; edges_used?: unknown[] };
   isAborted?(): boolean;
 }
 
@@ -116,7 +116,7 @@ export interface ModeratorSelectionResult {
     edgeContextLength: number;
     anContextLength: number;
     qbafContextLength: number;
-    edgesUsed?: string[];
+    edgesUsed?: unknown[];
     recentScheme?: string | null;
     metaphorReframeOffered?: string | null;
   };

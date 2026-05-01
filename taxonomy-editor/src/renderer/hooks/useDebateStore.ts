@@ -19,7 +19,7 @@ declare const __APP_VERSION__: string;
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
@@ -66,19 +66,12 @@ import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { updateCruxTracker } from '@lib/debate/cruxResolution';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import {
-  initModeratorState,
-  computeTriggerEvaluationContext,
-  formatTriggerContext,
-  validateRecommendation,
-  buildIntervention,
-  buildInterventionBriefInjection,
   updateModeratorState,
-  computeDebateHealthScore,
-  updateSliBreaches,
   MOVE_RESPONSE_CONFIG,
   DIRECT_RESPONSE_PATTERNS,
 } from '@lib/debate/moderator';
-import { moderatorSelectionPrompt, moderatorInterventionPrompt } from '@lib/debate/prompts';
+import { runModeratorSelection } from '@lib/debate/orchestration';
+import type { ModeratorSelectionCallbacks, ModeratorSelectionInput } from '@lib/debate/orchestration';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
@@ -1309,49 +1302,7 @@ function formatGapHint(gapInjections?: GapInjection[]): string {
   return `\n\n## Identified Debate Gaps (unaddressed)\nThe following gaps were identified mid-debate but have NOT yet been substantively addressed by any debater. Prioritize steering the conversation toward these:\n${lines.join('\n')}\n`;
 }
 
-function buildModeratorSelectionPromptWithContext(
-  recentTranscript: string,
-  activePovers: string[],
-  modState: ModeratorState,
-  turnCounts: Record<string, number>,
-  argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] },
-  unansweredLedger?: import('@lib/debate/types').UnansweredClaimEntry[],
-  round?: number,
-  gapInjections?: GapInjection[],
-  phase?: import('@lib/debate/types').DebatePhase,
-  audience?: import('@lib/debate/types').DebateAudience,
-  sourceDocumentSummary?: string,
-): string {
-  const edgeContext = formatEdgeContext(activePovers);
-  const anContext = argumentNetwork
-    ? formatArgumentNetworkContext(
-        argumentNetwork.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker })),
-        argumentNetwork.edges,
-      )
-    : '';
-  const ledgerHint = (round != null && unansweredLedger)
-    ? formatUnansweredClaimsHint(unansweredLedger, round)
-    : '';
-  const specifyHint = argumentNetwork
-    ? formatSpecifyHint(argumentNetwork.nodes, argumentNetwork.edges)
-    : '';
-  const gapHint = formatGapHint(gapInjections);
 
-  const triggerCtx = computeTriggerEvaluationContext(modState, turnCounts);
-  const triggerBlock = formatTriggerContext(triggerCtx);
-
-  return moderatorSelectionPrompt(
-    recentTranscript,
-    activePovers,
-    edgeContext + anContext + ledgerHint + specifyHint + gapHint,
-    triggerBlock,
-    undefined,
-    null,
-    phase,
-    audience,
-    sourceDocumentSummary,
-  );
-}
 
 function buildCrossRespondPrompt(
   poverId: Exclude<PoverId, 'user'>,
@@ -2610,200 +2561,81 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const recentTranscript = formatRecentTranscript(activeDebate.transcript, 8, activeDebate.context_summaries);
     const poverLabels = aiPovers.map((p) => POVER_INFO[p].label);
 
-    // Step 1: Active moderator — initialize state, compute health, build selection prompt
+    // Step 1: Active moderator — delegate to shared orchestration
     set({ debateGenerating: aiPovers[0] });
 
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
     const totalRoundsForPhase = get().initialCrossRespondRounds || 5;
     const phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
 
-    // Initialize or restore moderator state
-    let modState: ModeratorState = activeDebate.moderator_state
-      ?? initModeratorState(totalRoundsForPhase * 3, aiPovers);
-    modState.round = crossRespondRound;
-    modState.phase = phase;
-
-    // Compute turn counts for health scoring
-    const turnCounts: Record<string, number> = {};
-    for (const p of aiPovers) {
-      turnCounts[POVER_INFO[p].label] = activeDebate.transcript.filter(
-        e => e.speaker === p && (e.type === 'statement' || e.type === 'opening'),
-      ).length;
-    }
-
-    // Compute and record debate health score
-    const convSignals = activeDebate.convergence_signals ?? [];
-    const anNodesAll = activeDebate.argument_network?.nodes ?? [];
-    const citedNodeIds = new Set(
-      activeDebate.transcript.flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id)),
-    );
-    const relevantNodeCount = Math.max(anNodesAll.length, 1);
-    const healthScore = computeDebateHealthScore(convSignals, turnCounts, citedNodeIds.size, relevantNodeCount);
-    modState.health_history.push(healthScore);
-    updateSliBreaches(healthScore, modState);
-
-    // Build source document summary for moderator drift detection
     const sourceDocSummary = activeDebate.document_analysis?.claims_summary
       ?? (activeDebate.source_content ? activeDebate.source_content.slice(0, 2000) : undefined);
 
-    // Build the active moderator selection prompt with trigger context
-    const selectionPrompt = buildModeratorSelectionPromptWithContext(
-      recentTranscript, poverLabels, modState, turnCounts,
-      activeDebate.argument_network, activeDebate.unanswered_claims_ledger,
-      crossRespondRound, activeDebate.gap_injections, phase, activeDebate.audience,
+    const selectionCallbacks: ModeratorSelectionCallbacks = {
+      generate: async (prompt, _model, _options, label) => {
+        const { text } = await generateTextWithProgress(prompt, model, label, set);
+        return text;
+      },
+      addEntry: (entry) => addTranscriptEntry(entry),
+      progress: (_phase, _speaker, message) => set({ debateActivity: message ?? null }),
+      warn: (context, err, _recovery) => console.warn(`[Moderator] ${context}:`, err),
+      formatEdgeContext: (activeLabels) => ({ text: formatEdgeContext(activeLabels) }),
+      isAborted: () => !isStillValid(),
+    };
+
+    const selectionInput: ModeratorSelectionInput = {
+      round: crossRespondRound,
+      phase,
+      activePovers: aiPovers,
+      totalRounds: totalRoundsForPhase * 3,
+      model,
+      audience: activeDebate.audience,
       sourceDocSummary,
-    );
+      transcript: activeDebate.transcript,
+      contextSummaries: activeDebate.context_summaries,
+      argumentNetwork: activeDebate.argument_network ?? undefined,
+      convergenceSignals: activeDebate.convergence_signals,
+      unansweredLedger: activeDebate.unanswered_claims_ledger,
+      gapInjections: activeDebate.gap_injections,
+      commitments: activeDebate.commitments,
+      existingModState: activeDebate.moderator_state,
+      poverInfo: POVER_INFO as Record<string, { label: string; pov: string; personality?: string }>,
+    };
 
-    let responderPover: Exclude<PoverId, 'user'> | null = null;
-    let focusPoint = '';
-    let addressingLabel = 'general';
-    let aiSelectedResponder: string | null = null;
-    let moderatorSelectionResponse = '';
-    let selectionResult: SelectionResult | null = null;
-
+    let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
     try {
-      const { text } = await generateTextWithProgress(selectionPrompt, model, `Moderator analyzing debate (${model})`, set);
-      moderatorSelectionResponse = text;
+      modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
       if (!isStillValid()) return;
-
-      const modParsed = parseAIJson<SelectionResult & { agreement_detected?: boolean }>(text);
-      if (modParsed) {
-        selectionResult = modParsed;
-        const responderName = (modParsed.responder || '').toLowerCase();
-        responderPover = aiPovers.find((p) =>
-          POVER_INFO[p].label.toLowerCase() === responderName,
-        ) ?? null;
-        aiSelectedResponder = responderPover;
-
-        focusPoint = modParsed.focus_point || '';
-        addressingLabel = modParsed.addressing === 'general' ? 'general' : (modParsed.addressing || 'general');
-
-        if (modParsed.agreement_detected) {
-          addTranscriptEntry({
-            type: 'system',
-            speaker: 'system',
-            content: `The debaters appear to be in agreement on this point. ${focusPoint ? `Consider exploring: ${focusPoint}` : 'Try asking a new question to push the debate further.'}`,
-            taxonomy_refs: [],
-          });
-          set({ debateGenerating: null });
-          await saveDebate();
-          return;
-        }
-      } else {
-        const lastSpeaker = [...activeDebate.transcript].reverse().find(
-          (e) => e.type === 'statement' || e.type === 'opening',
-        )?.speaker;
-        responderPover = aiPovers.find((p) => p !== lastSpeaker) ?? aiPovers[0];
-        focusPoint = 'the most recent points raised in the debate';
-      }
     } catch (err) {
       set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
       return;
     }
 
-    // Enforce turn alternation: never select the last speaker
-    const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
-      (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
-    );
-    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<PoverId, 'user'> | undefined;
-
-    if (!responderPover || responderPover === lastSpeaker) {
-      const alternatives = aiPovers.filter(p => p !== lastSpeaker);
-      responderPover = alternatives.length > 0 ? alternatives[0] : aiPovers[0];
-    }
-
-    // Step 1b: Validate intervention recommendation through deterministic engine
-    let engineValidation: import('@lib/debate/types').EngineValidationResult | null = null;
-    let intervention: ModeratorIntervention | undefined;
-    let interventionBriefInjection = '';
-
-    if (selectionResult?.intervene && selectionResult.suggested_move) {
-      // Map target_debater label back to PoverId
-      const targetLabel = (selectionResult.target_debater || '').toLowerCase();
-      const targetPover = aiPovers.find(p => POVER_INFO[p].label.toLowerCase() === targetLabel)
-        ?? selectionResult.target_debater as PoverId;
-
-      const validationInput: SelectionResult = {
-        ...selectionResult,
-        target_debater: targetPover,
-        responder: responderPover,
-      };
-      engineValidation = validateRecommendation(validationInput, modState);
-
-      if (engineValidation.proceed) {
-        // Stage 2: Generate intervention text via LLM
-        try {
-          const interventionPrompt = moderatorInterventionPrompt(
-            engineValidation.validated_move,
-            engineValidation.validated_family,
-            POVER_INFO[engineValidation.validated_target as Exclude<PoverId, 'user'>]?.label ?? engineValidation.validated_target,
-            selectionResult.trigger_reasoning ?? 'moderator assessment',
-            selectionResult.trigger_evidence?.source_claim,
-            recentTranscript,
-            activeDebate.audience,
-            sourceDocSummary,
-          );
-
-          const { text: interventionText } = await generateTextWithProgress(
-            interventionPrompt, model, `Composing ${engineValidation.validated_move} intervention`, set,
-          );
-          if (!isStillValid()) return;
-
-          const interventionParsed = parseAIJson<{ text: string; original_claim_text?: string }>(interventionText);
-          const moveText = interventionParsed?.text ?? interventionText;
-
-          intervention = buildIntervention(
-            engineValidation,
-            moveText,
-            selectionResult.trigger_reasoning ?? '',
-            {
-              signal: selectionResult.trigger_evidence?.signal_name,
-              claim: selectionResult.trigger_evidence?.source_claim,
-              round: selectionResult.trigger_evidence?.source_round ?? undefined,
-            },
-            interventionParsed?.original_claim_text,
-          );
-
-          // All interventions force the target as next responder
-          responderPover = engineValidation.validated_target as Exclude<PoverId, 'user'>;
-
-          interventionBriefInjection = buildInterventionBriefInjection(intervention, POVER_INFO[responderPover].label);
-
-          // Add intervention as a transcript entry
-          const interventionMeta: InterventionMetadata = {
-            family: intervention.family,
-            move: intervention.move,
-            force: intervention.force,
-            burden: intervention.burden,
-            target_debater: intervention.target_debater,
-            trigger_reason: intervention.trigger_reason,
-            source_evidence: intervention.source_evidence,
-            prerequisite_applied: intervention.prerequisite_applied,
-            original_claim_text: intervention.original_claim_text,
-          };
-
-          addTranscriptEntry({
-            type: 'intervention',
-            speaker: 'moderator',
-            content: moveText,
-            taxonomy_refs: [],
-            addressing: intervention.target_debater as PoverId,
-            intervention_metadata: interventionMeta,
-          });
-        } catch (interventionErr) {
-          console.warn('[Moderator] Intervention generation failed:', interventionErr);
-          engineValidation = { ...engineValidation, proceed: false, suppressed_reason: 'engine_override' };
-        }
+    if (modResult.earlyReturn && modResult.agreementDetected) {
+      // Persist moderator state and stop — agreement detected
+      const freshDebate = get().activeDebate;
+      if (freshDebate) {
+        set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
       }
+      set({ debateGenerating: null });
+      await saveDebate();
+      return;
     }
+
+    const responderPover = modResult.responder;
+    const focusPoint = modResult.focusPoint;
+    const addressingLabel = modResult.addressing;
+    const intervention = modResult.intervention;
+    const interventionBriefInjection = modResult.interventionBriefInjection;
+    const healthScore = modResult.healthScore;
+    const selectionResult = modResult.selectionResult as SelectionResult | null;
 
     // Update moderator state after selection/intervention
-    updateModeratorState(modState, intervention, engineValidation ?? {
-      proceed: false,
-      validated_move: selectionResult?.suggested_move ?? 'PIN',
-      validated_family: 'elicitation',
-      validated_target: responderPover,
-    }, crossRespondRound, phase);
+    const modState = modResult.modState;
+    const engineValidation = intervention
+      ? { proceed: true, validated_move: intervention.move, validated_family: intervention.family, validated_target: intervention.target_debater } as import('@lib/debate/types').EngineValidationResult
+      : { proceed: false, validated_move: (selectionResult?.suggested_move ?? 'PIN') as import('@lib/debate/types').InterventionMove, validated_family: 'elicitation' as import('@lib/debate/types').InterventionFamily, validated_target: responderPover } as import('@lib/debate/types').EngineValidationResult;
+    updateModeratorState(modState, intervention, engineValidation, crossRespondRound, phase);
 
     // Persist moderator state on the session
     {
@@ -2815,6 +2647,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     // Build moderator trace for diagnostics
     const anNodes = activeDebate.argument_network?.nodes ?? [];
+    const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
+      (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
+    );
+    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<PoverId, 'user'> | undefined;
     const moderatorTrace: Record<string, unknown> = {
       selected: POVER_INFO[responderPover].label,
       excluded_last_speaker: lastSpeaker ? POVER_INFO[lastSpeaker]?.label ?? lastSpeaker : null,
@@ -2846,20 +2682,17 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           },
         ])
       ),
-      selection_reason: responderPover === aiSelectedResponder
-        ? 'moderator_ai_selection'
-        : aiSelectedResponder ? 'turn_alternation_override' : 'fallback',
+      selection_reason: 'moderator_ai_selection',
       focus_point: focusPoint,
-      selection_prompt: selectionPrompt,
-      selection_response: moderatorSelectionResponse,
-      // Active moderator data
+      selection_prompt: modResult.diagnostics.selectionPrompt,
+      selection_response: modResult.diagnostics.selectionResponse,
       health_score: healthScore.value,
       health_components: healthScore.components,
       health_trend: healthScore.trend,
       intervention_recommended: selectionResult?.intervene ?? false,
       intervention_move: selectionResult?.suggested_move ?? null,
       intervention_validated: engineValidation?.proceed ?? false,
-      intervention_suppressed_reason: engineValidation?.suppressed_reason ?? null,
+      intervention_suppressed_reason: (engineValidation as any)?.suppressed_reason ?? null,
       intervention_target: selectionResult?.target_debater ?? null,
       trigger_reasoning: selectionResult?.trigger_reasoning ?? null,
       trigger_evidence: selectionResult?.trigger_evidence ?? null,
