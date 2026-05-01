@@ -251,10 +251,20 @@ async function generateViaGemini(
       });
     }
 
-    const json = JSON.parse(bodyText) as {
+    let json: {
       candidates?: { content: { parts: { text: string }[] } }[];
       usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
     };
+    try {
+      json = JSON.parse(bodyText);
+    } catch {
+      throw new ActionableError({
+        goal: 'Generate text via Gemini',
+        problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+        location: 'aiBackends.generateViaGemini',
+        nextSteps: ['Retry the request', 'Check your API key and model ID'],
+      });
+    }
     if (!json.candidates?.length) {
       throw new ActionableError({
         goal: 'Generate text via Gemini',
@@ -313,10 +323,20 @@ async function generateViaClaude(
     });
   }
 
-  const json = JSON.parse(bodyText) as {
+  let json: {
     content?: { type: string; text: string }[];
     usage?: { input_tokens?: number; output_tokens?: number };
   };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'aiBackends.generateViaClaude',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   if (!json.content?.length) {
     throw new ActionableError({
       goal: 'Generate text via Claude',
@@ -364,10 +384,20 @@ async function generateViaGroq(
     });
   }
 
-  const json = JSON.parse(bodyText) as {
+  let json: {
     choices?: { message: { content: string } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via Groq',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'aiBackends.generateViaGroq',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   if (!json.choices?.length) {
     throw new ActionableError({
       goal: 'Generate text via Groq',
@@ -414,10 +444,20 @@ async function generateViaOpenAI(
     });
   }
 
-  const json = JSON.parse(bodyText) as {
+  let json: {
     output?: { type: string; content?: { type: string; text: string }[] }[];
     usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
   };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'aiBackends.generateViaOpenAI',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   const msgOutput = json.output?.find(o => o.type === 'message');
   const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
   if (!text) {

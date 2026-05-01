@@ -797,7 +797,17 @@ async function generateViaClaude(
     });
   }
 
-  const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
+  let json: { content?: { type: string; text: string }[] };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via Claude',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaClaude',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   if (!json.content || json.content.length === 0) {
     throw new ActionableError({
       goal: 'Generate text via Claude API',
@@ -863,7 +873,17 @@ async function generateViaGroq(
     });
   }
 
-  const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
+  let json: { choices?: { message: { content: string } }[] };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via Groq',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaGroq',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   if (!json.choices || json.choices.length === 0) {
     throw new ActionableError({
       goal: 'Generate text via Groq API',
@@ -925,9 +945,19 @@ async function generateViaOpenAI(
     });
   }
 
-  const json = JSON.parse(bodyText) as {
+  let json: {
     output?: { type: string; content?: { type: string; text: string }[] }[];
   };
+  try {
+    json = JSON.parse(bodyText);
+  } catch {
+    throw new ActionableError({
+      goal: 'Generate text via OpenAI',
+      problem: `Invalid JSON response (${bodyText.length} bytes): ${bodyText.slice(0, 200)}`,
+      location: 'embeddings.generateViaOpenAI',
+      nextSteps: ['Retry the request', 'Check your API key and model ID'],
+    });
+  }
   const msgOutput = json.output?.find(o => o.type === 'message');
   const result = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
   if (!result) {

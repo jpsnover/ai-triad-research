@@ -126,7 +126,7 @@ import {
   getSynthesisResponder,
 } from './moderator';
 import { runModeratorSelection } from './orchestration';
-import type { ModeratorSelectionCallbacks } from './orchestration';
+import type { ModeratorSelectionCallbacks, ModeratorSelectionInput } from './orchestration';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
 import {
@@ -943,7 +943,7 @@ export class DebateEngine {
       prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience);
     }
 
-    const text = await this.generate(prompt, 'Clarification questions');
+    const text = await this.generate(prompt, 'Clarification questions', 30_000);
     let structuredQuestions: { question: string; options: string[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as any;
@@ -974,7 +974,7 @@ export class DebateEngine {
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
     const synthPrompt = synthesisPrompt(this.config.topic, qaPairs, this.config.audience);
-    const synthText = await this.generate(synthPrompt, 'Topic synthesis');
+    const synthText = await this.generate(synthPrompt, 'Topic synthesis', 60_000);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1024,7 +1024,7 @@ export class DebateEngine {
     }
     this.session.context_rot.stages.push(truncationMetrics);
 
-    const text = await this.generate(prompt, 'Document analysis');
+    const text = await this.generate(prompt, 'Document analysis', 90_000);
 
     let analysis: DocumentAnalysis | null = null;
     try {
@@ -1598,7 +1598,7 @@ export class DebateEngine {
             this.config.audience,
             sourceDocSummary,
           );
-          const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator COMMIT → ${POVER_INFO[synthesisTarget as Exclude<PoverId, 'user'>]?.label}`);
+          const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator COMMIT → ${POVER_INFO[synthesisTarget as Exclude<PoverId, 'user'>]?.label}`, 30_000);
 
           const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
           const interventionText = stage2Parsed.text as string;
@@ -1644,7 +1644,7 @@ export class DebateEngine {
         sourceDocSummary,
       );
       const selectionStart = Date.now();
-      selectionText = await this.generate(selectionPrompt, `Round ${round}: Moderator selection`);
+      selectionText = await this.generate(selectionPrompt, `Round ${round}: Moderator selection`, 30_000);
       selectionElapsed = Date.now() - selectionStart;
 
       try {
@@ -1707,7 +1707,7 @@ export class DebateEngine {
                 sourceDocSummary,
               );
               const stage2Start = Date.now();
-              const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator intervention (${validation.validated_move})`);
+              const stage2Text = await this.generate(stage2Prompt, `Round ${round}: Moderator intervention (${validation.validated_move})`, 30_000);
               const stage2Elapsed = Date.now() - stage2Start;
 
               const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
@@ -2170,7 +2170,7 @@ export class DebateEngine {
     }
 
     const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc, uncoveredClaims, this.config.audience);
-    const text = await this.generate(prompt, 'Probing questions');
+    const text = await this.generate(prompt, 'Probing questions', 30_000);
 
     let questions: { text: string; targets: string[] }[] = [];
     try {
@@ -2309,7 +2309,7 @@ export class DebateEngine {
       }).join('\n\n');
 
       const prompt = contextCompressionPrompt(entries, this.config.audience);
-      const text = await this.generate(prompt, 'Context compression');
+      const text = await this.generate(prompt, 'Context compression', 60_000);
 
       try {
         const parsed = parseJsonRobust(text) as any;
@@ -2358,7 +2358,7 @@ export class DebateEngine {
       }).join('\n\n');
 
       const prompt = contextCompressionPrompt(entries, this.config.audience);
-      const text = await this.generate(prompt, 'Context compression');
+      const text = await this.generate(prompt, 'Context compression', 60_000);
 
       try {
         const parsed = parseJsonRobust(text) as any;
@@ -2578,7 +2578,7 @@ export class DebateEngine {
         this.config.audience,
       );
 
-      const text = await this.generate(prompt, 'Missing arguments pass');
+      const text = await this.generate(prompt, 'Missing arguments pass', 60_000);
       const parsed = parseJsonRobust(text) as any;
       if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
         this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
@@ -2651,7 +2651,7 @@ export class DebateEngine {
         this.config.audience,
       );
 
-      const text = await this.generate(prompt, 'Taxonomy refinement pass');
+      const text = await this.generate(prompt, 'Taxonomy refinement pass', 60_000);
       const parsed = parseJsonRobust(text) as any;
       if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3278,7 +3278,7 @@ Return ONLY JSON (no markdown, no code fences):
     let text: string;
     const extractStart = Date.now();
     try {
-      text = await this.generateWithEvaluator(prompt, 'Claim extraction');
+      text = await this.generateWithEvaluator(prompt, 'Claim extraction', 60_000);
     } catch (err) {
       trace.status = 'adapter_error';
       trace.error_message = err instanceof Error ? err.message : String(err);
