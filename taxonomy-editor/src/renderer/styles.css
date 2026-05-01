@@ -512,8 +512,14 @@ body {
 }
 
 .data-update-result {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.data-update-result.success {
+  color: #22c55e;
+}
+.data-update-result.error {
+  color: #ef4444;
 }
 
 .app-body {

@@ -267,27 +267,46 @@ post('/api/data/check-updates', async (_req, res) => {
 post('/api/data/pull', async (_req, res) => {
   try {
     const dataRoot = getDataRoot();
-    const runGitPull = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
-      execFile('git', args, { cwd: dataRoot, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
-        if (err) reject(err); else resolve(stdout.trim());
+    const runGit = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
+      execFile('git', args, { cwd: dataRoot, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error(`[data-pull] git ${args.join(' ')} failed:`, err.message, stderr);
+          reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
+        } else {
+          if (stderr) console.log(`[data-pull] git ${args[0]} stderr:`, stderr.trim());
+          resolve(stdout.trim());
+        }
       });
     });
 
     gitStore.clearStaleLockFile(dataRoot);
+    console.log('[data-pull] Starting pull in', dataRoot);
 
-    const status = await runGitPull(['status', '--porcelain']);
-    if (status) {
-      await runGitPull(['add', '-A']);
-      await runGitPull(['-c', 'user.name=web-auto', '-c', 'user.email=auto@web-edits.local',
-        'commit', '-m', 'auto-commit: stash local changes before pull']);
+    // Log remote URL for diagnostics
+    const remoteUrl = await runGit(['remote', 'get-url', 'origin']);
+    console.log('[data-pull] Remote URL:', remoteUrl);
+
+    // If remote is SSH, convert to HTTPS for public repo access without keys
+    if (remoteUrl.startsWith('git@github.com:')) {
+      const httpsUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '.git');
+      console.log('[data-pull] Converting SSH remote to HTTPS:', httpsUrl);
+      await runGit(['remote', 'set-url', 'origin', httpsUrl]);
     }
 
-    // Use fetch + reset instead of pull to avoid ORIG_HEAD lock issues on Azure Files
-    await runGitPull(['fetch', 'origin', 'main']);
-    await runGitPull(['reset', '--hard', 'FETCH_HEAD']);
+    // Discard any local changes — web deployment treats data as read-only
+    await runGit(['checkout', '--', '.']).catch(() => { /* no tracked changes */ });
+    await runGit(['clean', '-fd']).catch(() => { /* no untracked files */ });
+
+    console.log('[data-pull] Fetching origin...');
+    await runGit(['fetch', 'origin']);
+    console.log('[data-pull] Resetting to origin/main...');
+    await runGit(['reset', '--hard', 'origin/main']);
+    console.log('[data-pull] Success');
     json(res, { success: true, message: 'Data updated.' });
   } catch (err) {
-    json(res, { success: false, message: String(err) });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[data-pull] FAILED:', msg);
+    json(res, { success: false, message: msg });
   }
 });
 

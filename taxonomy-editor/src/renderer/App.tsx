@@ -348,7 +348,7 @@ function MainApp() {
             {pulling ? 'Updating...' : 'Download'}
           </button>
           <button className="data-update-dismiss" onClick={dismissUpdate} title="Dismiss">&times;</button>
-          {pullResult && <span className="data-update-result">{pullResult}</span>}
+          {pullResult && <span className={`data-update-result ${pullResult.startsWith('Updated successfully') ? 'success' : 'error'}`}>{pullResult}</span>}
         </div>
       )}
 
