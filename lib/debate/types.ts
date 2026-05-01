@@ -291,6 +291,8 @@ export interface GapInjection {
   arguments: GapArgument[];
   transcript_entry_id: string;
   responses: GapResponse[];
+  trigger: 'scheduled' | 'responsive';
+  focus_nodes?: string[];
 }
 
 // ── Cross-Cutting Node Promotion ────────────────────────

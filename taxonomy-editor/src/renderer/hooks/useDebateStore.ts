@@ -55,7 +55,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from '@lib/debate/helpers';
-import { normalizeBdiLayer, nodeTypeFromId, computeQbafStrengths, factCheckToBaseStrength } from '@lib/debate';
+import { normalizeBdiLayer, nodeTypeFromId, computeQbafStrengths, factCheckToBaseStrength, needsGc, pruneArgumentNetwork, GC_TRIGGER, GC_TARGET } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
 import { getDebatePhase } from '@lib/debate/types';
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata } from '@lib/debate/types';
@@ -755,6 +755,20 @@ async function extractClaimsAndUpdateAN(
         computed_strength: qResult.strengths.get(n.id) ?? n.computed_strength,
       }));
       set({ activeDebate: { ...postQbafDebate, argument_network: { ...qbafAn, nodes: updatedNodes } } });
+    }
+
+    // Network GC — prune low-value nodes when network grows too large (fixed and adaptive mode)
+    const postGcDebate = get().activeDebate;
+    if (postGcDebate?.argument_network && needsGc(postGcDebate.argument_network.nodes.length, GC_TRIGGER)) {
+      const gcResult = pruneArgumentNetwork(
+        postGcDebate.argument_network.nodes,
+        postGcDebate.argument_network.edges,
+        GC_TARGET,
+      );
+      if (gcResult.prunedNodes.length > 0) {
+        set({ activeDebate: { ...postGcDebate, argument_network: { nodes: gcResult.nodes, edges: gcResult.edges } } });
+        console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
+      }
     }
 
     // Crux resolution tracking
@@ -3200,6 +3214,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                       arguments: gapArgs,
                       transcript_entry_id: gapEntryId,
                       responses: [],
+                      trigger: 'scheduled',
                     }],
                   },
                   gapInjections: [{
@@ -3207,6 +3222,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                     arguments: gapArgs,
                     transcript_entry_id: gapEntryId,
                     responses: [],
+                    trigger: 'scheduled',
                   }],
                 });
               }

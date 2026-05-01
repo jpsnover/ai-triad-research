@@ -127,6 +127,14 @@ import {
 } from './moderator';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
+import {
+  findUnengagedHighRelevanceNodes,
+  shouldRunGapCheck,
+  collectEngagedNodeIds,
+  GAP_CHECK_INTERVAL,
+  MAX_GAP_INJECTIONS,
+} from './gapCheck';
+import type { UnengagedNode } from './gapCheck';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -155,6 +163,10 @@ export interface DebateConfig {
   audience?: import('./types').DebateAudience;
   /** Round at which to inject gap arguments (0 = disabled, default = ceil(totalRounds/2)+1). */
   gapInjectionRound?: number;
+  /** How often (in rounds) to run the responsive gap check after the initial injection. Default: 3. */
+  gapCheckInterval?: number;
+  /** Maximum total gap injections per debate (initial + responsive). Default: 3. */
+  maxGapInjections?: number;
   /** Vocabulary terms for standardized term enforcement in persona prompts. */
   vocabulary?: {
     standardizedTerms: import('../dictionary/types').StandardizedTerm[];
@@ -200,8 +212,8 @@ export class DebateEngine {
   private _midpointEvalDone = false;
   /** Cached opening statement embeddings for position drift detection. */
   private _openingEmbeddings = new Map<string, number[]>();
-  /** Whether mid-debate gap injection has already fired. */
-  private _gapInjectionDone = false;
+  /** How many gap injections have fired so far (initial + responsive). */
+  private _gapInjectionCount = 0;
   /** Accumulated context manifests across turns — for taxonomy gap analysis. */
   private _contextManifests: ContextManifestEntry[] = [];
   /** Lazy-built set of every taxonomy node id in the loaded taxonomy. */
@@ -1175,15 +1187,30 @@ export class DebateEngine {
 
   private async runFixedCrossRespond(): Promise<void> {
     const midpointRound = Math.min(3, Math.ceil(this.config.rounds / 2));
+    const w = loadProvisionalWeights();
+    let gcRan = false;
+
     for (let round = 1; round <= this.config.rounds; round++) {
       const phase = getDebatePhase(round, this.config.rounds);
       this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
       await this.runCrossRespondRound(round, phase);
 
+      // Network GC — same topology-aware pruning as adaptive mode
+      const an = this.session.argument_network;
+      if (an && !gcRan && needsGc(an.nodes.length, w.network.gc_trigger)) {
+        const gcResult = pruneArgumentNetwork(an.nodes, an.edges, w.network.gc_target);
+        an.nodes = gcResult.nodes;
+        an.edges = gcResult.edges;
+        gcRan = true;
+        this.progress('debate', undefined,
+          `Network GC: ${gcResult.before} → ${gcResult.after} nodes`);
+      }
+
       const gapRound = this.config.gapInjectionRound ?? Math.ceil(this.config.rounds / 2) + 1;
-      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
-        await this.runGapInjection(round);
-        this._gapInjectionDone = true;
+      if (gapRound > 0 && round === gapRound && this._gapInjectionCount === 0) {
+        await this.runGapInjection(round, 'scheduled');
+      } else if (gapRound > 0) {
+        await this.runResponsiveGapCheck(round, gapRound);
       }
 
       if (round === midpointRound && !this._midpointEvalDone) {
@@ -1387,9 +1414,10 @@ export class DebateEngine {
 
       // Mid-round hooks (gap injection, neutral eval, probing, compression)
       const gapRound = this.config.gapInjectionRound ?? Math.ceil(config.maxTotalRounds / 2) + 1;
-      if (gapRound > 0 && round === gapRound && !this._gapInjectionDone) {
-        await this.runGapInjection(round);
-        this._gapInjectionDone = true;
+      if (gapRound > 0 && round === gapRound && this._gapInjectionCount === 0) {
+        await this.runGapInjection(round, 'scheduled');
+      } else if (gapRound > 0) {
+        await this.runResponsiveGapCheck(round, gapRound);
       }
 
       if (round === midpointRound && !this._midpointEvalDone) {
@@ -2667,13 +2695,17 @@ export class DebateEngine {
    * that no debater made — cross-cutting positions, compromises, blind spots.
    * Non-blocking — failure never aborts the debate.
    */
-  private async runGapInjection(round: number): Promise<void> {
+  private async runGapInjection(
+    round: number,
+    trigger: 'scheduled' | 'responsive',
+    focusNodes?: UnengagedNode[],
+  ): Promise<void> {
     try {
-      this.progress('gap-injection', undefined, 'Analyzing debate gaps');
+      const label = trigger === 'responsive' ? 'Responsive gap check' : 'Analyzing debate gaps';
+      this.progress('gap-injection', undefined, label);
 
       const transcriptText = formatRecentTranscript(this.session.transcript, 20, this.session.context_summaries);
 
-      // Build compact taxonomy summary (same format as missing arguments pass)
       const summaryLines: string[] = [];
       for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
         const povData = this.taxonomy[povKey];
@@ -2686,7 +2718,8 @@ export class DebateEngine {
       const taxSummary = summaryLines.slice(0, 80).join('\n');
 
       const anTexts = (this.session.argument_network?.nodes || []).map(n => n.text);
-      const gapPrompt = midDebateGapPrompt(this.session.topic.final, transcriptText, taxSummary, anTexts);
+      const focusForPrompt = focusNodes?.slice(0, 5);
+      const gapPrompt = midDebateGapPrompt(this.session.topic.final, transcriptText, taxSummary, anTexts, focusForPrompt);
 
       const gapResult = await this.adapter.generateText(gapPrompt, this.config.model, {
         temperature: 0.5,
@@ -2698,6 +2731,7 @@ export class DebateEngine {
       const gapArgs: GapArgument[] = parsed?.gap_arguments ?? [];
 
       if (gapArgs.length > 0) {
+        const headerLabel = trigger === 'responsive' ? 'Responsive Gap Analysis' : 'Mid-Debate Gap Analysis';
         const gapContent = gapArgs.map((g: GapArgument, i: number) =>
           `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`,
         ).join('\n\n');
@@ -2705,7 +2739,7 @@ export class DebateEngine {
         const entry = this.addEntry({
           type: 'system',
           speaker: 'system',
-          content: `## Mid-Debate Gap Analysis\n\n${gapContent}`,
+          content: `## ${headerLabel}\n\n${gapContent}`,
           taxonomy_refs: [],
         });
 
@@ -2715,15 +2749,63 @@ export class DebateEngine {
           model: this.config.model,
         });
 
-        this.session.gap_injections = [{
+        const injection: GapInjection = {
           round,
           arguments: gapArgs,
           transcript_entry_id: entry.id,
           responses: [],
-        }];
+          trigger,
+          focus_nodes: focusNodes?.map(n => n.id),
+        };
+
+        if (!this.session.gap_injections) {
+          this.session.gap_injections = [injection];
+        } else {
+          this.session.gap_injections.push(injection);
+        }
+
+        this._gapInjectionCount++;
       }
     } catch (err) {
       this.warn('Mid-debate gap injection', err, 'Non-critical — debate continues without gap analysis');
+    }
+  }
+
+  /**
+   * Periodic responsive gap check — finds high-relevance taxonomy nodes
+   * that no debater has engaged and triggers a focused gap injection.
+   * Deterministic check; LLM called only if unengaged nodes found.
+   */
+  private async runResponsiveGapCheck(round: number, initialGapRound: number): Promise<void> {
+    const maxInjections = this.config.maxGapInjections ?? MAX_GAP_INJECTIONS;
+    const checkInterval = this.config.gapCheckInterval ?? GAP_CHECK_INTERVAL;
+
+    if (!shouldRunGapCheck(round, initialGapRound, this._gapInjectionCount, maxInjections, checkInterval)) {
+      return;
+    }
+
+    const anNodes = this.session.argument_network?.nodes ?? [];
+    const engagedIds = collectEngagedNodeIds(anNodes, this.session.transcript);
+
+    const allTaxNodes: Array<{ id: string; label: string; description: string }> = [];
+    for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const povData = this.taxonomy[povKey];
+      if (!povData?.nodes) continue;
+      for (const node of povData.nodes) {
+        allTaxNodes.push({ id: node.id, label: node.label, description: node.description });
+      }
+    }
+
+    const recentText = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
+    const query = `${this.session.topic.final}\n\n${recentText}`.slice(0, 500);
+    const scores = scoreNodesLexical(query, allTaxNodes as any[], []);
+
+    const unengaged = findUnengagedHighRelevanceNodes(allTaxNodes, engagedIds, scores);
+
+    if (unengaged.length > 0) {
+      this.progress('gap-injection', undefined,
+        `Found ${unengaged.length} unengaged high-relevance node(s) — triggering responsive gap injection`);
+      await this.runGapInjection(round, 'responsive', unengaged);
     }
   }
 

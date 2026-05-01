@@ -28,6 +28,7 @@ export * from './nodeIdUtils';
 export * from './qbaf';
 export * from './qbafCombinator';
 export * from './concessionTracker';
+export * from './networkGc';
 export * from './coverageTracker';
 export * from './debateExport';
 export * from './turnPipeline';
@@ -35,6 +36,7 @@ export * from './convergenceSignals';
 export * from './cruxResolution';
 export * from './tieredCompression';
 export * from './moderator';
+export * from './gapCheck';
 
 // ── Situations Migration Normalizers ──────────────────────
 

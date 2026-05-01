@@ -2358,10 +2358,15 @@ export function midDebateGapPrompt(
   transcriptSoFar: string,
   taxonomySummary: string,
   argumentsSoFar: string[],
+  focusNodes?: ReadonlyArray<{ id: string; label: string; description: string }>,
 ): string {
   const argList = argumentsSoFar.length > 0
     ? argumentsSoFar.map((a, i) => `  ${i + 1}. ${a}`).join('\n')
     : '  (none extracted yet)';
+
+  const focusBlock = focusNodes && focusNodes.length > 0
+    ? `\n\nPRIORITY — UNENGAGED HIGH-RELEVANCE NODES:\nThe following taxonomy nodes are highly relevant to this debate but no debater has engaged them. Prioritize arguments that incorporate these perspectives:\n${focusNodes.map(n => `  [${n.id}] ${n.label}: ${n.description.slice(0, 120)}`).join('\n')}\n`
+    : '';
 
   return `You are an independent analyst reviewing a multi-perspective debate on AI policy. You have NO assigned perspective — you are looking for what is MISSING.
 
@@ -2375,7 +2380,7 @@ ${taxonomySummary}
 
 ARGUMENTS RAISED SO FAR:
 ${argList}
-
+${focusBlock}
 YOUR TASK: Identify 1-2 strong arguments that NONE of the debaters have made and that their assigned perspectives would be unlikely to make. Focus on:
 - Cross-cutting positions that synthesize elements from multiple perspectives
 - Compromise proposals that no single perspective would champion
