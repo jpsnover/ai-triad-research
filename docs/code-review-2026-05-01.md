@@ -73,7 +73,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | Scope |
 |---|---------|-------|
-| E1 | **145 bare `throw new Error`** — only 2 uses of `ActionableError` in entire codebase despite project mandate | `aiAdapter.ts` (34), `embeddings.ts` (24), `aiBackends.ts` (21), `ipcHandlers.ts` (10) |
+| E1 | ~~**145 bare `throw new Error`** — only 2 uses of `ActionableError` in entire codebase despite project mandate~~ | `aiAdapter.ts` (34), `embeddings.ts` (24), `aiBackends.ts` (21), `ipcHandlers.ts` (10) | **DONE** — migrated 72 throws to ActionableError across aiAdapter, embeddings, aiBackends, ipcHandlers, cli, taxonomyLoader, fileIO (main+server), turnPipeline, modelDiscovery, web-bridge, syncApi. 73 remain in summary-viewer (26), poviewer (15), test files (12), and misc |
 | E2 | ~~**Non-Gemini backends have zero retry** in Electron — single 429 from Claude/Groq kills the turn~~ | `server/aiBackends.ts:191-298` | **DONE** — `retryableFetch()` already handles 429/503 retry for all backends |
 | E3 | ~~**Bare `JSON.parse(bodyText)` without try/catch** on 7 API response parse sites in Electron~~ | **DONE** — all parse sites already have try/catch with ActionableError |
 | E4 | ~~**No timeout on most `generate()` calls** — moderator selection, compression, missing-args have no timeoutMs~~ | `debateEngine.ts` (8 call sites) | **DONE** — default 120s timeout on `generate`/`generateWithEvaluator`/`generateWithModel`; 60s on orchestration moderator calls |
@@ -109,18 +109,18 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | File |
 |---|---------|------|
-| S8 | **CORS defaults to `*`** when ALLOWED_ORIGINS unset | `server/server.ts:918-926` |
-| S9 | **Easy Auth headers trusted without proxy verification** — spoofable if container exposed directly | `server/server.ts:1111-1112` |
-| S10 | **No CSP/X-Frame-Options/HSTS headers** | `server/server.ts` |
-| S11 | **Local key store derives AES key from hostname** — not a secret | `server/keyStore.ts:37-39` |
+| S8 | ~~**CORS defaults to `*`** when ALLOWED_ORIGINS unset~~ | `server/server.ts:918-926` | **DONE** — rejects cross-origin in production when unset |
+| S9 | ~~**Easy Auth headers trusted without proxy verification** — spoofable if container exposed directly~~ | `server/server.ts:1111-1112` | **DONE** — gated on `WEBSITE_AUTH_ENABLED` env var |
+| S10 | ~~**No CSP/X-Frame-Options/HSTS headers**~~ | `server/server.ts` | **DONE** — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, HSTS, CSP |
+| S11 | ~~**Local key store derives AES key from hostname** — not a secret~~ | `server/keyStore.ts:37-39` | **DONE** — random key material on disk with legacy migration |
 
 ### Error Handling
 
 | # | Finding | File |
 |---|---------|------|
-| E5 | **`console.warn` in 12 catch blocks without UI state propagation** — users see no indication features are degraded | `useDebateStore.ts` (12 sites) |
-| E6 | **No AbortController/cancellation** for long debates — 20+ minute run can't be stopped | `debateEngine.ts` |
-| E7 | **Swallowed synthesis JSON parse fallback** — both `parseJsonRobust` and `extractArraysFromPartialJson` can return empty with no warning | `debateEngine.ts:2419-2444` |
+| E5 | ~~**`console.warn` in 12 catch blocks without UI state propagation** — users see no indication features are degraded~~ | `useDebateStore.ts` (12 sites) | **DONE** — added `pushWarning()` to 4 silent catch blocks (summarization retry, fact-check save, seed claim extraction, vocabulary loading); 1 already had store-level warning propagation; remaining sites already use `pushWarning` |
+| E6 | ~~**No AbortController/cancellation** for long debates — 20+ minute run can't be stopped~~ | `debateEngine.ts` | **DONE** — `signal` added to `GenerateOptions`, passed through `generate`/`generateWithModel`/`generateWithEvaluator` to all 4 backend fetch calls |
+| E7 | ~~**Swallowed synthesis JSON parse fallback** — both `parseJsonRobust` and `extractArraysFromPartialJson` can return empty with no warning~~ | `debateEngine.ts:2419-2444` | **DONE** — empty-result detection after each synthesis phase's try/catch |
 
 ### Architecture
 
@@ -134,17 +134,17 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | File |
 |---|---------|------|
-| P5 | **O(N*E) crux detection** — scans all edges for every node, then all nodes for each matching edge | `phaseTransitions.ts:364-381` |
-| P6 | **Barrel export forces bundler to resolve all 22 modules** on any import from `@lib/debate` | `lib/debate/index.ts` |
+| P5 | ~~**O(N*E) crux detection** — scans all edges for every node, then all nodes for each matching edge~~ | `phaseTransitions.ts:364-381` | **DONE** — O(N+E) via pre-built index maps |
+| P6 | ~~**Barrel export forces bundler to resolve all 22 modules** on any import from `@lib/debate`~~ | `lib/debate/index.ts` | **DONE** — 23 renderer files updated to direct module imports + `sideEffects: false` |
 
 ### Test Coverage
 
 | # | Finding | Risk |
 |---|---------|------|
-| T5 | `convergenceSignals.ts` / `argumentNetwork.ts` — 0 tests for core data pipeline feeding moderator decisions | Bad metrics cascade |
-| T6 | `useDebateStore.ts` — 0 tests for 4,209 lines with 48 catch blocks and concurrent mutations | Race conditions, state corruption |
-| T7 | `turnValidator.ts` Stage-A deterministic gate — only 3 of 30+ validation paths tested | Invalid turns accepted |
-| T8 | **Zero React component tests** — 78 components, 0 `.test.tsx` files | UI regressions undetected |
+| T5 | ~~`convergenceSignals.ts` / `argumentNetwork.ts` — 0 tests for core data pipeline feeding moderator decisions~~ | **DONE** — 66 tests covering all 8 metrics |
+| T6 | ~~`useDebateStore.ts` — 0 tests for 4,209 lines with 48 catch blocks and concurrent mutations~~ | **DONE** — 98 tests covering init, CRUD, phase, transcript, errors, concurrency, sessions, config, diagnostics, claims |
+| T7 | ~~`turnValidator.ts` Stage-A deterministic gate — only 3 of 30+ validation paths tested~~ | **DONE** — 88 tests covering all 11 rules + orchestrator + aliases + judge |
+| T8 | ~~**Zero React component tests** — 78 components, 0 `.test.tsx` files~~ | **DONE** — 27 tests across 4 components (TabBar, DeleteConfirmDialog, FieldHelp, LinkedChip) + jsdom infrastructure |
 
 ---
 
@@ -211,7 +211,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 15. A3: Complete barrel exports
 
 ### Backlog
-16. E1: Migrate 145 bare throws to ActionableError (incremental)
+16. ~~E1: Migrate 145 bare throws to ActionableError (incremental)~~ — **DONE** (72 migrated in core files; 73 remain in secondary apps and test files)
 17. A6: Extract shared Electron boilerplate
-18. T8: Start React component testing
-19. E6: Add AbortController cancellation support
+18. ~~T8: Start React component testing~~ — **DONE** (27 tests across 4 components + jsdom/testing-library infrastructure)
+19. ~~E6: Add AbortController cancellation support~~ — **DONE** (signal passthrough to all backends)
