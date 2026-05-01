@@ -12564,6 +12564,91 @@ body {
 }
 .coverage-claim-steerable:hover .coverage-steer-hint { opacity: 1; }
 
+/* ─── Taxonomy Grounding Table ─────────────────────────── */
+
+.grounding-filter {
+  width: 100%;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.grounding-filter:focus { outline: 1px solid var(--accent); }
+.grounding-table-wrap {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+.grounding-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+.grounding-table thead { position: sticky; top: 0; z-index: 1; }
+.grounding-table th {
+  padding: 4px 8px;
+  text-align: left;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.grounding-th-sortable { cursor: pointer; user-select: none; }
+.grounding-th-sortable:hover { color: var(--accent); }
+.grounding-th-count { text-align: right; }
+.grounding-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.grounding-row { cursor: pointer; transition: background 0.1s; }
+.grounding-row:hover { background: rgba(59,130,246,0.08); }
+.grounding-row-selected { background: rgba(59,130,246,0.15); }
+.grounding-row-selected:hover { background: rgba(59,130,246,0.2); }
+.grounding-cell-id { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent); white-space: nowrap; }
+.grounding-cell-label { color: var(--text-primary); }
+.grounding-cell-count { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.grounding-detail {
+  margin-top: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 8px;
+  background: rgba(59,130,246,0.04);
+}
+.grounding-detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.grounding-detail-id { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; color: var(--accent); }
+.grounding-detail-label { font-size: 0.75rem; font-weight: 600; }
+.grounding-detail-count { font-size: 0.65rem; color: var(--text-muted); margin-left: auto; }
+.grounding-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65rem;
+}
+.grounding-detail-table th {
+  padding: 3px 6px;
+  text-align: left;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.grounding-detail-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.grounding-detail-entry { font-family: var(--font-mono); white-space: nowrap; color: var(--accent); }
+.grounding-detail-speaker { white-space: nowrap; font-weight: 500; }
+.grounding-detail-relevance { color: var(--text-primary); line-height: 1.4; }
+
 /* ─── Neutral Evaluation Panel ─────────────────────────── */
 
 .neutral-eval-panel {
