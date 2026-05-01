@@ -55,7 +55,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
 } from '@lib/debate/helpers';
-import { normalizeBdiLayer, nodeTypeFromId, computeQbafStrengths } from '@lib/debate';
+import { normalizeBdiLayer, nodeTypeFromId, computeQbafStrengths, factCheckToBaseStrength } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
 import { getDebatePhase } from '@lib/debate/types';
 import type { ModeratorState, SelectionResult, ModeratorIntervention, InterventionMetadata } from '@lib/debate/types';
@@ -63,6 +63,7 @@ import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { validateTurn, buildRepairPrompt, resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
+import { updateCruxTracker } from '@lib/debate/cruxResolution';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import {
   initModeratorState,
@@ -698,20 +699,40 @@ async function extractClaimsAndUpdateAN(
       set({ activeDebate: { ...postLedgerDebate, unanswered_claims_ledger: ledger } });
     }
 
-    // Convergence signals computation
+    // Convergence signals computation (with semantic recycling when embeddings available)
     const postConvDebate = get().activeDebate;
     if (postConvDebate?.argument_network && entryId) {
       try {
+        // Build turn embeddings map from cache + new embedding for current entry
+        let turnEmbeddings: Map<string, number[]> | undefined;
+        const cachedEmbeddings = postConvDebate.turn_embeddings ?? {};
+        try {
+          const currentEntry = postConvDebate.transcript.find((e: { id: string }) => e.id === entryId);
+          if (currentEntry) {
+            const { vector } = await api.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
+            cachedEmbeddings[entryId] = vector;
+            set({ activeDebate: { ...get().activeDebate!, turn_embeddings: { ...cachedEmbeddings } } });
+          }
+          turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+        } catch {
+          // Embedding unavailable — fall back to lexical-only recycling detection
+          if (Object.keys(cachedEmbeddings).length > 0) {
+            turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
+          }
+        }
+
+        const latestDebate = get().activeDebate!;
         const sig = computeConvergenceSignals(
           entryId,
           speaker,
-          postConvDebate.transcript,
-          postConvDebate.argument_network.nodes,
-          postConvDebate.argument_network.edges,
-          postConvDebate.convergence_signals ?? [],
+          latestDebate.transcript,
+          latestDebate.argument_network!.nodes,
+          latestDebate.argument_network!.edges,
+          latestDebate.convergence_signals ?? [],
+          turnEmbeddings,
         );
-        const updatedSignals = [...(postConvDebate.convergence_signals ?? []), sig];
-        set({ activeDebate: { ...postConvDebate, convergence_signals: updatedSignals } });
+        const updatedSignals = [...(latestDebate.convergence_signals ?? []), sig];
+        set({ activeDebate: { ...latestDebate, convergence_signals: updatedSignals } });
       } catch (convErr) {
         console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
       }
@@ -734,6 +755,24 @@ async function extractClaimsAndUpdateAN(
         computed_strength: qResult.strengths.get(n.id) ?? n.computed_strength,
       }));
       set({ activeDebate: { ...postQbafDebate, argument_network: { ...qbafAn, nodes: updatedNodes } } });
+    }
+
+    // Crux resolution tracking
+    const postCruxDebate = get().activeDebate;
+    if (postCruxDebate?.argument_network) {
+      try {
+        const turnNumber = postCruxDebate.argument_network.nodes.length;
+        const updatedCruxTracker = updateCruxTracker(
+          postCruxDebate.crux_tracker,
+          postCruxDebate.argument_network.nodes,
+          postCruxDebate.argument_network.edges,
+          postCruxDebate.commitments ?? {},
+          turnNumber,
+        );
+        set({ activeDebate: { ...postCruxDebate, crux_tracker: updatedCruxTracker } });
+      } catch (cruxErr) {
+        console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
+      }
     }
 
     // Steelman validation (non-blocking)
@@ -823,6 +862,12 @@ async function extractClaimsAndUpdateAN(
         if (verdict) {
           pNode.verification_status = verdict;
           pNode.verification_evidence = explanation;
+
+          // Update base_strength from fact-check verdict (theory-of-success §4.4)
+          const fcConfidence = vParsed.confidence as string | undefined;
+          pNode.base_strength = factCheckToBaseStrength(verdict, fcConfidence);
+          pNode.scoring_method = 'fact_check';
+
           factCheckMutated = true;
           const currentDebate = get().activeDebate;
           if (currentDebate) set({ activeDebate: { ...currentDebate } });

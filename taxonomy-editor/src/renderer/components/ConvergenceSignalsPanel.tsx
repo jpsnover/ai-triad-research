@@ -122,7 +122,7 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
     const takenCount = spkrSignals.filter(s => s.concession_opportunity.outcome === 'taken').length;
     const opportunityCount = missedCount + takenCount;
     const avgCollabRatio = spkrSignals.reduce((sum, s) => sum + s.move_disposition.ratio, 0) / (spkrSignals.length || 1);
-    const avgRecycling = spkrSignals.reduce((sum, s) => sum + s.recycling_rate.max_self_overlap, 0) / (spkrSignals.length || 1);
+    const avgRecycling = spkrSignals.reduce((sum, s) => sum + Math.max(s.recycling_rate.max_self_overlap, s.recycling_rate.semantic_max_similarity ?? 0), 0) / (spkrSignals.length || 1);
     const cruxTotal = spkrSignals.length > 0 ? spkrSignals[spkrSignals.length - 1].crux_rate.cumulative_count : 0;
     return { speaker: spkr, missedCount, takenCount, opportunityCount, avgCollabRatio, avgRecycling, cruxTotal };
   });
@@ -284,7 +284,10 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                   <MiniBar value={sig.engagement_depth.ratio} max={1} color="#3b82f6" />
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <MiniBar value={sig.recycling_rate.max_self_overlap} max={1} color={sig.recycling_rate.max_self_overlap > 0.5 ? '#ef4444' : '#22c55e'} />
+                  {(() => {
+                    const effective = Math.max(sig.recycling_rate.max_self_overlap, sig.recycling_rate.semantic_max_similarity ?? 0);
+                    return <MiniBar value={effective} max={1} color={sig.recycling_rate.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
+                  })()}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <OutcomeBadge outcome={sig.concession_opportunity.outcome} />
@@ -352,9 +355,14 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 <div style={lbl}>Recycling</div>
                 <div style={val}>
                   avg <strong>{pct(rr.avg_self_overlap)}</strong>, max <strong>{pct(rr.max_self_overlap)}</strong>
-                  {rr.max_self_overlap >= 0.5
-                    ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>repeating</span>
-                    : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>fresh</span>}
+                  {rr.semantic_max_similarity != null && (
+                    <>, sem <strong>{pct(rr.semantic_max_similarity)}</strong></>
+                  )}
+                  {rr.semantically_recycled
+                    ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>semantic repeat</span>
+                    : rr.max_self_overlap >= 0.5
+                      ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>repeating</span>
+                      : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>fresh</span>}
                 </div>
               </div>
               <div style={cell}>

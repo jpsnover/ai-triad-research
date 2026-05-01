@@ -1716,13 +1716,18 @@ export function synthExtractPrompt(
   topic: string,
   transcript: string,
   audience?: DebateAudience,
+  cruxResolutionContext?: string,
 ): string {
+  const cruxBlock = cruxResolutionContext
+    ? `\n=== CRUX RESOLUTION STATUS (from argument network analysis) ===\n${cruxResolutionContext}\nUse this to accurately classify crux resolution_status: "resolved", "irreducible", or "active".\n`
+    : '';
+
   return `You are a debate analyst. Analyze this structured debate and extract the core synthesis.
 ${getReadingLevel(audience)}
 
 === DEBATE TOPIC ===
 "${topic}"
-
+${cruxBlock}
 === FULL TRANSCRIPT ===
 ${transcript}
 
@@ -1741,7 +1746,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
   "cruxes": [
-    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
+    {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
   ],
   "unresolved_questions": ["..."]
 }`;

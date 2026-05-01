@@ -167,17 +167,31 @@ export function parseAtMention(input: string): { targets: PoverId[]; cleanedInpu
 export function formatRecentTranscript(
   transcript: TranscriptEntry[],
   maxEntries: number = 8,
-  contextSummaries?: { up_to_entry_id: string; summary: string }[],
+  contextSummaries?: { up_to_entry_id: string; summary: string; tier?: string }[],
 ): string {
   const recent = transcript.filter((e) => e.type !== 'system').slice(-maxEntries);
   if (recent.length === 0) return '(No prior exchanges)';
 
   const parts: string[] = [];
 
-  // Prepend the latest context summary if available
+  // Prepend context summaries — tiered if available
   if (contextSummaries && contextSummaries.length > 0) {
-    const latest = contextSummaries[contextSummaries.length - 1];
-    parts.push(`[Earlier debate summary]: ${latest.summary}`);
+    const distant = contextSummaries.filter(s => s.tier === 'distant');
+    const medium = contextSummaries.filter(s => s.tier === 'medium');
+    const legacy = contextSummaries.filter(s => !s.tier);
+
+    if (distant.length > 0) {
+      const latest = distant[distant.length - 1];
+      parts.push(`[Distant context — structural summary]:\n${latest.summary}`);
+    }
+    if (medium.length > 0) {
+      const latest = medium[medium.length - 1];
+      parts.push(`[Medium context — key claims & commitments]:\n${latest.summary}`);
+    }
+    if (distant.length === 0 && medium.length === 0 && legacy.length > 0) {
+      const latest = legacy[legacy.length - 1];
+      parts.push(`[Earlier debate summary]: ${latest.summary}`);
+    }
   }
 
   for (const e of recent) {

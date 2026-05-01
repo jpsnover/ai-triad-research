@@ -12,6 +12,9 @@ import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers
 import type { MoveAnnotation } from './helpers';
 import { computeQbafStrengths } from './qbaf';
 import type { QbafNode, QbafEdge } from './qbaf';
+import { cosineSimilarity } from './taxonomyRelevance';
+
+export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
 
 export function computeConvergenceSignals(
   entryId: string,
@@ -20,6 +23,7 @@ export function computeConvergenceSignals(
   nodes: ArgumentNetworkNode[],
   edges: ArgumentNetworkEdge[],
   existingSignals: ConvergenceSignals[],
+  turnEmbeddings?: Map<string, number[]>,
 ): ConvergenceSignals {
   const entryIdx = transcript.findIndex(e => e.id === entryId);
   const entry = transcript[entryIdx];
@@ -68,6 +72,27 @@ export function computeConvergenceSignals(
       if (o > maxSelfOverlap) maxSelfOverlap = o;
     }
     avgSelfOverlap = sumOverlap / priorSpeakerEntries.length;
+  }
+
+  // 3b. Semantic recycling — embedding-based similarity between same-speaker turns
+  let semanticMaxSimilarity: number | undefined;
+  let semanticallyRecycled: boolean | undefined;
+  if (turnEmbeddings && entry) {
+    const currentEmbed = turnEmbeddings.get(entryId);
+    if (currentEmbed) {
+      let maxSim = 0;
+      for (const prev of priorSpeakerEntries) {
+        const prevEmbed = turnEmbeddings.get(prev.id);
+        if (prevEmbed) {
+          const sim = cosineSimilarity(currentEmbed, prevEmbed);
+          if (sim > maxSim) maxSim = sim;
+        }
+      }
+      if (maxSim > 0) {
+        semanticMaxSimilarity = maxSim;
+        semanticallyRecycled = maxSim >= SEMANTIC_RECYCLING_THRESHOLD;
+      }
+    }
   }
 
   // 4. Strongest opposing argument — find the strongest attack against this speaker's nodes
@@ -130,7 +155,7 @@ export function computeConvergenceSignals(
     speaker,
     move_disposition: { confrontational, collaborative, ratio: moveRatio },
     engagement_depth: { targeted, standalone, ratio: engagementRatio },
-    recycling_rate: { avg_self_overlap: avgSelfOverlap, max_self_overlap: maxSelfOverlap },
+    recycling_rate: { avg_self_overlap: avgSelfOverlap, max_self_overlap: maxSelfOverlap, semantic_max_similarity: semanticMaxSimilarity, semantically_recycled: semanticallyRecycled },
     strongest_opposing: strongestOpposing,
     concession_opportunity: { strong_attacks_faced: strongAttacksFaced, concession_used: concessionUsed, outcome: concessionOutcome },
     position_delta: { overlap_with_opening: overlapWithOpening, drift },

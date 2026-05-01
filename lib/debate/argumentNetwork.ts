@@ -594,6 +594,29 @@ export function discreteBdiScore(value: string): number {
   return BDI_TERNARY_MAP[key] ?? 0.5;
 }
 
+/**
+ * Map a fact-check verdict + confidence to a numeric base_strength for Belief claims.
+ * Closes the belief-scoring asymmetry (theory-of-success §4.4) by using retrieval-augmented
+ * verification as a proxy for empirical claim strength.
+ */
+export function factCheckToBaseStrength(
+  verdict: string,
+  confidence?: string,
+): number {
+  const conf = (confidence ?? 'medium').toLowerCase();
+  switch (verdict) {
+    case 'verified':
+    case 'supported':
+      return conf === 'high' ? 0.85 : conf === 'low' ? 0.55 : 0.70;
+    case 'disputed':
+    case 'false':
+      return conf === 'high' ? 0.15 : conf === 'low' ? 0.40 : 0.30;
+    case 'unverifiable':
+    default:
+      return 0.50;
+  }
+}
+
 function isDiscreteNodeStrength(v: unknown): v is string {
   return typeof v === 'string' && v.toLowerCase() in NODE_STRENGTH_MAP;
 }

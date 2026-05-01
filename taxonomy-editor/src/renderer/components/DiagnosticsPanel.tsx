@@ -151,7 +151,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
             )}
             <div className="diag-qbaf-meta">
               <span className="diag-badge diag-badge-type">{bdiLayer}{node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '*' : ''}</span>
-              <span className="diag-muted">Scored by: {node.scoring_method === 'ai_rubric' ? 'AI rubric (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'default_pending' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
+              <span className="diag-muted">Scored by: {node.scoring_method === 'ai_rubric' ? 'AI rubric (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'fact_check' ? 'Fact-check verification' : node.scoring_method === 'default_pending' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
               {node.bdi_confidence != null && node.bdi_confidence < 0.5 && (
                 <span className="diag-muted" title="AI scoring confidence is low for Beliefs claims (Q-0 calibration r &lt; 0.2)"> (low confidence)</span>
               )}

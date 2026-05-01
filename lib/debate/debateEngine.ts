@@ -76,7 +76,9 @@ import {
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
 } from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims } from './argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork';
+import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution';
+import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
 import { formatVocabularyContext } from './vocabularyContext';
 import type { ContextInjectionManifest } from './taxonomyContext';
@@ -591,7 +593,7 @@ export class DebateEngine {
       },
 
       convergenceSignals: {
-        recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0 },
+        recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.recycling_rate?.semantic_max_similarity },
         engagement_depth: { ratio: lastConvSignal?.engagement_depth?.ratio ?? 1 },
         position_delta: { drift: lastConvSignal?.position_delta?.drift ?? 0 },
         concession_opportunity: {
@@ -613,6 +615,9 @@ export class DebateEngine {
             type: e.type, weight: e.weight ?? 0.5,
           })),
         ),
+        cruxResolution: (this.session.crux_tracker ?? []).map(c => ({
+          id: c.id, state: c.state, support_polarity: c.support_polarity,
+        })),
         priorCruxClusters: state.prior_crux_clusters,
         regressionCount: state.regression_count,
         explorationExitThreshold: state.exploration_exit_threshold,
@@ -2229,6 +2234,7 @@ export class DebateEngine {
 
   private async compressContext(): Promise<void> {
     const keepRecent = 8;
+    const keepMedium = 8;
     const filteredEntries = this.session.transcript.filter(e => e.type !== 'system');
     if (filteredEntries.length < 12) return;
 
@@ -2246,42 +2252,111 @@ export class DebateEngine {
 
     this.progress('compression', undefined, 'Compressing debate history');
 
-    const entries = toCompress.map(e => {
-      const label = e.speaker === 'user' ? 'Moderator'
-        : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label ?? e.speaker;
-      return `${label}: ${e.content}`;
-    }).join('\n\n');
+    const an = this.session.argument_network;
 
-    const prompt = contextCompressionPrompt(entries, this.config.audience);
-    const text = await this.generate(prompt, 'Context compression');
+    // Tiered compression: split into medium (structural) and distant (LLM summary)
+    const mediumEntries = toCompress.slice(-keepMedium);
+    const distantEntries = toCompress.slice(0, -keepMedium);
 
-    try {
-      const parsed = parseJsonRobust(text) as any;
-      if (parsed.summary) {
-        this.session.context_summaries.push({
-          up_to_entry_id: toCompress[toCompress.length - 1].id,
-          summary: parsed.summary,
-        });
+    // Medium tier: deterministic structural summary from argument network
+    if (mediumEntries.length > 0 && an) {
+      const mediumSummary = buildMediumTierSummary(
+        mediumEntries, an.nodes, an.edges, this.session.commitments ?? {},
+      );
+      this.session.context_summaries.push({
+        up_to_entry_id: mediumEntries[mediumEntries.length - 1].id,
+        summary: mediumSummary,
+        tier: 'medium',
+      });
+    }
 
-        // Context-rot: transcript compression metrics
-        const inChars = entries.length;
-        const outChars = parsed.summary.length;
-        if (this.session.context_rot) {
-          this.session.context_rot.stages.push({
-            stage: 'transcript_compression',
-            in_units: 'chars', in_count: inChars,
-            out_units: 'chars', out_count: outChars,
-            ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-            flags: {
-              entries_compressed: toCompress.length,
-              compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-              window_size: keepRecent,
-            },
+    // Distant tier: LLM summary for oldest entries + structural overlay
+    if (distantEntries.length >= 4) {
+      const entries = distantEntries.map(e => {
+        const label = e.speaker === 'user' ? 'Moderator'
+          : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label ?? e.speaker;
+        return `${label}: ${e.content}`;
+      }).join('\n\n');
+
+      const prompt = contextCompressionPrompt(entries, this.config.audience);
+      const text = await this.generate(prompt, 'Context compression');
+
+      try {
+        const parsed = parseJsonRobust(text) as any;
+        if (parsed.summary) {
+          // Append structural overlay to the LLM summary
+          const structuralOverlay = an
+            ? buildDistantTierSummary(an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker)
+            : '';
+          const enrichedSummary = structuralOverlay
+            ? `${parsed.summary}\n\n--- Structural context ---\n${structuralOverlay}`
+            : parsed.summary;
+
+          this.session.context_summaries.push({
+            up_to_entry_id: distantEntries[distantEntries.length - 1].id,
+            summary: enrichedSummary,
+            tier: 'distant',
           });
+
+          // Context-rot metrics
+          const inChars = entries.length;
+          const outChars = enrichedSummary.length;
+          if (this.session.context_rot) {
+            this.session.context_rot.stages.push({
+              stage: 'transcript_compression',
+              in_units: 'chars', in_count: inChars,
+              out_units: 'chars', out_count: outChars,
+              ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+              flags: {
+                entries_compressed: distantEntries.length,
+                compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+                window_size: keepRecent,
+                tier: 'distant',
+              },
+            });
+          }
         }
+      } catch (err) {
+        this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
       }
-    } catch (err) {
-      this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
+    } else if (toCompress.length >= 4) {
+      // Not enough entries for two tiers — fall back to single LLM summary
+      const entries = toCompress.map(e => {
+        const label = e.speaker === 'user' ? 'Moderator'
+          : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label ?? e.speaker;
+        return `${label}: ${e.content}`;
+      }).join('\n\n');
+
+      const prompt = contextCompressionPrompt(entries, this.config.audience);
+      const text = await this.generate(prompt, 'Context compression');
+
+      try {
+        const parsed = parseJsonRobust(text) as any;
+        if (parsed.summary) {
+          this.session.context_summaries.push({
+            up_to_entry_id: toCompress[toCompress.length - 1].id,
+            summary: parsed.summary,
+          });
+
+          const inChars = entries.length;
+          const outChars = parsed.summary.length;
+          if (this.session.context_rot) {
+            this.session.context_rot.stages.push({
+              stage: 'transcript_compression',
+              in_units: 'chars', in_count: inChars,
+              out_units: 'chars', out_count: outChars,
+              ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+              flags: {
+                entries_compressed: toCompress.length,
+                compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+                window_size: keepRecent,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
+      }
     }
   }
 
@@ -2305,8 +2380,11 @@ export class DebateEngine {
 
     // Phase 1: Extract core synthesis
     this.progress('synthesis', undefined, 'Phase 1/3: Extracting agreements and disagreements');
+    const cruxContext = (this.session.crux_tracker?.length ?? 0) > 0
+      ? formatCruxResolutionContext(this.session.crux_tracker!)
+      : undefined;
     const extractText = await this.generate(
-      synthExtractPrompt(this.session.topic.final, fullTranscript, this.config.audience),
+      synthExtractPrompt(this.session.topic.final, fullTranscript, this.config.audience, cruxContext),
       'Synthesis Phase 1: Extract', 60_000,
     );
     let extractData: Record<string, unknown> = {};
@@ -2919,6 +2997,8 @@ Return ONLY JSON (no markdown, no code fences):
         if (parsed.verdict) {
           node.verification_status = parsed.verdict;
           node.verification_evidence = parsed.evidence;
+          node.base_strength = factCheckToBaseStrength(parsed.verdict, parsed.confidence);
+          node.scoring_method = 'fact_check';
 
           this.session.transcript.push({
             id: generateId(),
@@ -3279,6 +3359,15 @@ Return ONLY JSON (no markdown, no code fences):
       this.session.unanswered_claims_ledger ?? [],
       an.nodes,
       an.edges,
+      turnNumber,
+    );
+
+    // Update crux resolution tracker
+    this.session.crux_tracker = updateCruxTracker(
+      this.session.crux_tracker,
+      an.nodes,
+      an.edges,
+      this.session.commitments ?? {},
       turnNumber,
     );
   }

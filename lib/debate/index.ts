@@ -32,6 +32,8 @@ export * from './coverageTracker';
 export * from './debateExport';
 export * from './turnPipeline';
 export * from './convergenceSignals';
+export * from './cruxResolution';
+export * from './tieredCompression';
 export * from './moderator';
 
 // ── Situations Migration Normalizers ──────────────────────

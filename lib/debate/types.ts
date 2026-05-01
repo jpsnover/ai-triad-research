@@ -92,7 +92,7 @@ export interface SignalContext {
   };
 
   convergenceSignals: {
-    recycling_rate: { avg_self_overlap: number };
+    recycling_rate: { avg_self_overlap: number; semantic_max_similarity?: number };
     engagement_depth: { ratio: number };
     position_delta: { drift: number };
     concession_opportunity: { outcome: string; strong_attacks_faced: number };
@@ -104,6 +104,10 @@ export interface SignalContext {
     cruxNodes: ReadonlyArray<{
       id: string; crossPovAttackCount: number;
       computedStrength: number;
+    }>;
+    cruxResolution: ReadonlyArray<{
+      id: string; state: CruxResolutionState;
+      support_polarity: number;
     }>;
     priorCruxClusters: ReadonlyArray<ReadonlyArray<string>>;
     regressionCount: number;
@@ -246,6 +250,7 @@ export interface TranscriptEntry {
 export interface ContextSummary {
   up_to_entry_id: string;
   summary: string;
+  tier?: 'recent' | 'medium' | 'distant';
 }
 
 export type DebateSourceType = 'topic' | 'document' | 'url' | 'situations';
@@ -431,6 +436,8 @@ export interface DebateSession {
   turn_validations?: Record<string, TurnValidationTrail>;
   /** Per-turn convergence diagnostic signals — computed after claim extraction. */
   convergence_signals?: ConvergenceSignals[];
+  /** Cached turn embeddings for semantic recycling detection. Keyed by transcript entry id. */
+  turn_embeddings?: Record<string, number[]>;
   /** Mid-debate gap injections — cross-cutting arguments surfaced by the "fourth voice" analyzer. */
   gap_injections?: GapInjection[];
   /** Cross-cutting node proposals — candidate situation nodes from areas of three-way agreement. */
@@ -443,6 +450,8 @@ export interface DebateSession {
   moderator_state?: ModeratorState;
   /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
   adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
+  /** Per-crux resolution tracking — state machine tracking crux lifecycle. Absent in pre-crux-resolution debates. */
+  crux_tracker?: TrackedCrux[];
 }
 
 export interface ConvergenceSignals {
@@ -462,6 +471,10 @@ export interface ConvergenceSignals {
   recycling_rate: {
     avg_self_overlap: number;
     max_self_overlap: number;
+    /** Peak cosine similarity between this turn's embedding and any prior turn by the same speaker. Absent when embeddings unavailable. */
+    semantic_max_similarity?: number;
+    /** True when semantic_max_similarity exceeds the recycling threshold (default 0.85). */
+    semantically_recycled?: boolean;
   };
   strongest_opposing: {
     node_id: string;
@@ -617,8 +630,8 @@ export interface ArgumentNetworkNode {
   base_strength?: number;
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
   computed_strength?: number;
-  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5). */
-  scoring_method?: 'ai_rubric' | 'human' | 'default_pending';
+  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification. */
+  scoring_method?: 'ai_rubric' | 'human' | 'default_pending' | 'fact_check';
   /** Per-BDI-criterion sub-scores from claim extraction. Absent in pre-BDI-separation debates. */
   bdi_sub_scores?: BdiSubScores;
   /** Q-0 calibration confidence for this BDI category (Beliefs: 0.3, Desires: 0.65, Intentions: 0.71). */
@@ -655,6 +668,35 @@ export interface CommitmentStore {
   asserted: string[];
   conceded: string[];
   challenged: string[];
+}
+
+// ── Crux Resolution Types ────────────────────────────
+
+export type CruxResolutionState =
+  | 'identified'
+  | 'engaged'
+  | 'one_side_conceded'
+  | 'resolved'
+  | 'irreducible';
+
+export interface CruxStateTransition {
+  from: CruxResolutionState;
+  to: CruxResolutionState;
+  turn: number;
+  trigger: string;
+}
+
+export interface TrackedCrux {
+  id: string;
+  description: string;
+  identified_turn: number;
+  state: CruxResolutionState;
+  history: CruxStateTransition[];
+  disagreement_type?: 'empirical' | 'values' | 'definitional';
+  attacking_claim_ids: string[];
+  speakers_involved: string[];
+  last_computed_strength: number;
+  support_polarity: number;
 }
 
 // ── Convergence radar types ──────────────────────────

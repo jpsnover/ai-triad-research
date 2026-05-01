@@ -71,8 +71,9 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
       engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
     },
     convergence: {
-      qbaf_agreement_density: 0.35, position_stability: 0.25,
-      irreducible_disagreement_ratio: 0.25, synthesis_pragmatic_signal: 0.15,
+      qbaf_agreement_density: 0.30, position_stability: 0.20,
+      irreducible_disagreement_ratio: 0.20, synthesis_pragmatic_signal: 0.15,
+      crux_resolution_ratio: 0.15,
     },
     thresholds: { exploration_exit: 0.65, synthesis_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
     phase_bounds: {
@@ -175,7 +176,10 @@ export function buildSignalRegistry(): Signal[] {
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
-        return ctx.convergenceSignals.recycling_rate.avg_self_overlap;
+        const lexical = ctx.convergenceSignals.recycling_rate.avg_self_overlap;
+        const semantic = ctx.convergenceSignals.recycling_rate.semantic_max_similarity;
+        if (semantic != null) return Math.max(lexical, semantic);
+        return lexical;
       },
     },
     {
@@ -204,7 +208,18 @@ export function buildSignalRegistry(): Signal[] {
           .filter((s): s is string => !!s);
         const schemeCoverage = computeSchemeCoverageFactor(allSchemes);
 
-        return cruxRatio * followThroughRatio * schemeCoverage;
+        // Resolution progress from crux tracker
+        const cruxResolution = ctx.phase.cruxResolution;
+        const resolvedCount = cruxResolution.filter(c =>
+          c.state === 'resolved' || c.state === 'irreducible'
+        ).length;
+        const trackedCount = cruxResolution.length;
+        const resolutionRatio = trackedCount > 0 ? resolvedCount / trackedCount : 0;
+
+        const baseMaturity = cruxRatio * followThroughRatio * schemeCoverage;
+        return trackedCount > 0
+          ? 0.6 * baseMaturity + 0.4 * resolutionRatio
+          : baseMaturity;
       },
     },
     {
@@ -329,11 +344,18 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
   const allTexts = ctx.transcript.lastNRounds(999).map(r => r.text);
   const synthPragmatic = computeSynthesisPragmaticSignal(recentTexts, allTexts);
 
+  // Crux resolution ratio: proportion of tracked cruxes that reached terminal state
+  const cruxResolution = ctx.phase.cruxResolution;
+  const cruxResolutionRatio = cruxResolution.length > 0
+    ? cruxResolution.filter(c => c.state === 'resolved' || c.state === 'irreducible').length / cruxResolution.length
+    : 0.5;
+
   return Math.max(0, Math.min(1,
     w.convergence.qbaf_agreement_density * qbafAgreementDensity
     + w.convergence.position_stability * Math.max(0, positionStability)
     + w.convergence.irreducible_disagreement_ratio * irreducibleRatio
     + w.convergence.synthesis_pragmatic_signal * synthPragmatic
+    + (w.convergence.crux_resolution_ratio ?? 0) * cruxResolutionRatio
   ));
 }
 
@@ -507,8 +529,10 @@ function evaluateExplorationExit(
     return { action: 'transition', new_phase: 'synthesis', reason: `API soft budget hit (${state.api_calls_used} >= ${softBudget})`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
-  // "Debate is dead" force
-  const recyclingPressure = ctx.convergenceSignals.recycling_rate.avg_self_overlap;
+  // "Debate is dead" force — use semantic similarity when available, fallback to lexical
+  const lexicalRecycling = ctx.convergenceSignals.recycling_rate.avg_self_overlap;
+  const semanticRecycling = ctx.convergenceSignals.recycling_rate.semantic_max_similarity;
+  const recyclingPressure = semanticRecycling != null ? Math.max(lexicalRecycling, semanticRecycling) : lexicalRecycling;
   const engagementFatigue = 1 - (ctx.convergenceSignals.engagement_depth.ratio / Math.max(0.01, ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? ctx.convergenceSignals.engagement_depth.ratio));
   components.recycling_pressure = recyclingPressure;
   components.engagement_fatigue = Math.max(0, engagementFatigue);
@@ -568,7 +592,11 @@ function evaluateSynthesisExit(
   const priorConv = ctx.priorSignals.get('_convergence_score', 1);
   const convDelta = priorConv !== null ? Math.abs(convScore - priorConv) : 1;
   components.convergence_delta = convDelta;
-  if (convDelta < 0.05 && ctx.convergenceSignals.recycling_rate.avg_self_overlap > 0.5) {
+  const synthRecycling = Math.max(
+    ctx.convergenceSignals.recycling_rate.avg_self_overlap,
+    ctx.convergenceSignals.recycling_rate.semantic_max_similarity ?? 0,
+  );
+  if (convDelta < 0.05 && synthRecycling > 0.5) {
     const priorPriorConv = ctx.priorSignals.get('_convergence_score', 2);
     if (priorPriorConv !== null && Math.abs(convScore - priorPriorConv) < 0.05) {
       return { action: 'terminate', reason: 'Synthesis stall (2 rounds, delta < 0.05, recycling > 0.5)', veto_active: false, force_active: true, confidence_deferred: false, components };
