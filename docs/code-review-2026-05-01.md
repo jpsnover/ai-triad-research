@@ -11,11 +11,11 @@
 The codebase has strong fundamentals — clean type hierarchy, well-layered debate engine, solid Electron security defaults (contextIsolation, no nodeIntegration), and exemplary test quality where tests exist (246 cases, all active, no skips). However, the review uncovered **3 critical security vulnerabilities** in the web deployment, a **systemic architecture problem** (dual-maintained engine logic), and **35 of 43 debate engine modules with zero test coverage**.
 
 **Top 5 actions by leverage:**
-1. Fix the 3 P0 security vulnerabilities (SSRF, unauthenticated WebSocket, XSS) — hours of work, eliminates exploitable attack surface
-2. Extract shared DebateOrchestrator to eliminate the dual-maintenance monolith — weeks of work, highest long-term ROI
+1. ~~Fix the 3 P0 security vulnerabilities (SSRF, unauthenticated WebSocket, XSS)~~ — **DONE** (c056268)
+2. Extract shared DebateOrchestrator to eliminate the dual-maintenance monolith — **IN PROGRESS** (`orchestration.ts` scaffolded, wiring pending)
 3. Add tests for `parseAIJson`/`helpers.ts` — 1 day, covers the single most fragile code path
-4. Compute QBAF once per turn instead of 3x — hours of work, immediate perf win
-5. Add path traversal guards to `fileIO.ts` — hours of work, matches guards already in the Electron path
+4. ~~Compute QBAF once per turn instead of 3x~~ — **DONE** (57eff97)
+5. ~~Add path traversal guards to `fileIO.ts`~~ — **DONE** (c056268)
 
 ---
 
@@ -23,38 +23,38 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 ### Security
 
-| # | Finding | File | Impact |
-|---|---------|------|--------|
-| S1 | **SSRF via `/api/fetch-url`** — accepts arbitrary URLs, can reach Azure IMDS (169.254.169.254) to steal managed identity tokens | `server/fileIO.ts:714`, `server/server.ts:551` | Token theft, lateral movement |
-| S2 | **Unauthenticated WebSocket terminal** — `/ws/terminal` bypasses Easy Auth, gives shell access to any client | `server/server.ts:1223-1238` | Remote code execution |
-| S3 | **Reflected XSS in FORBIDDEN_PAGE** — `principalName` header interpolated into HTML without encoding | `server/server.ts:1071` | Session hijacking if Easy Auth is misconfigured |
+| # | Finding | File | Impact | Status |
+|---|---------|------|--------|--------|
+| S1 | ~~**SSRF via `/api/fetch-url`** — accepts arbitrary URLs, can reach Azure IMDS (169.254.169.254) to steal managed identity tokens~~ | `server/fileIO.ts:714`, `server/server.ts:551` | Token theft, lateral movement | **DONE** (c056268) |
+| S2 | ~~**Unauthenticated WebSocket terminal** — `/ws/terminal` bypasses Easy Auth, gives shell access to any client~~ | `server/server.ts:1223-1238` | Remote code execution | **DONE** (c056268) |
+| S3 | ~~**Reflected XSS in FORBIDDEN_PAGE** — `principalName` header interpolated into HTML without encoding~~ | `server/server.ts:1071` | Session hijacking if Easy Auth is misconfigured | **DONE** (c056268) |
 
 **Fixes:**
-- S1: Restrict to `https://` only, reject RFC-1918/link-local addresses, add DNS rebind check
-- S2: Extract Easy Auth header check from HTTP handler, apply to WebSocket upgrade
-- S3: HTML-encode `<`, `>`, `"`, `'`, `&` before interpolation
+- ~~S1: Restrict to `https://` only, reject RFC-1918/link-local addresses, add DNS rebind check~~ — added `validateFetchUrl()` with private IP rejection, HTTPS enforcement, redirect validation
+- ~~S2: Extract Easy Auth header check from HTTP handler, apply to WebSocket upgrade~~ — added `isWebSocketAuthorized()` gate on `server.on('upgrade')`
+- ~~S3: HTML-encode `<`, `>`, `"`, `'`, `&` before interpolation~~ — added `escapeHtml()` to FORBIDDEN_PAGE
 
 ### Architecture
 
-| # | Finding | Scope | Impact |
-|---|---------|-------|--------|
-| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) |
-| A2 | **AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines) | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends |
+| # | Finding | Scope | Impact | Status |
+|---|---------|-------|--------|--------|
+| A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **IN PROGRESS** — `orchestration.ts` scaffolded with `runModeratorSelection()`, wiring into consumers pending |
+| A2 | **AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines) | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends | |
 
 **Fixes:**
-- A1: Extract `DebateOrchestrator` class with adapter interface (`generateText`, `computeQueryEmbedding`, `nliClassify`). Zustand store and CLI engine both delegate to it.
+- A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()`. Zustand store and CLI engine both delegate to it. *(Stage 1 scaffolded, wiring pending)*
 - A2: Extract `lib/ai-client/` shared package. Inject `fetch` as dependency. Eliminates ~1,500 lines.
 
 ### Performance
 
-| # | Finding | File | Impact |
-|---|---------|------|--------|
-| P1 | **QBAF computed 3x per turn** — `computeConvergenceSignals()` runs it internally, then it's run again for strength propagation, then again for GC | `useDebateStore.ts:725-769` | 67% wasted CPU on O(N*E*I) computation |
-| P2 | **10+ shallow clones per turn** — sequential `set({ activeDebate: { ...debate, ... } })` calls each copy the entire DebateSession and trigger React re-renders | `useDebateStore.ts:680-770` | Re-render storm, UI jank during turn processing |
+| # | Finding | File | Impact | Status |
+|---|---------|------|--------|--------|
+| P1 | ~~**QBAF computed 3x per turn** — `computeConvergenceSignals()` runs it internally, then it's run again for strength propagation, then again for GC~~ | `useDebateStore.ts:725-769` | 67% wasted CPU on O(N*E*I) computation | **DONE** (57eff97) |
+| P2 | ~~**10+ shallow clones per turn** — sequential `set({ activeDebate: { ...debate, ... } })` calls each copy the entire DebateSession and trigger React re-renders~~ | `useDebateStore.ts:680-770` | Re-render storm, UI jank during turn processing | **DONE** (57eff97) |
 
 **Fixes:**
-- P1: Compute QBAF once, pass result to convergence signals and GC
-- P2: Batch all mutations into a single `set()` call, or use Zustand's `immer` middleware
+- ~~P1: Compute QBAF once, pass result to convergence signals and GC~~ — added `precomputedStrengths` param to `computeConvergenceSignals()`
+- ~~P2: Batch all mutations into a single `set()` call~~ — collapsed 6 sequential `set()` calls into one batched update
 
 ---
 
@@ -62,12 +62,12 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 ### Security
 
-| # | Finding | File |
-|---|---------|------|
-| S4 | **Path traversal in fileIO** — `pov`, `claimId`, `id`, `docId` params used in file paths without sanitization (Electron IPC has these guards, server doesn't) | `server/fileIO.ts` (8 functions) |
-| S5 | **No request body size limit** — `readBody()` reads entire body into memory, 1 GB container RAM | `server/server.ts:902-912` |
-| S6 | **`webviewTag: true`** with user-controlled URLs — can load arbitrary external content | `main/main.ts:117` |
-| S7 | **Cookie missing `Secure` flag** — `auth_anonymous` sent over HTTP downgrades | `server/server.ts:1135` |
+| # | Finding | File | Status |
+|---|---------|------|--------|
+| S4 | ~~**Path traversal in fileIO** — `pov`, `claimId`, `id`, `docId` params used in file paths without sanitization (Electron IPC has these guards, server doesn't)~~ | `server/fileIO.ts` (15 functions) | **DONE** (c056268) |
+| S5 | ~~**No request body size limit** — `readBody()` reads entire body into memory, 1 GB container RAM~~ | `server/server.ts:902-912` | **DONE** (c056268) |
+| S6 | ~~**`webviewTag: true`** with user-controlled URLs — can load arbitrary external content~~ | `main/main.ts:117` | **DONE** (c056268) — `will-attach-webview` handler restricts to HTTPS |
+| S7 | ~~**Cookie missing `Secure` flag** — `auth_anonymous` sent over HTTP downgrades~~ | `server/server.ts:1135` | **DONE** (c056268) |
 
 ### Error Handling
 
@@ -187,23 +187,25 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 ## Recommended Prioritization
 
-### This week (security fixes)
-1. S1: SSRF URL validation
-2. S2: WebSocket auth gate
-3. S3: HTML-encode principalName
-4. S4: Path traversal guards in fileIO
-5. S5: Request body size limit
+### This week (security fixes) — **ALL DONE** + S6/S7 also fixed
+1. ~~S1: SSRF URL validation~~ — **DONE** (c056268)
+2. ~~S2: WebSocket auth gate~~ — **DONE** (c056268)
+3. ~~S3: HTML-encode principalName~~ — **DONE** (c056268)
+4. ~~S4: Path traversal guards in fileIO~~ — **DONE** (c056268)
+5. ~~S5: Request body size limit~~ — **DONE** (c056268)
+6. ~~S6: Webview URL restriction~~ — **DONE** (c056268)
+7. ~~S7: Cookie Secure flag~~ — **DONE** (c056268)
 
-### Next 2 weeks (stability)
-6. P1+P2: QBAF single-compute + batch Zustand mutations
+### Next 2 weeks (stability) — partially done
+6. ~~P1+P2: QBAF single-compute + batch Zustand mutations~~ — **DONE** (57eff97)
 7. E2: Add retry logic to non-Gemini backends
 8. T1: Tests for parseAIJson/repairJson (highest fragility)
 9. E4: Add timeoutMs to all generate() calls
 10. A4: Prune turn_embeddings, convergence_signals, diagnostics
 
-### Next month (architecture)
+### Next month (architecture) — A1 in progress
 11. A2: Extract shared AI client library (eliminates triple duplication + fixes retry gap)
-12. A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic)
+12. A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic) — **IN PROGRESS** (`orchestration.ts` scaffolded)
 13. T2-T4: Tests for debateEngine, phaseTransitions, aiAdapter
 14. P3: Add Zustand selectors to all 15+ unselectored components
 15. A3: Complete barrel exports
