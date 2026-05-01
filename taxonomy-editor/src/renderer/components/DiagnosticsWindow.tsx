@@ -21,6 +21,7 @@ import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
 import { useDebateStore } from '../hooks/useDebateStore';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { TaxonomyGapPanel } from './TaxonomyGapPanel';
+import { GroundingPanel } from './GroundingPanel';
 
 const DiagSearchContext = createContext('');
 
@@ -1226,7 +1227,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'adaptive';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
@@ -1410,13 +1411,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'adaptive'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'adaptive'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
             if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
             if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
             if (id === 'gaps') return !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0));
+            if (id === 'grounding') return debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0);
             return true;
           });
           const idx = visible.indexOf(overviewTab);
@@ -1511,6 +1513,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
               { id: 'reflections', label: 'Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
               { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
+              { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
             ];
             const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
@@ -1552,6 +1555,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {/* Taxonomy Gaps — post-debate coverage analysis */}
           {overviewTab === 'gaps' && (
             <TaxonomyGapPanel debate={debate} />
+          )}
+
+          {/* Taxonomy Grounding — which POV nodes are referenced and why */}
+          {overviewTab === 'grounding' && (
+            <GroundingPanel debate={debate} />
           )}
 
           {/* Adaptive Staging — signal telemetry, phase transitions, GC events */}

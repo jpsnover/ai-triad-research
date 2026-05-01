@@ -6,7 +6,7 @@ import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion, TranscriptEntry } from '../types/debate';
+import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate';
 import type { QbafNode, QbafEdge } from '@lib/debate';
@@ -1012,146 +1012,6 @@ function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteerToClaim
   );
 }
 
-/** Grounding section: sortable/filterable table of taxonomy nodes referenced in the debate.
- *  Select a row to see which statements used that node and the reasoning for each reference. */
-function GroundingSection({ activeDebate }: { activeDebate: { transcript: TranscriptEntry[]; argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } } }) {
-  const [sortCol, setSortCol] = useState<'count' | 'id' | 'label'>('count');
-  const [sortAsc, setSortAsc] = useState(false);
-  const [filter, setFilter] = useState('');
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-  const { accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
-
-  const labelMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const file of [accelerationist, safetyist, skeptic, situations]) {
-      if (!file?.nodes) continue;
-      for (const node of file.nodes) {
-        m.set(node.id, node.label);
-      }
-    }
-    return m;
-  }, [accelerationist, safetyist, skeptic, situations]);
-
-  type RefDetail = { entryId: string; speaker: string; relevance: string };
-  const { rows, detailMap } = useMemo(() => {
-    const counts = new Map<string, number>();
-    const details = new Map<string, RefDetail[]>();
-
-    for (const entry of activeDebate.transcript) {
-      if (!entry.taxonomy_refs || entry.taxonomy_refs.length === 0) continue;
-      for (const ref of entry.taxonomy_refs) {
-        const nid = ref.node_id;
-        counts.set(nid, (counts.get(nid) ?? 0) + 1);
-        if (!details.has(nid)) details.set(nid, []);
-        details.get(nid)!.push({
-          entryId: entry.id,
-          speaker: speakerLabel(entry.speaker),
-          relevance: ref.relevance ?? '',
-        });
-      }
-    }
-
-    const r = Array.from(counts.entries()).map(([id, count]) => ({
-      id,
-      label: labelMap.get(id) ?? id,
-      count,
-    }));
-
-    return { rows: r, detailMap: details };
-  }, [activeDebate.transcript, labelMap]);
-
-  const filtered = useMemo(() => {
-    let result = rows;
-    if (filter) {
-      const q = filter.toLowerCase();
-      result = result.filter(r => r.id.toLowerCase().includes(q) || r.label.toLowerCase().includes(q));
-    }
-    result.sort((a, b) => {
-      let cmp = 0;
-      if (sortCol === 'count') cmp = a.count - b.count;
-      else if (sortCol === 'id') cmp = a.id.localeCompare(b.id);
-      else cmp = a.label.localeCompare(b.label);
-      return sortAsc ? cmp : -cmp;
-    });
-    return result;
-  }, [rows, filter, sortCol, sortAsc]);
-
-  const handleSort = (col: typeof sortCol) => {
-    if (sortCol === col) setSortAsc(!sortAsc);
-    else { setSortCol(col); setSortAsc(col !== 'count'); }
-  };
-
-  const selectedDetails = selectedNodeId ? detailMap.get(selectedNodeId) ?? [] : [];
-
-  if (rows.length === 0) return null;
-
-  const sortArrow = (col: typeof sortCol) => sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : '';
-
-  return (
-    <CollapsibleSection title={`Taxonomy Grounding — ${rows.length} nodes referenced across ${activeDebate.transcript.filter(e => e.taxonomy_refs?.length > 0).length} statements`} defaultOpen>
-      <input
-        type="text"
-        placeholder="Filter by node ID or label..."
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-        className="grounding-filter"
-      />
-      <div className="grounding-table-wrap">
-        <table className="grounding-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort('id')} className="grounding-th-sortable">ID{sortArrow('id')}</th>
-              <th onClick={() => handleSort('label')} className="grounding-th-sortable">Label{sortArrow('label')}</th>
-              <th onClick={() => handleSort('count')} className="grounding-th-sortable grounding-th-count">Count{sortArrow('count')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(row => (
-              <tr
-                key={row.id}
-                className={`grounding-row ${selectedNodeId === row.id ? 'grounding-row-selected' : ''}`}
-                onClick={() => setSelectedNodeId(selectedNodeId === row.id ? null : row.id)}
-              >
-                <td className="grounding-cell-id">{row.id}</td>
-                <td className="grounding-cell-label">{row.label}</td>
-                <td className="grounding-cell-count">{row.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {selectedNodeId && selectedDetails.length > 0 && (
-        <div className="grounding-detail">
-          <div className="grounding-detail-header">
-            <span className="grounding-detail-id">{selectedNodeId}</span>
-            <span className="grounding-detail-label">{labelMap.get(selectedNodeId) ?? selectedNodeId}</span>
-            <span className="grounding-detail-count">{selectedDetails.length} reference{selectedDetails.length !== 1 ? 's' : ''}</span>
-          </div>
-          <table className="grounding-detail-table">
-            <thead>
-              <tr>
-                <th>Statement</th>
-                <th>Speaker</th>
-                <th>Reasoning</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedDetails.map((d, i) => (
-                <tr key={i}>
-                  <td className="grounding-detail-entry">{d.entryId}</td>
-                  <td className="grounding-detail-speaker">{d.speaker}</td>
-                  <td className="grounding-detail-relevance">{d.relevance || <span className="diag-muted">(none)</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </CollapsibleSection>
-  );
-}
-
 function OverviewView() {
   const { activeDebate, askQuestion, debateGenerating } = useDebateStore();
   if (!activeDebate) return null;
@@ -1194,9 +1054,6 @@ function OverviewView() {
       {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} strengthWeighted={strengthWeighted} onSteerToClaim={debateGenerating ? undefined : (claimText) => {
         askQuestion(`What is your perspective on the claim that ${claimText}?`);
       }} />}
-
-      {/* Taxonomy Grounding — which POV nodes are used and why */}
-      <GroundingSection activeDebate={activeDebate} />
 
       {/* Argument Network */}
       {an && an.nodes.length > 0 && (() => {
