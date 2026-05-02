@@ -18,6 +18,7 @@ import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import type { DebateSession } from '../types/debate';
+import { ParameterHistoryPanel } from './ParameterHistoryPanel';
 import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -413,6 +414,7 @@ function DebateDetailSummary({
   onExport: (format: string) => void;
   exportStatus: string | null;
 }) {
+  const [showCalibration, setShowCalibration] = useState(false);
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
   const turnCount = debate.transcript?.length ?? 0;
   const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
@@ -433,8 +435,15 @@ function DebateDetailSummary({
         </button>
         <button className="btn" onClick={() => onExport('json')}>Export JSON</button>
         <button className="btn" onClick={() => onExport('markdown')}>Export Markdown</button>
+        <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
+          Calibration
+        </button>
         {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
       </div>
+
+      {showCalibration && (
+        <ParameterHistoryPanel onClose={() => setShowCalibration(false)} />
+      )}
 
       {/* Debaters — full width */}
       <div className="debate-detail-debaters-row">

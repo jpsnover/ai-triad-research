@@ -209,7 +209,22 @@ export const api: AppAPI = {
   setDataRoot: (newRoot) => post('/api/data/set-root', { newRoot }),
   pickDirectory: () => Promise.resolve({ cancelled: true }),
   checkDataUpdates: () => post('/api/data/check-updates'),
-  pullDataUpdates: () => post('/api/data/pull'),
+  pullDataUpdates: async () => {
+    // This endpoint streams heartbeats + progress lines to prevent proxy timeouts.
+    // The final non-empty line is the JSON result.
+    const res = await fetch('/api/data/pull', { method: 'POST' });
+    const text = await res.text();
+    const lines = text.split('\n').filter(l => l.trim() && !l.startsWith('progress:'));
+    if (lines.length === 0) {
+      throw new ActionableError({
+        goal: 'Pull data updates',
+        problem: 'Server returned no result',
+        location: 'web-bridge.pullDataUpdates',
+        nextSteps: ['Check the server logs', 'Try again'],
+      });
+    }
+    return JSON.parse(lines[lines.length - 1]);
+  },
 
   // AI models & keys
   loadAIModels: () => get('/api/models'),
@@ -331,6 +346,9 @@ export const api: AppAPI = {
   // PowerShell prompts
   readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
+
+  // Calibration
+  getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
 
   // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
   openDiagnosticsWindow: async () => {

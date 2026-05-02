@@ -42,6 +42,7 @@ export interface ElectronAPI {
   harvestUpdateSteelman: (nodeId: string, attackerPov: string, newText: string) => Promise<{ updated: boolean }>;
   harvestAddVerdict: (conflictId: string, verdict: Record<string, unknown>) => Promise<{ updated: boolean }>;
   harvestQueueConcept: (concept: Record<string, unknown>) => Promise<{ queued: boolean }>;
+  getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
   openDiagnosticsWindow: () => Promise<void>;
   openPovProgressionWindow: () => Promise<void>;
   closeDiagnosticsWindow: () => Promise<void>;

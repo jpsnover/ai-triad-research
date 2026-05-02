@@ -265,6 +265,17 @@ post('/api/data/check-updates', async (_req, res) => {
 });
 
 post('/api/data/pull', async (_req, res) => {
+  // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
+  // returning 504 "stream timeout" during long-running git operations.
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+  });
+
+  const heartbeat = setInterval(() => { res.write('\n'); }, 15_000);
+  const progress = (msg: string) => { res.write(`progress: ${msg}\n`); };
+
   try {
     const dataRoot = getDataRoot();
     const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
@@ -281,6 +292,7 @@ post('/api/data/pull', async (_req, res) => {
 
     gitStore.clearStaleLockFile(dataRoot);
     console.log('[data-pull] Starting pull in', dataRoot);
+    progress('Starting data update...');
 
     // Fix: Strip stale tokens from origin URL to avoid 401 on expired GitHub App tokens.
     // Public repos work fine with plain HTTPS; embedded tokens cause auth failures when expired.
@@ -312,16 +324,21 @@ post('/api/data/pull', async (_req, res) => {
     await runGit(['checkout', '--', '.']).catch(() => { /* no tracked changes */ });
     await runGit(['clean', '-fd']).catch(() => { /* no untracked files */ });
 
+    progress('Fetching updates from GitHub...');
     console.log('[data-pull] Fetching origin...');
     await runGit(['fetch', 'origin'], 600_000);
+    progress('Applying updates...');
     console.log('[data-pull] Resetting to origin/main...');
     await runGit(['reset', '--hard', 'origin/main'], 600_000);
     console.log('[data-pull] Success');
-    json(res, { success: true, message: 'Data updated.' });
+    res.write(JSON.stringify({ success: true, message: 'Data updated.' }) + '\n');
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[data-pull] FAILED:', msg);
-    json(res, { success: false, message: msg }, 500);
+    res.write(JSON.stringify({ success: false, message: msg }) + '\n');
+  } finally {
+    clearInterval(heartbeat);
+    res.end();
   }
 });
 

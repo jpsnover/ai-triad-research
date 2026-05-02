@@ -133,6 +133,9 @@ export interface AppAPI {
   readPsPrompt: (promptName: string) => Promise<{ text: string | null; error?: string }>;
   listPsPrompts: () => Promise<string[]>;
 
+  // --- Calibration ---
+  getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
+
   // --- Diagnostics ---
   openDiagnosticsWindow: () => Promise<void>;
   openPovProgressionWindow: () => Promise<void>;

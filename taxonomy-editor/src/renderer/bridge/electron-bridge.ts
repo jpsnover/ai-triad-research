@@ -100,6 +100,9 @@ export const api: AppAPI = {
   readPsPrompt: (name) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).readPsPrompt(name) as Promise<{ text: string | null; error?: string }>,
   listPsPrompts: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).listPsPrompts() as Promise<string[]>,
 
+  // Calibration
+  getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
+
   // Diagnostics
   openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),

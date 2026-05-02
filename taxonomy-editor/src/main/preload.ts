@@ -116,6 +116,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   harvestQueueConcept: (concept: Record<string, unknown>): Promise<{ queued: boolean }> =>
     ipcRenderer.invoke('harvest-queue-concept', concept),
 
+  // Calibration
+  getCalibrationHistory: (): Promise<{ current: unknown; history: unknown[] }> =>
+    ipcRenderer.invoke('get-calibration-history'),
+
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
   openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),

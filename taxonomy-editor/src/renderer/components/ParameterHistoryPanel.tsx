@@ -123,12 +123,10 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
   useEffect(() => {
     (async () => {
       try {
-        // Try server API first (Azure/web), fall back to empty
-        const resp = await (api as any).fetchJson?.('/api/calibration/history')
-          ?? await fetch('/api/calibration/history').then(r => r.json()).catch(() => null);
-        if (resp) {
-          setCurrent(resp.current);
-          setHistory(resp.history ?? []);
+        const resp = await api.getCalibrationHistory();
+        if (resp?.current) {
+          setCurrent(resp.current as ParameterSnapshot);
+          setHistory((resp.history ?? []) as ParameterHistoryEntry[]);
         }
       } catch { /* no data available */ }
       setLoading(false);

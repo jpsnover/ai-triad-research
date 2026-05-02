@@ -328,7 +328,7 @@ $QueueBlock
         -Model       $Model `
         -ApiKey      $ApiKey `
         -Temperature $Temperature `
-        -MaxTokens   16384 `
+        -MaxTokens   65536 `
         -JsonMode `
         -TimeoutSec  600
 

@@ -763,6 +763,18 @@ export function registerIpcHandlers(): void {
     return { cancelled: false, filePath, content };
   });
 
+  ipcMain.handle('get-calibration-history', async () => {
+    try {
+      const { readParameterHistory, captureSnapshot } = await import('../../../lib/debate/calibrationLogger.js');
+      const dataRoot = getDataRootPath();
+      const history = readParameterHistory(dataRoot);
+      const current = captureSnapshot();
+      return { current, history };
+    } catch {
+      return { current: null, history: [] };
+    }
+  });
+
   ipcMain.handle('pick-directory', async (_event, defaultPath?: string) => {
     const win = BrowserWindow.getFocusedWindow();
     if (!win) return { cancelled: true };
