@@ -91,6 +91,9 @@ GEMINI.local.md
 # Orca: generated sub-agent files (t/897)
 **/.claude/agents/
 **/.gemini/agents/
+**/.codex/agents/
+**/.github/agents/
+**/.factory/droids/
 tmp/
 
 # One-off audit/report artifacts
