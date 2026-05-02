@@ -17,6 +17,7 @@ import {
   withTimeout,
   resolveBackend,
   GEMINI_BASE,
+  GEMINI_SAFETY_SETTINGS,
   buildModelIdMap,
   getApiModelId,
   callProvider,
@@ -644,6 +645,7 @@ export async function generateChatStream(
       temperature: temperature ?? 0.3,
       maxOutputTokens: 16384,
     },
+    safetySettings: GEMINI_SAFETY_SETTINGS,
   });
   const response = await net.fetch(url, {
     method: 'POST',
@@ -815,6 +817,7 @@ export async function generateTextWithSearch(
       temperature: 0.2,
       maxOutputTokens: 16384,
     },
+    safetySettings: GEMINI_SAFETY_SETTINGS,
   });
   const response = await withTimeout(
     electronFetch(url, {

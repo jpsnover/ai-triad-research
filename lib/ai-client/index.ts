@@ -6,7 +6,7 @@ export type { ModelEntry, ModelRegistry } from './registry';
 export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId } from './registry';
 export { withTimeout, withRetry, retryableFetch, parseRateLimitType, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry';
 export type { RetryConfig } from './retry';
-export { generateViaGemini, GEMINI_BASE, toGeminiSchema } from './providers/gemini';
+export { generateViaGemini, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema } from './providers/gemini';
 export { generateViaClaude } from './providers/claude';
 export { generateViaGroq } from './providers/groq';
 export { generateViaOpenAI } from './providers/openai';

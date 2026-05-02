@@ -4,7 +4,7 @@
 import { ActionableError } from '../../debate/errors';
 import { withTimeout } from '../retry';
 import type { FetchFn } from '../types';
-import { GEMINI_BASE } from './gemini';
+import { GEMINI_BASE, GEMINI_SAFETY_SETTINGS } from './gemini';
 
 export interface GroundingSegment {
   startIndex: number;
@@ -41,6 +41,7 @@ export async function geminiGroundedSearch(
         contents: [{ parts: [{ text: prompt }] }],
         tools: [{ google_search: {} }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 16384 },
+        safetySettings: GEMINI_SAFETY_SETTINGS,
       }),
     }),
     60_000,

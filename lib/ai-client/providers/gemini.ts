@@ -7,6 +7,18 @@ import type { FetchFn, GenerateOptions, ProviderResult } from '../types';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+/**
+ * Safety settings for all Gemini API calls. BLOCK_ONLY_HIGH allows legitimate
+ * academic content about AI harm, risk, and weaponization while still blocking
+ * clearly harmful content. Exported for use by consumer apps (t/208).
+ */
+export const GEMINI_SAFETY_SETTINGS = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+];
+
 const GEMINI_TYPE_MAP: Record<string, string> = {
   string: 'STRING', number: 'NUMBER', integer: 'INTEGER',
   boolean: 'BOOLEAN', array: 'ARRAY', object: 'OBJECT',
@@ -56,6 +68,7 @@ export async function generateViaGemini(
   const body: Record<string, unknown> = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: genConfig,
+    safetySettings: GEMINI_SAFETY_SETTINGS,
   };
   if (opts.systemMessage) {
     body.systemInstruction = { parts: [{ text: opts.systemMessage }] };
