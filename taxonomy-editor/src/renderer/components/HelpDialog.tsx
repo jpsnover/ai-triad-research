@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '@bridge';
 
 declare const __APP_VERSION__: string;
@@ -61,6 +61,54 @@ interface HelpDialogProps {
 
 export function HelpDialog({ onClose }: HelpDialogProps) {
   const [activeTab, setActiveTab] = useState<HelpTab>('about');
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [size, setSize] = useState({ w: 700, h: 480 });
+  const [centered, setCentered] = useState(true);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const resizing = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null);
+
+  // Center on first render
+  useEffect(() => {
+    if (centered) {
+      setPos({ x: (window.innerWidth - size.w) / 2, y: (window.innerHeight - size.h) / 2 });
+    }
+  }, [centered, size.w, size.h]);
+
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, a, table, ul, p')) return;
+    e.preventDefault();
+    setCentered(false);
+    dragging.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      setPos({
+        x: dragging.current.origX + (ev.clientX - dragging.current.startX),
+        y: dragging.current.origY + (ev.clientY - dragging.current.startY),
+      });
+    };
+    const onUp = () => { dragging.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [pos]);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCentered(false);
+    resizing.current = { startX: e.clientX, startY: e.clientY, origW: size.w, origH: size.h };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      setSize({
+        w: Math.max(400, resizing.current.origW + (ev.clientX - resizing.current.startX)),
+        h: Math.max(300, resizing.current.origH + (ev.clientY - resizing.current.startY)),
+      });
+    };
+    const onUp = () => { resizing.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [size]);
+
   const buildDate = new Date(__BUILD_DATE__);
   const formattedDate = buildDate.toLocaleDateString(undefined, {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -70,8 +118,16 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()} style={{ width: 700, height: 480, display: 'flex', flexDirection: 'column' }}>
-        <h3 style={{ margin: '0 0 12px' }}>Taxonomy Editor Help</h3>
+      <div
+        ref={dialogRef}
+        className="dialog help-dialog"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: size.w, height: size.h, display: 'flex', flexDirection: 'column',
+          position: 'fixed', left: pos.x, top: pos.y, margin: 0,
+        }}
+      >
+        <h3 style={{ margin: '0 0 12px', cursor: 'move', userSelect: 'none' }} onMouseDown={onDragStart}>Taxonomy Editor Help</h3>
 
         <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)', paddingRight: 12, marginRight: 12 }}>
@@ -210,6 +266,19 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
 
         <div className="dialog-actions">
           <button className="btn btn-primary" onClick={onClose}>Close</button>
+        </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={onResizeStart}
+          style={{
+            position: 'absolute', right: 0, bottom: 0, width: 16, height: 16,
+            cursor: 'nwse-resize', opacity: 0.4,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" style={{ display: 'block' }}>
+            <path d="M14 14L8 14M14 14L14 8M14 14L5 5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
         </div>
       </div>
     </div>
