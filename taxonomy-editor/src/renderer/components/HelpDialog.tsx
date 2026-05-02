@@ -70,10 +70,10 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>Taxonomy Editor Help</h3>
+      <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()} style={{ width: 700, height: 480, display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ margin: '0 0 12px' }}>Taxonomy Editor Help</h3>
 
-        <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
+        <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)', paddingRight: 12, marginRight: 12 }}>
             {TABS.map(t => (
               <button
