@@ -91,6 +91,33 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
         </div>
 
         <div className="help-section">
+          <h4>Methods and Algorithms</h4>
+          <p>
+            The system uses a <strong>neural-symbolic architecture</strong>: LLMs generate
+            content while symbolic components provide structure, verification, and explanation.
+          </p>
+          <ul style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
+            <li><strong>QBAF</strong> — Quantitative Bipolar Argumentation Frameworks with DF-QuAD gradual semantics and BDI-aware base score calibration</li>
+            <li><strong>FIRE</strong> — Confidence-gated Iterative Extraction replacing single-shot claim extraction with per-claim verification</li>
+            <li><strong>4-Stage Pipeline</strong> — Each debate turn: BRIEF → PLAN → DRAFT → CITE with per-stage temperatures</li>
+            <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics trigger phase transitions (thesis-antithesis → exploration → synthesis)</li>
+            <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes with scheme-specific critical questions</li>
+            <li><strong>14-Move Moderator</strong> — Six intervention families; LLM recommends, engine validates against deterministic constraints</li>
+            <li><strong>Dialectic Traces</strong> — BFS traversal of the argument network producing human-readable narrative chains</li>
+          </ul>
+          <p>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); api.openExternal(`${REPO_URL}/blob/main/docs/academic-paper-draft.md`); }}
+              style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              <strong>Full Methodology Paper</strong>
+            </a>
+            {' — '}Complete technical paper with algorithms, evaluation, and theoretical grounding
+          </p>
+        </div>
+
+        <div className="help-section">
           <h4>Documentation</h4>
           {DOCS.map((doc) => (
             <p key={doc.path}>
