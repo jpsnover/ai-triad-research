@@ -13,7 +13,6 @@ import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
 import { ReflectionsPanel } from './ReflectionsPanel';
 // DiagnosticsPanel removed — diagnostics always uses popup window
-import { ConvergencePanel } from './ConvergenceRadar';
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { AI_POVERS } from '@lib/debate/types';
@@ -1956,7 +1955,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
-  const [showConvergence, setShowConvergence] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSimilarPovSearch = useCallback((query: string) => {
@@ -2129,15 +2127,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <div className="debate-toolbar">
-        {activeDebate.convergence_tracker && activeDebate.convergence_tracker.issues.length > 0 && (
-          <button
-            className={`btn btn-sm debate-convergence-btn${showConvergence ? ' active' : ''}`}
-            onClick={() => setShowConvergence(!showConvergence)}
-            title="Toggle convergence radar chart"
-          >
-            Convergence
-          </button>
-        )}
         <button
           className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
           onClick={toggleDiagnostics}
@@ -2302,11 +2291,6 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {isOpeningPhase && <OpeningActions />}
 
       {isDebatePhase && <DebateActions />}
-
-      {/* Convergence radar panel */}
-      {showConvergence && activeDebate.convergence_tracker && (
-        <ConvergencePanel tracker={activeDebate.convergence_tracker} />
-      )}
 
       {/* Neutral evaluation panel — shown when evaluations exist */}
       {activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (

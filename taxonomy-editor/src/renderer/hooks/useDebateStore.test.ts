@@ -112,7 +112,6 @@ vi.mock('@lib/debate/documentAnalysis', () => ({
 
 vi.mock('../utils/convergenceScoring', () => ({
   updateConvergenceTracker: vi.fn().mockReturnValue(undefined),
-  swapIssue: vi.fn().mockReturnValue(undefined),
 }));
 
 vi.mock('../utils/taxonomyRelevance', () => ({
@@ -1411,17 +1410,6 @@ describe('compressOldTranscript guards', () => {
 
     // Should not call AI since < 12 entries
     expect(mockApi.generateText).not.toHaveBeenCalled();
-  });
-});
-
-// ── 21. Convergence issue swap ──────────────────────────────
-
-describe('swapConvergenceIssue', () => {
-  it('does nothing when convergence_tracker is absent', () => {
-    useDebateStore.setState({ activeDebate: makeSession() as any });
-
-    // Should not throw
-    useDebateStore.getState().swapConvergenceIssue('remove-id', 'add-ref', 'Add Label');
   });
 });
 

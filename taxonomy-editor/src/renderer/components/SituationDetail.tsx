@@ -14,6 +14,7 @@ import { GraphAttributesPanel } from './GraphAttributesPanel';
 import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
+import { SituationDebatePanel } from './SituationDebatePanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { api } from '@bridge';
 
@@ -26,7 +27,7 @@ interface SituationDetailProps {
   chipDepth?: number;
 }
 
-type SitTab = 'overview' | 'attributes' | 'sources' | 'research' | 'accelerationist' | 'safetyist' | 'skeptic';
+type SitTab = 'overview' | 'attributes' | 'accelerationist' | 'safetyist' | 'skeptic' | 'debate' | 'sources' | 'research';
 
 const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
@@ -34,6 +35,7 @@ const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'accelerationist', label: 'Accelerationist', color: 'var(--color-acc)' },
   { id: 'safetyist', label: 'Safetyist', color: 'var(--color-saf)' },
   { id: 'skeptic', label: 'Skeptic', color: 'var(--color-skp)' },
+  { id: 'debate', label: 'Debate', color: 'var(--color-sit)' },
   { id: 'sources', label: 'Sources', color: 'var(--text-primary)' },
   { id: 'research', label: 'Research', color: 'var(--text-primary)' },
 ];
@@ -347,6 +349,10 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               spellCheck={false}
             />
           </div>
+        )}
+
+        {activeTab === 'debate' && (
+          <SituationDebatePanel node={node} onLaunched={() => {}} />
         )}
 
         {(activeTab === 'accelerationist' || activeTab === 'safetyist' || activeTab === 'skeptic') && (

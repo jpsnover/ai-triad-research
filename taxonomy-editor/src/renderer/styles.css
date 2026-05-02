@@ -6771,6 +6771,48 @@ body {
   flex-shrink: 0;
 }
 
+/* ─── Situation Debate Panel ────────────────────────── */
+.sit-debate-panel { padding: 0 4px; }
+.sit-debate-section-title { font-size: 0.85rem; font-weight: 600; margin: 0 0 8px; color: var(--text-primary); }
+.sit-debate-desc { font-size: 0.78rem; color: var(--text-muted); margin: 0 0 12px; line-height: 1.4; }
+.sit-debate-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.sit-debate-debaters { display: flex; flex-wrap: wrap; gap: 6px; }
+.sit-debate-debater { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-primary); font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+.sit-debate-debater:hover { border-color: var(--color-sit); }
+.sit-debate-debater.active { background: color-mix(in srgb, var(--color-sit) 12%, var(--bg-secondary)); border-color: var(--color-sit); }
+.sit-debate-debater input { display: none; }
+.sit-debate-debater-name { font-weight: 600; color: var(--text-primary); }
+.sit-debate-debater-pov { color: var(--text-muted); font-size: 0.7rem; }
+
+.sit-debate-format-row, .sit-debate-pacing-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.sit-debate-format-opt, .sit-debate-pacing-opt { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-primary); font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+.sit-debate-format-opt:hover, .sit-debate-pacing-opt:hover { border-color: var(--color-sit); }
+.sit-debate-format-opt.active, .sit-debate-pacing-opt.active { background: color-mix(in srgb, var(--color-sit) 12%, var(--bg-secondary)); border-color: var(--color-sit); font-weight: 600; }
+.sit-debate-format-opt input, .sit-debate-pacing-opt input { display: none; }
+
+.sit-debate-model { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sit-debate-model-toggle { font-size: 0.78rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.sit-debate-model-select { font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary); max-width: 220px; }
+.sit-debate-model-current { font-size: 0.75rem; color: var(--text-muted); }
+
+.sit-debate-adaptive { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; cursor: pointer; margin-top: 8px; }
+.sit-debate-badge { font-size: 0.65rem; background: #f59e0b; color: #000; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+
+.sit-debate-advanced-toggle { background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; padding: 6px 0; }
+.sit-debate-advanced-toggle:hover { color: var(--text-primary); }
+.sit-debate-advanced { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.sit-debate-advanced input[type="range"] { width: 100%; }
+.sit-debate-audience-select { font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary); }
+
+.sit-debate-launch { margin-top: 16px; width: 100%; }
+
+.sit-debate-history { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-primary); }
+.sit-debate-history-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.sit-debate-history-item { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer; color: var(--text-primary); }
+.sit-debate-history-item:hover { border-color: var(--color-sit); background: color-mix(in srgb, var(--color-sit) 8%, var(--bg-secondary)); }
+.sit-debate-history-id { font-family: var(--font-mono, monospace); }
+
 /* ─── Diagnostics Panel ──────────────────────────────── */
 .debate-diag-btn.active {
   background: color-mix(in srgb, #f59e0b 20%, var(--bg-secondary));
@@ -6783,138 +6825,6 @@ body {
   border-radius: 8px;
   cursor: pointer;
 }
-/* ─── Convergence Radar Panel ─────────────────────── */
-.convergence-panel {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
-}
-.convergence-panel-header {
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.8rem;
-}
-.convergence-panel-title {
-  font-weight: 600;
-}
-.convergence-panel-avg {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  margin-left: auto;
-}
-.convergence-panel-body {
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-.convergence-radar-empty {
-  padding: 16px;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  text-align: center;
-}
-.convergence-radar-svg {
-  display: block;
-  width: 100%;
-  max-width: 400px;
-  height: auto;
-}
-.convergence-grid-circle {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 0.5;
-}
-.convergence-axis-line {
-  stroke: var(--border);
-  stroke-width: 0.5;
-}
-.convergence-ghost-polygon {
-  fill: var(--accent);
-  fill-opacity: 0.06;
-  stroke: var(--accent);
-  stroke-opacity: 0.2;
-  stroke-width: 1;
-  stroke-dasharray: 3 2;
-}
-.convergence-polygon {
-  fill: var(--accent);
-  fill-opacity: 0.15;
-  stroke: var(--accent);
-  stroke-width: 1.5;
-}
-.convergence-point {
-  fill: var(--accent);
-  cursor: pointer;
-  transition: r 0.15s;
-}
-.convergence-point.hovered {
-  fill: var(--accent-hover, var(--accent));
-}
-.convergence-label {
-  font-size: 10px;
-  fill: var(--text-muted);
-  cursor: pointer;
-}
-.convergence-label.hovered {
-  fill: var(--text-primary);
-  font-weight: 600;
-}
-.convergence-center-label {
-  font-size: 18px;
-  font-weight: 700;
-  fill: var(--accent);
-}
-.convergence-swap {
-  width: 100%;
-  padding: 6px 0;
-  font-size: 0.75rem;
-}
-.convergence-swap-label {
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-.convergence-swap-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.convergence-swap-pill {
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-.convergence-swap-pill:hover {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-.convergence-swap-cancel {
-  margin-top: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.convergence-overflow {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-.debate-convergence-btn.active {
-  background: var(--accent);
-  color: white;
-}
-
 .diagnostics-panel-wrapper {
   position: relative;
   flex-shrink: 0;

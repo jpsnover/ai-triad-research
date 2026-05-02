@@ -24,7 +24,7 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDi
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
-import { updateConvergenceTracker, swapIssue } from '../utils/convergenceScoring';
+import { updateConvergenceTracker } from '../utils/convergenceScoring';
 import {
   clarificationPrompt,
   situationClarificationPrompt,
@@ -1512,7 +1512,6 @@ interface DebateStore {
   toggleDiagnostics: () => void;
   selectDiagEntry: (entryId: string | null) => void;
   setDiagPopoutOpen: (open: boolean) => void;
-  swapConvergenceIssue: (removeId: string, addTaxonomyRef: string, addLabel: string) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
@@ -1656,23 +1655,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       try { api.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
       set({ diagPopoutOpen: false });
     }
-  },
-
-  swapConvergenceIssue: (removeId, addTaxonomyRef, addLabel) => {
-    const debate = get().activeDebate;
-    if (!debate?.convergence_tracker || !debate.argument_network) return;
-    const turn = debate.argument_network.nodes.length;
-    const ct = swapIssue(
-      debate.convergence_tracker,
-      removeId,
-      addTaxonomyRef,
-      addLabel,
-      debate.argument_network,
-      debate.commitments || {},
-      turn,
-    );
-    set({ activeDebate: { ...debate, convergence_tracker: ct } });
-    get().saveDebate();
   },
 
   selectDiagEntry: (entryId) => {

@@ -282,15 +282,30 @@ post('/api/data/pull', async (_req, res) => {
     gitStore.clearStaleLockFile(dataRoot);
     console.log('[data-pull] Starting pull in', dataRoot);
 
-    // Log remote URL for diagnostics (redact tokens)
-    const remoteUrl = await runGit(['remote', 'get-url', 'origin']);
+    // Fix: Strip stale tokens from origin URL to avoid 401 on expired GitHub App tokens.
+    // Public repos work fine with plain HTTPS; embedded tokens cause auth failures when expired.
+    let remoteUrl = await runGit(['remote', 'get-url', 'origin']);
     console.log('[data-pull] Remote URL:', remoteUrl.replace(/:\/\/[^@]+@/, '://<redacted>@'));
+
+    if (remoteUrl.includes('x-access-token:')) {
+      const cleanUrl = remoteUrl.replace(/:\/\/x-access-token:[^@]+@/, '://');
+      console.log('[data-pull] Stripping stale token from origin URL');
+      await runGit(['remote', 'set-url', 'origin', cleanUrl]);
+      remoteUrl = cleanUrl;
+    }
 
     // If remote is SSH, convert to HTTPS for public repo access without keys
     if (remoteUrl.startsWith('git@github.com:')) {
       const httpsUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '.git');
       console.log('[data-pull] Converting SSH remote to HTTPS:', httpsUrl);
       await runGit(['remote', 'set-url', 'origin', httpsUrl]);
+    }
+
+    // Ensure we're on main before resetting — avoid clobbering a session branch
+    const currentBranch = await runGit(['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => 'unknown');
+    if (currentBranch !== 'main') {
+      console.log(`[data-pull] On branch '${currentBranch}', switching to main first`);
+      await runGit(['checkout', 'main']);
     }
 
     // Discard any local changes — web deployment treats data as read-only
@@ -306,7 +321,7 @@ post('/api/data/pull', async (_req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[data-pull] FAILED:', msg);
-    json(res, { success: false, message: msg });
+    json(res, { success: false, message: msg }, 500);
   }
 });
 
