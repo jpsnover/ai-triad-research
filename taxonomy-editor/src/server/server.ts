@@ -267,8 +267,8 @@ post('/api/data/check-updates', async (_req, res) => {
 post('/api/data/pull', async (_req, res) => {
   try {
     const dataRoot = getDataRoot();
-    const runGit = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
-      execFile('git', args, { cwd: dataRoot, timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
+      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) {
           console.error(`[data-pull] git ${args.join(' ')} failed:`, err.message, stderr);
           reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
@@ -313,9 +313,9 @@ post('/api/data/pull', async (_req, res) => {
     await runGit(['clean', '-fd']).catch(() => { /* no untracked files */ });
 
     console.log('[data-pull] Fetching origin...');
-    await runGit(['fetch', 'origin']);
+    await runGit(['fetch', 'origin'], 600_000);
     console.log('[data-pull] Resetting to origin/main...');
-    await runGit(['reset', '--hard', 'origin/main']);
+    await runGit(['reset', '--hard', 'origin/main'], 600_000);
     console.log('[data-pull] Success');
     json(res, { success: true, message: 'Data updated.' });
   } catch (err) {

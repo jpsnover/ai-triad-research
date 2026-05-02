@@ -17,6 +17,7 @@ import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
+import { DebatePopoutWindow } from './components/DebatePopoutWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 
@@ -94,6 +95,9 @@ export function App() {
   }
   if (window.location.hash === '#pov-progression-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PovProgressionWindow /></ErrorBoundary>;
+  }
+  if (window.location.hash.startsWith('#debate-window')) {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DebatePopoutWindow /></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app

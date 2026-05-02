@@ -49,6 +49,10 @@ export interface ElectronAPI {
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
+  openDebateWindow: (debateId: string) => Promise<void>;
+  closeDebateWindow: () => Promise<void>;
+  onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;
+  onDebatePopoutClosed: (callback: () => void) => () => void;
   harvestSaveManifest: (manifest: Record<string, unknown>) => Promise<{ saved: boolean }>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{ results: Array<{ nli_label: string; nli_entailment: number; nli_neutral: number; nli_contradiction: number; margin: number }> }>;
   startChatStream: (systemInstruction: string, messages: { role: 'user' | 'model'; content: string }[], model?: string, temperature?: number) => Promise<string>;

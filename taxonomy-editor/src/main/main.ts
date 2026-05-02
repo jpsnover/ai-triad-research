@@ -19,6 +19,7 @@ console.log('[main] fileIO import OK');
 let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
 let povProgWindow: BrowserWindow | null = null;
+let debateWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
 const FOCUS_PORT = 17862;
@@ -349,6 +350,52 @@ app.whenReady().then(() => {
     povProgWindow.on('closed', () => {
       povProgWindow = null;
     });
+  });
+
+  // Debate popout window
+  ipcMain.handle('open-debate-window', (_event, debateId: string) => {
+    if (debateWindow && !debateWindow.isDestroyed()) {
+      // Reuse existing window — send the new debate ID
+      debateWindow.webContents.send('debate-window-load', debateId);
+      debateWindow.focus();
+      return;
+    }
+    const preloadPath = path.join(__dirname, 'preload.js');
+    debateWindow = new BrowserWindow({
+      width: 1100,
+      height: 800,
+      minWidth: 700,
+      minHeight: 500,
+      title: 'Debate',
+      alwaysOnTop: false,
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    const isDev = !app.isPackaged;
+    if (isDev) {
+      debateWindow.loadURL('http://localhost:5173#debate-window');
+    } else {
+      debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'debate-window' });
+    }
+    // Send debate ID once the renderer is ready
+    debateWindow.webContents.once('did-finish-load', () => {
+      debateWindow?.webContents.send('debate-window-load', debateId);
+    });
+    debateWindow.on('closed', () => {
+      debateWindow = null;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('debate-popout-closed');
+      }
+    });
+  });
+
+  ipcMain.handle('close-debate-window', () => {
+    if (debateWindow && !debateWindow.isDestroyed()) {
+      debateWindow.close();
+    }
   });
 });
 

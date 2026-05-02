@@ -120,6 +120,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
   openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
+
+  // Debate popout window
+  openDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('open-debate-window', debateId),
+  closeDebateWindow: (): Promise<void> => ipcRenderer.invoke('close-debate-window'),
+  onDebateWindowLoad: (callback: (debateId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, debateId: string) => callback(debateId);
+    ipcRenderer.on('debate-window-load', listener);
+    return () => { ipcRenderer.removeListener('debate-window-load', listener); };
+  },
+  onDebatePopoutClosed: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('debate-popout-closed', listener);
+    return () => { ipcRenderer.removeListener('debate-popout-closed', listener); };
+  },
   sendDiagnosticsState: (state: unknown): void => ipcRenderer.send('diagnostics-state-update', state),
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);

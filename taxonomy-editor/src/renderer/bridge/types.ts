@@ -136,6 +136,10 @@ export interface AppAPI {
   openPovProgressionWindow: () => Promise<void>;
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
+
+  // --- Debate popout ---
+  openDebateWindow: (debateId: string) => Promise<void>;
+  closeDebateWindow: () => Promise<void>;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
 
   // --- Terminal ---
@@ -158,6 +162,8 @@ export interface AppAPI {
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
+  onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;
+  onDebatePopoutClosed: (callback: () => void) => () => void;
   onGenerateTextProgress: (callback: (progress: {
     attempt: number;
     maxRetries: number;

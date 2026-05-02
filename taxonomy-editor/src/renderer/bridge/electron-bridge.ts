@@ -103,6 +103,10 @@ export const api: AppAPI = {
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),
   closeDiagnosticsWindow: () => window.electronAPI.closeDiagnosticsWindow(),
   sendDiagnosticsState: (s) => window.electronAPI.sendDiagnosticsState(s),
+
+  // Debate popout
+  openDebateWindow: (id) => window.electronAPI.openDebateWindow(id),
+  closeDebateWindow: () => window.electronAPI.closeDebateWindow(),
   getCliFileArg: () => window.electronAPI.getCliFileArg(),
 
   // Terminal
@@ -125,6 +129,8 @@ export const api: AppAPI = {
   // Event listeners
   onDiagnosticsStateUpdate: (cb) => window.electronAPI.onDiagnosticsStateUpdate(cb),
   onDiagnosticsPopoutClosed: (cb) => window.electronAPI.onDiagnosticsPopoutClosed(cb),
+  onDebateWindowLoad: (cb) => window.electronAPI.onDebateWindowLoad(cb),
+  onDebatePopoutClosed: (cb) => window.electronAPI.onDebatePopoutClosed(cb),
   onGenerateTextProgress: (cb) => window.electronAPI.onGenerateTextProgress(cb),
   onReloadTaxonomy: (cb) => window.electronAPI.onReloadTaxonomy(cb),
   onFocusNode: (cb) => window.electronAPI.onFocusNode(cb),

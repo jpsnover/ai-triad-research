@@ -133,6 +133,8 @@ export function DebateTab() {
     if (session.id !== activeDebateId) {
       loadDebate(session.id);
     }
+    // Open debate in popout window
+    api.openDebateWindow(session.id).catch(() => { /* fallback: stays inline */ });
   };
 
   const handleDelete = async (id: string) => {

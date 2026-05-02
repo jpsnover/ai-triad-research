@@ -337,6 +337,12 @@ export const api: AppAPI = {
     for (const cb of diagCallbacks) cb(state);
     diagChannel?.postMessage({ type: 'diagnostics-state', payload: state });
   },
+  // Debate popout — in web mode, open in a new browser tab
+  openDebateWindow: async (debateId) => {
+    window.open(`${location.origin}/#debate-window?id=${encodeURIComponent(debateId)}`, '_blank');
+  },
+  closeDebateWindow: async () => { /* no-op in web mode */ },
+
   getCliFileArg: async () => null, // No CLI mode in browser
 
   // Terminal — via WebSocket
@@ -396,6 +402,8 @@ export const api: AppAPI = {
     diagClosedCallbacks.add(cb);
     return () => { diagClosedCallbacks.delete(cb); };
   },
+  onDebateWindowLoad: () => () => {}, // Web mode: debate ID comes via URL hash
+  onDebatePopoutClosed: () => () => {},
   onGenerateTextProgress: (cb) => addEventListener('generate-text-progress', cb as EventCallback),
   onReloadTaxonomy: (cb) => addEventListener('reload-taxonomy', cb as EventCallback),
   onFocusNode: (cb) => addEventListener('focus-node', (d) => cb((d as { nodeId: string }).nodeId)),

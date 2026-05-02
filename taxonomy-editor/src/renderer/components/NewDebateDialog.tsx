@@ -175,6 +175,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
+    // Open debate in popout window
+    api.openDebateWindow(id).catch(() => { /* fallback: stays inline */ });
     onClose();
   };
 
