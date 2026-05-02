@@ -28,6 +28,8 @@ console.log(`[App] BUILD_FINGERPRINT: ${BUILD_FINGERPRINT}`);
 interface DataUpdateInfo {
   available: boolean;
   behindCount: number;
+  currentCommit?: string;
+  remoteCommit?: string;
   error?: string;
 }
 
@@ -300,19 +302,47 @@ function MainApp() {
       )}
       {/* Data update banner */}
       {dataUpdate && (
-        <div className="data-update-banner">
-          <span className="data-update-text">
+        <div
+          className="data-update-banner"
+          title="The taxonomy data is hosted in a public GitHub repository. This banner appears when new commits are available that your local copy doesn't have yet."
+        >
+          <span
+            className="data-update-text"
+            title={[
+              `${dataUpdate.behindCount} new commit${dataUpdate.behindCount !== 1 ? 's' : ''} on the remote repository.`,
+              dataUpdate.currentCommit ? `Local:  ${dataUpdate.currentCommit.slice(0, 8)}` : '',
+              dataUpdate.remoteCommit ? `Remote: ${dataUpdate.remoteCommit.slice(0, 8)}` : '',
+            ].filter(Boolean).join('\n')}
+          >
             {dataUpdate.behindCount} data update{dataUpdate.behindCount !== 1 ? 's' : ''} available
           </span>
           <button
             className="btn btn-sm data-update-btn"
             onClick={handlePullUpdates}
             disabled={pulling}
+            title={pulling
+              ? 'Downloading updates from GitHub — this may take a minute. The connection is kept alive with periodic heartbeats to prevent timeouts.'
+              : 'Download the latest taxonomy data from GitHub. The data repository is public — no GitHub account or credentials are required.'}
           >
             {pulling ? 'Updating...' : 'Download'}
           </button>
-          <button className="data-update-dismiss" onClick={dismissUpdate} title="Dismiss">&times;</button>
-          {pullResult && <span className={`data-update-result ${pullResult.startsWith('Updated successfully') ? 'success' : 'error'}`}>{pullResult}</span>}
+          <button
+            className="data-update-dismiss"
+            onClick={dismissUpdate}
+            title="Dismiss this notification. Updates will be checked again next time the app loads."
+          >
+            &times;
+          </button>
+          {pullResult && (
+            <span
+              className={`data-update-result ${pullResult.startsWith('Updated successfully') ? 'success' : 'error'}`}
+              title={pullResult.startsWith('Updated successfully')
+                ? 'Data updated to the latest version. The taxonomy is being reloaded with the new data.'
+                : `The update failed. This is typically caused by network issues or slow connections — not by missing credentials. The data repository is public.\n\nFull error: ${pullResult}`}
+            >
+              {pullResult}
+            </span>
+          )}
         </div>
       )}
 
