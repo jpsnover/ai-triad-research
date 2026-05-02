@@ -268,7 +268,19 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           <button className="btn btn-primary" onClick={onClose}>Close</button>
         </div>
 
-        {/* Resize handle */}
+        {/* Resize handles: right edge, bottom edge, and corner */}
+        <div onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCentered(false);
+          const start = { x: e.clientX, w: size.w };
+          const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, w: Math.max(400, start.w + (ev.clientX - start.x)) }));
+          const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+          window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+        }} style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'ew-resize' }} />
+        <div onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCentered(false);
+          const start = { y: e.clientY, h: size.h };
+          const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, h: Math.max(300, start.h + (ev.clientY - start.y)) }));
+          const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+          window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+        }} style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 6, cursor: 'ns-resize' }} />
         <div
           onMouseDown={onResizeStart}
           style={{
