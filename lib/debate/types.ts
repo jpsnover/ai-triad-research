@@ -425,9 +425,9 @@ export interface DebateSession {
   /** Coverage tracking — which source claims have been discussed. Absent for topic-only debates or pre-coverage debates. */
   claim_coverage?: ClaimCoverageEntry[];
   /** Persona-free neutral evaluations at up to 3 checkpoints. Absent in pre-evaluator debates. */
-  neutral_evaluations?: import('./neutralEvaluator').NeutralEvaluation[];
+  neutral_evaluations?: import('./neutralEvaluator.js').NeutralEvaluation[];
   /** Speaker mapping used for neutral evaluator (randomized per debate). Absent in pre-evaluator debates. */
-  neutral_speaker_mapping?: import('./neutralEvaluator').SpeakerMapping;
+  neutral_speaker_mapping?: import('./neutralEvaluator.js').SpeakerMapping;
   /** Unanswered claims ledger — persistent tracking across the 8-entry compression window. */
   unanswered_claims_ledger?: UnansweredClaimEntry[];
   /** Position drift snapshots per round — embedding similarity tracking for sycophancy detection. */
@@ -437,7 +437,7 @@ export interface DebateSession {
   /** Post-debate taxonomy refinement suggestions with before/after descriptions. */
   taxonomy_suggestions?: TaxonomySuggestion[];
   /** Post-debate dialectic traces explaining why positions prevailed — argument chains from the AN graph. */
-  dialectic_traces?: import('./dialecticTrace').DialecticTrace[];
+  dialectic_traces?: import('./dialecticTrace.js').DialecticTrace[];
   /** Session-level aggregate of claim-extraction health — computed incrementally after each extraction turn. */
   extraction_summary?: ExtractionSummary;
   /** Per-entry turn-validation trail. Keyed by transcript entry id. See docs/debate-turn-validation.md. */
@@ -454,7 +454,7 @@ export interface DebateSession {
   taxonomy_gap_analysis?: TaxonomyGapAnalysis;
   /** Post-debate situation ref extraction (t/193) — maps sit- IDs to debate references for write-back. */
   situation_debate_refs?: {
-    refs: Record<string, import('./situationRefs').SituationDebateRef>;
+    refs: Record<string, import('./situationRefs.js').SituationDebateRef>;
     stats: {
       situations_checked: number;
       situations_matched: number;
