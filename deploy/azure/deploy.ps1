@@ -163,10 +163,41 @@ if ($SeedData) {
         --resource-group $ResourceGroup `
         --output json | ConvertFrom-Json)[0].value
 
-    # Clone data repo to temp, then upload to Azure Files
+    # Clone data repo to temp, prune unneeded files, then upload to Azure Files
     $tempDir = Join-Path ([IO.Path]::GetTempPath()) "aitriad-data-$(Get-Random)"
     try {
         git clone --depth 1 https://github.com/jpsnover/ai-triad-data.git $tempDir
+
+        # Remove large files not needed by the web app (~900 MB savings)
+        # Raw PDFs/DOCX — only used by poviewer for on-demand PDF analysis
+        $rawDirs = Get-ChildItem -Path (Join-Path $tempDir 'sources') -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'raw' } |
+            Where-Object { Test-Path $_ }
+        foreach ($dir in $rawDirs) {
+            Remove-Item $dir -Recurse -Force
+            Write-OK "  Pruned: $($dir | Split-Path -Parent | Split-Path -Leaf)/raw/"
+        }
+
+        # Remove unused/research artifacts
+        $excludeDirs = @('conflicts-consolidated', 'conflicts-original', 'qbaf-conflicts', 'migrations', '.git')
+        foreach ($name in $excludeDirs) {
+            $path = Join-Path $tempDir $name
+            if (Test-Path $path) {
+                Remove-Item $path -Recurse -Force
+                Write-OK "  Pruned: $name/"
+            }
+        }
+
+        # Remove research/calibration artifacts
+        Get-ChildItem -Path $tempDir -Filter 'q0-calibration*' -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+        Get-ChildItem -Path $tempDir -Filter 'token-calibration*' -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+        Get-ChildItem -Path $tempDir -Filter '_*_migration_manifest.json' -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+
+        $sizeMB = [math]::Round((Get-ChildItem $tempDir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)
+        Write-OK "Data pruned to $sizeMB MB (excluded raw PDFs, research artifacts)"
 
         Write-OK 'Uploading data to Azure Files share...'
         az storage file upload-batch `
