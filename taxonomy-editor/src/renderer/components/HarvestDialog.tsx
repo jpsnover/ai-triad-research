@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -60,7 +61,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   const [generatingSteelmans, setGeneratingSteelmans] = useState(false);
 
   const getNodeLabel = (id: string): string | null => {
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const node = taxState[pov]?.nodes?.find(n => n.id === id);
       if (node) return node.label;
     }
@@ -69,7 +70,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   };
 
   const allNodeIds = new Set<string>();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of taxState[pov]?.nodes || []) allNodeIds.add(n.id);
   }
   for (const n of taxState.situations?.nodes || []) allNodeIds.add(n.id);
@@ -123,7 +124,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     const CONCESSION_MIN_DEBATES = 2;
     const CONCESSION_WEIGHTS: Record<string, number> = { full: 1.0, conditional: 0.5, tactical: 0.0 };
     const concessionCandidates: ConcessionUpdate[] = [];
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = taxState[pov];
       if (!file?.nodes) continue;
       for (const node of file.nodes) {
@@ -193,7 +194,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
   // Fill in current steelman text from taxonomy store
   useEffect(() => {
     setSteelmans(prev => prev.map(s => {
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const pov of POV_KEYS) {
         const node = taxState[pov]?.nodes?.find(n => n.id === s.targetNodeId);
         if (node) {
           const sv = node.graph_attributes?.steelman_vulnerability;
@@ -218,7 +219,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     prev.map(c => c.id === id ? { ...c, checked: !c.checked } : c));
 
   const existingLabels = new Set<string>();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of taxState[pov]?.nodes || []) existingLabels.add(n.label.toLowerCase());
   }
   for (const n of taxState.situations?.nodes || []) existingLabels.add(n.label.toLowerCase());

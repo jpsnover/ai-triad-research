@@ -35,7 +35,7 @@ import type {
   DebatePacing,
   ConvergenceSignals as ConvergenceSignalsType,
 } from './types';
-import { POVER_INFO, getDebatePhase } from './types';
+import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types';
 import {
   loadProvisionalWeights,
   initPhaseState,
@@ -244,7 +244,7 @@ export class DebateEngine {
   private getKnownNodeIds(): Set<string> {
     if (this._knownNodeIds) return this._knownNodeIds;
     const s = new Set<string>();
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       for (const n of this.taxonomy[pov]?.nodes ?? []) s.add(n.id);
     }
     for (const n of this.taxonomy.situations?.nodes ?? []) s.add(n.id);
@@ -725,7 +725,7 @@ export class DebateEngine {
 
   /** Find node label + pov from the loaded taxonomy, or undefined if not present. */
   private findNodeMeta(nodeId: string): { label: string; pov: string; description: string } | undefined {
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const n = this.taxonomy[pov]?.nodes.find(x => x.id === nodeId);
       if (n) return { label: n.label, pov, description: n.description };
     }
@@ -801,7 +801,7 @@ export class DebateEngine {
   // ── Taxonomy context ───────────────────────────────────────
 
   private getTaxonomyContext(pov: string): TaxonomyContext {
-    const povFile = this.taxonomy[pov as keyof Pick<LoadedTaxonomy, 'accelerationist' | 'safetyist' | 'skeptic'>];
+    const povFile = this.taxonomy[pov as PovKey];
     return {
       povNodes: povFile?.nodes ?? [],
       situationNodes: this.taxonomy.situations.nodes,
@@ -977,7 +977,7 @@ export class DebateEngine {
     const text = await this.generate(prompt, 'Clarification questions', 30_000);
     let structuredQuestions: { question: string; options: string[] }[] = [];
     try {
-      const parsed = parseJsonRobust(text) as any;
+      const parsed = parseJsonRobust(text) as { questions?: unknown[] };
       const raw = parsed.questions ?? [];
       // Handle both old format (string[]) and new format ({question, options}[])
       structuredQuestions = raw.map((q: string | { question: string; options?: string[] }) =>
@@ -1008,8 +1008,7 @@ export class DebateEngine {
     const synthText = await this.generate(synthPrompt, 'Topic synthesis', 60_000);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsed = parseJsonRobust(synthText) as any;
+      const parsed = parseJsonRobust(synthText) as { refined_topic?: string };
       if (parsed.refined_topic) {
         this.session.topic.refined = parsed.refined_topic;
         this.session.topic.final = parsed.refined_topic;
@@ -1208,8 +1207,8 @@ export class DebateEngine {
 
       // Post-extraction interventions (non-blocking)
       if (newNodes2.length > 0) {
-        this.validateSteelmans(newNodes2, poverId).catch(() => {});
-        this.verifyPreciseClaims(newNodes2).catch(() => {});
+        this.validateSteelmans(newNodes2, poverId).catch(err => this.warn('Steelman validation', String(err), 'Opening steelman check skipped'));
+        this.verifyPreciseClaims(newNodes2).catch(err => this.warn('Precise claims', String(err), 'Opening precision check skipped'));
       }
 
       // Post-turn summarization (DT-2)
@@ -1827,17 +1826,17 @@ export class DebateEngine {
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
     const newNodes = this.session.argument_network!.nodes.slice(anNodesBefore);
 
-    // Post-extraction interventions (non-blocking, fire and forget)
+    // Post-extraction interventions (non-blocking)
     if (newNodes.length > 0) {
-      this.validateSteelmans(newNodes, responder).catch(() => {});
-      this.verifyPreciseClaims(newNodes).catch(() => {});
+      this.validateSteelmans(newNodes, responder).catch(err => this.warn('Steelman validation', String(err), 'Steelman check skipped'));
+      this.verifyPreciseClaims(newNodes).catch(err => this.warn('Precise claims', String(err), 'Precision check skipped'));
     }
 
     // Position drift detection (non-blocking)
-    this.trackPositionDrift(responder, statement, round).catch(() => {});
+    this.trackPositionDrift(responder, statement, round).catch(err => this.warn('Position drift', String(err), 'Drift tracking skipped'));
 
-    // Post-turn summarization (DT-2) — fire and forget
-    this.summarizeEntry(entry).catch(() => {});
+    // Post-turn summarization (DT-2)
+    this.summarizeEntry(entry).catch(err => this.warn('Summarization', String(err), 'Entry summarization skipped'));
 
     // ── Update active moderator state for next round ──
     const validationResult = activeIntervention
@@ -1862,7 +1861,7 @@ export class DebateEngine {
     }
 
     const unreferencedNodes: string[] = [];
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const nodes = this.taxonomy[pov]?.nodes ?? [];
       for (const n of nodes) {
         if (!referencedIds.has(n.id) && unreferencedNodes.length < 20) {
@@ -1904,18 +1903,16 @@ export class DebateEngine {
 
     let questions: { text: string; targets: string[] }[] = [];
     try {
-      const parsed = parseJsonRobust(text) as any;
-      questions = parsed.questions ?? [];
+      const parsed = parseJsonRobust(text) as { questions?: { text?: string; question?: string; targets?: string[]; options?: string[] }[] };
+      questions = (parsed.questions ?? []).map(q => ({ text: q.text ?? q.question ?? '', targets: q.targets ?? q.options ?? [] }));
     } catch (err) {
       this.warn('Parsing probing questions', err, 'Skipping probing questions for this round');
     }
 
     if (questions.length > 0) {
       const content = questions.map((q, i) => {
-        // Handle varying AI response shapes: {text, targets} or {question, options} or string
-        const qText = typeof q === 'string' ? q
-          : (q as any).text ?? (q as any).question ?? JSON.stringify(q);
-        const targets = (q as any).targets ?? (q as any).options;
+        const qText = q.text || JSON.stringify(q);
+        const targets = q.targets;
         const targetStr = Array.isArray(targets) ? targets.join(', ') : 'all';
         return `${i + 1}. ${qText} (targets: ${targetStr})`;
       }).join('\n');
@@ -1985,7 +1982,7 @@ export class DebateEngine {
     } catch (err) {
       // Neutral evaluation failure should never abort the debate
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`Neutral evaluation (${checkpoint}) failed: ${errorMsg}`);
+      this.warn('Neutral evaluation', `Neutral evaluation (${checkpoint}) failed: ${errorMsg}`, 'Debate continues without neutral assessment');
       return null;
     }
   }
@@ -2042,7 +2039,7 @@ export class DebateEngine {
       const text = await this.generate(prompt, 'Context compression', 60_000);
 
       try {
-        const parsed = parseJsonRobust(text) as any;
+        const parsed = parseJsonRobust(text) as { summary?: string };
         if (parsed.summary) {
           // Append structural overlay to the LLM summary
           const structuralOverlay = an
@@ -2091,7 +2088,7 @@ export class DebateEngine {
       const text = await this.generate(prompt, 'Context compression', 60_000);
 
       try {
-        const parsed = parseJsonRobust(text) as any;
+        const parsed = parseJsonRobust(text) as { summary?: string };
         if (parsed.summary) {
           this.session.context_summaries.push({
             up_to_entry_id: toCompress[toCompress.length - 1].id,
@@ -2150,7 +2147,7 @@ export class DebateEngine {
     );
     let extractData: Record<string, unknown> = {};
     try {
-      extractData = parseJsonRobust(extractText) as any;
+      extractData = parseJsonRobust(extractText) as Record<string, unknown>;
     } catch {
       extractData = extractArraysFromPartialJson(stripCodeFences(extractText));
       if (Object.keys(extractData).length === 0) {
@@ -2174,7 +2171,7 @@ export class DebateEngine {
     );
     let mapData: Record<string, unknown> = {};
     try {
-      mapData = parseJsonRobust(mapText) as any;
+      mapData = parseJsonRobust(mapText) as Record<string, unknown>;
     } catch {
       mapData = extractArraysFromPartialJson(stripCodeFences(mapText));
       if (Object.keys(mapData).length === 0) {
@@ -2198,7 +2195,7 @@ export class DebateEngine {
     );
     let evalData: Record<string, unknown> = {};
     try {
-      evalData = parseJsonRobust(evalText) as any;
+      evalData = parseJsonRobust(evalText) as Record<string, unknown>;
     } catch {
       evalData = extractArraysFromPartialJson(stripCodeFences(evalText));
       if (Object.keys(evalData).length === 0) {
@@ -2327,11 +2324,11 @@ export class DebateEngine {
 
       // Build compact taxonomy summary (labels + BDI categories)
       const summaryLines: string[] = [];
-      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const povKey of POV_KEYS) {
         const povData = this.taxonomy[povKey];
         if (!povData?.nodes) continue;
         for (const node of povData.nodes) {
-          const cat = (node as any).category ?? 'unknown';
+          const cat = node.category ?? 'unknown';
           summaryLines.push(`[${node.id}] ${node.label} (${cat}) — ${povKey}`);
         }
       }
@@ -2345,7 +2342,7 @@ export class DebateEngine {
       );
 
       const text = await this.generate(prompt, 'Missing arguments pass', 60_000);
-      const parsed = parseJsonRobust(text) as any;
+      const parsed = parseJsonRobust(text) as { missing_arguments?: unknown[] };
       if (parsed.missing_arguments && Array.isArray(parsed.missing_arguments)) {
         this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
       }
@@ -2377,7 +2374,7 @@ export class DebateEngine {
 
       // Resolve referenced nodes to their full descriptions from loaded taxonomy
       const referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[] = [];
-      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const povKey of POV_KEYS) {
         const povData = this.taxonomy[povKey];
         if (!povData?.nodes) continue;
         for (const node of povData.nodes) {
@@ -2386,7 +2383,7 @@ export class DebateEngine {
               id: node.id,
               label: node.label,
               pov: povKey,
-              category: (node as any).category ?? 'unknown',
+              category: node.category ?? 'unknown',
               description: node.description,
             });
           }
@@ -2418,7 +2415,7 @@ export class DebateEngine {
       );
 
       const text = await this.generate(prompt, 'Taxonomy refinement pass', 60_000);
-      const parsed = parseJsonRobust(text) as any;
+      const parsed = parseJsonRobust(text) as { taxonomy_suggestions?: unknown[] };
       if (parsed.taxonomy_suggestions && Array.isArray(parsed.taxonomy_suggestions)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const postDebate = parsed.taxonomy_suggestions.slice(0, 10).map((s: any) => ({
@@ -2475,11 +2472,11 @@ export class DebateEngine {
       const transcriptText = formatRecentTranscript(this.session.transcript, 20, this.session.context_summaries);
 
       const summaryLines: string[] = [];
-      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const povKey of POV_KEYS) {
         const povData = this.taxonomy[povKey];
         if (!povData?.nodes) continue;
         for (const node of povData.nodes) {
-          const cat = (node as any).category ?? 'unknown';
+          const cat = node.category ?? 'unknown';
           summaryLines.push(`[${node.id}] ${node.label} (${cat}) — ${povKey}`);
         }
       }
@@ -2495,7 +2492,7 @@ export class DebateEngine {
       });
       this.apiCallCount++;
 
-      const parsed = parseJsonRobust(gapResult) as any;
+      const parsed = parseJsonRobust(gapResult) as { gap_arguments?: GapArgument[] };
       const gapArgs: GapArgument[] = parsed?.gap_arguments ?? [];
 
       if (gapArgs.length > 0) {
@@ -2556,7 +2553,7 @@ export class DebateEngine {
     const engagedIds = collectEngagedNodeIds(anNodes, this.session.transcript);
 
     const allTaxNodes: Array<{ id: string; label: string; description: string }> = [];
-    for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const povKey of POV_KEYS) {
       const povData = this.taxonomy[povKey];
       if (!povData?.nodes) continue;
       for (const node of povData.nodes) {
@@ -2566,7 +2563,7 @@ export class DebateEngine {
 
     const recentText = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
     const query = `${this.session.topic.final}\n\n${recentText}`.slice(0, 500);
-    const scores = scoreNodesLexical(query, allTaxNodes as any[], []);
+    const scores = scoreNodesLexical(query, allTaxNodes, []);
 
     const unengaged = findUnengagedHighRelevanceNodes(allTaxNodes, engagedIds, scores);
 
@@ -2597,7 +2594,7 @@ export class DebateEngine {
 
       this.progress('cross-cutting', undefined, 'Analyzing cross-cutting proposals');
 
-      const sitLabels = (this.taxonomy.situations?.nodes || []).map((n: any) => n.label);
+      const sitLabels = (this.taxonomy.situations?.nodes || []).map(n => n.label);
       const ccPrompt = crossCuttingNodePrompt(agreements, sitLabels, this.session.topic.final);
 
       const ccResult = await this.adapter.generateText(ccPrompt, this.config.model, {
@@ -2606,7 +2603,7 @@ export class DebateEngine {
       });
       this.apiCallCount++;
 
-      const ccParsed = parseJsonRobust(ccResult) as any;
+      const ccParsed = parseJsonRobust(ccResult) as { proposals?: CrossCuttingProposal[] };
       this.session.cross_cutting_proposals = ccParsed?.proposals ?? [];
     } catch (err) {
       this.warn('Cross-cutting proposal pass', err, 'Non-critical — debate results unaffected');
@@ -2624,8 +2621,8 @@ export class DebateEngine {
   private runTaxonomyGapAnalysisPass(): void {
     try {
       const taxonomyNodes: Record<string, { id: string; label: string; category: string; description?: string }[]> = {};
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
-        taxonomyNodes[pov] = (this.taxonomy[pov]?.nodes || []).map((n: any) => ({
+      for (const pov of POV_KEYS) {
+        taxonomyNodes[pov] = (this.taxonomy[pov]?.nodes || []).map(n => ({
           id: n.id, label: n.label, category: n.category, description: n.description,
         }));
       }
@@ -2768,7 +2765,7 @@ export class DebateEngine {
     newNodes: ArgumentNetworkNode[],
     speaker: Exclude<PoverId, 'user'>,
   ): Promise<void> {
-    const adapter = this.adapter as any;
+    const adapter = this.adapter as ExtendedAIAdapter;
     if (!adapter.nliClassify) return; // NLI not available in CLI adapter
 
     const steelmanNodes = newNodes.filter(n => n.steelman_of);
@@ -2787,7 +2784,7 @@ export class DebateEngine {
         }));
 
         const result = await adapter.nliClassify(pairs);
-        const maxEntailment = Math.max(...result.results.map((r: any) => r.nli_entailment ?? 0));
+        const maxEntailment = Math.max(...result.results.map(r => r.nli_entailment ?? 0));
 
         if (maxEntailment < 0.6) {
           const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
@@ -2818,7 +2815,7 @@ export class DebateEngine {
    * Cap at 2 per turn. Updates node verification_status and inserts system warning if disputed.
    */
   private async verifyPreciseClaims(newNodes: ArgumentNetworkNode[]): Promise<void> {
-    const adapter = this.adapter as any;
+    const adapter = this.adapter as ExtendedAIAdapter;
     if (!adapter.generateTextWithSearch) return; // Search not available in CLI adapter
 
     const preciseBeliefs = newNodes.filter(
@@ -2842,7 +2839,7 @@ Return ONLY JSON (no markdown, no code fences):
 }`;
 
         const result = await adapter.generateTextWithSearch(prompt, this.config.model);
-        const parsed = parseJsonRobust(result.text) as any;
+        const parsed = parseJsonRobust(result.text) as { verdict?: ArgumentNetworkNode['verification_status']; evidence?: string; confidence?: number };
 
         if (parsed.verdict) {
           node.verification_status = parsed.verdict;
@@ -3061,7 +3058,7 @@ Return ONLY JSON (no markdown, no code fences):
 
     let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
     try {
-      const parsed = parseJsonRobust(text) as any;
+      const parsed = parseJsonRobust(text) as { claims?: typeof claims };
       claims = parsed.claims ?? [];
     } catch (err) {
       trace.status = 'parse_error';

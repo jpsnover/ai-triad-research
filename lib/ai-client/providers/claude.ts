@@ -14,6 +14,20 @@ export async function generateViaClaude(
 ): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 180_000;
 
+  const userContent = opts.responseSchema
+    ? `${prompt}\n\nYou MUST respond with a JSON object conforming to this schema:\n${JSON.stringify(opts.responseSchema, null, 2)}`
+    : prompt;
+
+  const reqBody: Record<string, unknown> = {
+    model: apiModelId,
+    max_tokens: opts.maxTokens ?? 8192,
+    temperature: opts.temperature ?? 0.7,
+    messages: [{ role: 'user', content: userContent }],
+  };
+  if (opts.systemMessage) {
+    reqBody.system = [{ type: 'text', text: opts.systemMessage, cache_control: { type: 'ephemeral' } }];
+  }
+
   const response = await withTimeout(
     fetchFn('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -22,14 +36,7 @@ export async function generateViaClaude(
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: apiModelId,
-        max_tokens: opts.maxTokens ?? 8192,
-        temperature: opts.temperature ?? 0.7,
-        messages: [{ role: 'user', content: opts.responseSchema
-          ? `${prompt}\n\nYou MUST respond with a JSON object conforming to this schema:\n${JSON.stringify(opts.responseSchema, null, 2)}`
-          : prompt }],
-      }),
+      body: JSON.stringify(reqBody),
     }),
     timeoutMs,
     'Claude API request',

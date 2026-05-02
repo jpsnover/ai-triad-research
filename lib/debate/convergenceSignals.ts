@@ -62,7 +62,9 @@ export function computeConvergenceSignals(
   const engagementRatio = (targeted + standalone) > 0 ? targeted / (targeted + standalone) : 0;
 
   // 3. Recycling rate — word overlap of this turn's content vs previous turns by same speaker
-  const priorSpeakerEntries = transcript.slice(0, entryIdx).filter(e => e.speaker === speaker);
+  const RECYCLING_LOOKBACK = 10;
+  const allPriorSpeaker = transcript.slice(0, entryIdx).filter(e => e.speaker === speaker);
+  const priorSpeakerEntries = allPriorSpeaker.slice(-RECYCLING_LOOKBACK);
   let avgSelfOverlap = 0;
   let maxSelfOverlap = 0;
   if (priorSpeakerEntries.length > 0 && entry) {

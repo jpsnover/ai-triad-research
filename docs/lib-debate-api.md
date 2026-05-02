@@ -33,7 +33,7 @@ lib/debate/
 ├── formatters.ts            # Markdown export, slug generation
 ├── debateExport.ts          # Multi-format export (JSON/MD/Text/PDF)
 ├── validators.ts            # Referential integrity & BDI validation
-├── errors.ts                # ActionableError + withRecovery
+├── errors.ts                # ActionableError + errorMessage
 ├── protocols.ts             # Debate protocol definitions
 ├── topics.ts                # 20 predefined debate topics
 ├── nodeIdUtils.ts           # Node ID prefix detection
@@ -815,23 +815,6 @@ class ActionableError extends Error {
   readonly nextSteps: string[];// Specific resolution steps
   readonly innerError?: Error;
 }
-```
-
-### withRecovery
-
-Retry + fallback wrapper.
-
-```typescript
-async function withRecovery<T>(opts: {
-  goal: string;
-  location: string;
-  action: () => Promise<T>;
-  fallback?: () => Promise<T>;
-  maxRetries?: number;         // Default: 2
-  retryDelayMs?: number;       // Default: 1000
-  isRetryable?: (err: unknown) => boolean;
-  nextSteps: string[];
-}): Promise<T>;
 ```
 
 ### Error Message Extractor

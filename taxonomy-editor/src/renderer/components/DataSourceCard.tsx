@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import type { DataSourceId } from '../data/promptCatalog';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { POV_KEYS } from '@lib/debate/types';
 
 interface DataSourceCardProps {
   dsId: DataSourceId;
@@ -115,7 +116,7 @@ const DATA_SOURCE_LABELS: Record<DataSourceId, string> = {
 /** Count BDI nodes from a taxonomy store snapshot (pure function, no hooks). */
 function computeNodeCounts(s: ReturnType<typeof useTaxonomyStore.getState>) {
   let beliefs = 0, desires = 0, intentions = 0;
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     const file = s[pov];
     if (!file?.nodes) continue;
     for (const n of file.nodes) {

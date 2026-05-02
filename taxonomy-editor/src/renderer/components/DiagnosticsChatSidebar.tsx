@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -443,7 +444,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const povs = ['accelerationist', 'safetyist', 'skeptic'] as const;
+      const povs = POV_KEYS;
       const result = new Map<string, TaxNode[]>();
       for (const pov of povs) {
         try {

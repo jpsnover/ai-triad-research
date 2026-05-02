@@ -12,6 +12,7 @@
     "isolatedModules": true,
     "outDir": "dist",
     "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup } from '../data/promptCatalog';
 import { api } from '@bridge';
@@ -37,7 +38,7 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
     (s) => {
       const nodeId = s.selectedNodeId;
       if (!nodeId) return null;
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+      for (const pov of [...POV_KEYS, 'situations'] as const) {
         const file = s[pov] as { nodes: Array<{ id: string; label: string; description: string }> } | null;
         if (file) {
           const node = file.nodes.find(n => n.id === nodeId);
@@ -147,7 +148,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
     const s = useTaxonomyStore.getState();
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = s[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === selectedNodeId);

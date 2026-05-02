@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { POV_KEYS } from '@lib/debate/types';
 import type {
   DebateSession,
   TaxonomyGapAnalysis,
@@ -508,7 +509,7 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
 
           {expandedIndex === i && (
             <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {(['accelerationist', 'safetyist', 'skeptic'] as const).map(pov => {
+              {POV_KEYS.map(pov => {
                 const interp = proposal.interpretations[pov];
                 if (!interp) return null;
                 const povEntry = Object.entries(POVER_INFO).find(([, v]) => v.pov === pov);

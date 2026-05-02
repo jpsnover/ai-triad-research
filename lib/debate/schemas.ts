@@ -8,12 +8,13 @@
  */
 
 import { z } from 'zod';
+import { POV_KEYS } from './types';
 
 // ── Shared enums ──────────────────────────────────────────
 
 export const CategorySchema = z.enum(['Beliefs', 'Desires', 'Intentions']);
 
-export const PovSchema = z.enum(['accelerationist', 'safetyist', 'skeptic']);
+export const PovSchema = z.enum([...POV_KEYS]);
 
 export const BdiLayerSchema = z.enum(['belief', 'desire', 'intention']);
 

@@ -8,6 +8,7 @@ import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { PoverId, DebateSourceType, DebateAudience } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
+import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 export type DebatePacing = 'tight' | 'moderate' | 'thorough';
@@ -28,8 +29,6 @@ const STYLE_PRESETS: { id: DialecticalStyle; label: string; desc: string }[] = [
 interface NewDebateDialogProps {
   onClose: () => void;
 }
-
-const AI_POVERS: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
 
 const SOURCE_ICONS: Record<DebateSourceType, string> = {
   topic: '\u270F\uFE0F',     // pencil

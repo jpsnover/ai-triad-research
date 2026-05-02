@@ -8,6 +8,7 @@
 
 import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes';
 import { interpretationText, isBdiInterpretation } from './taxonomyTypes';
+import { POV_KEYS } from './types';
 
 export interface PolicyRef {
   id: string;
@@ -223,7 +224,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   // Situations section — top nodes get full interpretations, rest get selective detail
   if (ctx.situationNodes.length > 0) {
     const SIT_PRIMARY = cfg.sitPrimary ?? 8;
-    const otherPovs = ['accelerationist', 'safetyist', 'skeptic'].filter(p => p !== pov) as Array<'accelerationist' | 'safetyist' | 'skeptic'>;
+    const otherPovs = POV_KEYS.filter(p => p !== pov);
 
     // Sort by relevance score if available
     let sortedSit = ctx.situationNodes;

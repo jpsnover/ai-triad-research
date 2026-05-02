@@ -27,6 +27,7 @@ taxonomy-editor/.aitriad.json
 .env
 *.env
 secrets.json
+.aitriad-key-*.enc
 
 # Build output
 /build/

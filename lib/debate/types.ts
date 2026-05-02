@@ -448,6 +448,8 @@ export interface DebateSession {
   taxonomy_gap_analysis?: TaxonomyGapAnalysis;
   /** Context-rot metrics measured during this debate — tracks information loss at each pipeline stage. */
   context_rot?: ContextRotMetrics;
+  /** Transient runtime metadata (e.g., opening embeddings for drift detection). Not persisted. */
+  metadata?: Record<string, unknown>;
   /** Active moderator state — tracks budget, cooldown, burden, health trajectory, and intervention history. */
   moderator_state?: ModeratorState;
   /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
@@ -1077,6 +1079,15 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
     personality: 'Wry, pragmatic, challenges assumptions from both sides',
   },
 };
+
+/** The three AI debater IDs (excludes 'user'). Single source of truth — use instead of literal arrays. */
+export const AI_POVERS = ['prometheus', 'sentinel', 'cassandra'] as const satisfies readonly Exclude<PoverId, 'user'>[];
+
+/** The three taxonomy POV keys. Single source of truth — use instead of literal arrays. */
+export const POV_KEYS = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+/** Taxonomy POV key type derived from the canonical array. */
+export type PovKey = typeof POV_KEYS[number];
 
 // ── Intervention types ──────────────────────────────────
 

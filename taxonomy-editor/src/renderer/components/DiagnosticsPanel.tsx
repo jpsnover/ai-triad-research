@@ -126,7 +126,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                     <div key={i} className={`diag-qbaf-edge ${e.type === 'attacks' ? 'diag-qbaf-attack' : 'diag-qbaf-support'}`}>
                       <span>{e.type === 'attacks' ? '⚔' : '✓'} {e.source}</span>
                       {e.attack_type && <span className="diag-badge diag-badge-move">{e.attack_type}</span>}
-                      {(e as any).argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{(e as any).argumentation_scheme}</span>}
+                      {e.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 2 }}>{e.argumentation_scheme}</span>}
                       {e.weight != null && <QbafEdgeIndicator edge={e} />}
                       {srcNode && <span className="diag-muted" style={{ marginLeft: 4 }}>{srcNode.text.slice(0, 60)}{srcNode.text.length > 60 ? '…' : ''}</span>}
                     </div>
@@ -201,14 +201,8 @@ function EntryView({ entryId }: { entryId: string }) {
       )}
 
       {/* Moderator Intervention Metadata */}
-      {entry.type === 'intervention' && (entry as any).intervention_metadata && (() => {
-        const im = (entry as any).intervention_metadata as {
-          family: string; move: string; force: string; burden: number;
-          target_debater: string; trigger_reason: string;
-          source_evidence?: { signal?: string; claim?: string; round?: number };
-          prerequisite_applied?: string;
-          original_claim_text?: string;
-        };
+      {entry.type === 'intervention' && entry.intervention_metadata && (() => {
+        const im = entry.intervention_metadata;
         const familyColors: Record<string, string> = {
           procedural: '#3b82f6', elicitation: '#f59e0b', repair: '#ef4444',
           reconciliation: '#22c55e', reflection: '#8b5cf6', synthesis: '#06b6d4',
@@ -256,6 +250,14 @@ function EntryView({ entryId }: { entryId: string }) {
           convergence_score: number | null; convergence_triggered: boolean;
           commitment_snapshot: Record<string, { asserted: number; conceded: number; challenged: number }>;
           selection_reason: string; focus_point: string;
+          recent_scheme?: string;
+          metaphor_reframe_offered?: string;
+          metaphor_reframe_used?: boolean;
+          critical_questions?: string;
+          argument_network_snapshot?: {
+            total_claims: number; total_edges: number; unaddressed_claims: number;
+            strongest_unaddressed?: { id: string; speaker: string; strength?: number; text: string }[];
+          };
         };
         return (
           <CollapsibleSection title={`Moderator — selected ${trace.selected} (${trace.selection_reason.replace(/_/g, ' ')})`} defaultOpen>
@@ -295,36 +297,36 @@ function EntryView({ entryId }: { entryId: string }) {
                 <span className="diag-v">{(trace.convergence_score * 100).toFixed(0)}%{trace.convergence_triggered ? ' (triggered)' : ''}</span>
               </div>
             )}
-            {(trace as any).recent_scheme && (
+            {trace.recent_scheme && (
               <div className="diag-kv">
                 <span className="diag-k">Recent Scheme:</span>
-                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{(trace as any).recent_scheme}</span>
+                <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>{trace.recent_scheme}</span>
               </div>
             )}
-            {(trace as any).metaphor_reframe_offered && (
+            {trace.metaphor_reframe_offered && (
               <div className="diag-kv" style={{ marginTop: 4 }}>
                 <span className="diag-k">Metaphor Reframe:</span>
                 <span className="diag-badge" style={{ fontSize: '0.55rem', background: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
-                  {(trace as any).metaphor_reframe_offered} {(trace as any).metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
+                  {trace.metaphor_reframe_offered} {trace.metaphor_reframe_used ? '(USED)' : '(offered, not used)'}
                 </span>
               </div>
             )}
-            {(trace as any).critical_questions && (
+            {trace.critical_questions && (
               <div style={{ fontSize: '0.7rem', marginTop: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
                 <div className="diag-k" style={{ marginBottom: 2 }}>Critical Questions for Moderator:</div>
-                <div className="diag-muted" style={{ whiteSpace: 'pre-wrap' }}>{(trace as any).critical_questions}</div>
+                <div className="diag-muted" style={{ whiteSpace: 'pre-wrap' }}>{trace.critical_questions}</div>
               </div>
             )}
-            {(trace as any).argument_network_snapshot && (
+            {trace.argument_network_snapshot && (
               <div style={{ fontSize: '0.7rem', marginTop: 4 }}>
                 <div className="diag-k">Argument Network at Decision:</div>
                 <div className="diag-muted">
-                  {(trace as any).argument_network_snapshot.total_claims} claims, {(trace as any).argument_network_snapshot.total_edges} edges, {(trace as any).argument_network_snapshot.unaddressed_claims} unaddressed
+                  {trace.argument_network_snapshot.total_claims} claims, {trace.argument_network_snapshot.total_edges} edges, {trace.argument_network_snapshot.unaddressed_claims} unaddressed
                 </div>
-                {(trace as any).argument_network_snapshot.strongest_unaddressed?.length > 0 && (
+                {(trace.argument_network_snapshot.strongest_unaddressed?.length ?? 0) > 0 && (
                   <div style={{ marginTop: 2 }}>
                     <span className="diag-k">Strongest unaddressed:</span>
-                    {(trace as any).argument_network_snapshot.strongest_unaddressed.map((n: any, i: number) => (
+                    {trace.argument_network_snapshot.strongest_unaddressed!.map((n, i) => (
                       <div key={i} className="diag-muted" style={{ paddingLeft: 8 }}>
                         {n.id} ({n.speaker}, strength {n.strength?.toFixed(2)}): {n.text}
                       </div>
@@ -482,8 +484,8 @@ function EntryView({ entryId }: { entryId: string }) {
       )}
 
       {/* Claim Extraction Details — scheme classification, prompt, response */}
-      {(diag as any)?.claim_extraction && (() => {
-        const ce = (diag as any).claim_extraction as { prompt: string; raw_response: string; response_time_ms: number; claims_parsed: number; schemes_classified: string[] };
+      {diag?.claim_extraction && (() => {
+        const ce = diag.claim_extraction;
         return (
           <CollapsibleSection title={`Claim Extraction — ${ce.claims_parsed} claims, ${ce.schemes_classified.length} schemes (${ce.response_time_ms}ms)`}>
             {ce.schemes_classified.length > 0 && (
@@ -1103,7 +1105,7 @@ function OverviewView() {
                   <div key={a.id} className="diag-an-edge diag-an-attack">
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
                     ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
-                    {(a as any).argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{(a as any).argumentation_scheme}</span>}
+                    {a.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{a.argumentation_scheme}</span>}
                     {a.weight != null && <QbafEdgeIndicator edge={a} />}
                     {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
                   </div>
@@ -1149,16 +1151,8 @@ function OverviewView() {
       )}
 
       {/* Active Moderator State */}
-      {(activeDebate as any).moderator_state && (() => {
-        const ms = (activeDebate as any).moderator_state as {
-          interventions_fired: number; budget_total: number; budget_remaining: number;
-          rounds_since_last_intervention: number; required_gap: number;
-          burden_per_debater: Record<string, number>; avg_burden: number;
-          health_history: { value: number; components: { engagement: number; novelty: number; responsiveness: number; coverage: number; balance: number } }[];
-          consecutive_decline: number; consecutive_rise: number;
-          phase: string; round: number; cooldown_blocked_count: number;
-          intervention_history: { round: number; move: string; family: string; target: string; burden: number }[];
-        };
+      {activeDebate.moderator_state && (() => {
+        const ms = activeDebate.moderator_state;
         const latestHealth = ms.health_history.length > 0 ? ms.health_history[ms.health_history.length - 1] : null;
         const familyColors: Record<string, string> = {
           procedural: '#3b82f6', elicitation: '#f59e0b', repair: '#ef4444',

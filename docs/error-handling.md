@@ -150,41 +150,18 @@ try {
 }
 ```
 
-#### `withRecovery()` — Async retry + fallback
+#### Retry + Fallback
+
+Use `withRetry()` from `lib/ai-client/retry.ts` for transient API failures:
 
 ```typescript
-import { withRecovery } from 'lib/debate';
+import { withRetry, CLI_RETRY_CONFIG } from 'lib/ai-client';
 
-// Retry an API call with exponential backoff
-const response = await withRecovery({
-  goal: 'Generating debate turn via Gemini',
-  location: 'debateEngine.ts:generateTurn',
-  action: () => callGemini(prompt),
-  maxRetries: 2,
-  retryDelayMs: 3000,
-  isRetryable: (err) => {
-    const msg = errorMessage(err);
-    return msg.includes('429') || msg.includes('503') || msg.includes('rate');
-  },
-  nextSteps: [
-    'Check your GEMINI_API_KEY is valid',
-    'Verify network connectivity',
-    'Try a different model in the debate settings',
-  ],
-});
-
-// With fallback to a different backend
-const result = await withRecovery({
-  goal: 'Generating AI completion',
-  location: 'aiAdapter.ts:generateText',
-  action: () => callGemini(prompt),
-  fallback: () => callClaude(prompt),
-  maxRetries: 1,
-  nextSteps: [
-    'Check both GEMINI_API_KEY and ANTHROPIC_API_KEY environment variables',
-    'Run: npx tsx lib/debate/cli.ts --test-connection',
-  ],
-});
+const result = await withRetry(
+  () => callProvider(fetch, backend, prompt, modelId, apiKey, opts),
+  CLI_RETRY_CONFIG,
+  `${backend}/${modelId}`,
+);
 ```
 
 #### React error boundaries (Taxonomy Editor)
@@ -217,8 +194,8 @@ try {
 | Situation | Pattern |
 |-----------|---------|
 | Single operation, no retry needed | `try/catch` → `New-ActionableError` / `throw new ActionableError(...)` |
-| Transient failures (API, network) | `Invoke-WithRecovery` / `withRecovery()` with retries |
-| Multiple backends available | `Invoke-WithRecovery` / `withRecovery()` with fallback |
+| Transient failures (API, network) | `Invoke-WithRecovery` (PS) / `withRetry()` from `lib/ai-client` (TS) |
+| Multiple backends available | `Invoke-WithRecovery` (PS) / fallback chain in `aiAdapter.ts` |
 | Validation / precondition checks | `if (!condition)` → `New-ActionableError -Throw` / `throw new ActionableError(...)` |
 | Partial results acceptable | Catch per-item, accumulate errors, report summary at end |
 

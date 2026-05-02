@@ -4,7 +4,8 @@
 // Subset of taxonomy types used by debate logic.
 // Full taxonomy types live in taxonomy-editor/src/renderer/types/taxonomy.ts.
 
-export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
+import type { PovKey } from './types';
+export type Pov = PovKey;
 export type Category = 'Desires' | 'Beliefs' | 'Intentions';
 
 export type FallacyTier = 'formal' | 'informal_structural' | 'informal_contextual' | 'cognitive_bias';

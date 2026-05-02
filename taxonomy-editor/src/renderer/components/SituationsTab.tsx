@@ -28,6 +28,7 @@ import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 export function SituationsTab() {
@@ -236,7 +237,7 @@ export function SituationsTab() {
       const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {
-      for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const p of POV_KEYS) {
         const node = state[p]?.nodes.find(n => n.id === searchPreviewId);
         if (node) return <NodeDetail pov={p} node={node} readOnly chipDepth={0} />;
       }

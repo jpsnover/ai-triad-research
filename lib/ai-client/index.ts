@@ -10,5 +10,8 @@ export { generateViaGemini, GEMINI_BASE, toGeminiSchema } from './providers/gemi
 export { generateViaClaude } from './providers/claude';
 export { generateViaGroq } from './providers/groq';
 export { generateViaOpenAI } from './providers/openai';
+export { callGeminiBatchEmbed } from './providers/gemini-embeddings';
+export { geminiGroundedSearch } from './providers/gemini-search';
+export type { GroundingSegment, GroundingCitation, GroundedSearchResult } from './providers/gemini-search';
 export type { AIClientDeps, AIClient } from './client';
 export { callProvider, createAIClient } from './client';

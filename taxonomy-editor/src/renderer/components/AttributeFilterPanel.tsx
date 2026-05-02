@@ -8,6 +8,7 @@ import type { Pov } from '../types/taxonomy';
 import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from './SituationDetail';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 
 const LABEL_MAP: Record<string, string> = {
   epistemic_type: 'Epistemic Type',
@@ -118,7 +119,7 @@ export function AttributeFilterPanel({ width }: AttributeFilterPanelProps) {
       const node = state.situations?.nodes.find(n => n.id === selectedId);
       if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
     } else {
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const pov of POV_KEYS) {
         const file = state[pov];
         if (file) {
           const node = file.nodes.find(n => n.id === selectedId);

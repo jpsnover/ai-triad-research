@@ -14,6 +14,10 @@ export async function generateViaGroq(
 ): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
+  const messages: { role: string; content: string }[] = [];
+  if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });
+  messages.push({ role: 'user', content: prompt });
+
   const response = await withTimeout(
     fetchFn('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -23,7 +27,7 @@ export async function generateViaGroq(
       },
       body: JSON.stringify({
         model: apiModelId,
-        messages: [{ role: 'user', content: prompt }],
+        messages,
         temperature: opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 8192,
         ...(opts.responseSchema ? {

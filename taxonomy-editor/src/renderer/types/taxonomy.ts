@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type Pov = 'accelerationist' | 'safetyist' | 'skeptic';
+import type { PovKey } from '@lib/debate/types';
+export type Pov = PovKey;
 
 export type Category = 'Desires' | 'Beliefs' | 'Intentions';
 

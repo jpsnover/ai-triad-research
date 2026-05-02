@@ -31,6 +31,7 @@ import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { ConflictDetail } from './ConflictDetail';
 import { api } from '@bridge';
 
@@ -280,7 +281,7 @@ export function PovTab({ pov }: PovTabProps) {
       const conflict = state.conflicts.find(c => c.claim_id === searchPreviewId);
       if (conflict) return <ConflictDetail conflict={conflict} readOnly chipDepth={0} />;
     } else {
-      for (const p of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const p of POV_KEYS) {
         const node = state[p]?.nodes.find(n => n.id === searchPreviewId);
         if (node) return (
           <>

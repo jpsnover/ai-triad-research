@@ -24,6 +24,7 @@ import path from 'path';
 import { getDataRoot, loadDataConfig, resolveDataPath } from './config';
 import { getActiveTaxonomyDirName } from './fileIO';
 import { getCurrentUser } from './userContext';
+import { POV_KEYS } from '../../../lib/debate/types';
 import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
 
 const execFileP = promisify(execFile);
@@ -1037,7 +1038,7 @@ export async function getDiagnostics(): Promise<SyncDiagnostics> {
     }
   };
 
-  for (const name of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json', 'edges.json', 'embeddings.json', 'policy_actions.json']) {
+  for (const name of [...POV_KEYS.map(k => `${k}.json`), 'situations.json', 'edges.json', 'embeddings.json', 'policy_actions.json']) {
     statFile(path.join(taxonomyDir, name), `${activeTaxDir}/${name}`);
   }
 

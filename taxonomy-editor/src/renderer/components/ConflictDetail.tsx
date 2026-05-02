@@ -12,6 +12,7 @@ import { TypeaheadSelect } from './TypeaheadSelect';
 import { FieldHelp } from './FieldHelp';
 import { LinkedChip } from './LinkedChip';
 import { generateConflictResearchPrompt } from '../utils/researchPrompt';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 interface ConflictDetailProps {
@@ -92,7 +93,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     const state = useTaxonomyStore.getState();
     const policyIdSet = new Set<string>();
 
-    for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+    for (const povKey of [...POV_KEYS, 'situations'] as const) {
       const file = povKey === 'situations' ? state.situations : state[povKey];
       if (!file?.nodes) continue;
       for (const node of file.nodes) {

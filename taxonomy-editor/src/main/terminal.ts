@@ -11,6 +11,7 @@ import { PROJECT_ROOT } from './fileIO';
 type IPty = import('node-pty').IPty;
 
 let ptyProcess: IPty | null = null;
+let lockdownApplied = false;
 
 const SCRIPTS_DIR = path.resolve(PROJECT_ROOT, 'scripts');
 
@@ -69,7 +70,13 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
       return;
     }
 
+    lockdownApplied = false;
+    const LOCKDOWN_SENTINEL = '__AITRIAD_LOCKDOWN_DONE__';
+
     ptyProcess.onData((data: string) => {
+      if (!lockdownApplied && data.includes(LOCKDOWN_SENTINEL)) {
+        lockdownApplied = true;
+      }
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         win.webContents.send('terminal:data', data);
@@ -78,23 +85,22 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
 
     ptyProcess.onExit(() => {
       ptyProcess = null;
+      lockdownApplied = false;
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         win.webContents.send('terminal:exit');
       }
     });
 
-    // Import AITriad module, then lock down to ConstrainedLanguage mode
-    setTimeout(() => {
-      if (ptyProcess) {
-        ptyProcess.write(importCmd + '\r');
-        ptyProcess.write('$ExecutionContext.SessionState.LanguageMode = "ConstrainedLanguage"\r');
-      }
-    }, 500);
+    // Import AITriad module, then lock down to ConstrainedLanguage mode.
+    // Write immediately — commands queue in PTY input buffer before shell ready.
+    ptyProcess.write(importCmd + '\r');
+    ptyProcess.write('$ExecutionContext.SessionState.LanguageMode = "ConstrainedLanguage"\r');
+    ptyProcess.write(`Write-Host '${LOCKDOWN_SENTINEL}'\r`);
   });
 
   ipcMain.handle('terminal:write', (_event, data: string) => {
-    if (ptyProcess) {
+    if (ptyProcess && lockdownApplied) {
       ptyProcess.write(data);
     }
   });

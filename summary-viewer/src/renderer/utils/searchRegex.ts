@@ -1,28 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// Re-export shared buildSearchRegex — handles raw/wildcard/regex modes.
+// 'similar' mode returns null from the shared function, letting the caller
+// handle it with app-specific similarity logic.
+export { buildSearchRegex } from '../../../../lib/electron-shared/utils/searchRegex';
 export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'similar';
-
-export function buildSearchRegex(
-  query: string,
-  mode: SearchMode,
-  caseSensitive: boolean,
-): RegExp | null {
-  if (!query || mode === 'similar') return null;
-  try {
-    let pattern: string;
-    if (mode === 'raw') {
-      pattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    } else if (mode === 'wildcard') {
-      pattern = query
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
-    } else {
-      pattern = query;
-    }
-    return new RegExp(pattern, caseSensitive ? 'g' : 'gi');
-  } catch {
-    return null;
-  }
-}

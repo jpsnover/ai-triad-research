@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { nodePovFromId, nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
@@ -192,7 +193,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     const label = getLabelForId(nodeId);
     const state = useTaxonomyStore.getState();
     let desc = '';
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const n = state[pov]?.nodes.find(n => n.id === nodeId);
       if (n) { desc = n.description; break; }
     }
@@ -228,7 +229,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   // ─── Collect all node IDs for Related mode typeahead ───
   const allNodeIds = useMemo(() => {
     const ids: string[] = [];
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = useTaxonomyStore.getState()[pov];
       if (file) for (const n of file.nodes) ids.push(n.id);
     }
@@ -241,7 +242,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const lineageValues = useMemo(() => {
     const vals = new Set<string>();
     const state = useTaxonomyStore.getState();
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) for (const n of file.nodes) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) vals.add(l);
@@ -269,7 +270,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
         }
       }
     };
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) for (const n of file.nodes) collectFallacies(n.graph_attributes as unknown as Record<string, unknown>);
     }
@@ -373,7 +374,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       }
     };
 
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) for (const node of file.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, pov);
     }
@@ -431,7 +432,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     const label = getLabelForId(nodeId);
     const state = useTaxonomyStore.getState();
     let desc = '';
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const n = state[pov]?.nodes.find(n => n.id === nodeId);
       if (n) { desc = n.description; break; }
     }

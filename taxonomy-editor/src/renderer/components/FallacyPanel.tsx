@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { FALLACY_CATALOG, type FallacyEntry } from '../data/fallacyInfo';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -39,7 +40,7 @@ function getNodesWithFallacy(fallacyKey: string): { id: string; label: string; p
     }
   };
 
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     const file = state[pov];
     if (file) for (const n of file.nodes) check(n.graph_attributes as unknown as Record<string, unknown>, n.id, n.label, pov);
   }
@@ -76,7 +77,7 @@ function getFallacyCounts(): Map<string, number> {
     }
   };
 
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     const file = state[pov];
     if (file) for (const n of file.nodes) tally(n.graph_attributes as unknown as Record<string, unknown>);
   }

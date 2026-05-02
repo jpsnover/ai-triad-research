@@ -154,6 +154,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('open-external-url', (_event, url: string) => {
+    if (!/^https?:\/\//i.test(url)) return;
     shell.openExternal(url);
   });
 

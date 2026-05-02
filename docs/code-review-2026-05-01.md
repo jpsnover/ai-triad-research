@@ -39,11 +39,11 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 | # | Finding | Scope | Impact | Status |
 |---|---------|-------|--------|--------|
 | A1 | **4,209-line `useDebateStore.ts` reimplements `debateEngine.ts`** — `crossRespond()` alone is 660 lines duplicating moderator selection, intervention, claim extraction, QBAF, GC, convergence, crux tracking, gap injection, and sycophancy detection | Both files | Every behavioral change must be made in two places; bugs fixed in one path silently remain in the other (as we saw with the intervention compliance bug today) | **DONE** — Stages 1-2 extracted, Stage 3 deferred (post-turn logic intentionally divergent) |
-| A2 | **AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines) | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends | |
+| A2 | ~~**AI backend HTTP client triplicated** — Gemini/Claude/Groq/OpenAI call logic exists in `aiAdapter.ts` (851 lines), `embeddings.ts` (1,125 lines), and `aiBackends.ts` (634 lines)~~ | ~2,600 lines of duplication | Retry logic only exists in 1 of 3 copies for non-Gemini backends | **DONE** — shared `lib/ai-client/` (791 lines): providers, retry, registry, embeddings, grounded search. aiAdapter 565→248, aiBackends 535→338. All backends share retry via `withRetry`. |
 
 **Fixes:**
 - A1: Extract shared orchestration functions with callback interfaces. `lib/debate/orchestration.ts` created with `runModeratorSelection()` (Stage 1) and `executeTurnWithRetry()` (Stage 2). Both consumers wired — engine reduced 3,458→3,141 lines, store reduced 4,200→4,003 lines. Stage 3 (post-turn processing) deferred: analysis showed the two consumers' post-turn logic is intentionally divergent (engine has steelman validation, context manifests; store has sycophancy detection, gap injection, different state management) — extracting would create a leaky abstraction.
-- A2: Extract `lib/ai-client/` shared package. Inject `fetch` as dependency. Eliminates ~1,500 lines.
+- ~~A2: Extract `lib/ai-client/` shared package. Inject `fetch` as dependency.~~ — **DONE**. Added `systemMessage` to `GenerateOptions` so all 4 providers natively handle system+user messages. Envelope functions in aiAdapter collapsed from 250 lines to 10-line wrapper calling `callProvider`. Gemini batch embeddings extracted to `gemini-embeddings.ts` (uses `withRetry` instead of manual loop). Gemini grounded search extracted to `gemini-search.ts` (shared by both CLI and server). Net reduction: ~500 lines across aiAdapter+aiBackends, with all retry logic unified through shared `withRetry`.
 
 ### Performance
 
@@ -82,7 +82,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | Scope |
 |---|---------|-------|
-| A3 | **Barrel export missing 15 modules** — consumers bypass barrel with deep imports (`@lib/debate/documentAnalysis`, etc.) | `lib/debate/index.ts` |
+| A3 | ~~**Barrel export missing 15 modules** — consumers bypass barrel with deep imports (`@lib/debate/documentAnalysis`, etc.)~~ | `lib/debate/index.ts` | **DONE** — added 11 missing module exports; excluded 3 Node.js-only modules (phaseTransitions, repairTranscript, judgeAudit) to avoid polluting renderer bundles |
 | A4 | ~~**DebateSession grows unboundedly** — transcript, diagnostics (full prompts), convergence_signals, position_drift, turn_embeddings, health_history never pruned~~ | **DONE** — `pruneSessionData()` caps convergence_signals (30), position_drift (30), turn_embeddings (20), diagnostics (15); `pruneModeratorState()` caps health_history (20). Called after each turn in both consumers. |
 
 ### Test Coverage
@@ -90,16 +90,16 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 | # | Finding | Risk |
 |---|---------|------|
 | T1 | ~~**`helpers.ts` `parseAIJson`/`repairJson`** — 0 tests for the LLM output parser every AI response flows through. Has 3 cascading strategies with character-level heuristic walking.~~ | **DONE** — 103 tests covering all 3 strategies, repair heuristics, adversarial edge cases, and realistic LLM output |
-| T2 | **`debateEngine.ts`** — 0 tests for 3,456-line core orchestrator with 36 catch blocks | No safety net |
-| T3 | **`phaseTransitions.ts`** — 0 tests for phase state machine (18 exported functions, complex predicate evaluation) | Debates stuck or transitioning wrong |
-| T4 | **`aiAdapter.ts`** — 0 tests for retry/fallback/timeout across 3 backends | Backend changes break silently |
+| T2 | ~~**`debateEngine.ts`** — 0 tests for 3,456-line core orchestrator with 36 catch blocks~~ | **DONE** — 44 tests covering construction, turn flow, error handling |
+| T3 | ~~**`phaseTransitions.ts`** — 0 tests for phase state machine (18 exported functions, complex predicate evaluation)~~ | **DONE** — 87 tests covering phase evaluation, signal computation, crux detection |
+| T4 | ~~**`aiAdapter.ts`** — 0 tests for retry/fallback/timeout across 3 backends~~ | **DONE** — 60 tests covering retry, fallback, timeout across all backends |
 
 ### Performance
 
 | # | Finding | File |
 |---|---------|------|
-| P3 | **15+ components use `useDebateStore()` without selectors** — subscribe to entire store, re-render on any change | `DebateWorkspace.tsx`, `DiagnosticsPanel.tsx`, etc. |
-| P4 | **`turn_embeddings` never pruned** — 384-dim float arrays per turn, cloned on every spread | `types.ts:442` |
+| P3 | ~~**15+ components use `useDebateStore()` without selectors** — subscribe to entire store, re-render on any change~~ | **DONE** — all components now use selectors (`s => s.field` or destructured picks) |
+| P4 | ~~**`turn_embeddings` never pruned** — 384-dim float arrays per turn, cloned on every spread~~ | **DONE** — `pruneSessionData()` caps turn_embeddings at 20 (see A4) |
 
 ---
 
@@ -126,9 +126,9 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 | # | Finding | File |
 |---|---------|------|
-| A5 | **POV taxonomy keys scattered as literal arrays** — `['accelerationist', 'safetyist', 'skeptic'] as const` appears 10 times in useDebateStore, more in engine | Multiple files |
-| A6 | **3 Electron apps duplicate boilerplate** — ErrorBoundary, apiKeyStore, useResizablePanes, ApiKeyDialog copied across poviewer/summary-viewer | 3 apps |
-| A7 | **`routeTurnValidatorHintsIntoSuggestions` duplicated** between engine and store | `useDebateStore.ts:1015`, `debateEngine.ts:706` |
+| A5 | ~~**POV taxonomy keys scattered as literal arrays** — `['accelerationist', 'safetyist', 'skeptic'] as const` appears 10 times in useDebateStore, more in engine~~ | Multiple files | **DONE** — added `AI_POVERS` and `POV_KEYS` constants to `lib/debate/types.ts`; replaced 53 literal arrays across 21 files |
+| A6 | ~~**3 Electron apps duplicate boilerplate** — ErrorBoundary, apiKeyStore, useResizablePanes, ApiKeyDialog copied across poviewer/summary-viewer~~ | 3 apps | **DONE** (partial) — extracted `ErrorBoundary` and `useResizablePanes` to `lib/electron-shared/`; apiKeyStore and ApiKeyDialog left as-is (architecturally different) |
+| A7 | ~~**`routeTurnValidatorHintsIntoSuggestions` duplicated** between engine and store~~ | **DONE** — deduplicated, only in useDebateStore now |
 
 ### Performance
 
@@ -150,25 +150,25 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 
 ## P3 — Low (backlog)
 
-| # | Category | Finding |
-|---|----------|---------|
-| S12 | Security | `open-external` in poviewer lacks URL scheme validation |
-| S13 | Security | Git token in remote URL may leak to Azure logs |
-| S14 | Security | `.gitignore` doesn't cover `.aitriad-key-*.enc` files |
-| S15 | Security | Terminal ConstrainedLanguage mode has 500ms race window |
-| A8 | Architecture | Unused `withRecovery()` utility in `errors.ts` (0 call sites) |
-| A9 | Architecture | Dead code: `loadNodeEmbeddings()` always returns `{}` |
-| A10 | Architecture | `stageGenerate` closure duplicated within useDebateStore |
-| A11 | Architecture | `HARD_CAP = 200` in networkGc.ts should be configurable |
-| P7 | Performance | `as any` type assertions: 25 in debateEngine, 12 in useDebateStore, 30+ in DiagnosticsPanel |
-| P8 | Performance | O(T^2) recycling detection in convergenceSignals — cap lookback to 10 |
-| P9 | Performance | Heavy Azure SDK deps in bundle — should be lazy-loaded |
-| P10 | Performance | `formatRecentTranscript` filters entire transcript to take last 8 |
-| E8 | Error handling | `console.warn` in neutral eval bypasses structured `warn()` pipeline |
-| E9 | Error handling | Fire-and-forget `.catch(() => {})` on 4 async calls loses errors silently |
-| T9 | Test coverage | `prompts.ts` (27+ functions, 0 tests) — low logic risk but prompt drift undetected |
-| T10 | Test coverage | Supporting modules (networkGc, pragmaticSignals, signalConfidence) — 0 tests |
-| UX1 | UX | Moderator veto/force buttons are dead (onClick wired to empty TODO) |
+| # | Category | Finding | Status |
+|---|----------|---------|--------|
+| S12 | Security | ~~`open-external` in poviewer lacks URL scheme validation~~ | **DONE** — added `https?://` scheme guard |
+| S13 | Security | ~~Git token in remote URL may leak to Azure logs~~ | **DONE** — redacted tokens from log output |
+| S14 | Security | ~~`.gitignore` doesn't cover `.aitriad-key-*.enc` files~~ | **DONE** — added to secrets section |
+| S15 | Security | ~~Terminal ConstrainedLanguage mode has 500ms race window~~ | **DONE** — sentinel-based lockdown; user input gated until lockdown confirmed |
+| A8 | Architecture | ~~Unused `withRecovery()` utility in `errors.ts` (0 call sites)~~ | **DONE** — deleted 60-line dead function; updated docs |
+| A9 | Architecture | ~~Dead code: `loadNodeEmbeddings()` always returns `{}`~~ | **DONE** — deleted dead function and unused `_nodeEmbeddingsCache` |
+| A10 | Architecture | ~~`stageGenerate` closure duplicated within useDebateStore~~ | **DONE** — extracted `makeStageGenerate()` factory; both call sites use it |
+| A11 | Architecture | `HARD_CAP = 200` in networkGc.ts should be configurable | Deferred — low impact, config surface already large |
+| P7 | Performance | ~~`as any` type assertions: 25 in debateEngine, 12 in useDebateStore, 30+ in DiagnosticsPanel~~ | **DONE** — removed 70 assertions (28 debateEngine, 12 useDebateStore, 30 DiagnosticsPanel); 4 remain with eslint-disable (Zustand helper params, complex AI JSON) |
+| P8 | Performance | ~~O(T^2) recycling detection in convergenceSignals — cap lookback to 10~~ | **DONE** — `RECYCLING_LOOKBACK = 10` cap |
+| P9 | Performance | ~~Heavy Azure SDK deps in bundle — should be lazy-loaded~~ | **DONE** — dynamic `require()` inside conditional guard |
+| P10 | Performance | ~~`formatRecentTranscript` filters entire transcript to take last 8~~ | **DONE** — pre-slice to 2x window before filtering |
+| E8 | Error handling | ~~`console.warn` in neutral eval bypasses structured `warn()` pipeline~~ | **DONE** — replaced with `this.warn()` |
+| E9 | Error handling | ~~Fire-and-forget `.catch(() => {})` on 4 async calls loses errors silently~~ | **DONE** — replaced 6 sites with structured `this.warn()` logging |
+| T9 | Test coverage | ~~`prompts.ts` (27+ functions, 0 tests) — low logic risk but prompt drift undetected~~ | **DONE** — 101 tests covering 30+ prompt functions |
+| T10 | Test coverage | ~~Supporting modules (networkGc, pragmaticSignals, signalConfidence) — 0 tests~~ | **DONE** — 78 tests (21 networkGc, 27 pragmaticSignals, 30 signalConfidence) |
+| UX1 | UX | ~~Moderator veto/force buttons are dead (onClick wired to empty TODO)~~ | **DONE** — hidden until store actions implemented; comment documents dependency |
 
 ---
 
@@ -203,15 +203,16 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 9. ~~E4: Add timeoutMs to all generate() calls~~ — **DONE** (default 120s + 60s for orchestration)
 10. ~~A4: Prune turn_embeddings, convergence_signals, diagnostics~~ — **DONE** (`pruneSessionData` + `pruneModeratorState`)
 
-### Next month (architecture) — A1 done
-11. A2: Extract shared AI client library (eliminates triple duplication + fixes retry gap)
+### Next month (architecture) — A1, A2, T2-T4, P3 done
+11. ~~A2: Extract shared AI client library (eliminates triple duplication + fixes retry gap)~~ — **DONE** (lib/ai-client 791 lines; aiAdapter 565→248, aiBackends 535→338)
 12. ~~A1: Extract DebateOrchestrator (eliminates dual-maintained engine logic)~~ — **DONE** (Stages 1-2 extracted; Stage 3 deferred as intentional divergence)
-13. T2-T4: Tests for debateEngine, phaseTransitions, aiAdapter
-14. P3: Add Zustand selectors to all 15+ unselectored components
-15. A3: Complete barrel exports
+13. ~~T2-T4: Tests for debateEngine, phaseTransitions, aiAdapter~~ — **DONE** (44 + 87 + 60 = 191 tests)
+14. ~~P3: Add Zustand selectors to all 15+ unselectored components~~ — **DONE** (all use selectors now)
+15. ~~A3: Complete barrel exports~~ — **DONE** (11 modules added; 3 Node.js-only excluded)
 
-### Backlog
+### Backlog — ALL DONE (except A11 deferred)
 16. ~~E1: Migrate 145 bare throws to ActionableError (incremental)~~ — **DONE** (72 migrated in core files; 73 remain in secondary apps and test files)
-17. A6: Extract shared Electron boilerplate
+17. ~~A6: Extract shared Electron boilerplate~~ — **DONE** (ErrorBoundary, ResizeHandle, useResizablePanes, searchRegex extracted to `lib/electron-shared/`)
 18. ~~T8: Start React component testing~~ — **DONE** (27 tests across 4 components + jsdom/testing-library infrastructure)
 19. ~~E6: Add AbortController cancellation support~~ — **DONE** (signal passthrough to all backends)
+20. ~~P3 backlog (S12–S15, A8–A10, P7–P10, E8–E9, T9–T10, UX1)~~ — **DONE** (16 of 17 items; A11 deferred)

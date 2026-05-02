@@ -7,6 +7,7 @@ export interface GenerateOptions {
   timeoutMs?: number;
   jsonMode?: boolean;
   responseSchema?: Record<string, unknown>;
+  systemMessage?: string;
 }
 
 export interface ProviderResult {

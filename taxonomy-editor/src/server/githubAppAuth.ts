@@ -23,8 +23,6 @@
  */
 
 import crypto from 'crypto';
-import { SecretClient } from '@azure/keyvault-secrets';
-import { DefaultAzureCredential } from '@azure/identity';
 
 const GITHUB_API = 'https://api.github.com';
 const USER_AGENT = 'ai-triad-taxonomy-editor';
@@ -59,6 +57,10 @@ async function loadPrivateKey(): Promise<string | null> {
   const secretName = process.env.GITHUB_APP_PRIVATE_KEY_SECRET_NAME;
   if (vaultUrl && secretName) {
     try {
+      /* eslint-disable @typescript-eslint/no-var-requires */
+      const { SecretClient } = require('@azure/keyvault-secrets');
+      const { DefaultAzureCredential } = require('@azure/identity');
+      /* eslint-enable @typescript-eslint/no-var-requires */
       const client = new SecretClient(vaultUrl, new DefaultAzureCredential());
       const resp = await client.getSecret(secretName);
       if (resp?.value) {

@@ -16,6 +16,7 @@ import { ReflectionsPanel } from './ReflectionsPanel';
 import { ConvergencePanel } from './ConvergenceRadar';
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { AI_POVERS } from '@lib/debate/types';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
@@ -1609,7 +1610,7 @@ function DebaterToggles() {
   );
   if (!activeDebate) return null;
 
-  const allPovers: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
+  const allPovers = AI_POVERS;
   const isActive = (p: PoverId) => activeDebate.active_povers.includes(p);
   const disabled = !!debateGenerating;
 
@@ -1815,26 +1816,8 @@ function DebateActions() {
       </div>
       {/* Row 2: Phase overrides (adaptive) + Analysis actions + Audience */}
       <div className="debate-action-bar-secondary">
-        {isAdaptive && adaptivePhase === 'exploration' && approachingTransition && (
-          <button
-            className="btn debate-override-btn debate-override-keep"
-            onClick={() => { /* TODO: wire to store veto */ }}
-            disabled={disabled}
-            title="Veto the exploration exit for 1 more round"
-          >
-            Keep Exploring
-          </button>
-        )}
-        {isAdaptive && adaptivePhase === 'exploration' && !approachingTransition && (
-          <button
-            className="btn debate-override-btn debate-override-force"
-            onClick={() => { /* TODO: wire to store force */ }}
-            disabled={disabled}
-            title="Force transition to synthesis now"
-          >
-            Move to Synthesis
-          </button>
-        )}
+        {/* Phase override buttons hidden until store actions are implemented.
+            See code review UX1 — requires phaseTransitions.ts veto/force API. */}
         <button
           className="btn debate-synthesis-btn"
           onClick={() => requestSynthesis()}

@@ -141,8 +141,8 @@ function tokenize(text: string): Set<string> {
 
 export function scoreNodesLexical(
   query: string,
-  povNodes: PovNode[],
-  situationNodes: SituationNode[],
+  povNodes: ReadonlyArray<Pick<PovNode, 'id' | 'label' | 'description'>>,
+  situationNodes: ReadonlyArray<Pick<SituationNode, 'id' | 'label' | 'description'>>,
 ): Map<string, number> {
   const q = tokenize(query);
   const scores = new Map<string, number>();

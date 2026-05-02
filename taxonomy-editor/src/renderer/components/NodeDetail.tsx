@@ -16,6 +16,7 @@ import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 interface MoveTarget {
@@ -93,7 +94,7 @@ interface NodeDetailProps {
 }
 
 const ALL_CATEGORIES: Category[] = ['Desires', 'Beliefs', 'Intentions'];
-const ALL_POVS: Pov[] = ['accelerationist', 'safetyist', 'skeptic'];
+const ALL_POVS: Pov[] = [...POV_KEYS];
 
 /** BDI layer guidance for each category */
 const BDI_GUIDANCE: Record<Category, string> = {

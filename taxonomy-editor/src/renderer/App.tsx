@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
@@ -22,47 +23,6 @@ import { SummariesTab } from './components/SummariesTab';
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
 console.log(`[App] BUILD_FINGERPRINT: ${BUILD_FINGERPRINT}`);
-
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { error: Error | null; componentStack: string | null }
-> {
-  state = { error: null as Error | null, componentStack: null as string | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[ErrorBoundary] error:', error.message);
-    console.error('[ErrorBoundary] componentStack:', info.componentStack);
-    console.error('[ErrorBoundary] stack:', error.stack);
-    this.setState({ componentStack: info.componentStack ?? null });
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div style={{ padding: 20, fontFamily: 'monospace' }}>
-          <h2 style={{ color: '#ef4444' }}>Something went wrong</h2>
-          <div style={{ color: '#666', fontSize: '0.7rem', marginBottom: 8 }}>Build: {BUILD_FINGERPRINT}</div>
-          <pre style={{ whiteSpace: 'pre-wrap', color: '#f97316' }}>{this.state.error.message}</pre>
-          {this.state.componentStack && (
-            <>
-              <h3 style={{ color: '#94a3b8', marginTop: 12 }}>Component Stack:</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#60a5fa', marginTop: 4 }}>
-                {this.state.componentStack}
-              </pre>
-            </>
-          )}
-          <h3 style={{ color: '#94a3b8', marginTop: 12 }}>Error Stack:</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
-            {this.state.error.stack}
-          </pre>
-          <button onClick={() => this.setState({ error: null, componentStack: null })} style={{ marginTop: 12, padding: '6px 12px' }}>
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 interface DataUpdateInfo {
   available: boolean;
@@ -130,14 +90,14 @@ function FileViewerApp() {
 export function App() {
   // If this window was opened as a diagnostics popout, render only that
   if (window.location.hash === '#diagnostics-window') {
-    return <ErrorBoundary><DiagnosticsWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DiagnosticsWindow /></ErrorBoundary>;
   }
   if (window.location.hash === '#pov-progression-window') {
-    return <ErrorBoundary><PovProgressionWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PovProgressionWindow /></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app
-  return <ErrorBoundary><AppRouter /></ErrorBoundary>;
+  return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /></ErrorBoundary>;
 }
 
 /** Handles CLI-mode detection — hooks are always called in same order */

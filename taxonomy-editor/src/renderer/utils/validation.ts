@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { z } from 'zod';
+import { POV_KEYS } from '@lib/debate/types';
 
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
@@ -19,7 +20,7 @@ const povNodeSchema = z.object({
 export const povTaxonomyFileSchema = z.object({
   _schema_version: z.string(),
   _doc: z.string(),
-  pov: z.enum(['accelerationist', 'safetyist', 'skeptic']),
+  pov: z.enum(POV_KEYS),
   color_hex: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   last_modified: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   nodes: z.array(povNodeSchema),

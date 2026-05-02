@@ -14,6 +14,15 @@ export async function generateViaOpenAI(
 ): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
 
+  const reqBody: Record<string, unknown> = {
+    model: apiModelId,
+    input: prompt,
+    max_output_tokens: opts.maxTokens ?? 16384,
+  };
+  if (opts.systemMessage) {
+    reqBody.instructions = opts.systemMessage;
+  }
+
   const response = await withTimeout(
     fetchFn('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -21,11 +30,7 @@ export async function generateViaOpenAI(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: apiModelId,
-        input: prompt,
-        max_output_tokens: opts.maxTokens ?? 16384,
-      }),
+      body: JSON.stringify(reqBody),
     }),
     timeoutMs,
     'OpenAI API request',

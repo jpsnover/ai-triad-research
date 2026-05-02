@@ -53,14 +53,19 @@ export async function generateViaGemini(
     }
   }
 
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: genConfig,
+  };
+  if (opts.systemMessage) {
+    body.systemInstruction = { parts: [{ text: opts.systemMessage }] };
+  }
+
   const response = await withTimeout(
     fetchFn(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: genConfig,
-      }),
+      body: JSON.stringify(body),
     }),
     timeoutMs,
     'Gemini API request',

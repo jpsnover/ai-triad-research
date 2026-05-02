@@ -282,9 +282,9 @@ post('/api/data/pull', async (_req, res) => {
     gitStore.clearStaleLockFile(dataRoot);
     console.log('[data-pull] Starting pull in', dataRoot);
 
-    // Log remote URL for diagnostics
+    // Log remote URL for diagnostics (redact tokens)
     const remoteUrl = await runGit(['remote', 'get-url', 'origin']);
-    console.log('[data-pull] Remote URL:', remoteUrl);
+    console.log('[data-pull] Remote URL:', remoteUrl.replace(/:\/\/[^@]+@/, '://<redacted>@'));
 
     // If remote is SSH, convert to HTTPS for public repo access without keys
     if (remoteUrl.startsWith('git@github.com:')) {

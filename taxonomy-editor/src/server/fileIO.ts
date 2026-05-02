@@ -12,6 +12,7 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
 import { ActionableError } from '../../../lib/debate/errors';
+import { POV_KEYS } from '../../../lib/debate/types';
 
 // ── Path safety ──
 
@@ -386,8 +387,6 @@ interface PolicySourceReference {
 
 type PolicySourceIndex = Record<string, PolicySourceReference[]>;
 
-const POV_NAMES = ['accelerationist', 'safetyist', 'skeptic'] as const;
-
 /**
  * For each policy in policy_actions.json, find all nodes that reference it
  * (by scanning policy_actions in POV files), then use the node-source index
@@ -407,7 +406,7 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
 
   // 2. Build node → policy mapping by scanning all POV files
   const nodeToPolicies = new Map<string, string[]>();
-  for (const pov of POV_NAMES) {
+  for (const pov of POV_KEYS) {
     try {
       const file = readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
       if (!file?.nodes) continue;
@@ -597,7 +596,7 @@ export function harvestCreateConflict(conflict: Record<string, unknown>): boolea
 export function harvestAddDebateRef(nodeId: string, debateId: string): boolean {
   // Find which POV file contains this node and update it
   const taxDir = getTaxonomyDir();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations']) {
+  for (const pov of [...POV_KEYS, 'situations']) {
     try {
       const filePath = resolveTaxonomyFilePath(pov);
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -619,7 +618,7 @@ export function harvestAddDebateRef(nodeId: string, debateId: string): boolean {
 }
 
 export function harvestUpdateSteelman(nodeId: string, attackerPov: string, newText: string): boolean {
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic', 'situations']) {
+  for (const pov of [...POV_KEYS, 'situations']) {
     try {
       const filePath = resolveTaxonomyFilePath(pov);
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));

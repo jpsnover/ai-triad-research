@@ -9,6 +9,7 @@
 
 import type { PovNode, SituationNode, Edge } from './taxonomyTypes';
 import { nodePovFromId } from './nodeIdUtils';
+import { POV_KEYS } from './types';
 
 // ── Validation result ─────────────────────────────────────
 
@@ -60,7 +61,7 @@ export function checkReferentialIntegrity(data: TaxonomyData): ValidationResult 
   const allPovNodes = new Map<string, PovNode>();
   const allPovIds = new Set<string>();
   const sitIds = new Set<string>();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of data[pov].nodes) {
       allPovNodes.set(n.id, n);
       allPovIds.add(n.id);
@@ -229,7 +230,7 @@ export function checkBdiConsistency(
 export function validateTaxonomy(data: TaxonomyData): ValidationResult {
   const allPovIds = new Set<string>();
   const sitIds = new Set<string>();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of data[pov].nodes) allPovIds.add(n.id);
   }
   for (const n of data.situations.nodes) sitIds.add(n.id);

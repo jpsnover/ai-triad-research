@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { nodePovFromId, SITUATION_PREFIX } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { ApiKeyErrorMessage } from './ApiKeyErrorMessage';
 
@@ -106,7 +107,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
       const conflict = state.conflicts.find(c => c.claim_id === id);
       return conflict?.description || '';
     }
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);
@@ -120,7 +121,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
     const state = useTaxonomyStore.getState();
     if (id.startsWith(SITUATION_PREFIX)) return 'situations';
     if (id.startsWith('conflict-')) return 'conflict';
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);

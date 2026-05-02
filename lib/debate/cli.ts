@@ -16,7 +16,7 @@ import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, load
 import { DebateEngine } from './debateEngine';
 import type { DebateConfig } from './debateEngine';
 import type { DebateSourceType, PoverId, DebateAudience } from './types';
-import { POVER_INFO, DEBATE_AUDIENCES } from './types';
+import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types';
 import { formatSituationDebateContext } from './prompts';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters';
 import { ActionableError } from './errors';
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
 
     const linkedNodeDescriptions: string[] = [];
     for (const linkedId of sitNode.linked_nodes.slice(0, 10)) {
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const pov of POV_KEYS) {
         const node = taxonomy[pov].nodes.find(n => n.id === linkedId);
         if (node) linkedNodeDescriptions.push(`[${node.id}] ${node.label}: ${node.description.slice(0, 150)}`);
       }
@@ -380,7 +380,7 @@ async function main(): Promise<void> {
   // Write harvest
   const allNodeIds = new Set<string>();
   const nodeLabels = new Map<string, string>();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of taxonomy[pov].nodes) { allNodeIds.add(n.id); nodeLabels.set(n.id, n.label); }
   }
   for (const n of taxonomy.situations.nodes) { allNodeIds.add(n.id); nodeLabels.set(n.id, n.label); }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useMemo } from 'react';
+import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { PolicySourcesPanel, getPolicySourceIndex } from './PolicySourcesPanel';
 import type { PolicySourceReference } from './PolicySourcesPanel';
@@ -62,7 +63,7 @@ export function PolicyDashboard() {
       const state = useTaxonomyStore.getState();
       const nodeToPolicies = new Map<string, string[]>();
 
-      for (const povKey of ['accelerationist', 'safetyist', 'skeptic', 'situations'] as const) {
+      for (const povKey of [...POV_KEYS, 'situations'] as const) {
         const file = povKey === 'situations' ? state.situations : state[povKey];
         if (!file?.nodes) continue;
         for (const node of file.nodes) {

@@ -8,6 +8,7 @@
  */
 
 import type { DocumentAnalysis, ContextRotStage } from './types';
+import { POV_KEYS } from './types';
 import type { PovNode, SituationNode } from './taxonomyTypes';
 import type { PolicyRef } from './taxonomyContext';
 
@@ -35,7 +36,7 @@ export function buildTaxonomySample(
   const SIT_LIMIT = 15;
   const POLICY_LIMIT = 15;
 
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     let nodes = taxonomy[pov].nodes;
     if (nodes.length === 0) continue;
 

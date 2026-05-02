@@ -12,11 +12,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DebateSession, TranscriptEntry, ArgumentNetworkNode, ArgumentNetworkEdge, PoverId } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
+import { AI_POVERS } from '@lib/debate/types';
 
 // ── Local view types ──────────────────────────────────────
 
 type Pover = Exclude<PoverId, 'user'>;
-const POVS: Pover[] = ['prometheus', 'sentinel', 'cassandra'];
+const POVS = AI_POVERS;
 
 type Mode = 'snapshot' | 'diff' | 'since-opening';
 

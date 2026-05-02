@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { POV_KEYS } from '@lib/debate/types';
 
 /** Raw node shape as loaded from POV JSON files, used read-only in Diagnostics. */
 export interface TaxRefNode {
@@ -347,7 +348,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
       {node.interpretations && (
         <>
           <div style={sectionHeader}>Interpretations</div>
-          {(['accelerationist', 'safetyist', 'skeptic'] as const).map(p => {
+          {POV_KEYS.map(p => {
             const interp = node.interpretations?.[p];
             if (!interp) return null;
             if (typeof interp === 'string') {

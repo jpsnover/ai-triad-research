@@ -169,7 +169,7 @@ export function formatRecentTranscript(
   maxEntries: number = 8,
   contextSummaries?: { up_to_entry_id: string; summary: string; tier?: string }[],
 ): string {
-  const recent = transcript.filter((e) => e.type !== 'system').slice(-maxEntries);
+  const recent = transcript.slice(-(maxEntries * 2)).filter((e) => e.type !== 'system').slice(-maxEntries);
   if (recent.length === 0) return '(No prior exchanges)';
 
   const parts: string[] = [];

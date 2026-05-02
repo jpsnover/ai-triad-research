@@ -11,7 +11,7 @@ import type {
   TranscriptEntry,
   TaxonomyRef,
 } from '../types/debate';
-import { POVER_INFO } from '../types/debate';
+import { POVER_INFO, AI_POVERS, POV_KEYS } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Category, Pov } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 
@@ -190,7 +190,7 @@ function createDebateGuard(get: () => { activeDebateId: string | null }): () => 
 
 let _abortController: AbortController | null = null;
 
-const AI_POVER_ORDER: Exclude<PoverId, 'user'>[] = ['prometheus', 'sentinel', 'cassandra'];
+const AI_POVER_ORDER = AI_POVERS;
 
 /** Maximum number of turn embeddings to retain (enough for recycling detection). */
 const TURN_EMBEDDING_WINDOW = 30;
@@ -828,7 +828,7 @@ async function extractClaimsAndUpdateAN(
             text_b: assertion,
           }));
           const nliResult = await api.nliClassify(pairs);
-          const maxEntailment = Math.max(...nliResult.results.map((r: any) => r.nli_entailment ?? 0));
+          const maxEntailment = Math.max(...nliResult.results.map(r => r.nli_entailment ?? 0));
 
           if (maxEntailment < 0.6) {
             const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
@@ -893,7 +893,7 @@ async function extractClaimsAndUpdateAN(
           get().activeDebate?.audience,
         );
         const { text: vText } = await api.generateText(verdictPrompt, fcModel);
-        let vParsed = parseAIJson(vText) as any;
+        let vParsed = parseAIJson<{ verdict?: string; explanation?: string; evidence?: string }>(vText);
         if (!vParsed) {
           vParsed = { verdict: 'unverifiable', evidence: vText.trim() };
         }
@@ -1018,7 +1018,7 @@ async function extractClaimsAndUpdateAN(
 function getAllKnownNodeIds(): Set<string> {
   const s = new Set<string>();
   const state = useTaxonomyStore.getState();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     for (const n of state[pov]?.nodes ?? []) s.add(n.id);
   }
   for (const n of state.situations?.nodes ?? []) s.add(n.id);
@@ -1033,7 +1033,7 @@ function getAllPolicyIds(): Set<string> {
 
 function findNodeMetaInStore(nodeId: string): { label: string; pov: string; description: string } | undefined {
   const state = useTaxonomyStore.getState();
-  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+  for (const pov of POV_KEYS) {
     const n = state[pov]?.nodes.find(x => x.id === nodeId);
     if (n) return { label: n.label, pov, description: n.description };
   }
@@ -1093,6 +1093,27 @@ function routeTurnValidatorHintsIntoSuggestions(
   return out;
 }
 
+// ── Stage generate factory (shared by opening + cross-respond) ──
+
+function makeStageGenerate(
+  set: (partial: Record<string, unknown>) => void,
+  model: string,
+): (prompt: string, _model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => Promise<string> {
+  return async (prompt, _model, options, label) => {
+    set({ debateActivity: label, debateProgress: null });
+    const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
+      set({ debateProgress: progress as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } });
+    });
+    try {
+      const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
+      return result.text;
+    } finally {
+      unsubscribe();
+      set({ debateProgress: null, debateActivity: null });
+    }
+  };
+}
+
 // ── Taxonomy grounding helpers ───────────────────────────
 
 /** Get taxonomy data from the taxonomy store for a given POV */
@@ -1105,22 +1126,6 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
 
   return { povNodes, situationNodes, policyRegistry };
-}
-
-// Cache for node embeddings (loaded once per session)
-let _nodeEmbeddingsCache: Record<string, { pov: string; vector: number[] }> | null = null;
-
-/** Load node embeddings from the data repo (cached) */
-async function loadNodeEmbeddings(): Promise<Record<string, { pov: string; vector: number[] }>> {
-  if (_nodeEmbeddingsCache) return _nodeEmbeddingsCache;
-  try {
-    const raw = await api.loadEdges(); // Reuse the data loading path
-    // Actually we need a separate IPC — but for now, use computeEmbeddings as a fallback
-    // The embeddings are in the file but not exposed via IPC. Fall back to null.
-    return {};
-  } catch {
-    return {};
-  }
 }
 
 /**
@@ -1244,7 +1249,7 @@ function formatDebaterEdgeContext(debaterPov: string): string {
   // Resolve node labels for readability
   const getLabel = (id: string): string => {
     const state = useTaxonomyStore.getState();
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const node = state[pov]?.nodes?.find(n => n.id === id);
       if (node) return node.label;
     }
@@ -1739,7 +1744,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Resolve linked node descriptions
     const linkedNodeDescriptions: string[] = [];
     for (const linkedId of ccNode.linked_nodes) {
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const pov of POV_KEYS) {
         const file = taxState[pov];
         const node = file?.nodes.find(n => n.id === linkedId);
         if (node) {
@@ -1773,7 +1778,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     });
 
     const topic = ccNode.label;
-    const allPovers: PoverId[] = ['prometheus', 'sentinel', 'cassandra'];
+    const allPovers = [...AI_POVERS] as PoverId[];
 
     const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
     await get().loadDebate(id);
@@ -2334,19 +2339,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Collect prior statements as we go (sequential — each sees the ones before it)
     const priorStatements: { speaker: string; statement: string }[] = [];
 
-    const stageGenerate = async (prompt: string, _model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
-      set({ debateActivity: label, debateProgress: null });
-      const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
-        set({ debateProgress: progress as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } });
-      });
-      try {
-        const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
-        return result.text;
-      } finally {
-        unsubscribe();
-        set({ debateProgress: null, debateActivity: null });
-      }
-    };
+    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
 
     for (const poverId of aiPovers) {
       set({ debateGenerating: poverId });
@@ -2492,8 +2485,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         if (Object.keys(openingEmbeddings).length > 0) {
           const d = get().activeDebate;
           if (d) {
-            if (!(d as any).metadata) (d as any).metadata = {};
-            (d as any).metadata._openingEmbeddings = openingEmbeddings;
+            if (!d.metadata) d.metadata = {};
+            d.metadata._openingEmbeddings = openingEmbeddings;
             set({ activeDebate: { ...d } });
           }
         }
@@ -2818,7 +2811,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       intervention_recommended: selectionResult?.intervene ?? false,
       intervention_move: selectionResult?.suggested_move ?? null,
       intervention_validated: engineValidation?.proceed ?? false,
-      intervention_suppressed_reason: (engineValidation as any)?.suppressed_reason ?? null,
+      intervention_suppressed_reason: engineValidation?.suppressed_reason ?? null,
       intervention_target: selectionResult?.target_debater ?? null,
       trigger_reasoning: selectionResult?.trigger_reasoning ?? null,
       trigger_evidence: selectionResult?.trigger_evidence ?? null,
@@ -2932,19 +2925,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       model,
     };
 
-    const stageGenerate = async (prompt: string, _model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
-      set({ debateActivity: label, debateProgress: null });
-      const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
-        set({ debateProgress: progress as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } });
-      });
-      try {
-        const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
-        return result.text;
-      } finally {
-        unsubscribe();
-        set({ debateProgress: null, debateActivity: null });
-      }
-    };
+    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
 
     try {
       // ── Per-turn validation + retry loop ──
@@ -3041,7 +3022,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         // Position drift detection (non-blocking)
         try {
           const currentD = get().activeDebate;
-          const openingEmbeds = (currentD as any)?.metadata?._openingEmbeddings as Record<string, number[]> | undefined;
+          const openingEmbeds = currentD?.metadata?._openingEmbeddings as Record<string, number[]> | undefined;
           if (openingEmbeds && openingEmbeds[responderPover]) {
             const responseEmbed = await api.computeQueryEmbedding(statement.slice(0, 1000));
             const selfSim = cosineSimilarity(responseEmbed.vector, openingEmbeds[responderPover]);
@@ -3095,10 +3076,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             const gapTranscript = formatRecentTranscript(gapDebate.transcript, 20, gapDebate.context_summaries);
             // Build taxonomy summary — same pattern as missing arguments pass
             const gapSummaryLines: string[] = [];
-            for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+            for (const pov of POV_KEYS) {
               const ctx = getTaxonomyContext(pov);
               for (const n of ctx.povNodes) {
-                gapSummaryLines.push(`[${n.id}] ${n.label} (${(n as any).category ?? 'unknown'}) — ${pov}`);
+                gapSummaryLines.push(`[${n.id}] ${n.label} (${n.category ?? 'unknown'}) — ${pov}`);
               }
             }
             const anTexts = (gapDebate.argument_network?.nodes || []).map(n => n.text);
@@ -3350,10 +3331,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       try {
         const synthText = lines.join('\n').slice(0, 4000);
         const summaryLines: string[] = [];
-        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        for (const pov of POV_KEYS) {
           const ctx = getTaxonomyContext(pov);
           for (const n of ctx.povNodes) {
-            summaryLines.push(`[${n.id}] ${n.label} (${(n as any).category ?? 'unknown'}) — ${pov}`);
+            summaryLines.push(`[${n.id}] ${n.label} (${n.category ?? 'unknown'}) — ${pov}`);
           }
         }
         const maPrompt = missingArgumentsPrompt(
@@ -3363,7 +3344,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           activeDebate.audience,
         );
         const { text: maText } = await api.generateText(maPrompt, model);
-        const maParsed = parseAIJson(maText) as any;
+        const maParsed = parseAIJson<{ missing_arguments?: unknown[] }>(maText);
         if (maParsed?.missing_arguments && Array.isArray(maParsed.missing_arguments)) {
           const currentDebate = get().activeDebate;
           if (currentDebate) {
@@ -3392,7 +3373,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           if (refIds.size > 0) {
             // Resolve to full node data
             const referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[] = [];
-            for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+            for (const pov of POV_KEYS) {
               const ctx = getTaxonomyContext(pov);
               for (const n of ctx.povNodes) {
                 if (refIds.has(n.id)) {
@@ -3400,7 +3381,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                     id: n.id,
                     label: n.label,
                     pov,
-                    category: (n as any).category ?? 'unknown',
+                    category: n.category ?? 'unknown',
                     description: n.description,
                   });
                 }
@@ -3431,7 +3412,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                 activeDebate.audience,
               );
               const { text: trText } = await api.generateText(trPrompt, model);
-              const trParsed = parseAIJson(trText) as any;
+              const trParsed = parseAIJson<{ taxonomy_suggestions?: unknown[] }>(trText);
               if (trParsed?.taxonomy_suggestions && Array.isArray(trParsed.taxonomy_suggestions)) {
                 const latestD = get().activeDebate;
                 if (latestD) {
@@ -3489,9 +3470,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         if (gapDebate) {
           const gapTaxState = useTaxonomyStore.getState();
           const taxonomyNodes: Record<string, { id: string; label: string; category: string; description?: string }[]> = {};
-          for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+          for (const pov of POV_KEYS) {
             taxonomyNodes[pov] = (gapTaxState[pov]?.nodes || []).map(n => ({
-              id: n.id, label: n.label, category: (n as any).category ?? 'unknown', description: n.description,
+              id: n.id, label: n.label, category: n.category ?? 'unknown', description: n.description,
             }));
           }
 
@@ -3545,7 +3526,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     // Gather all taxonomy node IDs from all POVs
     const allNodeIds: string[] = [];
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const ctx = getTaxonomyContext(pov);
       for (const n of ctx.povNodes) allNodeIds.push(`[${n.id}] ${n.label}`);
     }
@@ -3622,7 +3603,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     // Also include some general taxonomy context
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const ctx = getTaxonomyContext(pov);
       for (const n of ctx.povNodes.slice(0, 5)) {
         if (!allNodes.some((l) => l.includes(n.id))) {

@@ -19,21 +19,21 @@ import {
   resolveBackend,
   callProvider,
   withRetry,
-  withTimeout,
   buildModelIdMap,
   getApiModelId as getApiModelIdFromMap,
-  GEMINI_BASE,
   SERVER_RETRY_CONFIG,
+  callGeminiBatchEmbed,
+  geminiGroundedSearch,
   type GenerateOptions,
   type ProviderResult,
   type RateLimitType,
+  type GroundingCitation as SharedGroundingCitation,
 } from '../../../lib/ai-client';
 
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 // ── Constants ──
 
-const MAX_RETRIES = 5;
 const BATCH_SIZE = 100;
 
 // ── Temperature state ──
@@ -165,22 +165,12 @@ export async function generateText(
   return { text: result.text, tokenUsage: mapUsage(result.usage) };
 }
 
-export interface GroundingSegment {
-  startIndex: number;
-  endIndex: number;
-  text?: string;
-  confidence?: number;
-}
-
-export interface GroundingCitation {
-  uri: string;
-  title: string;
-  segments: GroundingSegment[];
-}
+export type { SharedGroundingCitation as GroundingCitation };
+export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-search';
 
 export async function generateTextWithSearch(
   prompt: string, model?: string,
-): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
+): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
   const resolved = model || 'gemini-3.1-flash-lite-preview';
   const backend = resolveBackend(resolved);
 
@@ -196,7 +186,7 @@ export async function generateTextWithSearch(
       });
       const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
       const { text } = await generateText(augmentedPrompt, resolved);
-      const citations: GroundingCitation[] = searchCitations.map(c => ({
+      const citations: SharedGroundingCitation[] = searchCitations.map(c => ({
         uri: c.uri,
         title: c.title,
         segments: [],
@@ -222,100 +212,7 @@ export async function generateTextWithSearch(
   }
 
   const apiModel = getApiModelId(resolved);
-  const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
-
-  const response = await withTimeout(
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 16384 },
-      }),
-    }),
-    60_000,
-    'Gemini grounded search',
-  );
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new ActionableError({
-      goal: 'Perform grounded search via Gemini',
-      problem: `API error ${response.status}: ${body.slice(0, 300)}`,
-      location: 'aiBackends.generateTextWithSearch',
-      nextSteps: ['Check your Gemini API key', 'Verify the model supports grounded search', 'Try again'],
-    });
-  }
-
-  const json = await response.json() as {
-    candidates?: {
-      content: { parts: { text: string }[] };
-      groundingMetadata?: {
-        groundingChunks?: { web?: { uri?: string; title?: string } }[];
-        groundingSupports?: {
-          segment?: { startIndex?: number; endIndex?: number; text?: string };
-          groundingChunkIndices?: number[];
-          confidenceScores?: number[];
-        }[];
-      };
-    }[];
-  };
-  if (!json.candidates?.length) {
-    throw new ActionableError({
-      goal: 'Perform grounded search via Gemini',
-      problem: 'No candidates returned from Gemini grounded search',
-      location: 'aiBackends.generateTextWithSearch',
-      nextSteps: ['Retry the request', 'Check if the query triggers a safety filter', 'Try a different model'],
-    });
-  }
-
-  let text = json.candidates[0].content.parts
-    .filter(p => typeof p.text === 'string')
-    .map(p => p.text)
-    .join('');
-  const meta = json.candidates[0].groundingMetadata;
-  const chunks = meta?.groundingChunks ?? [];
-  const supports = meta?.groundingSupports ?? [];
-
-  const citations: GroundingCitation[] = chunks.map(c => ({
-    uri: c.web?.uri || '',
-    title: c.web?.title || c.web?.uri || '(untitled source)',
-    segments: [],
-  }));
-  for (const s of supports) {
-    const seg = s.segment;
-    if (!seg || typeof seg.startIndex !== 'number' || typeof seg.endIndex !== 'number') continue;
-    const idxs = s.groundingChunkIndices ?? [];
-    const scores = s.confidenceScores ?? [];
-    idxs.forEach((ci, k) => {
-      if (ci >= 0 && ci < citations.length) {
-        citations[ci].segments.push({
-          startIndex: seg.startIndex as number,
-          endIndex: seg.endIndex as number,
-          text: seg.text,
-          confidence: scores[k],
-        });
-      }
-    });
-  }
-
-  // If the model returned empty text but grounding supports have segment text,
-  // synthesize evidence from the segments so the UI has something to display.
-  if (!text && supports.length > 0) {
-    const segTexts = supports
-      .map(s => s.segment?.text)
-      .filter((t): t is string => !!t);
-    if (segTexts.length > 0) text = segTexts.join(' ');
-  }
-
-  const searchQueries = citations.map(c => c.title).filter(Boolean);
-
-  return {
-    text,
-    searchQueries: searchQueries.length ? searchQueries : undefined,
-    citations: citations.length ? citations : undefined,
-  };
+  return geminiGroundedSearch(fetch, prompt, apiModel, apiKey);
 }
 
 // ── Embeddings ──
@@ -345,52 +242,8 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
   }
 }
 
-async function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): Promise<number[][]> {
-  const GEMINI_MODEL = 'gemini-embedding-001';
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:batchEmbedContents?key=${apiKey}`;
-  const requests = texts.map(text => ({
-    model: `models/${GEMINI_MODEL}`,
-    content: { parts: [{ text }] },
-    taskType,
-  }));
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests }),
-    });
-
-    if (response.status === 429 || response.status === 503) {
-      if (attempt === MAX_RETRIES) {
-        throw new ActionableError({
-          goal: 'Compute embeddings via Gemini',
-          problem: `Embedding API rate limited after ${MAX_RETRIES} attempts`,
-          location: 'aiBackends.callGeminiBatchApi',
-          nextSteps: ['Wait a minute and retry', 'Reduce batch size', 'Check Gemini API quota'],
-        });
-      }
-      await new Promise(r => setTimeout(r, Math.min(2 ** attempt, 30) * 1000));
-      continue;
-    }
-    if (!response.ok) {
-      throw new ActionableError({
-        goal: 'Compute embeddings via Gemini',
-        problem: `API error ${response.status}: ${await response.text()}`,
-        location: 'aiBackends.callGeminiBatchApi',
-        nextSteps: ['Check your Gemini API key', 'Verify the embedding model is available', 'Try again'],
-      });
-    }
-
-    const json = await response.json() as { embeddings: { values: number[] }[] };
-    return json.embeddings.map(e => e.values);
-  }
-  throw new ActionableError({
-    goal: 'Compute embeddings via Gemini',
-    problem: `Exhausted ${MAX_RETRIES} retry attempts`,
-    location: 'aiBackends.callGeminiBatchApi',
-    nextSteps: ['Wait and retry', 'Check Gemini API status'],
-  });
+function callGeminiBatchApi(texts: string[], taskType: string, apiKey: string): Promise<number[][]> {
+  return callGeminiBatchEmbed(fetch, texts, taskType, apiKey, SERVER_RETRY_CONFIG);
 }
 
 export async function computeEmbeddings(texts: string[], ids?: string[]): Promise<number[][]> {

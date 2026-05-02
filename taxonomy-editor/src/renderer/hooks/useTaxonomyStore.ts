@@ -36,6 +36,7 @@ import { rankBySimilarity } from '../utils/similarity';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { normalizeNodeProperties } from '@lib/debate';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { POV_KEYS } from '@lib/debate/types';
 import { validateTaxonomy } from '@lib/debate/validators';
 import type { ValidationResult } from '@lib/debate/validators';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
@@ -969,7 +970,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     const ids: string[] = [];
     const texts: string[] = [];
 
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       if (hasPovFilter && !povScopes.has(pov)) continue;
       const file = state[pov];
       if (!file) continue;
@@ -1186,8 +1187,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     if (dirtyKeys.size === 0) return;
 
     for (const key of dirtyKeys) {
-      if (key === 'accelerationist' || key === 'safetyist' || key === 'skeptic') {
-        const file = state[key];
+      if ((POV_KEYS as readonly string[]).includes(key)) {
+        const file = state[key as typeof POV_KEYS[number]];
         if (!file) continue;
         const result = povTaxonomyFileSchema.safeParse(file);
         if (!result.success) {
@@ -1251,10 +1252,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const promises: Promise<void>[] = [];
 
       for (const key of dirtyKeys) {
-        if (key === 'accelerationist' || key === 'safetyist' || key === 'skeptic') {
-          const file = state[key];
+        if ((POV_KEYS as readonly string[]).includes(key)) {
+          const file = state[key as typeof POV_KEYS[number]];
           if (file) {
-            promises.push(api.saveTaxonomyFile(key, file));
+            promises.push(api.saveTaxonomyFile(key as typeof POV_KEYS[number], file));
           }
         } else if (key === 'situations') {
           const file = state.situations;
@@ -1275,8 +1276,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       // Fire-and-forget: re-embed changed nodes and update embeddings.json
       const nodesToEmbed: { id: string; text: string; pov: string }[] = [];
       for (const key of dirtyKeys) {
-        if (key === 'accelerationist' || key === 'safetyist' || key === 'skeptic') {
-          const file = state[key];
+        if ((POV_KEYS as readonly string[]).includes(key)) {
+          const file = state[key as typeof POV_KEYS[number]];
           if (file) {
             for (const node of file.nodes) {
               nodesToEmbed.push({ id: node.id, text: node.description, pov: key });
@@ -1773,7 +1774,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   getAllNodeIds: () => {
     const state = get();
     const ids: string[] = [];
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) ids.push(...file.nodes.map(n => n.id));
     }
@@ -1801,7 +1802,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const conflict = state.conflicts.find(c => c.claim_id === id);
       return conflict?.claim_label || '';
     }
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);
@@ -1821,7 +1822,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const node = state.situations?.nodes.find(n => n.id === id);
       return node?.description || '';
     }
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);
@@ -1843,7 +1844,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       if (conflict) return { type: 'conflict', conflict: structuredClone(conflict) };
       return null;
     }
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) {
         const node = file.nodes.find(n => n.id === id);
@@ -1945,7 +1946,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
     };
 
-    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    for (const pov of POV_KEYS) {
       const file = state[pov];
       if (!file) continue;
       for (const node of file.nodes) {

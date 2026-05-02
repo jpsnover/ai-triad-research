@@ -1,28 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { SearchMode } from '../types/types';
-
-export function buildSearchRegex(
-  query: string,
-  mode: SearchMode,
-  caseSensitive: boolean,
-): RegExp | null {
-  if (!query) return null;
-  try {
-    let pattern: string;
-    if (mode === 'raw') {
-      pattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    } else if (mode === 'wildcard') {
-      pattern = query
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
-    } else {
-      pattern = query;
-    }
-    return new RegExp(pattern, caseSensitive ? 'g' : 'gi');
-  } catch {
-    return null;
-  }
-}
+// Re-export shared buildSearchRegex — handles raw/wildcard/regex modes.
+// poviewer's SearchMode is defined in types/types.ts (raw | wildcard | regex),
+// all of which are core modes, so the shared function handles them directly.
+export { buildSearchRegex } from '../../../../lib/electron-shared/utils/searchRegex';

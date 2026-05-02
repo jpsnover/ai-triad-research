@@ -1,28 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { SearchMode } from '../hooks/useTaxonomyStore';
-
-export function buildSearchRegex(
-  query: string,
-  mode: SearchMode,
-  caseSensitive: boolean,
-): RegExp | null {
-  if (!query || mode === 'semantic') return null;
-  try {
-    let pattern: string;
-    if (mode === 'raw') {
-      pattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    } else if (mode === 'wildcard') {
-      pattern = query
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.');
-    } else {
-      pattern = query;
-    }
-    return new RegExp(pattern, caseSensitive ? 'g' : 'gi');
-  } catch {
-    return null;
-  }
-}
+// Re-export shared buildSearchRegex — handles raw/wildcard/regex modes.
+// 'semantic' mode returns null from the shared function, letting the caller
+// handle it with app-specific semantic search logic.
+export { buildSearchRegex } from '../../../../lib/electron-shared/utils/searchRegex';
