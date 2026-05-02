@@ -1,0 +1,10 @@
+{
+  "topic": "Should the EU AI Act's risk classification system be adopted as a global standard for AI governance?",
+  "name": "Moderator validation run",
+  "rounds": 4,
+  "model": "gemini-2.5-flash",
+  "audience": "general_public",
+  "responseLength": "medium",
+  "activePovers": ["prometheus", "sentinel", "cassandra"],
+  "outputDir": "../ai-triad-data/debates"
+}

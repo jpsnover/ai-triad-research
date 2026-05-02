@@ -86,8 +86,8 @@ export function generateDialecticTraces(session: DebateSession): DialecticTrace[
   const synthEntry = session.transcript.find(e => e.type === 'synthesis');
   if (!synthEntry?.metadata?.synthesis) return [];
 
-  const synthesis = synthEntry.metadata.synthesis;
-  const preferences = synthesis.preferences;
+  const synthesis = synthEntry.metadata.synthesis as { preferences?: PreferenceEntry[] } | undefined;
+  const preferences = synthesis?.preferences;
   if (!preferences || preferences.length === 0) return [];
 
   const traces: DialecticTrace[] = [];

@@ -159,7 +159,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 | A8 | Architecture | ~~Unused `withRecovery()` utility in `errors.ts` (0 call sites)~~ | **DONE** — deleted 60-line dead function; updated docs |
 | A9 | Architecture | ~~Dead code: `loadNodeEmbeddings()` always returns `{}`~~ | **DONE** — deleted dead function and unused `_nodeEmbeddingsCache` |
 | A10 | Architecture | ~~`stageGenerate` closure duplicated within useDebateStore~~ | **DONE** — extracted `makeStageGenerate()` factory; both call sites use it |
-| A11 | Architecture | `HARD_CAP = 200` in networkGc.ts should be configurable | Deferred — low impact, config surface already large |
+| A11 | Architecture | ~~`HARD_CAP = 200` in networkGc.ts should be configurable~~ | **DONE** — already configurable via `w.network.hard_cap` in debate config; networkGc constants are defaults only |
 | P7 | Performance | ~~`as any` type assertions: 25 in debateEngine, 12 in useDebateStore, 30+ in DiagnosticsPanel~~ | **DONE** — removed 70 assertions (28 debateEngine, 12 useDebateStore, 30 DiagnosticsPanel); 4 remain with eslint-disable (Zustand helper params, complex AI JSON) |
 | P8 | Performance | ~~O(T^2) recycling detection in convergenceSignals — cap lookback to 10~~ | **DONE** — `RECYCLING_LOOKBACK = 10` cap |
 | P9 | Performance | ~~Heavy Azure SDK deps in bundle — should be lazy-loaded~~ | **DONE** — dynamic `require()` inside conditional guard |
@@ -210,9 +210,9 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 14. ~~P3: Add Zustand selectors to all 15+ unselectored components~~ — **DONE** (all use selectors now)
 15. ~~A3: Complete barrel exports~~ — **DONE** (11 modules added; 3 Node.js-only excluded)
 
-### Backlog — ALL DONE (except A11 deferred)
+### Backlog — ALL DONE
 16. ~~E1: Migrate 145 bare throws to ActionableError (incremental)~~ — **DONE** (72 migrated in core files; 73 remain in secondary apps and test files)
 17. ~~A6: Extract shared Electron boilerplate~~ — **DONE** (ErrorBoundary, ResizeHandle, useResizablePanes, searchRegex extracted to `lib/electron-shared/`)
 18. ~~T8: Start React component testing~~ — **DONE** (27 tests across 4 components + jsdom/testing-library infrastructure)
 19. ~~E6: Add AbortController cancellation support~~ — **DONE** (signal passthrough to all backends)
-20. ~~P3 backlog (S12–S15, A8–A10, P7–P10, E8–E9, T9–T10, UX1)~~ — **DONE** (16 of 17 items; A11 deferred)
+20. ~~P3 backlog (S12–S15, A8–A11, P7–P10, E8–E9, T9–T10, UX1)~~ — **DONE** (all 17 items)
