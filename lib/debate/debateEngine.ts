@@ -108,6 +108,7 @@ import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker';
 import { generateDialecticTraces } from './dialecticTrace';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
+import { extractSituationDebateRefs } from './situationRefs';
 import { ActionableError } from './errors';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis';
 import { resolveTurnValidationConfig } from './turnValidator';
@@ -332,6 +333,9 @@ export class DebateEngine {
 
       // Phase 4f: Taxonomy gap analysis (deterministic — needs transcript, AN, taxonomy, manifests)
       this.runTaxonomyGapAnalysisPass();
+
+      // Phase 4g: Situation debate_refs extraction (t/193 — deterministic, needs transcript + situations)
+      this.runSituationRefExtraction();
     } catch (err) {
       // If the debate was cancelled via AbortSignal, set phase to cancelled and return partial session
       if (this.config.signal?.aborted) {
@@ -543,6 +547,36 @@ export class DebateEngine {
   private recordDiagnostic(entryId: string, data: Partial<EntryDiagnostics>): void {
     const diag = this.session.diagnostics!;
     diag.entries[entryId] = { ...diag.entries[entryId], ...data };
+  }
+
+  /** Update situation citation tracking (t/192). Recomputes from full transcript each turn. */
+  private updateSituationCitations(currentRefs: TaxonomyRef[]): void {
+    const overview = this.session.diagnostics?.overview;
+    if (!overview) return;
+
+    // Recompute from transcript for accuracy (cheap — just string prefix checks)
+    const uniqueSitIds = new Set<string>();
+    let turnsWithSit = 0;
+    let totalDebateTurns = 0;
+
+    for (const entry of this.session.transcript) {
+      if (entry.type !== 'statement' && entry.type !== 'opening') continue;
+      totalDebateTurns++;
+      const hasSit = entry.taxonomy_refs.some(r => r.node_id.startsWith('sit-'));
+      if (hasSit) {
+        turnsWithSit++;
+        for (const r of entry.taxonomy_refs) {
+          if (r.node_id.startsWith('sit-')) uniqueSitIds.add(r.node_id);
+        }
+      }
+    }
+
+    overview.situation_citations = {
+      turns_with_sit_refs: turnsWithSit,
+      total_debate_turns: totalDebateTurns,
+      citation_rate: totalDebateTurns > 0 ? turnsWithSit / totalDebateTurns : 0,
+      unique_sit_ids_cited: [...uniqueSitIds].sort(),
+    };
   }
 
   // ── Adaptive staging helpers ─────────────────────────────
@@ -1820,6 +1854,9 @@ export class DebateEngine {
         (this.session.diagnostics!.overview.disagreement_type_counts[meta.disagreement_type] ?? 0) + 1;
     }
 
+    // Track situation citation rate (t/192)
+    this.updateSituationCitations(taxonomyRefs);
+
     // Extract claims
     this.checkAborted();
     const anNodesBefore = this.session.argument_network!.nodes.length;
@@ -2638,6 +2675,40 @@ export class DebateEngine {
       );
     } catch (err) {
       this.warn('Taxonomy gap analysis', err, 'Non-critical — debate results unaffected');
+    }
+  }
+
+  // ── Situation debate_refs extraction (t/193) ────────────
+
+  /**
+   * Post-debate pass that identifies which situations were substantively
+   * discussed and stores the references on the session for consumers
+   * to write back to situation nodes in the taxonomy.
+   */
+  private runSituationRefExtraction(): void {
+    const situations = this.taxonomy.situations?.nodes;
+    if (!situations || situations.length === 0) return;
+
+    try {
+      const result = extractSituationDebateRefs(
+        this.session.id,
+        this.session.transcript,
+        situations,
+      );
+
+      // Store refs as a serializable object on the session
+      // Consumers (taxonomy-editor) can read this to write debate_refs back to disk
+      const refsObj: Record<string, import('./situationRefs').SituationDebateRef> = {};
+      for (const [sitId, ref] of result.refs) {
+        refsObj[sitId] = ref;
+      }
+
+      this.session.situation_debate_refs = {
+        refs: refsObj,
+        stats: result.stats,
+      };
+    } catch (err) {
+      this.warn('Situation ref extraction', err, 'Non-critical — debate results unaffected');
     }
   }
 

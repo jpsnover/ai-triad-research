@@ -446,6 +446,17 @@ export interface DebateSession {
   cross_cutting_proposals?: CrossCuttingProposal[];
   /** Post-debate taxonomy gap diagnostics — coverage analysis across POVs and BDI categories. */
   taxonomy_gap_analysis?: TaxonomyGapAnalysis;
+  /** Post-debate situation ref extraction (t/193) — maps sit- IDs to debate references for write-back. */
+  situation_debate_refs?: {
+    refs: Record<string, import('./situationRefs').SituationDebateRef>;
+    stats: {
+      situations_checked: number;
+      situations_matched: number;
+      explicit_citations: number;
+      semantic_matches: number;
+      both: number;
+    };
+  };
   /** Context-rot metrics measured during this debate — tracks information loss at each pipeline stage. */
   context_rot?: ContextRotMetrics;
   /** Transient runtime metadata (e.g., opening embeddings for drift detection). Not persisted. */
@@ -941,6 +952,17 @@ export interface DebateOverviewDiagnostics {
   claims_rejected: number;
   move_type_counts: Record<string, number>;
   disagreement_type_counts: Record<string, number>;
+  /** Situation citation tracking (t/192). Counts how many debate turns cited at least one sit- ID. */
+  situation_citations?: {
+    /** Number of debate turns that cited at least one sit- ID in taxonomy_refs. */
+    turns_with_sit_refs: number;
+    /** Total debate turns (excludes system/moderator entries). */
+    total_debate_turns: number;
+    /** Ratio of turns citing sit- IDs (0-1). */
+    citation_rate: number;
+    /** All unique sit- IDs cited across the debate. */
+    unique_sit_ids_cited: string[];
+  };
 }
 
 export interface DebateDiagnostics {

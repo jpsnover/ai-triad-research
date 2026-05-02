@@ -232,8 +232,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
     }
 
-    lines.push('=== SITUATIONS (contested concepts across perspectives) ===');
-    lines.push("Your interpretation differs from others'. Understanding their full position helps you identify genuine disagreements.");
+    lines.push('=== SITUATIONS (contested concepts — cite sit- IDs in taxonomy_refs) ===');
+    lines.push("These are contested concepts where perspectives diverge. When your argument engages a concept listed here, CITE its sit- ID in your taxonomy_refs — this tracks which contested concepts the debate actually addressed. Your interpretation differs from others'; understanding their full position helps you identify genuine disagreements.");
 
     for (let i = 0; i < sortedSit.length; i++) {
       const n = sortedSit[i];

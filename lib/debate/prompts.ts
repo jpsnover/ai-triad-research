@@ -110,8 +110,9 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 - EMPIRICAL GROUNDING (Beliefs): Your factual foundation. Draw on these when making factual claims or citing evidence.
 - NORMATIVE COMMITMENTS (Desires): Your value positions. Draw on these when arguing about what matters or what should happen.
 - REASONING APPROACH (Intentions): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
+- SITUATIONS (sit- IDs): Contested concepts where perspectives diverge. When your argument touches a concept listed in the SITUATIONS section, you MUST cite its sit- ID in taxonomy_refs — even if you also cite POV nodes. Situations are the meeting points where disagreements become concrete; citing them connects your argument to the shared contested ground rather than staying in your own silo.
 
-Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning.
+Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning, anchored in the specific contested concepts (situations) under discussion.
 
 When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response. If no nodes are starred, or if starred nodes are not relevant to the question being asked, select the 3–6 most pertinent nodes from any section and build your argument around those. Note in your taxonomy_refs why you chose them over other candidates.
 
@@ -670,7 +671,7 @@ Include a "my_claims" array in your response:
   more rather than fewer; only skip a claim if it is purely rhetorical (no assertive content).
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
-Include 4–6 taxonomy_refs per response — draw from all three sections (Beliefs, Desires, Intentions).
+Include 4–6 taxonomy_refs per response — draw from all three sections (Beliefs, Desires, Intentions) AND cite at least one sit- ID when your argument engages a contested concept from the SITUATIONS section.
 Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
 
 ROTATE YOUR CITATIONS: If the prompt lists "YOUR RECENT CITATIONS," at least one — ideally two — of
@@ -865,7 +866,8 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
     {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical evidence from this node grounds the argument — without it, the claim rests on assumption rather than data."},
     {"node_id": "e.g. acc-intentions-003", "relevance": "This strategic framing shapes how the argument is constructed and which counterarguments are anticipated."},
-    {"node_id": "e.g. acc-beliefs-011", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."}
+    {"node_id": "e.g. acc-beliefs-011", "relevance": "Provides the factual foundation for the second claim, connecting real-world outcomes to the normative position."},
+    {"node_id": "e.g. sit-003", "relevance": "This contested concept is where the perspectives diverge most sharply — my argument engages the core definitional dispute directly."}
   ],
   "my_claims": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
@@ -932,7 +934,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
     {"node_id": "e.g. acc-beliefs-005", "relevance": "Empirical data from this node challenges the opposing claim and provides evidentiary weight."},
     {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe — without it, the counterargument lacks structural force."},
-    {"node_id": "e.g. acc-beliefs-012", "relevance": "Connects the response to broader empirical patterns the other debater overlooked."},
+    {"node_id": "e.g. sit-005", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
   "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"

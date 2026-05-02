@@ -48,6 +48,7 @@ export * from './schemeStagnation';
 export * from './dialecticTrace';
 export * from './envelopes';
 export * from './cacheTypes';
+export * from './situationRefs';
 // schemas.ts deliberately excluded from barrel — it imports zod.
 // cli.ts deliberately excluded from barrel — it is the CLI entry point.
 // phaseTransitions.ts excluded — imports fs/path (Node.js only).
