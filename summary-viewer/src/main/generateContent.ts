@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { loadApiKey } from './apiKeyStore';
+import { ActionableError } from '../../../lib/debate/errors';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -86,10 +87,16 @@ async function generateViaGemini(
 
     if (response.status === 429) {
       if (attempt === MAX_RETRIES) {
-        throw new Error(
-          'Gemini API rate limited after ' + MAX_RETRIES + ' attempts. ' +
-          'Please wait a minute and try again.',
-        );
+        throw new ActionableError({
+          goal: 'Generate content via Gemini API',
+          problem: `Gemini API rate limited (429) after ${MAX_RETRIES} attempts`,
+          location: 'generateContent.ts:generateViaGemini',
+          nextSteps: [
+            'Wait a minute and retry the request',
+            'Check your Gemini API quota at https://console.cloud.google.com/',
+            'Try switching to a different AI backend (Claude, Groq)',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       console.log(`[generateContent] Rate limited (429), retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
@@ -99,16 +106,43 @@ async function generateViaGemini(
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Gemini API error ${response.status}: ${text}`);
+      throw new ActionableError({
+        goal: 'Generate content via Gemini API',
+        problem: `Gemini API error ${response.status}: ${text}`,
+        location: 'generateContent.ts:generateViaGemini',
+        nextSteps: [
+          'Check your Gemini API key is valid in Settings',
+          'Verify network connectivity to generativelanguage.googleapis.com',
+          'Try a different Gemini model',
+        ],
+      });
     }
 
     const json = (await response.json()) as GeminiGenerateResponse;
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Gemini API returned empty response');
+    if (!text) throw new ActionableError({
+      goal: 'Generate content via Gemini API',
+      problem: 'Gemini API returned empty response (no candidates or text)',
+      location: 'generateContent.ts:generateViaGemini',
+      nextSteps: [
+        'Retry the request -- this is sometimes a transient issue',
+        'Check if the prompt is triggering content safety filters',
+        'Try a different Gemini model',
+      ],
+    });
     return text;
   }
 
-  throw new Error('generateContent: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Generate content via Gemini API',
+    problem: 'Exhausted all retry attempts without a successful response',
+    location: 'generateContent.ts:generateViaGemini',
+    nextSteps: [
+      'Wait a minute and retry the request',
+      'Check Gemini API status at https://status.cloud.google.com/',
+      'Try a different AI backend (Claude, Groq)',
+    ],
+  });
 }
 
 // ── Claude ──
@@ -139,7 +173,16 @@ async function generateViaClaude(
 
     if (response.status === 429 || response.status === 529) {
       if (attempt === MAX_RETRIES) {
-        throw new Error(`Claude API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+        throw new ActionableError({
+          goal: 'Generate content via Claude API',
+          problem: `Claude API rate limited after ${MAX_RETRIES} attempts`,
+          location: 'generateContent.ts:generateViaClaude',
+          nextSteps: [
+            'Wait a minute and retry the request',
+            'Check your Anthropic API usage at https://console.anthropic.com/',
+            'Try switching to a different AI backend (Gemini, Groq)',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       console.log(`[generateContent] Claude ${response.status}, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
@@ -149,12 +192,30 @@ async function generateViaClaude(
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(`Claude API error ${response.status}: ${bodyText.slice(0, 500)}`);
+      throw new ActionableError({
+        goal: 'Generate content via Claude API',
+        problem: `Claude API error ${response.status}: ${bodyText.slice(0, 500)}`,
+        location: 'generateContent.ts:generateViaClaude',
+        nextSteps: [
+          'Check your Claude API key is valid in Settings',
+          'Verify network connectivity to api.anthropic.com',
+          'Try a different Claude model',
+        ],
+      });
     }
 
     const json = JSON.parse(bodyText) as { content?: { type: string; text: string }[] };
     if (!json.content || json.content.length === 0) {
-      throw new Error(`No content in Claude response: ${bodyText.slice(0, 200)}`);
+      throw new ActionableError({
+        goal: 'Generate content via Claude API',
+        problem: `No content in Claude response: ${bodyText.slice(0, 200)}`,
+        location: 'generateContent.ts:generateViaClaude',
+        nextSteps: [
+          'Retry the request -- this is sometimes a transient issue',
+          'Check if the prompt is triggering content safety filters',
+          'Try a different Claude model',
+        ],
+      });
     }
 
     return json.content
@@ -163,7 +224,16 @@ async function generateViaClaude(
       .join('');
   }
 
-  throw new Error('generateViaClaude: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Generate content via Claude API',
+    problem: 'Exhausted all retry attempts without a successful response',
+    location: 'generateContent.ts:generateViaClaude',
+    nextSteps: [
+      'Wait a minute and retry the request',
+      'Check Anthropic API status at https://status.anthropic.com/',
+      'Try a different AI backend (Gemini, Groq)',
+    ],
+  });
 }
 
 // ── Groq ──
@@ -196,7 +266,16 @@ async function generateViaGroq(
 
     if (response.status === 429) {
       if (attempt === MAX_RETRIES) {
-        throw new Error(`Groq API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+        throw new ActionableError({
+          goal: 'Generate content via Groq API',
+          problem: `Groq API rate limited (429) after ${MAX_RETRIES} attempts`,
+          location: 'generateContent.ts:generateViaGroq',
+          nextSteps: [
+            'Wait a minute and retry the request',
+            'Check your Groq API quota at https://console.groq.com/',
+            'Try switching to a different AI backend (Gemini, Claude)',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       console.log(`[generateContent] Groq 429, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
@@ -206,18 +285,45 @@ async function generateViaGroq(
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(`Groq API error ${response.status}: ${bodyText.slice(0, 500)}`);
+      throw new ActionableError({
+        goal: 'Generate content via Groq API',
+        problem: `Groq API error ${response.status}: ${bodyText.slice(0, 500)}`,
+        location: 'generateContent.ts:generateViaGroq',
+        nextSteps: [
+          'Check your Groq API key is valid in Settings',
+          'Verify network connectivity to api.groq.com',
+          'Try a different Groq model',
+        ],
+      });
     }
 
     const json = JSON.parse(bodyText) as { choices?: { message: { content: string } }[] };
     if (!json.choices || json.choices.length === 0) {
-      throw new Error(`No choices in Groq response: ${bodyText.slice(0, 200)}`);
+      throw new ActionableError({
+        goal: 'Generate content via Groq API',
+        problem: `No choices in Groq response: ${bodyText.slice(0, 200)}`,
+        location: 'generateContent.ts:generateViaGroq',
+        nextSteps: [
+          'Retry the request -- this is sometimes a transient issue',
+          'Check if the prompt is triggering content safety filters',
+          'Try a different Groq model',
+        ],
+      });
     }
 
     return json.choices[0].message.content;
   }
 
-  throw new Error('generateViaGroq: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Generate content via Groq API',
+    problem: 'Exhausted all retry attempts without a successful response',
+    location: 'generateContent.ts:generateViaGroq',
+    nextSteps: [
+      'Wait a minute and retry the request',
+      'Check Groq API status at https://status.groq.com/',
+      'Try a different AI backend (Gemini, Claude)',
+    ],
+  });
 }
 
 // ── OpenAI ──
@@ -247,7 +353,16 @@ async function generateViaOpenAI(
 
     if (response.status === 429) {
       if (attempt === MAX_RETRIES) {
-        throw new Error(`OpenAI API rate limited after ${MAX_RETRIES} attempts. Please wait and try again.`);
+        throw new ActionableError({
+          goal: 'Generate content via OpenAI API',
+          problem: `OpenAI API rate limited (429) after ${MAX_RETRIES} attempts`,
+          location: 'generateContent.ts:generateViaOpenAI',
+          nextSteps: [
+            'Wait a minute and retry the request',
+            'Check your OpenAI API quota at https://platform.openai.com/usage',
+            'Try switching to a different AI backend (Gemini, Claude, Groq)',
+          ],
+        });
       }
       const backoff = Math.min(2 ** attempt, 30);
       console.log(`[generateContent] OpenAI 429, retrying in ${backoff}s (attempt ${attempt}/${MAX_RETRIES})`);
@@ -257,7 +372,16 @@ async function generateViaOpenAI(
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(`OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`);
+      throw new ActionableError({
+        goal: 'Generate content via OpenAI API',
+        problem: `OpenAI API error ${response.status}: ${bodyText.slice(0, 500)}`,
+        location: 'generateContent.ts:generateViaOpenAI',
+        nextSteps: [
+          'Check your OpenAI API key is valid in Settings',
+          'Verify network connectivity to api.openai.com',
+          'Try a different OpenAI model',
+        ],
+      });
     }
 
     const json = JSON.parse(bodyText) as {
@@ -266,13 +390,31 @@ async function generateViaOpenAI(
     const msgOutput = json.output?.find(o => o.type === 'message');
     const text = msgOutput?.content?.find(c => c.type === 'output_text')?.text;
     if (!text) {
-      throw new Error(`No message output in OpenAI response: ${bodyText.slice(0, 200)}`);
+      throw new ActionableError({
+        goal: 'Generate content via OpenAI API',
+        problem: `No message output in OpenAI response: ${bodyText.slice(0, 200)}`,
+        location: 'generateContent.ts:generateViaOpenAI',
+        nextSteps: [
+          'Retry the request -- this is sometimes a transient issue',
+          'Check if the prompt is triggering content safety filters',
+          'Try a different OpenAI model',
+        ],
+      });
     }
 
     return text;
   }
 
-  throw new Error('generateViaOpenAI: exhausted all retry attempts');
+  throw new ActionableError({
+    goal: 'Generate content via OpenAI API',
+    problem: 'Exhausted all retry attempts without a successful response',
+    location: 'generateContent.ts:generateViaOpenAI',
+    nextSteps: [
+      'Wait a minute and retry the request',
+      'Check OpenAI API status at https://status.openai.com/',
+      'Try a different AI backend (Gemini, Claude, Groq)',
+    ],
+  });
 }
 
 // ── Sanitization ──
@@ -301,7 +443,16 @@ export async function generateContent(
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
     const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
-    throw new Error(`No ${names[backend]} API key configured. Set it in Settings.`);
+    throw new ActionableError({
+      goal: `Generate content via ${names[backend]} API`,
+      problem: `No ${names[backend]} API key configured`,
+      location: 'generateContent.ts:generateContent',
+      nextSteps: [
+        `Set your ${names[backend]} API key in the Settings dialog`,
+        `Or set the environment variable: ${backend === 'gemini' ? 'GEMINI_API_KEY' : backend === 'claude' ? 'ANTHROPIC_API_KEY' : backend === 'groq' ? 'GROQ_API_KEY' : 'AI_API_KEY'}`,
+        'Or set the universal fallback: AI_API_KEY',
+      ],
+    });
   }
 
   // Log on first call or model change

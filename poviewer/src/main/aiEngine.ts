@@ -10,6 +10,7 @@ import {
 } from './promptTemplates';
 import { loadPromptOverrides, loadAiSettings } from './fileIO';
 import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes';
+import { ActionableError, errorMessage } from '../../../lib/debate/errors';
 
 // Re-export types for convenience
 export type { RawPoint, RawMapping, AnalysisResult };
@@ -55,7 +56,16 @@ async function callGemini(
       });
 
       const text = response.text;
-      if (!text) throw new Error('Empty response from Gemini');
+      if (!text) throw new ActionableError({
+            goal: 'Get AI-generated analysis from Gemini',
+            problem: 'Gemini returned an empty response',
+            location: 'aiEngine.ts:callGemini',
+            nextSteps: [
+              'Retry the request — transient API issues can cause empty responses',
+              'Check that the prompt is not too long (may exceed model context window)',
+              'Verify the Gemini model name is valid in AI settings',
+            ],
+          });
       return text;
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -74,7 +84,18 @@ async function callGemini(
     }
   }
 
-  throw lastError ?? new Error('All retries exhausted');
+  throw new ActionableError({
+    goal: 'Call Gemini API with retry',
+    problem: `All ${maxRetries} retries exhausted: ${lastError ? errorMessage(lastError) : 'unknown error'}`,
+    location: 'aiEngine.ts:callGemini',
+    nextSteps: [
+      'Check your internet connection',
+      'Verify your GEMINI_API_KEY is valid and has not expired',
+      'Check the Google AI Studio dashboard for quota or rate-limit issues',
+      'Try again after a short wait — the API may be temporarily overloaded',
+    ],
+    innerError: lastError ?? undefined,
+  });
 }
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -92,7 +113,16 @@ function parseJsonArray<T>(raw: string): T[] {
 
   const parsed = JSON.parse(cleaned);
   if (!Array.isArray(parsed)) {
-    throw new Error('Expected JSON array from AI response');
+    throw new ActionableError({
+      goal: 'Parse AI response as a JSON array',
+      problem: `Expected a JSON array but got ${typeof parsed}: ${JSON.stringify(parsed).slice(0, 120)}`,
+      location: 'aiEngine.ts:parseJsonArray',
+      nextSteps: [
+        'Retry the analysis — the AI model may produce valid JSON on a subsequent attempt',
+        'Check the prompt template to ensure it requests a JSON array response',
+        'If the issue persists, try a different model in AI settings',
+      ],
+    });
   }
   return parsed as T[];
 }
@@ -155,7 +185,16 @@ export async function runAnalysis(
 
   try {
     const apiKey = getApiKey();
-    if (!apiKey) throw new Error('No API key configured');
+    if (!apiKey) throw new ActionableError({
+      goal: 'Run AI-powered source analysis',
+      problem: 'No API key configured for the AI backend',
+      location: 'aiEngine.ts:runAnalysis',
+      nextSteps: [
+        'Open Settings and enter your Gemini API key',
+        'Or set the GEMINI_API_KEY environment variable',
+        'Get a free API key from https://aistudio.google.com/apikey',
+      ],
+    });
 
     const settings = loadAiSettings();
     const model = settings.model || 'gemini-3.1-flash-lite-preview';
@@ -293,7 +332,16 @@ export async function analyzeExcerpt(
   taxonomyJson: string,
 ): Promise<ExcerptMapping[]> {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error('No API key configured');
+  if (!apiKey) throw new ActionableError({
+    goal: 'Run quick excerpt analysis against the taxonomy',
+    problem: 'No API key configured for the AI backend',
+    location: 'aiEngine.ts:analyzeExcerpt',
+    nextSteps: [
+      'Open Settings and enter your Gemini API key',
+      'Or set the GEMINI_API_KEY environment variable',
+      'Get a free API key from https://aistudio.google.com/apikey',
+    ],
+  });
 
   const settings = loadAiSettings();
   const model = settings.model || 'gemini-2.5-flash';

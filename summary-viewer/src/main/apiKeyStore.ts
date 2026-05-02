@@ -5,6 +5,7 @@ import { safeStorage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import { ActionableError } from '../../../lib/debate/errors';
 
 type Backend = 'gemini' | 'claude' | 'groq' | 'openai';
 
@@ -15,7 +16,16 @@ function keyFilePath(backend?: Backend): string {
 
 export function storeApiKey(key: string, backend?: Backend): void {
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('Encryption not available on this system');
+    throw new ActionableError({
+      goal: 'Store API key securely via Electron safeStorage',
+      problem: 'Encryption is not available on this system',
+      location: 'apiKeyStore.ts:storeApiKey',
+      nextSteps: [
+        'Ensure the OS keychain/credential manager is available (e.g., libsecret on Linux, Keychain on macOS)',
+        'Set the API key via environment variable instead (GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY)',
+        'On Linux, install gnome-keyring or kwallet and restart the app',
+      ],
+    });
   }
   const encrypted = safeStorage.encryptString(key);
   fs.writeFileSync(keyFilePath(backend), encrypted);

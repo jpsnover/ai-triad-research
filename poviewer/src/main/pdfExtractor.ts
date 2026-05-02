@@ -3,6 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { ActionableError } from '../../../lib/debate/errors';
 
 export interface PdfExtractionResult {
   fullText: string;
@@ -11,12 +12,30 @@ export interface PdfExtractionResult {
 
 export async function extractPdfText(filePath: string): Promise<PdfExtractionResult> {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`PDF file not found: ${filePath}`);
+    throw new ActionableError({
+      goal: 'Extract text from a PDF file',
+      problem: `PDF file not found: ${filePath}`,
+      location: 'pdfExtractor.ts:extractPdfText',
+      nextSteps: [
+        'Verify the file path is correct and the file exists on disk',
+        'Check that the source was fully ingested (raw/ directory should contain the PDF)',
+        'Re-import the source if the file was moved or deleted',
+      ],
+    });
   }
 
   const ext = path.extname(filePath).toLowerCase();
   if (ext !== '.pdf') {
-    throw new Error(`Not a PDF file: ${filePath}`);
+    throw new ActionableError({
+      goal: 'Extract text from a PDF file',
+      problem: `Not a PDF file (extension is "${ext}"): ${filePath}`,
+      location: 'pdfExtractor.ts:extractPdfText',
+      nextSteps: [
+        'Provide a file with a .pdf extension',
+        'Convert the document to PDF before extraction',
+        'Use readSourceFileContent() for .md, .txt, or .docx files',
+      ],
+    });
   }
 
   // Dynamic import pdfjs-dist for Node.js usage

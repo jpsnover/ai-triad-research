@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { AiSettings, PromptOverrides } from './analysisTypes';
+import { ActionableError } from '../../../lib/debate/errors';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
@@ -37,7 +38,16 @@ export function getActiveTaxonomyDirName(): string {
 export function setActiveTaxonomyDir(dirName: string): void {
   const newDir = path.join(TAXONOMY_BASE, dirName);
   if (!fs.existsSync(newDir)) {
-    throw new Error(`Taxonomy directory not found: ${dirName}`);
+    throw new ActionableError({
+      goal: 'Switch active taxonomy directory',
+      problem: `Taxonomy directory not found: ${dirName}`,
+      location: 'fileIO.ts:setActiveTaxonomyDir',
+      nextSteps: [
+        `Create the directory at taxonomy/${dirName}/ with the required POV JSON files`,
+        'Run getTaxonomyDirs() to see available taxonomy directories',
+        'Check for typos in the directory name',
+      ],
+    });
   }
   activeTaxonomyDir = newDir;
 }
@@ -45,7 +55,15 @@ export function setActiveTaxonomyDir(dirName: string): void {
 export function readTaxonomyFile(pov: string): unknown {
   const filename = POV_FILE_MAP[pov];
   if (!filename) {
-    throw new Error(`Unknown POV: ${pov}`);
+    throw new ActionableError({
+      goal: 'Read taxonomy file for a point-of-view',
+      problem: `Unknown POV: "${pov}"`,
+      location: 'fileIO.ts:readTaxonomyFile',
+      nextSteps: [
+        `Use one of the valid POV keys: ${Object.keys(POV_FILE_MAP).join(', ')}`,
+        'Check the caller to ensure the POV value is not misspelled or undefined',
+      ],
+    });
   }
   const filePath = path.join(activeTaxonomyDir, filename);
   const raw = fs.readFileSync(filePath, 'utf-8');
@@ -55,7 +73,16 @@ export function readTaxonomyFile(pov: string): unknown {
 export function readSnapshot(sourceId: string): string {
   const filePath = path.join(SOURCES_DIR, sourceId, 'snapshot.md');
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Snapshot not found: ${sourceId}`);
+    throw new ActionableError({
+      goal: 'Read snapshot markdown for a source document',
+      problem: `Snapshot not found for source: ${sourceId}`,
+      location: 'fileIO.ts:readSnapshot',
+      nextSteps: [
+        `Verify that sources/${sourceId}/snapshot.md exists`,
+        'Re-ingest the source using the import pipeline to generate the snapshot',
+        'Check that the sourceId matches a directory under sources/',
+      ],
+    });
   }
   return fs.readFileSync(filePath, 'utf-8');
 }
@@ -101,7 +128,16 @@ export function createSourceOnDisk(meta: SourceMetadataOnDisk): void {
 
 export async function readSourceFileContent(filePath: string): Promise<string> {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+    throw new ActionableError({
+      goal: 'Read source file content for analysis',
+      problem: `File not found: ${filePath}`,
+      location: 'fileIO.ts:readSourceFileContent',
+      nextSteps: [
+        'Verify the file path is correct and the file exists on disk',
+        'Check that the source was fully ingested with a snapshot or raw file',
+        'Re-import the source if the file was moved or deleted',
+      ],
+    });
   }
 
   const ext = path.extname(filePath).toLowerCase();
@@ -123,7 +159,16 @@ export async function readSourceFileContent(filePath: string): Promise<string> {
     return `[DOCX file: ${path.basename(filePath)}]\n\nDOCX text extraction requires conversion. Use the Import-Document script to convert to Markdown first, or add the .md version of this file.`;
   }
 
-  throw new Error(`Unsupported file type: ${ext}`);
+  throw new ActionableError({
+    goal: 'Read source file content for analysis',
+    problem: `Unsupported file type: ${ext}`,
+    location: 'fileIO.ts:readSourceFileContent',
+    nextSteps: [
+      'Convert the file to a supported format (.md, .txt, .pdf, or .docx)',
+      'Use Import-Document to convert to Markdown first',
+      `Supported extensions: .md, .txt, .pdf, .docx (got "${ext}")`,
+    ],
+  });
 }
 
 // === Discover Sources from Pipeline ===

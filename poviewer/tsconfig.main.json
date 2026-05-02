@@ -9,8 +9,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "outDir": "dist/main",
-    "rootDir": "src/main"
+    "rootDir": "../"
   },
-  "include": ["src/main/**/*"],
+  "include": [
+    "src/main/**/*",
+    "../lib/debate/errors.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

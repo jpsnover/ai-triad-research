@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { Point, Source, Notebook } from '../types/types';
+import { ActionableError } from '../../../../lib/debate/errors';
 
 // The snapshot.md text (used to compute char offsets against)
 // We embed the exact text here so the prototype works without IPC
@@ -60,7 +61,16 @@ Systems,' and the PowerShell/Monad Manifesto at Microsoft.`;
 
 function offset(needle: string): { start: number; end: number } {
   const idx = SNAPSHOT_TEXT.indexOf(needle);
-  if (idx === -1) throw new Error(`Offset not found: "${needle.slice(0, 40)}..."`);
+  if (idx === -1) throw new ActionableError({
+    goal: 'Compute character offset for hardcoded point in snapshot text',
+    problem: `Offset not found for substring: "${needle.slice(0, 40)}..."`,
+    location: 'hardcodedData.ts:offset',
+    nextSteps: [
+      'Verify that SNAPSHOT_TEXT has not been modified — the hardcoded points depend on exact text',
+      'If the snapshot text changed, update the hardcoded point strings to match',
+      'Consider regenerating points from the updated snapshot using the analysis pipeline',
+    ],
+  });
   return { start: idx, end: idx + needle.length };
 }
 

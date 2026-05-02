@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ipcMain, clipboard } from 'electron';
+import { ActionableError } from '../../../lib/debate/errors';
 import {
   discoverSources,
   loadSummary,
@@ -97,7 +98,17 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-embeddings failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
-      throw new Error(`Embedding computation failed: ${msg}. ${diagnosis}`);
+      throw new ActionableError({
+        goal: 'Compute embeddings for taxonomy search',
+        problem: `Embedding computation failed: ${msg}`,
+        location: 'ipcHandlers.ts:compute-embeddings',
+        nextSteps: [
+          diagnosis,
+          'Verify Python 3 is installed and on PATH',
+          'Run: pip install sentence-transformers',
+          'Check that the embedding model (all-MiniLM-L6-v2) is accessible',
+        ],
+      });
     }
   });
 
@@ -108,7 +119,17 @@ export function registerIpcHandlers(): void {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-query-embedding failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
-      throw new Error(`Query embedding failed: ${msg}. ${diagnosis}`);
+      throw new ActionableError({
+        goal: 'Compute query embedding for semantic search',
+        problem: `Query embedding failed: ${msg}`,
+        location: 'ipcHandlers.ts:compute-query-embedding',
+        nextSteps: [
+          diagnosis,
+          'Verify Python 3 is installed and on PATH',
+          'Run: pip install sentence-transformers',
+          'Check that the embedding model (all-MiniLM-L6-v2) is accessible',
+        ],
+      });
     }
   });
 
@@ -118,7 +139,16 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-content failed:', msg);
-      throw new Error(`AI generation failed: ${msg}`);
+      throw new ActionableError({
+        goal: 'Generate AI content',
+        problem: `AI generation failed: ${msg}`,
+        location: 'ipcHandlers.ts:generate-content',
+        nextSteps: [
+          'Check that a valid API key is configured in Settings',
+          'Verify network connectivity to the AI backend',
+          'Try switching to a different AI model or backend',
+        ],
+      });
     }
   });
 

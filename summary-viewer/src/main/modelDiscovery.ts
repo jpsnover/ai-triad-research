@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { loadApiKey } from './apiKeyStore';
+import { ActionableError } from '../../../lib/debate/errors';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_PATH = path.join(PROJECT_ROOT, 'ai-models.json');
@@ -44,7 +45,16 @@ async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]> {
   const resp = await fetch(url);
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`Gemini models API ${resp.status}: ${body.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Discover available Gemini models',
+      problem: `Gemini models API returned ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.ts:discoverGeminiModels',
+      nextSteps: [
+        'Check your Gemini API key is valid',
+        'Verify network connectivity to generativelanguage.googleapis.com',
+        'Check your API quota at https://console.cloud.google.com/',
+      ],
+    });
   }
   const json = await resp.json() as { models: GeminiModelInfo[] };
 
@@ -80,7 +90,16 @@ async function discoverGroqModels(apiKey: string): Promise<ModelEntry[]> {
   });
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`Groq models API ${resp.status}: ${body.slice(0, 200)}`);
+    throw new ActionableError({
+      goal: 'Discover available Groq models',
+      problem: `Groq models API returned ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.ts:discoverGroqModels',
+      nextSteps: [
+        'Check your Groq API key is valid',
+        'Verify network connectivity to api.groq.com',
+        'Check your API quota at https://console.groq.com/',
+      ],
+    });
   }
   const json = await resp.json() as { data: GroqModelInfo[] };
 

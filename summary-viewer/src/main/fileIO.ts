@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { app } from 'electron';
+import { ActionableError } from '../../../lib/debate/errors';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const IS_PACKAGED = app?.isPackaged ?? false;
@@ -88,7 +89,16 @@ function parseJsonFile(filePath: string): unknown {
     } else {
       diagnosis = `${basename} contains malformed JSON. It may have been hand-edited incorrectly or truncated. Parse error: ${msg}`;
     }
-    throw new Error(`${diagnosis} File: ${filePath}`);
+    throw new ActionableError({
+      goal: `Parse JSON file ${path.basename(filePath)}`,
+      problem: diagnosis,
+      location: 'fileIO.ts:parseJsonFile',
+      nextSteps: [
+        `Verify the file exists and is valid JSON: ${filePath}`,
+        'If a .tmp file exists alongside it, rename .tmp to the original to recover the last good write',
+        'Open the file in an editor to inspect and fix malformed JSON',
+      ],
+    });
   }
 }
 
@@ -102,7 +112,16 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
   } catch (err) {
     try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to write ${path.basename(filePath)}: ${msg}. File: ${filePath}`);
+    throw new ActionableError({
+      goal: `Write JSON file ${path.basename(filePath)}`,
+      problem: `Failed to write: ${msg}`,
+      location: 'fileIO.ts:writeJsonFileAtomic',
+      nextSteps: [
+        `Verify the directory is writable: ${path.dirname(filePath)}`,
+        'Check available disk space',
+        `Ensure the file is not locked by another process: ${filePath}`,
+      ],
+    });
   }
 }
 
@@ -244,7 +263,16 @@ export function getActiveTaxonomyDirName(): string {
 export function setActiveTaxonomyDir(dirName: string): void {
   const newDir = path.join(TAXONOMY_BASE, dirName);
   if (!fs.existsSync(newDir)) {
-    throw new Error(`Taxonomy directory not found: ${dirName}`);
+    throw new ActionableError({
+      goal: `Switch to taxonomy directory "${dirName}"`,
+      problem: `Taxonomy directory not found: ${dirName}`,
+      location: 'fileIO.ts:setActiveTaxonomyDir',
+      nextSteps: [
+        `Verify the directory exists at: ${newDir}`,
+        'Run getTaxonomyDirs() to list available taxonomy directories',
+        'Check that the data root is configured correctly in .aitriad.json or $env:AI_TRIAD_DATA_ROOT',
+      ],
+    });
   }
   activeTaxonomyDir = newDir;
 }
