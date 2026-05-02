@@ -73,21 +73,25 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
       <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()}>
         <h3>Taxonomy Editor Help</h3>
 
-        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 12 }}>
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              style={{
-                padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600,
-                cursor: 'pointer', border: 'none', borderBottom: t.id === activeTab ? '2px solid var(--accent)' : '2px solid transparent',
-                background: 'transparent', color: t.id === activeTab ? 'var(--accent)' : 'var(--text-secondary)',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)', paddingRight: 12, marginRight: 12 }}>
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                style={{
+                  padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600,
+                  cursor: 'pointer', border: 'none', borderLeft: t.id === activeTab ? '2px solid var(--accent)' : '2px solid transparent',
+                  background: t.id === activeTab ? 'rgba(var(--accent-rgb, 59,130,246), 0.08)' : 'transparent',
+                  color: t.id === activeTab ? 'var(--accent)' : 'var(--text-secondary)',
+                  textAlign: 'left', borderRadius: 4, whiteSpace: 'nowrap',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
         {activeTab === 'about' && (
           <div className="help-section help-about">
@@ -200,6 +204,9 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </table>
           </div>
         )}
+
+          </div>
+        </div>
 
         <div className="dialog-actions">
           <button className="btn btn-primary" onClick={onClose}>Close</button>
