@@ -408,6 +408,42 @@ function HelpContent() {
         internal representation.
       </p>
 
+      <h3 style={{ color: '#f59e0b' }}>Methods and Algorithms</h3>
+      <p>
+        The debate engine uses a <strong>neural-symbolic architecture</strong>: LLMs generate
+        content and make soft judgments while symbolic components (QBAF propagation, BFS graph
+        traversal, deterministic validation, move-edge classification) provide structure,
+        verification, and explanation.
+      </p>
+      <p>Key algorithms and methods:</p>
+      <ul>
+        <li><strong>QBAF (Quantitative Bipolar Argumentation Frameworks)</strong> — DF-QuAD gradual
+          semantics propagate argument strength through attack/support networks. BDI-aware base
+          score calibration handles the asymmetry between empirical and normative claims.</li>
+        <li><strong>FIRE (Confidence-gated Iterative Extraction)</strong> — Replaces single-shot
+          claim extraction with per-claim confidence assessment and iterative refinement.
+          Addresses specificity collapse, warrant deficit, and claim clustering.</li>
+        <li><strong>4-Stage Turn Pipeline (BRIEF → PLAN → DRAFT → CITE)</strong> — Each turn is
+          decomposed into four stages with per-stage temperatures and deterministic JSON
+          chaining between stages.</li>
+        <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics (computed
+          deterministically from the argument network) track debate health and trigger
+          phase transitions (thesis-antithesis → exploration → synthesis).</li>
+        <li><strong>Dialectic Traces</strong> — Deterministic BFS traversal through the argument
+          network produces human-readable narrative chains explaining why a position prevailed.</li>
+        <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes,
+          each with scheme-specific critical questions that guide moderator steering.</li>
+        <li><strong>14-Move Moderator Intervention</strong> — Six families (procedural through
+          synthesis) governed by a neural-symbolic trigger architecture: the LLM recommends,
+          the engine validates against deterministic constraints.</li>
+      </ul>
+      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+        Full methodology: see <code>docs/academic-paper-draft.md</code> in the project repository
+        for the complete technical paper describing all algorithms, evaluation results, and
+        theoretical grounding. Additional detail in <code>docs/debate-engine-design.md</code>,{' '}
+        <code>docs/document-processing-pipeline.md</code>, and <code>docs/design/adaptive-debate-staging.md</code>.
+      </p>
+
       <h3 style={{ color: '#f59e0b' }}>Per-Entry Diagnostics</h3>
       <p>
         Click any transcript entry to see its internals: the full prompt sent to the AI,
