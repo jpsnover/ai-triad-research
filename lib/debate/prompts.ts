@@ -6,10 +6,10 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily } from './types';
-import { POVER_INFO } from './types';
-import { documentAnalysisContext } from './documentAnalysis';
-import { interpretationText } from './taxonomyTypes';
+import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily } from './types.js';
+import { POVER_INFO } from './types.js';
+import { documentAnalysisContext } from './documentAnalysis.js';
+import { interpretationText } from './taxonomyTypes.js';
 
 /** Build a line describing each debater the current speaker is debating against. */
 function otherDebaters(currentLabel: string): string {
@@ -188,7 +188,7 @@ CONCEDE HONESTLY. Real debates involve position changes — refusing to concede 
 - You MUST concede when the evidence clearly supports the opponent's claim — defending a weak point undermines your strong ones
 - Concede when a point is tangential to your core argument (don't defend everything)
 - After conceding, explain why your overall position still holds despite this concession
-- AIM for at least one genuine concession every 2-3 turns. A debate where nobody concedes anything is a debate where nobody is listening
+- Concessions should emerge from genuine reasoning, not reflexive patterns. Check the concession counter in YOUR RECENT MOVES (if present) to calibrate timing
 Never silently drop a point you previously asserted — explicitly acknowledge the change.
 Vary your moves: sometimes concede, sometimes challenge, sometimes reframe. A debater who never concedes is as predictable and unconvincing as one who always concedes.`;
 
@@ -1206,9 +1206,7 @@ export function crossRespondPrompt(
     ? documentAnalysisContext(documentAnalysis)
     : sourceReminder(debateSourceContent);
 
-  const moveHistoryBlock = priorMoveTypes && priorMoveTypes.length > 0
-    ? `\n=== YOUR RECENT MOVES ===\nYour last ${priorMoveTypes.length} responses used: ${priorMoveTypes.join(' → ')}.\n${priorMoveTypes.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
-    : '';
+  const moveHistoryBlock = _buildMoveHistoryBlock(priorMoveTypes);
 
   // Show recently-cited taxonomy nodes + uncited ones so the debater rotates breadth
   // instead of re-citing the same 3–4 "obvious" nodes every turn.
@@ -1467,6 +1465,22 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
 // ── 4-Stage turn pipeline prompts ─────────────────────────
 
+export function _buildMoveHistoryBlock(priorMoves?: string[], turnsSinceLastConcession?: number): string {
+  if (!priorMoves || priorMoves.length === 0) return '';
+  const recentConcedes = priorMoves.filter(m => m.includes('CONCEDE')).length;
+  let concessionDirective: string;
+  if (recentConcedes >= 2) {
+    concessionDirective = 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.';
+  } else if (turnsSinceLastConcession != null && turnsSinceLastConcession >= 3) {
+    concessionDirective = `You last conceded ${turnsSinceLastConcession} turns ago — consider whether a genuine concession is warranted here, especially if an opponent has made a strong point you haven't addressed.`;
+  } else if (turnsSinceLastConcession != null && turnsSinceLastConcession === 0) {
+    concessionDirective = 'You conceded last turn. Lead with a different move this turn.';
+  } else {
+    concessionDirective = 'Vary your approach from your recent pattern.';
+  }
+  return `\n=== YOUR RECENT MOVES ===\nYour last ${priorMoves.length} responses used: ${priorMoves.join(' → ')}.\n${concessionDirective}\n`;
+}
+
 export interface StagePromptInput {
   label: string;
   pov: string;
@@ -1478,6 +1492,7 @@ export interface StagePromptInput {
   addressing: string;
   phase?: DebatePhase;
   priorMoves?: string[];
+  turnsSinceLastConcession?: number;
   priorRefs?: string[];
   availablePovNodeIds?: string[];
   crossPovNodeIds?: string[];
@@ -1551,9 +1566,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }
 
 export function planStagePrompt(input: StagePromptInput, brief: string): string {
-  const moveHistoryBlock = input.priorMoves && input.priorMoves.length > 0
-    ? `\n=== YOUR RECENT MOVES ===\nYour last ${input.priorMoves.length} responses used: ${input.priorMoves.join(' → ')}.\n${input.priorMoves.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
-    : '';
+  const moveHistoryBlock = _buildMoveHistoryBlock(input.priorMoves, input.turnsSinceLastConcession);
 
   const flaggedBlock = input.priorFlaggedHints && input.priorFlaggedHints.length > 0
     ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${input.priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your plan.\n`

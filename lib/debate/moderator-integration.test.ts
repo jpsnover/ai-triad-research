@@ -12,15 +12,15 @@ import {
   buildInterventionBriefInjection,
   checkInterventionCompliance,
   getSynthesisResponder,
-} from './moderator';
+} from './moderator.js';
 import type {
   ModeratorState,
   SelectionResult,
   InterventionMove,
   DebatePhase,
   ConvergenceSignals,
-} from './types';
-import { MOVE_TO_FAMILY } from './types';
+} from './types.js';
+import { MOVE_TO_FAMILY } from './types.js';
 
 // ── Helpers ───────────────────────────────────────────────
 

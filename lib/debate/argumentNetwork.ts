@@ -6,8 +6,8 @@
  * Called after each debater's turn to extract claims and relationships.
  */
 
-import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
+import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers.js';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -375,7 +375,7 @@ the change. If you now believe differently, say "I previously argued X, but on r
 
 // ── Unanswered Claims Ledger ────────────────────────────
 
-import type { UnansweredClaimEntry } from './types';
+import type { UnansweredClaimEntry } from './types.js';
 
 /**
  * Update the unanswered claims ledger after claim extraction.
@@ -833,12 +833,12 @@ export function processExtractedClaims(
         const normalized = rel.scheme.toUpperCase().replace(/[_]/g, '-').trim();
         if (SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(normalized.replace(/-/g, ' '))) {
           const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
-          if (targetNode) commitments.conceded.push(targetNode.text);
+          if (targetNode && !commitments.conceded.includes(targetNode.text)) commitments.conceded.push(targetNode.text);
         }
       }
       if (rel.relationship === 'attacks') {
         const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
-        if (targetNode) commitments.challenged.push(targetNode.text);
+        if (targetNode && !commitments.challenged.includes(targetNode.text)) commitments.challenged.push(targetNode.text);
       }
     }
   }

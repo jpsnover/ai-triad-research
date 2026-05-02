@@ -2,15 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { BrowserWindow } from 'electron';
-import { getApiKey } from './apiKeyStore';
+import { getApiKey } from './apiKeyStore.js';
 import {
   getDefaultTemplates,
   buildStage1Prompt,
   buildStage2Prompt,
-} from './promptTemplates';
-import { loadPromptOverrides, loadAiSettings } from './fileIO';
-import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes';
-import { ActionableError, errorMessage } from '../../../lib/debate/errors';
+} from './promptTemplates.js';
+import { loadPromptOverrides, loadAiSettings } from './fileIO.js';
+import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes.js';
+import { ActionableError, errorMessage } from '../../../lib/debate/errors.js';
 
 // Re-export types for convenience
 export type { RawPoint, RawMapping, AnalysisResult };
@@ -36,7 +36,7 @@ async function callGemini(
   apiKey: string,
   signal: AbortSignal,
 ): Promise<string> {
-  const { GoogleGenAI } = await import('@google/genai');
+  const { GoogleGenAI, HarmCategory, HarmBlockThreshold } = await import('@google/genai');
   const ai = new GoogleGenAI({ apiKey });
 
   const maxRetries = 3;
@@ -53,10 +53,10 @@ async function callGemini(
           responseMimeType: 'application/json',
           temperature: 0.1,
           safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
           ],
         },
       });

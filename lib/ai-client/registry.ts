@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { BackendId } from './types';
+import type { BackendId } from './types.js';
 
 export interface ModelEntry {
   id: string;

@@ -43,6 +43,9 @@ function Show-TriadDialogue {
 
         [string]$ApiKey,
 
+        [ValidateSet('policymakers', 'technical_researchers', 'industry_leaders', 'academic_community', 'general_public')]
+        [string]$Audience = 'policymakers',
+
         [string]$RepoRoot = $script:RepoRoot
     )
 
@@ -204,16 +207,52 @@ function Show-TriadDialogue {
     $DebateId   = [guid]::NewGuid().ToString()
     $Transcript = [System.Collections.Generic.List[PSObject]]::new()
 
+    # Audience directives — matches lib/debate/prompts.ts AUDIENCE_DIRECTIVES
+    $AudienceDirectives = @{
+        policymakers = @{
+            ReadingLevel = 'Write for a policy reporter or congressional staffer — someone smart and busy who needs to understand and quote you. Lead with your main claim in the first sentence. Use active voice with named actors. One idea per sentence. Prefer concrete examples and specific numbers over abstract categories.'
+            DetailInstruction = 'Provide a thorough, in-depth response — 3-5 paragraphs. Include a steelman of the strongest opposing position, disclose 1-2 key assumptions your argument depends on, and frame arguments in terms of implementability, enforcement mechanisms, and political feasibility.'
+            ModeratorBias = 'Steer toward actionable policy disagreements. Prefer questions about implementation feasibility, enforcement mechanisms, jurisdictional authority, and constituent impact.'
+        }
+        technical_researchers = @{
+            ReadingLevel = 'Write for a senior ML researcher reviewing a position paper. Use precise technical vocabulary without hedging. Cite specific architectures, benchmarks, and failure modes by name. Quantify claims: parameter counts, compute budgets, error rates, confidence intervals.'
+            DetailInstruction = 'Provide a rigorous, evidence-grounded response — 3-5 paragraphs. Separate empirical claims from normative positions. Identify the strongest technical counterargument and address it directly.'
+            ModeratorBias = 'Steer toward empirical disputes and methodology. Probe evidence quality, reproducibility, and the validity of benchmarks or evaluations being cited.'
+        }
+        industry_leaders = @{
+            ReadingLevel = 'Write for a technology executive making product and investment decisions. Lead with the business-relevant conclusion. Use concrete examples from deployed products, market dynamics, and competitive landscapes.'
+            DetailInstruction = 'Provide a strategic, decision-oriented response — 3-5 paragraphs. Frame each argument around ROI, competitive advantage, or risk mitigation. Include at least one concrete case study or industry precedent.'
+            ModeratorBias = 'Steer toward practical tradeoffs. Surface cost-benefit tensions, competitive dynamics, liability exposure, and talent considerations.'
+        }
+        academic_community = @{
+            ReadingLevel = 'Write for a faculty seminar — scholars from multiple disciplines who value analytical rigor, theoretical grounding, and intellectual honesty. Trace arguments to their philosophical or theoretical roots. Name the scholarly traditions and key thinkers you draw on.'
+            DetailInstruction = 'Provide a scholarly, well-structured response — 3-5 paragraphs. Engage with competing theoretical frameworks, not just competing conclusions. Cite intellectual lineage. Identify methodological limitations.'
+            ModeratorBias = 'Steer toward conceptual precision and theoretical assumptions. Probe interdisciplinary tensions, methodological limitations, and the philosophical foundations of competing positions.'
+        }
+        general_public = @{
+            ReadingLevel = 'Write for an informed citizen reading a quality newspaper — someone who follows the news but has no technical background. No acronyms without expansion. No jargon without a plain-English equivalent. Lead with why this matters to daily life.'
+            DetailInstruction = 'Provide a clear, accessible response — 2-4 paragraphs. Use one concrete, relatable example per major claim. Avoid both fear-mongering and dismissiveness. End with what an ordinary person can actually do or watch for.'
+            ModeratorBias = 'Steer toward stakes and consequences that affect ordinary people. Prefer questions about personal impact (jobs, privacy, safety), fairness, and democratic accountability.'
+        }
+    }
+    $AudDir = $AudienceDirectives[$Audience]
+    $AudienceBlock = @"
+AUDIENCE: $Audience
+READING LEVEL: $($AudDir.ReadingLevel)
+DETAIL: $($AudDir.DetailInstruction)
+"@
+
     # Helper: call LLM for a turn
     $InvokeTurn = {
         param([string]$AgentSpeaker, [string]$SystemPrompt, [string]$TranscriptSoFar, [string]$TurnType)
 
         $SchemaPrompt = Get-Prompt -Name 'triad-dialogue-schema'
         $TurnPrompt   = Get-Prompt -Name 'triad-dialogue-turn' -Replacements @{
-            SYSTEM_PROMPT = $SystemPrompt
-            TOPIC         = $Topic
-            TRANSCRIPT    = $TranscriptSoFar
-            SCHEMA        = $SchemaPrompt
+            SYSTEM_PROMPT      = $SystemPrompt
+            TOPIC              = $Topic
+            AUDIENCE_DIRECTIVE = $AudienceBlock
+            TRANSCRIPT         = $TranscriptSoFar
+            SCHEMA             = $SchemaPrompt
         }
 
         $TurnResult = Invoke-AIApi `

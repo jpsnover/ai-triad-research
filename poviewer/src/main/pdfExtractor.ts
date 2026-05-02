@@ -3,7 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { ActionableError } from '../../../lib/debate/errors';
+import { ActionableError } from '../../../lib/debate/errors.js';
 
 export interface PdfExtractionResult {
   fullText: string;

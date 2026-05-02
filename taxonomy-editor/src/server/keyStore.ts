@@ -116,9 +116,14 @@ class AzureKeyVaultKeyStore implements KeyStore {
     // In Azure, these packages are installed in the container image.
     /* eslint-disable @typescript-eslint/no-var-requires */
     const { SecretClient } = require('@azure/keyvault-secrets');
-    const { DefaultAzureCredential } = require('@azure/identity');
+    const identity = require('@azure/identity');
     /* eslint-enable @typescript-eslint/no-var-requires */
-    this.client = new SecretClient(vaultUrl, new DefaultAzureCredential()) as AzureSecretClient;
+    // Use ManagedIdentityCredential in production to avoid multi-second startup
+    // delays from DefaultAzureCredential probing credential types that won't work.
+    const credential = process.env.NODE_ENV === 'production'
+      ? new identity.ManagedIdentityCredential()
+      : new identity.DefaultAzureCredential();
+    this.client = new SecretClient(vaultUrl, credential) as AzureSecretClient;
   }
 
   private secretName(backend: AIBackend, userId: string): string {

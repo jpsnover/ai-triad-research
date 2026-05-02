@@ -18,7 +18,7 @@ import {
   buildPhaseContext,
   buildSignalTelemetry,
   initAdaptiveDiagnostics,
-} from './phaseTransitions';
+} from './phaseTransitions.js';
 import type {
   PhaseState,
   PhaseTransitionConfig,
@@ -26,7 +26,7 @@ import type {
   Signal,
   PredicateResult,
   DebatePhase,
-} from './types';
+} from './types.js';
 
 // ── Helpers ───────────────────────────────────────────────
 

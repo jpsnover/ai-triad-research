@@ -12,8 +12,8 @@
  * - Merge audit log for every attempt
  */
 
-import { cosineSimilarity } from './taxonomyRelevance';
-import type { QbafNode, QbafEdge } from './qbaf';
+import { cosineSimilarity } from './taxonomyRelevance.js';
+import type { QbafNode, QbafEdge } from './qbaf.js';
 
 // ── Types ─────────────────────────────────────────────────
 

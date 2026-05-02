@@ -12,7 +12,7 @@ import {
   META_DISCOURSE_LEXICON,
   SYNTHESIS_INTEGRATION_LEXICON,
   CONDITIONAL_AGREEMENT_LEXICON,
-} from './pragmaticSignals';
+} from './pragmaticSignals.js';
 
 // ── countLexiconHits ─────────────────────────────────────────
 

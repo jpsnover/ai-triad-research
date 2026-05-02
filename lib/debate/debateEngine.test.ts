@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DebateEngine } from './debateEngine';
-import type { DebateConfig, DebateProgress } from './debateEngine';
-import type { AIAdapter, ExtendedAIAdapter, GenerateOptions } from './aiAdapter';
-import type { LoadedTaxonomy } from './taxonomyLoader';
+import { DebateEngine } from './debateEngine.js';
+import type { DebateConfig, DebateProgress } from './debateEngine.js';
+import type { AIAdapter, ExtendedAIAdapter, GenerateOptions } from './aiAdapter.js';
+import type { LoadedTaxonomy } from './taxonomyLoader.js';
 
 // ── Mock adapter ──────────────────────────────────────────
 

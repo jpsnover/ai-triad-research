@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+from datetime import datetime
 import json
 import math
 import re
@@ -239,7 +240,7 @@ def main():
               file=sys.stderr)
 
     output = {
-        "generated_at": __import__("datetime").datetime.now().isoformat(),
+        "generated_at": datetime.now().isoformat(),
         "thresholds": {
             "min_entropy": args.min_entropy,
             "min_spread": args.min_spread,

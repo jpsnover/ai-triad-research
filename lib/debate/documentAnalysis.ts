@@ -7,10 +7,10 @@
  * identifies cross-POV tension points, and produces a claims summary.
  */
 
-import type { DocumentAnalysis, ContextRotStage } from './types';
-import { POV_KEYS } from './types';
-import type { PovNode, SituationNode } from './taxonomyTypes';
-import type { PolicyRef } from './taxonomyContext';
+import type { DocumentAnalysis, ContextRotStage } from './types.js';
+import { POV_KEYS } from './types.js';
+import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { PolicyRef } from './taxonomyContext.js';
 
 // ── Taxonomy sample builder ─────────────────────────────
 

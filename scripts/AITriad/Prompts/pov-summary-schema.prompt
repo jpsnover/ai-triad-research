@@ -9,7 +9,8 @@
           "point": "<3-6 sentences: (1) state what the document claims, (2) explain the evidence/reasoning/mechanism it uses, (3) connect to this POV's goals or concerns, (4) note caveats — Accelerationist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "<e.g. Section 2, paragraph 3>",
-          "extraction_confidence": "<0.0-1.0: how faithfully this point represents the source document>"
+          "extraction_confidence": "<0.0-1.0: how faithfully this point represents the source document>",
+          "vocabulary_terms": ["<standardized term canonical forms relevant to this point, e.g. 'governance_adaptive', 'capabilities_scaling'. Omit if none apply.>"]
         },
         { "...": "repeat for EVERY relevant Desires point" },
         {
@@ -41,7 +42,8 @@
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Safetyist lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "...",
-          "extraction_confidence": "<0.0-1.0>"
+          "extraction_confidence": "<0.0-1.0>",
+          "vocabulary_terms": ["<standardized terms if applicable>"]
         },
         { "...": "repeat — cover all three categories" }
       ]
@@ -55,7 +57,8 @@
           "point": "<3-6 sentences: position, evidence/reasoning, POV implications, caveats — Skeptic lens>",
           "verbatim": "<1-5 sentences quoted EXACTLY from the document>",
           "excerpt_context": "...",
-          "extraction_confidence": "<0.0-1.0>"
+          "extraction_confidence": "<0.0-1.0>",
+          "vocabulary_terms": ["<standardized terms if applicable>"]
         },
         { "...": "repeat — cover all three categories" }
       ]

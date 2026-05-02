@@ -9,8 +9,8 @@ import type {
   TrackedCrux,
   ContextSummary,
   PoverId,
-} from './types';
-import { POVER_INFO } from './types';
+} from './types.js';
+import { POVER_INFO } from './types.js';
 
 export interface TieredCompressionInput {
   transcript: TranscriptEntry[];

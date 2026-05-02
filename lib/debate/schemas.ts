@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { POV_KEYS } from './types';
+import { POV_KEYS } from './types.js';
 
 // ── Shared enums ──────────────────────────────────────────
 
@@ -67,7 +67,7 @@ export const SteelmanVulnerabilitySchema = z.union([
   }),
 ]);
 
-export const GraphAttributesSchema = z.object({
+export const GraphAttributesSchema = z.strictObject({
   epistemic_type: z.string().optional(),
   rhetorical_strategy: z.string().optional(),
   assumes: z.array(z.string()).optional(),
@@ -83,7 +83,7 @@ export const GraphAttributesSchema = z.object({
   steelman_vulnerability: SteelmanVulnerabilitySchema.optional(),
   possible_fallacies: z.array(PossibleFallacySchema).optional(),
   node_scope: NodeScopeSchema.optional(),
-}).strict();
+});
 
 // ── Taxonomy node schemas ─────────────────────────────────
 

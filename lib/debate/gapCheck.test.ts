@@ -6,7 +6,7 @@ import {
   GAP_RELEVANCE_THRESHOLD,
   GAP_CHECK_INTERVAL,
   MAX_GAP_INJECTIONS,
-} from './gapCheck';
+} from './gapCheck.js';
 
 const makeNode = (id: string, label: string, desc = '') => ({
   id, label, description: desc,

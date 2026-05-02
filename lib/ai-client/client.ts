@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { FetchFn, GenerateOptions, ProviderResult, BackendId } from './types';
-import type { ModelRegistry } from './registry';
-import { resolveModel } from './registry';
-import { withRetry, type RetryConfig, CLI_RETRY_CONFIG } from './retry';
-import { generateViaGemini } from './providers/gemini';
-import { generateViaClaude } from './providers/claude';
-import { generateViaGroq } from './providers/groq';
-import { generateViaOpenAI } from './providers/openai';
+import type { FetchFn, GenerateOptions, ProviderResult, BackendId } from './types.js';
+import type { ModelRegistry } from './registry.js';
+import { resolveModel } from './registry.js';
+import { withRetry, type RetryConfig, CLI_RETRY_CONFIG } from './retry.js';
+import { generateViaGemini } from './providers/gemini.js';
+import { generateViaClaude } from './providers/claude.js';
+import { generateViaGroq } from './providers/groq.js';
+import { generateViaOpenAI } from './providers/openai.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;

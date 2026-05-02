@@ -8,9 +8,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes';
-import type { PolicyRef } from './taxonomyContext';
-import { ActionableError } from './errors';
+import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes.js';
+import type { PolicyRef } from './taxonomyContext.js';
+import { ActionableError } from './errors.js';
 
 // ── Types ────────────────────────────────────────────────
 

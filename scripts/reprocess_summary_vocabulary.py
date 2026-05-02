@@ -18,7 +18,8 @@ from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 
-# Reuse the resolution logic from the taxonomy reprocessor
+# Reuse the resolution logic from the taxonomy reprocessor.
+# TODO: Eliminate sys.path hack when scripts become a proper package.
 sys.path.insert(0, str(_SCRIPT_DIR))
 from reprocess_taxonomy_vocabulary import (
     _resolve_data_root,
@@ -131,7 +132,7 @@ def main():
             elif args.verbose:
                 print(f"  [{i}/{len(files)}] {fpath.name}: no changes", file=sys.stderr)
 
-        except Exception as e:
+        except (json.JSONDecodeError, OSError, ValueError) as e:
             errors += 1
             print(f"  ERROR: {fpath.name}: {e}", file=sys.stderr)
 

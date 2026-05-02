@@ -32,6 +32,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -53,10 +54,10 @@ def _resolve_data_root():
     return (_PROJECT_ROOT.parent / "ai-triad-data").resolve()
 
 
-DATA_ROOT = _resolve_data_root()
-CONFLICTS_DIR = DATA_ROOT / "conflicts"
-TAXONOMY_DIR = DATA_ROOT / "taxonomy" / "Origin"
-EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
+DATA_ROOT: Optional[Path] = None
+CONFLICTS_DIR: Optional[Path] = None
+TAXONOMY_DIR: Optional[Path] = None
+EMBEDDINGS_FILE: Optional[Path] = None
 MODEL_NAME = "all-MiniLM-L6-v2"
 NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
 
@@ -440,6 +441,12 @@ def write_consolidated(consolidated, source_map, output_dir, replace=False):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    global DATA_ROOT, CONFLICTS_DIR, TAXONOMY_DIR, EMBEDDINGS_FILE
+    DATA_ROOT = _resolve_data_root()
+    CONFLICTS_DIR = DATA_ROOT / "conflicts"
+    TAXONOMY_DIR = DATA_ROOT / "taxonomy" / "Origin"
+    EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
+
     parser = argparse.ArgumentParser(description="Consolidate and enrich conflict items")
     parser.add_argument("--threshold", type=float, default=0.85,
                         help="Cosine similarity threshold for clustering (default: 0.85)")

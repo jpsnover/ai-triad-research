@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ActionableError } from '../debate/errors';
-import type { RateLimitType, RetryProgress, FetchFn } from './types';
+import { ActionableError } from '../debate/errors.js';
+import type { RateLimitType, RetryProgress, FetchFn } from './types.js';
 
 export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([

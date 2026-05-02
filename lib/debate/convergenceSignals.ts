@@ -7,12 +7,12 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
-} from './types';
-import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers';
-import type { MoveAnnotation } from './helpers';
-import { computeQbafStrengths } from './qbaf';
-import type { QbafNode, QbafEdge } from './qbaf';
-import { cosineSimilarity } from './taxonomyRelevance';
+} from './types.js';
+import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers.js';
+import type { MoveAnnotation } from './helpers.js';
+import { computeQbafStrengths } from './qbaf.js';
+import type { QbafNode, QbafEdge } from './qbaf.js';
+import { cosineSimilarity } from './taxonomyRelevance.js';
 
 export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
 

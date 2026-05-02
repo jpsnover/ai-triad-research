@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { withRetry, type RetryConfig, SERVER_RETRY_CONFIG } from '../retry';
-import type { FetchFn } from '../types';
-import { GEMINI_BASE } from './gemini';
+import { withRetry, type RetryConfig, SERVER_RETRY_CONFIG } from '../retry.js';
+import type { FetchFn } from '../types.js';
+import { GEMINI_BASE } from './gemini.js';
 
 const GEMINI_EMBED_MODEL = 'gemini-embedding-001';
 

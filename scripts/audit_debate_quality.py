@@ -103,11 +103,35 @@ def extract_text_from_session(session: dict) -> str:
     return "\n".join(parts)
 
 
+# Pre-compiled regex caches to avoid re-compiling per call
+_colloquial_patterns: dict[str, re.Pattern] = {}
+_standardized_patterns: dict[str, tuple[re.Pattern, re.Pattern | None]] = {}
+
+
+def _get_colloquial_patterns(colloquial_terms: dict[str, dict]) -> dict[str, re.Pattern]:
+    """Build or return cached compiled regex patterns for colloquial terms."""
+    if not _colloquial_patterns:
+        for term in colloquial_terms:
+            _colloquial_patterns[term] = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+    return _colloquial_patterns
+
+
+def _get_standardized_patterns(standardized_terms: dict[str, dict]) -> dict[str, tuple[re.Pattern, re.Pattern | None]]:
+    """Build or return cached compiled regex patterns for standardized terms."""
+    if not _standardized_patterns:
+        for canonical, term in standardized_terms.items():
+            display = term.get("display_form", "")
+            pat_c = re.compile(rf"\b{re.escape(canonical)}\b", re.IGNORECASE)
+            pat_d = re.compile(re.escape(display), re.IGNORECASE) if display else None
+            _standardized_patterns[canonical] = (pat_c, pat_d)
+    return _standardized_patterns
+
+
 def count_bare_colloquial_usage(text: str, colloquial_terms: dict[str, dict]) -> dict[str, int]:
     """Count bare colloquial term usage in text."""
+    patterns = _get_colloquial_patterns(colloquial_terms)
     counts = {}
-    for term in colloquial_terms:
-        pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+    for term, pattern in patterns.items():
         matches = pattern.findall(text)
         if matches:
             counts[term] = len(matches)
@@ -116,15 +140,12 @@ def count_bare_colloquial_usage(text: str, colloquial_terms: dict[str, dict]) ->
 
 def count_standardized_usage(text: str, standardized_terms: dict[str, dict]) -> dict[str, int]:
     """Count standardized term usage (canonical or display form) in text."""
+    patterns = _get_standardized_patterns(standardized_terms)
     counts = {}
-    for canonical, term in standardized_terms.items():
-        display = term.get("display_form", "")
-        pattern_canonical = re.compile(rf"\b{re.escape(canonical)}\b", re.IGNORECASE)
-        pattern_display = re.compile(re.escape(display), re.IGNORECASE) if display else None
-
-        total = len(pattern_canonical.findall(text))
-        if pattern_display:
-            total += len(pattern_display.findall(text))
+    for canonical, (pat_c, pat_d) in patterns.items():
+        total = len(pat_c.findall(text))
+        if pat_d:
+            total += len(pat_d.findall(text))
         if total > 0:
             counts[canonical] = total
     return counts

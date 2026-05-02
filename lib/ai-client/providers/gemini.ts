@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ActionableError } from '../../debate/errors';
-import { withTimeout } from '../retry';
-import type { FetchFn, GenerateOptions, ProviderResult } from '../types';
+import { ActionableError } from '../../debate/errors.js';
+import { withTimeout } from '../retry.js';
+import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -17,6 +17,7 @@ export const GEMINI_SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
   { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
   { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_ONLY_HIGH' },
 ];
 
 const GEMINI_TYPE_MAP: Record<string, string> = {

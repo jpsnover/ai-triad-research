@@ -6,15 +6,15 @@
  * Slug generation, Markdown export, diagnostics/harvest output builders.
  */
 
-import type { DebateSession, PoverId, TranscriptEntry } from './types';
-import { POVER_INFO } from './types';
+import type { DebateSession, PoverId, TranscriptEntry } from './types.js';
+import { POVER_INFO } from './types.js';
 import {
   extractConflictCandidates,
   extractSteelmanCandidates,
   extractDebateRefCandidates,
   extractVerdictCandidates,
   extractConceptCandidates,
-} from './harvestUtils';
+} from './harvestUtils.js';
 
 // ── Slug generation (port of New-Slug.ps1) ───────────────
 

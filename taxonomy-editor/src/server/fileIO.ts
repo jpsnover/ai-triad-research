@@ -478,11 +478,16 @@ function getDebatesDir(): string {
 
 export function listDebateSessions(): unknown[] {
   const dir = getDebatesDir();
-  const files = fs.readdirSync(dir).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json')));
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[] = [];
   for (const f of files) {
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
+      // Normalize CLI-generated filenames ({slug}-debate.json → debate-{id}.json)
+      const canonical = `debate-${raw.id}.json`;
+      if (f !== canonical) {
+        fs.renameSync(path.join(dir, f), path.join(dir, canonical));
+      }
       summaries.push({
         id: raw.id,
         title: raw.title || raw.topic || 'Untitled',

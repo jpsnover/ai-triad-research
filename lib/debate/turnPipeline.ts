@@ -16,12 +16,12 @@ import type {
   OpeningPipelineResult,
   TaxonomyRef,
   DebatePhase,
-} from './types';
-import type { DocumentAnalysis } from './types';
-import { ActionableError } from './errors';
-import type { PoverResponseMeta, MoveAnnotation } from './helpers';
-import type { GenerateOptions } from './aiAdapter';
-import { parseJsonRobust, wordOverlap } from './helpers';
+} from './types.js';
+import type { DocumentAnalysis } from './types.js';
+import { ActionableError } from './errors.js';
+import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
+import type { GenerateOptions } from './aiAdapter.js';
+import { parseJsonRobust, wordOverlap } from './helpers.js';
 import {
   briefStagePrompt,
   planStagePrompt,
@@ -31,16 +31,16 @@ import {
   planOpeningStagePrompt,
   draftOpeningStagePrompt,
   citeOpeningStagePrompt,
-} from './prompts';
-import type { StagePromptInput, OpeningStagePromptInput } from './prompts';
-import type { GenerateRequest, GenerateResponse } from './cacheTypes';
-import { flattenEnvelope } from './cacheTypes';
+} from './prompts.js';
+import type { StagePromptInput, OpeningStagePromptInput } from './prompts.js';
+import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
+import { flattenEnvelope } from './cacheTypes.js';
 import {
   briefStageEnvelope,
   planStageEnvelope,
   draftStageEnvelope,
   citeStageEnvelope,
-} from './envelopes';
+} from './envelopes.js';
 
 // ── Disagreement type normalization ─────────────────────
 
@@ -109,6 +109,7 @@ export interface TurnPipelineInput {
   addressing: string;
   phase: DebatePhase;
   priorMoves: string[];
+  turnsSinceLastConcession: number;
   priorRefs: string[];
   availablePovNodeIds: string[];
   crossPovNodeIds?: string[];
@@ -177,6 +178,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     addressing: input.addressing,
     phase: input.phase,
     priorMoves: input.priorMoves,
+    turnsSinceLastConcession: input.turnsSinceLastConcession,
     priorRefs: input.priorRefs,
     availablePovNodeIds: input.availablePovNodeIds,
     crossPovNodeIds: input.crossPovNodeIds,

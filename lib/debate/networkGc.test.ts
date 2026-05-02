@@ -9,8 +9,8 @@ import {
   GC_TRIGGER,
   GC_TARGET,
   HARD_CAP,
-} from './networkGc';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
+} from './networkGc.js';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 
 // ── Factory helpers ───────────────────────────────────────────
 

@@ -7,7 +7,7 @@
  * for each debater's prompt.
  */
 
-import type { PovNode, SituationNode } from './taxonomyTypes';
+import type { PovNode, SituationNode } from './taxonomyTypes.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;

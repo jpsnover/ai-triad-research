@@ -8,10 +8,10 @@
  */
 
 import fs from 'fs';
-import { parsePoverResponse, parseJsonRobust, stripCodeFences } from './helpers';
-import { POVER_INFO } from './types';
-import type { PoverId } from './types';
-import { formatDebateMarkdown } from './formatters';
+import { parsePoverResponse, parseJsonRobust, stripCodeFences } from './helpers.js';
+import { POVER_INFO } from './types.js';
+import type { PoverId } from './types.js';
+import { formatDebateMarkdown } from './formatters.js';
 
 function log(msg: string): void {
   process.stderr.write(`[repair] ${msg}\n`);

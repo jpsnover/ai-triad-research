@@ -1277,8 +1277,15 @@ function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
   const authDisabled = process.env.AUTH_DISABLED === '1';
   if (authDisabled) return true;
 
-  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
-  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  // S-WS-AUTH: Only trust Azure auth headers when Azure Auth is enabled,
+  // matching the HTTP handler behavior. Prevents header spoofing when
+  // the container is exposed directly (not behind Azure Front Door).
+  const principalName = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-name'] as string) || ''
+    : '';
+  const idp = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-idp'] as string) || ''
+    : '';
   const authOptional = process.env.AUTH_OPTIONAL === '1';
 
   if (authOptional) {
@@ -1295,6 +1302,18 @@ function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
 }
 
 server.on('upgrade', (req, socket, head) => {
+  // S-WS-ORIGIN: Validate Origin header against ALLOWED_ORIGINS to prevent
+  // cross-origin WebSocket hijacking (WebSocket bypasses CORS).
+  if (ALLOWED_ORIGINS) {
+    const origin = (req.headers.origin || '') as string;
+    if (!ALLOWED_ORIGINS.includes(origin)) {
+      console.warn(`[security] Blocked WebSocket upgrade from disallowed origin: ${origin}`);
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+  }
+
   if (!isWebSocketAuthorized(req)) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();
@@ -1329,10 +1348,21 @@ function handleTerminalConnection(ws: WebSocket) {
 
   const importCmd = `Import-Module '${path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1')}' -Force`;
 
+  // S-ENV: Only pass safe environment variables to the terminal process.
+  // Prevents leaking API keys, webhook secrets, and other sensitive env vars.
+  const SAFE_ENV_KEYS = ['PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE',
+    'LOGNAME', 'TMPDIR', 'TMP', 'TEMP', 'HOSTNAME', 'PWD', 'COLORTERM',
+    'SystemRoot', 'SYSTEMROOT', 'windir', 'COMSPEC', 'PATHEXT', 'APPDATA',
+    'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'NODE_ENV',
+    'AI_TRIAD_DATA_ROOT'];
+  const safeEnv: Record<string, string> = {};
+  for (const key of SAFE_ENV_KEYS) {
+    if (process.env[key]) safeEnv[key] = process.env[key]!;
+  }
   const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
   terminalProcess = spawn(pythonCmd, [BROKER_SCRIPT], {
     cwd: getProjectRoot(),
-    env: { ...process.env, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30' },
+    env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 

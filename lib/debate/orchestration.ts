@@ -32,7 +32,7 @@ import type {
   TurnAttempt,
   TaxonomyRef,
   TurnValidationConfig,
-} from './types';
+} from './types.js';
 
 import {
   initModeratorState,
@@ -45,26 +45,26 @@ import {
   buildIntervention,
   buildInterventionBriefInjection,
   getSynthesisResponder,
-} from './moderator';
+} from './moderator.js';
 
 import {
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
-} from './prompts';
+} from './prompts.js';
 
 import {
   formatArgumentNetworkContext,
   formatUnansweredClaimsHint,
   formatSpecifyHint,
-} from './argumentNetwork';
+} from './argumentNetwork.js';
 
-import { parseAIJson } from './helpers';
-import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers';
-import type { PoverResponseMeta } from './helpers';
-import type { GenerateOptions } from './aiAdapter';
-import { validateTurn, resolveTurnValidationConfig } from './turnValidator';
+import { parseAIJson } from './helpers.js';
+import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers.js';
+import type { PoverResponseMeta } from './helpers.js';
+import type { GenerateOptions } from './aiAdapter.js';
+import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 
 // ── Callback Interfaces ─────────────────────────────────
 

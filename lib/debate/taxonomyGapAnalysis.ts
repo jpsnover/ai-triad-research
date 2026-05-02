@@ -10,7 +10,7 @@ import type {
   GapSummary,
   TranscriptEntry,
   ArgumentNetworkNode,
-} from './types';
+} from './types.js';
 
 // ── Helper types for inputs ──────────────────────────────────────────
 

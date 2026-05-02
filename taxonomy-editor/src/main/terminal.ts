@@ -48,13 +48,27 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
       return;
     }
 
+    // Whitelist environment variables to prevent leaking API keys and credentials
+    const SAFE_ENV_KEYS = ['PATH', 'HOME', 'USER', 'SHELL', 'SHELL_PWSH', 'LANG', 'LC_ALL', 'LC_CTYPE',
+      'LOGNAME', 'TMPDIR', 'TMP', 'TEMP', 'HOSTNAME', 'PWD', 'COLORTERM', 'TERM',
+      'SystemRoot', 'SYSTEMROOT', 'windir', 'COMSPEC', 'PATHEXT', 'APPDATA',
+      'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'NODE_ENV',
+      'AI_TRIAD_DATA_ROOT', 'PSModulePath'];
+    const safeEnv: Record<string, string> = {};
+    for (const key of SAFE_ENV_KEYS) {
+      if (process.env[key]) safeEnv[key] = process.env[key]!;
+    }
+    safeEnv.__PSLockdownPolicy = '4';
+    safeEnv.TERM = 'xterm-256color';
+
     try {
       ptyProcess = pty.spawn(shell, ['-NoLogo'], {
         name: 'xterm-256color',
         cols: 120,
         rows: 30,
         cwd: PROJECT_ROOT,
-        env: { ...process.env, __PSLockdownPolicy: '4' } as { [key: string]: string },
+        env: safeEnv,
+        handleFlowControl: true,
       });
     } catch (err) {
       const win = getWindow();

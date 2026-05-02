@@ -13,6 +13,8 @@ export default defineConfig({
     alias: {
       '@renderer': path.resolve(__dirname, 'src/renderer'),
     },
+    // Ensure shared lib files (lib/electron-shared/) resolve React from this project
+    dedupe: ['react', 'react-dom'],
   },
   build: {
     outDir: '../../dist/renderer',

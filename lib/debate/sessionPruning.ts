@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DebateSession, ModeratorState } from './types';
+import type { DebateSession, ModeratorState } from './types.js';
 
 const MAX_CONVERGENCE_SIGNALS = 30;
 const MAX_POSITION_DRIFT = 30;

@@ -10,11 +10,11 @@
  * and sidebar panel (t/176).
  */
 
-import { cosineSimilarity } from './taxonomyRelevance';
-import { ActionableError } from './errors';
-import type { DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ClaimCoverageEntry } from './types';
-import { computeQbafStrengths } from './qbaf';
-import type { QbafNode, QbafEdge } from './qbaf';
+import { cosineSimilarity } from './taxonomyRelevance.js';
+import { ActionableError } from './errors.js';
+import type { DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ClaimCoverageEntry } from './types.js';
+import { computeQbafStrengths } from './qbaf.js';
+import type { QbafNode, QbafEdge } from './qbaf.js';
 
 // ── Types ─────────────────────────────────────────────────
 

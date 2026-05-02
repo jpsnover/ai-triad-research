@@ -7,9 +7,9 @@
  * and BDI consistency. Returns actionable diagnostics.
  */
 
-import type { PovNode, SituationNode, Edge } from './taxonomyTypes';
-import { nodePovFromId } from './nodeIdUtils';
-import { POV_KEYS } from './types';
+import type { PovNode, SituationNode, Edge } from './taxonomyTypes.js';
+import { nodePovFromId } from './nodeIdUtils.js';
+import { POV_KEYS } from './types.js';
 
 // ── Validation result ─────────────────────────────────────
 

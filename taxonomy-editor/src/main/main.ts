@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 console.log('[main] === STARTUP BEGIN ===');
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
@@ -99,6 +99,23 @@ function registerWindowHandlers(): void {
   });
 }
 
+/** Apply security hardening to every BrowserWindow (will-navigate + setWindowOpenHandler). */
+function hardenWindow(win: BrowserWindow): void {
+  // S1: Block navigation to untrusted origins
+  win.webContents.on('will-navigate', (event, url) => {
+    const allowed = ['http://localhost:5173', 'file://'];
+    if (!allowed.some(prefix => url.startsWith(prefix))) {
+      event.preventDefault();
+      console.warn(`[main] Blocked navigation to: ${url}`);
+    }
+  });
+  // S2: Deny new-window requests; open http(s) links externally
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+}
+
 function createWindow(): void {
   const preloadPath = path.join(__dirname, 'preload.js');
   console.log('[main] preload path:', preloadPath);
@@ -115,9 +132,11 @@ function createWindow(): void {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       webviewTag: true,
     },
   });
+  hardenWindow(mainWindow);
 
   // Use production build if launched with CLI file args (viewer mode) or if packaged
   const hasFileArg = process.argv.some(a => a.startsWith('--diagnostics-file=') || a.startsWith('--harvest-file='));
@@ -288,8 +307,10 @@ app.whenReady().then(() => {
         preload: preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
+    hardenWindow(diagWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
       diagWindow.loadURL('http://localhost:5173#diagnostics-window');
@@ -339,8 +360,10 @@ app.whenReady().then(() => {
         preload: preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
+    hardenWindow(povProgWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
       povProgWindow.loadURL('http://localhost:5173#pov-progression-window');
@@ -372,8 +395,10 @@ app.whenReady().then(() => {
         preload: preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
+    hardenWindow(debateWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
       debateWindow.loadURL('http://localhost:5173#debate-window');

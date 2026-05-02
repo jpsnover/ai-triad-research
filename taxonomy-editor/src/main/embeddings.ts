@@ -502,7 +502,7 @@ function resolveApiModelId(friendlyId: string): string {
       const config = JSON.parse(raw) as ModelRegistry;
       _modelMapCache = buildModelIdMap(config);
       _modelMapMtime = stat.mtimeMs;
-      console.log(`[model-map] Loaded ${Object.keys(_modelMapCache).length} mappings from ${configPath}`);
+      console.log(`[model-map] Loaded ${Object.keys(_modelMapCache!).length} mappings from ${configPath}`);
     }
   } catch (err) {
     if (!_modelMapCache) _modelMapCache = {};
@@ -536,13 +536,14 @@ export async function generateText(
   const apiKey = loadApiKey(backend);
   const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+    const backendName = names[backend] ?? backend;
     throw new ActionableError({
-      goal: `Generate text via ${names[backend]} API`,
-      problem: `No ${names[backend]} API key configured.`,
+      goal: `Generate text via ${backendName} API`,
+      problem: `No ${backendName} API key configured.`,
       location: 'embeddings.generateText',
       nextSteps: [
-        `Set a ${names[backend]} API key in Settings.`,
+        `Set a ${backendName} API key in Settings.`,
         'Or switch to a different AI backend that has a key configured.',
       ],
     });
@@ -567,7 +568,7 @@ export async function generateText(
     () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts),
     SERVER_RETRY_CONFIG,
     `${backend}/${resolvedModel}`,
-    (msg) => {
+    (msg: string) => {
       console.log(msg);
       // Parse retry info from the log message to feed the onRetry callback
       const attemptMatch = msg.match(/attempt (\d+)\/(\d+).*waiting (\d+)s/);
@@ -606,13 +607,14 @@ export async function generateChatStream(
 
   const apiKey = loadApiKey(backend);
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
+    const backendName = names[backend] ?? backend;
     throw new ActionableError({
-      goal: `Stream chat response via ${names[backend]} API`,
-      problem: `No ${names[backend]} API key configured.`,
+      goal: `Stream chat response via ${backendName} API`,
+      problem: `No ${backendName} API key configured.`,
       location: 'embeddings.generateChatStream',
       nextSteps: [
-        `Set a ${names[backend]} API key in Settings.`,
+        `Set a ${backendName} API key in Settings.`,
         'Or switch to a different AI backend that has a key configured.',
       ],
     });

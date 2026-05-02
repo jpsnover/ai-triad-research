@@ -7,9 +7,9 @@
  * nodes for harvest when threshold is crossed.
  */
 
-import type { DebateSession, PoverId } from './types';
-import { POVER_INFO } from './types';
-import type { ConcessionRecord, ConcessionType } from './taxonomyTypes';
+import type { DebateSession, PoverId } from './types.js';
+import { POVER_INFO } from './types.js';
+import type { ConcessionRecord, ConcessionType } from './taxonomyTypes.js';
 
 // ── Types ─────────────────────────────────────────────────
 

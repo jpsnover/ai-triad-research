@@ -18,10 +18,10 @@ import type {
   TurnValidationConfig,
   TurnValidationDimensions,
   TaxonomyClarificationHint,
-} from './types';
-import type { PoverResponseMeta } from './helpers';
-import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers';
-import { checkInterventionCompliance } from './moderator';
+} from './types.js';
+import type { PoverResponseMeta } from './helpers.js';
+import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers.js';
+import { checkInterventionCompliance } from './moderator.js';
 
 // ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
 const MOVE_CATALOG_RAW = [

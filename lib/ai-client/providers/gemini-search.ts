@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ActionableError } from '../../debate/errors';
-import { withTimeout } from '../retry';
-import type { FetchFn } from '../types';
-import { GEMINI_BASE, GEMINI_SAFETY_SETTINGS } from './gemini';
+import { ActionableError } from '../../debate/errors.js';
+import { withTimeout } from '../retry.js';
+import type { FetchFn } from '../types.js';
+import { GEMINI_BASE, GEMINI_SAFETY_SETTINGS } from './gemini.js';
 
 export interface GroundingSegment {
   startIndex: number;

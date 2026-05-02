@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Generate the AI Triad pitch deck as a .pptx file."""
 
+from pathlib import Path
+
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if __name__ != "__main__":
+    raise ImportError("generate_deck.py is a script, not an importable module")
 
 # -- Palette --
 BG_DARK   = RGBColor(0x1A, 0x1A, 0x2E)
@@ -679,7 +686,7 @@ add_shape_fill(slide, Inches(0), Inches(7.44), SLIDE_W, Inches(0.06), ACCENT)
 # ============================================================
 # SAVE MAIN DECK
 # ============================================================
-out_path = "/Users/jsnover/source/repos/ai-triad-research/AI_Triad_Pitch_Deck.pptx"
+out_path = _PROJECT_ROOT / "AI_Triad_Pitch_Deck.pptx"
 prs.save(out_path)
 print(f"Saved: {out_path}")
 
@@ -763,6 +770,6 @@ set_text(tb.text_frame,
          "Reference: Chesnevar et al., \"Towards an Argument Interchange Format,\" The Knowledge Engineering Review (2006)",
          size=11, color=GRAY, alignment=PP_ALIGN.CENTER)
 
-backup_path = "/Users/jsnover/source/repos/ai-triad-research/AI_Triad_Backup_Slides.pptx"
+backup_path = _PROJECT_ROOT / "AI_Triad_Backup_Slides.pptx"
 backup.save(backup_path)
 print(f"Saved: {backup_path}")

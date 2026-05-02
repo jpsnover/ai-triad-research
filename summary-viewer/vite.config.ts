@@ -14,6 +14,8 @@ export default defineConfig({
       '@renderer': path.resolve(__dirname, 'src/renderer'),
       '@lib/debate': path.resolve(__dirname, '../lib/debate'),
     },
+    // Ensure shared lib files (lib/electron-shared/) resolve React from this project
+    dedupe: ['react', 'react-dom'],
   },
   build: {
     outDir: '../../dist/renderer',

@@ -14,10 +14,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily';
-import { ActionableError } from './errors';
-import type { GenerateRequest, GenerateResponse } from './cacheTypes';
-import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily.js';
+import { ActionableError } from './errors.js';
+import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
+import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes.js';
 
 // ── Shared ai-client imports ────────────────────────────
 import {
@@ -27,16 +27,21 @@ import {
   resolveModel,
   GEMINI_BASE,
   geminiGroundedSearch,
-} from '../ai-client';
+} from '../ai-client/index.js';
 import type {
   ProviderResult,
   GenerateOptions as SharedGenerateOptions,
   ModelRegistry,
-} from '../ai-client';
+} from '../ai-client/index.js';
 
 // ── Interface ────────────────────────────────────────────
 
 export interface GenerateOptions extends SharedGenerateOptions {
+  // Re-declare commonly used fields for resilience against resolution failures
+  temperature?: number;
+  maxTokens?: number;
+  timeoutMs?: number;
+  responseSchema?: Record<string, unknown>;
   signal?: AbortSignal;
 }
 

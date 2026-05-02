@@ -20,25 +20,47 @@ process.stdin.on('data', chunk => { input += chunk; });
 process.stdin.on('end', () => {
   try {
     const data = JSON.parse(input);
-    const result = computeQbafStrengths(
-      data.nodes || [],
-      data.edges || [],
-      data.options || {}
-    );
 
-    // Convert Map to plain object for JSON serialization
-    const strengths = {};
-    for (const [id, strength] of result.strengths) {
-      strengths[id] = strength;
+    // Batch mode: {"batch": [{nodes, edges, options?}, ...]}
+    if (Array.isArray(data.batch)) {
+      const results = data.batch.map(item => {
+        const result = computeQbafStrengths(
+          item.nodes || [],
+          item.edges || [],
+          item.options || {}
+        );
+        const strengths = {};
+        for (const [id, strength] of result.strengths) {
+          strengths[id] = strength;
+        }
+        return {
+          strengths,
+          iterations: result.iterations,
+          converged: result.converged,
+        };
+      });
+      process.stdout.write(JSON.stringify(results));
+    } else {
+      // Single mode (original behavior)
+      const result = computeQbafStrengths(
+        data.nodes || [],
+        data.edges || [],
+        data.options || {}
+      );
+
+      const strengths = {};
+      for (const [id, strength] of result.strengths) {
+        strengths[id] = strength;
+      }
+
+      const output = {
+        strengths,
+        iterations: result.iterations,
+        converged: result.converged,
+      };
+
+      process.stdout.write(JSON.stringify(output));
     }
-
-    const output = {
-      strengths,
-      iterations: result.iterations,
-      converged: result.converged,
-    };
-
-    process.stdout.write(JSON.stringify(output));
   } catch (err) {
     process.stderr.write(`qbaf-bridge error: ${err.message}\n`);
     process.exit(1);

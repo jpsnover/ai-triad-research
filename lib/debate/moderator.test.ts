@@ -23,15 +23,15 @@ import {
   getResponseFieldForMove,
   getMoveResponseConfig,
   getSynthesisResponder,
-} from './moderator';
+} from './moderator.js';
 import type {
   ModeratorState,
   SelectionResult,
   ConvergenceSignals,
   InterventionMove,
   DebatePhase,
-} from './types';
-import { MOVE_TO_FAMILY, MOVE_TO_FORCE, FAMILY_BURDEN_WEIGHT } from './types';
+} from './types.js';
+import { MOVE_TO_FAMILY, MOVE_TO_FORCE, FAMILY_BURDEN_WEIGHT } from './types.js';
 
 // ── Helpers ───────────────────────────────────────────────
 

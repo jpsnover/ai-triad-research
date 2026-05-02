@@ -5,13 +5,13 @@ import {
   checkOneSideConceded,
   inferDisagreementType,
   formatCruxResolutionContext,
-} from './cruxResolution';
+} from './cruxResolution.js';
 import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   CommitmentStore,
   TrackedCrux,
-} from './types';
+} from './types.js';
 
 function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): ArgumentNetworkNode {
   return {

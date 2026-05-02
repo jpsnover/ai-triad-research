@@ -1,10 +1,25 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
+
+/** Apply security hardening to every BrowserWindow (will-navigate + setWindowOpenHandler). */
+function hardenWindow(win: BrowserWindow): void {
+  win.webContents.on('will-navigate', (event, url) => {
+    const allowed = ['http://localhost:5175', 'file://'];
+    if (!allowed.some(prefix => url.startsWith(prefix))) {
+      event.preventDefault();
+      console.warn(`[SummaryViewer] Blocked navigation to: ${url}`);
+    }
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -23,8 +38,10 @@ function createWindow(): void {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
+  hardenWindow(mainWindow);
 
   const isDev = !app.isPackaged;
   if (isDev) {

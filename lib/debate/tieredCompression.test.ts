@@ -4,13 +4,13 @@ import {
   buildDistantTierSummary,
   buildTieredContext,
   formatTieredTranscript,
-} from './tieredCompression';
+} from './tieredCompression.js';
 import type {
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   CommitmentStore,
-} from './types';
+} from './types.js';
 
 function makeEntry(id: string, speaker: string, content: string, type: string = 'statement'): TranscriptEntry {
   return {

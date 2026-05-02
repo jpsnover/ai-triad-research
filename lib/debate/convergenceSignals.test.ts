@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD } from './convergenceSignals';
+import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD } from './convergenceSignals.js';
 import type {
   PoverId,
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
-} from './types';
+} from './types.js';
 
 // ── Factory helpers ────────────────────────────────────────
 

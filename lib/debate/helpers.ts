@@ -6,8 +6,8 @@
  * No UI, Zustand, or Electron dependencies.
  */
 
-import type { PoverId, TranscriptEntry, TaxonomyRef } from './types';
-import { POVER_INFO } from './types';
+import type { PoverId, TranscriptEntry, TaxonomyRef } from './types.js';
+import { POVER_INFO } from './types.js';
 
 export function generateId(): string {
   return crypto.randomUUID();

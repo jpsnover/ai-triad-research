@@ -99,3 +99,7 @@ RULES:
     EXACTLY from this section (word-for-word).
   - Return ONLY a valid JSON object. No markdown fences, no preamble, no explanation.
   - Be precise and specific. Every key_point must reference a real passage in this section.
+  - TRUNCATION: This is one section of a split document. It may begin or end mid-sentence.
+    Do NOT invent content to fill in missing context from other sections. Work ONLY with
+    the text provided in this section. If a claim appears incomplete, extract what is
+    available and set extraction_confidence to 0.3-0.5.

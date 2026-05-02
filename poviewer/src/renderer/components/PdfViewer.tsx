@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { TextLayer } from 'pdfjs-dist';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { useAppStore } from '../store/useAppStore';
 import {
   buildTextIndex,
@@ -15,11 +16,8 @@ import PointBadge from './PointBadge';
 import type { Source, Point, PovCamp } from '../types/types';
 import type { ExcerptMappingResult } from '../types/electron';
 
-// Configure pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url,
-).toString();
+// Configure pdf.js worker — version-locked via Vite ?url import from pdfjs-dist
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 interface Props {
   source: Source;

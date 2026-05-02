@@ -3,8 +3,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { loadAnalysisResult, loadAnnotations, getSourceDir } from './fileIO';
-import type { AnalysisResult, RawMapping } from './analysisTypes';
+import { loadAnalysisResult, loadAnnotations, getSourceDir } from './fileIO.js';
+import type { AnalysisResult, RawMapping } from './analysisTypes.js';
 
 export async function exportBundle(
   sourceIds: string[],

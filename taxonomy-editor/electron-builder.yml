@@ -12,6 +12,9 @@ files:
   - node_modules/**/*
   - package.json
 
+asarUnpack:
+  - "node_modules/node-pty/**"
+
 extraResources:
   - from: "../ai-models.json"
     to: "ai-models.json"

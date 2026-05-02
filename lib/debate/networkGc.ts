@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 
 // ── Default constants ────────────────────────────────────────────────
 export const GC_TRIGGER = 175;

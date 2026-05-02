@@ -20,7 +20,7 @@ import type {
   DebateSession,
   PreferenceEntry,
   PoverId,
-} from './types';
+} from './types.js';
 
 // ── Types ─────────────────────────────────────────────────
 

@@ -6,9 +6,9 @@
  * validate AI-generated descriptions, and prepare items for user review.
  */
 
-import type { DebateSession, TranscriptEntry, PoverId } from './types';
-import { POVER_INFO } from './types';
-import { nodePovFromId } from './nodeIdUtils';
+import type { DebateSession, TranscriptEntry, PoverId } from './types.js';
+import { POVER_INFO } from './types.js';
+import { nodePovFromId } from './nodeIdUtils.js';
 
 // ── Types ─────────────────────────────────────────────────
 

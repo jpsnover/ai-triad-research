@@ -16,16 +16,16 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   TranscriptEntry,
-} from './types';
-import { computePragmaticConvergence, computeSynthesisPragmaticSignal } from './pragmaticSignals';
-import { computeSchemeStagnation, computeSchemeCoverageFactor } from './schemeStagnation';
+} from './types.js';
+import { computePragmaticConvergence, computeSynthesisPragmaticSignal } from './pragmaticSignals.js';
+import { computeSchemeStagnation, computeSchemeCoverageFactor } from './schemeStagnation.js';
 import {
   computeExtractionConfidence,
   computeStabilityConfidence,
   computeGlobalConfidence,
   isConfidenceDeferred,
-} from './signalConfidence';
-import { needsGc, needsHardCap } from './networkGc';
+} from './signalConfidence.js';
+import { needsGc, needsHardCap } from './networkGc.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

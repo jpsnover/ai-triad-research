@@ -11,15 +11,15 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createCLIAdapter } from './aiAdapter';
-import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader';
-import { DebateEngine } from './debateEngine';
-import type { DebateConfig } from './debateEngine';
-import type { DebateSourceType, PoverId, DebateAudience } from './types';
-import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types';
-import { formatSituationDebateContext } from './prompts';
-import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters';
-import { ActionableError } from './errors';
+import { createCLIAdapter } from './aiAdapter.js';
+import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader.js';
+import { DebateEngine } from './debateEngine.js';
+import type { DebateConfig } from './debateEngine.js';
+import type { DebateSourceType, PoverId, DebateAudience } from './types.js';
+import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
+import { formatSituationDebateContext } from './prompts.js';
+import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
+import { ActionableError } from './errors.js';
 
 // ── CLI Config schema ────────────────────────────────────
 

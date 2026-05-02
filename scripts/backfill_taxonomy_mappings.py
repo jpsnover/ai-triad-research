@@ -21,6 +21,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -70,8 +71,8 @@ def load_taxonomy_ids(tax_dir: Path) -> set:
             for node in data.get("nodes", []):
                 if node.get("id"):
                     ids.add(node["id"])
-        except Exception:
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  Warning: skipping {f.name}: {e}", file=sys.stderr)
     return ids
 
 
@@ -91,35 +92,60 @@ def pov_prefix(pov: str) -> str:
     return {"accelerationist": "acc-", "safetyist": "saf-", "skeptic": "skp-"}.get(pov, "")
 
 
-def encode_texts(texts: list[str]) -> np.ndarray:
+def encode_texts(texts: list[str], model=None) -> np.ndarray:
     from sentence_transformers import SentenceTransformer
 
+    if model is None:
+        model = SentenceTransformer(MODEL_NAME)
     print(f"  Encoding {len(texts)} texts with {MODEL_NAME}...", file=sys.stderr)
-    model = SentenceTransformer(MODEL_NAME)
     vecs = model.encode(texts, normalize_embeddings=True, show_progress_bar=True,
                         batch_size=64)
     return np.array(vecs, dtype=np.float32)
 
 
+# Pre-computed POV matrices for vectorized similarity search
+_pov_matrices: dict[str, tuple[list[str], np.ndarray]] = {}
+
+
+def _get_pov_matrix(node_embeddings: dict, prefix: str) -> tuple[list[str], np.ndarray]:
+    """Build or retrieve a cached (ids, matrix) pair for a POV prefix."""
+    cache_key = prefix or "__all__"
+    if cache_key not in _pov_matrices:
+        ids = []
+        vecs = []
+        for nid, entry in node_embeddings.items():
+            if prefix and not nid.startswith(prefix):
+                continue
+            ids.append(nid)
+            vecs.append(entry["vector"])
+        if vecs:
+            _pov_matrices[cache_key] = (ids, np.stack(vecs))
+        else:
+            _pov_matrices[cache_key] = ([], np.empty((0, 384), dtype=np.float32))
+    return _pov_matrices[cache_key]
+
+
 def find_best_match(query_vec: np.ndarray, node_embeddings: dict,
                     pov_filter: str, threshold: float,
-                    exclude_id: str | None = None) -> tuple[str | None, float]:
+                    exclude_id: Optional[str] = None) -> tuple[Optional[str], float]:
     prefix = pov_prefix(pov_filter)
-    best_id = None
-    best_sim = -1.0
+    ids, matrix = _get_pov_matrix(node_embeddings, prefix)
 
-    for nid, entry in node_embeddings.items():
-        if prefix and not nid.startswith(prefix):
-            continue
-        if exclude_id and nid == exclude_id:
-            continue
-        sim = float(np.dot(query_vec, entry["vector"]))
-        if sim > best_sim:
-            best_sim = sim
-            best_id = nid
+    if len(ids) == 0:
+        return None, -1.0
+
+    # Vectorized: (N, 384) @ (384,) → (N,) cosine similarities
+    sims = matrix @ query_vec
+
+    if exclude_id and exclude_id in ids:
+        exclude_idx = ids.index(exclude_id)
+        sims[exclude_idx] = -1.0
+
+    best_idx = int(np.argmax(sims))
+    best_sim = float(sims[best_idx])
 
     if best_sim >= threshold:
-        return best_id, best_sim
+        return ids[best_idx], best_sim
     return None, best_sim
 
 
@@ -165,7 +191,8 @@ def main():
     for sf in summ_files:
         try:
             data = json.loads(sf.read_text(encoding="utf-8-sig"))
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  Warning: skipping {sf.name}: {e}", file=sys.stderr)
             continue
 
         for pov, ps in (data.get("pov_summaries") or {}).items():

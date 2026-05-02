@@ -70,7 +70,7 @@ function loadModelMap(): Record<string, string> {
       const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _modelMapMtime = stat.mtimeMs;
-      console.log(`[aiBackends] Reloaded model map (${Object.keys(_modelMapCache).length} mappings)`);
+      console.log(`[aiBackends] Reloaded model map (${Object.keys(_modelMapCache!).length} mappings)`);
     }
   } catch (err) {
     console.warn(`[aiBackends] Failed to load model map:`, err);
@@ -126,12 +126,13 @@ export async function generateText(
   const backend = resolveBackend(resolved);
   const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
-    const names: Record<AIBackend, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily' };
+    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily' };
+    const backendName = names[backend] ?? backend;
     throw new ActionableError({
-      goal: `Generate text via ${names[backend]}`,
-      problem: `No ${names[backend]} API key configured`,
+      goal: `Generate text via ${backendName}`,
+      problem: `No ${backendName} API key configured`,
       location: 'aiBackends.generateText',
-      nextSteps: [`Set your ${names[backend]} API key in Settings`, 'Or switch to a backend that has a key configured'],
+      nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
     });
   }
 
@@ -146,7 +147,7 @@ export async function generateText(
     SERVER_RETRY_CONFIG,
     `${backend}/${apiModel}`,
     onRetry
-      ? (msg) => {
+      ? (msg: string) => {
           // Extract attempt info from the retry log message for the progress callback.
           // Format: "[retry] label attempt N/M failed (reason), waiting Ds..."
           const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);

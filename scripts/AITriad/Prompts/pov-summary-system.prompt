@@ -237,3 +237,35 @@ RULES:
   - Return ONLY a valid JSON object. No markdown fences, no preamble, no explanation
     outside the JSON.
   - Be precise and specific. Every key_point must reference a real passage in the document.
+  - VOCABULARY TERMS: If the taxonomy nodes you reference have vocabulary_terms listed, include
+    those standardized terms in your key_point's vocabulary_terms array. Use canonical forms only
+    (e.g., "governance_adaptive", "capabilities_scaling"). If a key_point discusses concepts
+    covered by standardized vocabulary but no taxonomy node was matched, still include the
+    relevant vocabulary_terms. Omit the field or use an empty array if no terms apply.
+  - TRUNCATION: If the source text ends abruptly mid-sentence or mid-paragraph, it has
+    been truncated for context limits. Do NOT invent, guess, or extrapolate the remaining
+    content. Work ONLY with what is provided. If a claim or argument appears incomplete
+    due to truncation, extract what is available and set extraction_confidence to 0.3-0.5
+    to flag it for human review.
+
+UNMAPPED CONCEPT CALIBRATION — Near-Miss vs. Genuine Gap:
+  Before adding an unmapped_concept, verify it is a genuine gap, not a near-miss.
+
+  NEAR-MISS (do NOT add as unmapped — map to existing node instead):
+    Example 1: Document discusses "algorithmic accountability frameworks"
+      → Node "saf-desires-012: Ensuring Algorithmic Accountability" covers this.
+      Different phrasing, same concept. Map to saf-desires-012.
+    Example 2: Document discusses "risks of AI systems pursuing instrumental goals"
+      → Node "saf-beliefs-003: Inherent Power-Seeking Behavior" covers this.
+      The document uses different terminology but describes the same phenomenon.
+    Example 3: Document discusses "workers losing jobs to automation"
+      → Node "acc-desires-008: Mitigating Automation Displacement" covers this.
+      The concept exists under a different POV than initially expected (cross-POV match).
+
+  GENUINE GAP (DO add as unmapped — concept truly absent from taxonomy):
+    Example 1: Document discusses "regulatory sandboxes for frontier AI testing"
+      → No node covers the specific mechanism of regulatory sandboxes. Related nodes
+      exist for regulation generally, but this specific policy instrument is absent.
+    Example 2: Document discusses "AI-generated disinformation in democratic elections"
+      → Nodes cover disinformation broadly, but the specific intersection with
+      electoral integrity and democratic processes has no dedicated node.

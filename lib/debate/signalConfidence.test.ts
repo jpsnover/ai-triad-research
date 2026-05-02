@@ -8,7 +8,7 @@ import {
   computeGlobalConfidence,
   isConfidenceDeferred,
   DEFAULT_CONFIDENCE_FLOOR,
-} from './signalConfidence';
+} from './signalConfidence.js';
 
 // ── DEFAULT_CONFIDENCE_FLOOR ─────────────────────────────────
 

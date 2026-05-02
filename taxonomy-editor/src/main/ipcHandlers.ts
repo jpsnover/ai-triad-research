@@ -46,7 +46,13 @@ import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
 import { diagnosePythonEmbeddings } from './diagnosePython';
 import type { NodeEmbeddingInput, NliPair } from './embeddings';
 import { ActionableError } from '../../../lib/debate/errors';
+import { z } from 'zod';
 import path from 'path';
+
+// IPC input schemas for high-risk handlers
+const VALID_POV = z.enum(['accelerationist', 'safetyist', 'skeptic', 'situations', 'cross_cutting']);
+const SafePath = z.string().min(1).max(500);
+const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^cc-\d{3}$|^pol-\d{3}$/);
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
@@ -75,7 +81,9 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('save-taxonomy-file', (_event, pov: string, data: unknown) => {
-    writeTaxonomyFile(pov, data);
+    const parsed = VALID_POV.safeParse(pov);
+    if (!parsed.success) throw new ActionableError({ goal: 'Save taxonomy file', problem: `Invalid POV: ${pov}`, location: 'ipcHandlers:save-taxonomy-file', nextSteps: ['Use a valid POV name'] });
+    writeTaxonomyFile(parsed.data, data);
   });
 
   ipcMain.handle('load-policy-registry', () => {
@@ -150,20 +158,27 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('set-data-root', (_event, newRoot: string) => {
-    setDataRootPath(newRoot);
+    SafePath.parse(newRoot);
+    setDataRootPath(path.resolve(newRoot));
     // Relaunch so module-level cached paths are re-derived from the updated config
     app.relaunch();
     app.quit();
   });
 
   ipcMain.handle('clone-data-repo', async (_event, targetPath: string) => {
+    // Validate target path is within user's home directory
+    const resolved = path.resolve(targetPath);
+    const home = app.getPath('home');
+    if (!resolved.startsWith(home + path.sep) && resolved !== home) {
+      return { success: false, message: `Target path must be within ${home}` };
+    }
     const repoUrl = 'https://github.com/jpsnover/ai-triad-data.git';
     return new Promise<{ success: boolean; message: string }>((resolve) => {
-      const parentDir = path.dirname(targetPath);
+      const parentDir = path.dirname(resolved);
       if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
       }
-      execFile('git', ['clone', repoUrl, targetPath], { timeout: 300000 }, (err, stdout, stderr) => {
+      execFile('git', ['clone', repoUrl, resolved], { timeout: 300000 }, (err, stdout, stderr) => {
         if (err) {
           resolve({ success: false, message: stderr || err.message });
         } else {
@@ -335,6 +350,8 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('harvest-add-debate-ref', async (_event, nodeId: string, debateId: string) => {
+    NodeId.parse(nodeId);
+    z.string().min(1).parse(debateId);
     const config = loadDataConfig();
     const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
     // Find which file contains this node
@@ -358,6 +375,9 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('harvest-update-steelman', async (_event, nodeId: string, attackerPov: string, newText: string) => {
+    NodeId.parse(nodeId);
+    VALID_POV.parse(attackerPov);
+    z.string().min(1).parse(newText);
     const config = loadDataConfig();
     const taxonomyDir = path.join(getDataRootPath(), config.taxonomy_dir);
     for (const fname of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
@@ -702,8 +722,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('fetch-url-content', async (_event, url: string) => {
+    // S-SSRF: Only allow http/https protocols to prevent file:// and internal network access
+    if (!/^https?:\/\//i.test(url)) {
+      return { content: '', error: 'Only http/https URLs are allowed' };
+    }
     try {
-      const { fetchUrlContent } = await import('../../../lib/debate/taxonomyLoader');
+      const { fetchUrlContent } = await import('../../../lib/debate/taxonomyLoader.js');
       const markdown = await fetchUrlContent(url);
       return { content: markdown };
     } catch (err) {

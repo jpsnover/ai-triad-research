@@ -6,9 +6,9 @@
  * for debate agent prompts. Extracted from useDebateStore for testability.
  */
 
-import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes';
-import { interpretationText, isBdiInterpretation } from './taxonomyTypes';
-import { POV_KEYS } from './types';
+import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes.js';
+import { interpretationText, isBdiInterpretation } from './taxonomyTypes.js';
+import { POV_KEYS } from './types.js';
 
 export interface PolicyRef {
   id: string;

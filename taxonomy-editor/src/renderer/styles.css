@@ -12500,7 +12500,7 @@ body {
 }
 .grounding-table thead { position: sticky; top: 0; z-index: 1; }
 .grounding-table th {
-  padding: 4px 8px;
+  padding: 4px 5px;
   text-align: left;
   font-weight: 600;
   background: var(--bg-secondary);
@@ -12511,7 +12511,7 @@ body {
 .grounding-th-sortable:hover { color: var(--accent); }
 .grounding-th-count { text-align: right; }
 .grounding-table td {
-  padding: 3px 8px;
+  padding: 2px 5px;
   border-bottom: 1px solid var(--border-subtle);
 }
 .grounding-row { cursor: pointer; transition: background 0.1s; }
@@ -12525,14 +12525,14 @@ body {
   margin-top: 8px;
   border: 1px solid var(--accent);
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px;
   background: rgba(59,130,246,0.04);
 }
 .grounding-detail-header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 6px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 .grounding-detail-id { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; color: var(--accent); }

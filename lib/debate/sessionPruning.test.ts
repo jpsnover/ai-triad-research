@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { pruneSessionData, pruneModeratorState } from './sessionPruning';
-import type { DebateSession, ModeratorState, ConvergenceSignals, DebateHealthScore } from './types';
+import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
+import type { DebateSession, ModeratorState, ConvergenceSignals, DebateHealthScore } from './types.js';
 
 function makeMinimalSession(overrides: Partial<DebateSession> = {}): DebateSession {
   return {

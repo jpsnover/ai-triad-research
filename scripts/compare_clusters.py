@@ -18,10 +18,11 @@ Usage:
 import argparse
 import json
 import html
+import re
 import sys
 import webbrowser
+from collections import Counter, defaultdict
 from pathlib import Path
-from collections import defaultdict
 
 import numpy as np
 
@@ -146,9 +147,6 @@ def _describe_cluster(cluster, nodes):
     since single words like "Safety" or "Risk" lose their meaning without
     context.  Falls back to unigrams only when no bigrams repeat.
     """
-    from collections import Counter
-    import re
-
     if not cluster:
         return "Empty"
     if len(cluster) == 1:

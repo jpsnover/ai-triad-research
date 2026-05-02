@@ -4,8 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { AiSettings, PromptOverrides } from './analysisTypes';
-import { ActionableError } from '../../../lib/debate/errors';
+import type { AiSettings, PromptOverrides } from './analysisTypes.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
@@ -147,7 +147,7 @@ export async function readSourceFileContent(filePath: string): Promise<string> {
   }
 
   if (ext === '.pdf') {
-    const { extractPdfText } = await import('./pdfExtractor');
+    const { extractPdfText } = await import('./pdfExtractor.js');
     const result = await extractPdfText(filePath);
     return result.fullText;
   }

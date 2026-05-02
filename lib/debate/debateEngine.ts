@@ -6,8 +6,8 @@
  * Runs a full structured debate using the AIAdapter interface.
  */
 
-import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter';
-import type { LoadedTaxonomy } from './taxonomyLoader';
+import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter.js';
+import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type {
   DebateSession,
   DebateSourceType,
@@ -34,8 +34,8 @@ import type {
   AdaptiveStagingDiagnostics,
   DebatePacing,
   ConvergenceSignals as ConvergenceSignalsType,
-} from './types';
-import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types';
+} from './types.js';
+import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
   loadProvisionalWeights,
   initPhaseState,
@@ -49,10 +49,10 @@ import {
   detectCruxNodes,
   computeSaturationScore,
   computeConvergenceScore,
-} from './phaseTransitions';
-import { pruneArgumentNetwork, needsGc } from './networkGc';
-import type { PovNode, SituationNode } from './taxonomyTypes';
-import type { TaxonomyContext } from './taxonomyContext';
+} from './phaseTransitions.js';
+import { pruneArgumentNetwork, needsGc } from './networkGc.js';
+import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { TaxonomyContext } from './taxonomyContext.js';
 import {
   clarificationPrompt,
   documentClarificationPrompt,
@@ -75,17 +75,17 @@ import {
   crossCuttingNodePrompt,
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
-} from './prompts';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork';
-import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution';
-import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression';
-import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext';
-import { formatVocabularyContext } from './vocabularyContext';
-import type { ContextInjectionManifest } from './taxonomyContext';
-import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis';
-import type { DocumentAnalysis } from './types';
-import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator';
-import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator';
+} from './prompts.js';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
+import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
+import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
+import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
+import { formatVocabularyContext } from './vocabularyContext.js';
+import type { ContextInjectionManifest } from './taxonomyContext.js';
+import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis.js';
+import type { DocumentAnalysis } from './types.js';
+import { runNeutralEvaluation, buildSpeakerMapping } from './neutralEvaluator.js';
+import type { SpeakerMapping, NeutralEvaluation } from './neutralEvaluator.js';
 import {
   cosineSimilarity,
   scoreNodeRelevance,
@@ -93,7 +93,7 @@ import {
   selectRelevantNodes,
   selectRelevantSituationNodes,
   buildRelevanceQuery,
-} from './taxonomyRelevance';
+} from './taxonomyRelevance.js';
 import {
   generateId,
   nowISO,
@@ -103,17 +103,17 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
   getMoveName,
-} from './helpers';
-import { computeQbafStrengths, computeQbafConvergence } from './qbaf';
-import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker';
-import { generateDialecticTraces } from './dialecticTrace';
-import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis';
-import { extractSituationDebateRefs } from './situationRefs';
-import { ActionableError } from './errors';
-import type { ContextManifestEntry } from './taxonomyGapAnalysis';
-import { resolveTurnValidationConfig } from './turnValidator';
-import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types';
-import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE } from './types';
+} from './helpers.js';
+import { computeQbafStrengths, computeQbafConvergence } from './qbaf.js';
+import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker.js';
+import { generateDialecticTraces } from './dialecticTrace.js';
+import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
+import { extractSituationDebateRefs } from './situationRefs.js';
+import { ActionableError } from './errors.js';
+import type { ContextManifestEntry } from './taxonomyGapAnalysis.js';
+import { resolveTurnValidationConfig } from './turnValidator.js';
+import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types.js';
+import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE } from './types.js';
 import {
   initModeratorState,
   validateRecommendation,
@@ -126,20 +126,20 @@ import {
   buildInterventionBriefInjection,
   checkInterventionCompliance,
   getSynthesisResponder,
-} from './moderator';
-import { runModeratorSelection, executeTurnWithRetry } from './orchestration';
-import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration';
-import { pruneSessionData, pruneModeratorState } from './sessionPruning';
-import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline';
-import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline';
+} from './moderator.js';
+import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
+import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
+import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
+import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline.js';
+import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
 import {
   findUnengagedHighRelevanceNodes,
   shouldRunGapCheck,
   collectEngagedNodeIds,
   GAP_CHECK_INTERVAL,
   MAX_GAP_INJECTIONS,
-} from './gapCheck';
-import type { UnengagedNode } from './gapCheck';
+} from './gapCheck.js';
+import type { UnengagedNode } from './gapCheck.js';
 
 // ── Config ───────────────────────────────────────────────
 
@@ -1640,11 +1640,23 @@ export class DebateEngine {
     const updatedTranscript = formatRecentTranscript(this.session.transcript, 8, this.session.context_summaries);
 
     // Collect this debater's prior move_types for diversity enforcement
-    const priorMoves = this.session.transcript
-      .filter(e => e.speaker === responder && e.metadata)
+    const debaterTurns = this.session.transcript
+      .filter(e => e.speaker === responder && (e.type === 'opening' || e.type === 'statement'));
+    const priorMoves = debaterTurns
+      .filter(e => e.metadata)
       .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [])
       .map(m => getMoveName(m))
       .slice(-6); // Last 3 turns × ~2 moves each
+
+    // Count turns since this debater last used a CONCEDE move
+    let turnsSinceLastConcession = debaterTurns.length; // default: never conceded
+    for (let i = debaterTurns.length - 1; i >= 0; i--) {
+      const moves = ((debaterTurns[i].metadata as Record<string, unknown>)?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+      if (moves.some(m => getMoveName(m).includes('CONCEDE'))) {
+        turnsSinceLastConcession = debaterTurns.length - 1 - i;
+        break;
+      }
+    }
 
     // Reuse priorRefsEarly (computed before retrieval) for prompt-side rotation guidance.
     const priorRefs = priorRefsEarly;
@@ -1699,6 +1711,7 @@ export class DebateEngine {
       addressing,
       phase,
       priorMoves,
+      turnsSinceLastConcession,
       priorRefs,
       availablePovNodeIds,
       crossPovNodeIds,

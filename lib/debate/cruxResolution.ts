@@ -9,8 +9,8 @@ import type {
   CruxResolutionState,
   CruxStateTransition,
   ArgumentationScheme,
-} from './types';
-import { detectCruxNodes } from './phaseTransitions';
+} from './types.js';
+import { detectCruxNodes } from './phaseTransitions.js';
 
 const POLARITY_RESOLVED_THRESHOLD = 0.85;
 const STRENGTH_CONCESSION_THRESHOLD = 0.3;

@@ -25,6 +25,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -46,9 +47,9 @@ def _resolve_data_root():
     return (_PROJECT_ROOT.parent / "ai-triad-data").resolve()
 
 
-DATA_ROOT = _resolve_data_root()
-CONFLICTS_DIR = DATA_ROOT / "conflicts"
-TAXONOMY_DIR = DATA_ROOT / "taxonomy" / "Origin"
+DATA_ROOT: Optional[Path] = None
+CONFLICTS_DIR: Optional[Path] = None
+TAXONOMY_DIR: Optional[Path] = None
 
 
 def _log(msg):
@@ -189,6 +190,14 @@ def _detect_edges(instances):
     return edges
 
 
+def _safe_env():
+    """Build a minimal environment for subprocess calls — no API keys leaked."""
+    import os
+    allowed = {"PATH", "NODE_PATH", "HOME", "USER", "LANG", "TERM", "SHELL",
+               "TMPDIR", "XDG_RUNTIME_DIR", "SYSTEMROOT", "COMSPEC"}
+    return {k: v for k, v in os.environ.items() if k in allowed}
+
+
 def _run_qbaf_bridge(nodes, edges):
     """Call qbaf-bridge.mjs via subprocess and return the result."""
     qbaf_input = {
@@ -209,12 +218,43 @@ def _run_qbaf_bridge(nodes, edges):
         text=True,
         timeout=30,
         cwd=str(_PROJECT_ROOT),
+        env=_safe_env(),
     )
 
     if result.returncode != 0:
         raise RuntimeError(f"qbaf-bridge error: {result.stderr.strip()}")
 
     return json.loads(result.stdout)
+
+
+def _run_qbaf_bridge_batch(batch):
+    """Call qbaf-bridge.mjs once for a batch of QBAF graphs.
+
+    Input:  list of {"nodes": [...], "edges": [...]} dicts
+    Output: list of result dicts (same order), or raises on failure
+    """
+    batch_input = {"batch": batch}
+
+    npx_cmd = "npx.cmd" if sys.platform == "win32" else "npx"
+
+    result = subprocess.run(
+        [npx_cmd, "tsx", str(_QBAF_BRIDGE)],
+        input=json.dumps(batch_input),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=str(_PROJECT_ROOT),
+        env=_safe_env(),
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"qbaf-bridge batch error: {result.stderr.strip()}")
+
+    parsed = json.loads(result.stdout)
+    if isinstance(parsed, list):
+        return parsed
+    # Fallback: single-item bridge returns a single object
+    return [parsed]
 
 
 def enrich_conflict(conflict, node_meta):
@@ -279,20 +319,7 @@ def enrich_conflict(conflict, node_meta):
             "iterations": 0,
         }
 
-    # Run QBAF propagation
-    try:
-        result = _run_qbaf_bridge(qbaf_nodes_input, edges)
-    except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
-        _log(f"    QBAF bridge failed: {exc}")
-        return None
-
-    # Update computed strengths
-    strengths = result.get("strengths", {})
-    for node in qbaf_nodes_output:
-        if node["id"] in strengths:
-            node["computed_strength"] = round(strengths[node["id"]], 4)
-
-    # Build edge output with attack_type
+    # Return pre-bridge data for batch processing
     edge_output = []
     for e in edges:
         out = {
@@ -305,7 +332,25 @@ def enrich_conflict(conflict, node_meta):
             out["attack_type"] = e["attack_type"]
         edge_output.append(out)
 
-    # Compute resolution
+    return {
+        "_needs_bridge": True,
+        "qbaf_nodes_input": qbaf_nodes_input,
+        "qbaf_nodes_output": qbaf_nodes_output,
+        "edges": edges,
+        "edge_output": edge_output,
+    }
+
+
+def _finalize_qbaf(pre, bridge_result):
+    """Finalize a QBAF object after bridge results are available."""
+    qbaf_nodes_output = pre["qbaf_nodes_output"]
+    edge_output = pre["edge_output"]
+
+    strengths = bridge_result.get("strengths", {})
+    for node in qbaf_nodes_output:
+        if node["id"] in strengths:
+            node["computed_strength"] = round(strengths[node["id"]], 4)
+
     resolution = None
     if len(qbaf_nodes_output) >= 2:
         sorted_nodes = sorted(qbaf_nodes_output, key=lambda n: n["computed_strength"], reverse=True)
@@ -326,7 +371,7 @@ def enrich_conflict(conflict, node_meta):
         },
         "computed_at": datetime.now().isoformat(),
         "algorithm": "df-quad",
-        "iterations": result.get("iterations", 0),
+        "iterations": bridge_result.get("iterations", 0),
     }
 
     if resolution:
@@ -336,6 +381,11 @@ def enrich_conflict(conflict, node_meta):
 
 
 def main():
+    global DATA_ROOT, CONFLICTS_DIR, TAXONOMY_DIR
+    DATA_ROOT = _resolve_data_root()
+    CONFLICTS_DIR = DATA_ROOT / "conflicts"
+    TAXONOMY_DIR = DATA_ROOT / "taxonomy" / "Origin"
+
     parser = argparse.ArgumentParser(description="Enrich conflict files with QBAF analysis")
     parser.add_argument("--write", action="store_true",
                         help="Write QBAF results back into conflict files")
@@ -388,24 +438,72 @@ def main():
         _log("\n  Nothing to process.")
         return
 
-    # Process
+    # Process: build all graphs locally, then batch the bridge call
     _log(f"\n[3/3] Computing QBAF for {len(to_process)} conflicts...")
     t0 = time.time()
     enriched = 0
     failed = 0
     no_edges = 0
 
+    # Phase 1: build local graphs (no subprocess)
+    pre_results = []  # (index, path, conflict, pre_data_or_qbaf)
+    bridge_batch = []  # items needing bridge computation
+    bridge_indices = []  # indices into pre_results for bridge items
+
     for i, (path, conflict) in enumerate(to_process):
-        cid = conflict.get("claim_id", path.stem)
-        inst_count = len(conflict.get("instances", []))
+        pre = enrich_conflict(conflict, node_meta)
 
-        qbaf = enrich_conflict(conflict, node_meta)
+        if pre is None:
+            pre_results.append((i, path, conflict, None))
+            continue
 
-        if qbaf is None:
+        if isinstance(pre, dict) and pre.get("_needs_bridge"):
+            pre_results.append((i, path, conflict, pre))
+            bridge_batch.append({
+                "nodes": pre["qbaf_nodes_input"],
+                "edges": [
+                    {k: v for k, v in e.items() if k != "attack_type"}
+                    for e in pre["edges"]
+                ],
+            })
+            bridge_indices.append(len(pre_results) - 1)
+        else:
+            # No edges — already a complete qbaf dict
+            pre_results.append((i, path, conflict, pre))
+
+    # Phase 2: single batch bridge call for all graphs that need propagation
+    bridge_results = []
+    if bridge_batch:
+        _log(f"  Sending {len(bridge_batch)} graphs to QBAF bridge (single process)...")
+        try:
+            bridge_results = _run_qbaf_bridge_batch(bridge_batch)
+        except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            _log(f"  Batch bridge failed: {exc} — falling back to per-conflict")
+            # Fallback: run individually
+            bridge_results = []
+            for item in bridge_batch:
+                try:
+                    r = _run_qbaf_bridge(item["nodes"], [{"source": e["source"], "target": e["target"], "type": e["type"], "weight": e["weight"]} for e in item.get("edges", [])])
+                    bridge_results.append(r)
+                except Exception:
+                    bridge_results.append(None)
+
+    # Phase 3: finalize and write
+    bridge_idx = 0
+    for idx, path, conflict, pre in pre_results:
+        if pre is None:
             failed += 1
             continue
 
-        if qbaf["iterations"] == 0:
+        if isinstance(pre, dict) and pre.get("_needs_bridge"):
+            br = bridge_results[bridge_idx] if bridge_idx < len(bridge_results) else None
+            bridge_idx += 1
+            if br is None:
+                failed += 1
+                continue
+            qbaf = _finalize_qbaf(pre, br)
+        else:
+            qbaf = pre
             no_edges += 1
 
         conflict["qbaf"] = qbaf
@@ -417,8 +515,7 @@ def main():
                 encoding="utf-8", newline="\n",
             )
 
-        if (i + 1) % 50 == 0 or (i + 1) == len(to_process):
-            _log(f"  [{i+1}/{len(to_process)}] enriched={enriched} no_edges={no_edges} failed={failed}")
+    _log(f"  enriched={enriched} no_edges={no_edges} failed={failed}")
 
     elapsed = time.time() - t0
 

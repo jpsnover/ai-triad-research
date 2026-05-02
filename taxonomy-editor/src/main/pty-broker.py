@@ -47,6 +47,9 @@ def main():
     shell = find_shell()
     shell_args = [shell, "-NoLogo"] if "pwsh" in shell else [shell]
 
+    pid = -1
+    master_fd = -1
+
     pid, master_fd = pty.fork()
 
     if pid == 0:
@@ -60,10 +63,7 @@ def main():
 
     buf = b""
 
-    def handle_sigchld(*_):
-        pass
-
-    signal.signal(signal.SIGCHLD, handle_sigchld)
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
     try:
         while True:
@@ -117,14 +117,16 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-        try:
-            os.close(master_fd)
-        except OSError:
-            pass
+        if pid > 0:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+        if master_fd >= 0:
+            try:
+                os.close(master_fd)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":

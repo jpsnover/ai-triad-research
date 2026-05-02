@@ -13,17 +13,17 @@
  * or the synthesis. Users see both views and any divergence between them.
  */
 
-import type { AIAdapter } from './aiAdapter';
+import type { AIAdapter } from './aiAdapter.js';
 import type {
   TranscriptEntry,
   PoverId,
   ContextSummary,
-} from './types';
-import { POVER_INFO } from './types';
+} from './types.js';
+import { POVER_INFO } from './types.js';
 import {
   stripCodeFences,
   parseJsonRobust,
-} from './helpers';
+} from './helpers.js';
 
 // ── Types ─────────────────────────────────────────────────
 

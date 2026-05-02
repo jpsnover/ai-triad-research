@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
+import { z } from 'zod';
 import fs from 'fs';
 import {
   readTaxonomyFile,
@@ -28,41 +29,30 @@ import {
   watchTaxonomyFiles,
   stopWatchingTaxonomyFiles,
   SourceMetadataOnDisk,
-} from './fileIO';
-import { storeApiKey, getApiKey, validateApiKey } from './apiKeyStore';
-import { runAnalysis, cancelAnalysis, getAnalysisStatus } from './aiEngine';
-import type { AiSettings, PromptOverrides } from './analysisTypes';
+} from './fileIO.js';
+import { storeApiKey, getApiKey, validateApiKey } from './apiKeyStore.js';
+import { runAnalysis, cancelAnalysis, getAnalysisStatus } from './aiEngine.js';
+import type { AiSettings, PromptOverrides } from './analysisTypes.js';
+import {
+  validatedHandle,
+  oneString,
+  twoStrings,
+  stringArray,
+  stringArrayAndString,
+  oneUnknown,
+  stringAndUnknown,
+} from '../../../lib/electron-shared/utils/validatedIpc.js';
 
 export function registerIpcHandlers(): void {
-  // === Existing Handlers ===
+  // === No-arg handlers (no validation needed) ===
 
-  ipcMain.handle('get-taxonomy-dirs', () => {
-    return getTaxonomyDirs();
-  });
-
-  ipcMain.handle('get-active-taxonomy-dir', () => {
-    return getActiveTaxonomyDirName();
-  });
-
-  ipcMain.handle('set-taxonomy-dir', (_event, dirName: string) => {
-    setActiveTaxonomyDir(dirName);
-  });
-
-  ipcMain.handle('load-taxonomy-file', (_event, pov: string) => {
-    return readTaxonomyFile(pov);
-  });
-
-  ipcMain.handle('load-snapshot', (_event, sourceId: string) => {
-    return readSnapshot(sourceId);
-  });
-
-  ipcMain.handle('load-settings', () => {
-    return loadSettings();
-  });
-
-  ipcMain.handle('save-settings', (_event, data: unknown) => {
-    saveSettings(data);
-  });
+  ipcMain.handle('get-taxonomy-dirs', () => getTaxonomyDirs());
+  ipcMain.handle('get-active-taxonomy-dir', () => getActiveTaxonomyDirName());
+  ipcMain.handle('load-settings', () => loadSettings());
+  ipcMain.handle('discover-sources', () => discoverSources());
+  ipcMain.handle('get-api-key', () => getApiKey());
+  ipcMain.handle('get-ai-settings', () => loadAiSettings());
+  ipcMain.handle('get-prompt-overrides', () => loadPromptOverrides());
 
   ipcMain.handle('open-taxonomy-dialog', async () => {
     const result = await dialog.showOpenDialog({
@@ -70,9 +60,7 @@ export function registerIpcHandlers(): void {
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],
     });
-
     if (result.canceled || result.filePaths.length === 0) return null;
-
     const filePath = result.filePaths[0];
     const raw = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(raw);
@@ -82,103 +70,103 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('open-source-file-dialog', async () => {
     const result = await dialog.showOpenDialog({
       title: 'Add Source Files',
-      filters: [
-        { name: 'Documents', extensions: ['docx', 'pdf', 'md'] },
-      ],
+      filters: [{ name: 'Documents', extensions: ['docx', 'pdf', 'md'] }],
       properties: ['openFile', 'multiSelections'],
     });
-
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths;
   });
 
-  ipcMain.handle('add-source', (_event, meta: SourceMetadataOnDisk) => {
-    createSourceOnDisk(meta);
+  // === Single string arg ===
+
+  validatedHandle('set-taxonomy-dir', oneString, (_event, dirName) => {
+    setActiveTaxonomyDir(dirName);
   });
 
-  ipcMain.handle('read-source-file', async (_event, filePath: string) => {
-    return readSourceFileContent(filePath);
+  validatedHandle('load-taxonomy-file', oneString, (_event, pov) => {
+    return readTaxonomyFile(pov);
   });
 
-  // === Pipeline Discovery Handlers ===
-
-  ipcMain.handle('discover-sources', () => {
-    return discoverSources();
+  validatedHandle('load-snapshot', oneString, (_event, sourceId) => {
+    return readSnapshot(sourceId);
   });
 
-  ipcMain.handle('load-pipeline-summary', (_event, docId: string) => {
+  validatedHandle('load-pipeline-summary', oneString, (_event, docId) => {
     return loadPipelineSummary(docId);
   });
 
-  // === AI Engine Handlers ===
-
-  ipcMain.handle('store-api-key', async (_event, key: string) => {
+  validatedHandle('store-api-key', oneString, async (_event, key) => {
     storeApiKey(key);
   });
 
-  ipcMain.handle('get-api-key', () => {
-    return getApiKey();
-  });
-
-  ipcMain.handle('validate-api-key', async (_event, key: string) => {
+  validatedHandle('validate-api-key', oneString, async (_event, key) => {
     return validateApiKey(key);
   });
 
-  ipcMain.handle('run-analysis', async (_event, sourceId: string, sourceText: string) => {
+  validatedHandle('cancel-analysis', oneString, (_event, sourceId) => {
+    cancelAnalysis(sourceId);
+  });
+
+  validatedHandle('get-analysis-status', oneString, (_event, sourceId) => {
+    return getAnalysisStatus(sourceId);
+  });
+
+  validatedHandle('get-pdf-bytes', oneString, (_event, sourceId) => {
+    const buf = readRawPdfBytes(sourceId);
+    if (!buf) return null;
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  });
+
+  validatedHandle('extract-pdf-text', oneString, async (_event, filePath) => {
+    const { extractPdfText } = await import('./pdfExtractor.js');
+    return extractPdfText(filePath);
+  });
+
+  validatedHandle('open-external-url', z.tuple([z.string().regex(/^https?:\/\//i)]), (_event, url) => {
+    shell.openExternal(url);
+  });
+
+  validatedHandle('analyze-excerpt', oneString, async (_event, excerptText) => {
+    const { analyzeExcerpt } = await import('./aiEngine.js');
+    const taxonomyJson = readAllTaxonomies();
+    return analyzeExcerpt(excerptText, taxonomyJson);
+  });
+
+  validatedHandle('load-annotations', oneString, (_event, sourceId) => {
+    return loadAnnotations(sourceId);
+  });
+
+  validatedHandle('get-chunk-status', oneString, (_event, sourceId) => {
+    return getAnalysisStatus(sourceId);
+  });
+
+  validatedHandle('load-analysis-result', oneString, (_event, sourceId) => {
+    return loadAnalysisResult(sourceId);
+  });
+
+  validatedHandle('chunk-document', oneString, async (_event, text) => {
+    const { chunkDocument } = await import('./chunkingService.js');
+    return chunkDocument(text);
+  });
+
+  // === Two string args ===
+
+  validatedHandle('run-analysis', twoStrings, async (_event, sourceId, sourceText) => {
     const taxonomyJson = readAllTaxonomies();
     const result = await runAnalysis(sourceId, sourceText, taxonomyJson);
     saveAnalysisResult(sourceId, result);
     return result;
   });
 
-  ipcMain.handle('cancel-analysis', (_event, sourceId: string) => {
-    cancelAnalysis(sourceId);
-  });
+  // === String + unknown ===
 
-  ipcMain.handle('get-analysis-status', (_event, sourceId: string) => {
-    return getAnalysisStatus(sourceId);
-  });
-
-  // === PDF Handler ===
-
-  ipcMain.handle('get-pdf-bytes', (_event, sourceId: string) => {
-    const buf = readRawPdfBytes(sourceId);
-    if (!buf) return null;
-    // Return as ArrayBuffer for the renderer
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  });
-
-  ipcMain.handle('extract-pdf-text', async (_event, filePath: string) => {
-    const { extractPdfText } = await import('./pdfExtractor');
-    return extractPdfText(filePath);
-  });
-
-  ipcMain.handle('open-external-url', (_event, url: string) => {
-    if (!/^https?:\/\//i.test(url)) return;
-    shell.openExternal(url);
-  });
-
-  ipcMain.handle('analyze-excerpt', async (_event, excerptText: string) => {
-    const { analyzeExcerpt } = await import('./aiEngine');
-    const taxonomyJson = readAllTaxonomies();
-    return analyzeExcerpt(excerptText, taxonomyJson);
-  });
-
-  // === Annotation Handlers ===
-
-  ipcMain.handle('save-annotations', (_event, sourceId: string, annotations: unknown) => {
+  validatedHandle('save-annotations', stringAndUnknown, (_event, sourceId, annotations) => {
     saveAnnotations(sourceId, annotations);
   });
 
-  ipcMain.handle('load-annotations', (_event, sourceId: string) => {
-    return loadAnnotations(sourceId);
-  });
+  // === String array ===
 
-  // === Aggregation Handlers ===
-
-  ipcMain.handle('get-aggregation', (_event, sourceIds: string[]) => {
-    // Aggregation is computed renderer-side from loaded analysis results
-    // This handler loads all analysis results for the given sources
+  validatedHandle('get-aggregation', stringArray, (_event, sourceIds) => {
     const results: Record<string, unknown> = {};
     for (const id of sourceIds) {
       const result = loadAnalysisResult(id);
@@ -187,15 +175,19 @@ export function registerIpcHandlers(): void {
     return results;
   });
 
-  ipcMain.handle('get-gaps', (_event, _sourceIds: string[]) => {
-    // Gaps computed renderer-side; this returns all taxonomy data
+  validatedHandle('get-gaps', stringArray, (_event, _sourceIds) => {
     return readAllTaxonomies();
   });
 
-  // === Export Handlers ===
+  validatedHandle('export-markdown', stringArray, async (_event, sourceIds) => {
+    const { generateMarkdownReport } = await import('./exportService.js');
+    return generateMarkdownReport(sourceIds);
+  });
 
-  ipcMain.handle('export-bundle', async (_event, sourceIds: string[], format: string) => {
-    const { exportBundle } = await import('./exportService');
+  // === String array + string ===
+
+  validatedHandle('export-bundle', stringArrayAndString, async (_event, sourceIds, format) => {
+    const { exportBundle } = await import('./exportService.js');
     const savePath = await dialog.showSaveDialog({
       title: 'Export Analysis',
       defaultPath: `poviewer-export-${Date.now()}`,
@@ -208,44 +200,22 @@ export function registerIpcHandlers(): void {
     return savePath.filePath;
   });
 
-  ipcMain.handle('export-markdown', async (_event, sourceIds: string[]) => {
-    const { generateMarkdownReport } = await import('./exportService');
-    return generateMarkdownReport(sourceIds);
+  // === Object/unknown args ===
+
+  validatedHandle('save-settings', oneUnknown, (_event, data) => {
+    saveSettings(data);
   });
 
-  // === Long Doc Handlers ===
-
-  ipcMain.handle('chunk-document', async (_event, text: string) => {
-    const { chunkDocument } = await import('./chunkingService');
-    return chunkDocument(text);
+  validatedHandle('add-source', oneUnknown, (_event, meta) => {
+    createSourceOnDisk(meta as SourceMetadataOnDisk);
   });
 
-  ipcMain.handle('get-chunk-status', (_event, sourceId: string) => {
-    return getAnalysisStatus(sourceId);
+  validatedHandle('save-ai-settings', oneUnknown, (_event, settings) => {
+    saveAiSettings(settings as AiSettings);
   });
 
-  // === Settings Handlers ===
-
-  ipcMain.handle('get-ai-settings', () => {
-    return loadAiSettings();
-  });
-
-  ipcMain.handle('save-ai-settings', (_event, settings: AiSettings) => {
-    saveAiSettings(settings);
-  });
-
-  ipcMain.handle('get-prompt-overrides', () => {
-    return loadPromptOverrides();
-  });
-
-  ipcMain.handle('save-prompt-overrides', (_event, overrides: PromptOverrides) => {
-    savePromptOverrides(overrides);
-  });
-
-  // === Analysis Result I/O ===
-
-  ipcMain.handle('load-analysis-result', (_event, sourceId: string) => {
-    return loadAnalysisResult(sourceId);
+  validatedHandle('save-prompt-overrides', oneUnknown, (_event, overrides) => {
+    savePromptOverrides(overrides as PromptOverrides);
   });
 
   // === Taxonomy File Watching ===

@@ -13,7 +13,7 @@ import {
   hashString,
   getMoveName,
   maxOverlapVsExisting,
-} from './helpers';
+} from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────
 

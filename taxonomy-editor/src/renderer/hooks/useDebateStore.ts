@@ -634,9 +634,15 @@ async function extractClaimsAndUpdateAN(
     const diagAccepted = claimsResult.accepted;
     const diagRejected = claimsResult.rejected;
 
-    speakerCommits.asserted.push(...claimsResult.commitments.asserted);
-    speakerCommits.conceded.push(...claimsResult.commitments.conceded);
-    speakerCommits.challenged.push(...claimsResult.commitments.challenged);
+    for (const t of claimsResult.commitments.asserted) {
+      if (!speakerCommits.asserted.includes(t)) speakerCommits.asserted.push(t);
+    }
+    for (const t of claimsResult.commitments.conceded) {
+      if (!speakerCommits.conceded.includes(t)) speakerCommits.conceded.push(t);
+    }
+    for (const t of claimsResult.commitments.challenged) {
+      if (!speakerCommits.challenged.includes(t)) speakerCommits.challenged.push(t);
+    }
 
     extractionTrace.candidates_accepted = newNodes.length;
     extractionTrace.candidates_rejected = diagRejected.length;

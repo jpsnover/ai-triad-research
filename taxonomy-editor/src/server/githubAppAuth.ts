@@ -59,9 +59,12 @@ async function loadPrivateKey(): Promise<string | null> {
     try {
       /* eslint-disable @typescript-eslint/no-var-requires */
       const { SecretClient } = require('@azure/keyvault-secrets');
-      const { DefaultAzureCredential } = require('@azure/identity');
+      const identity = require('@azure/identity');
       /* eslint-enable @typescript-eslint/no-var-requires */
-      const client = new SecretClient(vaultUrl, new DefaultAzureCredential());
+      const credential = process.env.NODE_ENV === 'production'
+        ? new identity.ManagedIdentityCredential()
+        : new identity.DefaultAzureCredential();
+      const client = new SecretClient(vaultUrl, credential);
       const resp = await client.getSecret(secretName);
       if (resp?.value) {
         cachedPrivateKey = normalisePem(resp.value);

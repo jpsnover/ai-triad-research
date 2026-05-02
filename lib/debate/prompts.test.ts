@@ -38,8 +38,8 @@ import {
   reflectionPrompt,
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
-} from './prompts';
-import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts';
+} from './prompts.js';
+import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
 
 // ── Shared test fixtures ──────────────────────────────────────
 

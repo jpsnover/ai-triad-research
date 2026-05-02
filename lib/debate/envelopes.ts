@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { PromptEnvelope } from './cacheTypes';
-import type { StagePromptInput } from './prompts';
-import type { PoverId } from './types';
-import { documentAnalysisContext } from './documentAnalysis';
+import type { PromptEnvelope } from './cacheTypes.js';
+import type { StagePromptInput } from './prompts.js';
+import type { PoverId } from './types.js';
+import { documentAnalysisContext } from './documentAnalysis.js';
 import {
   _MUST_CORE_BEHAVIORS,
   _MUST_EXTENDED,
@@ -14,7 +14,8 @@ import {
   _getReadingLevel,
   _getDetailInstruction,
   _sourceReminder,
-} from './prompts';
+  _buildMoveHistoryBlock,
+} from './prompts.js';
 
 // ── Layer 1 constants (immutable per prompt family) ──────
 
@@ -100,9 +101,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }
 
 export function planStageEnvelope(input: StagePromptInput, brief: string): PromptEnvelope {
-  const moveHistoryBlock = input.priorMoves && input.priorMoves.length > 0
-    ? `\n=== YOUR RECENT MOVES ===\nYour last ${input.priorMoves.length} responses used: ${input.priorMoves.join(' → ')}.\n${input.priorMoves.filter(m => m.includes('CONCEDE')).length >= 2 ? 'You have conceded frequently. DO NOT open with a concession this turn — lead with a different move.' : 'Vary your approach from your recent pattern.'}\n`
-    : '';
+  const moveHistoryBlock = _buildMoveHistoryBlock(input.priorMoves, input.turnsSinceLastConcession);
 
   const flaggedBlock = input.priorFlaggedHints && input.priorFlaggedHints.length > 0
     ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${input.priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your plan.\n`

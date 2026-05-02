@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { ActionableError } from '../../debate/errors';
-import { withTimeout } from '../retry';
-import type { FetchFn, GenerateOptions, ProviderResult } from '../types';
+import { ActionableError } from '../../debate/errors.js';
+import { withTimeout } from '../retry.js';
+import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 
 export async function generateViaClaude(
   fetchFn: FetchFn,

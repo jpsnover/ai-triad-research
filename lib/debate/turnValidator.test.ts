@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { resolveTurnValidationConfig, validateTurn } from './turnValidator';
-import type { ValidateTurnParams } from './turnValidator';
+import { resolveTurnValidationConfig, validateTurn } from './turnValidator.js';
+import type { ValidateTurnParams } from './turnValidator.js';
 import type {
   TaxonomyRef,
   TranscriptEntry,
@@ -12,8 +12,8 @@ import type {
   PoverId,
   DebateAudience,
   ModeratorIntervention,
-} from './types';
-import type { PoverResponseMeta } from './helpers';
+} from './types.js';
+import type { PoverResponseMeta } from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────
 

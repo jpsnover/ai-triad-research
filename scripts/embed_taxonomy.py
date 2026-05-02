@@ -25,24 +25,28 @@ JSON output goes to stdout.
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-_DEFAULT_TAXONOMY_DIR = _SCRIPT_DIR.parent / "taxonomy" / "Origin"
+_FALLBACK_TAXONOMY_DIR = _SCRIPT_DIR.parent / "taxonomy" / "Origin"
 MODEL_NAME = "all-MiniLM-L6-v2"
 NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-small"
 NLI_LABELS = ["entailment", "neutral", "contradiction"]
+# Maximum stdin buffer size (50 MB) — prevents resource exhaustion from piped input
+_MAX_STDIN_BYTES = 50 * 1024 * 1024
 # Minimum logit margin between the winning label and runner-up.
 # If the margin is below this, the classification is downgraded to "neutral".
 NLI_CONFIDENCE_MARGIN = 1.0
 
 # Resolved at runtime via --taxonomy-dir or .aitriad.json
-TAXONOMY_DIR: Path = _DEFAULT_TAXONOMY_DIR
-EMBEDDINGS_FILE: Path = _DEFAULT_TAXONOMY_DIR / "embeddings.json"
+TAXONOMY_DIR: Path = _FALLBACK_TAXONOMY_DIR
+EMBEDDINGS_FILE: Path = _FALLBACK_TAXONOMY_DIR / "embeddings.json"
 
 
 def _resolve_taxonomy_dir(override=None):
@@ -70,7 +74,7 @@ def _resolve_taxonomy_dir(override=None):
                 pass  # fall through to default
 
     EMBEDDINGS_FILE = TAXONOMY_DIR / "embeddings.json"
-    if not CONFLICTS_DIR or not CONFLICTS_DIR.exists():
+    if CONFLICTS_DIR is None or not CONFLICTS_DIR.exists():
         CONFLICTS_DIR = data_base / "conflicts"
     return TAXONOMY_DIR
 
@@ -80,7 +84,7 @@ def _load_model():
     from sentence_transformers import SentenceTransformer
 
     print(f"Loading model '{MODEL_NAME}'...", file=sys.stderr)
-    return SentenceTransformer(MODEL_NAME)
+    return SentenceTransformer(MODEL_NAME, trust_remote_code=False)
 
 
 def _load_nli_model():
@@ -88,7 +92,7 @@ def _load_nli_model():
     from sentence_transformers import CrossEncoder
 
     print(f"Loading NLI model '{NLI_MODEL_NAME}'...", file=sys.stderr)
-    return CrossEncoder(NLI_MODEL_NAME)
+    return CrossEncoder(NLI_MODEL_NAME, trust_remote_code=False)
 
 
 def _classify_pairs_nli(nli_model, pairs):
@@ -130,7 +134,7 @@ def _classify_pairs_nli(nli_model, pairs):
 SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json"}
 
 # Resolved at runtime from .aitriad.json
-CONFLICTS_DIR: Path = Path()  # set in _resolve_taxonomy_dir
+CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
 
 # Default weights for multi-field embedding.  Must sum to 1.0.
 # Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
@@ -163,7 +167,6 @@ def _load_lineage_categories():
     return mapping
 
 
-import re
 _EXCLUDES_RE = re.compile(r"\s*Excludes:.*", re.DOTALL)
 
 
@@ -535,7 +538,7 @@ def cmd_batch_encode(args):
     Expects stdin JSON: [{"id": "acc-goal-001", "text": "description..."}]
     Outputs JSON: {"acc-goal-001": [0.1, 0.2, ...], ...}
     """
-    raw = sys.stdin.read()
+    raw = sys.stdin.read(_MAX_STDIN_BYTES)
     items = json.loads(raw)
     if not items:
         json.dump({}, sys.stdout)
@@ -687,7 +690,7 @@ def cmd_nli_classify(args):
     Extra fields are preserved and passed through to the output.
     Outputs JSON: [{"text_a": "...", "text_b": "...", "nli_label": "...", ...}]
     """
-    raw = sys.stdin.read()
+    raw = sys.stdin.read(_MAX_STDIN_BYTES)
     items = json.loads(raw)
     if not items:
         json.dump([], sys.stdout)

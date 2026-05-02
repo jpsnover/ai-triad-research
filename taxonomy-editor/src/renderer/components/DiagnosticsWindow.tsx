@@ -23,6 +23,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 import { GroundingPanel } from './GroundingPanel';
+import { PovProgressionView } from './PovProgression/PovProgressionView';
 
 const DiagSearchContext = createContext('');
 
@@ -243,6 +244,155 @@ function Section({ title, children, defaultOpen = false, copyText }: { title: st
         {copyText && effectiveOpen && <CopyButton text={copyText} />}
       </div>
       {effectiveOpen && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}
+    </div>
+  );
+}
+
+function CommitmentsPanel({ commitments, nodes, onGoToNode }: {
+  commitments: Record<string, CommitmentStore>;
+  nodes: ArgumentNetworkNode[];
+  onGoToNode: (nodeId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, string | null>>({});
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string; nodeId: string | null } | null>(null);
+
+  const toggle = (pov: string, category: string) => {
+    setExpanded(prev => ({
+      ...prev,
+      [pov]: prev[pov] === category ? null : category,
+    }));
+  };
+
+  // Map commitment text → AN node ID via exact or substring match
+  const textToNodeId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const item of nodes) {
+      m.set(item.text, item.id);
+    }
+    return m;
+  }, [nodes]);
+
+  const findNodeId = (commitmentText: string): string | null => {
+    // Exact match first
+    if (textToNodeId.has(commitmentText)) return textToNodeId.get(commitmentText)!;
+    // Substring match — commitment text may be a prefix/substring of the node text
+    for (const [nodeText, nodeId] of textToNodeId) {
+      if (nodeText.includes(commitmentText) || commitmentText.includes(nodeText)) return nodeId;
+    }
+    return null;
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, text: string) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, text, nodeId: findNodeId(text) });
+  };
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const dismiss = () => setCtxMenu(null);
+    window.addEventListener('click', dismiss);
+    return () => window.removeEventListener('click', dismiss);
+  }, [ctxMenu]);
+
+  const categories = [
+    { key: 'asserted', label: 'Asserted', color: '#3b82f6' },
+    { key: 'conceded', label: 'Conceded', color: '#f59e0b' },
+    { key: 'challenged', label: 'Challenged', color: '#ef4444' },
+  ] as const;
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
+      {Object.entries(commitments).map(([pov, store]) => (
+        <div key={pov} style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
+            {categories.map(cat => {
+              const items = store[cat.key];
+              const isOpen = expanded[pov] === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => items.length > 0 && toggle(pov, cat.key)}
+                  style={{
+                    padding: '2px 8px', borderRadius: 10, border: 'none',
+                    fontSize: '0.65rem', fontWeight: 600, cursor: items.length > 0 ? 'pointer' : 'default',
+                    background: isOpen ? cat.color : `${cat.color}18`,
+                    color: isOpen ? '#fff' : cat.color,
+                    opacity: items.length === 0 ? 0.4 : 1,
+                  }}
+                >
+                  {cat.label} {items.length}
+                </button>
+              );
+            })}
+          </div>
+          {expanded[pov] && (() => {
+            const cat = categories.find(c => c.key === expanded[pov])!;
+            const items = store[cat.key];
+            if (items.length === 0) return null;
+            return (
+              <div style={{
+                margin: '2px 0 4px 8px', padding: '4px 8px', borderRadius: 4,
+                borderLeft: `3px solid ${cat.color}`,
+                background: `${cat.color}08`, fontSize: '0.7rem',
+              }}>
+                {items.map((item, i) => {
+                  const nodeId = findNodeId(item);
+                  return (
+                    <div
+                      key={i}
+                      onContextMenu={(e) => handleContextMenu(e, item)}
+                      style={{ padding: '2px 0', borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', cursor: 'context-menu' }}
+                    >
+                      {nodeId && (
+                        <span style={{
+                          padding: '0 4px', borderRadius: 3, marginRight: 4,
+                          background: 'rgba(59,130,246,0.12)', color: '#3b82f6',
+                          fontSize: '0.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        }}>{nodeId}</span>
+                      )}
+                      {item}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      ))}
+      {ctxMenu && (
+        <div style={{
+          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+          background: 'var(--bg-primary)', border: '1px solid var(--border)',
+          borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          padding: '4px 0', minWidth: 140, fontSize: '0.72rem',
+        }}>
+          <button
+            onClick={() => { navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
+            style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '5px 12px', border: 'none', background: 'transparent',
+              color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >Copy</button>
+          {ctxMenu.nodeId && (
+            <button
+              onClick={() => { onGoToNode(ctxMenu.nodeId!); setCtxMenu(null); }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '5px 12px', border: 'none', background: 'transparent',
+                color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >Go to {ctxMenu.nodeId}</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1163,36 +1313,36 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         ) : (
           <span style={{ width: 10, flexShrink: 0 }} />
         )}
-        <div style={{ flex: 1 }}>
-          <AifBadge type="I-node" />
-          {node.bdi_category && (() => {
-            const letter = node.bdi_category === 'belief' ? 'B' : node.bdi_category === 'desire' ? 'D' : 'I';
-            const color = node.bdi_category === 'belief' ? '#6366f1' : node.bdi_category === 'desire' ? '#ec4899' : '#06b6d4';
-            const lowConf = node.bdi_confidence != null && node.bdi_confidence < 0.5;
-            return (
-              <span title={`${node.bdi_category} (confidence: ${node.bdi_confidence?.toFixed(2) ?? '?'})${lowConf ? ' — low AI scoring reliability' : ''}`} style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 3, fontSize: '0.6rem', fontWeight: 800, color: '#fff', background: color, marginRight: 3, opacity: lowConf ? 0.5 : 1 }}>{letter}{lowConf ? '*' : ''}</span>
-            );
-          })()}
-          <strong style={{ color: 'var(--accent)' }}><Highlight text={node.id} /></strong>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} style={{ color: 'var(--accent)', fontSize: '0.7rem' }}><Highlight text={node.id} /></strong>
           {statementId && (
             <span
-              title={`Source statement ${statementId}`}
+              title={`Claim extracted from debate turn ${statementId} by ${speakerLabel(node.speaker)}${onGotoEntry ? ' — click to go to statement' : ''}`}
+              onClick={onGotoEntry && node.source_entry_id ? (e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); } : undefined}
               style={{
-                marginLeft: 5, padding: '1px 5px', borderRadius: 8,
-                background: 'rgba(249,115,22,0.12)', color: '#f97316',
-                fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                fontSize: '0.7rem',
+                cursor: onGotoEntry && node.source_entry_id ? 'pointer' : 'default',
+                textDecoration: onGotoEntry && node.source_entry_id ? 'underline' : 'none',
               }}
             >{statementId}</span>
           )}
-          <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>({speakerLabel(node.speaker)})</span>
-          {onGotoEntry && node.source_entry_id && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); }}
-              title={`Go to ${statementId || node.source_entry_id}`}
-              style={{ marginLeft: 4, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(249,115,22,0.4)', borderRadius: 3, background: 'none', color: '#f97316', cursor: 'pointer', fontWeight: 600 }}
-            >goto</button>
-          )}
-          {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.65rem', marginLeft: 6 }}>[unaddressed]</span>}
+          {(() => {
+            const label = speakerLabel(node.speaker);
+            const desc: Record<string, string> = {
+              Prometheus: 'Prometheus — accelerationist, advocates rapid AI development',
+              Sentinel: 'Sentinel — safetyist, prioritizes AI safety and alignment',
+              Cassandra: 'Cassandra — skeptic, questions assumptions from all sides',
+              Moderator: 'Moderator — neutral facilitator',
+            };
+            return <span title={desc[label] ?? label} style={{ fontSize: '0.7rem' }}>{label}</span>;
+          })()}
+          {node.bdi_category && (() => {
+            const bdiLabel = node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention';
+            return (
+              <span title={`${bdiLabel} (confidence: ${node.bdi_confidence?.toFixed(2) ?? '?'})`} style={{ fontSize: '0.7rem' }}>{bdiLabel}</span>
+            );
+          })()}
+          {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>[unaddressed]</span>}
           {(() => {
             const base = node.base_strength ?? 0.5;
             const computed = computedStrength ?? node.computed_strength ?? base;
@@ -1200,13 +1350,13 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
             const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
             const delta = computed - base;
             return (
-              <span style={{ marginLeft: 6, fontSize: '0.55rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: `${bandColor}22`, color: bandColor, opacity: 0.3 + computed * 0.7 }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: `${bandColor}22`, color: bandColor }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
                 {band} {computed.toFixed(2)}
                 {Math.abs(delta) > 0.01 && <span style={{ color: delta > 0 ? '#22c55e' : '#ef4444', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
               </span>
             );
           })()}
-          {hasChildren && <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem', marginLeft: 6 }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
+          {hasChildren && <span title={`${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim`} style={{ color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'help' }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
@@ -1315,14 +1465,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     }
     return null;
   });
-  const [selectedEntry, setSelectedEntry] = useState<string | null>(() => {
-    if (initialData) {
-      const d = initialData as { selectedEntry?: string };
-      return d.selectedEntry ?? null;
-    }
-    return null;
-  });
-  const [localOverride, setLocalOverride] = useState(false);
+  // Start with no entry selected — default to Arg Net overview
+  const [selectedEntry, setSelectedEntry] = useState<string | null>(null);
+  const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
@@ -1330,7 +1475,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
@@ -1338,6 +1483,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [allEdges, setAllEdges] = useState<TaxRefEdge[]>([]);
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  // Node labels for POV Progression inline view
+  const [nodeLabels, setNodeLabels] = useState<Map<string, string>>(new Map());
   // Reset detail panels whenever the selected transcript entry changes
   useEffect(() => { setSelectedTaxRefId(null); setSelectedPolicyId(null); }, [selectedEntry]);
 
@@ -1377,6 +1524,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           }
         }
         setTaxNodeMap(m);
+        // Build nodeLabels for PovProgressionView
+        const labels = new Map<string, string>();
+        for (const [id, n] of m) {
+          const label = (n as { label?: string }).label;
+          if (typeof label === 'string') labels.set(id, label);
+        }
+        setNodeLabels(labels);
       } catch {
         // non-fatal — table still renders without detail panel lookup
       }
@@ -1445,6 +1599,27 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   }, [entry, debate?.transcript, meta]);
   const an = debate?.argument_network;
   const commitments = debate?.commitments;
+
+  // Effective overview tab — falls back to 'transcript' if the selected tab has no data
+  const effectiveOverviewTab: OverviewTab = useMemo(() => {
+    if (!debate) return overviewTab;
+    const hasAn = !!(an && an.nodes.length > 0);
+    const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
+    const tabVisibility: Record<OverviewTab, boolean> = {
+      'argument-network': hasAn,
+      'commitments': hasCommitments,
+      'transcript': true,
+      'extraction': true,
+      'convergence': !!(debate.convergence_signals && debate.convergence_signals.length > 0),
+      'reflections': debate.transcript.some(e => e.type === 'reflection'),
+      'gaps': !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)),
+      'grounding': debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0),
+      'adaptive': !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics,
+      'pov-progression': true,
+    };
+    return tabVisibility[overviewTab] ? overviewTab : 'transcript';
+  }, [overviewTab, debate, an, commitments]);
+
   const sq = searchQuery.trim();
 
   // Compute total match count across all visible text
@@ -1514,7 +1689,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'adaptive'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'adaptive', 'pov-progression'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
@@ -1538,7 +1713,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         const dir = (e.key === 'ArrowDown' || e.key === 'n' || e.key === 'N') ? 1 : -1;
 
         // Navigate I-nodes when in argument network overview
-        if (!entry && overviewTab === 'argument-network' && an && an.nodes.length > 0) {
+        if (!entry && effectiveOverviewTab === 'argument-network' && an && an.nodes.length > 0) {
           const nodeIds = an.nodes.map(n => n.id);
           const curIdx = focusedNodeId ? nodeIds.indexOf(focusedNodeId) : -1;
           if (curIdx < 0) {
@@ -1567,7 +1742,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [debate, entry, entryTab, overviewTab, an, commitments, focusedNodeId]);
+  }, [debate, entry, entryTab, overviewTab, effectiveOverviewTab, an, commitments, focusedNodeId]);
 
   return (
     <DiagSearchContext.Provider value={sq}>
@@ -1578,17 +1753,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
-          onClick={async () => {
-            await api.openPovProgressionWindow();
-            // Re-broadcast current state so the new popout receives it
-            setTimeout(() => api.sendDiagnosticsState({ debate, selectedEntry }), 1000);
-          }}
-          title="Show how each POV's taxonomy context and citations evolve across turns"
-          style={{ background: 'none', color: '#8b5cf6', border: '1px solid #8b5cf6', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
-        >
-          POV Progression
-        </button>
-        <button
           onClick={() => setShowHelp(!showHelp)}
           style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
         >
@@ -1598,18 +1762,16 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {showHelp && <HelpContent />}
       {!debate && !showHelp && <p style={{ color: 'var(--text-muted)' }}>Waiting for debate data from main window...</p>}
 
-      {debate && !selectedEntry && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-            Click a transcript entry in the main window to inspect it here. Showing overview.
-          </p>
+      {debate && (
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
+          {/* Vertical tab sidebar — always visible when debate loaded */}
           {(() => {
             const hasAn = !!(an && an.nodes.length > 0);
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
             const tabs: { id: OverviewTab; label: string; badge?: string; visible: boolean }[] = [
-              { id: 'argument-network', label: 'Argument Network', visible: hasAn },
+              { id: 'argument-network', label: 'Arg Net', visible: hasAn },
               { id: 'commitments', label: 'Commitments', visible: hasCommitments },
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
@@ -1618,55 +1780,89 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
               { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
+              { id: 'pov-progression', label: 'POV Progression', visible: true },
             ];
-            const activeVisible = tabs.find(t => t.id === overviewTab)?.visible;
-            const effectiveTab: OverviewTab = activeVisible ? overviewTab : 'transcript';
             return (
               <div style={{
-                display: 'flex', gap: 4, marginBottom: 8,
-                borderBottom: '1px solid var(--border)', paddingBottom: 6, flexWrap: 'wrap',
+                display: 'flex', flexDirection: 'column', gap: 2,
+                borderRight: '1px solid var(--border)', paddingRight: 8, marginRight: 8,
+                minWidth: 120, maxWidth: 150, overflowY: 'auto', flexShrink: 0,
               }}>
                 {tabs.filter(t => t.visible).map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setOverviewTab(t.id)}
-                    style={{
-                      padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
-                      borderRadius: 4, cursor: 'pointer',
-                      border: '1px solid ' + (t.id === effectiveTab ? '#f59e0b' : 'var(--border)'),
-                      background: t.id === effectiveTab ? '#f59e0b' : 'transparent',
-                      color: t.id === effectiveTab ? '#000' : 'var(--text-primary)',
-                    }}
-                  >
-                    {t.label}{t.badge ? ` ${t.badge}` : ''}
-                  </button>
+                  <div key={t.id}>
+                    <button
+                      onClick={() => { setOverviewTab(t.id); if (t.id !== 'transcript') { setSelectedEntry(null); setLocalOverride(true); } }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
+                        borderRadius: 4, cursor: 'pointer',
+                        border: 'none',
+                        background: t.id === effectiveOverviewTab ? '#f59e0b' : 'transparent',
+                        color: t.id === effectiveOverviewTab ? '#000' : 'var(--text-primary)',
+                      }}
+                    >
+                      {t.label}{t.badge ? ` ${t.badge}` : ''}
+                    </button>
+                    {/* Transcript child items — nested entries when Transcript tab is active */}
+                    {t.id === 'transcript' && effectiveOverviewTab === 'transcript' && (
+                      <div style={{ marginLeft: 8, marginTop: 2, maxHeight: 300, overflowY: 'auto' }}>
+                        {debate.transcript.map((e, i) => {
+                          const stmtId = `S${i + 1}`;
+                          return (
+                            <button
+                              key={e.id}
+                              onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                padding: '2px 6px', fontSize: '0.6rem',
+                                border: 'none', borderRadius: 3, cursor: 'pointer',
+                                background: selectedEntry === e.id ? 'rgba(249,115,22,0.12)' : 'transparent',
+                                color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}
+                              title={`${speakerLabel(e.speaker)} [${e.type}]: ${e.content.slice(0, 80)}`}
+                            >
+                              <span style={{ color: '#f97316', fontWeight: 700, marginRight: 4 }}>{stmtId}</span>
+                              {speakerLabel(e.speaker)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             );
           })()}
 
+          {/* Content area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
+
+          {/* Overview content — shown when no entry is selected */}
+          {!selectedEntry && <>
+
           {/* Extraction Timeline — diagnoses AN-plateau failures */}
-          {overviewTab === 'extraction' && (
+          {effectiveOverviewTab === 'extraction' && (
             <ExtractionTimelinePanel debate={debate} />
           )}
 
           {/* Convergence Signals — per-turn diagnostic signals */}
-          {overviewTab === 'convergence' && (
+          {effectiveOverviewTab === 'convergence' && (
             <ConvergenceSignalsPanel debate={debate} />
           )}
 
           {/* Taxonomy Gaps — post-debate coverage analysis */}
-          {overviewTab === 'gaps' && (
+          {effectiveOverviewTab === 'gaps' && (
             <TaxonomyGapPanel debate={debate} />
           )}
 
           {/* Taxonomy Grounding — which POV nodes are referenced and why */}
-          {overviewTab === 'grounding' && (
+          {effectiveOverviewTab === 'grounding' && (
             <GroundingPanel debate={debate} />
           )}
 
           {/* Adaptive Staging — signal telemetry, phase transitions, GC events */}
-          {overviewTab === 'adaptive' && (() => {
+          {effectiveOverviewTab === 'adaptive' && (() => {
             const diag = (debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics as {
               phases: { phase: string; rounds: number[]; exit_reason: string }[];
               regressions: { from_round: number; crux_id: string; threshold_after: number }[];
@@ -1818,7 +2014,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
 
           {/* Reflections — taxonomy edits proposed by debaters */}
-          {overviewTab === 'reflections' && (() => {
+          {effectiveOverviewTab === 'reflections' && (() => {
             const reflectionEntries = debate.transcript.filter(e => e.type === 'reflection');
             const allResults = reflectionEntries.flatMap(e => {
               const meta = e.metadata as Record<string, unknown> | undefined;
@@ -1935,7 +2131,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
 
           {/* Argument Network with inline Moderator Deliberations */}
-          {overviewTab === 'argument-network' && an && an.nodes.length > 0 && (() => {
+          {effectiveOverviewTab === 'argument-network' && an && an.nodes.length > 0 && (() => {
             const caCount = an.edges.filter(e => e.type === 'attacks').length;
             const raCount = an.edges.filter(e => e.type === 'supports').length;
             // Statement-ID map — matches S{round} from the main transcript view.
@@ -2064,7 +2260,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           computedStrength={strengthMap.get(n.id)}
                           strengthMap={strengthMap}
                           statementId={stmtIdByEntry.get(n.source_entry_id)}
-                          onGotoEntry={(eid) => { setSelectedEntry(eid); setLocalOverride(true); }}
+                          onGotoEntry={(eid) => { setOverviewTab('transcript'); setSelectedEntry(eid); setLocalOverride(true); }}
                           stmtIdByEntry={stmtIdByEntry}
                           focused={focusedNodeId === n.id}
                         />
@@ -2077,18 +2273,23 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
 
           {/* Commitments */}
-          {overviewTab === 'commitments' && commitments && Object.keys(commitments).length > 0 && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-              {Object.entries(commitments).map(([pov, store]) => (
-                <div key={pov} style={{ margin: '4px 0' }}>
-                  <strong>{speakerLabel(pov)}</strong>: Asserted {store.asserted.length} | Conceded {store.conceded.length} | Challenged {store.challenged.length}
-                </div>
-              ))}
+          {effectiveOverviewTab === 'commitments' && commitments && Object.keys(commitments).length > 0 && (
+            <CommitmentsPanel
+              commitments={commitments}
+              nodes={an?.nodes ?? []}
+              onGoToNode={(nodeId) => { setOverviewTab('argument-network'); setFocusedNodeId(nodeId); }}
+            />
+          )}
+
+          {/* POV Progression — inline view (replaces separate popout) */}
+          {effectiveOverviewTab === 'pov-progression' && (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <PovProgressionView session={debate} nodeLabels={nodeLabels} />
             </div>
           )}
 
           {/* Transcript list for selection */}
-          {overviewTab === 'transcript' && (
+          {effectiveOverviewTab === 'transcript' && (
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {debate.transcript.map((e, i) => {
               const stmtId = `S${i + 1}`;
@@ -2141,37 +2342,30 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             })}
             </div>
           )}
-        </div>
-      )}
+          </>}
 
-      {entry && (() => {
-        const entryIdx = debate!.transcript.findIndex(e => e.id === entry.id);
-        const totalEntries = debate!.transcript.length;
-        const stmtId = entryIdx >= 0 ? `S${entryIdx + 1}` : '';
-        const goToIdx = (i: number) => {
-          if (i < 0 || i >= totalEntries) return;
-          setSelectedEntry(debate!.transcript[i].id);
-          setLocalOverride(true);
-        };
-        const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
-          padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
-          borderRadius: 4, border: '1px solid var(--border)',
-          background: disabled ? 'transparent' : 'rgba(249,115,22,0.1)',
-          color: disabled ? 'var(--text-muted)' : '#f97316',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          opacity: disabled ? 0.5 : 1,
-        });
-        return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
-              style={{ fontSize: '0.7rem', cursor: 'pointer', background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', color: 'var(--text-primary)' }}
-            >
-              Overview
-            </button>
-            <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
-            {stmtId && (
+          {/* Entry detail — shown when a transcript entry is selected */}
+          {selectedEntry && entry && (() => {
+            const entryIdx = debate.transcript.findIndex(e => e.id === entry.id);
+            const totalEntries = debate.transcript.length;
+            const stmtId = entryIdx >= 0 ? `S${entryIdx + 1}` : '';
+            const goToIdx = (i: number) => {
+              if (i < 0 || i >= totalEntries) return;
+              setSelectedEntry(debate.transcript[i].id);
+              setLocalOverride(true);
+            };
+            const navBtnStyle = (disabled: boolean): React.CSSProperties => ({
+              padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
+              borderRadius: 4, border: '1px solid var(--border)',
+              background: disabled ? 'transparent' : 'rgba(249,115,22,0.1)',
+              color: disabled ? 'var(--text-muted)' : '#f97316',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              opacity: disabled ? 0.5 : 1,
+            });
+            return (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                {stmtId && (
               <span
                 title={`Statement ${stmtId}`}
                 style={{
@@ -3360,9 +3554,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
+            </div>
+            );
+          })()}
+
+          </div>{/* end content area */}
         </div>
-        );
-      })()}
+      )}
     </div>
       <DiagnosticsChatSidebar
         debate={debate}

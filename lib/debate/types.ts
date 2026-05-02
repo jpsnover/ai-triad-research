@@ -1380,7 +1380,7 @@ export interface InterventionResponseFields {
 
 // ── Prompt Inspector types (Phase A: type definition only) ──────────
 
-import type { Category } from './taxonomyTypes';
+import type { Category } from './taxonomyTypes.js';
 
 export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';

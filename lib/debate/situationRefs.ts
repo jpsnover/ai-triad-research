@@ -12,9 +12,9 @@
  * closing the feedback loop between debates and the taxonomy.
  */
 
-import type { SituationNode } from './taxonomyTypes';
-import { interpretationText } from './taxonomyTypes';
-import type { TranscriptEntry } from './types';
+import type { SituationNode } from './taxonomyTypes.js';
+import { interpretationText } from './taxonomyTypes.js';
+import type { TranscriptEntry } from './types.js';
 
 // ── Types ─────────────────────────────────────────────────
 
