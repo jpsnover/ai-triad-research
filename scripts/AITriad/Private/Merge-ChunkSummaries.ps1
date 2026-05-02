@@ -54,7 +54,7 @@ function Merge-ChunkSummaries {
             # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
             $SavedEAP = $ErrorActionPreference
             $ErrorActionPreference = 'Continue'
-            try { $Output = & $PythonCmd $EmbedScript encode $TruncText 2>$null } finally { $ErrorActionPreference = $SavedEAP }
+            try { $Output = $TruncText | & $PythonCmd $EmbedScript encode - 2>$null } finally { $ErrorActionPreference = $SavedEAP }
             if ($LASTEXITCODE -ne 0) { return $null }
             $Vector = [double[]]@($Output | ConvertFrom-Json)
             $EmbeddingCache[$Hash] = $Vector

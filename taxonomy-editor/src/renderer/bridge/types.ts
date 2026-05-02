@@ -105,6 +105,8 @@ export interface AppAPI {
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
   exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf' | 'package') => Promise<{ cancelled: boolean; filePath?: string }>;
+  loadDebateComments: (debateId: string) => Promise<unknown>;
+  saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
 
   // --- Chat sessions ---
   listChatSessions: () => Promise<unknown[]>;

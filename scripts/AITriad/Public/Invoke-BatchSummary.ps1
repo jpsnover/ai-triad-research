@@ -43,11 +43,12 @@ function Invoke-BatchSummary {
     .EXAMPLE
         Invoke-BatchSummary -DryRun
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [switch]$ForceAll,
 
-        [Parameter(ValueFromPipeline)]
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [Alias('Id')]
         [string[]]$DocId,
 
         [ValidateScript({ Test-AIModelId $_ })]
@@ -87,6 +88,9 @@ function Invoke-BatchSummary {
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # Wire -WhatIf into the existing -DryRun logic
+    if ($WhatIfPreference) { $DryRun = [switch]::new($true) }
 
     # ForEach-Object -Parallel is PS 7+ only. The AITriad module supports
     # Windows PowerShell 5.1 as a hard requirement (see AITriad.psd1), so on

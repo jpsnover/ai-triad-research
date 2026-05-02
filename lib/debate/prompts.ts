@@ -228,24 +228,20 @@ You MUST include a "position_update" field in your JSON output summarizing how y
 // ── Constructive moves (available in exploration + synthesis phases) ──
 
 const CONSTRUCTIVE_MOVES = `
-CONSTRUCTIVE MOVES — use these to advance the debate toward resolution:
+CONSTRUCTIVE EMPHASIS — in this phase, prioritize these moves from the canonical 10:
 
-- INTEGRATE: Propose a position that incorporates valid elements from multiple perspectives.
-  USE WHEN: You see a way to combine insights from different debaters into a stronger whole.
-  THE KEY: The integration must be genuine — not "I'm right and you raise a minor point."
+- INTEGRATE: Propose positions that incorporate valid elements from multiple perspectives.
+  Consider conditional agreements: "I would support X if and only if Y and Z are ensured."
   Show how each perspective contributes something the others miss.
 
-- CONDITIONAL-AGREE: Accept a position contingent on specific conditions being met.
-  USE WHEN: You would agree with an opponent IF certain empirical facts hold or safeguards are in place.
-  THE KEY: State the conditions precisely. "I would support X if and only if Y and Z are ensured."
+- SPECIFY: Reduce broad disagreements to their precise crux. Frame remaining disagreements
+  as testable questions or clearly stated value choices. Show that if the crux were resolved,
+  the broader disagreement would dissolve.
 
-- NARROW: Reduce a broad disagreement to its precise crux.
-  USE WHEN: Debaters are arguing about many things at once and you can identify the one question that matters most.
-  THE KEY: Show that if the crux were resolved, the broader disagreement would dissolve.
+- EXTEND: Build on an opponent's strongest argument to reach a conclusion they haven't drawn.
+  The opponent must recognize their own logic in your extension.
 
-- STEEL-BUILD: Build on an opponent's strongest argument to reach a conclusion they haven't drawn yet.
-  USE WHEN: An opponent's reasoning, if taken seriously, actually supports a hybrid position.
-  THE KEY: The opponent must recognize their own logic in your extension — don't strawman.`;
+- CONCEDE-AND-PIVOT: Lead with genuine concessions, then redirect to remaining substance.`;
 
 /** Assemble all instruction blocks — always the full set (DT-1: length tiers removed). */
 function allInstructions(phase?: DebatePhase): string {
@@ -533,16 +529,23 @@ const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical 
   THE KEY: The concession must be genuine — not "Great point, but..." empty flattery.
   A concession immediately reversed by "however" is a rhetorical tic, not intellectual honesty.
 
-- REFRAME: Shift the framing to reveal what the current frame hides.
-  USE WHEN: The opponent's framing excludes important considerations or presupposes their conclusion.
+- REFRAME: Shift the framing to reveal what the current frame hides. This includes surfacing
+  hidden assumptions the opponent's argument depends on.
+  USE WHEN: The opponent's framing excludes important considerations, presupposes their
+  conclusion, or rests on an unstated assumption that is contestable.
   THE KEY: Show what becomes visible in your frame that was invisible in theirs.
 
 - EMPIRICAL CHALLENGE: Dispute the factual basis of a claim with specific counter-evidence.
-  USE WHEN: The opponent cites data, studies, or precedent that you can directly contest.
+  This includes verifying the shared factual basis before engaging with reasoning.
+  USE WHEN: The opponent cites data, studies, or precedent that you can directly contest,
+  or when their conclusion rests on a framing of facts you haven't agreed to.
   THE KEY: Cite specific counter-evidence — don't just assert "that's wrong."
 
-- EXTEND: Build on another debater's point to strengthen or expand it.
-  USE WHEN: An ally or even an opponent made a point that supports your position if taken further.
+- EXTEND: Build on another debater's point to strengthen or expand it. This includes
+  strengthening the opponent's argument beyond what they stated, then engaging with that
+  stronger version (steelmanning-as-extension).
+  USE WHEN: An ally or even an opponent made a point that supports your position if taken
+  further, or when the opponent's argument has a stronger form they haven't articulated.
   THE KEY: Add genuine new substance — don't just agree and restate.
 
 - UNDERCUT: Attack the warrant (the reasoning link) rather than the evidence or conclusion.
@@ -551,47 +554,28 @@ const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical 
   THE KEY: Show that even accepting the evidence, the conclusion doesn't follow by THIS logic.
 
 - SPECIFY: Demand that the opponent operationalize their position — what specific evidence,
-  outcome, or condition would falsify their claim? Force testable predictions.
+  outcome, or condition would falsify their claim? This includes naming the single crux
+  question the disagreement hinges on and narrowing broad disagreements to their precise core.
   USE WHEN: The opponent makes a strong claim but has never stated what would count as
-  evidence against it. Especially productive when two high-strength positions coexist
-  with no direct engagement between them (debaters talking past each other).
+  evidence against it, or when the debate is circling without progress.
   THE KEY: Ask a concrete question that forces a falsifiable commitment. Not "what do you
   think about X?" but "what specific outcome in the next 5 years would make you abandon
-  this position?" The goal is to surface hidden assumptions and make the disagreement
-  resolvable in principle.
+  this position?"
 
-- GROUND-CHECK: Before engaging with an opponent's argument, verify the shared factual basis.
-  USE WHEN: An opponent's conclusion rests on a framing of facts you haven't agreed to, or
-  when ambiguous facts have been presented in a way that favors their position.
-  THE KEY: Restate the facts in neutral language and get agreement before debating what
-  follows from them. Whoever controls the facts controls the conclusion. This move prevents
-  you from accidentally conceding a contested premise by jumping straight to the reasoning.
-
-- CONDITIONAL-AGREE: Accept a claim under specific conditions while rejecting it in general.
-  USE WHEN: The opponent's claim holds in some contexts but not others, and you want to narrow the disagreement.
-  THE KEY: State the exact conditions under which you agree, making the remaining disagreement precise.
-
-- IDENTIFY-CRUX: Name the single factual or value question whose answer would resolve the disagreement.
-  USE WHEN: The debate is circling without progress — identify what the real disagreement hinges on.
-  THE KEY: Frame it as a testable question or a clearly stated value choice, not a vague "we disagree."
-
-- INTEGRATE: Combine insights from multiple positions into a novel synthesis.
-  USE WHEN: Both sides have valid points that can be reconciled into a stronger position.
+- INTEGRATE: Combine insights from multiple positions into a novel synthesis. This includes
+  conditional agreements — accepting a position under specific stated conditions.
+  USE WHEN: Both sides have valid points that can be reconciled, or when the opponent's
+  claim holds in some contexts but not others.
   THE KEY: The synthesis must be genuinely new — not just listing both views side by side.
-
-- STEEL-BUILD: Strengthen the opponent's argument beyond what they stated, then engage with that stronger version.
-  USE WHEN: The opponent's argument has a stronger form they haven't articulated.
-  THE KEY: The steelmanned version must be one they would endorse — don't create a strawman disguised as charity.
-
-- EXPOSE-ASSUMPTION: Surface a hidden premise the opponent's argument depends on.
-  USE WHEN: The argument only works if an unstated assumption is true, and that assumption is contestable.
-  THE KEY: State the assumption explicitly and show why it's not self-evident.
+  State conditions precisely if the agreement is conditional.
 
 - BURDEN-SHIFT: Challenge who bears the burden of proof in the current exchange.
   USE WHEN: The opponent asserts a conclusion and demands you disprove it.
-  THE KEY: Name the move — "You're asserting X; the burden is on you to establish it, not on me to refute it."
+  THE KEY: Name the move — "You're asserting X; the burden is on you to establish it, not
+  on me to refute it."
 
-IMPORTANT: These are the ONLY valid move names. Do NOT invent new move names — use exactly the names listed above.
+IMPORTANT: These are the ONLY 10 valid move names. Use EXACTLY the names listed above.
+Do NOT invent new move names — your move_types will be validated against this list.
 
 MOVE DIVERSITY: Do NOT fall into a pattern of using the same moves every turn. If you
 conceded last turn, lead with a challenge or reframe this turn. If you distinguished
@@ -937,7 +921,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. sit-005", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
-  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
+  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1270,7 +1254,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
     {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
-  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-3; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
+  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-3 from the 10 canonical moves; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},

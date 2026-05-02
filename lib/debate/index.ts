@@ -54,6 +54,7 @@ export * from './situationRefs.js';
 // phaseTransitions.ts excluded — imports fs/path (Node.js only).
 // repairTranscript.ts excluded — CLI script importing fs.
 // judgeAudit.ts excluded — CLI script importing fs/path.
+// comments.ts excluded — imports zod + fs/path (Node.js only). Import directly.
 
 // ── Situations Migration Normalizers ──────────────────────
 

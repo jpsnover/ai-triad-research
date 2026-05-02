@@ -77,6 +77,7 @@ import {
   moderatorInterventionPrompt,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
+import { extractCalibrationData, appendCalibrationLog } from './calibrationLogger.js';
 import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
@@ -360,6 +361,27 @@ export class DebateEngine {
         .filter(s => s.in_units === s.out_units)
         .reduce((acc, s) => acc * (s.ratio > 0 && s.ratio <= 1 ? s.ratio : 1), 1);
       this.session.context_rot.cumulative_retention = Math.round(this.session.context_rot.cumulative_retention * 10000) / 10000;
+    }
+
+    // Log calibration data point (non-blocking, never fails the debate)
+    try {
+      const weights = loadProvisionalWeights();
+      const dataPoint = extractCalibrationData(this.session, 'local', {
+        explorationExitThreshold: weights.thresholds.exploration_exit,
+        relevanceThreshold: 0.45, // TODO: read from config when externalized
+        draftTemperature: 0.7,
+        attackWeights: [1.0, 1.1, 1.2],
+        saturationWeights: weights.saturation,
+      });
+      // Resolve data root from taxonomy loader path
+      const dataRoot = path.dirname(path.dirname(
+        this.taxonomy.accelerationist ? path.resolve('.') : path.resolve('.'),
+      ));
+      if (process.env.AI_TRIAD_DATA_ROOT) {
+        appendCalibrationLog(dataPoint, process.env.AI_TRIAD_DATA_ROOT);
+      }
+    } catch {
+      // Calibration logging failure never blocks debate completion
     }
 
     return this.session;

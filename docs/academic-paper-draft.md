@@ -335,31 +335,42 @@ The two-stage design is deliberate: Stage A catches errors that are objectively 
 
 ### 6.4 Dialectical Move Taxonomy and Diversity
 
-I define fifteen core dialectical moves available to debate agents, expanded from the original eight to cover the full range of dialectical actions observed in productive policy debates:
+The debate system separates two analytical layers that are frequently conflated in the multi-agent debate literature:
 
-1. **DISTINGUISH** — accept the opponent's evidence but show it doesn't apply to this context
-2. **COUNTEREXAMPLE** — provide a specific case challenging the opponent's general claim
-3. **CONCEDE-AND-PIVOT** — acknowledge a valid point, then redirect to what it misses (genuine concession required, not "Great point, but..." empty flattery)
-4. **REFRAME** — shift the framing to reveal what the current frame hides
-5. **EMPIRICAL CHALLENGE** — dispute the factual basis of a claim with specific counter-evidence
-6. **EXTEND** — build on another debater's point to strengthen or expand it
-7. **UNDERCUT** — attack the warrant (reasoning link) rather than the evidence or conclusion
-8. **SPECIFY** — demand that the opponent operationalize their position: what specific evidence, outcome, or condition would falsify their claim?
-9. **GROUND-CHECK** — challenge an opponent to provide empirical grounding for a normative or strategic claim
-10. **CONDITIONAL-AGREE** — agree with the opponent's conclusion under specified conditions, narrowing the disagreement space
-11. **IDENTIFY-CRUX** — explicitly name the core factual or normative disagreement that, if resolved, would change conclusions
-12. **INTEGRATE** — synthesize elements from multiple perspectives into a position that addresses concerns from more than one POV
-13. **STEEL-BUILD** — construct the strongest possible version of the opponent's argument, then engage with that version
-14. **EXPOSE-ASSUMPTION** — identify an unstated premise that the opponent's argument depends on
-15. **BURDEN-SHIFT** — argue that the burden of proof lies with the opponent, not the current speaker
+**Layer 1: Dialectical moves** — *what* rhetorical action the debater performs (e.g., "I am distinguishing," "I am conceding"). This layer is our engineering contribution, informed by but not directly derived from any single theoretical source.
 
-Four constructive moves (INTEGRATE, IDENTIFY-CRUX, CONDITIONAL-AGREE, STEEL-BUILD) are injected only during exploration and synthesis phases when the debate has progressed beyond initial position staking. This phase-gating prevents premature convergence — agents must first establish and test their positions before the system encourages synthesis.
+**Layer 2: Argumentation schemes** — *how* the debater reasons, classified using 13 schemes derived from Walton, Reed, and Macagno (2008), each with 4 critical questions (Section 6.7). A debater may use ARGUMENT_FROM_ANALOGY (Layer 2) while performing a COUNTEREXAMPLE move (Layer 1) — the scheme describes the reasoning pattern; the move describes the dialectical action.
 
-**Move-edge classification.** Every move maps to a support, attack, or neutral edge type via the MOVE_EDGE_MAP. COUNTEREXAMPLE, EMPIRICAL CHALLENGE, UNDERCUT, EXPOSE-ASSUMPTION, and BURDEN-SHIFT produce attack edges. EXTEND, INTEGRATE, and STEEL-BUILD produce support edges. DISTINGUISH, REFRAME, IDENTIFY-CRUX, and SPECIFY produce neutral edges (they restructure the dialectical space without directly attacking or supporting a claim). This classification is used consistently across extraction, commitment tracking, and convergence signal computation, ensuring that the argument network's edge semantics are deterministic and auditable.
+The attack types within the argument network — rebut (contradicts the conclusion), undercut (denies the inference), and undermine (attacks premise credibility) — follow Pollock's (1987, 1995) defeater taxonomy. The commitment store (asserted/conceded/challenged claims per debater, Section 6.5) follows the Hamblin (1970) and Walton & Krabbe (1995) tradition of dialogue commitment tracking, though simplified from their formal systems.
 
-**Expanded move variants.** Beyond the 15 core moves, 23 expanded variants handle LLM-generated move labels that do not exactly match the canonical forms (e.g., "COUNTER-EXAMPLE" or "counter_example"). A canonicalization mapping normalizes all variants to their core move, ensuring that the argument network and convergence diagnostics operate on a clean, consistent vocabulary regardless of LLM output variability.
+I define ten canonical dialectical moves, consolidated from an initial set of 15 after observing that LLMs struggle with large enumerated lists and that several moves overlapped semantically:
 
-Three legacy moves (REDUCE, ESCALATE, CONCEDE) remain accepted in the classification pipeline for backward compatibility but are not prompted for.
+| # | Move | Type | What it does | Subsumes |
+|---|------|------|-------------|----------|
+| 1 | DISTINGUISH | Attack | Accept evidence, deny applicability | — |
+| 2 | COUNTEREXAMPLE | Attack | Concrete case against general claim | — |
+| 3 | CONCEDE-AND-PIVOT | Support | Genuine concession + redirect | CONCEDE |
+| 4 | REFRAME | Attack | Shift frame to reveal hidden structure | EXPOSE-ASSUMPTION |
+| 5 | EMPIRICAL CHALLENGE | Attack | Dispute facts with counter-evidence | GROUND-CHECK |
+| 6 | EXTEND | Support | Build on another's point with new substance | STEEL-BUILD |
+| 7 | UNDERCUT | Attack | Attack the warrant, not evidence or conclusion | REDUCE |
+| 8 | SPECIFY | Neutral | Force falsifiable predictions / name the crux | IDENTIFY-CRUX, NARROW |
+| 9 | INTEGRATE | Support | Synthesize multiple perspectives | CONDITIONAL-AGREE |
+| 10 | BURDEN-SHIFT | Attack | Challenge proof allocation | — |
+
+The consolidation from 15 to 10 was motivated by two observations. First, LLMs disproportionately choose early items in enumerated lists (primacy bias); a shorter list reduces the variance between list positions. Second, several pairs were semantically overlapping: EXPOSE-ASSUMPTION is a specific form of REFRAME (both reveal hidden structure), STEEL-BUILD is a specific form of EXTEND (both build on another's argument), and IDENTIFY-CRUX is a specific form of SPECIFY (both force precision about the disagreement). The merged moves retain the broader capability while reducing the categorization burden on the LLM.
+
+**Move-edge classification.** Every move maps to a support, attack, or neutral edge type. COUNTEREXAMPLE, DISTINGUISH, UNDERCUT, EMPIRICAL CHALLENGE, BURDEN-SHIFT, and REFRAME produce attack edges. EXTEND, INTEGRATE, and CONCEDE-AND-PIVOT produce support edges. SPECIFY produces neutral edges (restructuring the dialectical space without directly attacking or supporting a claim). This classification is used consistently across extraction, commitment tracking, and convergence signal computation.
+
+**Semantic move normalization.** LLMs routinely hallucinate move names not in the catalog — generating variants like "SURFACE-ASSUMPTION," "EXPOSE-CONTRADICTION," "CONDITIONAL-ACCEPTANCE," or entirely novel labels like "RECONTEXTUALIZE." A two-stage normalization pipeline handles this:
+
+1. **Alias resolution** — a mapping of ~80 known LLM-generated variants to their canonical move (e.g., "STEELMAN" → EXTEND, "IDENTIFY-CRUX" → SPECIFY, "GROUND-CHECK" → EMPIRICAL CHALLENGE). Multi-word aliases are registered in both word orders automatically.
+
+2. **Rejection on failure** — if a move name cannot be resolved through the alias map, it is flagged as a Stage A validation error (not merely a warning), forcing a retry with explicit instruction to use only the 10 canonical names. This prevents hallucinated move names from entering the argument network and corrupting convergence diagnostics.
+
+In earlier iterations, unknown moves were accepted with a warning. This permissive approach led to a proliferation of ~32 distinct move labels in the diagnostics data, many semantically identical, making move distribution analysis unreliable. The strict normalization approach trades a small increase in retry rate for clean, analyzable move data.
+
+**Phase-dependent constructive emphasis.** During exploration and synthesis phases, the prompt emphasizes constructive moves (INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT) without restricting the full catalog. This phase-gating encourages convergence in later rounds without preventing agents from challenging new points when warranted.
 
 The SPECIFY move merits particular attention. It is the only move that forces *falsifiability* into the open — requiring a debater to state what would change their mind. Its absence from the initial move taxonomy allowed debates to run for multiple rounds with neither side ever committing to testable predictions. The moderator is biased toward selecting SPECIFY when the argument network contains two high-strength claims from different speakers with no edges between them — a pattern that signals debaters talking past each other rather than engaging. The `formatSpecifyHint()` function detects this pattern and injects a "SPECIFY OPPORTUNITY" flag into the moderator's context.
 
@@ -774,7 +785,51 @@ Three new features close the remaining gaps while working with the identity-is-t
 
 Together, these features implement the principled response to the fixed-role critique: acknowledge that the argument space is taxonomy-bounded, then systematically identify and close gaps in taxonomy coverage — through mid-debate injection of uncovered arguments, through promotion of cross-cutting agreements into the taxonomy, and through diagnostic visibility into where coverage falls short.
 
-### 8.9 Limitations
+### 8.9 Automated Parameter Calibration
+
+The system contains over 100 hardcoded numeric parameters — similarity thresholds, temperature settings, scoring weights, cap values, and phase transition gates. Most were initially set by intuition. A systematic audit identified the five parameters with the highest impact on debate quality:
+
+1. **Exploration exit threshold** (0.65) — directly controls debate length by determining when exploration transitions to synthesis
+2. **Embedding relevance threshold** (0.45) — controls which taxonomy nodes the debater sees, directly affecting argument grounding
+3. **QBAF attack type weights** (rebut: 1.0, undercut: 1.1, undermine: 1.2) — compound nonlinearly through the argument network
+4. **Draft temperature** (0.7) — controls creative diversity of argumentative text generation
+5. **Saturation signal weights** (6 weights summing to 1.0) — determine when the debate has exhausted a phase
+
+For each parameter, I designed an automated calibration mechanism that requires no LLM calls and no human judgment — only arithmetic on data already collected by existing instrumentation:
+
+| # | Parameter | Category | Data source | Algorithm |
+|---|-----------|----------|-------------|-----------|
+| 1 | Exploration exit threshold | Phase | Neutral evaluator: crux resolution, engagement flag | Bucket-average: threshold producing highest quality score |
+| 2 | Embedding relevance threshold | Context | Context injection manifest: utilization rates | Directional: raise if waste > 70%, lower if primary utilization < 50% |
+| 3 | QBAF attack weights | Output | Synthesis preferences vs QBAF computed strengths | Concordance maximization |
+| 4 | Draft temperature | Output | Turn validator: structural errors vs repetition warnings | Composite cost minimization at the crossover point |
+| 5 | Saturation signal weights | Phase | Convergence signals at transition vs neutral evaluator quality | Ordinary least squares regression |
+| 6 | Context compression window | Context | Unanswered claims ledger: claims forgotten rate | Directional: raise window if > 40% forgotten, lower if < 15% |
+| 7 | GC trigger threshold | Context | AN node count + GC occurrence vs neutral evaluator quality | Correlation: raise trigger if GC debates are lower quality |
+| 8 | Crux resolution threshold | Phase | Engine crux status vs neutral evaluator crux status | Divergence minimization: adjust threshold to reduce disagreement |
+| 9 | Node selection caps | Context | Utilization rate + relevance score variance | Adaptive: narrow-topic debates (low variance) get tighter caps |
+| 10 | Semantic recycling threshold | Output | Recycling detector vs turn validator novelty signal | Agreement maximization between two independent repetition detectors |
+| 11 | Cluster MinSimilarity | Upstream | Taxonomy mapping ratio: AN nodes with taxonomy refs | Directional: loosen if mapping < 50%, tighten if > 85% |
+| 12 | Duplicate claim similarity | Upstream | Near-miss duplicate pairs (similarity in [threshold-0.05, threshold]) | Near-miss rate: lower threshold if > 5% are near-misses |
+| 13 | FIRE confidence threshold | Upstream | Borderline claim survival: claims at threshold vs refutation rate | Raise if borderline claims < 50% survive, lower if > 85% survive |
+| 14 | Hierarchy cohesion threshold | Upstream | Average base_strength of taxonomy-grounded nodes in debates | Tighten if avg branch cohesion < 0.45, relax if > 0.75 |
+| 15 | Extraction density (KP divisor) | Upstream | Claims per 1000 source-document words | Target 2-5 claims/1k: raise divisor if > 6, lower if < 1.5 |
+
+Each debate logs a calibration data point (~1KB) to `calibration-log.json` in the data directory. The log accumulates across local and cloud (Azure) environments — both write the same schema with an `origin` field distinguishing data provenance. After 10+ debates, a CLI optimizer (`npx tsx lib/debate/calibrationOptimizer.ts <data-root> [--apply]`) reads the log, runs all ten algorithms, and optionally writes updated values to `provisional-weights.json`. The optimization runs in milliseconds with no LLM calls.
+
+The fifteen parameters divide into four categories by their optimization characteristics:
+
+**Phase-transition parameters** (#1, #5, #8) directly control debate length and pacing. Their quality signal comes from the neutral evaluator — an independent, persona-free assessment of whether the debate engaged real disagreement and resolved its cruxes. These parameters benefit most from data accumulation because their optima depend on the model, topic distribution, and debate style.
+
+**Context parameters** (#2, #6, #7, #9) control what the debater sees and remembers. Their quality signal comes from the context injection instrumentation — utilization rates, forgotten claims, and network size. These parameters can adapt faster because each debate produces multiple data points (one per turn).
+
+**Output parameters** (#3, #4, #10) control how the debater generates and how its output is classified. Their quality signals come from the turn validator and argument network — structural error rates, repetition warnings, and concordance between independent quality signals. These parameters are most sensitive to model changes — a model switch may require recalibration.
+
+**Upstream pipeline parameters** (#11-#15) control document ingestion, claim extraction, and taxonomy structure. These are the most consequential parameters because they determine the foundation everything else operates on — if clusters are wrong, no amount of debate tuning compensates. Their optimization requires cross-pipeline tracking: a claim is extracted during ingestion, but its quality is measured during debates (attack rate, survival rate, taxonomy mapping). This cross-pipeline signal makes them slower to calibrate but uniquely valuable — they are the only parameters where downstream debate performance feeds back to improve upstream extraction quality.
+
+The optimizer is conservative: only medium or high confidence recommendations are applied, all changes are bounded within safe ranges, and parameters that lack sufficient data are left unchanged. This approach transforms parameter tuning from a one-time intuition to an ongoing empirical process — early parameters were chosen by educated guesswork; as debate data accumulates, they converge toward their empirically optimal values.
+
+### 8.10 Limitations
 
 **Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
@@ -798,7 +853,7 @@ Together, these features implement the principled response to the fixed-role cri
 
 **SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.
 
-### 8.10 Ethical Considerations
+### 8.11 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -868,6 +923,8 @@ Du, Y., Li, S., Torralba, A., Tenenbaum, J. B., and Mordatch, I. (2023). Improvi
 
 Dung, P. M. (1995). On the acceptability of arguments and its fundamental role in nonmonotonic reasoning, logic programming and n-person games. *Artificial Intelligence*, 77(2):321-357.
 
+Hamblin, C. L. (1970). *Fallacies*. Methuen.
+
 Ebrahimi, J., Dou, D., and Lowd, D. (2022). A survey of stance detection in online texts. *ACM Computing Surveys*, 54(3):1-37.
 
 Fauconnier, G. and Turner, M. (2002). *The Way We Think: Conceptual Blending and the Mind's Hidden Complexities*. Basic Books.
@@ -904,6 +961,12 @@ Mayer, T., Cabrio, E., and Villata, S. (2020). Transformer-based argument mining
 
 Mohammad, S. M., Kiritchenko, S., Sobhani, P., Zhu, X., and Cherry, C. (2016). SemEval-2016 task 6: Detecting stance in tweets. *Proceedings of the 10th International Workshop on Semantic Evaluation (SemEval)*.
 
+Pollock, J. L. (1987). Defeasible reasoning. *Cognitive Science*, 11(4):481-518.
+
+Pollock, J. L. (1995). *Cognitive Carpentry: A Blueprint for How to Build a Person*. MIT Press.
+
+Prakken, H. (2006). Formal systems for persuasion dialogue. *The Knowledge Engineering Review*, 21(2):163-188.
+
 Rago, A., Toni, F., Aurisicchio, M., and Baroni, P. (2016). Discontinuity-free decision support with quantitative argumentation debates. *Proceedings of the 15th International Conference on Principles of Knowledge Representation and Reasoning (KR)*.
 
 Rahwan, I., Zablith, F., and Reed, C. (2007). Laying the foundations for a world wide argument web. *Artificial Intelligence*, 171(10-15):897-921.
@@ -917,6 +980,8 @@ Stab, C. and Gurevych, I. (2017). Parsing argumentation structures in persuasive
 Thibodeau, P. H. and Boroditsky, L. (2011). Metaphors we think with: The role of metaphor in reasoning. *PLoS ONE*, 6(2):e16782.
 
 Törnberg, P. (2024). How to use LLMs for text analysis. *Proceedings of the National Academy of Sciences (PNAS)*, 121(24).
+
+Walton, D. N. and Krabbe, E. C. W. (1995). *Commitment in Dialogue: Basic Concepts of Interpersonal Reasoning*. SUNY Press.
 
 Walton, D., Reed, C., and Macagno, F. (2008). *Argumentation Schemes*. Cambridge University Press.
 

@@ -197,11 +197,21 @@ export async function abortRebase(): Promise<AbortRebaseResult> {
 
 // ── Diagnostics ──
 
+export interface EditCounts {
+  added: number;
+  modified: number;
+  deleted: number;
+}
+
 export interface DiagnosticsFile {
   relative_path: string;
   exists: boolean;
   size_bytes: number;
   modified_iso: string;
+  /** Single-char git status: 'M' modified, 'A' added, 'D' deleted, '?' untracked, '' clean */
+  git_status: string;
+  /** Semantic diff counts (nodes added/modified/deleted vs origin/main). Null when clean or non-diffable. */
+  edit_counts: EditCounts | null;
 }
 
 export interface DiagnosticsCommit {
@@ -227,8 +237,28 @@ export interface SyncDiagnostics {
   recent_commits: DiagnosticsCommit[];
 }
 
+const DISABLED_DIAGNOSTICS: SyncDiagnostics = {
+  git_sync_enabled: false,
+  data_root: '',
+  data_root_has_git: false,
+  github_repo: null,
+  github_credentials_valid: false,
+  current_branch: null,
+  head_sha: null,
+  origin_main_sha: null,
+  ahead_of_main: 0,
+  behind_main: 0,
+  active_taxonomy_dir: '',
+  files: [],
+  recent_commits: [],
+};
+
 export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
-  return getJson<SyncDiagnostics>('/api/sync/diagnostics');
+  try {
+    return await getJson<SyncDiagnostics>('/api/sync/diagnostics');
+  } catch {
+    return DISABLED_DIAGNOSTICS;
+  }
 }
 
 export async function initDataRepo(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {

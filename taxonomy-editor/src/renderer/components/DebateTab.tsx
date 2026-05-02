@@ -1,18 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
+import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewDebateDialog } from './NewDebateDialog';
-import { DebateWorkspace } from './DebateWorkspace';
-import { NodeDetail } from './NodeDetail';
-import { SituationDetail } from './SituationDetail';
-import { AttributeInfoPanel } from './AttributeInfoPanel';
-import { AttributeFilterPanel } from './AttributeFilterPanel';
-import { DebateSourceViewer } from './DebateSourceViewer';
 import { SearchPanel } from './SearchPanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
@@ -23,9 +17,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
 import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
-import type { DebateSessionSummary } from '../types/debate';
-import type { Pov } from '../types/taxonomy';
-import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import type { DebateSession } from '../types/debate';
 import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -36,110 +28,110 @@ const PHASE_LABELS: Record<string, string> = {
   closed: 'Closed',
 };
 
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  topic: 'Topic',
+  document: 'Document',
+  url: 'Web URL',
+  situations: 'Cross-cutting',
+};
+
+const POVER_LABELS: Record<string, { label: string; color: string }> = {
+  prometheus: { label: 'Prometheus', color: 'var(--color-acc)' },
+  sentinel: { label: 'Sentinel', color: 'var(--color-saf)' },
+  cassandra: { label: 'Cassandra', color: 'var(--color-skp)' },
+  user: { label: 'You', color: 'var(--text-muted)' },
+};
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-/** Resolve a node_id to its POV + node data from the taxonomy store */
-function resolveNode(nodeId: string) {
-  const state = useTaxonomyStore.getState();
-
-  if (nodeTypeFromId(nodeId) === 'situation') {
-    const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
-    return node ? { kind: 'situation' as const, node } : null;
-  }
-
-  if (nodeId.startsWith('pol-')) {
-    const entry = state.policyRegistry?.find(p => p.id === nodeId);
-    if (entry) return { kind: 'policy' as const, node: { id: entry.id, label: entry.action, description: entry.action, source_povs: entry.source_povs, member_count: entry.member_count } };
-    return null;
-  }
-
-  const povMap: Record<string, Pov> = { 'acc-': 'accelerationist', 'saf-': 'safetyist', 'skp-': 'skeptic' };
-  for (const [prefix, pov] of Object.entries(povMap)) {
-    if (nodeId.startsWith(prefix)) {
-      const povFile = state[pov];
-      const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
-      return node ? { kind: 'pov' as const, pov, node } : null;
-    }
-  }
-  return null;
+function formatDateLong(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 export function DebateTab() {
   const {
     sessions, sessionsLoading, loadSessions,
     activeDebateId, activeDebate, loadDebate, deleteDebate, renameDebate,
-    inspectedNodeId, inspectNode,
   } = useDebateStore(
     useShallow(s => ({
       sessions: s.sessions, sessionsLoading: s.sessionsLoading, loadSessions: s.loadSessions,
       activeDebateId: s.activeDebateId, activeDebate: s.activeDebate, loadDebate: s.loadDebate, deleteDebate: s.deleteDebate, renameDebate: s.renameDebate,
-      inspectedNodeId: s.inspectedNodeId, inspectNode: s.inspectNode,
     }))
   );
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
-  const { attributeInfo, attributeFilter, toolbarPanel } = useTaxonomyStore();
+  const { toolbarPanel } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
-  const { width: pane3Width, onMouseDown: onPane3MouseDown } = useResizableRightPanel({
-    storageKey: 'debate-inspect-panel-width',
-    defaultWidth: 360,
-    minWidth: 260,
-    maxWidth: 600,
-  });
-  const { width: pane4Width, onMouseDown: onPane4MouseDown } = useResizableRightPanel({
-    storageKey: 'debate-pane4-width',
-    defaultWidth: 400,
-    minWidth: 300,
-    maxWidth: 700,
-  });
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  // Bulk delete selection mode (BD-1)
-  const [selectMode, setSelectMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
-  const [detailCollapsed, setDetailCollapsed] = useState(false);
-  const [sourceCollapsed, setSourceCollapsed] = useState(false);
-  const [inspectCollapsed, setInspectCollapsed] = useState(false);
-  const [pane4Collapsed, setPane4Collapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
 
-  const renderSearchPreview = () => {
-    if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
-    const resolved = resolveNode(searchPreviewId);
-    if (!resolved) return <div className="detail-panel-empty">Node not found</div>;
-    if (resolved.kind === 'situation') {
-      return <SituationDetail node={resolved.node} readOnly chipDepth={0} />;
-    }
-    return <NodeDetail pov={resolved.pov} node={resolved.node} readOnly chipDepth={0} />;
-  };
+  // Custom sort order (persisted to localStorage)
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('debate-custom-order');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
 
-  const showInfoPanel = attributeInfo !== null;
-  const showAttrFilterPanel = attributeFilter !== null;
-  const showPane4 = inspectedNodeId && (showInfoPanel || showAttrFilterPanel);
+  const saveCustomOrder = useCallback((order: string[]) => {
+    setCustomOrder(order);
+    localStorage.setItem('debate-custom-order', JSON.stringify(order));
+  }, []);
+
+  // Apply custom ordering: custom-ordered IDs first (in order), then any new sessions not yet ordered
+  const orderedSessions = useMemo(() => {
+    if (customOrder.length === 0) return sessions;
+    const orderMap = new Map(customOrder.map((id, i) => [id, i]));
+    const ordered = [...sessions].sort((a, b) => {
+      const ai = orderMap.get(a.id);
+      const bi = orderMap.get(b.id);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return 0; // both unordered — keep server order
+    });
+    return ordered;
+  }, [sessions, customOrder]);
+
+  const moveSession = useCallback((id: string, direction: 'up' | 'down') => {
+    // Build full order array from current display order
+    const ids = orderedSessions.map(s => s.id);
+    const idx = ids.indexOf(id);
+    if (idx < 0) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= ids.length) return;
+    [ids[idx], ids[targetIdx]] = [ids[targetIdx], ids[idx]];
+    saveCustomOrder(ids);
+  }, [orderedSessions, saveCustomOrder]);
+
+  const exitEditMode = useCallback(() => {
+    setEditMode(false);
+    setSelectedIds(new Set());
+    setRenamingId(null);
+  }, []);
 
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
 
-  const handleSelect = (session: DebateSessionSummary) => {
+  const handleSelect = (session: { id: string }) => {
     if (session.id !== activeDebateId) {
       loadDebate(session.id);
     }
-    // Open debate in popout window
-    api.openDebateWindow(session.id).catch(() => { /* fallback: stays inline */ });
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteDebate(id);
-    setConfirmDeleteId(null);
   };
 
   const handleExport = async (format: string = 'json') => {
@@ -182,7 +174,7 @@ export function DebateTab() {
           <div className="list-panel-header">
             <h2>Debates</h2>
             <div className="list-panel-header-actions">
-              {selectMode ? (
+              {editMode ? (
                 <>
                   <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
                   <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
@@ -191,13 +183,18 @@ export function DebateTab() {
                       Delete {selectedIds.size}
                     </button>
                   )}
-                  <button className="btn btn-sm btn-ghost" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}>Done</button>
+                  {customOrder.length > 0 && (
+                    <button className="btn btn-sm btn-ghost" onClick={() => saveCustomOrder([])} title="Reset to default sort order">
+                      Reset Order
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-ghost" onClick={exitEditMode}>Done</button>
                 </>
               ) : (
                 <>
                   {sessions.length > 0 && (
-                    <button className="btn btn-sm btn-ghost" onClick={() => setSelectMode(true)} title="Select debates for bulk delete">
-                      Select
+                    <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(true)} title="Edit, rename, reorder, or delete debates">
+                      Edit
                     </button>
                   )}
                   <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
@@ -219,17 +216,17 @@ export function DebateTab() {
                 Click <strong>+ New</strong> to start one.
               </div>
             )}
-            {sessions.map((s) => (
+            {orderedSessions.map((s, idx) => (
               <div
                 key={s.id}
-                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${selectMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
-                onClick={selectMode ? () => setSelectedIds(prev => {
+                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
+                onClick={editMode ? () => setSelectedIds(prev => {
                   const next = new Set(prev);
                   next.has(s.id) ? next.delete(s.id) : next.add(s.id);
                   return next;
                 }) : () => handleSelect(s)}
               >
-                {selectMode && (
+                {editMode && (
                   <input
                     type="checkbox"
                     className="bulk-select-checkbox"
@@ -264,8 +261,8 @@ export function DebateTab() {
                 ) : (
                   <div
                     className="debate-session-item-title"
-                    onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
-                    title="Double-click to rename"
+                    onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
+                    title={editMode ? s.title : 'Double-click to rename'}
                   >
                     {s.title}
                   </div>
@@ -276,17 +273,37 @@ export function DebateTab() {
                   </span>
                   <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
                 </div>
-                {confirmDeleteId === s.id ? (
-                  <div className="debate-session-item-confirm">
-                    <span>Delete?</span>
-                    <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}>Yes</button>
-                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
+                {editMode ? (
+                  <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
+                    <button
+                      className="debate-edit-btn"
+                      onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
+                      title="Rename"
+                    >
+                      &#9998;
+                    </button>
+                    <button
+                      className="debate-edit-btn"
+                      onClick={() => moveSession(s.id, 'up')}
+                      disabled={idx === 0}
+                      title="Move up"
+                    >
+                      &#9650;
+                    </button>
+                    <button
+                      className="debate-edit-btn"
+                      onClick={() => moveSession(s.id, 'down')}
+                      disabled={idx === orderedSessions.length - 1}
+                      title="Move down"
+                    >
+                      &#9660;
+                    </button>
                   </div>
                 ) : (
                   <button
                     className="debate-session-item-delete"
                     title="Delete debate"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
+                    onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
                   >
                     ×
                   </button>
@@ -301,7 +318,10 @@ export function DebateTab() {
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
-            {renderSearchPreview()}
+            {!searchPreviewId
+              ? <div className="detail-panel-empty">Select a search result to preview</div>
+              : <div className="detail-panel-empty">Node preview: {searchPreviewId}</div>
+            }
           </div>
         </>
       )}
@@ -318,166 +338,24 @@ export function DebateTab() {
       {!toolbarPanel && (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
-
-          {/* Pane 2 / 3: Debate workspace (layout depends on source type) */}
-          {activeDebate && activeDebate.source_type !== 'topic' && activeDebate.source_type !== 'situations' ? (
-            <>
-              {/* Pane 2: Document/URL content (collapsible) */}
-              {sourceCollapsed ? (
-                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setSourceCollapsed(false)} title="Expand source document">
-                  <span className="pane-collapsed-label">
-                    {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
-                  </span>
-                </div>
-              ) : (
-                <div className="detail-panel debate-source-panel">
-                  <div className="debate-source-header">
-                    <span className="debate-source-title">
-                      {activeDebate.source_type === 'document' ? 'Document' : 'Web Content'}
-                    </span>
-                    {activeDebate.source_ref && (
-                      <span className="debate-source-ref" title={activeDebate.source_ref}>
-                        {activeDebate.source_type === 'document'
-                          ? activeDebate.source_ref.split('/').pop()
-                          : activeDebate.source_ref}
-                      </span>
-                    )}
-                    <button className="pane-collapse-btn" onClick={() => setSourceCollapsed(true)} title="Collapse source">&lsaquo;</button>
-                  </div>
-                  <div className="debate-source-body">
-                    <DebateSourceViewer
-                      content={activeDebate.source_content}
-                      sourceType={activeDebate.source_type as 'document' | 'url'}
-                      sourceRef={activeDebate.source_ref}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-              {/* Pane 3: Debate workspace */}
-              <div className="detail-panel debate-workspace-container" style={{ width: pane3Width, minWidth: pane3Width }}>
-                <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
+          <div className="detail-panel">
+            {activeDebate ? (
+              <DebateDetailSummary
+                debate={activeDebate}
+                onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch(() => {})}
+                onExport={handleExport}
+                exportStatus={exportStatus}
+              />
+            ) : (
+              <div className="debate-empty-state">
+                <h2>POV Debater</h2>
+                <p>Select a debate from the list or create a new one.</p>
+                <button className="btn" onClick={() => setShowNewDialog(true)}>
+                  + New Debate
+                </button>
               </div>
-            </>
-          ) : activeDebate && activeDebate.source_type === 'situations' ? (
-            <>
-              {/* Cross-cutting debate: workspace directly in Pane 2 (context via Details button) */}
-              {detailCollapsed ? (
-                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
-                  <span className="pane-collapsed-label">Workspace</span>
-                </div>
-              ) : (
-                <div className="detail-panel debate-workspace-container">
-                  <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Topic debate: Pane 2 = workspace */}
-              {detailCollapsed ? (
-                <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand workspace">
-                  <span className="pane-collapsed-label">Workspace</span>
-                </div>
-              ) : (
-                <div className="detail-panel debate-workspace-container">
-                  {activeDebateId ? (
-                    <DebateWorkspace onExport={handleExport} exportStatus={exportStatus} />
-                  ) : (
-                    <div className="debate-empty-state">
-                      <h2>POV Debater</h2>
-                      <p>Select a debate from the list or create a new one.</p>
-                      <button className="btn" onClick={() => setShowNewDialog(true)}>
-                        + New Debate
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Node inspector (shown when a taxonomy pill is clicked) */}
-          {inspectedNodeId && (() => {
-            const resolved = resolveNode(inspectedNodeId);
-            if (!resolved) return null;
-            if (inspectCollapsed) {
-              return (
-                <>
-                  <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-                  <div className="pane-collapsed" onClick={() => setInspectCollapsed(false)} title="Expand inspector">
-                    <span className="pane-collapsed-label">Inspector</span>
-                  </div>
-                </>
-              );
-            }
-            return (
-              <>
-                <div className="resize-handle" onMouseDown={onPane3MouseDown} />
-                <div className="detail-panel debate-inspect-panel" style={{ width: pane3Width, minWidth: pane3Width }}>
-                  <div className="debate-inspect-header">
-                    <span className="debate-inspect-title">{resolved.node.label}</span>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <button className="pane-collapse-btn" onClick={() => setInspectCollapsed(true)} title="Collapse">&lsaquo;</button>
-                      <button
-                        className="debate-inspect-close"
-                        onClick={() => inspectNode(null)}
-                        title="Close inspector"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                  <div className="debate-inspect-body">
-                    {resolved.kind === 'situation' ? (
-                      <SituationDetail node={resolved.node} readOnly />
-                    ) : resolved.kind === 'policy' ? (
-                      <div style={{ padding: 16, fontSize: '0.85rem' }}>
-                        <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-sit)' }}>{resolved.node.id}</div>
-                        <div style={{ marginBottom: 12 }}>{resolved.node.label}</div>
-                        {resolved.node.source_povs?.length > 0 && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            Source POVs: {resolved.node.source_povs.join(', ')}
-                          </div>
-                        )}
-                        {resolved.node.member_count > 0 && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                            Referenced by {resolved.node.member_count} taxonomy node{resolved.node.member_count !== 1 ? 's' : ''}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <NodeDetail pov={resolved.pov} node={resolved.node} readOnly />
-                    )}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-
-          {/* Pane 4: Attribute Info / Filter (shown when triggered from Pane 3) */}
-          {showPane4 && (() => {
-            if (pane4Collapsed) {
-              return (
-                <>
-                  <div className="resize-handle" onMouseDown={onPane4MouseDown} />
-                  <div className="pane-collapsed" onClick={() => setPane4Collapsed(false)} title="Expand">
-                    <span className="pane-collapsed-label">{showAttrFilterPanel ? 'Filter' : 'Info'}</span>
-                  </div>
-                </>
-              );
-            }
-            return (
-              <>
-                <div className="resize-handle" onMouseDown={onPane4MouseDown} />
-                {showAttrFilterPanel ? (
-                  <AttributeFilterPanel width={pane4Width} />
-                ) : showInfoPanel ? (
-                  <AttributeInfoPanel width={pane4Width} />
-                ) : null}
-              </>
-            );
-          })()}
+            )}
+          </div>
         </>
       )}
 
@@ -492,7 +370,7 @@ export function DebateTab() {
               {sessions.filter(s => selectedIds.has(s.id)).map(s => (
                 <div key={s.id} className="bulk-delete-item">
                   <span className="bulk-delete-item-title">{s.title}</span>
-                  <span className="bulk-delete-item-meta">{s.phase} &middot; {s.turn_count ?? '?'} turns</span>
+                  <span className="bulk-delete-item-meta">{s.phase} &middot; {formatDate(s.updated_at)}</span>
                 </div>
               ))}
             </div>
@@ -508,7 +386,7 @@ export function DebateTab() {
                     await deleteDebate(id);
                   }
                   setShowBulkDeleteConfirm(false);
-                  setSelectMode(false);
+                  setEditMode(false);
                   setSelectedIds(new Set());
                 }}
               >
@@ -518,6 +396,155 @@ export function DebateTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Debate Detail Summary ──
+
+function DebateDetailSummary({
+  debate,
+  onOpenWindow,
+  onExport,
+  exportStatus,
+}: {
+  debate: DebateSession;
+  onOpenWindow: () => void;
+  onExport: (format: string) => void;
+  exportStatus: string | null;
+}) {
+  const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
+  const turnCount = debate.transcript?.length ?? 0;
+  const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
+  const anEdgeCount = debate.argument_network?.edges?.length ?? 0;
+
+  return (
+    <div className="debate-detail-summary">
+      <div className="debate-detail-header">
+        <h2 className="debate-detail-title">{debate.title}</h2>
+        <span className={`debate-phase-badge phase-${debate.phase}`}>
+          {PHASE_LABELS[debate.phase] || debate.phase}
+        </span>
+      </div>
+
+      <div className="debate-detail-actions">
+        <button className="btn btn-primary" onClick={onOpenWindow}>
+          Open in Window
+        </button>
+        <button className="btn" onClick={() => onExport('json')}>Export JSON</button>
+        <button className="btn" onClick={() => onExport('markdown')}>Export Markdown</button>
+        {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
+      </div>
+
+      {/* Debaters — full width */}
+      <div className="debate-detail-debaters-row">
+        <h3>Debaters</h3>
+        <div className="debate-detail-povers">
+          {debate.active_povers.map(p => {
+            const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
+            return (
+              <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
+                {info.label}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Topic — full width, scrollable */}
+      <div className="debate-detail-topic-row">
+        <h3>Topic</h3>
+        <div className="debate-detail-topic-scroll">
+          <p className="debate-detail-topic">{topic}</p>
+          {debate.topic.refined && debate.topic.refined !== debate.topic.original && (
+            <p className="debate-detail-topic-original">
+              <span className="debate-detail-label">Original:</span> {debate.topic.original}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="debate-detail-grid">
+        <div className="debate-detail-section">
+          <h3>Source</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Type:</span>
+            <span>{SOURCE_TYPE_LABELS[debate.source_type] ?? debate.source_type}</span>
+          </div>
+          {debate.source_ref && (
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Reference:</span>
+              <span className="debate-detail-source-ref" title={debate.source_ref}>
+                {debate.source_type === 'document'
+                  ? debate.source_ref.split('/').pop()
+                  : debate.source_ref}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="debate-detail-section">
+          <h3>Statistics</h3>
+          <div className="debate-detail-stats">
+            <div className="debate-detail-stat">
+              <span className="debate-detail-stat-value">{turnCount}</span>
+              <span className="debate-detail-stat-label">Turns</span>
+            </div>
+            {anNodeCount > 0 && (
+              <div className="debate-detail-stat">
+                <span className="debate-detail-stat-value">{anNodeCount}</span>
+                <span className="debate-detail-stat-label">Arguments</span>
+              </div>
+            )}
+            {anEdgeCount > 0 && (
+              <div className="debate-detail-stat">
+                <span className="debate-detail-stat-value">{anEdgeCount}</span>
+                <span className="debate-detail-stat-label">Relations</span>
+              </div>
+            )}
+            {debate.neutral_evaluations && debate.neutral_evaluations.length > 0 && (
+              <div className="debate-detail-stat">
+                <span className="debate-detail-stat-value">{debate.neutral_evaluations.length}</span>
+                <span className="debate-detail-stat-label">Evaluations</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {debate.audience && (
+          <div className="debate-detail-section">
+            <h3>Configuration</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Audience:</span>
+              <span>{debate.audience.replace(/_/g, ' ')}</span>
+            </div>
+            {debate.debate_model && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Model:</span>
+                <span>{debate.debate_model}</span>
+              </div>
+            )}
+            {debate.protocol_id && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Protocol:</span>
+                <span>{debate.protocol_id}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="debate-detail-section">
+          <h3>Timestamps</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Created:</span>
+            <span>{formatDateLong(debate.created_at)}</span>
+          </div>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Updated:</span>
+            <span>{formatDateLong(debate.updated_at)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

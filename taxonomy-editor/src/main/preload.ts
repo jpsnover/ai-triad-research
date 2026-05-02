@@ -251,6 +251,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportDebateToFile: (session: unknown, format?: string): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-debate-to-file', session, format),
 
+  loadDebateComments: (debateId: string): Promise<unknown> =>
+    ipcRenderer.invoke('load-debate-comments', debateId),
+
+  saveDebateComments: (debateId: string, data: unknown): Promise<void> =>
+    ipcRenderer.invoke('save-debate-comments', debateId, data),
+
   // URL fetch (from main process to avoid CSP)
   fetchUrlContent: (url: string): Promise<{ content: string; error?: string }> =>
     ipcRenderer.invoke('fetch-url-content', url),

@@ -519,6 +519,23 @@ export function deleteDebateSession(id: string): void {
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
 
+export function loadDebateComments(debateId: string): unknown {
+  assertSafeId(debateId, 'debate id');
+  const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
+  if (!fs.existsSync(filePath)) {
+    return { _schema_version: '1', debateId, comments: [] };
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+}
+
+export function saveDebateComments(debateId: string, data: unknown): void {
+  assertSafeId(debateId, 'debate id');
+  const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
+  const tmpPath = filePath + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, filePath);
+}
+
 // ── Chat sessions ──
 
 function getChatsDir(): string {

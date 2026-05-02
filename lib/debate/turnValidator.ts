@@ -23,9 +23,8 @@ import type { PoverResponseMeta } from './helpers.js';
 import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers.js';
 import { checkInterventionCompliance } from './moderator.js';
 
-// ── Canonical move catalog (mirrors prompts.ts DETAIL_INSTRUCTION) ──
+// ── Canonical move catalog — 10 well-differentiated dialectical moves ──
 const MOVE_CATALOG_RAW = [
-  // Core 15 (documented in prompts.ts DIALECTICAL_MOVES)
   'DISTINGUISH',
   'COUNTEREXAMPLE',
   'CONCEDE-AND-PIVOT',
@@ -33,80 +32,108 @@ const MOVE_CATALOG_RAW = [
   'EMPIRICAL CHALLENGE',
   'EXTEND',
   'UNDERCUT',
-  'GROUND-CHECK',
-  'CONDITIONAL-AGREE',
-  'IDENTIFY-CRUX',
-  'INTEGRATE',
-  'STEEL-BUILD',
-  'EXPOSE-ASSUMPTION',
-  'BURDEN-SHIFT',
   'SPECIFY',
-  // Legacy accepted variants
-  'CONCEDE',
-  'REDUCE',
-  'ESCALATE',
-  'ASSERT',
-  // Expanded catalog — legitimate dialectical moves LLMs frequently reach for
-  'OPERATIONALIZE',
-  'CITE-AUTHORITY',
-  'ANALOGY',
-  'PROPOSE-TEST',
-  'REDUCTIO',
-  'SYNTHESIZE',
-  'CLARIFY',
-  'APPEAL-TO-EVIDENCE',
-  'ACKNOWLEDGE-PROGRESS',
-  'PROPOSE-STANDARD',
-  'RESOLVE-TENSION',
-  'FALSIFY',
-  'PRECEDENT',
-  'RETRACT',
-  'CHALLENGE',
-  'PROPOSE',
+  'INTEGRATE',
+  'BURDEN-SHIFT',
 ];
 
 function normalizeMoveName(name: string): string {
   return name.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-// Alias map: near-synonyms the AI generates → canonical catalog entry.
+// Alias map: near-synonyms and hallucinated names → one of the 10 canonical moves.
 // For multi-word aliases, both word orders are registered automatically below.
 const MOVE_ALIAS_ENTRIES: [string, string][] = [
-  ['SURFACE ASSUMPTION', 'EXPOSE ASSUMPTION'],
-  ['SURFACE CRUX', 'IDENTIFY CRUX'],
-  ['PROPOSE CRUX', 'IDENTIFY CRUX'],
-  ['CONDITIONAL CONCESSION', 'CONCEDE AND PIVOT'],
-  ['CONDITIONAL ACCEPTANCE', 'CONDITIONAL AGREE'],
-  ['MODIFY FRAMEWORK', 'REFRAME'],
-  ['STEELMAN', 'STEEL BUILD'],
-  ['PIVOT', 'CONCEDE AND PIVOT'],
-  ['PROPOSE EMPIRICAL TEST', 'PROPOSE TEST'],
-  ['PROPOSE BENCHMARK', 'PROPOSE TEST'],
-  ['PROPOSE CRITERION', 'PROPOSE STANDARD'],
-  ['PROPOSE CONVERGENCE', 'RESOLVE TENSION'],
-  ['PROPOSE SYNTHESIS', 'SYNTHESIZE'],
-  ['PROPOSE FRAMEWORK', 'REFRAME'],
-  ['EMPIRICAL BET', 'PROPOSE TEST'],
-  ['NORMATIVE JUSTIFICATION', 'APPEAL TO EVIDENCE'],
-  ['PROPOSE ADDITION', 'EXTEND'],
-  ['CONDITIONAL', 'CONDITIONAL AGREE'],
-  ['STATE ASSUMPTIONS', 'EXPOSE ASSUMPTION'],
-  ['ASSUMPTION AUDIT', 'EXPOSE ASSUMPTION'],
-  ['CITE EVIDENCE', 'APPEAL TO EVIDENCE'],
-  ['EVIDENCE', 'APPEAL TO EVIDENCE'],
+  // → DISTINGUISH
+  ['MECHANISM DISTINGUISH', 'DISTINGUISH'],
+  ['DIFFERENTIATE', 'DISTINGUISH'],
+  ['SCOPE LIMIT', 'DISTINGUISH'],
+  // → COUNTEREXAMPLE
+  ['COUNTER EXAMPLE', 'COUNTEREXAMPLE'],
   ['EXPOSE CONTRADICTION', 'COUNTEREXAMPLE'],
   ['CHALLENGE ANALOGY', 'COUNTEREXAMPLE'],
   ['ANALOGY ATTACK', 'COUNTEREXAMPLE'],
-  ['SPECIFY STANDARD', 'PROPOSE STANDARD'],
-  ['BRIDGE', 'INTEGRATE'],
+  ['REDUCTIO', 'COUNTEREXAMPLE'],
+  ['COUNTERPOINT', 'COUNTEREXAMPLE'],
+  // → CONCEDE-AND-PIVOT
+  ['CONCEDE AND PIVOT', 'CONCEDE AND PIVOT'],
+  ['CONCEDE', 'CONCEDE AND PIVOT'],
+  ['CONDITIONAL CONCESSION', 'CONCEDE AND PIVOT'],
+  ['PIVOT', 'CONCEDE AND PIVOT'],
+  ['ACKNOWLEDGE PROGRESS', 'CONCEDE AND PIVOT'],
+  ['PARTIAL CONCESSION', 'CONCEDE AND PIVOT'],
+  ['RETRACT', 'CONCEDE AND PIVOT'],
+  // → REFRAME
+  ['EXPOSE ASSUMPTION', 'REFRAME'],
+  ['SURFACE ASSUMPTION', 'REFRAME'],
+  ['STATE ASSUMPTIONS', 'REFRAME'],
+  ['ASSUMPTION AUDIT', 'REFRAME'],
+  ['CHALLENGE ASSUMPTION', 'REFRAME'],
+  ['MODIFY FRAMEWORK', 'REFRAME'],
+  ['PROPOSE FRAMEWORK', 'REFRAME'],
   ['INVERT CAUSATION', 'REFRAME'],
-  ['ANALOGICAL REASONING', 'ANALOGY'],
-  ['DEMAND EVIDENCE', 'BURDEN SHIFT'],
-  ['CHALLENGE ASSUMPTION', 'EXPOSE ASSUMPTION'],
-  ['SPECIFY FALSIFIABILITY', 'PROPOSE TEST'],
+  ['ESCALATE', 'REFRAME'],
+  ['SHIFT FRAME', 'REFRAME'],
+  // → EMPIRICAL CHALLENGE
+  ['GROUND CHECK', 'EMPIRICAL CHALLENGE'],
+  ['FACT CHECK', 'EMPIRICAL CHALLENGE'],
+  ['CITE EVIDENCE', 'EMPIRICAL CHALLENGE'],
+  ['APPEAL TO EVIDENCE', 'EMPIRICAL CHALLENGE'],
+  ['EVIDENCE', 'EMPIRICAL CHALLENGE'],
+  ['CHALLENGE EVIDENCE', 'EMPIRICAL CHALLENGE'],
+  ['NORMATIVE JUSTIFICATION', 'EMPIRICAL CHALLENGE'],
+  ['CHALLENGE', 'EMPIRICAL CHALLENGE'],
+  ['CITE AUTHORITY', 'EMPIRICAL CHALLENGE'],
+  ['PRECEDENT', 'EMPIRICAL CHALLENGE'],
+  // → EXTEND
+  ['STEEL BUILD', 'EXTEND'],
+  ['STEELMAN', 'EXTEND'],
+  ['BUILD ON', 'EXTEND'],
+  ['PROPOSE ADDITION', 'EXTEND'],
+  ['AMPLIFY', 'EXTEND'],
+  ['ELABORATE', 'EXTEND'],
+  ['ASSERT', 'EXTEND'],
+  // → UNDERCUT
+  ['REDUCE', 'UNDERCUT'],
+  ['ATTACK WARRANT', 'UNDERCUT'],
+  ['CHALLENGE REASONING', 'UNDERCUT'],
+  ['CHALLENGE LOGIC', 'UNDERCUT'],
+  // → SPECIFY
+  ['IDENTIFY CRUX', 'SPECIFY'],
+  ['SURFACE CRUX', 'SPECIFY'],
+  ['PROPOSE CRUX', 'SPECIFY'],
+  ['NARROW', 'SPECIFY'],
+  ['OPERATIONALIZE', 'SPECIFY'],
+  ['PROPOSE TEST', 'SPECIFY'],
+  ['PROPOSE BENCHMARK', 'SPECIFY'],
+  ['EMPIRICAL BET', 'SPECIFY'],
+  ['FALSIFY', 'SPECIFY'],
+  ['SPECIFY FALSIFIABILITY', 'SPECIFY'],
   ['SPECIFY REQUIREMENTS', 'SPECIFY'],
   ['THRESHOLD SPECIFY', 'SPECIFY'],
-  ['MECHANISM DISTINGUISH', 'DISTINGUISH'],
+  ['DEMAND SPECIFICATION', 'SPECIFY'],
+  ['CLARIFY', 'SPECIFY'],
+  ['PROPOSE STANDARD', 'SPECIFY'],
+  ['SPECIFY STANDARD', 'SPECIFY'],
+  ['PROPOSE CRITERION', 'SPECIFY'],
+  // → INTEGRATE
+  ['CONDITIONAL AGREE', 'INTEGRATE'],
+  ['CONDITIONAL AGREEMENT', 'INTEGRATE'],
+  ['CONDITIONAL ACCEPTANCE', 'INTEGRATE'],
+  ['CONDITIONAL', 'INTEGRATE'],
+  ['SYNTHESIZE', 'INTEGRATE'],
+  ['PROPOSE SYNTHESIS', 'INTEGRATE'],
+  ['BRIDGE', 'INTEGRATE'],
+  ['RESOLVE TENSION', 'INTEGRATE'],
+  ['PROPOSE CONVERGENCE', 'INTEGRATE'],
+  ['RECONCILE', 'INTEGRATE'],
+  ['PROPOSE', 'INTEGRATE'],
+  ['ANALOGICAL REASONING', 'INTEGRATE'],
+  ['ANALOGY', 'INTEGRATE'],
+  // → BURDEN-SHIFT
+  ['DEMAND EVIDENCE', 'BURDEN SHIFT'],
+  ['SHIFT BURDEN', 'BURDEN SHIFT'],
+  ['BURDEN OF PROOF', 'BURDEN SHIFT'],
 ];
 
 // Build alias map with automatic reverse word-order registration for 2-word aliases
@@ -213,14 +240,31 @@ function runStageA(p: ValidateTurnParams): StageAResult {
 
   const { statement, taxonomyRefs, meta, round, phase, priorTurns, knownNodeIds, policyIds } = p;
 
-  // Rule 1: move_types present (error if missing); unknown names are warnings only
+  // Rule 1: move_types present and valid — normalize to canonical 10, error on unmappable
   if (meta.move_types && meta.move_types.length > 0) {
-    const bad = meta.move_types.filter(m => !MOVE_CATALOG.has(resolveMoveName(getMoveName(m))));
-    if (bad.length > 0) {
-      const msg = `Unknown move_types: ${bad.map(m => getMoveName(m)).join(', ')} (accepted as-is).`;
-      warnings.push(msg);
+    const resolved: typeof meta.move_types = [];
+    const unmappable: string[] = [];
+    for (const m of meta.move_types) {
+      const rawName = getMoveName(m);
+      const resolvedName = resolveMoveName(rawName);
+      if (MOVE_CATALOG.has(resolvedName)) {
+        // Normalize the move to its canonical name
+        if (typeof m === 'string') {
+          resolved.push(resolvedName);
+        } else {
+          resolved.push({ ...m, move: resolvedName });
+        }
+      } else {
+        unmappable.push(rawName);
+      }
+    }
+    if (unmappable.length > 0) {
+      const msg = `Unknown move_types: ${unmappable.join(', ')}. Use ONLY the 10 canonical moves: ${MOVE_CATALOG_RAW.join(', ')}.`;
+      errors.push(msg);
       schemaIssues.push(msg);
     }
+    // Replace with normalized moves (drop unmappable)
+    meta.move_types = resolved.length > 0 ? resolved : meta.move_types;
   } else {
     const msg = 'move_types is missing or empty — declare at least one dialectical move.';
     errors.push(msg);
@@ -293,13 +337,13 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   // Rule 8: move repetition vs most recent same-agent turn (warning)
   const lastMoves = priorTurns.length > 0
     ? (((priorTurns[priorTurns.length - 1].metadata as Record<string, unknown> | undefined)?.move_types) as (string | import('./helpers').MoveAnnotation)[] | undefined)
-        ?.map(m => getMoveName(m))
+        ?.map(m => resolveMoveName(getMoveName(m)))
     : undefined;
   if (
     lastMoves && lastMoves.length > 0 &&
     meta.move_types && meta.move_types.length > 0 &&
     lastMoves.length === meta.move_types.length &&
-    lastMoves.every((m, i) => m === getMoveName(meta.move_types![i]))
+    lastMoves.every((m, i) => m === resolveMoveName(getMoveName(meta.move_types![i])))
   ) {
     const msg = `move_types repeat your previous turn exactly (${lastMoves.join(', ')}). Vary your dialectical move.`;
     warnings.push(msg);
@@ -339,7 +383,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     const resolved = meta.move_types.map(m => resolveMoveName(getMoveName(m)));
     const hasConstructive = resolved.some(m => SUPPORT_MOVES.has(m));
     if (!hasConstructive) {
-      const constructiveList = 'CONCEDE-AND-PIVOT, INTEGRATE, CONDITIONAL-AGREE, STEEL-BUILD, CONCEDE, EXTEND';
+      const constructiveList = 'CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, SPECIFY';
       const msg = `No constructive move found — include at least one of: ${constructiveList}. Convergence requires engaging with opponents' strongest points, not just attacking.`;
       if (phase === 'synthesis' || round >= 6) {
         errors.push(msg);

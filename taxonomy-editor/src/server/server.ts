@@ -455,19 +455,56 @@ post('/api/nli/classify', async (_req, res, body) => {
 
 get('/api/debates', (_req, res) => { json(res, fileIO.listDebateSessions()); });
 
+// ── Calibration parameter history ──
+get('/api/calibration/history', (_req, res) => {
+  try {
+    const { readParameterHistory, captureSnapshot } = require('@lib/debate/calibrationLogger');
+    const history = readParameterHistory(getDataRoot());
+    const current = captureSnapshot();
+    json(res, { current, history });
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/debates/:id', (req, res) => {
   try { json(res, fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
   catch (err) { error(res, String(err), 404); }
 });
 
 put('/api/debates', (_req, res, body) => {
-  try { fileIO.saveDebateSession(body); json(res, { ok: true }); }
+  try {
+    fileIO.saveDebateSession(body);
+
+    // Log calibration data if debate has synthesis (completed debate)
+    try {
+      const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
+      if (session?.transcript?.some(e => e.type === 'synthesis')) {
+        const { extractCalibrationData, appendCalibrationLog } = require('@lib/debate/calibrationLogger');
+        const dataPoint = extractCalibrationData(session, 'azure' as const);
+        appendCalibrationLog(dataPoint, getDataRoot());
+      }
+    } catch { /* calibration logging never blocks save */ }
+
+    json(res, { ok: true });
+  }
   catch (err) { error(res, String(err)); }
 });
 
 del('/api/debates/:id', (req, res) => {
   fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
   json(res, { ok: true });
+});
+
+get('/api/debates/:id/comments', (req, res) => {
+  try { json(res, fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
+  catch (err) { error(res, String(err), 404); }
+});
+
+put('/api/debates/:id/comments', (req, res, body) => {
+  try {
+    const debateId = param(req, 'id', '/api/debates/:id/comments');
+    fileIO.saveDebateComments(debateId, body);
+    json(res, { ok: true });
+  } catch (err) { error(res, String(err)); }
 });
 
 post('/api/debates/export', (_req, res, body) => {
@@ -914,7 +951,7 @@ function matchRoute(method: string, pathname: string): { handler: Handler; route
 
 type RawBodyReq = http.IncomingMessage & { __rawBody?: string };
 
-const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB — debate sessions can reach 10+ MB at 14 rounds
 
 async function readBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];

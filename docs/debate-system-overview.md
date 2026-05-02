@@ -1079,6 +1079,71 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 - **Electron UI:** `DebateWorkspace` component drives the debate via the Zustand store. The "Explain" button (per transcript entry) copies a contextualized prompt to the clipboard and opens `https://gemini.google.com/app` — a manual handoff, not an API call.
 - **Repair:** `Repair-DebateOutput.ps1` → `lib/debate/repairTranscript.ts` for post-hoc transcript repair on failed/partial runs.
 
+## Automated Parameter Calibration
+
+The debate system contains 100+ hardcoded numeric parameters. Ten are identified as highest-impact and calibrated automatically via post-debate data logging and offline optimization.
+
+### Calibration Data Flow
+
+```
+Local debates ──┐
+                 ├──→ calibration-log.json (in ai-triad-data/calibration/)
+Azure debates ──┘         │
+                          ↓
+              recalibrateParameters() ──→ provisional-weights.json
+```
+
+Each debate logs a `CalibrationDataPoint` (~1KB) with metrics from existing instrumentation — no extra LLM calls. The optimizer reads the log after 10+ entries, runs 10 algorithms (all pure arithmetic), and writes recommendations. `--apply` flag writes medium/high confidence changes to `provisional-weights.json`.
+
+### The 15 Parameters
+
+**Debate parameters (1-10):**
+
+| # | Parameter | Current | Algorithm | Data Source |
+|---|-----------|---------|-----------|-------------|
+| 1 | `exploration_exit` | 0.65 | Bucket-average quality | Neutral evaluator |
+| 2 | `relevance_threshold` | 0.45 | Directional (waste/miss rate) | Context injection manifest |
+| 3 | `attack_weights` | [1.0, 1.1, 1.2] | Concordance maximization | QBAF vs synthesis preferences |
+| 4 | `draft_temperature` | 0.7 | Composite cost minimization | Turn validator errors |
+| 5 | `saturation_weights` | 6 weights | OLS regression | Convergence signals vs quality |
+| 6 | `recent_window` | 8 | Directional (forgotten rate) | Unanswered claims ledger |
+| 7 | `gc_trigger` | 175 | Quality correlation | GC occurrence vs neutral evaluator |
+| 8 | `polarity_resolved` | 0.85 | Divergence minimization | Engine vs evaluator crux status |
+| 9 | `max_nodes_cap` | 50 | Variance-adaptive | Utilization + relevance variance |
+| 10 | `recycling_threshold` | 0.85 | Agreement maximization | Recycling vs novelty signals |
+
+**Upstream pipeline parameters (11-15):**
+
+| # | Parameter | Current | Algorithm | Data Source |
+|---|-----------|---------|-----------|-------------|
+| 11 | `cluster_min_similarity` | 0.55 | Directional (mapping ratio) | AN nodes with taxonomy refs |
+| 12 | `duplicate_similarity` | 0.85 | Near-miss rate | Claim pairs in near-miss range |
+| 13 | `fire_confidence` | 0.7 | Survival rate | Borderline claims vs refutation |
+| 14 | `cohesion_clear_theme` | 0.60 | Cohesion tracking | Branch quality in debates |
+| 15 | `kp_divisor` | 500 | Density targeting (2-5/1k) | Claims per source document words |
+
+Upstream parameters use **cross-pipeline tracking**: claims extracted during ingestion have their quality measured during debates (attack survival, taxonomy mapping). This feedback loop is the only mechanism where downstream performance improves upstream extraction.
+
+### CLI Usage
+
+```bash
+# Dry run — show recommendations without applying
+npx tsx lib/debate/calibrationOptimizer.ts ../ai-triad-data
+
+# Apply medium/high confidence changes to provisional-weights.json
+npx tsx lib/debate/calibrationOptimizer.ts ../ai-triad-data --apply
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `lib/debate/calibrationLogger.ts` | `CalibrationDataPoint` type, `extractCalibrationData()`, `appendCalibrationLog()` |
+| `lib/debate/calibrationOptimizer.ts` | 10 optimizer algorithms, `recalibrateParameters()`, CLI entry point |
+| `lib/debate/provisional-weights.json` | Active parameter values (read at debate startup) |
+| `ai-triad-data/calibration/calibration-log.json` | Accumulated data points from all debates |
+| `ai-triad-data/calibration/last-report.json` | Most recent optimization report |
+
 ## Style Guide
 
 All debate output follows the policy-reporter style: active voice, named actors, one idea per sentence, concrete examples and specific numbers over abstract categories. Every paragraph should contain at least one sentence a reporter could quote directly without rewriting. No nominalizations, no hedge stacking. Technical terms fine when load-bearing; defined on first use.

@@ -63,6 +63,17 @@ export function saveDebateSession(session: unknown): void {
   const data = session as { id: string };
   const filePath = debateFilePath(data.id);
   fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+
+  // Log calibration data for completed debates (non-blocking)
+  try {
+    const s = session as { transcript?: { type: string }[] };
+    if (s?.transcript?.some(e => e.type === 'synthesis')) {
+      const { extractCalibrationData, appendCalibrationLog } = require('@lib/debate/calibrationLogger');
+      const dataRoot = path.dirname(DEBATES_DIR); // data root is parent of debates/
+      const dataPoint = extractCalibrationData(session, 'local' as const);
+      appendCalibrationLog(dataPoint, dataRoot);
+    }
+  } catch { /* calibration logging never blocks save */ }
 }
 
 export function deleteDebateSession(id: string): void {
@@ -71,4 +82,28 @@ export function deleteDebateSession(id: string): void {
     throw new Error(`Debate session not found: ${id}`);
   }
   fs.unlinkSync(filePath);
+}
+
+// ── Debate comments ────────────────────────────────────────
+
+function commentsFilePath(debateId: string): string {
+  return path.join(DEBATES_DIR, `debate-${debateId}-comments.json`);
+}
+
+export function loadDebateComments(debateId: string): unknown {
+  ensureDebatesDir();
+  const filePath = commentsFilePath(debateId);
+  if (!fs.existsSync(filePath)) {
+    return { _schema_version: '1', debateId, comments: [] };
+  }
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(raw);
+}
+
+export function saveDebateComments(debateId: string, data: unknown): void {
+  ensureDebatesDir();
+  const filePath = commentsFilePath(debateId);
+  const tmpPath = filePath + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, filePath);
 }

@@ -455,46 +455,25 @@ export interface MoveEdgeInfo {
 }
 
 export const MOVE_EDGE_MAP: Record<string, MoveEdgeInfo> = {
+  // ── Canonical 10 dialectical moves ──
+  // Names use normalized form (spaces, uppercase) — the turn validator's
+  // resolveMoveName() maps all aliases/legacy names to these before lookup.
+
   // Support moves — create RA-nodes / "supports" edges
-  'CONCEDE':              { edgeType: 'support' },
-  'CONCEDE-AND-PIVOT':    { edgeType: 'support', dual: true },
-  'CONDITIONAL-AGREE':    { edgeType: 'support' },
+  'CONCEDE AND PIVOT':    { edgeType: 'support', dual: true },
   'INTEGRATE':            { edgeType: 'support' },
-  'STEEL-BUILD':          { edgeType: 'support' },
   'EXTEND':               { edgeType: 'support' },
-  'ACKNOWLEDGE-PROGRESS': { edgeType: 'support' },
 
   // Attack moves — create CA-nodes / "attacks" edges
   'COUNTEREXAMPLE':       { edgeType: 'attack', defaultAttackType: 'rebut' },
   'DISTINGUISH':          { edgeType: 'attack', defaultAttackType: 'rebut' },
   'UNDERCUT':             { edgeType: 'attack', defaultAttackType: 'undercut' },
   'EMPIRICAL CHALLENGE':  { edgeType: 'attack', defaultAttackType: 'undermine' },
-  'EXPOSE-ASSUMPTION':    { edgeType: 'attack', defaultAttackType: 'undercut' },
-  'BURDEN-SHIFT':         { edgeType: 'attack', defaultAttackType: 'undercut' },
+  'BURDEN SHIFT':         { edgeType: 'attack', defaultAttackType: 'undercut' },
   'REFRAME':              { edgeType: 'attack', defaultAttackType: 'rebut' },
-  'REDUCE':               { edgeType: 'attack', defaultAttackType: 'rebut' },
-  'ESCALATE':             { edgeType: 'attack', defaultAttackType: 'rebut' },
 
-  // Neutral moves — typically produce standalone claims, no directed edge
-  'IDENTIFY-CRUX':        { edgeType: 'neutral' },
+  // Neutral moves — produce standalone claims, no directed edge
   'SPECIFY':              { edgeType: 'neutral' },
-  'GROUND-CHECK':         { edgeType: 'neutral' },
-  'ASSERT':               { edgeType: 'neutral' },
-  'CLARIFY':              { edgeType: 'neutral' },
-  'OPERATIONALIZE':       { edgeType: 'neutral' },
-  'PROPOSE-TEST':         { edgeType: 'neutral' },
-  'PROPOSE-STANDARD':     { edgeType: 'neutral' },
-  'PROPOSE':              { edgeType: 'neutral' },
-  'RESOLVE-TENSION':      { edgeType: 'neutral' },
-  'CITE-AUTHORITY':       { edgeType: 'neutral' },
-  'APPEAL-TO-EVIDENCE':   { edgeType: 'neutral' },
-  'ANALOGY':              { edgeType: 'neutral' },
-  'PRECEDENT':            { edgeType: 'neutral' },
-  'SYNTHESIZE':           { edgeType: 'neutral' },
-  'RETRACT':              { edgeType: 'neutral' },
-  'CHALLENGE':            { edgeType: 'attack', defaultAttackType: 'rebut' },
-  'REDUCTIO':             { edgeType: 'attack', defaultAttackType: 'rebut' },
-  'FALSIFY':              { edgeType: 'attack', defaultAttackType: 'undermine' },
 };
 
 export const SUPPORT_MOVES = new Set(

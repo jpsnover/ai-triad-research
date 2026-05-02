@@ -12,12 +12,15 @@ import { ActionableError } from '@lib/debate/errors';
 
 async function get<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path);
-  if (!res.ok) throw new ActionableError({
-    goal: 'Fetch data from server',
-    problem: `GET ${path} failed with HTTP ${res.status}`,
-    location: 'web-bridge.get',
-    nextSteps: ['Check the server is running', 'Verify your authentication'],
-  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ActionableError({
+      goal: 'Fetch data from server',
+      problem: `GET ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'web-bridge.get',
+      nextSteps: ['Check the server is running', 'Verify your authentication'],
+    });
+  }
   return res.json();
 }
 
@@ -57,23 +60,29 @@ async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new ActionableError({
-    goal: 'Update data on server',
-    problem: `PUT ${path} failed with HTTP ${res.status}`,
-    location: 'web-bridge.put',
-    nextSteps: ['Check the server is running', 'Verify your authentication'],
-  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ActionableError({
+      goal: 'Update data on server',
+      problem: `PUT ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'web-bridge.put',
+      nextSteps: ['Check the server is running', 'Verify your authentication'],
+    });
+  }
   return res.json();
 }
 
 async function del<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path, { method: 'DELETE' });
-  if (!res.ok) throw new ActionableError({
-    goal: 'Delete data on server',
-    problem: `DELETE ${path} failed with HTTP ${res.status}`,
-    location: 'web-bridge.del',
-    nextSteps: ['Check the server is running', 'Verify your authentication'],
-  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ActionableError({
+      goal: 'Delete data on server',
+      problem: `DELETE ${path} failed with HTTP ${res.status}: ${text}`,
+      location: 'web-bridge.del',
+      nextSteps: ['Check the server is running', 'Verify your authentication'],
+    });
+  }
   return res.json();
 }
 
@@ -238,6 +247,8 @@ export const api: AppAPI = {
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
   saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
+  loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
+  saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
   exportDebateToFile: async (session, format = 'json') => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };

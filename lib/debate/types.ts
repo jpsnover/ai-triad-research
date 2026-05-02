@@ -172,20 +172,26 @@ export interface AdaptiveStagingDiagnostics {
   signal_telemetry: SignalTelemetryRecord[];
 }
 
-/** Canonical dialectical schemes (AIF-aligned). */
+/**
+ * Canonical dialectical moves — 10 well-differentiated rhetorical actions.
+ *
+ * Theoretical grounding:
+ * - Attack types (rebut/undercut/undermine): Pollock (1987, 1995)
+ * - Argumentation schemes + critical questions: Walton, Reed & Macagno (2008)
+ * - Commitment tracking: Hamblin (1970), Walton & Krabbe (1995)
+ * - Move taxonomy: engineering contribution, not derived from a single source
+ */
 export type DialecticalScheme =
-  | 'DISTINGUISH'
-  | 'COUNTEREXAMPLE'
-  | 'CONCEDE-AND-PIVOT'
-  | 'REFRAME'
-  | 'EMPIRICAL CHALLENGE'
-  | 'EXTEND'
-  | 'UNDERCUT'
-  | 'SPECIFY'
-  // Legacy dialectical moves — accept but don't prompt for these
-  | 'CONCEDE'
-  | 'REDUCE'
-  | 'ESCALATE';
+  | 'DISTINGUISH'         // Accept evidence, deny applicability to this context
+  | 'COUNTEREXAMPLE'      // Concrete case challenging a general claim
+  | 'CONCEDE-AND-PIVOT'   // Genuine concession + redirect to what it misses
+  | 'REFRAME'             // Shift frame to reveal hidden structure (subsumes EXPOSE-ASSUMPTION)
+  | 'EMPIRICAL CHALLENGE' // Dispute factual basis with counter-evidence (subsumes GROUND-CHECK)
+  | 'EXTEND'              // Build on another's point with new substance (subsumes STEEL-BUILD)
+  | 'UNDERCUT'            // Attack the warrant (reasoning link), not evidence or conclusion
+  | 'SPECIFY'             // Force falsifiable predictions / name the crux (subsumes IDENTIFY-CRUX, NARROW)
+  | 'INTEGRATE'           // Synthesize multiple perspectives into novel position (subsumes CONDITIONAL-AGREE)
+  | 'BURDEN-SHIFT';       // Challenge who bears the burden of proof
 
 /** Walton-derived argumentation scheme taxonomy for AI policy discourse (t/183). */
 export type ArgumentationScheme =

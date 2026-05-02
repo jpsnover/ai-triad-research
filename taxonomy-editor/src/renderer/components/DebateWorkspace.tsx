@@ -14,12 +14,20 @@ import { HarvestDialog } from './HarvestDialog';
 import { ReflectionsPanel } from './ReflectionsPanel';
 // DiagnosticsPanel removed — diagnostics always uses popup window
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
+import { ParameterHistoryPanel } from './ParameterHistoryPanel';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { AI_POVERS } from '@lib/debate/types';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { CommentCreationPopover } from './CommentCreationPopover';
+import type { CommentPopoverState } from './CommentCreationPopover';
+import { CommentSidebar } from './CommentSidebar';
+import { CommentHighlightedText, useEntryCommentCount } from './CommentHighlights';
+import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
+import type { Comment, DetailTier } from '@lib/debate/comments';
+import { UsernamePromptDialog } from './UsernamePromptDialog';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -28,6 +36,9 @@ interface ContextMenuState {
   selectedText: string;
   entryId: string;
   isPoverStatement: boolean;
+  tier: DetailTier;
+  startOffset: number;
+  endOffset: number;
 }
 
 const PHASE_TITLES: Record<string, string> = {
@@ -724,6 +735,8 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown remarkPlugins={[remarkGfm]}>{displayContent}</Markdown>}
       </div>
+      <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
+      <EntryCommentBadge entryId={entry.id} />
       {entry.speaker === 'system' && entry.type === 'system' && entry.content.includes('Consider exploring:') && (() => {
         const match = entry.content.match(/Consider exploring:\s*(.+)/s);
         const topic = match?.[1]?.trim();
@@ -830,10 +843,12 @@ function DebateContextMenu({
   menu,
   onClose,
   onSimilarPovSearch,
+  onComment,
 }: {
   menu: ContextMenuState;
   onClose: () => void;
   onSimilarPovSearch: (query: string) => void;
+  onComment: () => void;
 }) {
   const { factCheckSelection, debateGenerating } = useDebateStore(
     useShallow(s => ({ factCheckSelection: s.factCheckSelection, debateGenerating: s.debateGenerating }))
@@ -906,7 +921,28 @@ function DebateContextMenu({
           Fact check
         </button>
       )}
+      {menu.entryId && (
+        <button className="debate-context-menu-item" onClick={onComment}>
+          Add Comment
+        </button>
+      )}
     </div>
+  );
+}
+
+/** Small badge showing comment count on a debate entry */
+function EntryCommentBadge({ entryId }: { entryId: string }) {
+  const count = useEntryCommentCount(entryId);
+  const toggleSidebar = useCommentStore(s => s.toggleSidebar);
+  if (count === 0) return null;
+  return (
+    <button
+      className="entry-comment-badge"
+      onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
+      title={`${count} comment(s) — click to open sidebar`}
+    >
+      {count}
+    </button>
   );
 }
 
@@ -1636,7 +1672,7 @@ function DebaterToggles() {
   );
 }
 
-function DebateActions() {
+function DebateActions({ showParamHistory, setShowParamHistory }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void }) {
   const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
   );
@@ -1849,6 +1885,14 @@ function DebateActions() {
         >
           Reflections
         </button>
+        <button
+          className="btn"
+          onClick={() => setShowParamHistory(!showParamHistory)}
+          title="View calibration parameter history and current values"
+          style={{ fontSize: '0.65rem' }}
+        >
+          Calibration
+        </button>
         <div style={{ flex: 1 }} />
         <select
           className="debate-audience-select"
@@ -1932,13 +1976,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
-    diagPopoutOpen, setDiagPopoutOpen,
+    diagPopoutOpen, setDiagPopoutOpen, defaultTier,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
       runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
       diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
+      defaultTier: s.responseLength,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -1954,7 +1999,18 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   }, [setDiagPopoutOpen]);
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
+  const [showParamHistory, setShowParamHistory] = useState(false);
+  const { commentsFile, loadComments: loadDebateComments, unloadComments, sidebarOpen: commentSidebarOpen, toggleSidebar: toggleCommentSidebar } = useCommentStore();
+
+  // Load comments when debate changes
+  useEffect(() => {
+    if (activeDebate) {
+      loadDebateComments(activeDebate.id);
+    }
+    return () => unloadComments();
+  }, [activeDebate?.id, loadDebateComments, unloadComments]);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSimilarPovSearch = useCallback((query: string) => {
@@ -2089,14 +2145,38 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       node = node.parentElement;
     }
 
+    // Compute text offsets within the debate-statement-content element
+    let startOffset = 0;
+    let endOffset = selectedText.length;
+    let tier: DetailTier = 'detailed';
+    if (entryId && selection && selection.rangeCount > 0) {
+      // Find the entry in the transcript to determine the active tier
+      const entry = activeDebate?.transcript.find(e => e.id === entryId);
+      if (entry) {
+        tier = (entry as any).display_tier ?? defaultTier ?? 'detailed';
+        const displayContent = entry.summaries && tier === 'brief' ? entry.summaries.brief
+          : entry.summaries && tier === 'medium' ? entry.summaries.medium
+          : entry.content;
+        // Find the selectedText within the display content for accurate offsets
+        const idx = displayContent.indexOf(selectedText);
+        if (idx !== -1) {
+          startOffset = idx;
+          endOffset = idx + selectedText.length;
+        }
+      }
+    }
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
       selectedText,
       entryId,
       isPoverStatement,
+      tier,
+      startOffset,
+      endOffset,
     });
-  }, []);
+  }, [activeDebate?.transcript, defaultTier]);
 
   // Clarification is now user-initiated — no auto-trigger.
   // The ClarificationActions component presents the choice.
@@ -2143,6 +2223,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             Details
           </button>
         )}
+        <button
+          className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
+          onClick={toggleCommentSidebar}
+          title={commentSidebarOpen ? 'Hide comments sidebar' : 'Show comments sidebar'}
+        >
+          Comments{commentsFile?.comments.length ? ` (${commentsFile.comments.length})` : ''}
+        </button>
         {exportStatus && (
           <span className="debate-toolbar-status">{exportStatus}</span>
         )}
@@ -2290,7 +2377,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {isEditClaimsPhase && <ClaimsEditor />}
       {isOpeningPhase && <OpeningActions />}
 
-      {isDebatePhase && <DebateActions />}
+      {isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} />}
 
       {/* Neutral evaluation panel — shown when evaluations exist */}
       {activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
@@ -2298,6 +2385,11 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           evaluations={activeDebate.neutral_evaluations}
           speakerMapping={activeDebate.neutral_speaker_mapping}
         />
+      )}
+
+      {/* Parameter calibration history */}
+      {showParamHistory && (
+        <ParameterHistoryPanel onClose={() => setShowParamHistory(false)} />
       )}
 
       {/* Diagnostics always uses popup window — no inline panel */}
@@ -2308,8 +2400,36 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           menu={contextMenu}
           onClose={() => setContextMenu(null)}
           onSimilarPovSearch={handleSimilarPovSearch}
+          onComment={() => {
+            setCommentPopover({
+              x: contextMenu.x,
+              y: contextMenu.y,
+              selectedText: contextMenu.selectedText,
+              entryId: contextMenu.entryId,
+              tier: contextMenu.tier,
+              startOffset: contextMenu.startOffset,
+              endOffset: contextMenu.endOffset,
+            });
+            setContextMenu(null);
+          }}
         />
       )}
+
+      {/* Comment creation popover */}
+      {commentPopover && (
+        <CommentCreationPopover
+          popover={commentPopover}
+          onClose={() => setCommentPopover(null)}
+        />
+      )}
+
+      {/* Comment sidebar */}
+      {commentSidebarOpen && commentsFile && (
+        <CommentSidebar />
+      )}
+
+      {/* Username prompt dialog (mounted once for all comment flows) */}
+      <UsernamePromptDialog />
     </div>
   );
 }

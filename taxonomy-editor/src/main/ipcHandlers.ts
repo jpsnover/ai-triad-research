@@ -29,6 +29,8 @@ import {
   loadDebateSession,
   saveDebateSession,
   deleteDebateSession,
+  loadDebateComments,
+  saveDebateComments,
 } from './debateIO';
 import {
   listChatSessions,
@@ -622,6 +624,14 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('delete-debate-session', (_event, id: string) => {
     deleteDebateSession(id);
+  });
+
+  ipcMain.handle('load-debate-comments', (_event, debateId: string) => {
+    return loadDebateComments(debateId);
+  });
+
+  ipcMain.handle('save-debate-comments', (_event, debateId: string, data: unknown) => {
+    saveDebateComments(debateId, data);
   });
 
   // ── Chat session handlers ─���───────────────────────────

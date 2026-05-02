@@ -944,13 +944,132 @@ export async function hasGithubCredentials(): Promise<boolean> {
   return (await getCredentials()) !== null;
 }
 
+// ── Semantic JSON diff ──
+
+/**
+ * Compare a JSON file's current content against the origin/main version.
+ * Returns counts of added, modified, and deleted entries (by `id` field).
+ * Works for taxonomy files (arrays of objects with `id`) and key-based objects.
+ */
+async function computeSemanticDiff(mainRef: string, relPath: string): Promise<EditCounts | null> {
+  // Load the origin/main version via git show
+  const oldRes = await gitSafe(['show', `${mainRef}:${relPath}`]);
+  const oldContent = oldRes.ok ? oldRes.stdout : '';
+
+  // Load the current working-tree version
+  const absPath = path.join(getDataRoot(), relPath);
+  let newContent: string;
+  try {
+    newContent = fs.readFileSync(absPath, 'utf-8');
+  } catch {
+    return null;
+  }
+
+  let oldData: unknown;
+  let newData: unknown;
+  try {
+    oldData = oldContent ? JSON.parse(oldContent) : null;
+    newData = JSON.parse(newContent);
+  } catch {
+    return null; // not valid JSON
+  }
+
+  // If the file is entirely new (not in main), count all entries as added
+  if (!oldData) {
+    const count = countEntries(newData);
+    return count > 0 ? { added: count, modified: 0, deleted: 0 } : null;
+  }
+
+  return diffJsonEntries(oldData, newData);
+}
+
+/** Count entries in a JSON structure (array length or object key count). */
+function countEntries(data: unknown): number {
+  if (Array.isArray(data)) return data.length;
+  if (data && typeof data === 'object') return Object.keys(data).length;
+  return 0;
+}
+
+/**
+ * Diff two JSON structures by entry identity.
+ * - Arrays of objects: match by `id` field, then deep-compare
+ * - Plain objects: match by key, then deep-compare values
+ */
+function diffJsonEntries(oldData: unknown, newData: unknown): EditCounts | null {
+  // Both are arrays of objects with `id` fields (taxonomy nodes, edges, etc.)
+  if (Array.isArray(oldData) && Array.isArray(newData)) {
+    const hasIds = oldData.length > 0 && typeof oldData[0] === 'object' && oldData[0] !== null && 'id' in oldData[0];
+    if (hasIds) {
+      const oldMap = new Map<string, string>();
+      for (const item of oldData) {
+        if (item && typeof item === 'object' && 'id' in item) {
+          oldMap.set(String((item as { id: unknown }).id), JSON.stringify(item));
+        }
+      }
+      const newMap = new Map<string, string>();
+      for (const item of newData) {
+        if (item && typeof item === 'object' && 'id' in item) {
+          newMap.set(String((item as { id: unknown }).id), JSON.stringify(item));
+        }
+      }
+
+      let added = 0, modified = 0, deleted = 0;
+      for (const [id, json] of newMap) {
+        const old = oldMap.get(id);
+        if (!old) added++;
+        else if (old !== json) modified++;
+      }
+      for (const id of oldMap.keys()) {
+        if (!newMap.has(id)) deleted++;
+      }
+      return (added + modified + deleted) > 0 ? { added, modified, deleted } : null;
+    }
+    // Arrays without IDs: fall back to length comparison
+    const diff = newData.length - oldData.length;
+    if (diff === 0 && JSON.stringify(oldData) === JSON.stringify(newData)) return null;
+    return {
+      added: Math.max(0, diff),
+      modified: diff === 0 ? 1 : 0, // can't tell which changed — just flag it
+      deleted: Math.max(0, -diff),
+    };
+  }
+
+  // Both are plain objects (e.g., policy_actions.json keyed by ID)
+  if (oldData && newData && typeof oldData === 'object' && typeof newData === 'object'
+      && !Array.isArray(oldData) && !Array.isArray(newData)) {
+    const oldKeys = new Set(Object.keys(oldData));
+    const newKeys = new Set(Object.keys(newData));
+    let added = 0, modified = 0, deleted = 0;
+    for (const key of newKeys) {
+      if (!oldKeys.has(key)) added++;
+      else if (JSON.stringify((oldData as Record<string, unknown>)[key]) !== JSON.stringify((newData as Record<string, unknown>)[key])) modified++;
+    }
+    for (const key of oldKeys) {
+      if (!newKeys.has(key)) deleted++;
+    }
+    return (added + modified + deleted) > 0 ? { added, modified, deleted } : null;
+  }
+
+  return null;
+}
+
 // ── Diagnostics ──
+
+export interface EditCounts {
+  added: number;
+  modified: number;
+  deleted: number;
+}
 
 export interface DiagnosticsFile {
   relative_path: string;
   exists: boolean;
   size_bytes: number;
   modified_iso: string;
+  /** Single-char git status: 'M' modified, 'A' added, 'D' deleted, '?' untracked, '' clean/unknown */
+  git_status: string;
+  /** Semantic diff counts (nodes added/modified/deleted vs origin/main). Null when clean or non-diffable. */
+  edit_counts: EditCounts | null;
 }
 
 export interface DiagnosticsCommit {
@@ -1027,14 +1146,44 @@ export async function getDiagnostics(): Promise<SyncDiagnostics> {
   const taxonomyDir = path.join(taxonomyBase, activeTaxDir);
   const conflictsDir = resolveDataPath(config.conflicts_dir);
 
+  // Build a map of modified files from git status
+  const modifiedMap = new Map<string, string>();
+  if (hasGit) {
+    await serialize(async () => {
+      const mainRef = (await gitSafe(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'])).ok
+        ? 'origin/main' : 'main';
+
+      // Committed changes on the session branch vs main
+      const nameStatus = await gitSafe(['diff', '--name-status', mainRef, 'HEAD']);
+      if (nameStatus.ok && nameStatus.stdout.trim()) {
+        for (const line of nameStatus.stdout.trim().split('\n')) {
+          const [code, ...rest] = line.split('\t');
+          const p = rest.join('\t');
+          if (p) modifiedMap.set(p, code[0] || 'M');
+        }
+      }
+
+      // Working-tree changes not yet committed
+      const porcelain = await gitSafe(['status', '--porcelain']);
+      if (porcelain.ok && porcelain.stdout.trim()) {
+        for (const line of porcelain.stdout.trim().split('\n')) {
+          const code = line.slice(0, 2).trim() || 'M';
+          const p = line.slice(3).trim();
+          if (p && !modifiedMap.has(p)) modifiedMap.set(p, code[0] === '?' ? 'A' : code[0]);
+        }
+      }
+    });
+  }
+
   const files: DiagnosticsFile[] = [];
 
   const statFile = (absPath: string, relPath: string) => {
+    const gitStatus = modifiedMap.get(relPath) || '';
     try {
       const st = fs.statSync(absPath);
-      files.push({ relative_path: relPath, exists: true, size_bytes: st.size, modified_iso: st.mtime.toISOString() });
+      files.push({ relative_path: relPath, exists: true, size_bytes: st.size, modified_iso: st.mtime.toISOString(), git_status: gitStatus, edit_counts: null });
     } catch {
-      files.push({ relative_path: relPath, exists: false, size_bytes: 0, modified_iso: '' });
+      files.push({ relative_path: relPath, exists: false, size_bytes: 0, modified_iso: '', git_status: gitStatus, edit_counts: null });
     }
   };
 
@@ -1049,6 +1198,24 @@ export async function getDiagnostics(): Promise<SyncDiagnostics> {
       }
     }
   } catch { /* skip */ }
+
+  // Compute semantic edit counts for modified JSON files
+  if (hasGit) {
+    await serialize(async () => {
+      const mainRef = (await gitSafe(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'])).ok
+        ? 'origin/main' : 'main';
+
+      for (const f of files) {
+        if (!f.git_status || f.git_status === 'D' || !f.relative_path.endsWith('.json')) continue;
+        // Skip embeddings — large file, not useful for semantic diff
+        if (f.relative_path.endsWith('embeddings.json')) continue;
+
+        try {
+          f.edit_counts = await computeSemanticDiff(mainRef, f.relative_path);
+        } catch { /* skip — file may not be diffable */ }
+      }
+    });
+  }
 
   return {
     git_sync_enabled: enabled,

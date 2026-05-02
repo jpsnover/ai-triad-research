@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getSyncDiagnostics, resync, initDataRepo,
-  type SyncDiagnostics, type DiagnosticsFile,
+  getSyncDiagnostics, getSyncStatus, createPullRequest, resync, initDataRepo,
+  type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
 } from '../utils/syncApi';
 
 interface SyncDiagnosticsDialogProps {
@@ -16,6 +16,29 @@ type ActionState = { running: boolean; label: string; error: string | null; succ
 
 function StatusDot({ ok }: { ok: boolean }) {
   return <span className={`sync-diag-dot ${ok ? 'sync-diag-dot--ok' : 'sync-diag-dot--err'}`} />;
+}
+
+function FileStatusIcon({ file }: { file: DiagnosticsFile }) {
+  if (!file.exists) return <span className="file-status-icon file-status-missing" title="Missing">\u274C</span>;
+  if (file.git_status === 'D') return <span className="file-status-icon file-status-missing" title="Deleted">\u274C</span>;
+  if (file.git_status) return <span className="file-status-icon file-status-modified" title={`Modified (${file.git_status})`}>\uD83D\uDFE1</span>;
+  return <span className="file-status-icon file-status-clean" title="Clean">\u2705</span>;
+}
+
+function EditCountsCell({ counts }: { counts: EditCounts | null }) {
+  if (!counts) return <span className="sync-diag-muted">\u2014</span>;
+  const parts: string[] = [];
+  if (counts.added > 0) parts.push(`+${counts.added}`);
+  if (counts.modified > 0) parts.push(`~${counts.modified}`);
+  if (counts.deleted > 0) parts.push(`-${counts.deleted}`);
+  if (parts.length === 0) return <span className="sync-diag-muted">\u2014</span>;
+  return (
+    <span className="edit-counts" title={`${counts.added} added, ${counts.modified} modified, ${counts.deleted} deleted`}>
+      {counts.added > 0 && <span className="edit-count-added">+{counts.added}</span>}
+      {counts.modified > 0 && <span className="edit-count-modified">~{counts.modified}</span>}
+      {counts.deleted > 0 && <span className="edit-count-deleted">-{counts.deleted}</span>}
+    </span>
+  );
 }
 
 function formatBytes(bytes: number): string {
@@ -57,16 +80,23 @@ function KV({ label, children }: { label: string; children: React.ReactNode }) {
 
 export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogProps) {
   const [diag, setDiag] = useState<SyncDiagnostics | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState>({ running: false, label: '', error: null, success: null });
   const [confirmReset, setConfirmReset] = useState(false);
+  const [prFormOpen, setPrFormOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
-      setDiag(await getSyncDiagnostics());
+      const [diagData, statusData] = await Promise.all([
+        getSyncDiagnostics(),
+        getSyncStatus(),
+      ]);
+      setDiag(diagData);
+      setSyncStatus(statusData);
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -79,6 +109,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
       void refresh();
       setAction({ running: false, label: '', error: null, success: null });
       setConfirmReset(false);
+      setPrFormOpen(false);
     }
   }, [open, refresh]);
 
@@ -138,6 +169,26 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                 <span className={diag.behind_main > 0 ? 'sync-diag-behind' : ''}>-{diag.behind_main}</span>
               </KV>
               <KV label="Active Taxonomy Dir"><code>{diag.active_taxonomy_dir}</code></KV>
+              {syncStatus && syncStatus.pr_number != null && (
+                <KV label="Pull Request">
+                  <span className="sync-diag-pr-info">
+                    <a
+                      className="sync-diag-pr-link"
+                      href={syncStatus.pr_url ?? '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      #{syncStatus.pr_number}
+                    </a>
+                    <span className="sync-diag-pr-status sync-diag-pr-open">Open</span>
+                    {syncStatus.push_pending && (
+                      <span className="sync-diag-pr-push-pending" title="Local commits not yet pushed to this PR">
+                        Push pending
+                      </span>
+                    )}
+                  </span>
+                </KV>
+              )}
             </Section>
 
             {/* Data File Inventory */}
@@ -148,15 +199,17 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     <th></th>
                     <th>File</th>
                     <th>Size</th>
+                    <th>Local Edits</th>
                     <th>Modified</th>
                   </tr>
                 </thead>
                 <tbody>
                   {taxonomyFiles.map((f: DiagnosticsFile) => (
                     <tr key={f.relative_path} className={f.exists ? '' : 'sync-diag-file-missing'}>
-                      <td>{f.exists ? '\u2705' : '\u274C'}</td>
+                      <td><FileStatusIcon file={f} /></td>
                       <td><code>{f.relative_path}</code></td>
                       <td>{formatBytes(f.size_bytes)}</td>
+                      <td><EditCountsCell counts={f.edit_counts} /></td>
                       <td>{formatDate(f.modified_iso)}</td>
                     </tr>
                   ))}
@@ -169,9 +222,10 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     <tbody>
                       {conflictFiles.map((f: DiagnosticsFile) => (
                         <tr key={f.relative_path}>
-                          <td>{f.exists ? '\u2705' : '\u274C'}</td>
+                          <td><FileStatusIcon file={f} /></td>
                           <td><code>{f.relative_path}</code></td>
                           <td>{formatBytes(f.size_bytes)}</td>
+                          <td><EditCountsCell counts={f.edit_counts} /></td>
                           <td>{formatDate(f.modified_iso)}</td>
                         </tr>
                       ))}
@@ -207,6 +261,19 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
               <div className="sync-diag-actions">
                 <button
                   className="btn btn-primary btn-sm"
+                  disabled={action.running || !diag.data_root_has_git || diag.ahead_of_main === 0 || !diag.github_credentials_valid}
+                  onClick={() => setPrFormOpen(!prFormOpen)}
+                  title={
+                    !diag.github_credentials_valid ? 'GitHub credentials required'
+                    : diag.ahead_of_main === 0 ? 'No local changes to submit'
+                    : 'Create a pull request from your local changes'
+                  }
+                >
+                  Create Pull Request
+                </button>
+
+                <button
+                  className="btn btn-sm"
                   disabled={action.running || !diag.data_root_has_git}
                   onClick={() => runAction('Fetch from origin', () => resync('fetch-only'))}
                   title="Fetch latest commits from origin without changing local files"
@@ -246,9 +313,141 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                   {action.running && action.label === 'Initialize repo' ? 'Initializing...' : 'Initialize Repo'}
                 </button>
               </div>
+
+              {prFormOpen && (
+                <CreatePrForm
+                  files={taxonomyFiles.filter(f => !!f.git_status)}
+                  running={action.running && action.label === 'Create Pull Request'}
+                  onSubmit={async (title, body) => {
+                    setAction({ running: true, label: 'Create Pull Request', error: null, success: null });
+                    try {
+                      const result = await createPullRequest({ title, body });
+                      setAction({
+                        running: false, label: '', error: null,
+                        success: `PR #${result.number} ${result.created ? 'created' : 'updated'}: ${result.url}`,
+                      });
+                      setPrFormOpen(false);
+                      void refresh();
+                    } catch (err) {
+                      setAction({
+                        running: false, label: '',
+                        error: `Create Pull Request failed: ${err instanceof Error ? err.message : String(err)}`,
+                        success: null,
+                      });
+                    }
+                  }}
+                  onCancel={() => setPrFormOpen(false)}
+                />
+              )}
             </Section>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Create PR inline form (t/240) ──
+
+function generatePrTitle(files: DiagnosticsFile[]): string {
+  if (files.length === 0) return 'Data updates';
+  const names = files.map(f => f.relative_path.split('/').pop() ?? f.relative_path);
+  if (names.length <= 3) return `Update ${names.join(', ')}`;
+  return `Update ${names.slice(0, 2).join(', ')} (+${names.length - 2} more)`;
+}
+
+function generatePrBody(files: DiagnosticsFile[]): string {
+  if (files.length === 0) return '';
+  const lines: string[] = ['## Changed files\n'];
+  for (const f of files) {
+    const status = f.git_status === 'A' ? 'Added' : f.git_status === 'D' ? 'Deleted' : 'Modified';
+    let detail = `- **${f.relative_path}** — ${status}`;
+    if (f.edit_counts) {
+      const parts: string[] = [];
+      if (f.edit_counts.added > 0) parts.push(`+${f.edit_counts.added} added`);
+      if (f.edit_counts.modified > 0) parts.push(`~${f.edit_counts.modified} modified`);
+      if (f.edit_counts.deleted > 0) parts.push(`-${f.edit_counts.deleted} deleted`);
+      if (parts.length > 0) detail += ` (${parts.join(', ')})`;
+    }
+    lines.push(detail);
+  }
+  return lines.join('\n');
+}
+
+function CreatePrForm({
+  files,
+  running,
+  onSubmit,
+  onCancel,
+}: {
+  files: DiagnosticsFile[];
+  running: boolean;
+  onSubmit: (title: string, body: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(() => generatePrTitle(files));
+  const [body, setBody] = useState(() => generatePrBody(files));
+
+  return (
+    <div className="pr-form">
+      <div className="pr-form-section">
+        <label className="pr-form-label">Files to include</label>
+        <div className="pr-form-file-list">
+          {files.length === 0 ? (
+            <span className="sync-diag-muted">No modified files</span>
+          ) : (
+            files.map(f => (
+              <div key={f.relative_path} className="pr-form-file-item">
+                <FileStatusIcon file={f} />
+                <code>{f.relative_path}</code>
+                {f.edit_counts && (
+                  <span className="edit-counts" style={{ marginLeft: 'auto' }}>
+                    <EditCountsCell counts={f.edit_counts} />
+                  </span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="pr-form-section">
+        <label className="pr-form-label" htmlFor="pr-title">Title</label>
+        <input
+          id="pr-title"
+          className="pr-form-input"
+          type="text"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="PR title"
+          disabled={running}
+        />
+      </div>
+
+      <div className="pr-form-section">
+        <label className="pr-form-label" htmlFor="pr-body">Description</label>
+        <textarea
+          id="pr-body"
+          className="pr-form-textarea"
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          placeholder="PR description (Markdown)"
+          rows={6}
+          disabled={running}
+        />
+      </div>
+
+      <div className="pr-form-actions">
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={running || !title.trim()}
+          onClick={() => void onSubmit(title.trim(), body.trim())}
+        >
+          {running ? 'Creating...' : 'Submit Pull Request'}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel} disabled={running}>
+          Cancel
+        </button>
       </div>
     </div>
   );

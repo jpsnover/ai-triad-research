@@ -524,10 +524,19 @@ def cmd_query(args):
 
 
 def cmd_encode(args):
-    """Encode a single text and output its embedding vector as JSON."""
+    """Encode a single text and output its embedding vector as JSON.
+
+    Text can be passed as a positional argument or piped via stdin (use '-' or omit).
+    """
+    text = args.text
+    if text == "-":
+        text = sys.stdin.read(_MAX_STDIN_BYTES).strip()
+    if not text:
+        print("Error: no text provided", file=sys.stderr)
+        sys.exit(1)
     model = _load_model()
     vec = model.encode(
-        [args.text], normalize_embeddings=True, show_progress_bar=False
+        [text], normalize_embeddings=True, show_progress_bar=False
     )
     json.dump(vec[0].tolist(), sys.stdout)
 
@@ -791,7 +800,7 @@ def main():
 
     # encode — output raw vector for a single text
     e = sub.add_parser("encode", help="Encode a single text to an embedding vector (JSON)")
-    e.add_argument("text", help="The text to encode")
+    e.add_argument("text", nargs="?", default="-", help="The text to encode (use '-' or omit to read from stdin)")
 
     # batch-encode — encode multiple texts from stdin
     sub.add_parser("batch-encode", help="Encode multiple texts from stdin JSON [{id, text}] -> {id: vector}")
