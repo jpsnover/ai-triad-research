@@ -247,12 +247,12 @@ export function extractCalibrationData(
   }
 
   // ── Round count ──
-  const rounds = session.transcript.filter(e => e.type === 'statement').length;
+  const rounds = session.transcript.filter((e: { type: string }) => e.type === 'statement').length;
 
   // ── Parameter 6: Compression window — claims forgotten rate ──
   const ledger = session.unanswered_claims_ledger ?? [];
   const totalClaims = an?.nodes.length ?? 0;
-  const forgottenClaims = ledger.filter(c => !c.addressed_round).length;
+  const forgottenClaims = ledger.filter((c: { addressed_round?: number }) => !c.addressed_round).length;
   const claimsForgottenRate = totalClaims > 0 ? forgottenClaims / totalClaims : null;
 
   // ── Parameter 7: GC metrics ──
@@ -324,8 +324,8 @@ export function extractCalibrationData(
     // Nodes whose speaker references match taxonomy = mapped
     const mapped = an.nodes.filter((n: ArgumentNetworkNode) => {
       const entryRefs = session.transcript
-        .filter(e => e.id === n.source_entry_id)
-        .flatMap(e => e.taxonomy_refs ?? []);
+        .filter((e: { id: string }) => e.id === n.source_entry_id)
+        .flatMap((e: { taxonomy_refs?: { node_id: string }[] }) => e.taxonomy_refs ?? []);
       return entryRefs.length > 0;
     }).length;
     taxonomyMappedRatio = mapped / an.nodes.length;
@@ -340,7 +340,7 @@ export function extractCalibrationData(
       for (let j = i + 1; j < an.nodes.length; j++) {
         const a = an.nodes[i].text.toLowerCase().split(/\s+/);
         const b = an.nodes[j].text.toLowerCase().split(/\s+/);
-        const shared = a.filter(w => b.includes(w)).length;
+        const shared = a.filter((w: string) => b.includes(w)).length;
         const overlap = shared / Math.max(a.length, b.length);
         if (overlap >= 0.7 && overlap < 0.85) count++; // Near-miss range
       }
@@ -368,7 +368,7 @@ export function extractCalibrationData(
   if (an && an.nodes.length > 0) {
     const grounded = an.nodes.filter((n: ArgumentNetworkNode) => n.base_strength != null);
     if (grounded.length >= 3) {
-      avgBranchCohesion = grounded.reduce((s, n) => s + (n.base_strength ?? 0.5), 0) / grounded.length;
+      avgBranchCohesion = grounded.reduce((s: number, n: ArgumentNetworkNode) => s + (n.base_strength ?? 0.5), 0) / grounded.length;
     }
   }
 
