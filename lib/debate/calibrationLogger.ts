@@ -15,6 +15,9 @@
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import type { NeutralEvaluation } from './neutralEvaluator.js';
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 // ── Calibration data point schema ──────────────────────────
 
 export interface CalibrationDataPoint {
@@ -130,6 +133,14 @@ export interface CalibrationDataPoint {
   claims_per_1k_words: number | null;
   /** KP divisor (wordCount / divisor = key points) */
   kp_divisor: number;
+
+  // ── Parameter 16: API budget hard multiplier ──
+  /** Whether the debate was terminated by the API hard ceiling */
+  hit_api_ceiling: boolean;
+  /** Total API calls used */
+  total_api_calls: number;
+  /** Hard multiplier used (rounds × multiplier = ceiling) */
+  budget_hard_multiplier: number;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -157,6 +168,7 @@ export function extractCalibrationData(
     fireConfidenceThreshold?: number;
     cohesionClearTheme?: number;
     kpDivisor?: number;
+    budgetHardMultiplier?: number;
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -172,15 +184,39 @@ export function extractCalibrationData(
     : null;
 
   // ── Utilization rates from context injection manifests ──
+  // Manifest stores povNodeIds (injected) and povPrimaryIds (primary).
+  // Cross-reference with entry's taxonomy_refs to compute what was actually referenced.
   let totalUtil = 0, totalPrimaryUtil = 0, utilCount = 0;
   for (const entry of session.transcript) {
+    if (entry.type !== 'opening' && entry.type !== 'statement') continue;
     const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+      // New format (actual session structure)
+      povNodeIds?: string[];
+      povPrimaryIds?: string[];
+      // Legacy format (pre-existing code)
       injected_count?: number;
       referenced_count?: number;
       primary_injected?: number;
       primary_referenced?: number;
     } | undefined;
-    if (manifest?.injected_count && manifest.injected_count > 0) {
+    if (!manifest) continue;
+
+    const referencedIds = new Set((entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id));
+
+    if (manifest.povNodeIds && manifest.povNodeIds.length > 0) {
+      // New format: count array intersection
+      const injected = manifest.povNodeIds.length;
+      const referenced = manifest.povNodeIds.filter((id: string) => referencedIds.has(id)).length;
+      totalUtil += referenced / injected;
+
+      if (manifest.povPrimaryIds && manifest.povPrimaryIds.length > 0) {
+        const primaryInjected = manifest.povPrimaryIds.length;
+        const primaryReferenced = manifest.povPrimaryIds.filter((id: string) => referencedIds.has(id)).length;
+        totalPrimaryUtil += primaryReferenced / primaryInjected;
+      }
+      utilCount++;
+    } else if (manifest.injected_count && manifest.injected_count > 0) {
+      // Legacy format
       totalUtil += (manifest.referenced_count ?? 0) / manifest.injected_count;
       if (manifest.primary_injected && manifest.primary_injected > 0) {
         totalPrimaryUtil += (manifest.primary_referenced ?? 0) / manifest.primary_injected;
@@ -206,44 +242,72 @@ export function extractCalibrationData(
   }
 
   // ── QBAF concordance with synthesis preferences ──
+  // Synthesis preferences use internal claim IDs (C1, C2...) not AN IDs (AN-1, AN-2...).
+  // The argument_map maps C-IDs to claim text. We match claim text to AN nodes by word overlap.
   let concordance: number | null = null;
   const synthEntry = session.transcript.find((e: { type: string }) => e.type === 'synthesis');
   const synthMeta = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as {
-    preferences?: { prevails?: string; claim_ids?: string[] }[];
+    preferences?: { prevails?: string; claim_ids?: string[]; conflict?: string }[];
+    argument_map?: { claim_id?: string; claim?: string; claimant?: string }[];
   } | undefined;
   const an = session.argument_network;
-  if (synthMeta?.preferences && an && an.nodes.length > 0) {
+  if (synthMeta?.preferences && synthMeta.argument_map && an && an.nodes.length > 0) {
+    // Build C-ID → claim text lookup from argument_map (which is an array)
+    const argMapEntries = Array.isArray(synthMeta.argument_map) ? synthMeta.argument_map : [];
+    const claimTextById = new Map<string, string>();
+    for (const entry of argMapEntries) {
+      if (entry.claim_id && entry.claim) claimTextById.set(entry.claim_id, entry.claim);
+    }
+
+    // For each preference with 2+ claim_ids, find the best AN node match for each claim
     let matches = 0, total = 0;
     for (const pref of synthMeta.preferences) {
-      if (!pref.claim_ids || pref.claim_ids.length < 2) continue;
-      const strengths = pref.claim_ids
-        .map(id => an.nodes.find((n: ArgumentNetworkNode) => n.id === id))
-        .filter(Boolean)
-        .map(n => n!.computed_strength ?? n!.base_strength ?? 0.5);
-      if (strengths.length >= 2) {
+      if (!pref.claim_ids || pref.claim_ids.length < 2 || pref.prevails === 'undecidable') continue;
+      // Find AN nodes matching each claim by text word overlap
+      const claimStrengths: number[] = [];
+      for (const cid of pref.claim_ids) {
+        const claimText = claimTextById.get(cid);
+        if (!claimText) continue;
+        const claimWords = new Set(claimText.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+        let bestScore = 0, bestStrength = 0.5;
+        for (const node of an.nodes) {
+          const nodeWords = node.text.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+          const overlap = nodeWords.filter((w: string) => claimWords.has(w)).length / Math.max(claimWords.size, 1);
+          if (overlap > bestScore) {
+            bestScore = overlap;
+            bestStrength = node.computed_strength ?? node.base_strength ?? 0.5;
+          }
+        }
+        if (bestScore > 0.2) claimStrengths.push(bestStrength); // Only count if reasonable text match
+      }
+      if (claimStrengths.length >= 2) {
         total++;
-        // Check if the prevailing claim has the highest computed strength
-        const maxStr = Math.max(...strengths);
-        if (strengths[0] === maxStr) matches++;
+        // Does the QBAF strength ordering match the preference verdict?
+        const maxStr = Math.max(...claimStrengths);
+        if (claimStrengths[0] === maxStr) matches++;
       }
     }
     concordance = total > 0 ? matches / total : null;
   }
 
   // ── Saturation signals at transition ──
-  // Look for phase transition metadata in convergence signals
-  const convSignals = (session as any).convergence_signals as {
-    round: number;
-    saturation_score?: number;
-    signal_values?: Record<string, number>;
-  }[] | undefined;
+  // Read from adaptive_staging_diagnostics.signal_telemetry (the actual session structure)
+  const asd = (session as any).adaptive_staging_diagnostics as {
+    signal_telemetry?: {
+      round: number;
+      phase: string;
+      composite?: { saturation_score?: number; convergence_score?: number };
+      signals?: Record<string, number>;
+    }[];
+  } | undefined;
   let saturationAtTransition: number | null = null;
   let signalsAtTransition: Record<string, number> | null = null;
-  if (convSignals && convSignals.length > 0) {
-    // Find the signal closest to exploration→synthesis transition
-    const last = convSignals[convSignals.length - 1];
-    saturationAtTransition = last.saturation_score ?? null;
-    signalsAtTransition = last.signal_values ?? null;
+  if (asd?.signal_telemetry && asd.signal_telemetry.length > 0) {
+    const telemetry = asd.signal_telemetry;
+    // Find the last entry before phase changed (closest to transition)
+    const last = telemetry[telemetry.length - 1];
+    saturationAtTransition = last.composite?.saturation_score ?? null;
+    signalsAtTransition = last.signals ?? null;
   }
 
   // ── Round count ──
@@ -257,24 +321,25 @@ export function extractCalibrationData(
 
   // ── Parameter 7: GC metrics ──
   const anNodesAtSynthesis = an?.nodes.length ?? 0;
-  const gcRuns = ((session as any).gc_history as unknown[] | undefined)?.length ?? 0;
+  const gcEvents = (session as any).adaptive_staging_diagnostics?.gc_events;
+  const gcRuns = typeof gcEvents === 'number' ? gcEvents : (Array.isArray(gcEvents) ? gcEvents.length : 0);
 
   // ── Parameter 8: Crux resolution divergence ──
+  // crux_tracker on the session is an array of crux entries (not an object with .cruxes)
   let cruxDivergenceRate: number | null = null;
-  if (finalEval && (session as any).crux_tracker) {
-    const engineCruxes = ((session as any).crux_tracker?.cruxes as { id: string; status: string }[] | undefined) ?? [];
-    const evalCruxes = finalEval.cruxes;
-    if (engineCruxes.length > 0 && evalCruxes.length > 0) {
-      // Compare: how often does engine "addressed" disagree with evaluator "unaddressed" (or vice versa)?
-      let divergences = 0;
-      const minLen = Math.min(engineCruxes.length, evalCruxes.length);
-      for (let i = 0; i < minLen; i++) {
-        const engineResolved = engineCruxes[i].status === 'resolved';
-        const evalAddressed = evalCruxes[i].status === 'addressed';
-        if (engineResolved !== evalAddressed) divergences++;
-      }
-      cruxDivergenceRate = minLen > 0 ? divergences / minLen : null;
+  const rawCruxTracker = (session as any).crux_tracker;
+  const engineCruxes = Array.isArray(rawCruxTracker) ? rawCruxTracker as { id?: string; status?: string; description?: string }[] : [];
+  if (finalEval && engineCruxes.length > 0 && finalEval.cruxes.length > 0) {
+    // Compare: how often does engine crux status disagree with evaluator crux status?
+    // Since cruxes aren't ID-matched across the two, compare by position (both ordered by importance)
+    let divergences = 0;
+    const minLen = Math.min(engineCruxes.length, finalEval.cruxes.length);
+    for (let i = 0; i < minLen; i++) {
+      const engineResolved = engineCruxes[i].status === 'resolved' || engineCruxes[i].status === 'addressed';
+      const evalAddressed = finalEval.cruxes[i].status === 'addressed';
+      if (engineResolved !== evalAddressed) divergences++;
     }
+    cruxDivergenceRate = minLen > 0 ? divergences / minLen : null;
   }
 
   // ── Parameter 9: Node cap — relevance score variance ──
@@ -372,11 +437,20 @@ export function extractCalibrationData(
     }
   }
 
-  // ── Parameter 15: Extraction density — claims per source document length ──
+  // ── Parameter 15: Extraction density — claims per source document or transcript length ──
   let claimsPer1k: number | null = null;
   const docAnalysis = (session as any).document_analysis as { word_count?: number } | undefined;
   if (docAnalysis?.word_count && an && an.nodes.length > 0) {
+    // Document-sourced: claims per 1k source words
     claimsPer1k = (an.nodes.length / docAnalysis.word_count) * 1000;
+  } else if (an && an.nodes.length > 0) {
+    // Topic-sourced: claims per 1k transcript words (measures extraction density from debate text)
+    const transcriptWords = session.transcript
+      .filter((e: { type: string }) => e.type === 'opening' || e.type === 'statement')
+      .reduce((sum: number, e: { content: string }) => sum + (e.content?.split(/\s+/).length ?? 0), 0);
+    if (transcriptWords > 0) {
+      claimsPer1k = (an.nodes.length / transcriptWords) * 1000;
+    }
   }
 
   return {
@@ -384,7 +458,7 @@ export function extractCalibrationData(
     debate_id: session.id,
     timestamp: now,
     origin,
-    model: (session as any).config?.model ?? (session as any).model ?? 'unknown',
+    model: (session as any).debate_model ?? (session as any).config?.model ?? (session as any).model ?? 'unknown',
     rounds,
 
     saturation_at_transition: saturationAtTransition,
@@ -439,6 +513,12 @@ export function extractCalibrationData(
 
     claims_per_1k_words: claimsPer1k,
     kp_divisor: config.kpDivisor ?? 500,
+
+    hit_api_ceiling: session.transcript.some((e: { content: string }) =>
+      typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
+    ),
+    total_api_calls: session.diagnostics?.overview?.total_ai_calls ?? 0,
+    budget_hard_multiplier: config.budgetHardMultiplier ?? 10,
   };
 }
 
@@ -452,10 +532,6 @@ export function appendCalibrationLog(
   dataPoint: CalibrationDataPoint,
   dataRoot: string,
 ): void {
-  // Dynamic import to keep this module usable in browser contexts
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
 
   const calibDir = path.join(dataRoot, 'calibration');
   if (!fs.existsSync(calibDir)) {
@@ -485,8 +561,8 @@ export function appendCalibrationLog(
  * Read all calibration data points from the log.
  */
 export function readCalibrationLog(dataRoot: string): CalibrationDataPoint[] {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
+
+
 
   const logPath = path.join(dataRoot, 'calibration', 'calibration-log.json');
   if (!fs.existsSync(logPath)) return [];
@@ -519,6 +595,7 @@ export interface ParameterSnapshot {
   fire_confidence_threshold: number;
   cohesion_clear_theme: number;
   kp_divisor: number;
+  budget_hard_multiplier: number;
 }
 
 /** A history entry recording a parameter change event. */
@@ -541,11 +618,13 @@ export interface ParameterHistoryEntry {
 
 /** Build the current snapshot from provisional-weights.json + hardcoded defaults. */
 export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
+
+
 
   let weights: any = {};
-  const wPath = weightsPath ?? path.resolve(__dirname, '..', '..', 'lib', 'debate', 'provisional-weights.json');
+  // Resolve relative to this file — use import.meta.url for ESM compatibility
+  const thisDir = path.dirname(new URL(import.meta.url).pathname);
+  const wPath = weightsPath ?? path.resolve(thisDir, 'provisional-weights.json');
   try {
     weights = JSON.parse(fs.readFileSync(wPath, 'utf-8'));
   } catch { /* use defaults */ }
@@ -569,6 +648,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     fire_confidence_threshold: 0.7,
     cohesion_clear_theme: 0.60,
     kp_divisor: 500,
+    budget_hard_multiplier: weights?.budget?.hard_multiplier ?? 10,
   };
 }
 
@@ -584,7 +664,7 @@ export function diffSnapshots(
     'recent_window', 'gc_trigger', 'polarity_resolved', 'max_nodes_cap',
     'semantic_recycling_threshold', 'cluster_min_similarity',
     'duplicate_similarity_threshold', 'fire_confidence_threshold',
-    'cohesion_clear_theme', 'kp_divisor',
+    'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier',
   ];
   for (const key of simpleKeys) {
     if (before[key] !== after[key]) {
@@ -610,8 +690,8 @@ export function diffSnapshots(
 
 /** Read the parameter history log. */
 export function readParameterHistory(dataRoot: string): ParameterHistoryEntry[] {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
+
+
 
   const histPath = path.join(dataRoot, 'calibration', 'parameter-history.json');
   if (!fs.existsSync(histPath)) return [];
@@ -628,8 +708,8 @@ export function appendParameterHistory(
   entry: ParameterHistoryEntry,
   dataRoot: string,
 ): void {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
+
+
 
   const calibDir = path.join(dataRoot, 'calibration');
   if (!fs.existsSync(calibDir)) {

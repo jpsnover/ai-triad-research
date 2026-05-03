@@ -19,6 +19,11 @@ import {
   appendParameterHistory,
   seedInitialSnapshot,
 } from './calibrationLogger';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -654,10 +659,42 @@ function optimizeExtractionDensity(data: CalibrationDataPoint[]): OptimizationRe
   };
 }
 
+/**
+ * Parameter 16: API budget hard multiplier.
+ * If debates are hitting the ceiling, the multiplier is too low.
+ */
+function optimizeBudgetMultiplier(data: CalibrationDataPoint[]): OptimizationResult | null {
+  if (data.length < 5) return null;
+
+  const hitCount = data.filter(d => d.hit_api_ceiling).length;
+  const hitRate = hitCount / data.length;
+  const current = data[0].budget_hard_multiplier;
+  const avgCalls = data.reduce((s, d) => s + (d.total_api_calls ?? 0), 0) / data.length;
+
+  let recommended = current;
+  if (hitRate > 0.1) {
+    // >10% of debates hit the ceiling — raise multiplier
+    recommended = Math.min(20, current + 2);
+  } else if (hitRate === 0 && avgCalls < current * 5 * 0.5) {
+    // Never hits ceiling and avg calls well below soft limit — could lower
+    recommended = Math.max(6, current - 1);
+  }
+
+  return {
+    parameter: 'budget.hard_multiplier',
+    current_value: current,
+    recommended_value: recommended,
+    confidence: data.length >= 10 && hitRate > 0.15 ? 'high' : hitRate > 0.05 ? 'medium' : 'low',
+    data_points_used: data.length,
+    rationale: `Ceiling hit rate: ${(hitRate * 100).toFixed(0)}% (${hitCount}/${data.length}), avg calls: ${avgCalls.toFixed(0)}` +
+      (recommended !== current ? ` — adjusting ${current} → ${recommended}` : ' — no change needed'),
+  };
+}
+
 // ── Main orchestrator ───────────────────────────────────────
 
 /**
- * Run all 15 optimization algorithms on the calibration log.
+ * Run all 16 optimization algorithms on the calibration log.
  * Returns a report with recommendations. Optionally writes to provisional-weights.json.
  */
 export function recalibrateParameters(
@@ -696,6 +733,8 @@ export function recalibrateParameters(
     optimizeFireThreshold,
     optimizeCohesionThreshold,
     optimizeExtractionDensity,
+    // Budget (16)
+    optimizeBudgetMultiplier,
   ];
 
   for (const optimizer of optimizers) {
@@ -708,8 +747,7 @@ export function recalibrateParameters(
 
   // Apply to provisional-weights.json if requested
   if (options.apply && report.results.length > 0) {
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
+
 
     const weightsPath = options.weightsPath ??
       path.resolve(__dirname, 'provisional-weights.json');
@@ -733,6 +771,9 @@ export function recalibrateParameters(
             break;
           case 'network.gc_trigger':
             if (weights.network) weights.network.gc_trigger = result.recommended_value as number;
+            break;
+          case 'budget.hard_multiplier':
+            if (weights.budget) weights.budget.hard_multiplier = result.recommended_value as number;
             break;
           // relevance_threshold, draft_temperature, attack_weights, recent_window,
           // crux thresholds, node caps, and recycling threshold are not yet in
@@ -771,8 +812,7 @@ export function recalibrateParameters(
 
   // Write report to calibration directory
   try {
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
+
     const reportPath = path.join(dataRoot, 'calibration', 'last-report.json');
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
   } catch { /* non-critical */ }

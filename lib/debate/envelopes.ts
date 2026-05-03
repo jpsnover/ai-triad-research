@@ -111,6 +111,21 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
     : '';
 
+  // Build intervention block for plan stage
+  let interventionBlock = '';
+  const pi = input.pendingIntervention;
+  if (pi) {
+    if (pi.isTargeted) {
+      interventionBlock = `=== MODERATOR DIRECTIVE — DIRECTED AT YOU ===\nThe moderator issued a ${pi.move} intervention directed at you.${pi.directResponsePattern ? `\nDirective: ${pi.directResponsePattern}` : ''}\nYou MUST plan how to respond to this directive. Your plan must include a directive_response_plan that describes how your first paragraph will directly address the moderator's request.\n`;
+    } else {
+      interventionBlock = `=== MODERATOR DIRECTIVE — DIRECTED AT ${pi.targetDebater.toUpperCase()} ===\nThe moderator issued a ${pi.move} intervention directed at ${pi.targetDebater} (not you).\nConsider how the moderator's point relates to your own position and plan a brief acknowledgment in your opening.\n`;
+    }
+  }
+
+  const directiveField = pi
+    ? `,\n  "directive_response_plan": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"`
+    : '';
+
   return {
     layer1_static: '',
 
@@ -122,6 +137,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
       `=== SITUATION BRIEF ===\n${brief}`,
       moveHistoryBlock,
       flaggedBlock,
+      interventionBlock,
       `=== AVAILABLE DIALECTICAL MOVES ===\nCore moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
       `Plan your argumentative strategy. Consider:
 1. What is your strategic goal for this turn? What should it accomplish?
@@ -129,7 +145,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
 3. Which prior claims (by AN-ID) will you engage with?
 4. What is the structure of your argument — how will you open, develop, and close?
 5. How might opponents respond, and how does your plan account for that?
-6. What taxonomy nodes or policy evidence do you need to cite?
+6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -141,7 +157,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
   "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
-  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]
+  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]${directiveField}
 }`,
     ].filter(s => s.length > 0).join('\n\n'),
 

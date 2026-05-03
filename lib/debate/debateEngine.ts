@@ -6,6 +6,8 @@
  * Runs a full structured debate using the AIAdapter interface.
  */
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter.js';
 import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type {
@@ -78,6 +80,7 @@ import {
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
 import { extractCalibrationData, appendCalibrationLog } from './calibrationLogger.js';
+import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
@@ -373,15 +376,14 @@ export class DebateEngine {
         attackWeights: [1.0, 1.1, 1.2],
         saturationWeights: weights.saturation,
       });
-      // Resolve data root from taxonomy loader path
-      const dataRoot = path.dirname(path.dirname(
-        this.taxonomy.accelerationist ? path.resolve('.') : path.resolve('.'),
-      ));
-      if (process.env.AI_TRIAD_DATA_ROOT) {
-        appendCalibrationLog(dataPoint, process.env.AI_TRIAD_DATA_ROOT);
-      }
-    } catch {
+      // Resolve data root — env var or .aitriad.json fallback
+      const __engineDir = path.dirname(fileURLToPath(import.meta.url));
+      const repoRoot = resolveRepoRoot(__engineDir);
+      const dataRoot = resolveDataRoot(repoRoot);
+      appendCalibrationLog(dataPoint, dataRoot);
+    } catch (calErr) {
       // Calibration logging failure never blocks debate completion
+      this.warn('Calibration logging', calErr, 'Non-critical — debate results unaffected');
     }
 
     return this.session;

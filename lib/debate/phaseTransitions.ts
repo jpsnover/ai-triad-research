@@ -26,10 +26,9 @@ import {
   isConfidenceDeferred,
 } from './signalConfidence.js';
 import { needsGc, needsHardCap } from './networkGc.js';
-import * as fs from 'fs';
-import * as path from 'path';
-
 // ── Weight Loading ──────────────────────────────────────────
+// Node.js fs/path/url are only available in the main process. In the renderer
+// (Vite browser bundle) we fall through to the hardcoded defaults below.
 
 interface ProvisionalWeights {
   schema_version: number;
@@ -47,20 +46,31 @@ let _cachedWeights: ProvisionalWeights | null = null;
 export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
   if (_cachedWeights) return _cachedWeights;
 
-  const candidates = [
-    debateDir ? path.join(debateDir, 'provisional-weights.json') : null,
-    path.resolve(__dirname, 'provisional-weights.json'),
-  ].filter(Boolean) as string[];
-
-  for (const p of candidates) {
+  // Only attempt filesystem reads in Node.js (main process / server)
+  if (typeof process !== 'undefined' && process.versions?.node) {
     try {
-      const raw = fs.readFileSync(p, 'utf-8');
-      const parsed = JSON.parse(raw) as ProvisionalWeights;
-      if (parsed.schema_version === 1) {
-        _cachedWeights = parsed;
-        return parsed;
+      // Dynamic imports avoid Vite externalization errors in the renderer
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require('fs') as typeof import('fs');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require('path') as typeof import('path');
+
+      const candidates = [
+        debateDir ? path.join(debateDir, 'provisional-weights.json') : null,
+        path.resolve(__dirname, 'provisional-weights.json'),
+      ].filter(Boolean) as string[];
+
+      for (const p of candidates) {
+        try {
+          const raw = fs.readFileSync(p, 'utf-8');
+          const parsed = JSON.parse(raw) as ProvisionalWeights;
+          if (parsed.schema_version === 1) {
+            _cachedWeights = parsed;
+            return parsed;
+          }
+        } catch { /* try next candidate */ }
       }
-    } catch { /* try next candidate */ }
+    } catch { /* not in Node.js environment — fall through to defaults */ }
   }
 
   // Hardcoded fallback — PROVISIONAL pending Phase 5 validation
@@ -121,7 +131,7 @@ export function validatePhaseState(state: PhaseState): { valid: boolean; errors:
   const errors: string[] = [];
   const w = loadProvisionalWeights();
 
-  const validPhases: DebatePhase[] = ['thesis-antithesis', 'exploration', 'synthesis'];
+  const validPhases: DebatePhase[] = ['thesis-antithesis', 'exploration', 'synthesis', 'terminated'];
   if (!validPhases.includes(state.current_phase)) {
     errors.push(`Invalid phase: ${state.current_phase}`);
   }

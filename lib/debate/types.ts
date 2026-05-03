@@ -9,7 +9,7 @@ export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
  * - exploration: Middle rounds. Debaters probe deeper, find cruxes, and test edge cases.
  * - synthesis: Final rounds. Debaters identify convergence, narrow remaining disagreements, and propose integrations.
  */
-export type DebatePhase = 'thesis-antithesis' | 'exploration' | 'synthesis';
+export type DebatePhase = 'thesis-antithesis' | 'exploration' | 'synthesis' | 'terminated';
 
 /** Determine which debate phase a given round falls in.
  * @deprecated Use evaluatePhaseTransition() from phaseTransitions.ts for adaptive staging.
@@ -406,6 +406,8 @@ export interface DebateSession {
   adaptive_staging?: {
     enabled: boolean;
     pacing: 'tight' | 'moderate' | 'thorough';
+    /** Persisted phase state for GUI round-by-round execution. Initialized on first crossRespond. */
+    phase_state?: PhaseState;
   };
   /** Diagnostic data captured when diagnostics mode is enabled. */
   diagnostics?: DebateDiagnostics;
@@ -473,6 +475,14 @@ export interface DebateSession {
   adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
   /** Per-crux resolution tracking — state machine tracking crux lifecycle. Absent in pre-crux-resolution debates. */
   crux_tracker?: TrackedCrux[];
+  /** How this debate was created: 'cli' (headless runner), 'gui' (Electron app), or absent (pre-origin debates). */
+  origin?: {
+    mode: 'cli' | 'gui';
+    /** CLI-only: the command line and arguments used to launch the debate. */
+    command?: string;
+    /** CLI-only: the resolved config values. */
+    config_summary?: Record<string, unknown>;
+  };
 }
 
 export interface ConvergenceSignals {

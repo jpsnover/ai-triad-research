@@ -209,7 +209,7 @@ Your goal this phase is to PROBE DEEPER and TEST EDGE CASES. The positions are e
 - Use SPECIFY moves to force falsifiable predictions from opponents.
 - Explore edge cases and boundary conditions where positions might converge or diverge unexpectedly.
 - When you find a genuine point of agreement, NAME IT explicitly: "We agree that X. The real disagreement is Y."
-- When you partially agree, use INTEGRATE or CONDITIONAL-AGREE moves (see constructive moves below).
+- When you partially agree, use INTEGRATE moves to propose conditional agreements.
 - CONCEDE at least one opponent point per 2 turns. If an opponent made a strong argument you haven't addressed, grant it and pivot to your remaining disagreement. Debates that never concede anything are unconvincing.
 Do NOT simply restate your opening position. If you catch yourself repeating an earlier argument, stop and find a new angle.`,
 
@@ -243,16 +243,18 @@ CONSTRUCTIVE EMPHASIS — in this phase, prioritize these moves from the canonic
 
 - CONCEDE-AND-PIVOT: Lead with genuine concessions, then redirect to remaining substance.`;
 
-/** Assemble all instruction blocks — always the full set (DT-1: length tiers removed). */
+/** Assemble all instruction blocks — hard constraints first, then guidance.
+ * Order matters: LLMs attend more strongly to early instructions (primacy bias). */
 function allInstructions(phase?: DebatePhase): string {
   const blocks = [
-    TAXONOMY_USAGE,
-    MUST_CORE_BEHAVIORS,
-    SHOULD_WHEN_RELEVANT,
-    MUST_EXTENDED,
-    STEELMAN_INSTRUCTION,
-    DIALECTICAL_MOVES,
-    COUNTER_TACTICS,
+    MUST_CORE_BEHAVIORS,    // Hard constraints — read these first
+    MUST_EXTENDED,          // Hard constraints — continued
+    STEELMAN_INSTRUCTION,   // Hard constraint — steelman before critiquing
+    OUTPUT_FORMAT,          // Hard constraint — JSON schema (moved up from end)
+    DIALECTICAL_MOVES,      // Move vocabulary
+    TAXONOMY_USAGE,         // How to use injected taxonomy context
+    SHOULD_WHEN_RELEVANT,   // Soft guidance — apply when relevant
+    COUNTER_TACTICS,        // Awareness of opponent tactics
   ];
 
   // Add phase-specific instructions
@@ -262,8 +264,6 @@ function allInstructions(phase?: DebatePhase): string {
       blocks.push(CONSTRUCTIVE_MOVES);
     }
   }
-
-  blocks.push(OUTPUT_FORMAT);
 
   // Add position_update schema in synthesis phase
   if (phase === 'synthesis') {
@@ -323,13 +323,8 @@ MOVE TYPES: When constructing your response, identify which argumentative moves 
 - EMPIRICAL CHALLENGE: Disputing the factual basis of a claim — the data is wrong, outdated, misrepresented, or insufficient. Use when your disagreement is about what is true, not what matters.
 - EXTEND: Building on a point made by yourself or an ally in a previous round, adding new evidence or reasoning. Use when a prior argument was underdeveloped or needs reinforcement.
 - UNDERCUT: Attacking not the conclusion but the reasoning link between an opponent's evidence and their claim. Use when the facts may be right but the logic connecting them to the conclusion is flawed.
-- SPECIFY: Demanding the opponent operationalize their position — what evidence or condition would falsify their claim?
-- GROUND-CHECK: Verifying the shared factual basis before engaging with reasoning built on top of it.
-- CONDITIONAL-AGREE: Agreeing under specific conditions while marking where you still diverge.
-- IDENTIFY-CRUX: Isolating the single key disagreement that, if resolved, would change one side's position.
-- INTEGRATE: Synthesizing insights from multiple perspectives into a combined position.
-- STEEL-BUILD: Strengthening an opponent's argument before responding to it, to show you engage with their best case.
-- EXPOSE-ASSUMPTION: Surfacing a hidden premise that the opponent's argument depends on but hasn't stated.
+- SPECIFY: Demanding the opponent operationalize their position — what evidence or condition would falsify their claim? Includes naming the crux and narrowing disagreements.
+- INTEGRATE: Synthesizing insights from multiple perspectives into a combined or conditional position.
 - BURDEN-SHIFT: Arguing that the other side bears the burden of proof for their claim.
 
 You MUST use ONLY move types from this list — do not invent new move names. Select 1–3 that genuinely describe your argument — do not pad the list.
@@ -592,7 +587,7 @@ openings:
 
 Include a "move_types" array in your response (select 1-3 per response). Each entry is an object:
   {"move": "DISTINGUISH", "target": "AN-3", "detail": "Narrowed 'all regulation' to Section 230 liability specifically"}
-- "move" MUST be one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT. No other values are accepted.
+- "move" MUST be one of the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT. No other values are accepted.
 - "target" (optional) is the AN-ID of the prior claim this move responds to.
 - "detail" is a brief phrase explaining what you did (e.g., what you specified, what you conceded, what you challenged).`;
 
@@ -655,7 +650,7 @@ Include a "my_claims" array in your response:
   more rather than fewer; only skip a claim if it is purely rhetorical (no assertive content).
 
 TAXONOMY REFERENCES: Tag which nodes you drew from in the taxonomy_refs field, not in prose.
-Include 4–6 taxonomy_refs per response — draw from all three sections (Beliefs, Desires, Intentions) AND cite at least one sit- ID when your argument engages a contested concept from the SITUATIONS section.
+Include 3–5 taxonomy_refs per response — draw from at least two BDI sections (Beliefs, Desires, Intentions). Cite a sit-ID when your argument engages a contested concept from the SITUATIONS section.
 Three refs is too few; aim for breadth across your worldview, not just the most obvious node.
 
 ROTATE YOUR CITATIONS: If the prompt lists "YOUR RECENT CITATIONS," at least one — ideally two — of
@@ -1121,7 +1116,7 @@ export function crossRespondSelectionPrompt(
   const phaseObjective = phase === 'thesis-antithesis'
     ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence — let positions be fully articulated before seeking common ground.\n`
     : phase === 'exploration'
-    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE, CONDITIONAL-AGREE, or NARROW moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
+    ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE and SPECIFY moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
     : phase === 'synthesis'
     ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
     : '';
@@ -1208,12 +1203,12 @@ export function crossRespondPrompt(
       : '';
     refsHistoryBlock = `\n=== YOUR RECENT CITATIONS ===
 You cited these taxonomy nodes across your last 2 turns: ${recent.join(', ')}.
-REQUIRED: At least 1 — ideally 2 — of this turn's 4–6 taxonomy_refs must be node_ids NOT in that list.
+REQUIRED: At least 1 of this turn's 3–5 taxonomy_refs must be a node_id NOT in that list.
 Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}${crossPovLine}\n`;
   }
 
   const constructiveMoveList = phase && phase !== 'thesis-antithesis'
-    ? ', INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD' : '';
+    ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT' : '';
 
   const positionUpdateField = phase === 'synthesis'
     ? `\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
@@ -1262,10 +1257,16 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "policy_refs": [{"policy_id": "pol-001", "relevance": "1-2 sentences: how your argument relates to this policy"}],
   "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)",
-  "concession_considered": "accepted | declined | n/a — set to 'accepted' if you granted a point from POTENTIAL CONCESSIONS (if shown), 'declined' if you saw candidates but chose not to concede, 'n/a' if no candidates were surfaced"${positionUpdateField}
+  "concession_considered": "accepted | declined | n/a — the moderator may inject a POTENTIAL CONCESSIONS block listing opponent claims worth conceding. Set to 'accepted' if you granted one, 'declined' if you saw candidates but chose not to, 'n/a' if none were shown"${positionUpdateField}
 }
 
-"policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.`;
+"policy_refs" — for each policy from the POLICY ACTIONS section that your argument supports, opposes, or implies, explain in 1-2 sentences how your argument relates to it. Omit or leave empty if none are relevant.
+
+COMPLIANCE PRIORITY: If constraints conflict, prioritize in this order:
+1. Valid JSON matching the schema above
+2. 3-5 paragraph statement with quotable sentences
+3. Accurate claim_sketches (near-verbatim from your statement)
+4. move_types from the 10 canonical moves only`;
 }
 
 // ── 4-Stage opening pipeline prompts ─────────────────────────
@@ -1365,9 +1366,9 @@ ${otherDebaters(input.label)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
 
-${MUST_CORE_BEHAVIORS}
+OUTPUT: Respond ONLY with a JSON object (no markdown, no code fences, no preamble). Schema below.
 
-${MUST_EXTENDED}
+${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
 
@@ -1378,27 +1379,23 @@ ${brief}
 ${plan}
 
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
-Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
+Deliver your opening statement as ${input.label} — stay in character (${input.personality.split('.')[0]}). Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
 ${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
 
 Execute the argument plan above. Write your opening statement following the plan's structure.
 
-PARAGRAPH STRUCTURE: Your "statement" MUST contain 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+HARD CONSTRAINTS:
+- PARAGRAPHS: 3-5 paragraphs separated by \\n\\n. Each develops one distinct idea.
+- NODE-IDs: Never surface taxonomy node IDs in statement text. Use plain language.
+- ASSUMPTIONS: State 1-2 key assumptions your position depends on, with what changes if wrong.
+- CLAIMS: Extract 3-6 near-verbatim claims from your statement (headline + sub-claims).
+- SYMBOLS: 1-3 emoji. Tooltip format: "X is like a Y; it Z." No emoji in tooltip text.
 
-NODE-ID PROHIBITION: Never surface taxonomy node IDs in your statement text. Use plain language.
-
-State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong.
-
-CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence.
-
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
-
-Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "statement": "your opening statement text (3-5 paragraphs)",
+  "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "X is like a Y; it Z"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
@@ -1431,7 +1428,7 @@ ${draft}
 ${input.taxonomyContext}
 
 Ground the opening statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 4-6 taxonomy nodes that the statement draws from. Cover all three BDI sections (Beliefs, Desires, Intentions). For each, explain in 1-4 sentences how the node informed the argument.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1 sentence how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
 3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
 
@@ -1557,11 +1554,35 @@ export function planStagePrompt(input: StagePromptInput, brief: string): string 
     : '';
 
   const constructiveMoveList = input.phase && input.phase !== 'thesis-antithesis'
-    ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
+    ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT'
     : '';
 
   const phaseContextBlock = input.phaseContext
     ? `\n=== PHASE STATUS (adaptive) ===\n${input.phaseContext.rationale}\nProgress toward transition: ${(input.phaseContext.phase_progress * 100).toFixed(0)}%${input.phaseContext.approaching_transition ? '\n⚠ Approaching phase transition — prioritize closing open threads and crystallizing positions.' : ''}\n`
+    : '';
+
+  // Build intervention block for plan stage
+  let interventionBlock = '';
+  const pi = input.pendingIntervention;
+  if (pi) {
+    if (pi.isTargeted) {
+      interventionBlock = `
+=== MODERATOR DIRECTIVE — DIRECTED AT YOU ===
+The moderator issued a ${pi.move} intervention directed at you.
+${pi.directResponsePattern ? `\nDirective: ${pi.directResponsePattern}` : ''}
+You MUST plan how to respond to this directive. Your plan must include a directive_response_plan that describes how your first paragraph will directly address the moderator's request.
+`;
+    } else {
+      interventionBlock = `
+=== MODERATOR DIRECTIVE — DIRECTED AT ${pi.targetDebater.toUpperCase()} ===
+The moderator issued a ${pi.move} intervention directed at ${pi.targetDebater} (not you).
+Consider how the moderator's point relates to your own position and plan a brief acknowledgment in your opening.
+`;
+    }
+  }
+
+  const directiveField = pi
+    ? `,\n  "directive_response_plan": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"`
     : '';
 
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
@@ -1570,9 +1591,9 @@ Your perspective: ${input.pov}.
 
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}
 === AVAILABLE DIALECTICAL MOVES ===
-Core moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT${constructiveMoveList}
+The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 
 Each move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}
 
@@ -1582,7 +1603,7 @@ Plan your argumentative strategy. Consider:
 3. Which prior claims (by AN-ID) will you engage with?
 4. What is the structure of your argument — how will you open, develop, and close?
 5. How might opponents respond, and how does your plan account for that?
-6. What taxonomy nodes or policy evidence do you need to cite?
+6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -1594,7 +1615,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
   "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
-  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]
+  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]${directiveField}
 }`;
 }
 
@@ -1655,19 +1676,24 @@ ${phaseDirective}
 
 Execute the argument plan above. Write your debate statement following the plan's structure and moves. Stay in character as ${input.label}.
 
-PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.${pi?.isTargeted ? ' The first paragraph is your direct response to the moderator (short — 2-3 sentences max). Paragraphs 2-4 are your substantive argument.' : ''}
+PARAGRAPH STRUCTURE:
+${pi?.isTargeted
+  ? `- Paragraph 1 (exactly 2-3 sentences): Your direct response to the moderator's challenge. Address what was asked before pivoting.
+- Paragraphs 2-4 (normal depth): Your substantive argument. Each paragraph develops one distinct idea.
+- Total: 3-5 paragraphs separated by \\n\\n.`
+  : `- 3-5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea.
+- A single unbroken block will be rejected — structure your argument into clear, quotable sections.`}
 
-NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
+OUTPUT CONSTRAINTS:
+- NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
+- CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip format: "<core concept> is like a <plain-word description>, it <explain in one sentence>". No emoji in tooltip text.
 
-CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
-
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. For example, a policymaker audience might see a scales-of-justice symbol for a regulatory argument, while a general public audience might see a shield symbol for a safety argument. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explain the analogy in one sentence>"}
-
-Respond ONLY with a JSON object (no markdown, no code fences):
+Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
-  "statement": "your full debate response (3-5 paragraphs)",
+  "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<concept> is like a <word>, it <analogy>"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
@@ -1676,7 +1702,11 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "key_assumptions": [
     {"assumption": "a key assumption your argument depends on", "if_wrong": "what changes if this assumption fails"}
   ],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)",
+  "challenge_response": {"type": "evolved or consistent or conceded", "explanation": "..."}, // REQUIRED when moderator uses CHALLENGE
+  "probe_response": {"evidence_type": "empirical or precedent or theoretical or conceded_gap", "evidence": "...", "critical_question_addressed": "..."}, // REQUIRED when moderator uses PROBE
+  "clarification": {"term": "...", "definition": "...", "example": "..."}, // REQUIRED when moderator uses CLARIFY
+  "check_response": {"understood_correctly": true, "actual_target": "...", "revised_response": "..."} // REQUIRED when moderator uses CHECK${positionUpdateField}
 }`;
 }
 
@@ -1718,7 +1748,7 @@ ${draft}
 ${input.taxonomyContext}
 ${refsHistoryBlock}
 Ground the draft statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 4-6 taxonomy nodes that the statement draws from. Cover all three BDI sections (Beliefs, Desires, Intentions). For each, explain in 1-4 sentences how the node informed the argument.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1 sentence how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
 3. MOVE ANNOTATIONS: Finalize the dialectical move annotations. For each move actually executed in the statement (not just planned), provide the move name, optional AN-ID target, and a brief description.
 4. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
@@ -2660,7 +2690,8 @@ Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
 `;
 
   return `You are a debate moderator analyzing the current state of a structured debate.
-You are procedurally authoritative but not substantively neutral — your choices about what to highlight or challenge are inherently selective. You must be transparent: describe what happened in terms of observable state, not evaluation.
+
+ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Sentinel has not responded to AN-5") rather than evaluative judgments ("Sentinel's argument is weak").
 ${audienceLine}${phaseObjective}${sourceAnchorSection}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
@@ -2690,7 +2721,7 @@ Your recommendation is ADVISORY. The engine will validate it against budget, coo
 Do NOT compose the intervention text — that is a separate stage.
 Do NOT intervene just because you can — only when the debate state warrants it.
 
-Respond ONLY with a JSON object (no markdown, no code fences):
+Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
   "responder": "debater name who should speak next",
   "addressing": "debater name they should address, or 'general'",
@@ -2699,26 +2730,17 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "metaphor_reframe": false,
   "drift_detected": false,
   "intervene": false,
-  "suggested_move": null,
-  "target_debater": null,
-  "trigger_reasoning": null,
-  "trigger_evidence": null
+  "suggested_move": null,         // REQUIRED when intervene=true: one of REDIRECT, BALANCE, SEQUENCE, PIN, PROBE, CHALLENGE, CLARIFY, CHECK, SUMMARIZE, ACKNOWLEDGE, REVOICE, META-REFLECT, COMPRESS, COMMIT
+  "target_debater": null,         // REQUIRED when intervene=true: which debater the intervention targets
+  "trigger_reasoning": null,      // REQUIRED when intervene=true: why this intervention is warranted
+  "trigger_evidence": null        // REQUIRED when intervene=true: { "signal_name": "...", "observed_behavior": "...", "source_claim": "...", "source_round": null }
 }
 
-If you recommend an intervention, populate:
-{
-  "intervene": true,
-  "suggested_move": "MOVE_NAME",
-  "target_debater": "debater name",
-  "drift_detected": true,
-  "trigger_reasoning": "why this intervention is warranted — if drift, name the pattern (metaphor literalization / implementation spiral / scope creep)",
-  "trigger_evidence": {
-    "signal_name": "which signal triggered this (e.g. 'semantic_drift:metaphor_literalization')",
-    "observed_behavior": "what you observed in the transcript",
-    "source_claim": "specific claim text referenced",
-    "source_round": null
-  }
-}`;
+Example (no intervention):
+{"responder":"Sentinel","addressing":"Prometheus","focus_point":"Prometheus claimed market incentives alone produce safe AI (AN-7) but has not addressed the regulatory capture evidence Cassandra raised in round 3","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":false,"suggested_move":null,"target_debater":null,"trigger_reasoning":null,"trigger_evidence":null}
+
+Example (with intervention):
+{"responder":"Prometheus","addressing":"general","focus_point":"All three debaters have used 'alignment' with different definitions for 4 rounds","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":true,"suggested_move":"CLARIFY","target_debater":"Prometheus","trigger_reasoning":"'Alignment' has been used to mean technical value alignment (Sentinel), market alignment (Prometheus), and social alignment (Cassandra) without acknowledgment. This definitional divergence prevents substantive engagement.","trigger_evidence":{"signal_name":"term_ambiguity","observed_behavior":"Three distinct uses of 'alignment' across rounds 2-5 with no disambiguation","source_claim":"alignment","source_round":2}}`;
 }
 
 export function moderatorInterventionPrompt(

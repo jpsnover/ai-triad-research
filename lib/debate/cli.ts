@@ -198,7 +198,7 @@ async function main(): Promise<void> {
     // Build situation context
     const conflicts = loadConflicts(repoRoot);
     const conflictSummaries = conflicts
-      .filter(c => c.linked_taxonomy_nodes.includes(config.situationId!))
+      .filter(c => c.linked_taxonomy_nodes?.includes(config.situationId!))
       .map(c => `${c.claim_label}: ${c.description}`)
       .slice(0, 5);
 
@@ -317,6 +317,26 @@ async function main(): Promise<void> {
     log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
   });
 
+  // Stamp origin metadata
+  session.origin = {
+    mode: 'cli',
+    command: `npx tsx lib/debate/cli.ts --config ${configPath}${disableTurnValidation ? ' --no-turn-validation' : ''}${maxTurnRetries !== undefined ? ` --max-turn-retries ${maxTurnRetries}` : ''}`,
+    config_summary: {
+      ...(config.topic ? { topic: config.topic } : {}),
+      ...(config.docPath ? { docPath: config.docPath } : {}),
+      ...(config.url ? { url: config.url } : {}),
+      ...(config.name ? { name: config.name } : {}),
+      model: config.model ?? model,
+      rounds: config.rounds ?? 3,
+      protocol: config.protocolId ?? 'structured',
+      audience: config.audience,
+      activePovers: config.activePovers,
+      responseLength: config.responseLength ?? 'medium',
+      ...(config.temperature != null ? { temperature: config.temperature } : {}),
+      ...(config.useAdaptiveStaging ? { adaptiveStaging: true, pacing: config.pacing ?? 'moderate' } : {}),
+    },
+  };
+
   // Generate outputs
   const slug = config.slug ?? generateSlug(config.name ?? topic);
   const outputDir = path.resolve(config.outputDir ?? './debates');
@@ -394,6 +414,17 @@ async function main(): Promise<void> {
   if (outputFormat === 'json') {
     markdownPath = path.join(outputDir, `${slug}-debate.md`);
     writeOutput(markdownPath, formatDebateMarkdown(session), 'debate markdown');
+  }
+
+  // Log calibration data point (non-blocking)
+  try {
+    const { extractCalibrationData, appendCalibrationLog } = await import('./calibrationLogger.js');
+    const dataRoot = path.dirname(outputDir); // outputDir is .../debates, data root is parent
+    const dataPoint = extractCalibrationData(session, 'local');
+    appendCalibrationLog(dataPoint, dataRoot);
+    log(`Calibration data logged to ${dataRoot}/calibration/calibration-log.json`);
+  } catch (err) {
+    log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
   }
 
   const elapsed = Date.now() - startTime;

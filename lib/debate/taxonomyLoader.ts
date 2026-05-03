@@ -228,7 +228,7 @@ export function loadVocabulary(repoRoot: string): { standardized: unknown[]; col
  * Falls back to raw content if markitdown is not installed.
  */
 export async function convertToMarkdown(filePath: string): Promise<string> {
-  const resolved = path.resolve(filePath);
+  let resolved = path.resolve(filePath);
   if (!fs.existsSync(resolved)) {
     throw new ActionableError({
       goal: 'Load debate source document',
@@ -240,6 +240,29 @@ export async function convertToMarkdown(filePath: string): Promise<string> {
         'If using a relative path, ensure you are running from the repository root',
       ],
     });
+  }
+
+  // If path is a directory, look for snapshot.md or the first .md file inside
+  if (fs.statSync(resolved).isDirectory()) {
+    const snapshot = path.join(resolved, 'snapshot.md');
+    if (fs.existsSync(snapshot)) {
+      resolved = snapshot;
+    } else {
+      const mdFiles = fs.readdirSync(resolved).filter(f => f.endsWith('.md'));
+      if (mdFiles.length > 0) {
+        resolved = path.join(resolved, mdFiles[0]);
+      } else {
+        throw new ActionableError({
+          goal: 'Load debate source document',
+          problem: `Path is a directory with no .md files: ${resolved}`,
+          location: 'taxonomyLoader.convertToMarkdown',
+          nextSteps: [
+            'Point docPath to a specific file, not a directory',
+            `Add a snapshot.md file to ${resolved}`,
+          ],
+        });
+      }
+    }
   }
 
   // For .md files, just read directly
