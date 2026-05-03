@@ -478,24 +478,35 @@ function getDebatesDir(): string {
 
 export function listDebateSessions(): unknown[] {
   const dir = getDebatesDir();
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json')));
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[] = [];
-  for (const f of files) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
-      // Normalize CLI-generated filenames ({slug}-debate.json → debate-{id}.json)
-      const canonical = `debate-${raw.id}.json`;
-      if (f !== canonical) {
-        fs.renameSync(path.join(dir, f), path.join(dir, canonical));
-      }
-      summaries.push({
-        id: raw.id,
-        title: raw.title || raw.topic || 'Untitled',
-        created_at: raw.created_at || '',
-        updated_at: raw.updated_at || raw.created_at || '',
-        phase: raw.phase || 'unknown',
-      });
-    } catch { /* skip */ }
+
+  // Scan root debates dir + cli-runs subdirectory
+  const scanDirs = [dir];
+  const cliRunsDir = path.join(dir, 'cli-runs');
+  if (fs.existsSync(cliRunsDir)) scanDirs.push(cliRunsDir);
+
+  for (const scanDir of scanDirs) {
+    const files = fs.readdirSync(scanDir).filter(f => f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json')));
+    for (const f of files) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(path.join(scanDir, f), 'utf-8'));
+        // Normalize CLI-generated filenames ({slug}-debate.json → debate-{id}.json)
+        // Move cli-runs files up to the root debates dir for consistent access
+        const canonical = `debate-${raw.id}.json`;
+        const canonicalPath = path.join(dir, canonical);
+        const currentPath = path.join(scanDir, f);
+        if (currentPath !== canonicalPath) {
+          fs.renameSync(currentPath, canonicalPath);
+        }
+        summaries.push({
+          id: raw.id,
+          title: raw.title || raw.topic || 'Untitled',
+          created_at: raw.created_at || '',
+          updated_at: raw.updated_at || raw.created_at || '',
+          phase: raw.phase || 'unknown',
+        });
+      } catch { /* skip */ }
+    }
   }
   return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }

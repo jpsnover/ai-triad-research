@@ -33,6 +33,7 @@
         'Invoke-TaxonomyProposal'
         'Compare-Taxonomy'
         'Get-AITSource'
+        'Get-AITDebate'
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'
@@ -88,6 +89,7 @@
         'Normalize-Markdown'
         'Compare-DebateRuns'
         'Invoke-DebateAB'
+        'Show-OSSLicenses'
     )
 
     # Aliases exported from this module

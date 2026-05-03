@@ -86,7 +86,10 @@ function Invoke-AITDebate {
 
         [Parameter()]
         [ValidateSet(0, 1, 2)]
-        [int]$MaxTurnRetries = 2
+        [int]$MaxTurnRetries = 2,
+
+        [Parameter()]
+        [switch]$AdaptiveStaging
     )
 
     Set-StrictMode -Version Latest
@@ -111,6 +114,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     if ($Model) { $ResolvedModel = $Model }
     elseif ($env:AI_MODEL) { $ResolvedModel = $env:AI_MODEL }
     else { $ResolvedModel = 'gemini-2.5-flash' }
+    Write-Verbose "Model resolved: $ResolvedModel (source: $(if ($Model) {'parameter'} elseif ($env:AI_MODEL) {'env:AI_MODEL'} else {'default'}))"
 
     # ── Resolve output directory ──────────────────────────
     if (-not $OutputDirectory) {
@@ -121,6 +125,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
             $OutputDirectory = Join-Path $PWD 'debates'
         }
     }
+    Write-Verbose "Output directory: $OutputDirectory"
     if (-not (Test-Path $OutputDirectory)) {
         try {
             $null = New-Item -Path $OutputDirectory -ItemType Directory -Force -ErrorAction Stop
@@ -166,6 +171,13 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     }
 
     if ($ApiKey) { $Config.apiKey = $ApiKey }
+    if ($AdaptiveStaging) { $Config.useAdaptiveStaging = $true }
+
+    Write-Verbose "Config: topic='$DebateTopic' | slug=$Slug | rounds=$Rounds | protocol=$Protocol"
+    Write-Verbose "Config: debaters=$($Debaters -join ',') | responseLength=$ResponseLength | temp=$Temperature"
+    Write-Verbose "Config: clarify=$Clarify | probe=$Probe (every $ProbeEvery) | adaptiveStaging=$AdaptiveStaging"
+    if ($DisableTurnValidation) { Write-Verbose "Config: turn validation DISABLED" }
+    if ($MaxTurnRetries -ne 2) { Write-Verbose "Config: maxTurnRetries=$MaxTurnRetries" }
 
     # ── Write config temp file ────────────────────────────
     try {
@@ -193,9 +205,6 @@ Verify the file exists: Get-Item '$CliPath'
 "@
         }
 
-        Write-Verbose "Running debate CLI: npx tsx $CliPath --config $ConfigPath"
-        Write-Verbose "Model: $ResolvedModel | Rounds: $Rounds | Debaters: $($Debaters -join ', ')"
-
         # ── Run the Node.js CLI ───────────────────────────
         $StdOut  = [System.Collections.Generic.List[string]]::new()
         $StdErr  = [System.Collections.Generic.List[string]]::new()
@@ -206,6 +215,9 @@ Verify the file exists: Get-Item '$CliPath'
         if ($DisableTurnValidation) { $TvArgs += ' --no-turn-validation' }
         if ($PSBoundParameters.ContainsKey('MaxTurnRetries')) { $TvArgs += " --max-turn-retries $MaxTurnRetries" }
         $Psi.Arguments = "tsx `"$CliPath`" --config `"$ConfigPath`"$TvArgs"
+
+        Write-Verbose "CLI: npx tsx $CliPath --config $ConfigPath$TvArgs"
+        Write-Verbose "Working directory: $RepoRoot"
         $Psi.WorkingDirectory = $RepoRoot
         $Psi.RedirectStandardOutput = $true
         $Psi.RedirectStandardError  = $true
@@ -218,13 +230,58 @@ Verify the file exists: Get-Item '$CliPath'
             throw "Failed to start debate CLI process (npx tsx): $_`nVerify Node.js is installed and npx is in your PATH: npx --version"
         }
 
-        # Stream stderr for progress
+        # Stream stderr for progress — parse per-round/phase info for -Verbose
+        $CurrentRound = 0
+        $RoundStartTime = [DateTime]::UtcNow
         while (-not $Proc.StandardError.EndOfStream) {
             $Line = $Proc.StandardError.ReadLine()
-            if ($Line) {
-                $StdErr.Add($Line)
+            if (-not $Line) { continue }
+            $StdErr.Add($Line)
+
+            # Parse CLI progress lines for verbose reporting
+            if ($Line -match '\[debate-cli\]\s*\[(\w+)\]\s*(\w+)?:?\s*(.*)') {
+                $Phase = $Matches[1]
+                $Speaker = $Matches[2]
+                $Message = $Matches[3].Trim()
+
+                # Detect round transitions
+                if ($Phase -match 'round_(\d+)' -or $Message -match 'Round\s+(\d+)') {
+                    $NewRound = [int]($Matches[1])
+                    if ($NewRound -ne $CurrentRound) {
+                        if ($CurrentRound -gt 0) {
+                            $RoundElapsed = [Math]::Round(([DateTime]::UtcNow - $RoundStartTime).TotalSeconds, 1)
+                            Write-Verbose "  Round $CurrentRound completed in ${RoundElapsed}s"
+                        }
+                        $CurrentRound = $NewRound
+                        $RoundStartTime = [DateTime]::UtcNow
+                        Write-Verbose "Round $CurrentRound starting..."
+                    }
+                }
+
+                # Per-speaker turn info
+                if ($Speaker -and $Message) {
+                    $Color = switch ($Speaker.ToLower()) {
+                        'prometheus' { 'Green' }
+                        'sentinel'  { 'Red' }
+                        'cassandra' { 'Yellow' }
+                        default     { 'DarkGray' }
+                    }
+                    Write-Host "  [$Phase] $Speaker`: $Message" -ForegroundColor $Color
+                } else {
+                    Write-Host "  $Line" -ForegroundColor DarkGray
+                }
+            }
+            elseif ($Line -match '\[debate-cli\]\s*(.+)') {
+                Write-Verbose "CLI: $($Matches[1])"
+            }
+            else {
                 Write-Host $Line -ForegroundColor DarkGray
             }
+        }
+        # Final round timing
+        if ($CurrentRound -gt 0) {
+            $RoundElapsed = [Math]::Round(([DateTime]::UtcNow - $RoundStartTime).TotalSeconds, 1)
+            Write-Verbose "  Round $CurrentRound completed in ${RoundElapsed}s"
         }
 
         $StdOutText = $Proc.StandardOutput.ReadToEnd()
@@ -283,6 +340,13 @@ This usually means the CLI produced non-JSON output. Check stderr above for erro
         if (-not $Result.success) {
             throw "Debate failed: $($Result.error)"
         }
+
+        Write-Verbose "Debate complete: $($Result.stats.rounds) rounds, $($Result.stats.entries) entries, $($Result.stats.apiCalls) API calls"
+        Write-Verbose "  Time: $([Math]::Round($Result.stats.totalTimeMs / 1000, 1))s | Claims: $($Result.stats.claimsAccepted) accepted, $($Result.stats.claimsRejected) rejected"
+        Write-Verbose "  Files: debate=$($Result.files.debate)"
+        Write-Verbose "         transcript=$($Result.files.transcript)"
+        Write-Verbose "         diagnostics=$($Result.files.diagnostics)"
+        if ($Result.files.harvest) { Write-Verbose "         harvest=$($Result.files.harvest)" }
 
         # ── Return structured result ──────────────────────
         [PSCustomObject]@{

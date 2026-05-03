@@ -89,7 +89,7 @@ interface CommentStore {
     type: CommentType;
     author: string;
     textRange: TextRange;
-    body: string;
+    body?: string;
     source?: CommentSource;
   }) => Promise<Comment>;
   updateComment: (commentId: string, input: { type?: CommentType; body?: string }) => Promise<void>;
@@ -159,7 +159,9 @@ export const useCommentStore = create<CommentStore>((set, get) => {
       set({ loading: true });
       try {
         const data = await api.loadDebateComments(debateId);
-        set({ commentsFile: data as CommentsFile, loading: false });
+        const file = data as CommentsFile;
+        if (!Array.isArray(file.comments)) file.comments = [];
+        set({ commentsFile: file, loading: false });
       } catch {
         set({ commentsFile: emptyFile(debateId), loading: false });
       }

@@ -176,7 +176,7 @@ function Invoke-HierarchyProposal {
 
         # ── Phase 1.1: Cluster ───────────────────────────────────────────────
         $NodeIds = @($Bucket.Nodes | ForEach-Object { $_.id })
-        $HasEmbeddings = ($NodeIds | Where-Object { $Embeddings.ContainsKey($_) }).Count
+        $HasEmbeddings = @($NodeIds | Where-Object { $Embeddings.ContainsKey($_) }).Count
 
         $Clusters = @()
         if ($HasEmbeddings -ge 2) {
@@ -203,9 +203,10 @@ function Invoke-HierarchyProposal {
         # ── Phase 1.2: Enrich with edge evidence ────────────────────────────
         $ClusterData = [System.Collections.Generic.List[PSObject]]::new()
 
-        foreach ($ClusterIds in $Clusters) {
+        foreach ($RawCluster in $Clusters) {
+            $ClusterIds = @($RawCluster)  # ensure array even for single-node clusters
             $IdSet = [System.Collections.Generic.HashSet[string]]::new(
-                [string[]]@($ClusterIds),
+                [string[]]$ClusterIds,
                 [System.StringComparer]::OrdinalIgnoreCase
             )
 
@@ -246,7 +247,7 @@ function Invoke-HierarchyProposal {
                         $_.graph_attributes.epistemic_type
                     }
                 } | Where-Object { $_ })
-                $TypeGroups = $EpTypes | Group-Object | Sort-Object Count -Descending
+                $TypeGroups = @($EpTypes | Group-Object | Sort-Object Count -Descending)
                 if ($TypeGroups.Count -gt 0 -and $TypeGroups[0].Count -ge ($NodesWithGA.Count * 0.5)) {
                     $SharedEpistemicType = $TypeGroups[0].Name
                 }
@@ -258,7 +259,7 @@ function Invoke-HierarchyProposal {
                         if ($S) { $S -split ',\s*' }
                     }
                 } | Where-Object { $_ })
-                $StratGroups = $AllStrategies | Group-Object | Sort-Object Count -Descending
+                $StratGroups = @($AllStrategies | Group-Object | Sort-Object Count -Descending)
                 $SharedRhetorical = @($StratGroups |
                     Where-Object { $_.Count -ge ($NodesWithGA.Count * 0.4) } |
                     ForEach-Object { $_.Name })
@@ -297,7 +298,7 @@ function Invoke-HierarchyProposal {
             $Entry = [ordered]@{
                 id          = $Node.id
                 label       = $Node.label
-                description = $Node.description
+                description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
             }
             if ($Node.PSObject.Properties['graph_attributes'] -and $null -ne $Node.graph_attributes) {
                 $GA = $Node.graph_attributes
@@ -366,9 +367,9 @@ $SchemaPrompt
                 -Model       $Model `
                 -ApiKey      $ResolvedKey `
                 -Temperature $Temperature `
-                -MaxTokens   16384 `
+                -MaxTokens   65536 `
                 -JsonMode `
-                -TimeoutSec  180
+                -TimeoutSec  600
         }
         catch {
             Write-Fail "API call failed for $($Bucket.POV)/$CatLabel`: $_"
@@ -396,6 +397,7 @@ $SchemaPrompt
         }
 
         # ── Validate proposal ────────────────────────────────────────────────
+        try {
         $AssignedIds  = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
         $ParentCount  = 0
         $ChildCount   = 0
@@ -406,16 +408,19 @@ $SchemaPrompt
                 $ParentCount++
 
                 # Track promoted nodes
-                if ($Parent.promoted_from) {
+                if ($Parent.PSObject.Properties['promoted_from'] -and $Parent.promoted_from) {
                     [void]$AssignedIds.Add($Parent.promoted_from)
                 }
 
-                foreach ($Child in @($Parent.children)) {
-                    if ($AssignedIds.Contains($Child.node_id)) {
-                        Write-Warn "Duplicate assignment: $($Child.node_id)"
+                if ($Parent.PSObject.Properties['children'] -and $null -ne $Parent.children) {
+                    foreach ($Child in @($Parent.children)) {
+                        if (-not $Child -or -not $Child.PSObject.Properties['node_id'] -or -not $Child.node_id) { continue }
+                        if ($AssignedIds.Contains($Child.node_id)) {
+                            Write-Warn "Duplicate assignment: $($Child.node_id)"
+                        }
+                        [void]$AssignedIds.Add($Child.node_id)
+                        $ChildCount++
                     }
-                    [void]$AssignedIds.Add($Child.node_id)
-                    $ChildCount++
                 }
             }
         }
@@ -437,8 +442,10 @@ $SchemaPrompt
                             else { $null }
                 if (-not $ParentId) { continue }
                 $Kids = [System.Collections.Generic.List[string]]::new()
-                foreach ($Child in @($Parent.children)) {
-                    if ($Child.node_id) { $Kids.Add($Child.node_id) }
+                if ($Parent.PSObject.Properties['children'] -and $null -ne $Parent.children) {
+                    foreach ($Child in @($Parent.children)) {
+                        if ($Child -and $Child.PSObject.Properties['node_id'] -and $Child.node_id) { $Kids.Add($Child.node_id) }
+                    }
                 }
                 $AdjList[$ParentId] = $Kids
             }
@@ -454,8 +461,8 @@ $SchemaPrompt
             [void]$InStack.Add($Root)
             while ($Stack.Count -gt 0) {
                 $Frame = $Stack.Peek()
-                $Neighbors = if ($AdjList.ContainsKey($Frame.Node)) { $AdjList[$Frame.Node] } else { @() }
-                if ($Frame.Index -ge $Neighbors.Count) {
+                if ($AdjList.ContainsKey($Frame.Node)) { $Neighbors = [string[]]@($AdjList[$Frame.Node]) } else { $Neighbors = [string[]]@() }
+                if ($Frame.Index -ge $Neighbors.Length) {
                     [void]$Stack.Pop()
                     [void]$InStack.Remove($Frame.Node)
                     continue
@@ -496,6 +503,9 @@ $SchemaPrompt
         }) -Force
 
         $AllProposals.Add($Proposal)
+        } catch {
+            Write-Warn "Validation failed for $($Bucket.POV)/$CatLabel`: $($_.Exception.Message) at $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber) — skipping bucket"
+        }
     }
 
     # ── Write output ─────────────────────────────────────────────────────────
@@ -569,7 +579,9 @@ $SchemaPrompt
 
                 [void]$Md.AppendLine('| Child ID | Label | Relationship | Rationale |')
                 [void]$Md.AppendLine('|----------|-------|-------------|-----------|')
-                foreach ($Child in @($Parent.children)) {
+                $ChildList = if ($Parent.PSObject.Properties['children'] -and $null -ne $Parent.children) { @($Parent.children) } else { @() }
+                foreach ($Child in $ChildList) {
+                    if (-not $Child -or -not $Child.PSObject.Properties['node_id']) { continue }
                     # Look up child label
                     $ChildLabel = $Child.node_id
                     foreach ($PovKey in $PovFileMap.Keys) {
@@ -591,7 +603,7 @@ $SchemaPrompt
             }
         }
 
-        if ($Proposal.PSObject.Properties['outliers'] -and $Proposal.outliers.Count -gt 0) {
+        if ($Proposal.PSObject.Properties['outliers'] -and @($Proposal.outliers).Count -gt 0) {
             [void]$Md.AppendLine('### Outliers (no parent assigned)')
             [void]$Md.AppendLine('')
             [void]$Md.AppendLine('| Node ID | Label | Reason |')
@@ -612,8 +624,8 @@ $SchemaPrompt
             [void]$Md.AppendLine('')
         }
 
-        if ($Proposal._metadata.missing_nodes.Count -gt 0) {
-            [void]$Md.AppendLine("**Warning:** $($Proposal._metadata.missing_nodes.Count) nodes not assigned by AI: ``$($Proposal._metadata.missing_nodes -join '``, ``')``")
+        if (@($Proposal._metadata.missing_nodes).Count -gt 0) {
+            [void]$Md.AppendLine("**Warning:** $(@($Proposal._metadata.missing_nodes).Count) nodes not assigned by AI: ``$($Proposal._metadata.missing_nodes -join '``, ``')``")
             [void]$Md.AppendLine('')
         }
     }
@@ -628,7 +640,7 @@ $SchemaPrompt
         ReviewFile   = $ReviewFile
         BucketCount  = $AllProposals.Count
         TotalParents = ($AllProposals | ForEach-Object {
-            if ($_.PSObject.Properties['parents']) { $_.parents.Count } else { 0 }
+            if ($_.PSObject.Properties['parents']) { @($_.parents).Count } else { 0 }
         } | Measure-Object -Sum).Sum
     }
 }

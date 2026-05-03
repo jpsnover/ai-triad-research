@@ -20,6 +20,8 @@ extraResources:
     to: "ai-models.json"
   - from: "../taxonomy/schemas/"
     to: "taxonomy/schemas/"
+  - from: "THIRD-PARTY-NOTICES.txt"
+    to: "THIRD-PARTY-NOTICES.txt"
 
 mac:
   target:

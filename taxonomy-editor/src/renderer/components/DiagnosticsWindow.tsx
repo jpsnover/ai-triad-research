@@ -1569,8 +1569,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
       {node.bdi_sub_scores && <SubScoreRow node={node} onUpdateSubScore={onUpdateSubScore} />}
 
-      {/* Edges — ALWAYS visible (badge + source ID + type + scheme + warrant) */}
-      {hasChildren && (
+      {/* Edges — shown when expanded */}
+      {hasChildren && expanded && (
         <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(a => {
             const sourceNode = allNodes.find(n => n.id === a.source);
@@ -1684,16 +1684,28 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
+  const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [policyMap, setPolicyMap] = useState<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>>(new Map());
   const [allEdges, setAllEdges] = useState<TaxRefEdge[]>([]);
   const [selectedTaxRefId, setSelectedTaxRefId] = useState<string | null>(null);
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  const [textCopyMenu, setTextCopyMenu] = useState<{ x: number; y: number; text: string } | null>(null);
   // Node labels for POV Progression inline view
   const [nodeLabels, setNodeLabels] = useState<Map<string, string>>(new Map());
   // Reset detail panels whenever the selected transcript entry changes
   useEffect(() => { setSelectedTaxRefId(null); setSelectedPolicyId(null); }, [selectedEntry]);
+
+  // Dismiss text copy context menu on click-outside or Escape
+  useEffect(() => {
+    if (!textCopyMenu) return;
+    const dismiss = () => setTextCopyMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss(); };
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', onKey); };
+  }, [textCopyMenu]);
 
   const handleUpdateSubScore = useCallback((nodeId: string, key: string, value: number) => {
     setDebate(prev => {
@@ -2017,7 +2029,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 {tabs.filter(t => t.visible).map(t => (
                   <div key={t.id}>
                     <button
-                      onClick={() => { setOverviewTab(t.id); if (t.id !== 'transcript') { setSelectedEntry(null); setLocalOverride(true); } }}
+                      onClick={() => { setOverviewTab(t.id); setSelectedEntry(null); setLocalOverride(true); }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
@@ -2516,9 +2528,42 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           )}
 
           {/* Transcript list for selection */}
-          {effectiveOverviewTab === 'transcript' && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-              {debate.transcript.map((e, i) => {
+          {effectiveOverviewTab === 'transcript' && (() => {
+            const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
+            const filteredTranscript = transcriptSpeakerFilter
+              ? debate.transcript.map((e, i) => ({ e, i })).filter(({ e }) => e.speaker === transcriptSpeakerFilter)
+              : debate.transcript.map((e, i) => ({ e, i }));
+            return (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', gap: 4, padding: '4px 6px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+                <button
+                  onClick={() => setTranscriptSpeakerFilter(null)}
+                  style={{
+                    padding: '2px 8px', fontSize: '0.6rem', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
+                    border: '1px solid var(--border)',
+                    background: !transcriptSpeakerFilter ? '#f59e0b' : 'transparent',
+                    color: !transcriptSpeakerFilter ? '#000' : 'var(--text-secondary)',
+                  }}
+                >All ({debate.transcript.length})</button>
+                {speakers.map(s => {
+                  const count = debate.transcript.filter(e => e.speaker === s).length;
+                  const active = transcriptSpeakerFilter === s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setTranscriptSpeakerFilter(active ? null : s)}
+                      style={{
+                        padding: '2px 8px', fontSize: '0.6rem', fontWeight: 600, borderRadius: 4, cursor: 'pointer',
+                        border: '1px solid var(--border)',
+                        background: active ? '#f59e0b' : 'transparent',
+                        color: active ? '#000' : 'var(--text-secondary)',
+                      }}
+                    >{speakerLabel(s)} ({count})</button>
+                  );
+                })}
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+              {filteredTranscript.map(({ e, i }) => {
               const stmtId = `S${i + 1}`;
               const eMeta = e.metadata as Record<string, unknown> | undefined;
               const modT = eMeta?.moderator_trace as {
@@ -2568,7 +2613,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               );
             })}
             </div>
-          )}
+            </div>
+            );
+          })()}
           </>}
 
           {/* Entry detail — shown when a transcript entry is selected */}
@@ -2833,6 +2880,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               boxSizing: 'border-box',
+              userSelect: 'text',
             };
 
             const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => ({
@@ -2876,7 +2924,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     >Copy</button>
                   )}
                 </div>
-                <div ref={tabContentRef} tabIndex={0} style={{
+                <div ref={tabContentRef} tabIndex={0} onContextMenu={(e) => {
+                  const sel = window.getSelection()?.toString();
+                  if (sel && sel.trim().length > 0) {
+                    e.preventDefault();
+                    setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
+                  }
+                }} style={{
                   flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
@@ -2888,6 +2942,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   borderRadius: '0 6px 6px 6px',
                   padding: activeTab === 'tax-refs' ? '8px 10px' : 0,
                   outline: 'none',
+                  userSelect: 'text',
                 }}>
                   {activeTab === 'tax-refs' && (
                     taxRefCount > 0 ? (
@@ -3734,7 +3789,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             return (
                               <details key={i} style={{ margin: '4px 0' }}>
                                 <summary style={{ cursor: 'pointer' }}>
-                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'help' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                                   {outEdges.length > 0 && (
                                     <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
                                       [{edgeSummary}]
@@ -3769,7 +3824,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           })}
                           {diag.extracted_claims.rejected.map((c, i) => (
                             <div key={i} style={{ margin: '3px 0' }}>
-                              <span style={{ color: '#ef4444' }}>✗</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'help' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                               <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                             </div>
                           ))}
@@ -3778,6 +3833,47 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     </div>
                   )}
                 </div>
+                {textCopyMenu && (
+                  <div
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      position: 'fixed', left: textCopyMenu.x, top: textCopyMenu.y, zIndex: 9999,
+                      background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                      borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                      padding: '4px 0', minWidth: 120, fontSize: '0.72rem',
+                    }}
+                  >
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(textCopyMenu.text); setTextCopyMenu(null); }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '5px 12px', border: 'none', background: 'transparent',
+                        color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >Copy</button>
+                    <button
+                      onClick={() => {
+                        if (tabContentRef.current) {
+                          const range = document.createRange();
+                          range.selectNodeContents(tabContentRef.current);
+                          const sel = window.getSelection();
+                          sel?.removeAllRanges();
+                          sel?.addRange(range);
+                        }
+                        setTextCopyMenu(null);
+                      }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '5px 12px', border: 'none', background: 'transparent',
+                        color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >Select All</button>
+                  </div>
+                )}
               </div>
             );
           })()}

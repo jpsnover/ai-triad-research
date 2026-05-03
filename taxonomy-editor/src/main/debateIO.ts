@@ -28,24 +28,40 @@ function debateFilePath(id: string): string {
 
 export function listDebateSessions(): DebateSessionSummary[] {
   if (!fs.existsSync(DEBATES_DIR)) return [];
-  const files = fs.readdirSync(DEBATES_DIR).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+
+  // Scan root debates dir + cli-runs subdirectory
+  const scanDirs = [DEBATES_DIR];
+  const cliRunsDir = path.join(DEBATES_DIR, 'cli-runs');
+  if (fs.existsSync(cliRunsDir)) scanDirs.push(cliRunsDir);
+
   const summaries: DebateSessionSummary[] = [];
-  for (const f of files) {
-    try {
-      const raw = fs.readFileSync(path.join(DEBATES_DIR, f), 'utf-8');
-      const data = JSON.parse(raw);
-      summaries.push({
-        id: data.id,
-        title: data.title,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        phase: data.phase,
-      });
-    } catch {
-      // Skip corrupt files
+  for (const scanDir of scanDirs) {
+    const files = fs.readdirSync(scanDir).filter(f =>
+      f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json'))
+    );
+    for (const f of files) {
+      try {
+        const currentPath = path.join(scanDir, f);
+        const data = JSON.parse(fs.readFileSync(currentPath, 'utf-8'));
+        // Move cli-runs files to root debates dir with canonical naming
+        const canonical = `debate-${data.id}.json`;
+        const canonicalPath = path.join(DEBATES_DIR, canonical);
+        if (currentPath !== canonicalPath) {
+          fs.renameSync(currentPath, canonicalPath);
+        }
+        summaries.push({
+          id: data.id,
+          title: data.title || data.topic || 'Untitled',
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          phase: data.phase,
+        });
+      } catch {
+        // Skip corrupt files
+      }
     }
   }
-  summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
   return summaries;
 }
 
@@ -68,7 +84,7 @@ export function saveDebateSession(session: unknown): void {
   try {
     const s = session as { transcript?: { type: string }[] };
     if (s?.transcript?.some(e => e.type === 'synthesis')) {
-      const { extractCalibrationData, appendCalibrationLog } = require('@lib/debate/calibrationLogger');
+      const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
       const dataRoot = path.dirname(DEBATES_DIR); // data root is parent of debates/
       const dataPoint = extractCalibrationData(session, 'local' as const);
       appendCalibrationLog(dataPoint, dataRoot);

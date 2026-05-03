@@ -115,9 +115,63 @@ export function HighlightedInput({ value, onChange, readOnly, disabled, type, st
   );
 }
 
+/** Build formatted ReactNode[] for read-only display: line break before keywords + bold. */
+function useFormattedParts(text: string, boldKeywords: readonly string[]): ReactNode[] {
+  const { findQuery, findMode, findCaseSensitive } = useTaxonomyStore();
+
+  return useMemo(() => {
+    const searchRegex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
+    type Range = { start: number; end: number; kind: 'mark' | 'bold' };
+    const ranges: Range[] = [];
+
+    if (searchRegex) {
+      searchRegex.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      let i = 0;
+      while ((m = searchRegex.exec(text)) !== null && i < 100) {
+        if (m[0].length > 0) ranges.push({ start: m.index, end: m.index + m[0].length, kind: 'mark' });
+        else searchRegex.lastIndex++;
+        i++;
+      }
+    }
+
+    for (const kw of boldKeywords) {
+      if (!kw) continue;
+      let from = 0;
+      while (from <= text.length) {
+        const idx = text.indexOf(kw, from);
+        if (idx < 0) break;
+        ranges.push({ start: idx, end: idx + kw.length, kind: 'bold' });
+        from = idx + kw.length;
+      }
+    }
+
+    ranges.sort((a, b) => a.start - b.start || (a.kind === b.kind ? 0 : a.kind === 'mark' ? -1 : 1));
+    const parts: ReactNode[] = [];
+    let lastIndex = 0;
+    let key = 0;
+    for (const r of ranges) {
+      if (r.start < lastIndex) continue;
+      if (r.start > lastIndex) parts.push(text.slice(lastIndex, r.start));
+      const content = text.slice(r.start, r.end);
+      if (r.kind === 'mark') {
+        parts.push(<mark key={key++}>{content}</mark>);
+      } else {
+        // Line break before the bold keyword for visual separation
+        parts.push(<br key={`br-${key}`} />);
+        parts.push(<strong key={key++}>{content}</strong>);
+      }
+      lastIndex = r.end;
+    }
+    if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+    return parts;
+  }, [text, findQuery, findMode, findCaseSensitive, boldKeywords]);
+}
+
 export function HighlightedTextarea({ value, onChange, readOnly, rows, style, boldKeywords = DEFAULT_BOLD_KEYWORDS }: HighlightedTextareaProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const parts = useHighlightParts(value, boldKeywords);
+  const formattedParts = useFormattedParts(value, boldKeywords);
   const hasHighlight = parts !== null;
 
   const handleChange = useCallback(
@@ -136,6 +190,15 @@ export function HighlightedTextarea({ value, onChange, readOnly, rows, style, bo
     },
     [],
   );
+
+  // Read-only: render as formatted div with line breaks before keywords
+  if (readOnly) {
+    return (
+      <div className="hl-readonly-display" style={style}>
+        {formattedParts}
+      </div>
+    );
+  }
 
   return (
     <div className="hl-field-wrap hl-field-wrap-textarea">

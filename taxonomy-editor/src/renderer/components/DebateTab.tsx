@@ -423,7 +423,10 @@ function DebateDetailSummary({
   return (
     <div className="debate-detail-summary">
       <div className="debate-detail-header">
-        <h2 className="debate-detail-title">{debate.title}</h2>
+        <div>
+          <h2 className="debate-detail-title">{debate.title}</h2>
+          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+        </div>
         <span className={`debate-phase-badge phase-${debate.phase}`}>
           {PHASE_LABELS[debate.phase] || debate.phase}
         </span>
@@ -520,13 +523,32 @@ function DebateDetailSummary({
           </div>
         </div>
 
-        {debate.audience && (
+        {(debate.audience || debate.debate_model || debate.protocol_id || debate.origin) && (
           <div className="debate-detail-section">
             <h3>Configuration</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Audience:</span>
-              <span>{debate.audience.replace(/_/g, ' ')}</span>
-            </div>
+            {debate.origin && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Created via:</span>
+                <span>{debate.origin.mode === 'cli' ? 'CLI (headless runner)' : 'GUI (Electron app)'}</span>
+              </div>
+            )}
+            {debate.origin?.command && (
+              <div className="debate-detail-meta-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                <span className="debate-detail-label">Command:</span>
+                <code style={{
+                  fontSize: '0.72rem', padding: '6px 10px', borderRadius: 4,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  wordBreak: 'break-all', whiteSpace: 'pre-wrap', display: 'block', width: '100%',
+                  fontFamily: 'monospace',
+                }}>{debate.origin.command}</code>
+              </div>
+            )}
+            {debate.audience && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Audience:</span>
+                <span>{debate.audience.replace(/_/g, ' ')}</span>
+              </div>
+            )}
             {debate.debate_model && (
               <div className="debate-detail-meta-row">
                 <span className="debate-detail-label">Model:</span>
@@ -557,3 +579,4 @@ function DebateDetailSummary({
     </div>
   );
 }
+

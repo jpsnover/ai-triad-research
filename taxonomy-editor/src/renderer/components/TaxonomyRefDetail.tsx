@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { POV_KEYS } from '@lib/debate/types';
 
 /** Raw node shape as loaded from POV JSON files, used read-only in Diagnostics. */
@@ -259,7 +259,7 @@ function ContentTab({ node }: { node: TaxRefNode }) {
   );
 }
 
-const EDGE_TYPE_COLORS: Record<string, string> = {
+export const EDGE_TYPE_COLORS: Record<string, string> = {
   SUPPORTS: '#22c55e',
   CONTRADICTS: '#ef4444',
   ASSUMES: '#a78bfa',
@@ -269,51 +269,200 @@ const EDGE_TYPE_COLORS: Record<string, string> = {
   INTERPRETS: '#06b6d4',
 };
 
+/* ── POV filter / edge grouping (mirrors RelatedEdgesPanel UX) ─── */
+
+const POV_PREFIXES = ['acc-', 'saf-', 'skp-', 'sit-', 'cc-'] as const;
+type PovPrefix = typeof POV_PREFIXES[number];
+
+const POV_LABELS: Record<PovPrefix, string> = {
+  'acc-': 'Accelerationist',
+  'saf-': 'Safetyist',
+  'skp-': 'Skeptic',
+  'sit-': 'Situations',
+  'cc-': 'Situations',
+};
+const POV_COLOR: Record<PovPrefix, string> = {
+  'acc-': 'var(--color-acc)',
+  'saf-': 'var(--color-saf)',
+  'skp-': 'var(--color-skp)',
+  'sit-': 'var(--color-sit)',
+  'cc-': 'var(--color-sit)',
+};
+
+const EDGE_TYPE_PRIORITY = [
+  'SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
+  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS',
+];
+
+function otherNodeId(edge: TaxRefEdge, nodeId: string) {
+  return edge.source === nodeId ? edge.target : edge.source;
+}
+
+function otherPrefix(edge: TaxRefEdge, nodeId: string): PovPrefix | null {
+  const id = otherNodeId(edge, nodeId);
+  return POV_PREFIXES.find(p => id.startsWith(p)) ?? null;
+}
+
+function TaxRefEdgeGroup({
+  edgeType, edges, nodeId,
+}: {
+  edgeType: string; edges: TaxRefEdge[]; nodeId: string;
+}) {
+  const [collapsed, setCollapsed] = useState(true);
+  const typeColor = EDGE_TYPE_COLORS[edgeType] || 'var(--text-secondary)';
+
+  return (
+    <div className="related-edge-group">
+      <div className="related-edge-group-header" onClick={() => setCollapsed(!collapsed)}>
+        <span className="related-edge-group-toggle">{collapsed ? '\u25B6' : '\u25BC'}</span>
+        <span className="related-edge-type-name">{edgeType.replace(/_/g, ' ')}</span>
+        <span className="related-edge-type-count">{edges.length}</span>
+      </div>
+      {!collapsed && edges.map((e, i) => {
+        const other = otherNodeId(e, nodeId);
+        const direction = e.bidirectional ? '\u2194' : e.source === nodeId ? '\u2192' : '\u2190';
+        return (
+          <div key={i} style={{
+            padding: '6px 10px', borderBottom: '1px solid var(--border)',
+            fontSize: '0.78rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
+              <span style={chipStyle}>{other}</span>
+              {e.strength && (
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({e.strength})</span>
+              )}
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                c{(e.confidence * 100).toFixed(0)}%
+              </span>
+            </div>
+            {e.rationale && (
+              <div style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: '0.72rem', lineHeight: 1.45 }}>
+                {e.rationale}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string; edges?: TaxRefEdge[] }) {
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
+  const [hiddenPovs, setHiddenPovs] = useState<Set<PovPrefix>>(new Set());
+
+  const togglePov = useCallback((prefix: PovPrefix) => {
+    setHiddenPovs(prev => {
+      const next = new Set(prev);
+      if (next.has(prefix)) next.delete(prefix); else next.add(prefix);
+      return next;
+    });
+  }, []);
+
+  // POV counts (after status/confidence filter, before POV filter)
+  const povCounts = useMemo(() => {
+    const counts: Record<PovPrefix, number> = { 'acc-': 0, 'saf-': 0, 'skp-': 0, 'sit-': 0, 'cc-': 0 };
+    if (!edges) return counts;
+    for (const e of edges) {
+      if (statusFilter && e.status !== statusFilter) continue;
+      if (e.confidence < confidenceThreshold) continue;
+      const p = otherPrefix(e, nodeId);
+      if (p) counts[p]++;
+    }
+    // Merge cc- into sit-
+    counts['sit-'] += counts['cc-'];
+    return counts;
+  }, [edges, nodeId, statusFilter, confidenceThreshold]);
+
+  // Group edges by type with filters applied
+  const { groupedEdges, totalEdges } = useMemo(() => {
+    if (!edges) return { groupedEdges: new Map<string, TaxRefEdge[]>(), totalEdges: 0 };
+    const groups = new Map<string, TaxRefEdge[]>();
+    let total = 0;
+    for (const e of edges) {
+      if (statusFilter && e.status !== statusFilter) continue;
+      if (e.confidence < confidenceThreshold) continue;
+      const p = otherPrefix(e, nodeId);
+      if (p && (hiddenPovs.has(p) || (p === 'cc-' && hiddenPovs.has('sit-')))) continue;
+      const arr = groups.get(e.type);
+      if (arr) arr.push(e); else groups.set(e.type, [e]);
+      total++;
+    }
+    // Sort within groups by confidence desc
+    for (const arr of groups.values()) arr.sort((a, b) => b.confidence - a.confidence);
+    // Sort groups by priority
+    const sorted = new Map<string, TaxRefEdge[]>();
+    for (const t of EDGE_TYPE_PRIORITY) { const a = groups.get(t); if (a) sorted.set(t, a); }
+    for (const [t, a] of groups) { if (!sorted.has(t)) sorted.set(t, a); }
+    return { groupedEdges: sorted, totalEdges: total };
+  }, [edges, nodeId, statusFilter, confidenceThreshold, hiddenPovs]);
+
+  // De-dup POV prefixes for display (cc- merged into sit-)
+  const displayPovs = (['acc-', 'saf-', 'skp-', 'sit-'] as PovPrefix[]).filter(p => povCounts[p] > 0);
+
   return (
     <>
       {edges && edges.length > 0 && (
         <>
-          <div style={{ ...sectionHeader, marginTop: 0 }}>Edges ({edges.length})</div>
-          {edges.map((e, i) => {
-            const isSource = e.source === nodeId;
-            const other = isSource ? e.target : e.source;
-            const direction = e.bidirectional ? '↔' : isSource ? '→' : '←';
-            const typeColor = EDGE_TYPE_COLORS[e.type] || 'var(--text-secondary)';
-            return (
-              <div key={i} style={{
-                marginBottom: 6, padding: '6px 10px', borderRadius: 4,
-                border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                fontSize: '0.78rem',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: '0.68rem', padding: '1px 8px', borderRadius: 3,
-                    background: typeColor + '22', color: typeColor, fontWeight: 700,
-                    border: `1px solid ${typeColor}44`,
-                  }}>{e.type}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
-                  <span style={chipStyle}>{other}</span>
-                  {e.strength && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({e.strength})</span>
-                  )}
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                    conf: {(e.confidence * 100).toFixed(0)}%
-                  </span>
-                </div>
-                {e.rationale && (
-                  <div style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: '0.72rem', lineHeight: 1.45 }}>
-                    {e.rationale}
-                  </div>
-                )}
-                {e.notes && (
-                  <div style={{ marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.68rem' }}>
-                    {e.notes}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <div style={{ ...sectionHeader, marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Related Edges
+            <span style={{
+              fontSize: '0.72rem', padding: '1px 8px', borderRadius: 10,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            }}>{totalEdges}</span>
+          </div>
+
+          {/* POV filter pills */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {displayPovs.map(prefix => (
+              <button
+                key={prefix}
+                className={`related-edges-pov-btn${hiddenPovs.has(prefix) ? ' related-edges-pov-btn-hidden' : ''}`}
+                style={{ '--pov-color': POV_COLOR[prefix] } as React.CSSProperties}
+                onClick={() => togglePov(prefix)}
+                title={`${hiddenPovs.has(prefix) ? 'Show' : 'Hide'} ${POV_LABELS[prefix]}`}
+              >
+                {POV_LABELS[prefix]}
+                <span className="related-edges-pov-btn-count">{povCounts[prefix]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Status + confidence filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: '0.75rem' }}>
+            <select
+              className="related-edges-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="approved">Approved</option>
+              <option value="proposed">Proposed</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}>
+              Confidence &ge; {Math.round(confidenceThreshold * 100)}%
+              <input
+                type="range" min="0" max="100"
+                value={Math.round(confidenceThreshold * 100)}
+                onChange={(e) => setConfidenceThreshold(Number(e.target.value) / 100)}
+                className="related-edges-threshold-slider"
+              />
+            </label>
+          </div>
+
+          {/* Grouped edge list */}
+          {Array.from(groupedEdges.entries()).map(([edgeType, edgeList]) => (
+            <TaxRefEdgeGroup key={edgeType} edgeType={edgeType} edges={edgeList} nodeId={nodeId} />
+          ))}
+
+          {totalEdges === 0 && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: 8 }}>
+              No edges match the current filters.
+            </div>
+          )}
         </>
       )}
 

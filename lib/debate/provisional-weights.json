@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "status": "PROVISIONAL — pending Phase 5 validation per §Validation Methodology",
+  "status": "CALIBRATED — 290 data points, 2026-05-03. 3 parameters updated by optimizer.",
   "saturation": {
-    "recycling_pressure": 0.30,
-    "crux_maturity": 0.25,
-    "concession_plateau": 0.15,
-    "engagement_fatigue": 0.15,
-    "pragmatic_convergence": 0.05,
-    "scheme_stagnation": 0.10
+    "recycling_pressure": 0.01,
+    "crux_maturity": 0.28,
+    "concession_plateau": 0.01,
+    "engagement_fatigue": 0.01,
+    "pragmatic_convergence": 0.33,
+    "scheme_stagnation": 0.36
   },
   "convergence": {
     "qbaf_agreement_density": 0.35,
@@ -43,8 +43,8 @@
     "hard_cap": 200
   },
   "budget": {
-    "soft_multiplier": 6,
-    "hard_multiplier": 10,
-    "max_soft_multiplier": 8
+    "soft_multiplier": 8,
+    "hard_multiplier": 15,
+    "max_soft_multiplier": 10
   }
 }

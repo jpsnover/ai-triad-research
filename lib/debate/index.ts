@@ -17,9 +17,9 @@ export * from './harvestUtils.js';
 export * from './protocols.js';
 export * from './topics.js';
 export * from './helpers.js';
-export * from './aiAdapter.js';
-export * from './taxonomyLoader.js';
-export * from './debateEngine.js';
+// aiAdapter.ts excluded — imports fs/path (Node.js only). Import directly.
+// taxonomyLoader.ts excluded — imports fs/path (Node.js only). Import directly.
+// debateEngine.ts excluded — imports calibrationLogger which uses fs/path (Node.js only). Import directly.
 export * from './formatters.js';
 export * from './validators.js';
 export * from './nodeIdUtils.js';

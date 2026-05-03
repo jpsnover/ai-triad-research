@@ -57,7 +57,8 @@ export interface Comment {
   source: CommentSource;
   author: string;
   textRange: TextRange;
-  body: string;
+  /** Comment body text. Optional — tag-only comments (just a type with no text) are valid. */
+  body?: string;
   replies: CommentReply[];
   resolved: boolean;
   createdAt: string;

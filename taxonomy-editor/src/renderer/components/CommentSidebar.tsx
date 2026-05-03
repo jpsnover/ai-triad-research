@@ -17,7 +17,7 @@ export function CommentSidebar() {
 
   if (!commentsFile) return null;
 
-  const totalCount = commentsFile.comments.length;
+  const totalCount = commentsFile.comments?.length ?? 0;
   const filteredComments = getFilteredComments();
   const comments = [...filteredComments].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),

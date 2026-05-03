@@ -22,10 +22,21 @@ function Show-TriadDialogue {
         AI API key override.
     .PARAMETER RepoRoot
         Path to the repository root.
+    .PARAMETER UseAdaptiveStaging
+        Enable adaptive staging (delegates to CLI engine via Invoke-AITDebate).
+        Phases advance based on debate health metrics instead of fixed round count.
+    .PARAMETER Pacing
+        Adaptive staging pace: 'tight' (fewer rounds), 'moderate' (default), 'thorough' (more rounds).
+    .PARAMETER MaxTotalRounds
+        Maximum rounds for adaptive staging (5-20, default 12). Ignored without -UseAdaptiveStaging.
+    .PARAMETER AllowEarlyTermination
+        Allow debate to end early if health metrics collapse. Default: true when adaptive staging is on.
     .EXAMPLE
         Show-TriadDialogue "Should AI be regulated like a public utility?" -Rounds 2
     .EXAMPLE
         Show-TriadDialogue "Is open-source AI safer than closed-source?" -OutputFile debate.json
+    .EXAMPLE
+        Show-TriadDialogue "Scaling limits of current AI" -UseAdaptiveStaging -Pacing thorough
     #>
     [CmdletBinding()]
     param(
@@ -46,11 +57,37 @@ function Show-TriadDialogue {
         [ValidateSet('policymakers', 'technical_researchers', 'industry_leaders', 'academic_community', 'general_public')]
         [string]$Audience = 'policymakers',
 
-        [string]$RepoRoot = $script:RepoRoot
+        [string]$RepoRoot = $script:RepoRoot,
+
+        [switch]$UseAdaptiveStaging,
+
+        [ValidateSet('tight', 'moderate', 'thorough')]
+        [string]$Pacing = 'moderate',
+
+        [ValidateRange(5, 20)]
+        [int]$MaxTotalRounds = 12,
+
+        [switch]$AllowEarlyTermination
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # ── Delegate to CLI engine for adaptive staging ───────────────────────────
+    # Adaptive staging logic lives in lib/debate/phaseTransitions.ts — not
+    # reimplemented in PS. Route through Invoke-AITDebate which calls the CLI.
+    if ($UseAdaptiveStaging) {
+        Write-Host 'Adaptive staging requested — delegating to Invoke-AITDebate (CLI engine)' -ForegroundColor Cyan
+        $CliParams = @{
+            Topic            = $Topic
+            Rounds           = $MaxTotalRounds
+            Model            = $Model
+            AdaptiveStaging  = $true
+        }
+        if ($ApiKey) { $CliParams.ApiKey = $ApiKey }
+        if ($OutputFile) { $CliParams.OutputDirectory = Split-Path $OutputFile -Parent }
+        return Invoke-AITDebate @CliParams
+    }
 
     # ── Step 1: Validate environment ──────────────────────────────────────────
     Write-Step 'Validating environment'

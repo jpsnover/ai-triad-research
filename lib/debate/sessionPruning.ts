@@ -7,7 +7,6 @@ const MAX_CONVERGENCE_SIGNALS = 30;
 const MAX_POSITION_DRIFT = 30;
 const MAX_HEALTH_HISTORY = 20;
 const MAX_TURN_EMBEDDINGS = 20;
-const MAX_DIAGNOSTIC_ENTRIES = 15;
 
 export function pruneSessionData(session: DebateSession): void {
   if (session.convergence_signals && session.convergence_signals.length > MAX_CONVERGENCE_SIGNALS) {
@@ -36,20 +35,9 @@ export function pruneSessionData(session: DebateSession): void {
     }
   }
 
-  if (session.diagnostics && session.diagnostics.entries) {
-    const entryIds = Object.keys(session.diagnostics.entries);
-    if (entryIds.length > MAX_DIAGNOSTIC_ENTRIES) {
-      const transcript = session.transcript;
-      const recentIds = new Set(
-        transcript.slice(-MAX_DIAGNOSTIC_ENTRIES).map(e => e.id),
-      );
-      for (const id of entryIds) {
-        if (!recentIds.has(id)) {
-          delete session.diagnostics.entries[id];
-        }
-      }
-    }
-  }
+  // Diagnostics are NOT pruned — they are a fixed per-entry map (not an
+  // unbounded array) and are the primary inspection data for the diagnostics
+  // window.  Pruning them destroys opening and early-round diagnostics.
 }
 
 export function pruneModeratorState(state: ModeratorState): void {

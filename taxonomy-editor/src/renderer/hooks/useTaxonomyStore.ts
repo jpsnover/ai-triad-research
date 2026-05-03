@@ -88,21 +88,22 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   gemini: [
-    { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (recommended)' },
+    { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (default)' },
+    { value: 'gemini-3-flash-preview', label: '3 Flash Preview' },
+    { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
     { value: 'gemini-2.5-flash', label: '2.5 Flash' },
+    { value: 'gemini-2.5-flash-lite', label: '2.5 Flash Lite (fastest)' },
     { value: 'gemini-2.5-pro', label: '2.5 Pro' },
-    { value: 'gemini-2.0-flash', label: '2.0 Flash' },
-    { value: 'gemini-2.0-flash-lite', label: '2.0 Flash Lite (fastest)' },
-    { value: 'gemini-1.5-flash', label: '1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: '1.5 Pro' },
   ],
   claude: [
-    { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },
-    { value: 'claude-haiku-3.5', label: 'Haiku 3.5 (fastest)' },
+    { value: 'claude-opus-4-7', label: 'Opus 4.7 (flagship)' },
+    { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+    { value: 'claude-haiku-4-5', label: 'Haiku 4.5 (fastest)' },
   ],
   groq: [
-    { value: 'groq-llama-4-scout', label: 'Llama 4 Scout' },
-    { value: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B' },
+    { value: 'groq-llama-4-scout-17b-16e', label: 'Llama 4 Scout' },
+    { value: 'groq-llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+    { value: 'groq-openai-gpt-oss-120b', label: 'GPT-OSS 120B' },
   ],
   openai: [
     { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
@@ -119,8 +120,8 @@ const ALL_MODEL_IDS: Set<string> = new Set(
 
 const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   gemini: 'gemini-3.1-flash-lite-preview',
-  claude: 'claude-sonnet-4-5',
-  groq: 'groq-llama-4-scout',
+  claude: 'claude-sonnet-4-6',
+  groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
 };
 

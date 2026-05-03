@@ -257,16 +257,25 @@ function resolvePolRef(ref: PolicyRefEntry): { id: string; relevance: string | n
   return { id: ref.policy_id, relevance: ref.relevance };
 }
 
-function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
+function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
   refs: TaxonomyRef[];
   policyRefs?: PolicyRefEntry[];
   metaPolicyRefs?: PolicyRefEntry[];
+  entry?: TranscriptEntry;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [explainCopied, setExplainCopied] = useState(false);
   const inspectNode = useDebateStore((s) => s.inspectNode);
   const polRefs = metaPolicyRefs || policyRefs || [];
 
-  if (refs.length === 0 && polRefs.length === 0) return null;
+  const handleExplain = () => {
+    if (!entry) return;
+    handleExplainEntry(entry);
+    setExplainCopied(true);
+    setTimeout(() => setExplainCopied(false), 3000);
+  };
+
+  if (refs.length === 0 && polRefs.length === 0 && !entry) return null;
 
   return (
     <div className="debate-taxonomy-refs-section">
@@ -295,6 +304,11 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs }: {
           >
             {expanded ? 'Hide reasoning' : 'Show reasoning'}
           </button>
+        )}
+        {entry && (
+          explainCopied
+            ? <span className="debate-reasoning-toggle" style={{ color: '#22c55e', cursor: 'default' }}>✓ Explain prompt copied to clipboard</span>
+            : <button className="debate-reasoning-toggle" onClick={handleExplain} title="Copy an explain prompt to clipboard and open Gemini">Explain</button>
         )}
       </div>
       {expanded && (
@@ -587,13 +601,6 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   return (
     <div className="debate-entry-delete-actions">
       <button
-        className="debate-entry-action-btn debate-entry-explain-btn"
-        onClick={() => handleExplainEntry(entry)}
-        title="Explain this entry — copies prompt to clipboard and opens Google Gemini"
-      >
-        Explain
-      </button>
-      <button
         className="debate-entry-delete-btn"
         onClick={() => setConfirmMode('single')}
         title="Delete this entry"
@@ -770,6 +777,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         refs={entry.taxonomy_refs}
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+        entry={entry}
       />
     </div>
   );
@@ -1112,6 +1120,7 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         refs={entry.taxonomy_refs}
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+        entry={entry}
       />
     </div>
   );
@@ -1554,19 +1563,30 @@ function OpeningActions() {
           </div>
         )}
         <div className="debate-initial-rounds">
-          <label className="debate-initial-rounds-label">
-            Cross-respond rounds after openings:
-            <select
-              className="debate-turns-select"
-              value={initialCrossRespondRounds}
-              onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-              title="Number of cross-respond rounds to run automatically after opening statements"
-            >
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </label>
+          {activeDebate.adaptive_staging?.enabled ? (
+            <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ background: '#f59e0b', color: '#000', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.75rem' }}>
+                Adaptive
+              </span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Signal-driven phase transitions ({activeDebate.adaptive_staging.pacing} pacing)
+              </span>
+            </span>
+          ) : (
+            <label className="debate-initial-rounds-label">
+              Cross-respond rounds after openings:
+              <select
+                className="debate-turns-select"
+                value={initialCrossRespondRounds}
+                onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
+                title="Number of cross-respond rounds to run automatically after opening statements"
+              >
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <div className="debate-action-bar-inner">
           <button className="btn btn-primary" onClick={() => runOpeningStatements()}>
@@ -1655,6 +1675,7 @@ function DebaterToggles() {
       {allPovers.map(p => {
         const info = POVER_INFO[p];
         const active = isActive(p);
+        const turnCount = activeDebate.transcript.filter(e => e.speaker === p && (e.type === 'statement' || e.type === 'opening')).length;
         return (
           <button
             key={p}
@@ -1664,7 +1685,7 @@ function DebaterToggles() {
             disabled={disabled}
             title={active ? `Remove ${info.label} from debate` : `Add ${info.label} to debate`}
           >
-            {info.label}
+            {info.label}{turnCount > 0 ? ` (${turnCount})` : ''}
           </button>
         );
       })}
@@ -1672,7 +1693,7 @@ function DebaterToggles() {
   );
 }
 
-function DebateActions({ showParamHistory, setShowParamHistory }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void }) {
+function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
   const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
   );
@@ -1886,6 +1907,14 @@ function DebateActions({ showParamHistory, setShowParamHistory }: { showParamHis
           Reflections
         </button>
         <button
+          className={`btn${showEvaluation ? ' active' : ''}`}
+          onClick={() => setShowEvaluation(!showEvaluation)}
+          disabled={!activeDebate?.neutral_evaluations?.length}
+          title="Show/hide independent evaluation of claims and cruxes"
+        >
+          Evaluation
+        </button>
+        <button
           className="btn"
           onClick={() => setShowParamHistory(!showParamHistory)}
           title="View calibration parameter history and current values"
@@ -2002,6 +2031,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
   const [showParamHistory, setShowParamHistory] = useState(false);
+  const [showEvaluation, setShowEvaluation] = useState(false);
   const { commentsFile, loadComments: loadDebateComments, unloadComments, sidebarOpen: commentSidebarOpen, toggleSidebar: toggleCommentSidebar } = useCommentStore();
 
   // Load comments when debate changes
@@ -2207,6 +2237,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <div className="debate-toolbar">
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace', userSelect: 'all', marginRight: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }} title={`${activeDebate.title} — ${activeDebate.id}`}>
+          {activeDebate.title || activeDebate.id.slice(0, 12)}
+        </span>
         <button
           className={`btn btn-sm debate-diag-btn${diagnosticsEnabled ? ' active' : ''}`}
           onClick={toggleDiagnostics}
@@ -2228,7 +2261,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           onClick={toggleCommentSidebar}
           title={commentSidebarOpen ? 'Hide comments sidebar' : 'Show comments sidebar'}
         >
-          Comments{commentsFile?.comments.length ? ` (${commentsFile.comments.length})` : ''}
+          Comments{commentsFile?.comments?.length ? ` (${commentsFile.comments.length})` : ''}
         </button>
         {exportStatus && (
           <span className="debate-toolbar-status">{exportStatus}</span>
@@ -2377,10 +2410,10 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {isEditClaimsPhase && <ClaimsEditor />}
       {isOpeningPhase && <OpeningActions />}
 
-      {isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} />}
+      {isDebatePhase && <DebateActions showParamHistory={showParamHistory} setShowParamHistory={setShowParamHistory} showEvaluation={showEvaluation} setShowEvaluation={setShowEvaluation} />}
 
-      {/* Neutral evaluation panel — shown when evaluations exist */}
-      {activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
+      {/* Neutral evaluation panel — toggled via Evaluation button */}
+      {showEvaluation && activeDebate.neutral_evaluations && activeDebate.neutral_evaluations.length > 0 && (
         <NeutralEvaluationPanel
           evaluations={activeDebate.neutral_evaluations}
           speakerMapping={activeDebate.neutral_speaker_mapping}

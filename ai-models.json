@@ -140,8 +140,8 @@
     },
     {
       "id": "gemini-3-pro-preview",
-      "apiModelId": "gemini-3-pro-preview",
-      "label": "Gemini 3 Pro Preview",
+      "apiModelId": "gemini-3.1-pro-preview",
+      "label": "Gemini 3 Pro Preview (redirects to 3.1)",
       "backend": "gemini"
     },
     {
@@ -217,15 +217,15 @@
       "backend": "gemini"
     },
     {
-      "id": "claude-opus-4",
-      "apiModelId": "claude-opus-4-20250514",
-      "label": "Opus 4",
+      "id": "claude-opus-4-7",
+      "apiModelId": "claude-opus-4-7",
+      "label": "Opus 4.7 (flagship)",
       "backend": "claude"
     },
     {
-      "id": "claude-sonnet-4",
-      "apiModelId": "claude-sonnet-4-20250514",
-      "label": "Sonnet 4",
+      "id": "claude-sonnet-4-6",
+      "apiModelId": "claude-sonnet-4-6",
+      "label": "Sonnet 4.6",
       "backend": "claude"
     },
     {
@@ -235,21 +235,15 @@
       "backend": "claude"
     },
     {
-      "id": "claude-sonnet-4-5",
-      "apiModelId": "claude-sonnet-4-5",
-      "label": "Sonnet 4.5 (alias)",
-      "backend": "claude"
-    },
-    {
-      "id": "claude-sonnet-4-6",
-      "apiModelId": "claude-sonnet-4-6",
-      "label": "Sonnet 4.6 (alias)",
-      "backend": "claude"
-    },
-    {
       "id": "claude-opus-4-6",
       "apiModelId": "claude-opus-4-6",
-      "label": "Opus 4.6 (alias)",
+      "label": "Opus 4.6 (legacy)",
+      "backend": "claude"
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "apiModelId": "claude-sonnet-4-5",
+      "label": "Sonnet 4.5 (legacy)",
       "backend": "claude"
     },
     {
@@ -345,44 +339,52 @@
   ],
   "defaults": {
     "gemini": "gemini-3.1-flash-lite-preview",
-    "claude": "claude-sonnet-4-5",
+    "claude": "claude-sonnet-4-6",
     "groq": "groq-openai-gpt-oss-120b"
   },
   "fallbackChains": {
-    "gemini-2.5-flash": ["gemini-2.5-flash-lite", "groq-llama-3.3-70b-versatile"],
-    "gemini-2.5-pro": ["gemini-2.5-flash", "groq-llama-3.3-70b-versatile"],
-    "gemini-2.5-flash-lite": ["gemini-2.0-flash-lite", "groq-llama-3.1-8b-instant"],
+    "gemini-3.1-pro-preview": ["gemini-2.5-pro", "gemini-2.5-flash"],
+    "gemini-3-flash-preview": ["gemini-2.5-flash", "groq-llama-3.3-70b-versatile"],
     "gemini-3.1-flash-lite-preview": ["gemini-2.5-flash-lite", "groq-llama-3.1-8b-instant"],
-    "claude-sonnet-4-5": ["claude-haiku-4-5", "gemini-2.5-flash"],
-    "claude-opus-4": ["claude-sonnet-4-5", "gemini-2.5-pro"],
+    "gemini-2.5-pro": ["gemini-2.5-flash", "groq-llama-3.3-70b-versatile"],
+    "gemini-2.5-flash": ["gemini-2.5-flash-lite", "groq-llama-3.3-70b-versatile"],
+    "gemini-2.5-flash-lite": ["groq-llama-3.1-8b-instant"],
+    "claude-opus-4-7": ["claude-sonnet-4-6", "gemini-2.5-pro"],
+    "claude-sonnet-4-6": ["claude-haiku-4-5", "gemini-2.5-flash"],
     "claude-haiku-4-5": ["gemini-2.5-flash-lite", "groq-llama-3.1-8b-instant"],
     "groq-llama-3.3-70b-versatile": ["groq-llama-3.1-8b-instant", "gemini-2.5-flash"],
     "groq-llama-4-scout-17b-16e": ["groq-llama-3.3-70b-versatile", "gemini-2.5-flash"],
+    "groq-openai-gpt-oss-120b": ["groq-llama-3.3-70b-versatile", "gemini-2.5-flash"],
     "openai-gpt-5.5": ["gemini-2.5-flash", "groq-llama-3.3-70b-versatile"]
   },
   "contextWindows": {
     "gemini": 1048576,
-    "claude": 200000,
+    "claude": 1048576,
     "groq": 131072,
     "openai": 131072
   },
   "pricing": {
-    "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens.",
-    "gemini-2.5-flash":            { "inputPer1M": 0.15,  "outputPer1M": 0.60,  "cachedInputPer1M": 0.0375 },
-    "gemini-2.5-flash-lite":       { "inputPer1M": 0.075, "outputPer1M": 0.30,  "cachedInputPer1M": 0.01875 },
+    "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-05-03.",
+    "gemini-3.1-pro-preview":        { "inputPer1M": 3.00,  "outputPer1M": 15.00 },
+    "gemini-3-flash-preview":        { "inputPer1M": 0.75,  "outputPer1M": 3.00 },
+    "gemini-3.1-flash-lite-preview": { "inputPer1M": 0.375, "outputPer1M": 1.50 },
     "gemini-2.5-pro":              { "inputPer1M": 1.25,  "outputPer1M": 10.00, "cachedInputPer1M": 0.3125 },
+    "gemini-2.5-flash":            { "inputPer1M": 0.30,  "outputPer1M": 2.50,  "cachedInputPer1M": 0.075 },
+    "gemini-2.5-flash-lite":       { "inputPer1M": 0.10,  "outputPer1M": 0.40,  "cachedInputPer1M": 0.025 },
     "gemini-2.0-flash":            { "inputPer1M": 0.10,  "outputPer1M": 0.40,  "cachedInputPer1M": 0.025 },
     "gemini-2.0-flash-lite":       { "inputPer1M": 0.075, "outputPer1M": 0.30,  "cachedInputPer1M": 0.01875 },
-    "gemini-3.1-flash-lite-preview": { "inputPer1M": 0.075, "outputPer1M": 0.30, "cachedInputPer1M": 0.01875 },
-    "claude-opus-4":               { "inputPer1M": 15.00, "outputPer1M": 75.00, "cachedInputPer1M": 1.50 },
-    "claude-sonnet-4":             { "inputPer1M": 3.00,  "outputPer1M": 15.00, "cachedInputPer1M": 0.30 },
+    "claude-opus-4-7":             { "inputPer1M": 5.00,  "outputPer1M": 25.00, "cachedInputPer1M": 0.50 },
+    "claude-sonnet-4-6":           { "inputPer1M": 3.00,  "outputPer1M": 15.00, "cachedInputPer1M": 0.30 },
+    "claude-opus-4-6":             { "inputPer1M": 5.00,  "outputPer1M": 25.00, "cachedInputPer1M": 0.50 },
     "claude-sonnet-4-5":           { "inputPer1M": 3.00,  "outputPer1M": 15.00, "cachedInputPer1M": 0.30 },
-    "claude-haiku-4-5":            { "inputPer1M": 0.80,  "outputPer1M": 4.00,  "cachedInputPer1M": 0.08 },
+    "claude-haiku-4-5":            { "inputPer1M": 1.00,  "outputPer1M": 5.00,  "cachedInputPer1M": 0.10 },
     "groq-llama-3.3-70b-versatile": { "inputPer1M": 0.59, "outputPer1M": 0.79 },
     "groq-llama-3.1-8b-instant":   { "inputPer1M": 0.05,  "outputPer1M": 0.08 },
-    "groq-llama-4-scout-17b-16e":  { "inputPer1M": 0.20,  "outputPer1M": 0.60 },
+    "groq-llama-4-scout-17b-16e":  { "inputPer1M": 0.11,  "outputPer1M": 0.34 },
+    "groq-openai-gpt-oss-120b":    { "inputPer1M": 0.15,  "outputPer1M": 0.60 },
+    "groq-openai-gpt-oss-20b":     { "inputPer1M": 0.075, "outputPer1M": 0.30 },
     "openai-gpt-5.5":              { "inputPer1M": 2.00,  "outputPer1M": 8.00 },
     "openai-gpt-5.5-pro":          { "inputPer1M": 10.00, "outputPer1M": 40.00 }
   },
-  "lastRefreshed": "2026-03-26T18:50:35.042Z"
+  "lastRefreshed": "2026-05-03T10:30:00.000Z"
 }

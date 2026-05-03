@@ -325,6 +325,8 @@ export interface ContextInjectionManifest {
   vulnerabilityCount: number;
   policyCount: number;
   totalTokenEstimate: number;
+  /** Relevance scores for injected POV nodes (for calibration variance analysis). */
+  nodeScores?: number[];
 }
 
 /**
@@ -390,6 +392,11 @@ export function computeInjectionManifest(
     + (ctx.vulnerabilities?.length ?? 0) * 60
     + (ctx.policyRegistry?.length ?? 0) * 40;
 
+  // Collect relevance scores for injected nodes (for calibration parameter #9 variance analysis)
+  const nodeScores = ctx.nodeScores
+    ? povSlice.map(n => ctx.nodeScores!.get(n.id) ?? 0)
+    : undefined;
+
   return {
     povNodeIds: povSlice.map(n => n.id),
     povPrimaryIds: primaryIds,
@@ -397,5 +404,6 @@ export function computeInjectionManifest(
     vulnerabilityCount: Math.min((ctx.vulnerabilities ?? []).length, cfg.vulnMax ?? 10),
     policyCount: Math.min((ctx.policyRegistry ?? []).length, cfg.policyMax ?? 10),
     totalTokenEstimate: tokenEst,
+    nodeScores,
   };
 }

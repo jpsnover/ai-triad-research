@@ -86,6 +86,38 @@ class AITSource {
 Update-TypeData -TypeName AITSource -MemberType AliasProperty -MemberName DocId -Value Id -Force
 
 # ─────────────────────────────────────────────────────────────────────────────
+# AITDebate — typed representation of a debate session
+# ─────────────────────────────────────────────────────────────────────────────
+class AITDebate {
+    [string]       $Id
+    [string]       $Title
+    [string]       $Topic
+    [DateTime]     $CreatedAt
+    [DateTime]     $UpdatedAt
+    [string]       $Phase
+    [string]       $Audience
+    [string]       $Protocol
+    [string]       $SourceType
+    [string]       $SourceRef
+    [string[]]     $Debaters
+    [double]       $Temperature
+    [string]       $Model
+    [string]       $Origin
+    [bool]         $AdaptiveStaging
+    [string]       $Pacing
+    [int]          $TranscriptCount
+    [int]          $Rounds
+    [int]          $Statements
+    [int]          $Interventions
+    [bool]         $HasSynthesis
+    [bool]         $HasDiagnostics
+    [bool]         $HasHarvest
+    [string]       $FilePath
+}
+
+Update-TypeData -TypeName AITDebate -MemberType AliasProperty -MemberName DebateId -Value Id -Force
+
+# ─────────────────────────────────────────────────────────────────────────────
 # TaxonomyNode class — must live in .psm1 for PowerShell type resolution
 # ─────────────────────────────────────────────────────────────────────────────
 class TaxonomyNode {
@@ -278,6 +310,7 @@ Export-ModuleMember -Function @(
     'Invoke-TaxonomyProposal'
     'Compare-Taxonomy'
     'Get-AITSource'
+    'Get-AITDebate'
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'
@@ -333,6 +366,7 @@ Export-ModuleMember -Function @(
     'Compare-DebateRuns'
     'Invoke-DebateAB'
     'Get-AICostReport'
+    'Show-OSSLicenses'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

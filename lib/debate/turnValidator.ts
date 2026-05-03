@@ -514,11 +514,15 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
 
   // Intervention compliance check — if a moderator intervention preceded this turn,
   // verify the debater included the required response field.
+  // Hard-compliance failures are schema errors (fail the schema dimension → score ≤ 0.60).
   if (p.pendingIntervention) {
     const rawMeta = (p.meta as Record<string, unknown>) ?? {};
     const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
     if (!compliance.compliant && compliance.repair_hint) {
       stageA.errorIssues.push(compliance.repair_hint);
+      // Route to schema dimension so the turn fails hard
+      stageA.dimensions.schema.issues.push(compliance.repair_hint);
+      stageA.dimensions.schema.pass = false;
     }
   }
 

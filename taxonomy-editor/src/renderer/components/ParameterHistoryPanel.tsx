@@ -76,13 +76,15 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manual',
 };
 
-function formatValue(v: number | number[] | Record<string, number>): string {
+function formatValue(v: number | number[] | Record<string, number> | null | undefined): string {
+  if (v == null) return '—';
   if (typeof v === 'number') return v.toFixed(v < 10 ? 2 : 0);
   if (Array.isArray(v)) return `[${v.map(n => n.toFixed(2)).join(', ')}]`;
   return Object.entries(v).map(([k, n]) => `${k.replace(/_/g, ' ')}: ${n.toFixed(2)}`).join(', ');
 }
 
-function formatShortValue(v: number | number[] | Record<string, number>): string {
+function formatShortValue(v: number | number[] | Record<string, number> | null | undefined): string {
+  if (v == null) return '—';
   if (typeof v === 'number') return v.toFixed(2);
   if (Array.isArray(v)) return v.map(n => n.toFixed(1)).join('/');
   return `{${Object.keys(v).length}}`;
@@ -196,7 +198,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
             <tr>
               <th>Parameter</th>
               <th>Value</th>
-              <th>Trend</th>
+              <th data-tooltip={"Sparkline showing parameter value over calibration runs.\nRequires 2+ entries. Each dot = one calibration."}>Trend</th>
             </tr>
           </thead>
           <tbody>
@@ -205,8 +207,12 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
                 <td className="param-name">{label}</td>
                 <td className="param-value">{formatShortValue((current as any)[key])}</td>
                 <td className="param-sparkline">
-                  {sparklines[key] && sparklines[key].length >= 2 && (
+                  {sparklines[key] && sparklines[key].length >= 2 ? (
                     <Sparkline values={sparklines[key]} />
+                  ) : sparklines[key] && sparklines[key].length === 1 ? (
+                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>1 sample</span>
+                  ) : (
+                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>—</span>
                   )}
                 </td>
               </tr>

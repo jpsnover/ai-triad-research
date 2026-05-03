@@ -24,16 +24,24 @@ interface CommentCreationPopoverProps {
 export function CommentCreationPopover({ popover, onClose }: CommentCreationPopoverProps) {
   const [selectedType, setSelectedType] = useState<CommentType>('insight');
   const [body, setBody] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
 
   const addComment = useCommentStore(s => s.addComment);
+  const storedUsername = useUsernameStore(s => s.username);
+  const setUsername = useUsernameStore(s => s.setUsername);
+  const needsUsername = !storedUsername;
 
   useEffect(() => {
-    requestAnimationFrame(() => bodyRef.current?.focus());
-  }, []);
+    requestAnimationFrame(() => {
+      if (needsUsername) usernameRef.current?.focus();
+      else bodyRef.current?.focus();
+    });
+  }, [needsUsername]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -57,13 +65,22 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
   }, [onClose]);
 
   const handleSubmit = async () => {
-    if (!body.trim()) {
-      setError('Comment body cannot be empty');
-      return;
+    // Resolve username: use stored value, or inline input if not yet set
+    let username = storedUsername;
+    if (!username) {
+      const trimmed = usernameInput.trim();
+      if (!trimmed) {
+        setError('Please enter your name');
+        usernameRef.current?.focus();
+        return;
+      }
+      if (trimmed.length > 50) {
+        setError('Name must be 50 characters or fewer');
+        return;
+      }
+      setUsername(trimmed);
+      username = trimmed;
     }
-
-    const username = await useUsernameStore.getState().ensureUsername();
-    if (!username) return; // User cancelled username prompt
 
     setSubmitting(true);
     try {
@@ -78,7 +95,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
         type: selectedType,
         author: username,
         textRange,
-        body: body.trim(),
+        body: body.trim() || undefined,
       });
       onClose();
     } catch {
@@ -114,6 +131,34 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
         <button className="comment-popover-close" onClick={onClose} title="Cancel (Esc)">&times;</button>
       </div>
 
+      {needsUsername ? (
+        <div className="comment-popover-username">
+          <label className="comment-popover-username-label" htmlFor="comment-username">Your name</label>
+          <input
+            ref={usernameRef}
+            id="comment-username"
+            className="comment-popover-username-input"
+            type="text"
+            value={usernameInput}
+            onChange={(e) => { setUsernameInput(e.target.value); if (error) setError(null); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter your name..."
+            maxLength={50}
+          />
+        </div>
+      ) : (
+        <div className="comment-popover-author">
+          Commenting as <strong>{storedUsername}</strong>
+          <button
+            className="comment-popover-change-user"
+            onClick={() => useUsernameStore.getState().clearUsername()}
+            title="Change username"
+          >
+            change
+          </button>
+        </div>
+      )}
+
       <div className="comment-popover-quote">
         &ldquo;{truncatedQuote}&rdquo;
       </div>
@@ -142,7 +187,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
         value={body}
         onChange={(e) => { setBody(e.target.value); if (error) setError(null); }}
         onKeyDown={handleKeyDown}
-        placeholder="Write your comment..."
+        placeholder="Write your comment (optional)..."
         rows={3}
       />
 

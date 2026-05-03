@@ -234,6 +234,32 @@ function createWindow(): void {
         { role: 'toggleDevTools' },
       ],
     },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Open Source Licenses',
+          click: () => {
+            const noticesPath = app.isPackaged
+              ? path.join(process.resourcesPath, 'THIRD-PARTY-NOTICES.txt')
+              : path.join(__dirname, '../../THIRD-PARTY-NOTICES.txt');
+            const licensesWindow = new BrowserWindow({
+              width: 800,
+              height: 600,
+              title: 'Open Source Licenses',
+              webPreferences: { sandbox: true },
+            });
+            hardenWindow(licensesWindow);
+            try {
+              const content = fs.readFileSync(noticesPath, 'utf-8');
+              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
+            } catch {
+              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
+            }
+          },
+        },
+      ],
+    },
   ]);
   Menu.setApplicationMenu(menu);
 }
@@ -407,6 +433,7 @@ app.whenReady().then(() => {
     }
     // Send debate ID once the renderer is ready
     debateWindow.webContents.once('did-finish-load', () => {
+      console.log('[Main] debate-window did-finish-load, sending debate ID:', debateId);
       debateWindow?.webContents.send('debate-window-load', debateId);
     });
     debateWindow.on('closed', () => {

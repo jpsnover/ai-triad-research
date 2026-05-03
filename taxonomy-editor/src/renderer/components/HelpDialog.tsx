@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import ossData from '../data/oss-licenses.json';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -45,7 +46,7 @@ function getRuntime(): string {
   return 'Browser';
 }
 
-type HelpTab = 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts';
+type HelpTab = 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'licenses';
 
 const TABS: { id: HelpTab; label: string }[] = [
   { id: 'about', label: 'About' },
@@ -53,7 +54,101 @@ const TABS: { id: HelpTab; label: string }[] = [
   { id: 'documentation', label: 'Documentation' },
   { id: 'methods', label: 'Methods' },
   { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'licenses', label: 'Licenses' },
 ];
+
+interface LicenseGroup {
+  packages: { name: string; version: string }[];
+  licenseType: string;
+  licenseText: string;
+}
+const licenseGroups = (ossData as { groups: LicenseGroup[] }).groups;
+
+function LicensesPanel() {
+  const [filter, setFilter] = useState('');
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!filter) return licenseGroups;
+    const lc = filter.toLowerCase();
+    return licenseGroups.filter(g =>
+      g.packages.some(p => p.name.toLowerCase().includes(lc)) ||
+      g.licenseType.toLowerCase().includes(lc)
+    );
+  }, [filter]);
+
+  const totalPackages = licenseGroups.reduce((s, g) => s + g.packages.length, 0);
+
+  return (
+    <div className="help-section" style={{ fontSize: '0.85rem' }}>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
+        {totalPackages} open-source packages used in this application.
+      </p>
+      <input
+        type="text"
+        placeholder="Filter packages..."
+        value={filter}
+        onChange={e => { setFilter(e.target.value); setExpandedIdx(null); }}
+        style={{
+          width: '100%', padding: '6px 10px', marginBottom: 10, borderRadius: 6,
+          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+          color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box',
+        }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {filtered.map((group, idx) => (
+          <div key={idx}>
+            <div
+              onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+              style={{
+                padding: '5px 8px', borderRadius: 4, cursor: 'pointer',
+                background: expandedIdx === idx ? 'rgba(var(--accent-rgb, 59,130,246), 0.08)' : 'transparent',
+              }}
+            >
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginRight: 6 }}>
+                {expandedIdx === idx ? '\u25BC' : '\u25B6'}
+              </span>
+              <span style={{ fontWeight: 600 }}>
+                {group.packages.map(p => p.name).join(', ')}
+              </span>
+              <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.8rem' }}>
+                {group.licenseType}
+              </span>
+            </div>
+            {expandedIdx === idx && (
+              <div style={{
+                margin: '4px 0 8px 20px', padding: 10, borderRadius: 6,
+                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              }}>
+                <table style={{ fontSize: '0.8rem', marginBottom: 8, borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {group.packages.map(p => (
+                      <tr key={p.name}>
+                        <td style={{ paddingRight: 12, fontWeight: 600 }}>{p.name}</td>
+                        <td style={{ color: 'var(--text-muted)' }}>{p.version}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <pre style={{
+                  fontSize: '0.72rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  maxHeight: 300, overflowY: 'auto', margin: 0, padding: 8, borderRadius: 4,
+                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                }}>
+                  {group.licenseText}
+                </pre>
+              </div>
+            )}
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', padding: 8 }}>No packages match "{filter}"</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface HelpDialogProps {
   onClose: () => void;
@@ -239,6 +334,9 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
                 {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://www.cambridge.org/us/catalogue/catalogue.asp?isbn=9780521537728'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>van Eemeren & Grootendorst (2004)</a>
               </li>
               <li><strong>Dialectic Traces</strong> — BFS traversal of the argument network producing human-readable narrative chains</li>
+              <li><strong>DOLCE</strong> — Descriptive Ontology for Linguistic and Cognitive Engineering; foundational ontology informing the taxonomy's upper-level categories and cross-cutting situation semantics.
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://arxiv.org/pdf/2308.01597'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Borgo et al. (2023)</a>
+              </li>
             </ul>
           </div>
         )}
@@ -260,6 +358,8 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </table>
           </div>
         )}
+
+        {activeTab === 'licenses' && <LicensesPanel />}
 
           </div>
         </div>

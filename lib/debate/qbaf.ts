@@ -41,8 +41,8 @@ export interface QbafResult {
 
 const DEFAULT_ATTACK_WEIGHTS: Record<string, number> = {
   rebut: 1.0,
-  undercut: 1.1,
-  undermine: 1.2,
+  undercut: 1.05,
+  undermine: 1.1,
 };
 
 // ── DF-QuAD Engine ────────────────────────────────────────

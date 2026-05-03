@@ -43,25 +43,33 @@ export function DebatePopoutWindow() {
 
   // Listen for debate ID from main process (Electron) or parse from URL hash (web)
   useEffect(() => {
+    console.log('[DebatePopout] Setting up debate ID listener, hash:', window.location.hash);
+
     // Web mode: parse debate ID from hash query string
     const hash = window.location.hash;
     const idMatch = hash.match(/[?&]id=([^&]+)/);
     if (idMatch) {
       const debateId = decodeURIComponent(idMatch[1]);
+      console.log('[DebatePopout] Web mode — loading debate from hash:', debateId);
       useDebateStore.getState().loadDebate(debateId).catch(err => {
         setError(`Failed to load debate: ${err}`);
       });
     }
 
     // Electron mode: receive debate ID via IPC
+    // Also check if the main process already sent the ID before we mounted
+    // (can happen with the bootstrap indirection — did-finish-load fires before React mounts)
     const unsub = api.onDebateWindowLoad((debateId: string) => {
+      console.log('[DebatePopout] Received debate-window-load IPC:', debateId);
       setError(null);
       useDebateStore.getState().loadDebate(debateId).catch(err => {
+        console.error('[DebatePopout] loadDebate failed:', err);
         setError(`Failed to load debate: ${err}`);
       });
       // Update window title
       document.title = `Debate — ${debateId.slice(0, 8)}`;
     });
+
     return unsub;
   }, []);
 

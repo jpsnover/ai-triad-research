@@ -61,7 +61,7 @@ export function scoreNodeRelevance(
 export function selectRelevantNodes(
   povNodes: PovNode[],
   scores: Map<string, number>,
-  threshold: number = 0.45,
+  threshold: number = 0.48,
   minPerCategory: number = 3,
   maxTotal?: number,
 ): ScoredPovNode[] {
@@ -99,7 +99,7 @@ export function selectRelevantNodes(
 export function selectRelevantSituationNodes(
   situationNodes: SituationNode[],
   scores: Map<string, number>,
-  threshold: number = 0.45,
+  threshold: number = 0.48,
   min: number = 3,
   max: number = 15,
 ): ScoredSituationNode[] {

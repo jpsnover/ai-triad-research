@@ -632,7 +632,9 @@ function optimizeCohesionThreshold(data: CalibrationDataPoint[]): OptimizationRe
  * If claims_per_1k_words is very high, extraction may be noisy. If very low, under-extracting.
  */
 function optimizeExtractionDensity(data: CalibrationDataPoint[]): OptimizationResult | null {
-  const valid = data.filter(d => d.claims_per_1k_words != null);
+  // Only use document-sourced debates — topic-sourced debates measure transcript density
+  // which is naturally 10-100x higher than source document density (the parameter's target).
+  const valid = data.filter(d => d.claims_per_1k_words != null && d.claims_per_1k_words < 20);
   if (valid.length < 5) return null;
 
   const avgDensity = valid.reduce((s, d) => s + (d.claims_per_1k_words ?? 0), 0) / valid.length;
@@ -666,10 +668,13 @@ function optimizeExtractionDensity(data: CalibrationDataPoint[]): OptimizationRe
 function optimizeBudgetMultiplier(data: CalibrationDataPoint[]): OptimizationResult | null {
   if (data.length < 5) return null;
 
-  const hitCount = data.filter(d => d.hit_api_ceiling).length;
-  const hitRate = hitCount / data.length;
-  const current = data[0].budget_hard_multiplier;
-  const avgCalls = data.reduce((s, d) => s + (d.total_api_calls ?? 0), 0) / data.length;
+  const valid = data.filter(d => d.budget_hard_multiplier != null && d.budget_hard_multiplier > 0);
+  if (valid.length < 5) return null;
+
+  const hitCount = valid.filter(d => d.hit_api_ceiling).length;
+  const hitRate = hitCount / valid.length;
+  const current = valid[0].budget_hard_multiplier;
+  const avgCalls = valid.reduce((s, d) => s + (d.total_api_calls ?? 0), 0) / valid.length;
 
   let recommended = current;
   if (hitRate > 0.1) {
@@ -822,7 +827,9 @@ export function recalibrateParameters(
 
 // ── CLI entry point ─────────────────────────────────────────
 
-if (require.main === module) {
+// ESM-compatible entry point detection
+const isMain = typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').replace(/^.*\//, ''));
+if (isMain) {
   const dataRoot = process.argv[2] || process.env.AI_TRIAD_DATA_ROOT;
   if (!dataRoot) {
     console.error('Usage: npx tsx lib/debate/calibrationOptimizer.ts <data-root>');

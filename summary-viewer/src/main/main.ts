@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
@@ -111,6 +112,32 @@ function createWindow(): void {
         { type: 'separator' },
         { role: 'toggleDevTools' },
         { role: 'reload' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Open Source Licenses',
+          click: () => {
+            const noticesPath = app.isPackaged
+              ? path.join(process.resourcesPath, 'THIRD-PARTY-NOTICES.txt')
+              : path.join(__dirname, '../../THIRD-PARTY-NOTICES.txt');
+            const licensesWindow = new BrowserWindow({
+              width: 800,
+              height: 600,
+              title: 'Open Source Licenses',
+              webPreferences: { sandbox: true },
+            });
+            hardenWindow(licensesWindow);
+            try {
+              const content = fs.readFileSync(noticesPath, 'utf-8');
+              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
+            } catch {
+              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
+            }
+          },
+        },
       ],
     },
   ]);

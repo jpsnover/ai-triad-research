@@ -183,7 +183,7 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
 });
 const td: React.CSSProperties = { padding: '3px 6px', fontSize: '0.7rem', borderBottom: '1px solid var(--border)' };
 const tdNum: React.CSSProperties = { ...td, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' };
-const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' };
+const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'help' };
 const thNum: React.CSSProperties = { ...th, textAlign: 'right' as const };
 
 export function ExtractionTimelinePanel({ debate }: Props) {
@@ -257,21 +257,21 @@ export function ExtractionTimelinePanel({ debate }: Props) {
         <RejectionSparkline traces={traces} />
       </details>
 
-      <div style={{ marginTop: 10, overflow: 'auto' }}>
+      <div style={{ marginTop: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              <th style={thNum}>Stmt</th>
-              <th style={th}>Speaker</th>
-              <th style={th}>Status</th>
-              <th style={thNum}>Prompt</th>
-              <th style={thNum}>Resp</th>
-              <th style={th}>Trunc?</th>
-              <th style={thNum}>Prop</th>
-              <th style={thNum}>Acc</th>
-              <th style={thNum}>AN Δ</th>
-              <th style={th}>Top reject</th>
-              <th style={thNum}>Max overlap</th>
+              <th style={thNum} data-tooltip={"Statement number — the position of this debate entry in the full transcript (e.g., S4 = 4th entry).\n\nClick a row to see detailed extraction diagnostics."}>Stmt</th>
+              <th style={th} data-tooltip={"The AI debater who made this statement.\n\nPrometheus (accelerationist)\nSentinel (safetyist)\nCassandra (skeptic)"}>Speaker</th>
+              <th style={th} data-tooltip={"Extraction status for this turn.\n\nOK = claims extracted successfully\nNo new nodes = no new AN nodes (duplicates or low overlap)\nEmpty = AI returned an empty response\nTruncated = response cut off (context too large)\nParse error = couldn't parse as valid JSON\nAdapter error = AI backend call failed"}>Status</th>
+              <th style={thNum} data-tooltip={"Prompt size in kilobytes — the extraction prompt sent to the AI.\n\nGrows each turn as transcript and AN context accumulate. Prompts over 15k may cause truncated responses."}>Prompt</th>
+              <th style={thNum} data-tooltip={"Response size in kilobytes — the AI's raw response.\n\nSmall responses (< 1k) may indicate the model failed to extract meaningful claims."}>Resp</th>
+              <th style={th} data-tooltip={"Response truncation flag.\n\n✓ = response was cut off mid-stream (usually max_tokens hit).\nTruncated responses often produce parse errors or missing claims."}>Trunc?</th>
+              <th style={thNum} data-tooltip={"Candidates proposed — claim candidates the AI proposed.\n\nEach candidate is a potential argument network node. Typically 2-4 per turn."}>Prop</th>
+              <th style={thNum} data-tooltip={"Candidates accepted — proposed claims that passed validation.\n\nClaims are rejected if:\n• Word overlap with statement < 10-15%\n• Duplicate of existing AN node (> 30% overlap)"}>Acc</th>
+              <th style={thNum} data-tooltip={"Argument Network delta — net change in AN node count.\n\n+3 = three new nodes added\n+0 = no growth (plateau indicator)\n\nConsecutive +0 deltas indicate an extraction plateau."}>AN Δ</th>
+              <th style={th} data-tooltip={"Top rejection reason with count in parentheses.\n\nduplicate_claim = too similar to existing AN node (> 30%)\nlow_overlap = not grounded in statement (< 10-15%)\ntoo_short = claim too brief\nmissing_scheme = no argumentation scheme\n\n'—' = no claims were rejected"}>Top reject</th>
+              <th style={thNum} data-tooltip={"Max word overlap vs. existing AN nodes.\n\nHigh values (> 60%) = debate covers well-trodden ground.\nNear 100% = near-duplicates of existing nodes.\n\nConsistently high = AN saturation (diminishing returns)."}>Max overlap</th>
             </tr>
           </thead>
           <tbody>
@@ -328,17 +328,17 @@ export function ExtractionTimelinePanel({ debate }: Props) {
               <strong>Error:</strong> {selected.error_message}
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
-            <span>Model: {selected.model || '(default)'}</span>
-            <span>Response time: {selected.response_time_ms} ms</span>
-            <span>Prompt: {selected.prompt_chars.toLocaleString()} chars (~{selected.prompt_token_estimate.toLocaleString()} tokens)</span>
-            <span>Response: {selected.response_chars.toLocaleString()} chars</span>
-            <span>Prompt hash: <code>{selected.prompt_hash}</code> ({selected.extraction_prompt_version})</span>
-            <span>AN: {selected.an_node_count_before} → {selected.an_node_count_after}</span>
-            <span>Candidates proposed: {selected.candidates_proposed}</span>
-            <span>Accepted: {selected.candidates_accepted} · Rejected: {selected.candidates_rejected}</span>
-            <span>Max overlap vs. existing: {(selected.max_overlap_vs_existing * 100).toFixed(0)}%</span>
-            <span>Attempt: {selected.attempt_count}</span>
+          <div className="extraction-detail" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
+            <span data-tooltip="AI model used for extraction. Different models have different extraction quality.">Model: {selected.model || '(default)'}</span>
+            <span data-tooltip="Wall-clock response time (includes network + inference). Long times (> 10s) may indicate context overload.">Response time: {selected.response_time_ms} ms</span>
+            <span data-tooltip={"Extraction prompt size in chars and estimated tokens (~4 chars/token).\nLarge prompts consume more context window and may cause truncation."}>Prompt: {selected.prompt_chars.toLocaleString()} chars (~{selected.prompt_token_estimate.toLocaleString()} tokens)</span>
+            <span data-tooltip="AI response size in characters. Very short (< 1k) = possible failure; very long = over-generating.">Response: {selected.response_chars.toLocaleString()} chars</span>
+            <span data-tooltip={"Prompt template hash (for cache dedup) + version ID.\nSame hash = same prompt structure. Useful for debugging extraction quality changes."}>Prompt hash: <code>{selected.prompt_hash}</code> ({selected.extraction_prompt_version})</span>
+            <span data-tooltip={"AN node count before → after extraction.\nGrowth of 0 across multiple turns = plateau (debate's key arguments already captured)."}>AN: {selected.an_node_count_before} → {selected.an_node_count_after}</span>
+            <span data-tooltip={"Claim candidates proposed by the AI.\nEach is evaluated for grounding (word overlap) and novelty (vs. existing AN nodes)."}>Candidates proposed: {selected.candidates_proposed}</span>
+            <span data-tooltip={"Accepted = passed validation (sufficient overlap, not duplicate).\nRejected = failed (duplicate_claim, low_overlap, too_short, missing_scheme)."}>Accepted: {selected.candidates_accepted} · Rejected: {selected.candidates_rejected}</span>
+            <span data-tooltip={"Highest word overlap between any proposed claim and existing AN nodes.\n> 60% = well-trodden ground. Near 30% = borderline duplicates."}>Max overlap vs. existing: {(selected.max_overlap_vs_existing * 100).toFixed(0)}%</span>
+            <span data-tooltip="Extraction attempt number. Normally 1. Higher = retried due to parse errors, empty responses, or truncation.">Attempt: {selected.attempt_count}</span>
           </div>
           {Object.keys(selected.rejection_reasons).length > 0 && (
             <div style={{ marginTop: 6 }}>

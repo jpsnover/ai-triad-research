@@ -628,7 +628,27 @@ export async function executeTurnWithRetry(
   const attempts: TurnAttempt[] = [];
   let attemptIdx = 0;
 
-  let pipelineResult = await callbacks.runPipeline(input.pipelineInput);
+  // Pipeline can throw on JSON parse failures (e.g., Brief stage malformed JSON).
+  // Retry up to maxRetries times before propagating the error.
+  let pipelineResult: Awaited<ReturnType<typeof callbacks.runPipeline>>;
+  let pipelineError: Error | null = null;
+  for (let pipelineAttempt = 0; pipelineAttempt <= vConfig.maxRetries; pipelineAttempt++) {
+    try {
+      pipelineResult = await callbacks.runPipeline(input.pipelineInput);
+      pipelineError = null;
+      break;
+    } catch (err) {
+      pipelineError = err instanceof Error ? err : new Error(String(err));
+      if (pipelineAttempt < vConfig.maxRetries) {
+        // Log and retry — transient parse errors from weak models often succeed on retry
+        console.warn(`[orchestration] Pipeline attempt ${pipelineAttempt + 1} failed: ${pipelineError.message.slice(0, 100)}. Retrying...`);
+      }
+    }
+  }
+  if (pipelineError || !pipelineResult!) {
+    throw pipelineError ?? new Error('Pipeline failed after retries');
+  }
+
   if (callbacks.isAborted?.()) {
     const a = callbacks.assembleResult(pipelineResult);
     return { ...a, validation: SKIPPED_VALIDATION, attempts: [], pipelineResult, aborted: true };
@@ -668,10 +688,16 @@ export async function executeTurnWithRetry(
     if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
 
     attemptIdx += 1;
-    pipelineResult = await callbacks.runPipeline({
-      ...input.pipelineInput,
-      repairHints: validation.repairHints,
-    });
+    try {
+      pipelineResult = await callbacks.runPipeline({
+        ...input.pipelineInput,
+        repairHints: validation.repairHints,
+      });
+    } catch (err) {
+      // Pipeline parse failure on retry — treat as failed attempt, break with current validation
+      console.warn(`[orchestration] Pipeline retry ${attemptIdx} failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
+      break;
+    }
     if (callbacks.isAborted?.()) {
       return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: true };
     }

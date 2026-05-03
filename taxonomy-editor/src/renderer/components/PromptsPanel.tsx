@@ -52,14 +52,33 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectionTick, setSelectionTick] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const entries = PROMPT_CATALOG;
+  const { entries, matchFields } = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return { entries: PROMPT_CATALOG, matchFields: new Map<string, string[]>() };
+    const matched: PromptCatalogEntry[] = [];
+    const fields = new Map<string, string[]>();
+    for (const entry of PROMPT_CATALOG) {
+      const hits: string[] = [];
+      if (entry.title.toLowerCase().includes(q)) hits.push('title');
+      if (entry.description.toLowerCase().includes(q)) hits.push('description');
+      if (entry.template.toLowerCase().includes(q)) hits.push('template');
+      if (entry.purpose?.toLowerCase().includes(q)) hits.push('purpose');
+      if (hits.length > 0) {
+        matched.push(entry);
+        fields.set(entry.id, hits);
+      }
+    }
+    return { entries: matched, matchFields: fields };
+  }, [searchQuery]);
 
   // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex(i => Math.min(i + 1, entries.length - 1));
@@ -99,13 +118,27 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
             onClick={() => switchTab('inspector')}
           >Inspector</button>
         </div>
-        <span className="prompts-panel-count">{entries.length}</span>
+        <span className="prompts-panel-count">{searchQuery ? `${entries.length}/${PROMPT_CATALOG.length}` : entries.length}</span>
       </div>
       {panelTab === 'inspector' ? (
         <PromptInspector />
       ) : (
       <>
-      {selectedNode && (
+      <div style={{ padding: '4px 8px 2px' }}>
+        <input
+          ref={searchRef}
+          type="text"
+          placeholder="Search prompt text..."
+          value={searchQuery}
+          onChange={e => { setSearchQuery(e.target.value); setSelectedIndex(0); }}
+          style={{
+            width: '100%', padding: '3px 6px', fontSize: '0.75rem',
+            border: '1px solid var(--border)', borderRadius: 4,
+            background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+          }}
+        />
+      </div>
+      {selectedNode && !searchQuery && (
         <div className="prompts-panel-context">
           Selected: <strong>{selectedNode.label}</strong>
         </div>
@@ -127,6 +160,11 @@ export function PromptsPanel({ onSelectPrompt, onInspectorToggle }: PromptsPanel
                 >
                   <span className="prompts-panel-item-title">{entry.title}</span>
                   <span className="prompts-panel-item-source">{entry.source}</span>
+                  {matchFields.has(entry.id) && (
+                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 4 }}>
+                      {matchFields.get(entry.id)!.join(', ')}
+                    </span>
+                  )}
                 </div>
               </div>
             );

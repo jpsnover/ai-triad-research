@@ -15,6 +15,7 @@ function Register-AIBackend {
           GEMINI_API_KEY     — Google Gemini (primary backend)
           ANTHROPIC_API_KEY  — Anthropic Claude
           GROQ_API_KEY       — Groq
+          OPENAI_API_KEY     — OpenAI
           AI_MODEL           — Default model for all AI commands
 
         On save, values are written to ~/.aitriad-env (sourced from shell profile).
@@ -43,6 +44,7 @@ function Register-AIBackend {
         GEMINI_API_KEY    = ''
         ANTHROPIC_API_KEY = ''
         GROQ_API_KEY      = ''
+        OPENAI_API_KEY    = ''
         AI_MODEL          = ''
     }
 
@@ -63,7 +65,7 @@ function Register-AIBackend {
     }
 
     # Env vars override file
-    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'AI_MODEL')) {
+    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
         $EnvVal = [Environment]::GetEnvironmentVariable($Key)
         if (-not [string]::IsNullOrWhiteSpace($EnvVal)) { $Persisted[$Key] = $EnvVal }
     }
@@ -79,6 +81,8 @@ function Register-AIBackend {
         @{ id = 'claude-haiku-3.5';               label = 'Claude Haiku 3.5';                backend = 'claude' }
         @{ id = 'groq-llama-3.3-70b';             label = 'Groq Llama 3.3 70B';              backend = 'groq' }
         @{ id = 'groq-llama-4-scout';             label = 'Groq Llama 4 Scout';              backend = 'groq' }
+        @{ id = 'openai-gpt-5.5';                 label = 'OpenAI GPT-5.5';                  backend = 'openai' }
+        @{ id = 'openai-gpt-5.5-pro';             label = 'OpenAI GPT-5.5 Pro';              backend = 'openai' }
     )
 
     $ModelsJson = $Models | ConvertTo-Json -Compress
@@ -94,10 +98,12 @@ function Register-AIBackend {
         gemini_key    = $Persisted['GEMINI_API_KEY']
         anthropic_key = $Persisted['ANTHROPIC_API_KEY']
         groq_key      = $Persisted['GROQ_API_KEY']
+        openai_key    = $Persisted['OPENAI_API_KEY']
         ai_model      = $Persisted['AI_MODEL']
         gemini_masked    = Get-MaskedKey $Persisted['GEMINI_API_KEY']
         anthropic_masked = Get-MaskedKey $Persisted['ANTHROPIC_API_KEY']
         groq_masked      = Get-MaskedKey $Persisted['GROQ_API_KEY']
+        openai_masked    = Get-MaskedKey $Persisted['OPENAI_API_KEY']
     } | ConvertTo-Json
 
     # ── HTML ──────────────────────────────────────────────────────────────────
@@ -257,6 +263,32 @@ function Register-AIBackend {
   </div>
 </div>
 
+<div class="card">
+  <h2>OpenAI <span class="badge optional">Optional</span>
+    <button class="btn-getkey" onclick="toggleHelp('openai-help')">Get Key</button></h2>
+  <div class="field">
+    <label>API Key</label>
+    <div class="key-row">
+      <input id="openai-key" type="password" placeholder="Enter OpenAI API key..." autocomplete="off">
+      <button class="btn-reveal" onclick="toggleReveal('openai-key', this)">Show</button>
+      <button class="btn-test" onclick="testKey('openai')">Test</button>
+    </div>
+    <div class="env-hint">OPENAI_API_KEY</div>
+    <div id="openai-status" class="status"></div>
+  </div>
+  <div id="openai-help" class="help-panel">
+    <h3>How to get an OpenAI API key</h3>
+    <ol>
+      <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></li>
+      <li>Sign in or create an account</li>
+      <li>Click <strong>Create new secret key</strong></li>
+      <li>Copy the key and paste it above</li>
+    </ol>
+    <p>OpenAI requires a paid account with billing enabled. Keys start with <code>sk-</code>.</p>
+    <p><strong>Models available:</strong> GPT-5.5 (balanced), GPT-5.5 Pro (most capable).</p>
+  </div>
+</div>
+
 <div class="card model-section">
   <h2>Default Model</h2>
   <div class="field">
@@ -278,13 +310,15 @@ function init() {
   document.getElementById('gemini-key').value = state.gemini_masked || '';
   document.getElementById('anthropic-key').value = state.anthropic_masked || '';
   document.getElementById('groq-key').value = state.groq_masked || '';
+  document.getElementById('openai-key').value = state.openai_masked || '';
 
   // Track whether field has been edited (vs showing mask)
   document.getElementById('gemini-key').dataset.dirty = 'false';
   document.getElementById('anthropic-key').dataset.dirty = 'false';
   document.getElementById('groq-key').dataset.dirty = 'false';
+  document.getElementById('openai-key').dataset.dirty = 'false';
 
-  ['gemini-key','anthropic-key','groq-key'].forEach(id => {
+  ['gemini-key','anthropic-key','groq-key','openai-key'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       document.getElementById(id).dataset.dirty = 'true';
     });
@@ -311,7 +345,7 @@ function toggleReveal(inputId, btn) {
   if (inp.type === 'password') {
     // If not dirty, show the real key
     if (inp.dataset.dirty === 'false') {
-      const backendMap = { 'gemini-key': 'gemini', 'anthropic-key': 'anthropic', 'groq-key': 'groq' };
+      const backendMap = { 'gemini-key': 'gemini', 'anthropic-key': 'anthropic', 'groq-key': 'groq', 'openai-key': 'openai' };
       const backend = backendMap[inputId];
       fetch('/api/reveal?backend=' + backend)
         .then(r => r.json())
@@ -337,7 +371,7 @@ function setStatus(id, cls, msg) {
 }
 
 function testKey(backend) {
-  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key' };
+  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key', openai: 'openai-key' };
   const inp = document.getElementById(inputMap[backend]);
   const key = inp.dataset.dirty === 'true' ? inp.value : '';
 
@@ -363,6 +397,8 @@ function save() {
       ? document.getElementById('anthropic-key').value : null,
     groq_key: document.getElementById('groq-key').dataset.dirty === 'true'
       ? document.getElementById('groq-key').value : null,
+    openai_key: document.getElementById('openai-key').dataset.dirty === 'true'
+      ? document.getElementById('openai-key').value : null,
     ai_model: document.getElementById('ai-model').value
   };
 
@@ -456,7 +492,7 @@ init();
                     'GET /api/reveal' {
                         $Query   = $Request.Url.Query
                         if ($Query -match 'backend=(\w+)') { $Backend = $Matches[1] } else { $Backend = '' }
-                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY' }
+                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY' }
                         $RealKey = ''
                         if ($KeyMap.ContainsKey($Backend)) {
                             $RealKey = $Persisted[$KeyMap[$Backend]]
@@ -477,7 +513,7 @@ init();
                         $TestKey     = $Body.key
                         # If no key provided (not dirty), use persisted
                         if ([string]::IsNullOrWhiteSpace($TestKey)) {
-                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY' }
+                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY' }
                             if ($KeyMap.ContainsKey($TestBackend)) {
                                 $TestKey = $Persisted[$KeyMap[$TestBackend]]
                             }
@@ -514,6 +550,15 @@ init();
                                             'Content-Type'  = 'application/json'
                                         }
                                         $R = Invoke-RestMethod -Uri 'https://api.groq.com/openai/v1/models' `
+                                            -Method Get -Headers $Hdrs -TimeoutSec 10 -ErrorAction Stop
+                                        $TestResult = @{ ok = $true; message = "Valid — $(@($R.data).Count) models available" }
+                                    }
+                                    'openai' {
+                                        $Hdrs = @{
+                                            'Authorization' = "Bearer $TestKey"
+                                            'Content-Type'  = 'application/json'
+                                        }
+                                        $R = Invoke-RestMethod -Uri 'https://api.openai.com/v1/models' `
                                             -Method Get -Headers $Hdrs -TimeoutSec 10 -ErrorAction Stop
                                         $TestResult = @{ ok = $true; message = "Valid — $(@($R.data).Count) models available" }
                                     }
@@ -554,6 +599,7 @@ init();
                                 gemini_key    = 'GEMINI_API_KEY'
                                 anthropic_key = 'ANTHROPIC_API_KEY'
                                 groq_key      = 'GROQ_API_KEY'
+                                openai_key    = 'OPENAI_API_KEY'
                             }
 
                             foreach ($Field in $KeyMap.Keys) {
@@ -595,7 +641,7 @@ init();
 
                             # bash/zsh section
                             $EnvLines.Add('# bash/zsh — source this file from ~/.bashrc or ~/.zshrc')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EnvLines.Add("export $Key=`"$Val`"")
@@ -605,7 +651,7 @@ init();
                             $EnvLines.Add('')
                             $EnvLines.Add('# PowerShell — dot-source this file from `$PROFILE')
                             $EnvLines.Add('# powershell_section_start')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EscapedVal = $Val -replace "'", "''"

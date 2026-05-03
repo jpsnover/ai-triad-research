@@ -79,6 +79,19 @@ import {
 import { runModeratorSelection, executeTurnWithRetry } from '@lib/debate/orchestration';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from '@lib/debate/orchestration';
 import { pruneSessionData, pruneModeratorState } from '@lib/debate/sessionPruning';
+import {
+  loadProvisionalWeights,
+  initPhaseState,
+  evaluatePhaseTransition,
+  advanceRound,
+  applyTransition,
+  buildSignalRegistry,
+  computeSaturationScore,
+  computeConvergenceScore,
+  detectCruxNodes,
+} from '@lib/debate/phaseTransitions';
+import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal } from '@lib/debate/types';
+import { computeDebateHealthScore } from '@lib/debate/moderator';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
@@ -1722,6 +1735,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       adaptive_staging: options?.useAdaptiveStaging
         ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate' }
         : undefined,
+      origin: { mode: 'gui' },
     };
     await api.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
@@ -2558,10 +2572,30 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     // Auto-run initial cross-respond rounds if configured
     const { initialCrossRespondRounds } = get();
-    if (initialCrossRespondRounds > 0 && !activeDebate.user_is_pover) {
-      for (let i = 0; i < initialCrossRespondRounds; i++) {
-        if (!get().activeDebate) break;
-        await get().crossRespond();
+    if (!activeDebate.user_is_pover) {
+      const freshDebate = get().activeDebate;
+      const adaptive = freshDebate?.adaptive_staging;
+      if (adaptive?.enabled) {
+        // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
+        const weights = loadProvisionalWeights();
+        const maxRounds = weights.pacing_presets[adaptive.pacing]?.maxTotalRounds ?? 12;
+        for (let i = 0; i < maxRounds; i++) {
+          const d = get().activeDebate;
+          if (!d) break;
+          // Stop if phase reached termination
+          if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+          await get().crossRespond();
+        }
+        // Auto-trigger synthesis when adaptive debate terminates
+        const finalDebate = get().activeDebate;
+        if (finalDebate?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
+          await get().requestSynthesis();
+        }
+      } else if (initialCrossRespondRounds > 0) {
+        for (let i = 0; i < initialCrossRespondRounds; i++) {
+          if (!get().activeDebate) break;
+          await get().crossRespond();
+        }
       }
     }
   },
@@ -2745,8 +2779,32 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ debateGenerating: aiPovers[0] });
 
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
-    const totalRoundsForPhase = get().initialCrossRespondRounds || 5;
-    const phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
+    const adaptiveStaging = activeDebate.adaptive_staging;
+    let totalRoundsForPhase: number;
+    let phase: string;
+    if (adaptiveStaging?.enabled) {
+      const weights = loadProvisionalWeights();
+      const pacingPreset = weights.pacing_presets[adaptiveStaging.pacing] ?? weights.pacing_presets.moderate;
+      totalRoundsForPhase = pacingPreset.maxTotalRounds;
+      // Initialize phase state on first round if not present
+      if (!adaptiveStaging.phase_state) {
+        const config: PhaseTransitionConfig = {
+          useAdaptiveStaging: true,
+          maxTotalRounds: pacingPreset.maxTotalRounds,
+          pacing: adaptiveStaging.pacing,
+          dialecticalStyle: 'adversarial',
+          explorationExitThreshold: pacingPreset.explorationExit,
+          synthesisExitThreshold: pacingPreset.synthesisExit,
+          allowEarlyTermination: true,
+        };
+        adaptiveStaging.phase_state = initPhaseState(config);
+        set({ activeDebate: { ...activeDebate } });
+      }
+      phase = adaptiveStaging.phase_state.current_phase;
+    } else {
+      totalRoundsForPhase = get().initialCrossRespondRounds || 5;
+      phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
+    }
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} start`, data: { round: crossRespondRound, phase, speakers: aiPovers } });
 
     const sourceDocSummary = activeDebate.document_analysis?.claims_summary
@@ -3217,7 +3275,181 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (postDebate) {
       pruneSessionData(postDebate);
       if (postDebate.moderator_state) pruneModeratorState(postDebate.moderator_state);
-      set({ activeDebate: { ...postDebate } });
+
+      // ── Adaptive staging: evaluate phase transition after each round ──
+      if (postDebate.adaptive_staging?.enabled && postDebate.adaptive_staging.phase_state) {
+        const asState = postDebate.adaptive_staging.phase_state;
+        const weights = loadProvisionalWeights();
+        const pacingPreset = weights.pacing_presets[postDebate.adaptive_staging.pacing] ?? weights.pacing_presets.moderate;
+        const config: PhaseTransitionConfig = {
+          useAdaptiveStaging: true,
+          maxTotalRounds: pacingPreset.maxTotalRounds,
+          pacing: postDebate.adaptive_staging.pacing,
+          dialecticalStyle: 'adversarial',
+          explorationExitThreshold: asState.exploration_exit_threshold,
+          synthesisExitThreshold: asState.synthesis_exit_threshold,
+          allowEarlyTermination: true,
+        };
+
+        // Advance round counter
+        const advanced = advanceRound(asState);
+        advanced.api_calls_used = (advanced.api_calls_used ?? 0) + 1;
+
+        // Build signal context from session data
+        const an = postDebate.argument_network ?? { nodes: [], edges: [] };
+        const recentConvSignals = postDebate.convergence_signals ?? [];
+        const lastConvSignal = recentConvSignals.length > 0 ? recentConvSignals[recentConvSignals.length - 1] : null;
+        const allStatements = postDebate.transcript
+          .filter(e => e.type === 'statement' || e.type === 'opening')
+          .map(e => {
+            const meta = e.metadata as Record<string, unknown> | undefined;
+            return {
+              round: (meta?.round as number) ?? 0,
+              speaker: e.speaker,
+              text: e.content,
+              extraction_status: 'ok' as const,
+              claims_accepted: (meta?.extracted_claims_accepted as number) ?? 0,
+              claims_rejected: 0,
+              category_validity_ratio: 1.0,
+            };
+          });
+        const lastRoundStatements = allStatements.filter(s => s.round === crossRespondRound);
+        const lastClaimsAccepted = lastRoundStatements.reduce((sum, s) => sum + s.claims_accepted, 0);
+
+        const signalCtx: SignalContext = {
+          network: {
+            nodes: an.nodes.map(n => ({
+              id: n.id, speaker: n.speaker,
+              computed_strength: n.computed_strength ?? 0.5,
+              base_strength: n.base_strength,
+              base_strength_category: n.bdi_category,
+              argumentation_scheme: (an.edges.find(e => e.source === n.id))?.argumentation_scheme,
+              taxonomy_refs: n.taxonomy_refs.map(id => ({
+                node_id: typeof id === 'string' ? id : (id as unknown as { node_id: string }).node_id,
+                relevance: 'medium',
+              })),
+              turn_number: n.turn_number,
+            })),
+            edges: an.edges.map(e => ({
+              id: e.id, source: e.source, target: e.target, type: e.type,
+              attack_type: e.attack_type, weight: e.weight ?? 0.5,
+              scheme: e.scheme, argumentation_scheme: e.argumentation_scheme,
+            })),
+            nodeCount: an.nodes.length,
+          },
+          transcript: {
+            currentRound: crossRespondRound,
+            roundsInPhase: advanced.rounds_in_phase,
+            activePovsCount: aiPovers.length,
+            lastNRounds: (n: number) => {
+              const maxRound = crossRespondRound;
+              const minRound = Math.max(1, maxRound - n + 1);
+              return allStatements.filter(s => s.round >= minRound && s.round <= maxRound);
+            },
+          },
+          priorSignals: {
+            get: () => null,
+            movingAverage: () => null,
+          },
+          convergenceSignals: {
+            recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.recycling_rate?.semantic_max_similarity },
+            engagement_depth: { ratio: lastConvSignal?.engagement_depth?.ratio ?? 1 },
+            position_delta: { drift: lastConvSignal?.position_delta?.drift ?? 0 },
+            concession_opportunity: {
+              outcome: lastConvSignal?.concession_opportunity?.outcome ?? 'none',
+              strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
+            },
+          },
+          phase: {
+            current: advanced.current_phase,
+            allPovsResponded: true,
+            cruxNodes: detectCruxNodes(
+              an.nodes.map(n => ({ id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5, taxonomy_refs: [], turn_number: n.turn_number })),
+              an.edges.map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type, weight: e.weight ?? 0.5 })),
+            ),
+            cruxResolution: (postDebate.crux_tracker ?? []).map(c => ({ id: c.id, state: c.state, support_polarity: c.support_polarity })),
+            priorCruxClusters: advanced.prior_crux_clusters,
+            regressionCount: advanced.regression_count,
+            explorationExitThreshold: advanced.exploration_exit_threshold,
+            synthesisExitThreshold: advanced.synthesis_exit_threshold,
+          },
+          extraction: {
+            lastRoundStatus: 'ok',
+            lastRoundClaimsAccepted: lastClaimsAccepted,
+            lastRoundCategoryValidityRatio: 1.0,
+          },
+        };
+
+        // Build signals and evaluate
+        const signals = buildSignalRegistry();
+
+        // Build health score for early termination
+        const turnCounts: Record<string, number> = {};
+        for (const p of aiPovers) turnCounts[p] = 0;
+        for (const e of postDebate.transcript) {
+          if (e.type === 'statement' && e.speaker !== 'system' && e.speaker !== 'moderator') {
+            turnCounts[e.speaker] = (turnCounts[e.speaker] ?? 0) + 1;
+          }
+        }
+        const referencedIds = new Set<string>();
+        for (const e of postDebate.transcript.slice(-6)) {
+          for (const ref of e.taxonomy_refs) referencedIds.add(ref.node_id);
+        }
+        const taxState = useTaxonomyStore.getState();
+        const relevantNodeCount = Math.max(1,
+          (taxState.accelerationist?.nodes?.length ?? 0) +
+          (taxState.safetyist?.nodes?.length ?? 0) +
+          (taxState.skeptic?.nodes?.length ?? 0));
+        const asHealthScore = computeDebateHealthScore(recentConvSignals.slice(-3), turnCounts, referencedIds.size, relevantNodeCount);
+
+        const result = evaluatePhaseTransition(advanced, signalCtx, signals, config, asHealthScore);
+
+        // Apply transition
+        const prevPhase = advanced.current_phase;
+        const newState = applyTransition(advanced, result);
+
+        // Handle transitions
+        if (result.action === 'transition' || result.action === 'force_transition') {
+          addTranscriptEntry({
+            type: 'system', speaker: 'system',
+            content: `[Phase transition] ${prevPhase} → ${newState.current_phase}: ${result.reason}`,
+            taxonomy_refs: [],
+            metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: newState.current_phase, reason: result.reason },
+          });
+        } else if (result.action === 'regress') {
+          addTranscriptEntry({
+            type: 'system', speaker: 'system',
+            content: `[Phase regression] synthesis → exploration: ${result.reason}. Threshold ratcheted to ${(newState.exploration_exit_threshold * 100).toFixed(0)}%.`,
+            taxonomy_refs: [],
+            metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.exploration_exit_threshold },
+          });
+        } else if (result.action === 'terminate') {
+          addTranscriptEntry({
+            type: 'system', speaker: 'system',
+            content: `[Adaptive termination] ${result.reason}`,
+            taxonomy_refs: [],
+            metadata: { adaptive_termination: true, reason: result.reason },
+          });
+          // Mark terminated so auto-run loop stops
+          newState.current_phase = 'terminated';
+        }
+
+        // Persist updated phase state + UI convenience fields
+        const freshPostDebate = get().activeDebate;
+        if (freshPostDebate?.adaptive_staging) {
+          freshPostDebate.adaptive_staging.phase_state = newState;
+          // Write UI-facing fields for PhaseProgressBar
+          const asObj = freshPostDebate.adaptive_staging as Record<string, unknown>;
+          asObj.current_phase = newState.current_phase;
+          asObj.rounds_in_phase = newState.rounds_in_phase;
+          asObj.phase_progress = newState.total_rounds_elapsed / config.maxTotalRounds;
+          asObj.approaching_transition = result.action === 'transition' || result.action === 'force_transition';
+          asObj.rationale = result.reason;
+          set({ activeDebate: { ...freshPostDebate } });
+        }
+      } else {
+        set({ activeDebate: { ...postDebate } });
+      }
     }
 
     set({ debateGenerating: null });

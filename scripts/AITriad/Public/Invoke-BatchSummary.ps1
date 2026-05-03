@@ -561,6 +561,102 @@ function Invoke-BatchSummary {
     Write-Host "`n  Output: summaries/*.json  |  metadata updated in sources/*/metadata.json"
     Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
 
+    # -- STEP 8b — Log extraction metrics for calibration ----------------------
+    # Captures per-document extraction quality for parameters #12-#15 tuning.
+    try {
+        $CalibDir = Join-Path (Split-Path $SummariesDir -Parent) 'calibration'
+        if (-not (Test-Path $CalibDir)) { New-Item -ItemType Directory -Path $CalibDir -Force | Out-Null }
+
+        $ExtractionMetrics = @{
+            timestamp         = (Get-Date -Format 'o')
+            model             = $Model
+            temperature       = $Temperature
+            taxonomy_version  = $TaxonomyVersion
+            documents_total   = $DocsToProcess.Count
+            documents_success = $Succeeded.Count
+            documents_failed  = $Failed.Count
+            fire_enabled      = [bool]($IterativeExtraction -or $AutoFire)
+            # Aggregate extraction stats
+            total_key_points    = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property TotalPoints -Sum).Sum } else { 0 }
+            total_factual_claims = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property FactualCount -Sum).Sum } else { 0 }
+            total_unmapped      = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property UnmappedCount -Sum).Sum } else { 0 }
+            total_api_seconds   = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property ElapsedSecs -Sum).Sum } else { 0 }
+            # Per-document detail for density analysis (parameter #15)
+            per_document = @($Succeeded | ForEach-Object {
+                $DocSource = Join-Path $SourcesDir "$($_.DocId)/metadata.json"
+                $WordCount = 0
+                if (Test-Path $DocSource) {
+                    try { $WordCount = (Get-Content $DocSource -Raw | ConvertFrom-Json).word_count ?? 0 } catch {}
+                }
+                @{
+                    doc_id         = $_.DocId
+                    key_points     = $_.TotalPoints
+                    factual_claims = $_.FactualCount
+                    unmapped       = $_.UnmappedCount
+                    word_count     = $WordCount
+                    claims_per_1k  = if ($WordCount -gt 0) { [Math]::Round(($_.TotalPoints + $_.FactualCount) / $WordCount * 1000, 2) } else { $null }
+                    elapsed_secs   = $_.ElapsedSecs
+                    chunks         = $_.ChunkCount
+                }
+            })
+        }
+
+        # Compute aggregate density stats
+        $Densities = @($ExtractionMetrics.per_document | Where-Object { $_.claims_per_1k -ne $null } | ForEach-Object { $_.claims_per_1k })
+        if ($Densities.Count -gt 0) {
+            $Sorted = $Densities | Sort-Object
+            $ExtractionMetrics['density_stats'] = @{
+                mean = [Math]::Round(($Densities | Measure-Object -Average).Average, 2)
+                p25  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.25)], 2)
+                p50  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.50)], 2)
+                p75  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.75)], 2)
+                min  = [Math]::Round($Sorted[0], 2)
+                max  = [Math]::Round($Sorted[-1], 2)
+            }
+        }
+
+        # Compute duplicate analysis (parameter #12) — pairwise label similarity within each summary
+        $DupCandidates = 0
+        foreach ($Res in $Succeeded) {
+            $SumPath = Join-Path $SummariesDir "$($Res.DocId).json"
+            if (-not (Test-Path $SumPath)) { continue }
+            try {
+                $Sum = Get-Content -Raw $SumPath | ConvertFrom-Json
+                $AllLabels = @()
+                foreach ($Camp in @('accelerationist','safetyist','skeptic')) {
+                    if ($Sum.pov_summaries.$Camp.key_points) {
+                        $AllLabels += @($Sum.pov_summaries.$Camp.key_points | ForEach-Object { $_.label ?? $_.point ?? '' })
+                    }
+                }
+                # Check for near-duplicate labels (Jaccard > 0.6)
+                for ($i = 0; $i -lt $AllLabels.Count; $i++) {
+                    for ($j = $i + 1; $j -lt $AllLabels.Count; $j++) {
+                        $wa = @($AllLabels[$i].ToLower() -split '\s+')
+                        $wb = @($AllLabels[$j].ToLower() -split '\s+')
+                        $shared = ($wa | Where-Object { $wb -contains $_ }).Count
+                        $union = ($wa + $wb | Select-Object -Unique).Count
+                        if ($union -gt 0 -and ($shared / $union) -gt 0.6) { $DupCandidates++ }
+                    }
+                }
+            } catch {}
+        }
+        $ExtractionMetrics['near_duplicate_labels'] = $DupCandidates
+
+        $MetricsPath = Join-Path $CalibDir 'extraction-metrics.json'
+        # Append to history array
+        $History = @()
+        if (Test-Path $MetricsPath) {
+            try { $History = @(Get-Content -Raw $MetricsPath | ConvertFrom-Json) } catch { $History = @() }
+        }
+        $History += $ExtractionMetrics
+        $History | ConvertTo-Json -Depth 5 | Set-Content $MetricsPath -Encoding utf8
+
+        Write-OK "Extraction metrics logged to calibration/extraction-metrics.json (density mean: $($ExtractionMetrics.density_stats.mean ?? 'N/A') claims/1k words, $DupCandidates near-dup label pairs)"
+    }
+    catch {
+        Write-Warn "Extraction metrics logging failed (non-critical): $_"
+    }
+
     # -- STEP 9 — Post-batch policy registry consolidation ---------------------
     # Strategy: parallel workers each write to different source/summary files so
     # there is no write contention on those. However, taxonomy policy_actions may

@@ -97,7 +97,7 @@ describe('pruneSessionData', () => {
     expect(remaining).not.toContain('entry-9');
   });
 
-  it('prunes diagnostic entries to keep only recent transcript entries', () => {
+  it('preserves all diagnostic entries (diagnostics are not pruned)', () => {
     const transcript = Array.from({ length: 25 }, (_, i) => ({
       id: `entry-${i}`, type: 'statement' as const, speaker: 'prometheus' as const,
       content: `Turn ${i}`, taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z',
@@ -112,10 +112,9 @@ describe('pruneSessionData', () => {
     pruneSessionData(session);
 
     const remaining = Object.keys(session.diagnostics!.entries);
-    expect(remaining.length).toBe(15);
+    expect(remaining.length).toBe(25);
+    expect(remaining).toContain('entry-0');
     expect(remaining).toContain('entry-24');
-    expect(remaining).toContain('entry-10');
-    expect(remaining).not.toContain('entry-9');
   });
 });
 
