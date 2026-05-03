@@ -2295,7 +2295,7 @@ export class DebateEngine {
       lines.push('**Areas of Agreement:**');
       lines.push('');
       for (const a of agreements) {
-        const povers = a.povers.map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label ?? p).join(', ');
+        const povers = (a.povers ?? []).map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label ?? p).join(', ');
         lines.push(`- ${a.point} (${povers})`);
       }
       lines.push('');
