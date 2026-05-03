@@ -12,8 +12,8 @@
  * lives in the data directory alongside debate sessions.
  */
 
-import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from './types';
-import type { NeutralEvaluation } from './neutralEvaluator';
+import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
+import type { NeutralEvaluation } from './neutralEvaluator.js';
 
 // ── Calibration data point schema ──────────────────────────
 
@@ -167,7 +167,7 @@ export function extractCalibrationData(
   const engaging = finalEval?.overall_assessment.debate_is_engaging_real_disagreement ?? null;
   const cruxRatio = finalEval
     ? finalEval.cruxes.length > 0
-      ? finalEval.cruxes.filter(c => c.status === 'addressed').length / finalEval.cruxes.length
+      ? finalEval.cruxes.filter((c: { status: string }) => c.status === 'addressed').length / finalEval.cruxes.length
       : null
     : null;
 
@@ -192,7 +192,7 @@ export function extractCalibrationData(
   // ── Validation error/warning rates ──
   const validations = session.turn_validations ?? {};
   const validationEntries = Object.values(validations) as { final?: { issues?: string[] } }[];
-  const totalTurns = session.transcript.filter(e =>
+  const totalTurns = session.transcript.filter((e: { type: string }) =>
     e.type === 'opening' || e.type === 'statement',
   ).length;
   let structuralErrors = 0, repetitionWarnings = 0;
@@ -207,7 +207,7 @@ export function extractCalibrationData(
 
   // ── QBAF concordance with synthesis preferences ──
   let concordance: number | null = null;
-  const synthEntry = session.transcript.find(e => e.type === 'synthesis');
+  const synthEntry = session.transcript.find((e: { type: string }) => e.type === 'synthesis');
   const synthMeta = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as {
     preferences?: { prevails?: string; claim_ids?: string[] }[];
   } | undefined;
