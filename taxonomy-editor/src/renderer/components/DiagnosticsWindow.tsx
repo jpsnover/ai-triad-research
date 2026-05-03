@@ -18,7 +18,6 @@ import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from './TaxonomyRefDetail';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
-import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { TaxonomyGapPanel } from './TaxonomyGapPanel';
@@ -244,6 +243,214 @@ function Section({ title, children, defaultOpen = false, copyText }: { title: st
         {copyText && effectiveOpen && <CopyButton text={copyText} />}
       </div>
       {effectiveOpen && <div style={{ paddingLeft: 16, fontSize: '0.75rem' }}>{children}</div>}
+    </div>
+  );
+}
+
+const POV_NODE_COLOR: Record<string, string> = {
+  'acc-': 'var(--color-acc)',
+  'saf-': 'var(--color-saf)',
+  'skp-': 'var(--color-skp)',
+  'sit-': 'var(--color-sit)',
+  'cc-': 'var(--color-sit)',
+};
+function edgeNodeColor(id: string) {
+  for (const [prefix, color] of Object.entries(POV_NODE_COLOR)) {
+    if (id.startsWith(prefix)) return color;
+  }
+  return 'var(--text-muted)';
+}
+
+type EdgeUsed = { source: string; target: string; type: string; confidence: number };
+
+function EdgesUsedGrouped({ edges, allEdges, taxNodeMap, nodeLabels }: {
+  edges: EdgeUsed[];
+  allEdges: TaxRefEdge[];
+  taxNodeMap: Map<string, Record<string, unknown>>;
+  nodeLabels: Map<string, string>;
+}) {
+  const [selectedIdx, setSelectedIdx] = useState<string | null>(null);
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, EdgeUsed[]>();
+    for (const e of edges) {
+      const arr = groups.get(e.type);
+      if (arr) arr.push(e); else groups.set(e.type, [e]);
+    }
+    for (const arr of groups.values()) arr.sort((a, b) => b.confidence - a.confidence);
+    return groups;
+  }, [edges]);
+
+  // Look up full edge from allEdges
+  const selectedEdge = useMemo(() => {
+    if (!selectedIdx) return null;
+    const [src, tgt, typ] = selectedIdx.split('|');
+    return allEdges.find(e => e.source === src && e.target === tgt && e.type === typ) ?? null;
+  }, [selectedIdx, allEdges]);
+
+  const selectedUsed = useMemo(() => {
+    if (!selectedIdx) return null;
+    const [src, tgt, typ] = selectedIdx.split('|');
+    return edges.find(e => e.source === src && e.target === tgt && e.type === typ) ?? null;
+  }, [selectedIdx, edges]);
+
+  return (
+    <div style={{ display: 'flex', gap: 8, minHeight: 200 }}>
+      {/* Left: edge list */}
+      <div style={{ flex: '1 1 45%', maxHeight: 400, overflowY: 'auto' }}>
+        {Array.from(grouped.entries()).map(([type, edgeList]) => (
+          <EdgesUsedGroup key={type} edgeType={type} edges={edgeList} selectedIdx={selectedIdx} onSelect={setSelectedIdx} nodeLabels={nodeLabels} />
+        ))}
+      </div>
+      {/* Right: edge detail */}
+      <div style={{ flex: '1 1 55%', maxHeight: 400, overflowY: 'auto', borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>
+        {selectedEdge ? (
+          <EdgesUsedDetail edge={selectedEdge} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
+        ) : selectedUsed ? (
+          <EdgesUsedDetail edge={{ ...selectedUsed, bidirectional: false, rationale: '', status: '', weight: undefined, strength: undefined, notes: undefined }} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '20px 8px', textAlign: 'center' }}>Select an edge to view details</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EdgesUsedGroup({ edgeType, edges, selectedIdx, onSelect, nodeLabels }: {
+  edgeType: string;
+  edges: EdgeUsed[];
+  selectedIdx: string | null;
+  onSelect: (idx: string | null) => void;
+  nodeLabels: Map<string, string>;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="related-edge-group">
+      <div className="related-edge-group-header" onClick={() => setCollapsed(!collapsed)}>
+        <span className="related-edge-group-toggle">{collapsed ? '\u25B6' : '\u25BC'}</span>
+        <span className="related-edge-type-name">{edgeType.replace(/_/g, ' ')}</span>
+        <span className="related-edge-type-count">{edges.length}</span>
+      </div>
+      {!collapsed && edges.map((e, i) => {
+        const key = `${e.source}|${e.target}|${e.type}`;
+        const isSelected = selectedIdx === key;
+        const srcLabel = nodeLabels.get(e.source);
+        const tgtLabel = nodeLabels.get(e.target);
+        return (
+          <div
+            key={i}
+            className={`related-edge-card${isSelected ? ' related-edge-selected' : ''}`}
+            onClick={() => onSelect(isSelected ? null : key)}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="related-edge-header">
+              <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.source) }}>
+                {srcLabel ? truncateLabel(srcLabel, 20) : e.source}
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' }}>{edgeType.replace(/_/g, ' ')}</span>
+              <span className="related-edge-label-primary" style={{ color: edgeNodeColor(e.target) }}>
+                {tgtLabel ? truncateLabel(tgtLabel, 20) : e.target}
+              </span>
+            </div>
+            <div className="related-edge-sub">
+              <span className="related-edge-id">{e.source} &rarr; {e.target}</span>
+              <span className="related-wc-tag">c{Math.round(e.confidence * 100)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function truncateLabel(s: string, max: number) {
+  return s.length > max ? s.slice(0, max) + '\u2026' : s;
+}
+
+function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
+  edge: TaxRefEdge;
+  taxNodeMap: Map<string, Record<string, unknown>>;
+  nodeLabels: Map<string, string>;
+}) {
+  const srcNode = taxNodeMap.get(edge.source) as TaxRefNode | undefined;
+  const tgtNode = taxNodeMap.get(edge.target) as TaxRefNode | undefined;
+  const srcLabel = nodeLabels.get(edge.source) ?? edge.source;
+  const tgtLabel = nodeLabels.get(edge.target) ?? edge.target;
+  const pct = Math.round(edge.confidence * 100);
+
+  return (
+    <div style={{ fontSize: '0.78rem' }}>
+      {/* Edge type banner */}
+      <div className="edge-detail-type-banner">
+        <span className="edge-detail-type-name">{edge.type.replace(/_/g, ' ')}</span>
+        {edge.bidirectional && <span className="edge-detail-bidir" title="Bidirectional">&harr;</span>}
+      </div>
+
+      {/* Source → Target */}
+      <div className="edge-detail-endpoints">
+        <div className="edge-detail-endpoint">
+          <div className="edge-detail-endpoint-role">SOURCE</div>
+          <div className="edge-detail-endpoint-label" style={{ color: edgeNodeColor(edge.source) }}>{srcLabel}</div>
+          <div className="edge-detail-endpoint-id">{edge.source}</div>
+        </div>
+        <div className="edge-detail-arrow">{edge.bidirectional ? '\u2194' : '\u2192'}</div>
+        <div className="edge-detail-endpoint">
+          <div className="edge-detail-endpoint-role">TARGET</div>
+          <div className="edge-detail-endpoint-label" style={{ color: edgeNodeColor(edge.target) }}>{tgtLabel}</div>
+          <div className="edge-detail-endpoint-id">{edge.target}</div>
+        </div>
+      </div>
+
+      {/* Source & Target descriptions */}
+      {(srcNode?.description || tgtNode?.description) && (
+        <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
+          {srcNode?.description && (
+            <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Source Description</div>
+              <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{srcNode.description}</div>
+            </div>
+          )}
+          {tgtNode?.description && (
+            <div style={{ flex: 1, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em' }}>Target Description</div>
+              <div style={{ fontSize: '0.75rem', lineHeight: 1.5 }}>{tgtNode.description}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rationale */}
+      {edge.rationale && (
+        <div className="edge-detail-section">
+          <div className="edge-detail-section-label">RATIONALE</div>
+          <div style={{ fontSize: '0.78rem', lineHeight: 1.55 }}>{edge.rationale}</div>
+        </div>
+      )}
+
+      {/* Confidence & Strength */}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'center', margin: '10px 0', fontSize: '0.78rem' }}>
+        <span>Confidence: {pct}%</span>
+        {edge.strength && <span>Strength: {edge.strength}</span>}
+      </div>
+
+      {/* Status */}
+      {edge.status && edge.status !== 'approved' && (
+        <span className={`edge-detail-status-badge status-${edge.status}`}>
+          {edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{edge.status}
+        </span>
+      )}
+      {edge.status === 'approved' && (
+        <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '0.75rem' }}>{'\u2713'} Approved</span>
+      )}
+
+      {/* Notes */}
+      {edge.notes && (
+        <div className="edge-detail-section" style={{ marginTop: 10 }}>
+          <div className="edge-detail-section-label">Notes</div>
+          <div style={{ fontSize: '0.75rem' }}>{edge.notes}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1237,8 +1444,7 @@ const SUB_SCORE_TIPS: Record<string, string> = {
 
 const BELIEF_KEYS = new Set(['evidence_quality', 'source_reliability', 'falsifiability']);
 
-function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
-  const updateAnNodeSubScore = useDebateStore(s => s.updateAnNodeSubScore);
+function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; onUpdateSubScore: (nodeId: string, key: string, value: number) => void }) {
   if (!node.bdi_sub_scores) return null;
   const isBelief = node.bdi_category === 'belief';
 
@@ -1265,7 +1471,7 @@ function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
               type="range"
               min={0} max={1} step={0.05}
               value={v}
-              onChange={(e) => updateAnNodeSubScore(node.id, key, parseFloat(e.target.value))}
+              onChange={(e) => onUpdateSubScore(node.id, key, parseFloat(e.target.value))}
               style={{ width: 48, height: 10, accentColor: c, cursor: 'pointer' }}
             />
             <span style={{ color: c, minWidth: 26 }}>{v.toFixed(2)}</span>
@@ -1279,7 +1485,7 @@ function SubScoreRow({ node }: { node: ArgumentNetworkNode }) {
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
 
-function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused }: {
+function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
@@ -1291,6 +1497,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
   onGotoEntry?: (entryId: string) => void;
   stmtIdByEntry?: Map<string, string>;
   focused?: boolean;
+  onUpdateSubScore: (nodeId: string, key: string, value: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const responded = attacks.length > 0 || supports.length > 0;
@@ -1360,7 +1567,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
-      {node.bdi_sub_scores && <SubScoreRow node={node} />}
+      {node.bdi_sub_scores && <SubScoreRow node={node} onUpdateSubScore={onUpdateSubScore} />}
 
       {/* Edges — ALWAYS visible (badge + source ID + type + scheme + warrant) */}
       {hasChildren && (
@@ -1487,6 +1694,20 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [nodeLabels, setNodeLabels] = useState<Map<string, string>>(new Map());
   // Reset detail panels whenever the selected transcript entry changes
   useEffect(() => { setSelectedTaxRefId(null); setSelectedPolicyId(null); }, [selectedEntry]);
+
+  const handleUpdateSubScore = useCallback((nodeId: string, key: string, value: number) => {
+    setDebate(prev => {
+      if (!prev?.argument_network) return prev;
+      const nodes = prev.argument_network.nodes.map(n => {
+        if (n.id !== nodeId || !n.bdi_sub_scores) return n;
+        const updated = { ...n.bdi_sub_scores, [key]: value };
+        const vals = Object.values(updated).filter((v): v is number => v != null);
+        const avg = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : n.base_strength;
+        return { ...n, bdi_sub_scores: updated, base_strength: avg };
+      });
+      return { ...prev, argument_network: { ...prev.argument_network, nodes } };
+    });
+  }, []);
 
   const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
     if (cmd.entry !== undefined) {
@@ -1750,6 +1971,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
+        {debate && (
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260, userSelect: 'all', fontFamily: 'monospace' }} title={`${debate.title} — ${debate.id}`}>
+            {debate.title}
+          </span>
+        )}
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
@@ -2263,6 +2489,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           onGotoEntry={(eid) => { setOverviewTab('transcript'); setSelectedEntry(eid); setLocalOverride(true); }}
                           stmtIdByEntry={stmtIdByEntry}
                           focused={focusedNodeId === n.id}
+                          onUpdateSubScore={handleUpdateSubScore}
                         />
                       );
                     })}
@@ -2377,7 +2604,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             )}
             <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
-            {!diag && !proxiedModeratorTrace && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
+            {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
             <span style={{ flex: 1 }} />
             <button
               onClick={() => goToIdx(entryIdx - 1)}
@@ -2644,7 +2871,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   {active.has && active.id !== 'tax-refs' && (
                     <button
                       onClick={handleCopy}
-                      style={{ fontSize: '0.65rem', padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', marginBottom: 4 }}
+                      style={{ fontSize: '0.75rem', padding: '3px 10px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', marginBottom: 4 }}
                       title="Copy tab content"
                     >Copy</button>
                   )}
@@ -2953,14 +3180,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
                       {(diag as Record<string, unknown>)?.edges_used && ((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).length > 0 && (
                         <Section title={`Edges Used (${((diag as Record<string, unknown>).edges_used as unknown[]).length})`} defaultOpen copyText={((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map(e => `${e.source} ${e.type} ${e.target} (${e.confidence.toFixed(2)})`).join('\n')}>
-                          {((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map((e, i) => (
-                            <div key={i} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid var(--border)', fontSize: '0.7rem' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>{e.source}</span>
-                              {' '}<strong>{e.type}</strong>{' '}
-                              <span style={{ color: 'var(--text-muted)' }}>{e.target}</span>
-                              <span style={{ marginLeft: 8, opacity: 0.6 }}>({(e.confidence * 100).toFixed(0)}%)</span>
-                            </div>
-                          ))}
+                          <EdgesUsedGrouped edges={(diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]} allEdges={allEdges} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
                         </Section>
                       )}
 
@@ -3146,6 +3366,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem', fontWeight: 600 }}>
                           <Highlight text={String((planStage.work_product as Record<string, unknown>).strategic_goal)} />
+                        </div>
+                      )}
+                      {!!(planStage.work_product as Record<string, unknown>).directive_response_plan && (
+                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+                          </div>
+                          <Highlight text={String((planStage.work_product as Record<string, unknown>).directive_response_plan)} />
                         </div>
                       )}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
