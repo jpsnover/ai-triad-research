@@ -33,6 +33,7 @@ COPY taxonomy-editor/tsconfig.json ./taxonomy-editor/
 COPY taxonomy-editor/tsconfig.main.json ./taxonomy-editor/
 COPY taxonomy-editor/tsconfig.server.json ./taxonomy-editor/
 COPY taxonomy-editor/vite.config.ts ./taxonomy-editor/
+COPY taxonomy-editor/scripts/ ./taxonomy-editor/scripts/
 COPY ai-models.json ./
 COPY .aitriad.json ./
 COPY taxonomy/schemas/ ./taxonomy/schemas/
