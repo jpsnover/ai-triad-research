@@ -507,7 +507,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     const filePath = path.join(dumpDir, `flight-recorder-${ts}.jsonl`);
     fs.writeFileSync(filePath, ndjson, 'utf-8');
 
-    // Retention: keep last 10 files, max 50 MB
+    // Retention: keep last 20 files, max 50 MB
     try {
       const files = fs.readdirSync(dumpDir)
         .filter(f => f.startsWith('flight-recorder-') && f.endsWith('.jsonl'))
@@ -517,8 +517,8 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
           return { name: f, path: fp, mtime: stat.mtimeMs, size: stat.size };
         })
         .sort((a, b) => b.mtime - a.mtime);
-      for (const f of files.slice(10)) fs.unlinkSync(f.path);
-      const remaining = files.slice(0, 10);
+      for (const f of files.slice(20)) fs.unlinkSync(f.path);
+      const remaining = files.slice(0, 20);
       let totalSize = remaining.reduce((s, f) => s + f.size, 0);
       for (let i = remaining.length - 1; i >= 0 && totalSize > 50 * 1024 * 1024; i--) {
         fs.unlinkSync(remaining[i].path);

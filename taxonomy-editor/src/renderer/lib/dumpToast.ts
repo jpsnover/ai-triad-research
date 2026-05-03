@@ -30,21 +30,35 @@ function getOrCreateContainer(): HTMLElement {
   return container;
 }
 
+const BTN_STYLE: Partial<CSSStyleDeclaration> = {
+  background: 'var(--bg-tertiary, #313244)',
+  color: 'var(--text-primary, #cdd6f4)',
+  border: '1px solid var(--border-color, #45475a)',
+  borderRadius: '4px',
+  padding: '3px 10px',
+  fontSize: '11px',
+  cursor: 'pointer',
+  fontFamily: 'var(--font-sans, sans-serif)',
+};
+
 /**
  * Show a toast notification for a flight recorder dump.
  *
- * In Electron mode, shows the local file path.
- * In web/Azure mode, shows a clickable download link.
+ * - Electron: file path + Copy + Open buttons
+ * - Web/Azure: clickable download link
  */
 export function showDumpToast(opts: {
   filename: string;
   filePath: string;
   isWeb: boolean;
+  onCopy?: () => void;
+  onOpen?: () => void;
 }): void {
   const container = getOrCreateContainer();
 
   const toast = document.createElement('div');
   Object.assign(toast.style, {
+    position: 'relative',
     background: 'var(--bg-secondary, #1e1e2e)',
     color: 'var(--text-primary, #cdd6f4)',
     border: '1px solid var(--border-color, #45475a)',
@@ -83,14 +97,36 @@ export function showDumpToast(opts: {
     });
     toast.appendChild(link);
   } else {
-    // Electron mode: show file path (click to open containing folder)
+    // Electron mode: file path + Copy + Open buttons
     const pathEl = document.createElement('div');
     pathEl.textContent = opts.filePath;
     Object.assign(pathEl.style, {
       wordBreak: 'break-all',
       opacity: '0.8',
+      marginBottom: '6px',
     });
     toast.appendChild(pathEl);
+
+    const btnRow = document.createElement('div');
+    Object.assign(btnRow.style, { display: 'flex', gap: '6px' });
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    Object.assign(copyBtn.style, BTN_STYLE);
+    copyBtn.onclick = () => {
+      opts.onCopy?.();
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    };
+    btnRow.appendChild(copyBtn);
+
+    const openBtn = document.createElement('button');
+    openBtn.textContent = 'Open';
+    Object.assign(openBtn.style, BTN_STYLE);
+    openBtn.onclick = () => opts.onOpen?.();
+    btnRow.appendChild(openBtn);
+
+    toast.appendChild(btnRow);
   }
 
   // Dismiss button
@@ -108,7 +144,6 @@ export function showDumpToast(opts: {
     padding: '0 2px',
     lineHeight: '1',
   });
-  toast.style.position = 'relative';
   dismiss.onclick = () => removeToast(toast);
   toast.appendChild(dismiss);
 

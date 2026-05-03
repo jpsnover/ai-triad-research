@@ -105,6 +105,7 @@ export const api: AppAPI = {
 
   // Flight recorder
   dumpFlightRecorder: (ndjson) => window.electronAPI.dumpFlightRecorder(ndjson),
+  openFile: (filePath) => window.electronAPI.openFile(filePath),
 
   // Diagnostics
   openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),

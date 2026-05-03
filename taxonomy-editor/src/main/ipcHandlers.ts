@@ -452,6 +452,13 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle('open-file', (_event, filePath: string) => {
+    // Only allow opening files that actually exist on disk
+    if (fs.existsSync(filePath)) {
+      shell.openPath(filePath);
+    }
+  });
+
   // Clipboard (Electron 40: renderer clipboard API deprecated → use main process)
   ipcMain.handle('clipboard-write-text', (_event, text: string) => {
     clipboard.writeText(text);
@@ -816,8 +823,8 @@ export function registerIpcHandlers(): void {
     const filePath = path.join(dumpDir, `flight-recorder-${ts}.jsonl`);
     fs.writeFileSync(filePath, ndjson, 'utf-8');
 
-    // Retention: keep last 10 files, max 50 MB
-    const MAX_FILES = 10;
+    // Retention: keep last 20 files, max 50 MB
+    const MAX_FILES = 20;
     const MAX_BYTES = 50 * 1024 * 1024;
     try {
       const files = fs.readdirSync(dumpDir)

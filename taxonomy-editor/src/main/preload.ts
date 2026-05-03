@@ -129,8 +129,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-calibration-history'),
 
   // Flight recorder
-  dumpFlightRecorder: (ndjson: string): Promise<{ filePath: string }> =>
+  dumpFlightRecorder: (ndjson: string): Promise<{ filePath: string; filename: string }> =>
     ipcRenderer.invoke('dump-flight-recorder', ndjson),
+  openFile: (filePath: string): Promise<void> =>
+    ipcRenderer.invoke('open-file', filePath).then(() => {}),
 
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),

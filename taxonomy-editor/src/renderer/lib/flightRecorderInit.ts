@@ -72,6 +72,8 @@ async function persistDump(
       filename: result.filename,
       filePath: result.filePath,
       isWeb,
+      onCopy: () => api.clipboardWriteText(result.filePath),
+      onOpen: () => api.openFile(result.filePath),
     });
   } catch (err) {
     console.warn('[flight-recorder] Failed to persist dump:', err);

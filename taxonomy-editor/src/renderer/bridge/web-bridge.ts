@@ -354,6 +354,7 @@ const rawApi: AppAPI = {
 
   // Flight recorder
   dumpFlightRecorder: (ndjson) => post('/api/flight-recorder/dump', { ndjson }),
+  openFile: async () => {}, // No local file access in web mode
 
   // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
   openDiagnosticsWindow: async () => {

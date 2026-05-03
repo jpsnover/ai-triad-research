@@ -166,6 +166,7 @@ export interface AppAPI {
 
   // --- Flight recorder ---
   dumpFlightRecorder: (ndjson: string) => Promise<{ filePath: string; filename: string }>;
+  openFile: (filePath: string) => Promise<void>;
 
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;

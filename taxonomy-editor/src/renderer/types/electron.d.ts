@@ -67,6 +67,7 @@ export interface ElectronAPI {
   shrinkWindow: (deltaWidth: number) => Promise<void>;
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
+  openFile: (filePath: string) => Promise<void>;
   buildNodeSourceIndex: () => Promise<unknown>;
   buildPolicySourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
