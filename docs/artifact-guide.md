@@ -1,6 +1,6 @@
 # Artifact Guide: How and When Debate Artifacts Are Created and Used
 
-This document explains five artifacts produced by the AI Triad debate system: what they are, when they are created, where they are stored, how they flow through the system, and where they surface in the UI.
+This document explains six artifacts produced by the AI Triad debate system: what they are, when they are created, where they are stored, how they flow through the system, and where they surface in the UI.
 
 ---
 
@@ -130,7 +130,115 @@ Example: The concept "AI Alignment" is a situation node. The accelerationist int
 
 ---
 
-## 3. Cruxes (Pivotal Disagreement Points)
+## 3. Conflicts (Documented Source-Level Disagreements)
+
+### What They Are
+
+Conflicts are documented disagreements between source documents about specific factual claims. Unlike cruxes (which emerge during debates), conflicts are discovered during the ingestion pipeline when different academic papers, policy reports, or expert analyses make contradictory assertions about the same topic.
+
+Each conflict has:
+
+- **Claim ID**: A unique identifier (e.g., `conflict-ai-consciousness-001`)
+- **Claim label**: Short name for the disputed claim (e.g., "Current LLMs exhibit proto-consciousness")
+- **Description**: What the disagreement is about — the factual claim under dispute
+- **Status**: `open` (unresolved), `resolved` (verdict reached), or `wont-fix` (irresolvable or out of scope)
+- **Instances**: Evidence from multiple sources, each with:
+  - `doc_id` — which document made this assertion
+  - `stance` — `supports`, `disputes`, `neutral`, or `qualifies`
+  - `assertion` — the specific quote or paraphrased claim from that document
+  - `date_flagged` — when this instance was added
+- **Linked taxonomy nodes**: Which POV and situation nodes relate to this conflict
+- **Human notes**: Researcher annotations with author, date, and commentary
+- **QBAF graph** (optional): A bipolar argumentation graph where each instance becomes a node with computed acceptability strength, attack/support edges, and a resolution verdict
+- **Verdict** (optional): A resolution from debate harvest — which stance prevails, by what criterion, with a full dialectic trace showing the argumentative chain
+
+### When They Are Created
+
+**1. During document ingestion (automatic)**
+
+The `Find-Conflict` cmdlet (legacy) or `Invoke-QbafConflictAnalysis` (current) runs after each document is summarized:
+
+1. Extract `factual_claims` from the document summary
+2. Check if a conflict file with that claim already exists in `conflicts/`
+3. If YES: append a new instance entry (the new document's stance on the existing claim)
+4. If NO: create a new conflict file — the first document establishes the claim, subsequent documents add supporting or disputing instances
+
+This is **append-only** — conflict files are never deleted or overwritten during ingestion.
+
+**2. QBAF-augmented analysis (batch enrichment)**
+
+`Invoke-QbafConflictAnalysis` provides richer conflict analysis:
+
+1. Loads all factual claims across summaries
+2. Clusters similar claims using embedding cosine similarity (threshold: 0.85)
+3. Extracts attack/support relations between claims via LLM
+4. Computes QBAF acceptability strengths via DF-QuAD
+5. Produces resolution analysis: which stance prevails, by what margin, by what criterion
+
+**3. From debate harvest (post-debate promotion)**
+
+When a debate explores disagreements, `extractConflictCandidates()` in the harvest pipeline identifies synthesis disagreements that map to documentable conflicts. These are promoted into new conflict files with:
+- `claim_label` and `description` from the synthesis disagreement
+- `linked_taxonomy_nodes` from taxonomy refs in the debate
+- BDI layer classification and resolvability assessment
+- Connection back to the debate via `debate_refs`
+
+**4. Manual creation in the UI**
+
+Researchers can create conflicts directly in the Conflicts tab by clicking "New", providing a label, description, and manually adding instances and linked nodes.
+
+### Where They Are Stored
+
+- **On disk**: `ai-triad-data/conflicts/*.json` — one JSON file per conflict
+- **Schema**: `ConflictFile` type with `claim_id`, `claim_label`, `description`, `status`, `linked_taxonomy_nodes`, `instances[]`, `human_notes[]`, optional `qbaf` and `verdict`
+- **QBAF output**: `ai-triad-data/qbaf-conflicts/` — separate directory for QBAF-augmented analysis results
+- **Cross-references**: Situation nodes reference conflicts via `conflict_ids[]`; POV nodes reference them via `conflict_ids[]`
+
+### How They Are Used
+
+**As debate context**: When a debate is grounded in a situation node, `formatSituationDebateContext()` includes conflict summaries — ensuring debaters are aware of documented source disagreements and must engage with the existing evidence rather than arguing in a vacuum.
+
+**As QBAF input**: Each conflict's instances become nodes in a bipolar argument graph. The DF-QuAD algorithm computes which stance has the strongest argumentative support, accounting for:
+- Attack types: `rebut` (direct contradiction), `undercut` (attacks inference), `undermine` (attacks premise)
+- Per-claim BDI classification and sub-scores
+- Edge weights based on evidence quality
+
+**As research prompts**: The UI generates structured research prompts from conflicts (via "Research" button), copying a pre-formatted prompt to the clipboard for use in external AI tools to investigate the claim further.
+
+**As taxonomy anchors**: Conflicts connect to the taxonomy bidirectionally — they reference taxonomy nodes via `linked_taxonomy_nodes`, and taxonomy nodes reference them via `conflict_ids`. This means browsing a taxonomy node shows which documented disagreements touch that position.
+
+### Where They Surface in the UI
+
+- **Conflicts tab**: Full-page conflict browser with alphabetical or semantic clustering (AI-powered cluster grouping via `runClusterConflicts()`), expandable cluster sections, keyboard navigation, and search
+- **Conflict Detail panel**: Complete editor with:
+  - Claim label and description fields (with validation)
+  - Status selector (open/resolved/wont-fix) with color-coded indicator
+  - Linked taxonomy nodes as clickable chips
+  - Instance list: each source document's stance, assertion, and date
+  - Human notes: researcher annotations with timestamps
+  - QBAF visualization (when computed): strength bars, graph topology, resolution verdict
+  - Dialectic trace (when available): step-by-step argumentative chain from debates
+  - Related policies: auto-derived from linked taxonomy nodes' policy references
+  - Pin for comparison (multi-conflict side-by-side view)
+  - Research prompt generator (clipboard)
+- **Situation Detail**: Conflicts linked to a situation shown as referenced items
+- **POV Node Detail**: `conflict_ids` shown on individual taxonomy nodes
+- **Debate Harvest Dialog**: Conflict candidates from debates shown for promotion review
+
+### How They Relate to Other Artifacts
+
+| Relationship | Description |
+|-------------|-------------|
+| **Conflicts → Situations** | Conflicts are anchored to situation nodes — the cross-cutting concepts where POVs disagree |
+| **Conflicts → Taxonomy Nodes** | `linked_taxonomy_nodes` connects conflicts to the specific positions involved |
+| **Conflicts → Factual Claims** | Conflict instances are source-document assertions; debate AN nodes can reference the same claims |
+| **Conflicts → Cruxes** | A crux discovered in debate may correspond to an existing conflict, confirming it as load-bearing |
+| **Conflicts → Verdicts** | Debate harvest produces verdicts that resolve open conflicts with evidence trails |
+| **Conflicts → QBAF** | Each conflict can have its own argument graph with computed acceptability strengths |
+
+---
+
+## 4. Cruxes (Pivotal Disagreement Points)
 
 ### What They Are
 
@@ -210,7 +318,7 @@ The neutral evaluator — which strips all persona labels and POV context — in
 
 ---
 
-## 4. Policy Actions (Concrete Policy Recommendations)
+## 5. Policy Actions (Concrete Policy Recommendations)
 
 ### What They Are
 
@@ -271,7 +379,7 @@ Debaters then include `policy_refs` in their output — linking their arguments 
 
 ---
 
-## 5. Intellectual Lineage (Philosophical and Research Traditions)
+## 6. Intellectual Lineage (Philosophical and Research Traditions)
 
 ### What They Are
 
@@ -337,7 +445,7 @@ The debate prompt instructions specify three argumentative uses of lineage:
 
 ## Artifact Relationship Map
 
-These five artifacts are not independent — they form an interconnected system:
+These six artifacts are not independent — they form an interconnected system:
 
 ```
                          Intellectual Lineage
@@ -353,6 +461,7 @@ These five artifacts are not independent — they form an interconnected system:
 │     policy_actions: [{ pol-001, action, framing }]           │
 │     steelman_vulnerability: "..."                            │
 │     situation_refs: ["sit-042"]                              │
+│     conflict_ids: ["conflict-xyz-001"]                       │
 └────────┬───────────────────────┬────────────────────┬────────┘
          │                       │                    │
          ▼                       ▼                    ▼
@@ -360,28 +469,30 @@ These five artifacts are not independent — they form an interconnected system:
    (concrete recs)    (contested concepts)    (structured argument)
    pol-001, pol-002    sit-001, sit-002           │
          │                    │                    │
-         │                    │                    ▼
-         │                    │          ┌─────────────────────┐
-         │                    │          │  Factual Claims     │
-         │                    │          │  (AN nodes + edges) │
-         │                    │          │  AN-1, AN-2, ...    │
-         │                    │          └────────┬────────────┘
+         │                    ▼                    ▼
+         │             ┌─────────────┐   ┌─────────────────────┐
+         │             │  Conflicts  │   │  Factual Claims     │
+         │             │  (source    │   │  (AN nodes + edges) │
+         │             │  disputes)  │   │  AN-1, AN-2, ...    │
+         │             └──────┬──────┘   └────────┬────────────┘
          │                    │                   │
-         │                    │                   ▼
-         │                    │             ┌──────────┐
-         │                    └────────────►│  Cruxes  │
-         │                                 │  (pivotal│
-         └────────────────────────────────►│  points) │
-                                           └──────────┘
+         │                    ▼                   ▼
+         │              ┌──────────┐        ┌──────────┐
+         │              │ Verdicts │◄───────│  Cruxes  │
+         │              │ (QBAF    │        │  (pivotal│
+         └─────────────►│ resolved)│◄───────│  points) │
+                        └──────────┘        └──────────┘
 ```
 
 **Taxonomy nodes** are the foundation — they hold lineage and policy attributes, link to situations, and provide the context that shapes debate arguments.
 
 **Situations** organize the cross-cutting concerns that multiple POVs engage with. They are the most common debate topics.
 
+**Conflicts** document source-level disagreements — when different papers make contradictory claims about the same topic. They anchor to situations and can be resolved through debate verdicts.
+
 **Factual claims** are extracted from debate turns and organized into an argument network. They reference taxonomy nodes and policies.
 
-**Cruxes** emerge from the claim network — they are the points where the argument network reveals load-bearing disagreements.
+**Cruxes** emerge from the claim network — they are the points where the argument network reveals load-bearing disagreements. They may correspond to documented conflicts.
 
 **Policies** ground abstract positions in concrete recommendations. They are referenced by taxonomy nodes, cited by debaters during debates, and tracked for cross-POV alignment.
 
@@ -395,6 +506,7 @@ These five artifacts are not independent — they form an interconnected system:
 |----------|-----------|--------------|-----------|------------------|
 | Factual Claims | LLM extraction from debater statements | After every debate turn | `session.argument_network` | QBAF, convergence tracker, moderator, synthesis |
 | Situations | Manual creation by researcher | Taxonomy editing | `taxonomy/Origin/situations.json` | Debate topics, POV node linking, conflict anchoring |
+| Conflicts | `Find-Conflict` / `Invoke-QbafConflictAnalysis` / debate harvest | Document ingestion or post-debate | `ai-triad-data/conflicts/*.json` | Debate context, QBAF resolution, situation anchoring |
 | Cruxes | LLM synthesis + structural detection | During and after debate | Synthesis metadata, neutral evaluations | Phase transitions, success metrics, divergence detection |
 | Policies | `Find-PolicyAction` cmdlet or manual | Taxonomy attribute extraction | `policy_actions.json` registry + node attributes | Debate CITE stage, alignment analysis, dashboard |
 | Intellectual Lineage | `Invoke-AttributeExtraction` cmdlet | Taxonomy attribute extraction | Node `graph_attributes` + catalog data file | Debate context injection, UI browsing, tradition analysis |
