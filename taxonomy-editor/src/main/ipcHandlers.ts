@@ -838,8 +838,9 @@ export function registerIpcHandlers(): void {
       }
     } catch { /* retention cleanup is best-effort */ }
 
+    const filename = path.basename(filePath);
     console.log(`[flight-recorder] Dump written: ${filePath}`);
-    return { filePath };
+    return { filePath, filename };
   });
 
   ipcMain.handle('pick-directory', async (_event, defaultPath?: string) => {

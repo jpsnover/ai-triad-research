@@ -8,5 +8,8 @@
  * Currently re-exports the Electron bridge. When a web/container build is
  * added, the Vite alias will point '@bridge' at web-bridge.ts instead.
  */
-export { api } from './electron-bridge';
+import { api as rawApi } from './electron-bridge';
+import { instrumentBridge } from './instrumentBridge';
+
+export const api = instrumentBridge(rawApi);
 export type { AppAPI } from './types';

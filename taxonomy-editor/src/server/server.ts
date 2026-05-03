@@ -526,8 +526,29 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
       }
     } catch { /* retention cleanup is best-effort */ }
 
+    const filename = path.basename(filePath);
     console.log(`[flight-recorder] Dump written: ${filePath}`);
-    json(res, { filePath });
+    json(res, { filePath, filename });
+  } catch (err) { error(res, String(err)); }
+});
+
+get('/api/flight-recorder/download/:filename', (req, res) => {
+  try {
+    const filename = decodeURIComponent(param(req, 'filename', '/api/flight-recorder/download/:filename'));
+    // Sanitize: only allow flight-recorder-*.jsonl filenames
+    if (!/^flight-recorder-.+\.jsonl$/.test(filename)) {
+      error(res, 'Invalid filename', 400);
+      return;
+    }
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    const filePath = path.join(dumpDir, filename);
+    if (!fs.existsSync(filePath)) { error(res, 'File not found', 404); return; }
+    const content = fs.readFileSync(filePath, 'utf-8');
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.end(content);
   } catch (err) { error(res, String(err)); }
 });
 

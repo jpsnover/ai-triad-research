@@ -6,6 +6,7 @@
  * Used when the app runs in a browser served by the container.
  */
 import type { AppAPI } from './types';
+import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 
 // ── HTTP helpers ──
@@ -173,7 +174,7 @@ diagChannel?.addEventListener('message', (event) => {
 
 // ── The bridge ──
 
-export const api: AppAPI = {
+const rawApi: AppAPI = {
   // Taxonomy directories
   getTaxonomyDirs: () => get('/api/taxonomy-dirs'),
   getActiveTaxonomyDir: () => get('/api/taxonomy-dir/active'),
@@ -449,3 +450,5 @@ export const api: AppAPI = {
     return () => { terminalExitCallbacks.delete(cb); };
   },
 };
+
+export const api = instrumentBridge(rawApi);

@@ -13,6 +13,7 @@
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
+import { showDumpToast } from './dumpToast';
 
 // ── Dump throttle state ──────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ function recordDump(): void {
 
 // ── Dump persistence ─────────────────────────────────────────────────────
 
+const isWeb = typeof window !== 'undefined' && !(window as unknown as { electronAPI?: unknown }).electronAPI;
+
 async function persistDump(
   recorder: FlightRecorder,
   triggerType: TriggerType,
@@ -65,6 +68,11 @@ async function persistDump(
     const { ndjson } = recorder.buildDump(triggerType, error, context);
     const result = await api.dumpFlightRecorder(ndjson);
     console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
+    showDumpToast({
+      filename: result.filename,
+      filePath: result.filePath,
+      isWeb,
+    });
   } catch (err) {
     console.warn('[flight-recorder] Failed to persist dump:', err);
   }
@@ -92,6 +100,7 @@ export function initFlightRecorder(): FlightRecorder {
   recorder.intern('component', 'convergence-signals');
   recorder.intern('component', 'phase-transitions');
   recorder.intern('component', 'flight-recorder');
+  recorder.intern('component', 'bridge');
 
   recorder.intern('pov', 'prometheus');
   recorder.intern('pov', 'sentinel');
