@@ -3,6 +3,14 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Buffer debate-window-load IPC so it isn't lost if React mounts after did-finish-load
+// (happens with bootstrap.ts dynamic import indirection).
+let _bufferedDebateId: string | null = null;
+let _debateBufferActive = true;
+ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
+  if (_debateBufferActive) _bufferedDebateId = debateId;
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   getTaxonomyDirs: (): Promise<string[]> =>
     ipcRenderer.invoke('get-taxonomy-dirs'),
@@ -120,6 +128,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCalibrationHistory: (): Promise<{ current: unknown; history: unknown[] }> =>
     ipcRenderer.invoke('get-calibration-history'),
 
+  // Flight recorder
+  dumpFlightRecorder: (ndjson: string): Promise<{ filePath: string }> =>
+    ipcRenderer.invoke('dump-flight-recorder', ndjson),
+
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
   openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),
@@ -129,6 +141,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('open-debate-window', debateId),
   closeDebateWindow: (): Promise<void> => ipcRenderer.invoke('close-debate-window'),
   onDebateWindowLoad: (callback: (debateId: string) => void) => {
+    // Stop buffering — the React component is now listening directly.
+    _debateBufferActive = false;
+    // If the IPC arrived before the React component mounted (bootstrap timing),
+    // deliver the buffered ID immediately.
+    if (_bufferedDebateId) {
+      const id = _bufferedDebateId;
+      _bufferedDebateId = null;
+      queueMicrotask(() => callback(id));
+    }
     const listener = (_event: Electron.IpcRendererEvent, debateId: string) => callback(debateId);
     ipcRenderer.on('debate-window-load', listener);
     return () => { ipcRenderer.removeListener('debate-window-load', listener); };

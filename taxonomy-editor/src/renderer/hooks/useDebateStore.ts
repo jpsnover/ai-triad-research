@@ -16,6 +16,7 @@ import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Categ
 import { useTaxonomyStore } from './useTaxonomyStore';
 
 declare const __APP_VERSION__: string;
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
@@ -693,6 +694,7 @@ async function extractClaimsAndUpdateAN(
     checkAnInvariants(`post-save(extract,${entryId.slice(-6)})`, get, expectedMinAnCount);
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
+    getGlobalRecorder()?.record({ type: 'an.commit', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Committed ${newNodes.length} nodes, ${newEdges.length} edges`, data: { new_nodes: newNodes.length, new_edges: newEdges.length, node_ids: commitResult.assignedNodeIds, an_nodes_after: commitResult.idBase + newNodes.length, rejected: diagRejected.length, rejection_reasons: claimsResult.rejectionReasons } });
     trace(TraceEventName.AN_EXTRACT_COMPLETE, {
       debate_id: debate.id,
       turn_id: entryId,
@@ -718,6 +720,7 @@ async function extractClaimsAndUpdateAN(
         attack_type: e.attack_type,
       }));
       const qbafResult = computeQbafStrengths(qNodes, qEdges);
+      getGlobalRecorder()?.record({ type: 'an.qbaf', component: 'qbaf', level: 'info', debate_id: baseDebate.id, turn_id: entryId, message: `QBAF propagation: ${qbafResult.iterations} iterations`, data: { iterations: qbafResult.iterations, converged: qbafResult.converged, node_count: qNodes.length } });
       let currentNodes = an.nodes.map(n => ({
         ...n,
         computed_strength: qbafResult.strengths.get(n.id) ?? n.computed_strength,
@@ -780,6 +783,7 @@ async function extractClaimsAndUpdateAN(
             qbafResult.strengths,
           );
           patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
+          getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_disposition: sig.move_disposition?.ratio, engagement_depth: sig.engagement_depth?.ratio, recycling_rate: sig.recycling_rate?.avg_self_overlap, crux_rate: sig.crux_rate?.cumulative_count } });
         } catch (convErr) {
           console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
           pushWarning(get, set, 'Convergence analysis skipped this turn');
@@ -793,6 +797,7 @@ async function extractClaimsAndUpdateAN(
           currentNodes = gcResult.nodes;
           currentEdges = gcResult.edges;
           console.info(`[AN-GC] Pruned ${gcResult.before} → ${gcResult.after} nodes`);
+          getGlobalRecorder()?.record({ type: 'an.gc', component: 'argument-network-extraction', level: 'info', debate_id: baseDebate.id, message: `Network GC: ${gcResult.before} → ${gcResult.after} nodes`, data: { nodes_before: gcResult.before, nodes_after: gcResult.after, edges_removed: gcResult.prunedNodes.length } });
         }
       }
 
@@ -1522,6 +1527,7 @@ interface DebateStore {
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
+  createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   deleteDebate: (id: string) => Promise<void>;
   renameDebate: (id: string, newTitle: string) => Promise<void>;
@@ -1721,6 +1727,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
     api.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
+    getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
     return id;
   },
 
@@ -1775,6 +1782,64 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     return id;
   },
 
+  createConflictDebate: async (claimId: string) => {
+    const taxState = useTaxonomyStore.getState();
+    const conflict = taxState.conflicts.find(c => c.claim_id === claimId);
+    if (!conflict) throw new Error(`Conflict ${claimId} not found`);
+
+    // Build structured context from the conflict
+    const lines: string[] = [
+      `=== CONFLICT: ${conflict.claim_id} ===`,
+      `Claim: ${conflict.claim_label}`,
+      `Description: ${conflict.description}`,
+      `Status: ${conflict.status}`,
+    ];
+
+    if (conflict.instances.length > 0) {
+      lines.push('', '=== DOCUMENTED INSTANCES ===');
+      for (const inst of conflict.instances) {
+        lines.push(`- [${inst.doc_id}] (${inst.stance}): ${inst.assertion}`);
+      }
+    }
+
+    // Resolve linked node descriptions
+    if (conflict.linked_taxonomy_nodes.length > 0) {
+      lines.push('', '=== LINKED TAXONOMY NODES ===');
+      for (const linkedId of conflict.linked_taxonomy_nodes) {
+        for (const pov of POV_KEYS) {
+          const file = taxState[pov];
+          const node = file?.nodes.find(n => n.id === linkedId);
+          if (node) {
+            lines.push(`[${node.id}] ${node.label}: ${node.description}`);
+            break;
+          }
+        }
+        // Also check situations
+        const sitNode = taxState.situations?.nodes.find(n => n.id === linkedId);
+        if (sitNode) {
+          lines.push(`[${sitNode.id}] ${sitNode.label}: ${sitNode.description}`);
+        }
+      }
+    }
+
+    if (conflict.human_notes.length > 0) {
+      lines.push('', '=== HUMAN NOTES ===');
+      for (const note of conflict.human_notes) {
+        lines.push(`- ${note.author} (${note.date}): ${note.note}`);
+      }
+    }
+
+    const sourceContent = lines.join('\n');
+    const topic = `Conflict: ${conflict.claim_label}`;
+    const allPovers = [...AI_POVERS] as PoverId[];
+
+    // createDebate saves to disk and sets activeDebate directly — no need for loadDebate
+    const id = await get().createDebate(topic, allPovers, false, 'topic', claimId, sourceContent);
+    get().updatePhase('clarification');
+    await get().saveDebate();
+    return id;
+  },
+
   loadDebate: async (id) => {
     set({ debateLoading: true, debateError: null, debateWarnings: [] });
     try {
@@ -1800,7 +1865,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       );
       // Set temperature on the main process
       api.setDebateTemperature(session.debate_temperature ?? null);
+      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err) } });
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -1813,6 +1880,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         set({ activeDebateId: null, activeDebate: null, debateModel: null });
       }
       await get().loadSessions();
+      getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate deleted' });
     } catch (err) {
       set({ debateError: mapErrorToUserMessage(err) });
     }
@@ -1836,9 +1904,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   closeDebate: () => {
+    const closingId = get().activeDebateId;
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
     api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
+    if (closingId) getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
   },
 
   addTranscriptEntry: (entry) => {
@@ -1930,7 +2000,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             : s,
         ),
       }));
+      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length } });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err) } });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -2286,6 +2358,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     updatePhase('opening');
+    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: opening', data: { phase: 'opening' } });
 
     const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
     const shuffled = [...aiPovers];
@@ -2674,6 +2747,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
     const totalRoundsForPhase = get().initialCrossRespondRounds || 5;
     const phase = getDebatePhase(crossRespondRound, totalRoundsForPhase * 3);
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} start`, data: { round: crossRespondRound, phase, speakers: aiPovers } });
 
     const sourceDocSummary = activeDebate.document_analysis?.claims_summary
       ?? (activeDebate.source_content ? activeDebate.source_content.slice(0, 2000) : undefined);
@@ -2743,6 +2817,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       ? { proceed: true, validated_move: intervention.move, validated_family: intervention.family, validated_target: intervention.target_debater } as import('@lib/debate/types').EngineValidationResult
       : { proceed: false, validated_move: (selectionResult?.suggested_move ?? 'PIN') as import('@lib/debate/types').InterventionMove, validated_family: 'elicitation' as import('@lib/debate/types').InterventionFamily, validated_target: responderPover } as import('@lib/debate/types').EngineValidationResult;
     updateModeratorState(modState, intervention, engineValidation, crossRespondRound, phase);
+    getGlobalRecorder()?.record({ type: 'debate.moderate', component: 'moderator', level: 'info', debate_id: activeDebate.id, message: intervention ? `Moderator intervention: ${intervention.move}` : `Moderator selected: ${responderPover}`, data: { responder: responderPover, intervention_move: intervention?.move ?? null, budget_remaining: modState.budget_remaining, health_score: healthScore?.value, health_trend: healthScore?.trend } });
 
     // Persist moderator state on the session
     {
@@ -3146,6 +3221,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     set({ debateGenerating: null });
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
     await saveDebate();
   },
 
@@ -3158,6 +3234,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: synthesis', data: { phase: 'synthesis' } });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);

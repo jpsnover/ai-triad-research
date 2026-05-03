@@ -77,6 +77,18 @@ const SERVER_VERSION = (() => {
 
 const SERVER_START_TIME = new Date().toISOString();
 
+get('/third-party-notices', (_req, res) => {
+  const noticesPath = path.join(getProjectRoot(), 'taxonomy-editor', 'THIRD-PARTY-NOTICES.txt');
+  try {
+    const content = fs.readFileSync(noticesPath, 'utf-8');
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(content);
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('License notices file not found. Run npm run licenses to generate.');
+  }
+});
+
 get('/health', (_req, res) => {
   json(res, {
     status: 'ok',
@@ -475,10 +487,47 @@ get('/api/debates', (_req, res) => { json(res, fileIO.listDebateSessions()); });
 // ── Calibration parameter history ──
 get('/api/calibration/history', (_req, res) => {
   try {
-    const { readParameterHistory, captureSnapshot } = require('@lib/debate/calibrationLogger');
+    const { readParameterHistory, captureSnapshot } = require('../../../lib/debate/calibrationLogger');
     const history = readParameterHistory(getDataRoot());
     const current = captureSnapshot();
     json(res, { current, history });
+  } catch (err) { error(res, String(err)); }
+});
+
+// ── Flight recorder dump ──
+post('/api/flight-recorder/dump', (_req, res, body) => {
+  try {
+    const { ndjson } = body as { ndjson: string };
+    if (!ndjson || typeof ndjson !== 'string') { error(res, 'Missing ndjson field', 400); return; }
+
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    fs.mkdirSync(dumpDir, { recursive: true });
+
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const filePath = path.join(dumpDir, `flight-recorder-${ts}.jsonl`);
+    fs.writeFileSync(filePath, ndjson, 'utf-8');
+
+    // Retention: keep last 10 files, max 50 MB
+    try {
+      const files = fs.readdirSync(dumpDir)
+        .filter(f => f.startsWith('flight-recorder-') && f.endsWith('.jsonl'))
+        .map(f => {
+          const fp = path.join(dumpDir, f);
+          const stat = fs.statSync(fp);
+          return { name: f, path: fp, mtime: stat.mtimeMs, size: stat.size };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+      for (const f of files.slice(10)) fs.unlinkSync(f.path);
+      const remaining = files.slice(0, 10);
+      let totalSize = remaining.reduce((s, f) => s + f.size, 0);
+      for (let i = remaining.length - 1; i >= 0 && totalSize > 50 * 1024 * 1024; i--) {
+        fs.unlinkSync(remaining[i].path);
+        totalSize -= remaining[i].size;
+      }
+    } catch { /* retention cleanup is best-effort */ }
+
+    console.log(`[flight-recorder] Dump written: ${filePath}`);
+    json(res, { filePath });
   } catch (err) { error(res, String(err)); }
 });
 
@@ -495,7 +544,7 @@ put('/api/debates', (_req, res, body) => {
     try {
       const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
       if (session?.transcript?.some(e => e.type === 'synthesis')) {
-        const { extractCalibrationData, appendCalibrationLog } = require('@lib/debate/calibrationLogger');
+        const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
         const dataPoint = extractCalibrationData(session, 'azure' as const);
         appendCalibrationLog(dataPoint, getDataRoot());
       }

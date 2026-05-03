@@ -27,6 +27,10 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error(`[ErrorBoundary${this.props.fallbackLabel ? ` - ${this.props.fallbackLabel}` : ''}]`, error, info);
+    // Flight recorder dump — uses global hook to avoid hard dependency from shared lib.
+    // The taxonomy-editor sets this in flightRecorderInit.ts.
+    const hook = (globalThis as unknown as { __onErrorBoundaryCatch?: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch;
+    if (hook) hook(error, info.componentStack ?? undefined);
   }
 
   handleRetry = (): void => {

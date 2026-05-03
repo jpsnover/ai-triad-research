@@ -61,6 +61,7 @@ const PARAM_LABELS: Record<string, string> = {
   fire_confidence_threshold: 'FIRE Confidence',
   cohesion_clear_theme: 'Cohesion Threshold',
   kp_divisor: 'Extraction Density',
+  budget_hard_multiplier: 'API Budget Multiplier',
 };
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -128,7 +129,9 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
           setCurrent(resp.current as ParameterSnapshot);
           setHistory((resp.history ?? []) as ParameterHistoryEntry[]);
         }
-      } catch { /* no data available */ }
+      } catch {
+        // Calibration history unavailable — panel will show empty state.
+      }
       setLoading(false);
     })();
   }, []);
@@ -141,7 +144,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
       'recent_window', 'gc_trigger', 'polarity_resolved', 'max_nodes_cap',
       'semantic_recycling_threshold', 'cluster_min_similarity',
       'duplicate_similarity_threshold', 'fire_confidence_threshold',
-      'cohesion_clear_theme', 'kp_divisor',
+      'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier',
     ];
     for (const key of simpleKeys) {
       result[key] = history.map(e => (e.after as any)[key] as number).filter(v => typeof v === 'number');

@@ -22,6 +22,8 @@
       "@lib/translation": ["../lib/translation/index.ts"],
       "@lib/translation/*": ["../lib/translation/*"],
       "@lib/search/*": ["../lib/search/*"],
+      "@lib/flight-recorder/*": ["../lib/flight-recorder/*"],
+      "@lib/flight-recorder/index": ["../lib/flight-recorder/index.ts"],
       "zod": ["node_modules/zod"]
     }
   },

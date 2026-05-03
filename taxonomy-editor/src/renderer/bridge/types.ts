@@ -164,6 +164,9 @@ export interface AppAPI {
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
 
+  // --- Flight recorder ---
+  dumpFlightRecorder: (ndjson: string) => Promise<{ filePath: string }>;
+
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;

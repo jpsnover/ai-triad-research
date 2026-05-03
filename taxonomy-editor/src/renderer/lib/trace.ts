@@ -59,6 +59,34 @@ export const TraceEventName = {
   AI_CALL_FAILED: 'ai.call.failed',
 } as const;
 
+// ── Flight recorder bridge ────────────────────────────────────────────────
+
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { EventType, EventLevel } from '@lib/flight-recorder/types';
+
+/** Map trace event dotted names to flight recorder EventType values. */
+function mapEventType(eventName: string): EventType {
+  if (eventName.startsWith('an.extract')) return 'an.extract';
+  if (eventName.startsWith('ai.call.start')) return 'ai.request';
+  if (eventName.startsWith('ai.call.complete')) return 'ai.response';
+  if (eventName.startsWith('ai.call.failed')) return 'ai.error';
+  return 'lifecycle';
+}
+
+function inferComponent(eventName: string): string {
+  if (eventName.startsWith('an.')) return 'argument-network-extraction';
+  if (eventName.startsWith('ai.')) return 'ai-adapter';
+  if (eventName.startsWith('turn.')) return 'turn-pipeline';
+  if (eventName.startsWith('debate.')) return 'debate-engine';
+  return 'unknown';
+}
+
+function inferLevel(eventName: string): EventLevel {
+  if (eventName.endsWith('.failed')) return 'error';
+  if (eventName.includes('rejected') || eventName.includes('retry')) return 'warn';
+  return 'info';
+}
+
 // ── Runtime ───────────────────────────────────────────────────────────────
 
 const FLUSH_INTERVAL_MS = 2000;
@@ -109,6 +137,22 @@ export function trace(
       ...(speaker !== undefined && { speaker }),
       ...(Object.keys(rest).length > 0 && { data: rest }),
     };
+
+    // Feed the flight recorder (if initialized) — zero call-site changes needed.
+    const recorder = getGlobalRecorder();
+    if (recorder) {
+      recorder.record({
+        type: mapEventType(event),
+        component: recorder.intern('component', inferComponent(event)) as string | number,
+        level: inferLevel(event),
+        debate_id: ev.debate_id,
+        turn_id: ev.turn_id,
+        call_id: ev.call_id,
+        speaker: ev.speaker,
+        message: event,
+        data: ev.data,
+      });
+    }
 
     // Electron mode: there's no HTTP server on the same origin. Fall back to
     // a structured console.log so the event is at least present in devtools

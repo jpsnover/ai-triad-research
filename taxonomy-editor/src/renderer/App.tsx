@@ -21,9 +21,14 @@ import { DebatePopoutWindow } from './components/DebatePopoutWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 
+import { initFlightRecorder } from './lib/flightRecorderInit';
+
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
 console.log(`[App] BUILD_FINGERPRINT: ${BUILD_FINGERPRINT}`);
+
+// Initialize flight recorder as early as possible
+initFlightRecorder();
 
 interface DataUpdateInfo {
   available: boolean;

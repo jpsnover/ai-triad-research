@@ -763,16 +763,83 @@ export function registerIpcHandlers(): void {
     return { cancelled: false, filePath, content };
   });
 
-  ipcMain.handle('get-calibration-history', async () => {
+  ipcMain.handle('get-calibration-history', () => {
     try {
-      const { readParameterHistory, captureSnapshot } = await import('../../../lib/debate/calibrationLogger.js');
       const dataRoot = getDataRootPath();
-      const history = readParameterHistory(dataRoot);
-      const current = captureSnapshot();
+
+      // Read parameter history
+      const histPath = path.join(dataRoot, 'calibration', 'parameter-history.json');
+      let history: unknown[] = [];
+      if (fs.existsSync(histPath)) {
+        try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch { /* corrupt */ }
+      }
+
+      // Capture current snapshot from provisional-weights.json
+      const weightsPath = path.join(PROJECT_ROOT, 'lib', 'debate', 'provisional-weights.json');
+      let weights: Record<string, unknown> = {};
+      try { weights = JSON.parse(fs.readFileSync(weightsPath, 'utf-8')); } catch { /* use defaults */ }
+
+      const current = {
+        exploration_exit: (weights?.thresholds as Record<string, number>)?.exploration_exit ?? 0.65,
+        relevance_threshold: 0.45,
+        attack_weights: [1.0, 1.1, 1.2],
+        draft_temperature: 0.7,
+        saturation_weights: (weights?.saturation as Record<string, number>) ?? {
+          recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
+          engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
+        },
+        recent_window: 8,
+        gc_trigger: (weights?.network as Record<string, number>)?.gc_trigger ?? 175,
+        polarity_resolved: 0.85,
+        max_nodes_cap: 50,
+        semantic_recycling_threshold: 0.85,
+        cluster_min_similarity: 0.55,
+        duplicate_similarity_threshold: 0.85,
+        fire_confidence_threshold: 0.7,
+        cohesion_clear_theme: 0.60,
+        kp_divisor: 500,
+      };
+
       return { current, history };
     } catch {
       return { current: null, history: [] };
     }
+  });
+
+  // ── Flight recorder dump ──
+  ipcMain.handle('dump-flight-recorder', (_event, ndjson: string) => {
+    const dumpDir = path.join(app.getPath('userData'), 'flight-recorder');
+    fs.mkdirSync(dumpDir, { recursive: true });
+
+    // Filesystem-safe ISO timestamp
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const filePath = path.join(dumpDir, `flight-recorder-${ts}.jsonl`);
+    fs.writeFileSync(filePath, ndjson, 'utf-8');
+
+    // Retention: keep last 10 files, max 50 MB
+    const MAX_FILES = 10;
+    const MAX_BYTES = 50 * 1024 * 1024;
+    try {
+      const files = fs.readdirSync(dumpDir)
+        .filter(f => f.startsWith('flight-recorder-') && f.endsWith('.jsonl'))
+        .map(f => ({ name: f, path: path.join(dumpDir, f), mtime: fs.statSync(path.join(dumpDir, f)).mtimeMs, size: fs.statSync(path.join(dumpDir, f)).size }))
+        .sort((a, b) => b.mtime - a.mtime);  // newest first
+
+      // Delete beyond file count limit
+      for (const f of files.slice(MAX_FILES)) {
+        fs.unlinkSync(f.path);
+      }
+      // Delete oldest until within disk budget
+      const remaining = files.slice(0, MAX_FILES);
+      let totalSize = remaining.reduce((s, f) => s + f.size, 0);
+      for (let i = remaining.length - 1; i >= 0 && totalSize > MAX_BYTES; i--) {
+        fs.unlinkSync(remaining[i].path);
+        totalSize -= remaining[i].size;
+      }
+    } catch { /* retention cleanup is best-effort */ }
+
+    console.log(`[flight-recorder] Dump written: ${filePath}`);
+    return { filePath };
   });
 
   ipcMain.handle('pick-directory', async (_event, defaultPath?: string) => {

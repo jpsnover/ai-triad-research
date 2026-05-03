@@ -103,6 +103,9 @@ export const api: AppAPI = {
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
 
+  // Flight recorder
+  dumpFlightRecorder: (ndjson) => window.electronAPI.dumpFlightRecorder(ndjson),
+
   // Diagnostics
   openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),

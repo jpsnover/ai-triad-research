@@ -84,6 +84,7 @@ export interface ElectronAPI {
   exportDebateToFile: (session: unknown, format?: string) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
+  getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
   fetchUrlContent: (url: string) => Promise<{ content: string; error?: string }>;
   pickDocumentFile: () => Promise<{ cancelled: boolean; filePath?: string; content?: string }>;
   terminalSpawn: () => Promise<void>;

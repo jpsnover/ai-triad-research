@@ -4,6 +4,7 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
+    "ignoreDeprecations": "6.0",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -23,6 +24,10 @@
     "../lib/debate/taxonomyLoader.ts",
     "../lib/debate/taxonomyTypes.ts",
     "../lib/debate/taxonomyContext.ts",
-    "../lib/search/**/*"
+    "../lib/search/**/*",
+    "../lib/flight-recorder/**/*"
+  ],
+  "exclude": [
+    "../lib/**/*.test.ts"
   ]
 }
