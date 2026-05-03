@@ -7,7 +7,7 @@
  * (which runs before React mounts).
  */
 
-const TOAST_DURATION_MS = 8000;
+const TOAST_DURATION_MS = 20_000;
 const CONTAINER_ID = 'flight-recorder-toast-container';
 
 function getOrCreateContainer(): HTMLElement {
@@ -31,12 +31,13 @@ function getOrCreateContainer(): HTMLElement {
 }
 
 const BTN_STYLE: Partial<CSSStyleDeclaration> = {
-  background: 'var(--bg-tertiary, #313244)',
-  color: 'var(--text-primary, #cdd6f4)',
-  border: '1px solid var(--border-color, #45475a)',
+  background: '#89b4fa',
+  color: '#1e1e2e',
+  border: 'none',
   borderRadius: '4px',
-  padding: '3px 10px',
-  fontSize: '11px',
+  padding: '4px 14px',
+  fontSize: '12px',
+  fontWeight: '600',
   cursor: 'pointer',
   fontFamily: 'var(--font-sans, sans-serif)',
 };
