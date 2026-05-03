@@ -13797,3 +13797,205 @@ td[data-tooltip]::after {
   outline: none;
   border-color: var(--focus-ring);
 }
+
+/* ── Calibration Dashboard ─────────────────────────────── */
+
+.cal-dash-panel {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 100%;
+}
+.cal-dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.cal-dash-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.cal-dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cal-dash-select {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.cal-dash-placeholder {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 0;
+}
+
+/* Stats row */
+.cal-dash-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cal-dash-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  min-width: 60px;
+}
+.cal-dash-stat-wide {
+  flex: 1;
+  min-width: 120px;
+}
+.cal-dash-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cal-dash-stat-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* Validation badge */
+.cal-dash-validation {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+.cal-dash-validation-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.cal-dash-validation-badge {
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cal-dash-validation-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.cal-dash-validation-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cal-dash-val-metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.cal-dash-val-pass { color: #22c55e; }
+.cal-dash-val-fail { color: #ef4444; }
+.cal-dash-val-skip { color: #6b7280; }
+.cal-dash-val-icon { font-weight: 700; }
+.cal-dash-val-label { color: var(--text-secondary); }
+
+/* Charts */
+.cal-dash-charts { margin-bottom: 16px; }
+.cal-dash-charts h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cal-dash-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.cal-dash-chart {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.cal-dash-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.cal-dash-chart-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+.cal-dash-chart-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cal-dash-chart-mean {
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.cal-dash-svg {
+  display: block;
+  width: 100%;
+  height: 80px;
+}
+
+/* Rounds histogram */
+.cal-dash-rounds { margin-bottom: 16px; }
+.cal-dash-rounds h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cal-dash-histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 60px;
+  padding: 0 4px;
+}
+.cal-dash-hist-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+.cal-dash-hist-bar {
+  width: 100%;
+  max-width: 20px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.cal-dash-hist-bar:hover { opacity: 1; }
+.cal-dash-hist-label {
+  font-size: 9px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}

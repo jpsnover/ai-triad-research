@@ -408,8 +408,8 @@ interface TaxonomyState {
   showRelatedEdges: (nodeId: string | null) => void;
   selectEdge: (edge: Edge | null) => void;
 
-  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | null;
-  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | null) => void;
+  toolbarPanel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration' | null;
+  setToolbarPanel: (panel: 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration' | null) => void;
   pendingLineageValue: string | null;
   navigateToLineage: (value: string) => void;
   pendingSearchRelatedId: string | null;

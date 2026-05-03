@@ -19,6 +19,7 @@ import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import type { DebateSession } from '../types/debate';
 import { ParameterHistoryPanel } from './ParameterHistoryPanel';
+import { CalibrationDashboard } from './CalibrationDashboard';
 import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -153,7 +154,7 @@ export function DebateTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
-        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
+        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'calibration' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'calibration' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
           {toolbarPanel === 'search' && <SearchPanel onSelectResult={(id) => setSearchPreviewId(id)} />}
           {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
@@ -162,7 +163,8 @@ export function DebateTab() {
           {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
           {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
           {toolbarPanel === 'vocabulary' && <VocabularyPanel />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary'].includes(toolbarPanel) && (
+          {toolbarPanel === 'calibration' && <CalibrationDashboard />}
+          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary', 'calibration'].includes(toolbarPanel) && (
             <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
           )}
         </div>

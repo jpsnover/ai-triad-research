@@ -813,6 +813,28 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  // ── Calibration log (per-debate metrics) ──
+  ipcMain.handle('get-calibration-log', () => {
+    try {
+      const dataRoot = getDataRootPath();
+      const logPath = path.join(dataRoot, 'calibration', 'calibration-log.json');
+      if (!fs.existsSync(logPath)) return { entries: [], validationReport: null };
+
+      const entries = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+
+      // Also load validation report if available
+      const reportPath = path.join(dataRoot, 'calibration', 'validation-report.json');
+      let validationReport = null;
+      if (fs.existsSync(reportPath)) {
+        try { validationReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch { /* ok */ }
+      }
+
+      return { entries, validationReport };
+    } catch {
+      return { entries: [], validationReport: null };
+    }
+  });
+
   // ── Flight recorder dump ──
   ipcMain.handle('dump-flight-recorder', (_event, ndjson: string) => {
     const dumpDir = path.join(app.getPath('userData'), 'flight-recorder');

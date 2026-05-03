@@ -135,6 +135,7 @@ export interface AppAPI {
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
+  getCalibrationLog: () => Promise<{ entries: unknown[]; validationReport: unknown }>;
 
   // --- Diagnostics ---
   openDiagnosticsWindow: () => Promise<void>;

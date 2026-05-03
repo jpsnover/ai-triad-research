@@ -369,6 +369,7 @@ export async function debateToPackage(
   session: ExportableDebateSession & { diagnostics?: unknown },
   options?: PackageOptions,
 ): Promise<Uint8Array> {
+  // @ts-ignore — jszip types available at runtime via taxonomy-editor/node_modules
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
 

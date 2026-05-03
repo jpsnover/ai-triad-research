@@ -266,6 +266,7 @@ const rawApi: AppAPI = {
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
   getCalibrationHistory: () => get('/api/calibration/history'),
+  getCalibrationLog: () => get('/api/calibration/log'),
   exportDebateToFile: async (session, format = 'json') => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
@@ -351,6 +352,7 @@ const rawApi: AppAPI = {
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
+  getCalibrationLog: () => get('/api/calibration/log').catch(() => ({ entries: [], validationReport: null })),
 
   // Flight recorder
   dumpFlightRecorder: (ndjson) => post('/api/flight-recorder/dump', { ndjson }),

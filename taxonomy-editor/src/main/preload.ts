@@ -127,6 +127,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Calibration
   getCalibrationHistory: (): Promise<{ current: unknown; history: unknown[] }> =>
     ipcRenderer.invoke('get-calibration-history'),
+  getCalibrationLog: (): Promise<{ entries: unknown[]; validationReport: unknown }> =>
+    ipcRenderer.invoke('get-calibration-log'),
 
   // Flight recorder
   dumpFlightRecorder: (ndjson: string): Promise<{ filePath: string; filename: string }> =>
