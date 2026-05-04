@@ -264,3 +264,11 @@ export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
 export async function initDataRepo(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {
   return postJson('/api/sync/init', {});
 }
+
+export async function setGithubCredentials(repo: string, token: string): Promise<{ ok: boolean; configured: boolean }> {
+  return postJson('/api/sync/credentials', { repo, token });
+}
+
+export async function clearGithubCredentials(): Promise<{ ok: boolean; configured: boolean }> {
+  return postJson('/api/sync/credentials', { clear: true });
+}

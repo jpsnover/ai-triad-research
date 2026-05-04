@@ -161,10 +161,30 @@ async function getInstallationToken(): Promise<string | null> {
   return data.token;
 }
 
+// ── Runtime credential store (set via /api/sync/credentials) ──
+
+let runtimeRepo: string | null = null;
+let runtimeToken: string | null = null;
+
+/**
+ * Store credentials at runtime (from the UI). These take priority over
+ * env vars so users can configure credentials without restarting the server.
+ */
+export function setRuntimeCredentials(repo: string, token: string): void {
+  runtimeRepo = repo && repo.includes('/') ? repo : null;
+  runtimeToken = token && token.trim() ? token.trim() : null;
+}
+
+export function clearRuntimeCredentials(): void {
+  runtimeRepo = null;
+  runtimeToken = null;
+}
+
 // ── Public API ──
 
 /** Repo in "owner/repo" form, or null when unset. */
 export function getRepoSlug(): string | null {
+  if (runtimeRepo) return runtimeRepo;
   const repo = process.env.GITHUB_REPO;
   return repo && repo.includes('/') ? repo : null;
 }
@@ -177,9 +197,14 @@ export async function getCredentials(): Promise<SyncCredentials | null> {
   const repo = getRepoSlug();
   if (!repo) return null;
 
+  // 1. Runtime PAT (set via UI)
+  if (runtimeToken) return { repo, token: runtimeToken, mode: 'pat' };
+
+  // 2. GitHub App installation token
   const installToken = await getInstallationToken();
   if (installToken) return { repo, token: installToken, mode: 'app' };
 
+  // 3. Env var PAT
   const pat = process.env.GITHUB_TOKEN;
   if (pat && pat.trim()) return { repo, token: pat.trim(), mode: 'pat' };
 

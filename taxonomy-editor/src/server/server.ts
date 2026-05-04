@@ -21,6 +21,7 @@ import { runWithUser } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
 import * as gitStore from './gitRepoStore';
+import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth';
 import * as proxyTiers from './proxyTiers';
 import * as rateLimiter from './rateLimiter';
 
@@ -712,6 +713,31 @@ post('/api/upload-document', async (req, res) => {
 post('/api/sync/init', async (_req, res) => {
   try {
     json(res, await gitStore.initDataRepo());
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/sync/credentials', async (_req, res, body) => {
+  try {
+    const data = body as { repo?: string; token?: string; clear?: boolean };
+    if (data.clear) {
+      clearRuntimeCredentials();
+      json(res, { ok: true, configured: false });
+      return;
+    }
+    const repo = typeof data.repo === 'string' ? data.repo.trim() : '';
+    const token = typeof data.token === 'string' ? data.token.trim() : '';
+    if (!repo || !repo.includes('/')) {
+      error(res, 'repo must be in "owner/repo" format', 400);
+      return;
+    }
+    if (!token) {
+      error(res, 'token is required', 400);
+      return;
+    }
+    setRuntimeCredentials(repo, token);
+    // Validate by checking if credentials resolve
+    const creds = await getCredentials();
+    json(res, { ok: true, configured: !!creds });
   } catch (err) { error(res, String(err)); }
 });
 

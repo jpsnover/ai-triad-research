@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   getSyncDiagnostics, getSyncStatus, createPullRequest, resync, initDataRepo,
+  setGithubCredentials, clearGithubCredentials,
   type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
 } from '../utils/syncApi';
 
@@ -86,6 +87,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
   const [action, setAction] = useState<ActionState>({ running: false, label: '', error: null, success: null });
   const [confirmReset, setConfirmReset] = useState(false);
   const [prFormOpen, setPrFormOpen] = useState(false);
+  const [credFormOpen, setCredFormOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -155,7 +157,58 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
               <KV label="Data Root">{diag.data_root}</KV>
               <KV label="Git Initialized"><StatusDot ok={diag.data_root_has_git} /> {diag.data_root_has_git ? 'Yes' : 'No'}</KV>
               <KV label="GitHub Repo">{diag.github_repo ?? <span className="sync-diag-muted">Not configured</span>}</KV>
-              <KV label="Credentials"><StatusDot ok={diag.github_credentials_valid} /> {diag.github_credentials_valid ? 'Valid' : 'Not configured'}</KV>
+              <KV label="Credentials">
+                <StatusDot ok={diag.github_credentials_valid} />{' '}
+                {diag.github_credentials_valid ? (
+                  <>
+                    Valid
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      style={{ marginLeft: 8, fontSize: '0.65rem' }}
+                      onClick={async () => {
+                        await clearGithubCredentials();
+                        void refresh();
+                      }}
+                      title="Clear stored credentials"
+                    >
+                      Clear
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Not configured
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      style={{ marginLeft: 8, fontSize: '0.65rem' }}
+                      onClick={() => setCredFormOpen(!credFormOpen)}
+                    >
+                      {credFormOpen ? 'Cancel' : 'Configure'}
+                    </button>
+                  </>
+                )}
+              </KV>
+              {credFormOpen && !diag.github_credentials_valid && (
+                <GitHubCredentialsForm
+                  defaultRepo={diag.github_repo ?? ''}
+                  running={action.running && action.label === 'Set credentials'}
+                  onSubmit={async (repo, token) => {
+                    setAction({ running: true, label: 'Set credentials', error: null, success: null });
+                    try {
+                      const result = await setGithubCredentials(repo, token);
+                      if (result.configured) {
+                        setAction({ running: false, label: '', error: null, success: 'GitHub credentials configured.' });
+                        setCredFormOpen(false);
+                        void refresh();
+                      } else {
+                        setAction({ running: false, label: '', error: 'Credentials were saved but could not be validated. Check your token.', success: null });
+                      }
+                    } catch (err) {
+                      setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
+                    }
+                  }}
+                  onCancel={() => setCredFormOpen(false)}
+                />
+              )}
             </Section>
 
             {/* Repository State */}
@@ -444,6 +497,69 @@ function CreatePrForm({
           onClick={() => void onSubmit(title.trim(), body.trim())}
         >
           {running ? 'Creating...' : 'Submit Pull Request'}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel} disabled={running}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── GitHub Credentials Form ──
+
+function GitHubCredentialsForm({
+  defaultRepo,
+  running,
+  onSubmit,
+  onCancel,
+}: {
+  defaultRepo: string;
+  running: boolean;
+  onSubmit: (repo: string, token: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [repo, setRepo] = useState(defaultRepo);
+  const [token, setToken] = useState('');
+
+  return (
+    <div className="pr-form" style={{ marginTop: 8 }}>
+      <div className="pr-form-section">
+        <label className="pr-form-label" htmlFor="gh-repo">Repository (owner/repo)</label>
+        <input
+          id="gh-repo"
+          className="pr-form-input"
+          type="text"
+          value={repo}
+          onChange={e => setRepo(e.target.value)}
+          placeholder="owner/repo"
+          disabled={running}
+          autoComplete="off"
+        />
+      </div>
+      <div className="pr-form-section">
+        <label className="pr-form-label" htmlFor="gh-token">Personal Access Token</label>
+        <input
+          id="gh-token"
+          className="pr-form-input"
+          type="password"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          placeholder="ghp_..."
+          disabled={running}
+          autoComplete="off"
+        />
+        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+          Needs <code>repo</code> scope. Create at github.com/settings/tokens.
+        </div>
+      </div>
+      <div className="pr-form-actions">
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={running || !repo.includes('/') || !token.trim()}
+          onClick={() => void onSubmit(repo.trim(), token.trim())}
+        >
+          {running ? 'Saving...' : 'Save Credentials'}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={onCancel} disabled={running}>
           Cancel
