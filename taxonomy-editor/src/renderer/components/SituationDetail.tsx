@@ -203,7 +203,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             <div className={`form-group ${err('description') ? 'has-error' : ''}`}>
               <label>
                 Description
-                <FieldHelp text='Genus-differentia format: "A situation that [differentia]. Encompasses: ... Excludes: ..."' />
+                <FieldHelp text={'Genus-differentia format:\n"A situation that [differentia].\nEncompasses: ...\nExcludes: ..."\nEncompasses and Excludes must each start on a new line.'} />
               </label>
               <HighlightedTextarea
                 value={node.description}
@@ -239,7 +239,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               <div className="form-group">
                 <label>Intellectual Lineage</label>
                 <div className="ga-promoted-list">
-                  {[...node.graph_attributes.intellectual_lineage].sort((a, b) => a.localeCompare(b)).map((l, i) => (
+                  {[...node.graph_attributes.intellectual_lineage].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
                     <span
                       key={i}
                       className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}

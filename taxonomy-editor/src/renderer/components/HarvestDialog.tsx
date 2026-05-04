@@ -334,7 +334,7 @@ Speaker POV: ${item.suggestedPov}
 
 Generate:
 1. A 3-8 word plain-language label (newspaper headline style)
-2. A genus-differentia description (choose ONE category): "${item.suggestedPov === 'situations' ? 'A situation that [differentia]. Encompasses: ... Excludes: ...' : `A Belief / A Desire / An Intention within ${item.suggestedPov} discourse that [differentia]. Encompasses: ... Excludes: ...`}"
+2. A genus-differentia description (choose ONE category). IMPORTANT: Encompasses and Excludes MUST each start on a new line (use \\n): "${item.suggestedPov === 'situations' ? 'A situation that [differentia].\\nEncompasses: ...\\nExcludes: ...' : `A Belief / A Desire / An Intention within ${item.suggestedPov} discourse that [differentia].\\nEncompasses: ...\\nExcludes: ...`}"
 3. The best category: Desires, Beliefs, or Intentions
 4. The node scope: "claim" (specific testable assertion), "scheme" (argumentative pattern), or "bridging" (connects claims to schemes)
 

@@ -7,7 +7,7 @@ OUTPUT FORMAT — return a single JSON object matching this schema exactly:
     {
       "promoted_from": null,
       "label": "Open-Source AI as a Safety Strategy",
-      "description": "An Intention position within accelerationist discourse that advocates open-source development as both a safety mechanism and a democratization strategy. Encompasses: arguments that transparency improves safety, legal protections for open models, community-driven AI development. Excludes: closed-source safety testing, market competition arguments.",
+      "description": "An Intention position within accelerationist discourse that advocates open-source development as both a safety mechanism and a democratization strategy.\nEncompasses: arguments that transparency improves safety, legal protections for open models, community-driven AI development.\nExcludes: closed-source safety testing, market competition arguments.",
       "children": [
         {
           "node_id": "acc-intentions-002",

@@ -247,7 +247,7 @@ function ContentTab({ node }: { node: TaxRefNode }) {
         <>
           <div style={sectionHeader}>Intellectual Lineage</div>
           <div>
-            {[...ga.intellectual_lineage].sort((a, b) => a.localeCompare(b)).map((l, i) => (
+            {[...ga.intellectual_lineage].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
               <span key={i} style={{
                 ...chipStyle, background: 'var(--bg-primary)', fontWeight: 600,
               }}>{l}</span>

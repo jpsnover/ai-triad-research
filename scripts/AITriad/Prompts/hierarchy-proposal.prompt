@@ -36,7 +36,7 @@ PARENT NODE RULES:
     Line 2: "Encompasses: [list child themes in plain language]."
     Line 3: "Excludes: [what is NOT covered]."
     Each line MUST start with the literal label shown.
-  - DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses.
+  - DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses, each on its own line (separated by \n).
   - The parent inherits the same category as its children.
   - If the POV is situations, omit category references and instead describe
     the thematic area the parent covers.

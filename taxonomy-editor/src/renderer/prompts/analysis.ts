@@ -83,7 +83,12 @@ Critique this node with a focus on **Systemic Integration**:
 3. **Taxonomic Placement:** Is the \`parent_id\` logically sound given the other nodes in the Local Hierarchy?
 4. **Epistemic Drift:** Does the POV-specific description lean too far into rhetoric, losing its connection to the underlying universal concept?
 5. **Policy Action Alignment:** Do the node's \`policy_actions\` reference appropriate registry entries (pol-NNN IDs)? Should any be replaced with a better-matching existing policy? Are any missing policies that this node clearly implies? Every policy_action MUST have a valid \`policy_id\` — reuse existing registry entries when possible.
-6. **Description Format (Genus-Differentia):** The description MUST follow: "A Belief / A Desire / An Intention within [POV] discourse that [differentia]. Encompasses: ... Excludes: ..." For situation nodes: "A situation that [differentia]. Encompasses: ... Excludes: ..." If it doesn't, propose a rewrite.
+6. **Description Format (Genus-Differentia):** The description MUST follow this multi-line format (Encompasses and Excludes each start on a NEW line):
+   "A Belief / A Desire / An Intention within [POV] discourse that [differentia].
+   Encompasses: ...
+   Excludes: ..."
+   For situation nodes: "A situation that [differentia].\\nEncompasses: ...\\nExcludes: ..."
+   If the description has Encompasses/Excludes inline (not on new lines), propose a rewrite with them on separate lines.
 7. **BDI Category Alignment:** Does the \`category\` (Beliefs/Desires/Intentions) match the node's content? Beliefs = empirical/verifiable. Desires = normative/priorities. Intentions = reasoning strategies. Flag mismatches.
 8. **Node Scope:** If \`node_scope\` is present, verify: \`claim\` = specific testable assertion, \`scheme\` = argumentative pattern, \`bridging\` = connects claims to schemes. If absent and the node clearly fits one, suggest adding it.
 
