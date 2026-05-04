@@ -176,13 +176,14 @@ export function initFlightRecorder(): FlightRecorder {
     }
   });
 
-  // ── Keyboard shortcut: Ctrl+Shift+D for manual dump ──
+  // ── Keyboard shortcut: Ctrl+Alt+D for manual dump ──
+  // (Ctrl+Shift+D is consumed by Chrome's "Bookmark all tabs")
 
   document.addEventListener('keydown', (event) => {
-    if (event.ctrlKey && event.shiftKey && event.key === 'D') {
+    if (event.ctrlKey && event.altKey && event.key === 'd') {
       event.preventDefault();
       void persistDump(recorder, 'manual');
-      console.log('[flight-recorder] Manual dump triggered via Ctrl+Shift+D');
+      console.log('[flight-recorder] Manual dump triggered via Ctrl+Alt+D');
     }
   });
 
@@ -195,6 +196,15 @@ export function initFlightRecorder(): FlightRecorder {
   (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = dumpOnReactError;
 
   return recorder;
+}
+
+/**
+ * Trigger a manual flight recorder dump from any UI component.
+ */
+export function triggerManualDump(): void {
+  const recorder = getGlobalRecorder();
+  if (!recorder) return;
+  void persistDump(recorder, 'manual');
 }
 
 /**

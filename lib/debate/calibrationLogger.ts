@@ -141,6 +141,16 @@ export interface CalibrationDataPoint {
   total_api_calls: number;
   /** Hard multiplier used (rounds × multiplier = ceiling) */
   budget_hard_multiplier: number;
+
+  // ── Situation effectiveness ──
+  /** Number of situation nodes injected into debater context */
+  situation_nodes_injected: number;
+  /** Number of situation nodes actually referenced in taxonomy_refs */
+  situation_nodes_referenced: number;
+  /** Fraction of neutral evaluator cruxes that align with injected situation nodes (by word overlap) */
+  situation_crux_alignment: number | null;
+  /** Max situation nodes cap used */
+  situation_max_nodes: number;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -169,6 +179,7 @@ export function extractCalibrationData(
     cohesionClearTheme?: number;
     kpDivisor?: number;
     budgetHardMultiplier?: number;
+    situationMaxNodes?: number;
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -453,6 +464,67 @@ export function extractCalibrationData(
     }
   }
 
+  // ── Situation effectiveness — crux alignment ──
+  // How many injected situation nodes align with the debate's actual cruxes?
+  let sitNodesInjected = 0;
+  let sitNodesReferenced = 0;
+  const injectedSitIds = new Set<string>();
+  for (const entry of session.transcript) {
+    const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+      situationNodeIds?: string[];
+    } | undefined;
+    if (manifest?.situationNodeIds) {
+      for (const id of manifest.situationNodeIds) injectedSitIds.add(id);
+    }
+    for (const ref of entry.taxonomy_refs ?? []) {
+      if (typeof ref.node_id === 'string' && ref.node_id.startsWith('sit-')) {
+        sitNodesReferenced++;
+      }
+    }
+  }
+  sitNodesInjected = injectedSitIds.size;
+
+  // Situation-crux alignment: do the neutral evaluator's cruxes match injected situation nodes?
+  // Uses word overlap between crux descriptions and situation node labels/descriptions.
+  let sitCruxAlignment: number | null = null;
+  if (finalEval && finalEval.cruxes.length > 0 && injectedSitIds.size > 0) {
+    // We don't have situation node text here, but we can check if crux descriptions
+    // mention situation-related terms by matching against taxonomy_refs that are sit- IDs.
+    // Better approach: check if sit- refs appear in entries that address each crux's topic.
+    // Simplest viable: for each crux, check if any sit- ID was referenced in the same
+    // round(s) where that crux's speakers are active.
+    const cruxSpeakers = finalEval.cruxes.map((c: { speakers_involved: string[] }) =>
+      new Set(c.speakers_involved.map((s: string) => s.toLowerCase())),
+    );
+
+    // Map speaker labels (A/B/C) back to POV names via neutral_speaker_mapping
+    const reverseMap = (session as any).neutral_speaker_mapping?.reverse as Record<string, string> | undefined;
+
+    let alignedCruxes = 0;
+    for (const crux of finalEval.cruxes) {
+      // Get the POV names for speakers involved in this crux
+      const cruxPovs = new Set<string>();
+      for (const s of crux.speakers_involved) {
+        const label = `Speaker ${s}`;
+        const poverId = reverseMap?.[label];
+        if (poverId) cruxPovs.add(poverId);
+      }
+
+      // Check if any entry by these speakers referenced a sit- node
+      let hasSitRef = false;
+      for (const entry of session.transcript) {
+        if (entry.type !== 'statement' && entry.type !== 'opening') continue;
+        if (!cruxPovs.has(entry.speaker)) continue;
+        const sitRef = (entry.taxonomy_refs ?? []).some(
+          (r: { node_id: string }) => r.node_id.startsWith('sit-') && injectedSitIds.has(r.node_id),
+        );
+        if (sitRef) { hasSitRef = true; break; }
+      }
+      if (hasSitRef) alignedCruxes++;
+    }
+    sitCruxAlignment = alignedCruxes / finalEval.cruxes.length;
+  }
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -518,7 +590,12 @@ export function extractCalibrationData(
       typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
     ),
     total_api_calls: session.diagnostics?.overview?.total_ai_calls ?? 0,
-    budget_hard_multiplier: config.budgetHardMultiplier ?? 10,
+    budget_hard_multiplier: config.budgetHardMultiplier ?? 15,
+
+    situation_nodes_injected: sitNodesInjected,
+    situation_nodes_referenced: sitNodesReferenced,
+    situation_crux_alignment: sitCruxAlignment,
+    situation_max_nodes: config.situationMaxNodes ?? 15,
   };
 }
 
@@ -596,6 +673,7 @@ export interface ParameterSnapshot {
   cohesion_clear_theme: number;
   kp_divisor: number;
   budget_hard_multiplier: number;
+  situation_max_nodes: number;
 }
 
 /** A history entry recording a parameter change event. */
@@ -648,7 +726,8 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     fire_confidence_threshold: 0.7,
     cohesion_clear_theme: 0.60,
     kp_divisor: 500,
-    budget_hard_multiplier: weights?.budget?.hard_multiplier ?? 10,
+    budget_hard_multiplier: weights?.budget?.hard_multiplier ?? 15,
+    situation_max_nodes: 15,
   };
 }
 
@@ -664,7 +743,7 @@ export function diffSnapshots(
     'recent_window', 'gc_trigger', 'polarity_resolved', 'max_nodes_cap',
     'semantic_recycling_threshold', 'cluster_min_similarity',
     'duplicate_similarity_threshold', 'fire_confidence_threshold',
-    'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier',
+    'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier', 'situation_max_nodes',
   ];
   for (const key of simpleKeys) {
     if (before[key] !== after[key]) {

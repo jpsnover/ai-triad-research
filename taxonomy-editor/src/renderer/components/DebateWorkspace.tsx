@@ -28,6 +28,7 @@ import { CommentHighlightedText, useEntryCommentCount } from './CommentHighlight
 import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
 import type { Comment, DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from './UsernamePromptDialog';
+import { triggerManualDump } from '../lib/flightRecorderInit';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -1788,10 +1789,27 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   const handleCrossRespond = async () => {
     if (disabled) return;
     setSending(true);
-    for (let i = 0; i < crossRespondTurns; i++) {
-      await crossRespond();
-      // Check if debate is still active (user might have closed it)
-      if (!useDebateStore.getState().activeDebate) break;
+    if (isAdaptive) {
+      // Adaptive: run to completion (until phase transitions terminate)
+      const weights = (await import('@lib/debate/phaseTransitions')).loadProvisionalWeights();
+      const pacing = (activeDebate as any)?.adaptive_staging?.pacing ?? 'moderate';
+      const maxRounds = weights.pacing_presets[pacing]?.maxTotalRounds ?? 12;
+      for (let i = 0; i < maxRounds; i++) {
+        const d = useDebateStore.getState().activeDebate;
+        if (!d) break;
+        if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+        await crossRespond();
+      }
+      // Auto-trigger synthesis when terminated
+      const final = useDebateStore.getState().activeDebate;
+      if ((final as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
+        await requestSynthesis();
+      }
+    } else {
+      for (let i = 0; i < crossRespondTurns; i++) {
+        await crossRespond();
+        if (!useDebateStore.getState().activeDebate) break;
+      }
     }
     setSending(false);
   };
@@ -2269,6 +2287,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         {onExport && (
           <ExportButtonInline onExport={onExport} />
         )}
+        <button
+          className="btn btn-sm"
+          onClick={triggerManualDump}
+          title="Dump flight recorder (Ctrl+Alt+D)"
+          style={{ marginLeft: 'auto' }}
+        >
+          Dump
+        </button>
       </div>
 
       {/* Cross-cutting context dialog */}

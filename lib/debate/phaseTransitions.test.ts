@@ -603,13 +603,34 @@ describe('evaluatePhaseTransition', () => {
       expect(result.action).not.toBe('force_transition');
     });
 
-    it('terminates on max total rounds', () => {
-      const state = makePhaseState({ total_rounds_elapsed: 12 });
-      const ctx = makeSignalContext();
+    it('terminates on max total rounds when in synthesis', () => {
+      const state = makePhaseState({ current_phase: 'synthesis', total_rounds_elapsed: 12, rounds_in_phase: 2 });
+      const ctx = makeSignalContext({ phase: { current: 'synthesis', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, explorationExitThreshold: 0.65, synthesisExitThreshold: 0.70 } });
       const config = makeConfig({ maxTotalRounds: 12 });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('terminate');
       expect(result.reason).toContain('Max total rounds');
+    });
+
+    it('force-transitions to next phase on max total rounds when not in synthesis', () => {
+      const state = makePhaseState({ current_phase: 'exploration', total_rounds_elapsed: 12, rounds_in_phase: 5 });
+      const ctx = makeSignalContext();
+      const config = makeConfig({ maxTotalRounds: 12 });
+      const result = evaluatePhaseTransition(state, ctx, signals, config);
+      expect(result.action).toBe('force_transition');
+      expect(result.new_phase).toBe('synthesis');
+      expect(result.reason).toContain('Budget exhausted');
+    });
+
+    it('force-transitions when budget deadline approached (reserves downstream minimums)', () => {
+      // moderate pacing (12 rounds): exploration budget deadline = 12 - min_synthesis(2) = 10
+      const state = makePhaseState({ current_phase: 'exploration', total_rounds_elapsed: 10, rounds_in_phase: 5 });
+      const ctx = makeSignalContext();
+      const config = makeConfig({ maxTotalRounds: 12 });
+      const result = evaluatePhaseTransition(state, ctx, signals, config);
+      expect(result.action).toBe('force_transition');
+      expect(result.new_phase).toBe('synthesis');
+      expect(result.reason).toContain('reserving');
     });
   });
 
@@ -727,7 +748,7 @@ describe('evaluatePhaseTransition', () => {
         },
         priorSignals: {
           get: (id: string) => id === '_peak_engagement_ratio' ? 0.9 : 0.5,
-          movingAverage: () => 0.5,
+          movingAverage: () => null, // null bypasses stability confidence gating
         },
       });
       const config = makeConfig();

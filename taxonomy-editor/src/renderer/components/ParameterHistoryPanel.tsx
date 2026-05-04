@@ -62,6 +62,7 @@ const PARAM_LABELS: Record<string, string> = {
   cohesion_clear_theme: 'Cohesion Threshold',
   kp_divisor: 'Extraction Density',
   budget_hard_multiplier: 'API Budget Multiplier',
+  situation_max_nodes: 'Situation Node Cap',
 };
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -146,7 +147,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
       'recent_window', 'gc_trigger', 'polarity_resolved', 'max_nodes_cap',
       'semantic_recycling_threshold', 'cluster_min_similarity',
       'duplicate_similarity_threshold', 'fire_confidence_threshold',
-      'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier',
+      'cohesion_clear_theme', 'kp_divisor', 'budget_hard_multiplier', 'situation_max_nodes',
     ];
     for (const key of simpleKeys) {
       result[key] = history.map(e => (e.after as any)[key] as number).filter(v => typeof v === 'number');

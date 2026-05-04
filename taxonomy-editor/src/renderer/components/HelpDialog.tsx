@@ -212,13 +212,14 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
   });
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <div className="dialog-overlay" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         className="dialog help-dialog"
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{
-          width: size.w, height: size.h, display: 'flex', flexDirection: 'column',
+          width: size.w, height: size.h, maxWidth: 'none', maxHeight: 'none',
+          display: 'flex', flexDirection: 'column', overflow: 'visible',
           position: 'fixed', left: pos.x, top: pos.y, margin: 0,
         }}
       >
@@ -374,18 +375,18 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, w: Math.max(400, start.w + (ev.clientX - start.x)) }));
           const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
           window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-        }} style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'ew-resize' }} />
+        }} style={{ position: 'absolute', right: -4, top: 0, width: 14, height: '100%', cursor: 'ew-resize', zIndex: 10 }} />
         <div onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCentered(false);
           const start = { y: e.clientY, h: size.h };
           const onMove = (ev: MouseEvent) => setSize(s => ({ ...s, h: Math.max(300, start.h + (ev.clientY - start.y)) }));
           const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
           window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-        }} style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 6, cursor: 'ns-resize' }} />
+        }} style={{ position: 'absolute', bottom: -4, left: 0, width: '100%', height: 14, cursor: 'ns-resize', zIndex: 10 }} />
         <div
           onMouseDown={onResizeStart}
           style={{
-            position: 'absolute', right: 0, bottom: 0, width: 16, height: 16,
-            cursor: 'nwse-resize', opacity: 0.4,
+            position: 'absolute', right: -4, bottom: -4, width: 20, height: 20,
+            cursor: 'nwse-resize', opacity: 0.4, zIndex: 11,
           }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" style={{ display: 'block' }}>

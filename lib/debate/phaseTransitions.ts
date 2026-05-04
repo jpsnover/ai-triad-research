@@ -444,9 +444,28 @@ export function evaluatePhaseTransition(
     return { action: 'force_transition', new_phase: 'synthesis', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
   }
 
-  // Global: max total rounds
+  // Global: max total rounds — budget-aware
+  // Reserve enough rounds for downstream phases' minimums so all three phases complete.
+  const downstreamMinimums =
+    state.current_phase === 'thesis-antithesis' ? pb.min_exploration_rounds + pb.min_synthesis_rounds
+    : state.current_phase === 'exploration' ? pb.min_synthesis_rounds
+    : 0;
+  const budgetDeadline = config.maxTotalRounds - downstreamMinimums;
+
   if (state.total_rounds_elapsed >= config.maxTotalRounds) {
-    return { action: 'terminate', reason: `Max total rounds (${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed } };
+    // Absolute ceiling — terminate if in synthesis, otherwise force-advance
+    if (state.current_phase === 'synthesis') {
+      return { action: 'terminate', reason: `Max total rounds (${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed } };
+    }
+    const nextPhase: DebatePhase = state.current_phase === 'thesis-antithesis' ? 'exploration' : 'synthesis';
+    return { action: 'force_transition', new_phase: nextPhase, reason: `Budget exhausted at round ${state.total_rounds_elapsed}/${config.maxTotalRounds}, forcing advance to ${nextPhase}`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, downstream_reserved: downstreamMinimums } };
+  }
+
+  // Approaching deadline — force-transition to ensure downstream phases get their minimums.
+  // Respect cold start: don't cut a phase short before its minimum rounds, unless at absolute ceiling (above).
+  if (state.current_phase !== 'synthesis' && !coldStart && state.total_rounds_elapsed >= budgetDeadline) {
+    const nextPhase: DebatePhase = state.current_phase === 'thesis-antithesis' ? 'exploration' : 'synthesis';
+    return { action: 'force_transition', new_phase: nextPhase, reason: `Budget ceiling approaching (${state.total_rounds_elapsed}/${config.maxTotalRounds}), reserving ${downstreamMinimums} rounds for remaining phases`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, budget_deadline: budgetDeadline, downstream_reserved: downstreamMinimums } };
   }
 
   // Confidence gating
