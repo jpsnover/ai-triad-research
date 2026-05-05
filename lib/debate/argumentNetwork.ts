@@ -19,6 +19,28 @@ const ATTACK_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .map(([k]) => k)
   .join(', ');
 
+const DOMAIN_VOCABULARY = `
+PREFERRED DOMAIN TERMINOLOGY — use these standardized terms when the claim expresses the same concept:
+- "AI alignment" — ensuring AI systems pursue intended objectives (not "making AI do what we want")
+- "alignment tax" — performance cost imposed by safety constraints (not "safety overhead")
+- "instrumental convergence" — tendency of agents to pursue convergent sub-goals (not "AI pursuing sub-goals")
+- "capability overhang" — gap between developed and deployed capability (not "latent potential")
+- "mesa-optimization" — learned sub-objectives that diverge from training objective (not "inner optimizer")
+- "compute governance" — regulatory control over computational resources (not "chip controls")
+- "existential risk" — risk of human extinction or permanent civilizational collapse
+- "recursive self-improvement" — AI system iteratively improving its own capabilities
+- "corrigibility" — property of an AI system that accepts human correction
+- "scalable oversight" — maintaining effective human supervision as AI capability scales
+- "differential technology development" — prioritizing safety capabilities over dangerous capabilities
+- "regulatory capture" — regulated entities controlling their own regulatory framework
+- "agentic AI" — AI systems that autonomously pursue goals over extended periods
+- "algorithmic accountability" — obligation to explain and justify algorithmic decisions
+- "dual-use" — technology with both beneficial and harmful applications
+- "red-teaming" — adversarial testing to identify system vulnerabilities
+- "deployment guardrails" — constraints on AI system behavior in production
+These are advisory — use the debater's exact phrasing when it's already precise.
+`;
+
 export interface PriorClaim {
   id: string;
   text: string;
@@ -87,6 +109,7 @@ For each claim, also classify:
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
+${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown):
 {
   "claims": [
@@ -183,6 +206,7 @@ Also classify each claim:
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
+${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown):
 {
   "claims": [
