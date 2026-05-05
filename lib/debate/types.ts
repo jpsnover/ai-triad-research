@@ -1089,6 +1089,42 @@ export interface SynthesisCrux {
   type?: 'EMPIRICAL' | 'VALUES' | 'DEFINITIONAL';
   resolution_status?: 'resolved' | 'irreducible' | 'active';
   resolution_evidence?: string;
+  /** Which debaters are involved in this crux. */
+  speakers?: PoverId[];
+}
+
+// ── Cross-debate crux aggregation types ──────────────
+
+/** A single debate's contribution to an aggregated crux. */
+export interface CruxSource {
+  debate_id: string;
+  debate_topic: string;
+  /** AN node ID within that debate's crux tracker. */
+  crux_tracker_id: string;
+  identified_turn: number;
+  final_state: CruxResolutionState;
+}
+
+/** Aggregated crux across multiple debates. */
+export interface AggregatedCrux {
+  /** Stable ID, e.g. "crux-001". */
+  id: string;
+  /** Canonical phrasing (best statement across source debates). */
+  statement: string;
+  type: 'empirical' | 'values' | 'definitional';
+  /** Backpointers to individual debate cruxes. */
+  sources: CruxSource[];
+  /** Taxonomy node IDs involved. */
+  linked_node_ids: string[];
+  /** Conflict pair IDs if applicable. */
+  linked_conflict_ids?: string[];
+  /** How many debates surfaced this crux. */
+  frequency: number;
+  resolution_summary: {
+    resolved: number;
+    active: number;
+    irreducible: number;
+  };
 }
 
 export interface PreferenceEntry {
