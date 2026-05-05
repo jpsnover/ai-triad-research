@@ -48,6 +48,9 @@ RUN ARCH=$(dpkg --print-architecture) \
 # Python ML environment (isolated venv, CPU-only PyTorch)
 RUN python3 -m venv /opt/ml-env
 ENV PATH="/opt/ml-env/bin:$PATH"
+# Install typing-extensions from PyPI first — the PyTorch CPU index has
+# metadata inconsistency (underscore vs hyphen) that breaks pip 24+.
+RUN pip install --no-cache-dir typing-extensions>=4.10.0
 RUN pip install --no-cache-dir \
     torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 
