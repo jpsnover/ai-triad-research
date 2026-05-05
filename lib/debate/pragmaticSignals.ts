@@ -99,24 +99,65 @@ export const CONDITIONAL_AGREEMENT_LEXICON = [
   'if it turns out',
 ] as const;
 
+// ── Negation handling ────────────────────────────────────
+
+const NEGATION_TOKENS = new Set([
+  'not', 'never', 'no', 'neither', 'nor', 'cannot',
+  // Contractions — matched as whole tokens
+  "n't", "don't", "doesn't", "didn't", "won't", "wouldn't",
+  "can't", "couldn't", "shouldn't", "isn't", "aren't",
+  "hasn't", "haven't", "hadn't",
+]);
+
+const NEGATION_WINDOW = 4; // tokens to scan before match
+
+/**
+ * Check if a match at the given character index is preceded by a negation
+ * within NEGATION_WINDOW tokens. Tokenizes the preceding text by whitespace.
+ */
+function isNegated(lowerText: string, matchIndex: number): boolean {
+  const prefix = lowerText.slice(Math.max(0, matchIndex - 60), matchIndex);
+  const tokens = prefix.split(/\s+/).filter(t => t.length > 0).slice(-NEGATION_WINDOW);
+  return tokens.some(t => NEGATION_TOKENS.has(t) || t.endsWith("n't"));
+}
+
+/**
+ * Check if a lexicon phrase is inherently negation-bearing (e.g. "not necessarily").
+ * Such phrases are immune to the negation window filter.
+ */
+function isNegationBearing(phrase: string): boolean {
+  const firstWord = phrase.split(/\s+/)[0].toLowerCase();
+  return NEGATION_TOKENS.has(firstWord) || firstWord.endsWith("n't");
+}
+
+/**
+ * Build a word-boundary regex for a lexicon phrase.
+ * Matches the phrase as a complete unit (not as a substring of a longer word).
+ */
+function buildPhraseRegex(phrase: string): RegExp {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'gi');
+}
+
 // ── Helpers ──────────────────────────────────────────────
 
 /**
- * Count lexicon hits in a text using case-insensitive substring matching.
- * Each phrase in the lexicon is matched independently; overlapping matches
- * are counted separately.
+ * Count lexicon hits in a text using word-boundary matching with negation filtering.
+ * Each phrase in the lexicon is matched independently via regex word-boundary.
+ * Matches preceded by a negation token within 4 tokens are excluded.
+ * Phrases that themselves begin with a negation (e.g. "not necessarily") are immune.
  */
 export function countLexiconHits(text: string, lexicon: readonly string[]): number {
   const lower = text.toLowerCase();
   let count = 0;
   for (const phrase of lexicon) {
-    const needle = phrase.toLowerCase();
-    let startIdx = 0;
-    while (true) {
-      const idx = lower.indexOf(needle, startIdx);
-      if (idx === -1) break;
-      count++;
-      startIdx = idx + 1;
+    const regex = buildPhraseRegex(phrase);
+    const immune = isNegationBearing(phrase);
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(lower)) !== null) {
+      if (immune || !isNegated(lower, match.index)) {
+        count++;
+      }
     }
   }
   return count;

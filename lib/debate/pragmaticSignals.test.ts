@@ -60,6 +60,50 @@ describe('countLexiconHits', () => {
   });
 });
 
+// ── Negation handling ───────────────────────────────────────
+
+describe('negation handling', () => {
+  it('filters negated concessive markers', () => {
+    expect(countLexiconHits("I don't concede anything", CONCESSIVE_LEXICON)).toBe(0);
+    expect(countLexiconHits("I will never grant that", CONCESSIVE_LEXICON)).toBe(0);
+  });
+
+  it('preserves non-negated concessive markers', () => {
+    expect(countLexiconHits("I concede the point", CONCESSIVE_LEXICON)).toBe(1);
+    expect(countLexiconHits("However, I'll grant that", CONCESSIVE_LEXICON)).toBe(2); // however + I'll grant
+  });
+
+  it('preserves negation-bearing phrases (not necessarily)', () => {
+    expect(countLexiconHits("This is not necessarily true", HEDGE_LEXICON)).toBe(1);
+    expect(countLexiconHits("I don't think it's not necessarily the case", HEDGE_LEXICON)).toBe(1);
+  });
+
+  it('filters negated hedge markers', () => {
+    expect(countLexiconHits("It doesn't seem like that", HEDGE_LEXICON)).toBe(0);
+    expect(countLexiconHits("This cannot arguably be claimed", HEDGE_LEXICON)).toBe(0);
+  });
+
+  it('preserves non-negated hedges', () => {
+    expect(countLexiconHits("Perhaps we should reconsider", HEDGE_LEXICON)).toBe(1);
+    expect(countLexiconHits("It seems likely and might work", HEDGE_LEXICON)).toBe(2);
+  });
+
+  it('respects 4-token window (distant negation is ignored)', () => {
+    // "not" is 5+ tokens before "perhaps" — outside window
+    expect(countLexiconHits("That is not what I meant, but perhaps we can agree", HEDGE_LEXICON)).toBe(1);
+  });
+
+  it('uses word boundaries to prevent partial matches', () => {
+    expect(countLexiconHits("He was mighty impressed", HEDGE_LEXICON)).toBe(0);
+    expect(countLexiconHits("The seemsly thing", HEDGE_LEXICON)).toBe(0);
+  });
+
+  it('handles negation after the match (should still count)', () => {
+    // "might" matched, "not" comes after → not negated
+    expect(countLexiconHits("This might not be true", HEDGE_LEXICON)).toBe(1);
+  });
+});
+
 // ── Lexicon exports ─────────────────────────────────────────
 
 describe('lexicon exports', () => {
