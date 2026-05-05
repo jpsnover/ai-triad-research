@@ -42,7 +42,7 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Runtime ──
-FROM ghcr.io/jpsnover/ai-triad-base:2026-05-01 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:latest AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
