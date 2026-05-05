@@ -60,6 +60,10 @@ jobs:
         working-directory: taxonomy-editor
         run: npm ci
 
+      - name: Lint
+        working-directory: taxonomy-editor
+        run: npm run lint
+
       - name: TypeScript check (main)
         working-directory: taxonomy-editor
         run: npx tsc --noEmit -p tsconfig.main.json

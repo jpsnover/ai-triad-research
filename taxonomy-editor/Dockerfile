@@ -48,7 +48,10 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
 LABEL org.opencontainers.image.licenses="MIT"
 
-VOLUME /data
+# /data is ephemeral local storage — the entrypoint copies from /data-persistent
+# (Azure Files) at startup. Do NOT use VOLUME here; it creates a Docker-managed
+# anonymous volume that the non-root user cannot write to.
+RUN mkdir -p /data && chown aitriad:aitriad /data
 ENV AI_TRIAD_DATA_ROOT=/data
 ENV PORT=7862
 ENV PYTHONUNBUFFERED=1
