@@ -327,6 +327,8 @@ export interface ContextInjectionManifest {
   totalTokenEstimate: number;
   /** Relevance scores for injected POV nodes (for calibration variance analysis). */
   nodeScores?: number[];
+  /** Whether embedding or lexical fallback scoring was used. */
+  scoring_mode?: 'embedding' | 'lexical';
 }
 
 /**

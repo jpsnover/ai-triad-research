@@ -46,5 +46,25 @@
     "soft_multiplier": 8,
     "hard_multiplier": 15,
     "max_soft_multiplier": 10
+  },
+  "clustering": {
+    "linkage": "average",
+    "similarity_metric": "cosine",
+    "min_similarity": 0.55,
+    "default_max_clusters": 10,
+    "conflict_max_clusters": 15
+  },
+  "relevance": {
+    "embedding_threshold": 0.48,
+    "lexical_threshold": 0.22,
+    "min_per_category": 3,
+    "max_pov_nodes": 35,
+    "max_situations": 15
+  },
+  "confidence": {
+    "floor": 0.40,
+    "escalation_start": 3,
+    "floor_step": 0.10,
+    "minimum_floor": 0.20
   }
 }

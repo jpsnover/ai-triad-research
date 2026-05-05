@@ -151,6 +151,14 @@ export interface CalibrationDataPoint {
   situation_crux_alignment: number | null;
   /** Max situation nodes cap used */
   situation_max_nodes: number;
+
+  // ── Confidence escalation ──
+  /** Total confidence deferrals during this debate */
+  confidence_deferrals: number;
+  /** Times the confidence floor was lowered (escalations) */
+  confidence_escalations: number;
+  /** Predominant bottleneck: extraction, stability, or none */
+  confidence_bottleneck: 'extraction' | 'stability' | 'none';
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -596,6 +604,30 @@ export function extractCalibrationData(
     situation_nodes_referenced: sitNodesReferenced,
     situation_crux_alignment: sitCruxAlignment,
     situation_max_nodes: config.situationMaxNodes ?? 15,
+
+    confidence_deferrals: session.adaptive_staging_diagnostics?.confidence_deferrals ?? 0,
+    confidence_escalations: (() => {
+      const telemetry = session.adaptive_staging_diagnostics?.signal_telemetry ?? [];
+      return telemetry.filter((t: { confidence?: { global?: number } }) =>
+        t.confidence?.global !== undefined
+      ).reduce((count: number, t: { predicate_result?: { components?: Record<string, number> } }) => {
+        const ef = t.predicate_result?.components?.effective_floor;
+        return ef !== undefined && ef < 0.40 ? count + 1 : count;
+      }, 0);
+    })(),
+    confidence_bottleneck: (() => {
+      const telemetry = session.adaptive_staging_diagnostics?.signal_telemetry ?? [];
+      let extLow = 0, stabLow = 0;
+      for (const t of telemetry) {
+        const conf = (t as { confidence?: { extraction?: number; stability?: number } }).confidence;
+        if (conf) {
+          if ((conf.extraction ?? 1) < (conf.stability ?? 1)) extLow++;
+          else if ((conf.stability ?? 1) < (conf.extraction ?? 1)) stabLow++;
+        }
+      }
+      if (extLow === 0 && stabLow === 0) return 'none' as const;
+      return extLow >= stabLow ? 'extraction' as const : 'stability' as const;
+    })(),
   };
 }
 

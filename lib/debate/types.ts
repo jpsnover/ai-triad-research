@@ -54,6 +54,7 @@ export interface PhaseState {
   veto_history: { round: number; veto_type: string }[];
   gc_ran_this_phase: boolean;
   api_calls_used: number;
+  confidence_state: { consecutiveDeferrals: number; effectiveFloor: number };
 }
 
 export interface SignalContext {

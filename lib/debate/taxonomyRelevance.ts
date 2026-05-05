@@ -24,6 +24,15 @@ export interface ScoredSituationNode {
   score: number;
 }
 
+export interface RelevanceOptions {
+  threshold?: number;
+  embeddingThreshold?: number;
+  lexicalThreshold?: number;
+  minPerCategory?: number;
+  maxTotal?: number;
+  scoringMode?: 'embedding' | 'lexical';
+}
+
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
   let dot = 0, normA = 0, normB = 0;
@@ -61,10 +70,18 @@ export function scoreNodeRelevance(
 export function selectRelevantNodes(
   povNodes: PovNode[],
   scores: Map<string, number>,
-  threshold: number = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = 0.48,
   minPerCategory: number = 3,
   maxTotal?: number,
 ): ScoredPovNode[] {
+  const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
+  const threshold = opts.threshold ?? (
+    opts.scoringMode === 'lexical'
+      ? (opts.lexicalThreshold ?? 0.22)
+      : (opts.embeddingThreshold ?? 0.48)
+  );
+  minPerCategory = opts.minPerCategory ?? minPerCategory;
+  maxTotal = opts.maxTotal ?? maxTotal;
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
@@ -99,10 +116,16 @@ export function selectRelevantNodes(
 export function selectRelevantSituationNodes(
   situationNodes: SituationNode[],
   scores: Map<string, number>,
-  threshold: number = 0.48,
+  thresholdOrOpts: number | RelevanceOptions = 0.48,
   min: number = 3,
   max: number = 15,
 ): ScoredSituationNode[] {
+  const opts = typeof thresholdOrOpts === 'number' ? { threshold: thresholdOrOpts } : thresholdOrOpts;
+  const threshold = opts.threshold ?? (
+    opts.scoringMode === 'lexical'
+      ? (opts.lexicalThreshold ?? 0.22)
+      : (opts.embeddingThreshold ?? 0.48)
+  );
   const scored = situationNodes
     .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
     .sort((a, b) => b.score - a.score || a.node.id.localeCompare(b.node.id));

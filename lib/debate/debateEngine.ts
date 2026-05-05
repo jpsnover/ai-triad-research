@@ -52,6 +52,7 @@ import {
   computeSaturationScore,
   computeConvergenceScore,
 } from './phaseTransitions.js';
+import { updateConfidenceState } from './signalConfidence.js';
 import { pruneArgumentNetwork, needsGc } from './networkGc.js';
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TaxonomyContext } from './taxonomyContext.js';
@@ -97,6 +98,7 @@ import {
   selectRelevantNodes,
   selectRelevantSituationNodes,
   buildRelevanceQuery,
+  type RelevanceOptions,
 } from './taxonomyRelevance.js';
 import {
   generateId,
@@ -875,6 +877,7 @@ export class DebateEngine {
     const query = buildRelevanceQuery(this.session.topic.final, recentTranscript);
 
     let scores: Map<string, number> | null = null;
+    let scoringMode: 'embedding' | 'lexical' = 'embedding';
 
     // Preferred path: real per-turn query embedding via adapter (same model as embeddings.json)
     const adapter = this.adapter as ExtendedAIAdapter;
@@ -894,6 +897,8 @@ export class DebateEngine {
     // This at least varies turn-to-turn with the query text, unlike the old "first vector" hack.
     if (!scores) {
       scores = scoreNodesLexical(query, ctx.povNodes, ctx.situationNodes);
+      scoringMode = 'lexical';
+      console.warn('[relevance] Embedding adapter unavailable — using lexical fallback (reduced precision)');
     }
 
     // Diversification: down-weight nodes the speaker recently cited so fresh-but-relevant
@@ -906,8 +911,15 @@ export class DebateEngine {
       }
     }
 
-    const scoredPov = selectRelevantNodes(ctx.povNodes, scores, 0.45, 3, 35);
-    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, 0.45, 3, 15);
+    const relevanceOpts: RelevanceOptions = {
+      scoringMode,
+      embeddingThreshold: 0.48,
+      lexicalThreshold: 0.22,
+      minPerCategory: 3,
+      maxTotal: 35,
+    };
+    const scoredPov = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
+    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
     const filteredCtx = {
       povNodes: scoredPov.map(s => s.node),
       situationNodes: filteredSit.map(s => s.node),
@@ -915,6 +927,7 @@ export class DebateEngine {
       nodeScores: scores,
     };
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
+    this._lastInjectionManifest.scoring_mode = scoringMode;
     return formatTaxonomyContext(filteredCtx, pov);
   }
 
@@ -1431,6 +1444,12 @@ export class DebateEngine {
       const phaseCtx = buildPhaseContext(state, config, satScore, convScore);
       const telemetry = buildSignalTelemetry(state, ctx, signals, result, phaseCtx.phase_progress, predicateMs);
       diag.signal_telemetry.push(telemetry);
+
+      // Update confidence escalation state
+      state.confidence_state = updateConfidenceState(
+        state.confidence_state ?? { consecutiveDeferrals: 0, effectiveFloor: 0.40 },
+        result.confidence_deferred,
+      );
 
       // Apply transition
       const prevPhase = state.current_phase;

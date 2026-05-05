@@ -24,6 +24,11 @@ import {
   computeStabilityConfidence,
   computeGlobalConfidence,
   isConfidenceDeferred,
+  evaluateConfidenceGate,
+  updateConfidenceState,
+  initConfidenceState,
+  DEFAULT_CONFIDENCE_FLOOR,
+  type ConfidenceState,
 } from './signalConfidence.js';
 import { needsGc, needsHardCap } from './networkGc.js';
 // ── Weight Loading ──────────────────────────────────────────
@@ -124,6 +129,7 @@ export function initPhaseState(config: PhaseTransitionConfig): PhaseState {
     veto_history: [],
     gc_ran_this_phase: false,
     api_calls_used: 0,
+    confidence_state: initConfidenceState(),
   };
 }
 
@@ -468,7 +474,7 @@ export function evaluatePhaseTransition(
     return { action: 'force_transition', new_phase: nextPhase, reason: `Budget ceiling approaching (${state.total_rounds_elapsed}/${config.maxTotalRounds}), reserving ${downstreamMinimums} rounds for remaining phases`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, budget_deadline: budgetDeadline, downstream_reserved: downstreamMinimums } };
   }
 
-  // Confidence gating
+  // Confidence gating (with escalation)
   const extractionConf = computeExtractionConfidence(
     ctx.extraction.lastRoundStatus,
     ctx.extraction.lastRoundClaimsAccepted,
@@ -482,13 +488,18 @@ export function evaluatePhaseTransition(
     ctx.priorSignals.movingAverage(state.current_phase === 'synthesis' ? '_convergence_score' : '_saturation_score', 3),
     state.rounds_in_phase,
   );
-  const globalConf = computeGlobalConfidence(extractionConf, stabilityConf);
 
-  if (isConfidenceDeferred(globalConf, w.thresholds.confidence_floor) && !coldStart) {
+  const confState = state.confidence_state ?? initConfidenceState();
+  const { shouldDefer, diagnostics: confDiag } = evaluateConfidenceGate(extractionConf, stabilityConf, confState);
+
+  if (shouldDefer && !coldStart) {
+    if (confDiag.escalated) {
+      console.warn(`[confidence-escalation] Floor lowered from ${DEFAULT_CONFIDENCE_FLOOR} to ${confDiag.effective_floor} after ${confDiag.consecutive_deferrals} consecutive deferrals`);
+    }
     return {
-      action: 'stay', reason: `Confidence deferred (${globalConf.toFixed(2)} < ${w.thresholds.confidence_floor})`,
+      action: 'stay', reason: `Confidence deferred (${confDiag.global_conf.toFixed(2)} < ${confDiag.effective_floor.toFixed(2)})`,
       veto_active: false, force_active: false, confidence_deferred: true,
-      components: { extraction_conf: extractionConf, stability_conf: stabilityConf, global_conf: globalConf },
+      components: { extraction_conf: extractionConf, stability_conf: stabilityConf, global_conf: confDiag.global_conf, effective_floor: confDiag.effective_floor, consecutive_deferrals: confDiag.consecutive_deferrals },
     };
   }
 
