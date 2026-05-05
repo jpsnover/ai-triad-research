@@ -161,8 +161,10 @@ jobs:
       - name: Shift traffic to new revision
         if: steps.health_check.outputs.healthy == 'true'
         run: |
-          echo "New revision healthy — shifting 100% traffic"
-          for attempt in 1 2 3; do
+          echo "New revision healthy — waiting for provisioning to settle..."
+          sleep 30
+
+          for attempt in 1 2 3 4 5; do
             if az containerapp ingress traffic set \
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -170,10 +172,10 @@ jobs:
               echo "Traffic shifted to ${{ steps.new_revision.outputs.revision }}"
               exit 0
             fi
-            echo "Traffic shift attempt $attempt failed (likely provisioning in progress) — retrying in 15s..."
-            sleep 15
+            echo "Traffic shift attempt $attempt/5 failed (provisioning in progress) — retrying in 30s..."
+            sleep 30
           done
-          echo "::error::Traffic shift failed after 3 attempts"
+          echo "::error::Traffic shift failed after 5 attempts"
           exit 1
 
       - name: Re-authenticate before rollback
