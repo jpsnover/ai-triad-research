@@ -140,21 +140,22 @@ jobs:
           fi
           echo "Health check URL: $HEALTH_URL"
 
+          # 30 attempts × 10s = 5 min — allows time for data copy + app init
           HEALTHY="false"
-          for i in $(seq 1 18); do
+          for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed!"
               HEALTHY="true"
               break
             fi
-            echo "Waiting for container to start... (attempt $i/18, status: $STATUS)"
+            echo "Waiting for container to start... (attempt $i/30, status: $STATUS)"
             sleep 10
           done
 
           echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
           if [ "$HEALTHY" != "true" ]; then
-            echo "::error::Health check failed after 3 minutes"
+            echo "::error::Health check failed after 5 minutes"
           fi
 
       - name: Shift traffic to new revision
@@ -174,6 +175,14 @@ jobs:
           done
           echo "::error::Traffic shift failed after 3 attempts"
           exit 1
+
+      - name: Re-authenticate before rollback
+        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Rollback on failure
         if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
