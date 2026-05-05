@@ -35,7 +35,6 @@ jobs:
         with:
           dockerfile: taxonomy-editor/Dockerfile
           failure-threshold: error
-          failure-threshold: error
 
       - name: Set up QEMU (for multi-platform builds)
         uses: docker/setup-qemu-action@v3
