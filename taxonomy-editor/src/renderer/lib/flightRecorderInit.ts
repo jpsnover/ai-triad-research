@@ -72,8 +72,8 @@ async function persistDump(
       filename: result.filename,
       filePath: result.filePath,
       isWeb,
-      onCopy: () => api.clipboardWriteText(result.filePath),
-      onOpen: () => api.openFile(result.filePath),
+      onCopy: () => { void api.clipboardWriteText(result.filePath); },
+      onOpen: () => { void api.openFile(result.filePath); },
     });
   } catch (err) {
     console.warn('[flight-recorder] Failed to persist dump:', err);
@@ -103,10 +103,15 @@ export function initFlightRecorder(): FlightRecorder {
   recorder.intern('component', 'phase-transitions');
   recorder.intern('component', 'flight-recorder');
   recorder.intern('component', 'bridge');
+  recorder.intern('component', 'taxonomy-store');
+  recorder.intern('component', 'reflection-edit');
 
   recorder.intern('pov', 'prometheus');
   recorder.intern('pov', 'sentinel');
   recorder.intern('pov', 'cassandra');
+
+  // Identify which window this recorder belongs to
+  const windowId = window.location.hash.startsWith('#debate-window') ? 'debate-popout' : 'main';
 
   // Record startup event
   recorder.record({
@@ -114,27 +119,36 @@ export function initFlightRecorder(): FlightRecorder {
     component: recorder.intern('component', 'flight-recorder') as string | number,
     level: 'info',
     message: 'Flight recorder initialized',
-    data: { capacity: 1000 },
+    data: { capacity: 1000, window: windowId },
   });
 
   // ── Context provider (active debate info for dump header) ──
 
   recorder.setContextProvider(() => {
     try {
-      // Lazy import to avoid circular dependency at module load time.
-      // useDebateStore is a Zustand store — getState() is synchronous.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // Lazy imports to avoid circular dependency at module load time.
+      // Zustand stores — getState() is synchronous.
       const { useDebateStore } = require('../hooks/useDebateStore');
-      const state = useDebateStore.getState();
-      const debate = state.activeDebate;
-      if (!debate) return {};
-      return {
-        active_debate_id: debate.id,
-        active_debate_phase: debate.phase,
-        active_debate_round: debate.transcript?.filter(
-          (e: { type: string }) => e.type === 'cross_respond',
-        ).length ?? 0,
+      const { useTaxonomyStore } = require('../hooks/useTaxonomyStore');
+
+      const taxState = useTaxonomyStore.getState();
+      const ctx: Record<string, unknown> = {
+        window: windowId,
+        activeTab: taxState.activeTab,
+        toolbarPanel: taxState.toolbarPanel,
       };
+
+      const debateState = useDebateStore.getState();
+      const debate = debateState.activeDebate;
+      if (debate) {
+        ctx.active_debate_id = debate.id;
+        ctx.active_debate_phase = debate.phase;
+        ctx.active_debate_round = debate.transcript?.filter(
+          (e: { type: string }) => e.type === 'cross_respond',
+        ).length ?? 0;
+      }
+
+      return ctx;
     } catch {
       return {};
     }

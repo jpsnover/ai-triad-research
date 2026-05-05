@@ -294,7 +294,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               <p key={doc.path} style={{ margin: '6px 0' }}>
                 <a
                   href="#"
-                  onClick={(e) => { e.preventDefault(); api.openExternal(`${REPO_URL}/blob/main/${doc.path}`); }}
+                  onClick={(e) => { e.preventDefault(); void api.openExternal(`${REPO_URL}/blob/main/${doc.path}`); }}
                   style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
                 >
                   <strong>{doc.title}</strong>
@@ -313,30 +313,30 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </p>
             <ul style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
               <li><strong>QBAF</strong> — Quantitative Bipolar Argumentation Frameworks with DF-QuAD gradual semantics and BDI-aware base score calibration.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://aaai.org/papers/8-12874-discontinuity-free-decision-support-with-quantitative-argumentation-debates/'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rago et al. (2016)</a>
-                {' '}Built on: <a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://www.sciencedirect.com/science/article/pii/000437029400041X'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Dung (1995)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://aaai.org/papers/8-12874-discontinuity-free-decision-support-with-quantitative-argumentation-debates/'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rago et al. (2016)</a>
+                {' '}Built on: <a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.sciencedirect.com/science/article/pii/000437029400041X'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Dung (1995)</a>
               </li>
               <li><strong>BDI Framework</strong> — Belief-Desire-Intention agent characterization separating empirical claims, normative commitments, and strategic reasoning.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rao & Georgeff (1995)</a>;
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Bratman (1987)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Rao & Georgeff (1995)</a>;
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Bratman (1987)</a>
               </li>
               <li><strong>AIF</strong> — Argument Interchange Format vocabulary for typed attack/support relationships and scheme classification.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://dl.acm.org/doi/10.1017/S0269888906001044'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Chesñevar et al. (2006)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://dl.acm.org/doi/10.1017/S0269888906001044'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Chesñevar et al. (2006)</a>
               </li>
               <li><strong>FIRE</strong> — Confidence-gated Iterative Extraction replacing single-shot claim extraction with per-claim verification.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://arxiv.org/abs/2411.00784'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>arXiv:2411.00784</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/abs/2411.00784'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>arXiv:2411.00784</a>
               </li>
               <li><strong>4-Stage Pipeline</strong> — Each debate turn: BRIEF → PLAN → DRAFT → CITE with per-stage temperatures</li>
               <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics trigger phase transitions (thesis-antithesis → exploration → synthesis)</li>
               <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes with scheme-specific critical questions.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://www.cambridge.org/core/books/argumentation-schemes/9AE7E4E6ABDE690565442B2BD516A8B6'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Walton, Reed & Macagno (2008)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/core/books/argumentation-schemes/9AE7E4E6ABDE690565442B2BD516A8B6'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Walton, Reed & Macagno (2008)</a>
               </li>
               <li><strong>14-Move Moderator</strong> — Six intervention families governed by pragma-dialectical theory; LLM recommends, engine validates against deterministic constraints.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://www.cambridge.org/us/catalogue/catalogue.asp?isbn=9780521537728'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>van Eemeren & Grootendorst (2004)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/us/catalogue/catalogue.asp?isbn=9780521537728'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>van Eemeren & Grootendorst (2004)</a>
               </li>
               <li><strong>Dialectic Traces</strong> — BFS traversal of the argument network producing human-readable narrative chains</li>
               <li><strong>DOLCE</strong> — Descriptive Ontology for Linguistic and Cognitive Engineering; foundational ontology informing the taxonomy's upper-level categories and cross-cutting situation semantics.
-                {' '}<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://arxiv.org/pdf/2308.01597'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Borgo et al. (2023)</a>
+                {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/pdf/2308.01597'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Borgo et al. (2023)</a>
               </li>
             </ul>
           </div>

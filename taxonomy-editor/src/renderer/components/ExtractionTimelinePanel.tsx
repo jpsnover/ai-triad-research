@@ -183,7 +183,7 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
 });
 const td: React.CSSProperties = { padding: '3px 6px', fontSize: '0.7rem', borderBottom: '1px solid var(--border)' };
 const tdNum: React.CSSProperties = { ...td, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' };
-const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'help' };
+const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'default' };
 const thNum: React.CSSProperties = { ...th, textAlign: 'right' as const };
 
 export function ExtractionTimelinePanel({ debate }: Props) {

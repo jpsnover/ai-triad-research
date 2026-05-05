@@ -308,7 +308,7 @@ function CommentCard({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                handleReply();
+                void handleReply();
               }
             }}
             placeholder="Write a reply..."
@@ -316,7 +316,7 @@ function CommentCard({
           />
           <button
             className="btn btn-sm btn-primary"
-            onClick={handleReply}
+            onClick={() => void handleReply()}
             disabled={replying || !replyText.trim()}
           >
             {replying ? '...' : 'Reply'}

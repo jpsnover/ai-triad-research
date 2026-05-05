@@ -268,15 +268,15 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
 
   const handleRefresh = () => {
     if (analysisElementA && analysisElementB) {
-      runAnalyzeDistinction(analysisElementA, analysisElementB, true);
+      void runAnalyzeDistinction(analysisElementA, analysisElementB, true);
     }
   };
 
   const handleRetry = () => {
     if (isCritique && analysisCritiquePov && analysisCritiqueOriginalNode) {
-      runNodeCritique(analysisCritiquePov, analysisCritiqueOriginalNode);
+      void runNodeCritique(analysisCritiquePov, analysisCritiqueOriginalNode);
     } else if (analysisElementA && analysisElementB) {
-      runAnalyzeDistinction(analysisElementA, analysisElementB, true);
+      void runAnalyzeDistinction(analysisElementA, analysisElementB, true);
     }
   };
 
@@ -493,7 +493,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
                     ) : (
                       <button
                         className="btn btn-sm analysis-diff-accept-btn"
-                        onClick={() => handleAccept(diff)}
+                        onClick={() => void handleAccept(diff)}
                       >
                         Accept
                       </button>

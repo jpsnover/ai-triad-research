@@ -63,7 +63,7 @@ export function Toolbar() {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   };
 
-  const switchTab = (tab: 'situations' | 'conflicts' | 'debate' | 'chat' | 'summaries') => {
+  const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries') => {
     clearCurrentPanel();
     // NodeDetail's Related tab sets relatedNodeId without setting toolbarPanel.
     // Clear it so the next tab's effects don't re-open a Related view on a
@@ -124,7 +124,7 @@ export function Toolbar() {
         <div className="toolbar-separator" />
         {/* Taxonomy */}
         <button
-          className={`toolbar-icon${toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat', 'summaries'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
+          className={`toolbar-icon${toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries'].includes(activeTab) ? ' toolbar-icon-active' : ''}`}
           onClick={() => {
             clearCurrentPanel();
             setToolbarPanel(null);
@@ -162,6 +162,18 @@ export function Toolbar() {
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+        {/* Cruxes */}
+        <button
+          className={`toolbar-icon${activeTab === 'cruxes' && toolbarPanel === null ? ' toolbar-icon-active' : ''}`}
+          onClick={() => switchTab('cruxes')}
+          data-tooltip="Cruxes"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
           </svg>
         </button>
         {/* Summaries */}

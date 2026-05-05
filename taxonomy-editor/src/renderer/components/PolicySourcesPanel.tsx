@@ -70,7 +70,7 @@ export function PolicySourcesPanel({ policyId }: PolicySourcesPanelProps) {
   useEffect(() => {
     setLoading(true);
     setExpanded(null);
-    getPolicySourceIndex().then((index) => {
+    void getPolicySourceIndex().then((index) => {
       setRefs(index[policyId] || []);
       setLoading(false);
     });

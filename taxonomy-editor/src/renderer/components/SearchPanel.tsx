@@ -8,6 +8,7 @@ import { useTaxonomyStore, type SearchMode } from '../hooks/useTaxonomyStore';
 import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 type SearchPanelMode =
   | 'taxonomy'
@@ -181,7 +182,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
   const isSemantic = findMode === 'semantic';
 
-  useEffect(() => { checkApiKey(); }, [checkApiKey]);
+  useEffect(() => { void checkApiKey(); }, [checkApiKey]);
 
   // Auto-switch to Related mode when navigated from Similar Search button
   useEffect(() => {
@@ -202,8 +203,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const n = state.situations.nodes.find(n => n.id === nodeId);
       if (n) desc = n.description;
     }
-    runSimilarSearch(nodeId, label, desc);
-  }, [pendingSearchRelatedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    void runSimilarSearch(nodeId, label, desc);
+  }, [pendingSearchRelatedId]);
 
   // Clear stale results and Pane 2 preview when query changes
   useEffect(() => {
@@ -214,7 +215,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       onSelectResult?.(null);
       setSelectedIndex(-1);
     }
-  }, [findQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [findQuery]);
 
   // Debounced semantic search
   useEffect(() => {
@@ -222,7 +223,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!findQuery.trim()) return;
     debounceRef.current = setTimeout(() => {
-      runSemanticSearch(findQuery, new Set(), new Set());
+      void runSemanticSearch(findQuery, new Set(), new Set());
     }, 800);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [findQuery, isSemantic, mode, runSemanticSearch]);
@@ -424,6 +425,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     if (index < 0 || index >= flatResults.length) return;
     setSelectedIndex(index);
     onSelectResult?.(flatResults[index].id);
+    getGlobalRecorder()?.record({ type: 'ui.select', component: 'search-panel', level: 'info', message: 'search.select', data: { nodeId: flatResults[index].id, resultIndex: index } });
     // Keep focus on the panel for keyboard nav
     panelRef.current?.focus();
     // Scroll into view
@@ -459,7 +461,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const n = state.situations.nodes.find(n => n.id === nodeId);
       if (n) desc = n.description;
     }
-    runSimilarSearch(nodeId, label, desc);
+    void runSimilarSearch(nodeId, label, desc);
   }, [getLabelForId, runSimilarSearch]);
 
   const handleModeChange = (newMode: SearchPanelMode) => {
@@ -578,7 +580,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
                 onChange={(e) => setFindQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && isSemantic) {
-                    runSemanticSearch(findQuery, new Set(), new Set());
+                    void runSemanticSearch(findQuery, new Set(), new Set());
                   }
                   // Let arrow keys bubble up to panel handler
                 }}

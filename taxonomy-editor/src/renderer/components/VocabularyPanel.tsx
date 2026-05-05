@@ -31,7 +31,7 @@ export function VocabularyPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDictionary();
+    void loadDictionary();
   }, []);
 
   async function loadDictionary() {

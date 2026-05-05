@@ -79,7 +79,7 @@ export function SourcesPanel({ nodeId }: SourcesPanelProps) {
   useEffect(() => {
     setLoading(true);
     setExpanded(null);
-    getNodeSourceIndex().then((index) => {
+    void getNodeSourceIndex().then((index) => {
       setRefs(index[nodeId] || []);
       setLoading(false);
     });
@@ -140,7 +140,7 @@ export function SourcesPanel({ nodeId }: SourcesPanelProps) {
                   <a
                     className="sources-panel-doc-url"
                     href="#"
-                    onClick={(e) => { e.preventDefault(); api.openExternal(first.url!); }}
+                    onClick={(e) => { e.preventDefault(); void api.openExternal(first.url!); }}
                     title={first.url}
                   >
                     {first.url.replace(/^https?:\/\//, '').slice(0, 60)}...

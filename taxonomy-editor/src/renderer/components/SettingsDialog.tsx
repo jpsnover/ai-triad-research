@@ -107,7 +107,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const models = MODELS_BY_BACKEND[aiBackend] || [];
 
   useEffect(() => {
-    Promise.all(
+    void Promise.all(
       AI_BACKENDS.map(async (b) => {
         const has = await api.hasApiKey(b.value);
         return [b.value, has] as [string, boolean];

@@ -22,7 +22,7 @@ export function PolicyDashboard() {
   const [policySourceIndex, setPolicySourceIndex] = useState<PolicySourceIndex | null>(null);
 
   useEffect(() => {
-    getPolicySourceIndex().then(setPolicySourceIndex);
+    void getPolicySourceIndex().then(setPolicySourceIndex);
   }, []);
 
   const stats = useMemo(() => {

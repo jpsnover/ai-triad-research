@@ -461,7 +461,31 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
                 $CleanText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
                 $Enriched = $CleanText | ConvertFrom-Json
                 foreach ($E in @($Enriched)) {
-                    if ($E.name) {
+                    if (-not $E.name) { continue }
+                    # Dedup guard: if enriched name is a near-duplicate of an existing
+                    # cache key (same category), reuse the existing key instead of creating
+                    # a new entry (prevents duplicate lineage entries — t/330)
+                    $ExistingMatch = $null
+                    foreach ($CKey in @($Cache.Keys)) {
+                        if ($Cache[$CKey].category -ne $E.category) { continue }
+                        # Quick string similarity check (Jaccard on words)
+                        $W1 = @($E.name.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
+                        $W2 = @($CKey.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
+                        if ($W1.Count -eq 0 -or $W2.Count -eq 0) { continue }
+                        $Inter = @($W1 | Where-Object { $_ -in $W2 }).Count
+                        $Union = ($W1 + $W2 | Select-Object -Unique).Count
+                        if ($Union -gt 0 -and ($Inter / $Union) -gt 0.75) {
+                            $ExistingMatch = $CKey
+                            break
+                        }
+                    }
+                    if ($ExistingMatch) {
+                        # Map enriched name to existing canonical
+                        if ($E.name -ne $ExistingMatch) {
+                            $DedupMap[$E.name] = $ExistingMatch
+                            Write-Verbose "  Dedup guard: '$($E.name)' → existing '$ExistingMatch'"
+                        }
+                    } else {
                         $Cache[$E.name] = @{
                             description = $E.description
                             url         = $E.url

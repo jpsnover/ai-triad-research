@@ -443,7 +443,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const povs = POV_KEYS;
       const result = new Map<string, TaxNode[]>();
       for (const pov of povs) {
@@ -678,7 +678,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         savePromptHistory(promptHistory.current);
         historyIdx.current = -1;
       }
-      sendMessage();
+      void sendMessage();
     } else if (e.key === 'ArrowUp' && promptHistory.current.length > 0) {
       const textarea = e.target as HTMLTextAreaElement;
       if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
@@ -922,7 +922,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             }}
           />
           <button
-            onClick={sendMessage}
+            onClick={() => void sendMessage()}
             disabled={!input.trim() || !debate || generating}
             style={{
               padding: '0 12px', borderRadius: 6,

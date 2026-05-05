@@ -142,7 +142,10 @@ class TaxonomyNode {
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
 $script:TaxonomyData = @{}
+$script:TaxonomyFileTimestamps = @{}  # file path → LastWriteTime for staleness detection
 $script:CachedEmbeddings = $null  # Lazy-loaded by Get-RelevantTaxonomyNodes
+$script:EmbeddingsTimestamp = $null   # LastWriteTime of embeddings.json
+$script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cooldown)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load ai-models.json — single source of truth for backend/model lists
@@ -230,6 +233,7 @@ if (Test-Path $TaxonomyDir) {
             }
             $PovName = $File.BaseName.ToLower()
             $script:TaxonomyData[$PovName] = $Json
+            $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
             Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
         }
         catch {
@@ -314,6 +318,7 @@ Export-ModuleMember -Function @(
     'Repair-PovDescriptions'
     'Repair-PovLineage'
     'Repair-PovAttributes'
+    'Export-AggregatedCruxes'
     'Get-Summary'
     'Invoke-AttributeExtraction'
     'Invoke-EdgeDiscovery'

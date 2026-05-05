@@ -57,10 +57,10 @@ async function loadPrivateKey(): Promise<string | null> {
   const secretName = process.env.GITHUB_APP_PRIVATE_KEY_SECRET_NAME;
   if (vaultUrl && secretName) {
     try {
-      /* eslint-disable @typescript-eslint/no-var-requires */
+       
       const { SecretClient } = require('@azure/keyvault-secrets');
       const identity = require('@azure/identity');
-      /* eslint-enable @typescript-eslint/no-var-requires */
+       
       const credential = process.env.NODE_ENV === 'production'
         ? new identity.ManagedIdentityCredential()
         : new identity.DefaultAzureCredential();

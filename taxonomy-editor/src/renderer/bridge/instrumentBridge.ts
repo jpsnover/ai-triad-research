@@ -14,6 +14,46 @@
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { AppAPI } from './types';
 
+/** Truncate an argument for logging. Keeps strings short, summarizes objects. */
+function truncateArg(arg: unknown, maxLen = 200): unknown {
+  if (arg === null || arg === undefined) return arg;
+  if (typeof arg === 'string') return arg.length > maxLen ? arg.slice(0, maxLen) + '…' : arg;
+  if (typeof arg === 'number' || typeof arg === 'boolean') return arg;
+  if (Array.isArray(arg)) return `[Array(${arg.length})]`;
+  if (typeof arg === 'object') {
+    const keys = Object.keys(arg as object);
+    return `{${keys.slice(0, 5).join(',')}}${keys.length > 5 ? `…+${keys.length - 5}` : ''}`;
+  }
+  return String(arg).slice(0, maxLen);
+}
+
+/** Summarize args array for flight recorder (max 3 args logged). */
+function summarizeArgs(args: unknown[]): unknown[] {
+  return args.slice(0, 3).map(a => truncateArg(a));
+}
+
+/** Extract result metadata for data-loading methods to enrich completion events. */
+function extractResultMeta(method: string, args: unknown[], value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const v = value as Record<string, unknown>;
+  if (method === 'loadTaxonomyFile') {
+    const nodes = v.nodes;
+    return { pov: args[0], node_count: Array.isArray(nodes) ? nodes.length : undefined };
+  }
+  if (method === 'loadSituations') {
+    const nodes = v.nodes;
+    return { node_count: Array.isArray(nodes) ? nodes.length : undefined };
+  }
+  if (method === 'loadConflicts') {
+    return { count: Array.isArray(v) ? (v as unknown[]).length : Array.isArray(v.conflicts) ? (v.conflicts as unknown[]).length : undefined };
+  }
+  if (method === 'loadEdges') {
+    const edges = v.edges;
+    return { edge_count: Array.isArray(edges) ? edges.length : undefined };
+  }
+  return undefined;
+}
+
 /** Methods that should NOT be wrapped. */
 const SKIP = new Set([
   // Event listeners return unsubscribe functions, not promises
@@ -64,7 +104,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         component: recorder.intern('component', 'bridge') as string | number,
         level: 'debug',
         message: `bridge.${key}`,
-        data: { method: key, category, arg_count: args.length },
+        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args) },
       });
 
       let result: unknown;
@@ -94,13 +134,14 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
       return (result as Promise<unknown>).then(
         (value) => {
           const duration_ms = Math.round(performance.now() - startTs);
+          const resultMeta = extractResultMeta(key, args, value);
           recorder?.record({
             type: 'lifecycle',
             component: recorder.intern('component', 'bridge') as string | number,
             level: 'info',
             message: `bridge.${key} ok`,
             duration_ms,
-            data: { method: key, category },
+            data: { method: key, category, ...resultMeta },
           });
           return value;
         },

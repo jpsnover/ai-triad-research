@@ -39,7 +39,7 @@ export function useSyncStatus(): { status: SyncStatus; refresh: () => Promise<vo
     mountedRef.current = true;
     let timer: ReturnType<typeof setInterval> | null = null;
 
-    (async () => {
+    void (async () => {
       const first = await getSyncStatus();
       if (!mountedRef.current) return;
       setStatus(first);

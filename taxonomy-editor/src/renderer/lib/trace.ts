@@ -158,7 +158,7 @@ export function trace(
     // a structured console.log so the event is at least present in devtools
     // output. Future work: route via IPC to the main process.
     if (isElectron()) {
-      // eslint-disable-next-line no-console
+       
       console.log('[trace]', JSON.stringify(ev));
       return;
     }
@@ -202,7 +202,7 @@ export async function flush(): Promise<void> {
     });
     if (!res.ok) {
       // On server error, log once and drop the batch — never retry indefinitely.
-      // eslint-disable-next-line no-console
+       
       console.warn('[trace] server rejected batch:', res.status);
     }
   } catch {

@@ -24,7 +24,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const files = await Promise.all([
         api.loadTaxonomyFile('accelerationist').catch(() => null),
         api.loadTaxonomyFile('safetyist').catch(() => null),

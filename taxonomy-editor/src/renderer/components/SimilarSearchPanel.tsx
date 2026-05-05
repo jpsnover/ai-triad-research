@@ -141,7 +141,7 @@ export function SimilarSearchPanel({ width, onAnalyze }: SimilarSearchPanelProps
       description: getDescription(r.id),
       category: getCategory(r.id),
     }));
-  }, [similarResults]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [similarResults]);
 
   const filteredAndSorted = useMemo(() => {
     const threshold = similarThreshold / 100;

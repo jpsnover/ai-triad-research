@@ -222,7 +222,7 @@ export function FallacyDetailPanel({ fallacyKey, onSelectNode }: { fallacyKey: s
           <a
             className="fallacy-detail-wiki"
             href="#"
-            onClick={(e) => { e.preventDefault(); api.openExternal(entry.wikiUrl); }}
+            onClick={(e) => { e.preventDefault(); void api.openExternal(entry.wikiUrl); }}
           >
             Wikipedia
           </a>

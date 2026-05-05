@@ -108,7 +108,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      handleSubmit();
+      void handleSubmit();
     }
   };
 

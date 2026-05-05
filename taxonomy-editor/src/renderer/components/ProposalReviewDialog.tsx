@@ -64,7 +64,7 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
 
   useEffect(() => {
     setLoading(true);
-    api.listProposals().then((data: unknown[]) => {
+    void api.listProposals().then((data: unknown[]) => {
       setFiles(data as ProposalFile[]);
     }).finally(() => setLoading(false));
   }, []);

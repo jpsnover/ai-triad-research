@@ -38,9 +38,9 @@ function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement |
       onClick={(e) => {
         e.stopPropagation();
         const text = targetRef.current?.innerText ?? '';
-        navigator.clipboard.writeText(text).catch(() => {
+        void navigator.clipboard.writeText(text).catch(() => {
           // fallback for Electron
-          api.clipboardWriteText(text);
+          void api.clipboardWriteText(text);
         });
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -1057,7 +1057,7 @@ function OverviewView() {
 
       {/* Document Coverage (CT-3/CT-4) — click-to-steer injects a question about uncovered claims */}
       {coverageMap && <DocumentCoverageSection coverageMap={coverageMap} strengthWeighted={strengthWeighted} onSteerToClaim={debateGenerating ? undefined : (claimText) => {
-        askQuestion(`What is your perspective on the claim that ${claimText}?`);
+        void askQuestion(`What is your perspective on the claim that ${claimText}?`);
       }} />}
 
       {/* Argument Network */}
@@ -1693,7 +1693,7 @@ export function DiagnosticsPanel() {
               const debate = useDebateStore.getState().activeDebate;
               const entry = useDebateStore.getState().selectedDiagEntry;
               setTimeout(() => {
-                api.sendDiagnosticsState({ debate, selectedEntry: entry });
+                void api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
             }} style={{ fontSize: '0.65rem' }} title="Open in separate window">
               Popout
@@ -1703,7 +1703,7 @@ export function DiagnosticsPanel() {
               const debate = useDebateStore.getState().activeDebate;
               const entry = useDebateStore.getState().selectedDiagEntry;
               setTimeout(() => {
-                api.sendDiagnosticsState({ debate, selectedEntry: entry });
+                void api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
             }} style={{ fontSize: '0.65rem' }} title="Show how each POV's taxonomy context and citations evolve across turns">
               POV Progression

@@ -127,6 +127,8 @@ function Get-Tax {
 
     end {
 
+    Assert-TaxonomyCacheFresh
+
     # Merge collected pipeline IDs with any directly specified
     if ($CollectedIds.Count -gt 0) {
         $Id = @($CollectedIds | Select-Object -Unique)

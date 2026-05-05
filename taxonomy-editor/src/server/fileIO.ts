@@ -94,8 +94,11 @@ export function isDataAvailable(): boolean {
   const taxDir = getTaxonomyDir();
   try {
     const files = fs.readdirSync(taxDir);
-    return files.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
-  } catch {
+    const hasData = files.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
+    console.log(`[isDataAvailable] taxDir=${taxDir} files=${files.length} hasData=${hasData}`);
+    return hasData;
+  } catch (err) {
+    console.log(`[isDataAvailable] taxDir=${taxDir} error=${String(err)}`);
     return false;
   }
 }
@@ -138,6 +141,14 @@ export function writeTaxonomyFile(pov: string, data: unknown): void {
 function getConflictsDir(): string {
   const config = loadDataConfig();
   return resolveDataPath(config.conflicts_dir);
+}
+
+export function readAggregatedCruxes(): unknown | null {
+  const filePath = path.join(getTaxonomyDir(), 'aggregated-cruxes.json');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch { return null; }
 }
 
 export function readConflictClusters(): unknown | null {

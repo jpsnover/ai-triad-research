@@ -7,18 +7,13 @@ import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { ConflictDetail } from './ConflictDetail';
 import { PinnedPanel } from './PinnedPanel';
-import { LineagePanel } from './LineagePanel';
-import { EdgeBrowser } from './EdgeBrowser';
-import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
-import { PolicyDashboard } from './PolicyDashboard';
-import { VocabularyPanel } from './VocabularyPanel';
-import { TerminalPanel } from './TerminalPanel';
-import { SearchPanel } from './SearchPanel';
 import { SearchPreview } from './SearchPreview';
-import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
-import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import { FallacyDetailPanel } from './FallacyPanel';
+import { PromptDetailPanel } from './PromptsPanel';
+import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
+import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
@@ -93,7 +88,7 @@ export function ConflictsTab() {
         saveCollapsedClusters(allKeys);
       }
     }
-  }, [displayClusters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displayClusters]);
 
   const toggleCluster = useCallback((key: string) => {
     setCollapsedClusters(prev => {
@@ -120,7 +115,7 @@ export function ConflictsTab() {
     if (!selectedNodeId && orderedIds.length > 0) {
       setSelectedNodeId(orderedIds[0]);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectedConflict = conflicts.find(c => c.claim_id === selectedNodeId) || null;
 
@@ -141,11 +136,45 @@ export function ConflictsTab() {
     }
   };
 
-  const isFullWidthPanel = toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'console' || (toolbarPanel === 'prompts' && promptInspectorActive);
+  const fullWidth = isFullWidthPanel(toolbarPanel, promptInspectorActive);
 
   const renderLineagePreview = () => {
     if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
     const info = getLineageInfo(lineagePreviewValue);
+
+    // Compute Referenced By — POV nodes whose intellectual_lineage includes this value
+    const normalizedValue = lineagePreviewValue.toLowerCase();
+    const referencingNodes: { id: string; label: string; pov: string; category?: string }[] = [];
+    const storeState = useTaxonomyStore.getState();
+    for (const p of POV_KEYS) {
+      const povFile = storeState[p];
+      if (!povFile) continue;
+      for (const node of povFile.nodes) {
+        if (node.graph_attributes?.intellectual_lineage?.some(v => { const s = typeof v === 'string' ? v : (v as { name?: string })?.name; return s?.toLowerCase() === normalizedValue; })) {
+          referencingNodes.push({ id: node.id, label: node.label, pov: p, category: node.category });
+        }
+      }
+    }
+
+    const renderReferencedBy = () => referencingNodes.length > 0 && (
+      <div className="lineage-detail-section">
+        <div className="lineage-detail-label">Referenced By ({referencingNodes.length})</div>
+        <div className="lineage-detail-links">
+          {referencingNodes.map(ref => (
+            <button
+              key={ref.id}
+              className="btn btn-sm btn-ghost lineage-ref-item"
+              onClick={() => useTaxonomyStore.getState().navigateToNode(ref.pov as any, ref.id)}
+              title={`Open ${ref.id} in ${ref.pov} tree`}
+            >
+              <span className={`pov-badge pov-badge-${ref.pov.slice(0, 3)}`}>{ref.pov.slice(0, 3).toUpperCase()}</span>
+              <span className="lineage-ref-label">{ref.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
@@ -153,6 +182,7 @@ export function ConflictsTab() {
         <div className="lineage-detail-section">
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
+        {renderReferencedBy()}
       </div>
     );
     return (
@@ -179,7 +209,7 @@ export function ConflictsTab() {
                 <li key={i}>
                   <button
                     className="strategy-info-link"
-                    onClick={() => api.openExternal(link.url)}
+                    onClick={() => void api.openExternal(link.url)}
                     title={link.url}
                   >
                     {link.label}
@@ -189,34 +219,34 @@ export function ConflictsTab() {
             </ul>
           </div>
         )}
+        {renderReferencedBy()}
       </div>
     );
   };
 
-  const renderToolbarPane = () => {
-    switch (toolbarPanel) {
-      case 'search': return <SearchPanel onSelectResult={setSearchPreviewId} />;
-      case 'lineage': return <LineagePanel onSelectValue={setLineagePreviewValue} />;
-      case 'fallacy': return <FallacyPanel onSelectFallacy={setSelectedFallacyKey} />;
-      case 'prompts': return <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />;
-      case 'edges': return <EdgeBrowser />;
-      case 'policyAlignment': return <PolicyAlignmentPanel />;
-      case 'policyDashboard': return <PolicyDashboard />;
-      case 'vocabulary': return <VocabularyPanel />;
-      case 'console': return <TerminalPanel />;
-      default: return null;
-    }
-  };
-
   return (
     <div className="two-column">
-      {isFullWidthPanel ? (
+      {fullWidth ? (
         <div className="list-panel list-panel-full">
-          {renderToolbarPane()}
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={setSearchPreviewId}
+            onSelectLineageValue={setLineagePreviewValue}
+            onSelectFallacy={setSelectedFallacyKey}
+            onSelectPrompt={setSelectedPromptEntry}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : toolbarPanel ? (
         <div className="list-panel" style={{ width }}>
-          {renderToolbarPane()}
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={setSearchPreviewId}
+            onSelectLineageValue={setLineagePreviewValue}
+            onSelectFallacy={setSelectedFallacyKey}
+            onSelectPrompt={setSelectedPromptEntry}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
@@ -266,10 +296,10 @@ export function ConflictsTab() {
           </div>
         </div>
       )}
-      {!isFullWidthPanel && (
+      {!fullWidth && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
-      {isFullWidthPanel ? null : toolbarPanel === 'search' ? (
+      {fullWidth ? null : toolbarPanel === 'search' ? (
         <div className="detail-panel">
           <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
         </div>

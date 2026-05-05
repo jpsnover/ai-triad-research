@@ -281,7 +281,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                               key={li}
                               className="lineage-inline-link"
                               href="#"
-                              onClick={(e) => { e.preventDefault(); api.openExternal(link.url); }}
+                              onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
                               title={link.url}
                             >
                               {link.label}

@@ -114,10 +114,10 @@ class AzureKeyVaultKeyStore implements KeyStore {
   constructor(vaultUrl: string) {
     // Lazy require so local installs that skip the Azure packages still build.
     // In Azure, these packages are installed in the container image.
-    /* eslint-disable @typescript-eslint/no-var-requires */
+     
     const { SecretClient } = require('@azure/keyvault-secrets');
     const identity = require('@azure/identity');
-    /* eslint-enable @typescript-eslint/no-var-requires */
+     
     // Use ManagedIdentityCredential in production to avoid multi-second startup
     // delays from DefaultAzureCredential probing credential types that won't work.
     const credential = process.env.NODE_ENV === 'production'

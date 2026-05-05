@@ -28,12 +28,12 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     const keys = new Set(catalogKeys);
     for (const pov of [accelerationist, safetyist, skeptic] as const) {
       if (pov) for (const n of pov.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) keys.add(l);
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) keys.add(s); }
       }
     }
     if (situations) {
       for (const n of situations.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) keys.add(l);
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) keys.add(s); }
       }
     }
     return [...keys].sort();
@@ -108,7 +108,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
       });
     }
     useTaxonomyStore.setState({ pendingLineageValue: null });
-  }, [pendingLineageValue]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pendingLineageValue]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (visibleKeys.length === 0) return;

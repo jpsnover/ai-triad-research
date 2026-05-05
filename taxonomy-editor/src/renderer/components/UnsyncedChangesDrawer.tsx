@@ -88,13 +88,12 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
 
   useEffect(() => {
     if (open) void refreshFiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     if (!selected) { setDiff(''); return; }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const d = await getFileDiff(selected);
       if (!cancelled) setDiff(d);
     })();

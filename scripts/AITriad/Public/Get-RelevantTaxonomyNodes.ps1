@@ -88,7 +88,8 @@ function Get-RelevantTaxonomyNodes {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # ── Load embeddings (cached in module scope) ──────────────────────────────
+    # ── Load embeddings (cached in module scope, auto-refreshes if stale) ─────
+    Assert-TaxonomyCacheFresh  # invalidates $script:CachedEmbeddings if embeddings.json changed
     if (-not $script:CachedEmbeddings) {
         $EmbPath = Join-Path (Get-TaxonomyDir) 'embeddings.json'
         if (-not (Test-Path $EmbPath)) {
@@ -97,12 +98,13 @@ function Get-RelevantTaxonomyNodes {
                 -Location 'Get-RelevantTaxonomyNodes' `
                 -NextSteps @('Run Update-TaxEmbeddings to generate embeddings') -Throw
         }
-        Write-Verbose 'Loading embeddings.json (first call, will be cached)...'
+        Write-Verbose 'Loading embeddings.json (first call or after refresh)...'
         $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
         $script:CachedEmbeddings = @{}
         foreach ($Prop in $EmbData.nodes.PSObject.Properties) {
             $script:CachedEmbeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
         }
+        $script:EmbeddingsTimestamp = (Get-Item $EmbPath).LastWriteTime
         Write-Verbose "Cached $($script:CachedEmbeddings.Count) embedding vectors"
     }
 

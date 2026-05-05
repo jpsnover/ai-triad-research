@@ -37,6 +37,7 @@
         'Repair-PovDescriptions'
         'Repair-PovLineage'
         'Repair-PovAttributes'
+        'Export-AggregatedCruxes'
         'Get-Summary'
         'Invoke-AttributeExtraction'
         'Invoke-EdgeDiscovery'

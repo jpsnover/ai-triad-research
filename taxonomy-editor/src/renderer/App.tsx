@@ -15,11 +15,13 @@ import { ConflictsTab } from './components/ConflictsTab';
 import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
+import { DeploymentErrorScreen } from './components/DeploymentErrorScreen';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
+import { CruxesTab } from './components/CruxesTab';
 
 import { initFlightRecorder } from './lib/flightRecorderInit';
 
@@ -115,7 +117,7 @@ export function App() {
 function AppRouter() {
   const [cliMode, setCliMode] = useState<boolean | null>(null);
   useEffect(() => {
-    api.getCliFileArg().then(arg => setCliMode(!!arg));
+    void api.getCliFileArg().then(arg => setCliMode(!!arg));
   }, []);
 
   if (cliMode === null) return null; // loading
@@ -134,7 +136,7 @@ function MainApp() {
 
   useEffect(() => {
     // Check if data is available before loading
-    Promise.all([
+    void Promise.all([
       api.isDataAvailable(),
       api.getDataRoot(),
     ]).then(([available, root]) => {
@@ -142,7 +144,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        initAIModels().then(() => loadAll());
+        void initAIModels().then(() => loadAll());
       }
     });
   }, [loadAll]);
@@ -170,7 +172,7 @@ function MainApp() {
         setDataUpdate(null);
         // Reload taxonomy data with new data
         setTimeout(() => {
-          useTaxonomyStore.getState().loadAll();
+          void useTaxonomyStore.getState().loadAll();
           setPullResult(null);
         }, 1000);
       } else {
@@ -188,7 +190,7 @@ function MainApp() {
   // Listen for menu-triggered taxonomy reload
   useEffect(() => {
     const unsub = api.onReloadTaxonomy(() => {
-      useTaxonomyStore.getState().loadAll();
+      void useTaxonomyStore.getState().loadAll();
     });
     return unsub;
   }, []);
@@ -262,15 +264,20 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    initAIModels().then(() => loadAll());
+    void initAIModels().then(() => loadAll());
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    initAIModels().then(() => loadAll());
+    void initAIModels().then(() => loadAll());
   };
 
   if (showFirstRun) {
+    // Container mode with configured data root = deployment error, not first run
+    const isWeb = import.meta.env.VITE_TARGET === 'web';
+    if (isWeb && dataRoot) {
+      return <DeploymentErrorScreen dataRoot={dataRoot} />;
+    }
     return <FirstRunDialog dataRoot={dataRoot} onComplete={handleFirstRunComplete} onSkip={handleFirstRunSkip} />;
   }
 
@@ -351,7 +358,7 @@ function MainApp() {
         </div>
       )}
 
-      {toolbarPanel === null && !['situations', 'conflicts', 'debate', 'chat', 'summaries'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
@@ -360,6 +367,7 @@ function MainApp() {
           {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
           {activeTab === 'situations' && <SituationsTab />}
           {activeTab === 'conflicts' && <ConflictsTab />}
+          {activeTab === 'cruxes' && <CruxesTab />}
           {activeTab === 'debate' && <DebateTab />}
           {activeTab === 'chat' && <ChatTab />}
           {activeTab === 'summaries' && <SummariesTab />}

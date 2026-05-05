@@ -42,6 +42,7 @@ import type { ValidationResult } from '@lib/debate/validators';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
@@ -259,6 +260,29 @@ export interface PolicyRegistryEntry {
   member_count: number;
 }
 
+export interface CruxSource {
+  debate_id: string;
+  debate_topic: string;
+  crux_tracker_id: string;
+  identified_turn: number;
+  final_state: string;
+}
+
+export interface AggregatedCrux {
+  id: string;
+  statement: string;
+  type: 'empirical' | 'values' | 'definitional';
+  sources: CruxSource[];
+  linked_node_ids: string[];
+  linked_conflict_ids?: string[];
+  frequency: number;
+  resolution_summary: {
+    resolved: number;
+    active: number;
+    irreducible: number;
+  };
+}
+
 interface TaxonomyState {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
@@ -266,6 +290,7 @@ interface TaxonomyState {
   situations: SituationsFile | null;
   policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
+  aggregatedCruxes: AggregatedCrux[] | null;
 
   activeTab: TabId;
   selectedNodeId: string | null;
@@ -425,6 +450,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   situations: null,
   policyRegistry: null,
   conflicts: [],
+  aggregatedCruxes: null,
 
   activeTab: 'accelerationist',
   selectedNodeId: null,
@@ -1100,14 +1126,25 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     }
   },
 
-  setActiveTab: (tab) => set({ activeTab: tab, selectedNodeId: null, validationErrors: {} }),
-  setSelectedNodeId: (id) => set({ selectedNodeId: id, validationErrors: {} }),
-  navigateToNode: (tab, id) => set({ activeTab: tab, selectedNodeId: id, validationErrors: {} }),
+  setActiveTab: (tab) => {
+    const prev = get().activeTab;
+    set({ activeTab: tab, selectedNodeId: null, validationErrors: {} });
+    getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'tab.switch', data: { from: prev, to: tab } });
+  },
+  setSelectedNodeId: (id) => {
+    set({ selectedNodeId: id, validationErrors: {} });
+    getGlobalRecorder()?.record({ type: 'ui.select', component: 'node-list', level: 'debug', message: 'node.select', data: { nodeId: id } });
+  },
+  navigateToNode: (tab, id) => {
+    const prev = get().activeTab;
+    set({ activeTab: tab, selectedNodeId: id, validationErrors: {} });
+    getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'node.navigate', data: { from: prev, to: tab, nodeId: id } });
+  },
 
   loadAll: async () => {
     const steps = [
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
-      'Conflicts', 'Policy Registry', 'Conflict Clusters',
+      'Conflicts', 'Policy Registry', 'Conflict Clusters', 'Cruxes',
     ];
     set({ loading: true, backgroundLoading: false, loadingProgress: { completed: [], total: steps.length } });
 
@@ -1141,13 +1178,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       });
 
       // Phase 2: Load remaining POVs and data files in the background
-      const [saf, skp, cc, conflicts, polReg, conflictClusterData] = await Promise.all([
+      const [saf, skp, cc, conflicts, polReg, conflictClusterData, cruxData] = await Promise.all([
         track(steps[1], api.loadTaxonomyFile('safetyist')),
         track(steps[2], api.loadTaxonomyFile('skeptic')),
         track(steps[3], api.loadTaxonomyFile('situations')),
         track(steps[4], api.loadConflictFiles()),
         track(steps[5], api.loadPolicyRegistry()),
         track(steps[6], api.loadConflictClusters().catch(() => null)),
+        track(steps[7], api.loadAggregatedCruxes().catch(() => null)),
       ]);
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
@@ -1163,6 +1201,12 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         ? (conflictClusterData as { clusters: { label: string; nodeIds: string[] }[] }).clusters
         : null;
 
+      const parsedCruxes = cruxData &&
+        typeof cruxData === 'object' &&
+        Array.isArray((cruxData as { cruxes: unknown }).cruxes)
+        ? (cruxData as { cruxes: AggregatedCrux[] }).cruxes
+        : null;
+
       set({
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
@@ -1170,6 +1214,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         policyRegistry: regData?.policies ?? null,
         conflicts: conflicts as ConflictFile[],
         conflictClusters: precomputedClusters,
+        aggregatedCruxes: parsedCruxes,
         backgroundLoading: false,
         embeddingDirty: true,
       });
@@ -1184,7 +1229,9 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     const state = get();
     const errors: ValidationErrors = {};
     const dirtyKeys = state.dirty;
+    const saveStart = performance.now();
 
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.called', data: { dirty: [...dirtyKeys] } });
     if (dirtyKeys.size === 0) return;
 
     for (const key of dirtyKeys) {
@@ -1213,6 +1260,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     }
 
     if (Object.keys(errors).length > 0) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'schema', error_count: Object.keys(errors).length, errors, duration_ms: Math.round(performance.now() - saveStart) } });
       set({ validationErrors: errors, saveError: 'Validation failed. Fix errors before saving.' });
       return;
     }
@@ -1233,6 +1281,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           .slice(0, 5)
           .map(i => `[${i.code}] ${i.entityId}: ${i.message} — Fix: ${i.fix}`)
           .join('\n');
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'integrity', error_count: integrityErrors.length, entities: integrityErrors.slice(0, 10).map(i => `${i.code}: ${i.entityId}`), duration_ms: Math.round(performance.now() - saveStart) } });
         set({
           validationErrors: errors,
           saveError: `Integrity check failed (${integrityErrors.length} error${integrityErrors.length > 1 ? 's' : ''}):\n${errorSummary}`,
@@ -1242,8 +1291,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       // Warnings are logged but don't block save
       const integrityWarnings = integrity.issues.filter(i => i.severity === 'warning');
       if (integrityWarnings.length > 0) {
-        console.warn(`[save] ${integrityWarnings.length} integrity warning(s):`,
-          integrityWarnings.map(i => `${i.code}: ${i.entityId} — ${i.message}`));
+        getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'warn', message: 'save.validation', data: { stage: 'integrity', warning_count: integrityWarnings.length, entities: integrityWarnings.slice(0, 10).map(i => `${i.code}: ${i.entityId}`) } });
       }
     }
 
@@ -1272,6 +1320,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
 
       await Promise.all(promises);
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart) } });
       set({ dirty: new Set() });
 
       // Fire-and-forget: re-embed changed nodes and update embeddings.json
@@ -1304,11 +1353,13 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         });
       }
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.failed', data: { error: String(err), duration_ms: Math.round(performance.now() - saveStart) } });
       set({ saveError: `Save failed: ${mapErrorToUserMessage(err)}` });
     }
   },
 
   updatePovNode: (pov, nodeId, updates) => {
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'debug', message: 'updatePovNode.called', data: { pov, nodeId, fields: Object.keys(updates) } });
     set((state) => {
       const file = state[pov];
       if (!file) return state;
@@ -2001,7 +2052,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     set({ relatedNodeId: nodeId, selectedEdge: nodeId ? get().selectedEdge : null, ...(nodeId ? { toolbarPanel: 'related' as const } : { toolbarPanel: null }) });
     // Lazy-load edges on first use
     if (nodeId && !get().edgesFile) {
-      get().loadEdges();
+      void get().loadEdges();
     }
   },
 
@@ -2011,6 +2062,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   setToolbarPanel: (panel) => {
     const state = get();
     set({ toolbarPanel: panel, previousView: { panel: state.toolbarPanel, nodeId: state.selectedNodeId } });
+    getGlobalRecorder()?.record({ type: 'ui.toggle', component: 'toolbar', level: 'info', message: 'toolbar.panel', data: { panel, prev: state.toolbarPanel } });
   },
   pendingLineageValue: null,
   navigateToLineage: (value) => {

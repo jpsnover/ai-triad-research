@@ -88,7 +88,7 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 2, cursor: 'help' }}
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 2, cursor: 'default' }}
         title={TOOLTIPS.chartTitle}>
         Collaborative Ratio Over Time
       </div>
@@ -140,10 +140,10 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
             {speakerLabel(s.speaker as PoverId)}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#e2e8f0', display: 'grid', gap: 2 }}>
-            <div title={TOOLTIPS.collabRatio} style={{ cursor: 'help' }}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
-            <div title={TOOLTIPS.concessions} style={{ cursor: 'help' }}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
-            <div title={TOOLTIPS.recycling} style={{ cursor: 'help' }}>Avg recycling: <strong>{pct(s.avgRecycling)}</strong></div>
-            <div title={TOOLTIPS.cruxMoves} style={{ cursor: 'help' }}>Crux moves: <strong>{s.cruxTotal}</strong></div>
+            <div title={TOOLTIPS.collabRatio} style={{ cursor: 'default' }}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
+            <div title={TOOLTIPS.concessions} style={{ cursor: 'default' }}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
+            <div title={TOOLTIPS.recycling} style={{ cursor: 'default' }}>Avg recycling: <strong>{pct(s.avgRecycling)}</strong></div>
+            <div title={TOOLTIPS.cruxMoves} style={{ cursor: 'default' }}>Crux moves: <strong>{s.cruxTotal}</strong></div>
           </div>
         </div>
       ))}
@@ -252,12 +252,12 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
             <tr style={{ borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
               <th style={{ padding: '4px 4px', textAlign: 'left' }}>Rnd</th>
               <th style={{ padding: '4px 4px', textAlign: 'left' }}>Speaker</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.engagement}>Engagement</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.concessionCol}>Concession</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.drift}>Drift</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'help' }} title={TOOLTIPS.cruxCol}>Crux</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.engagement}>Engagement</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.concessionCol}>Concession</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.drift}>Drift</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.cruxCol}>Crux</th>
             </tr>
           </thead>
           <tbody>

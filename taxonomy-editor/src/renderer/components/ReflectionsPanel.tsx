@@ -1,11 +1,44 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
 import type { PoverId } from '../types/debate';
+
+/** Scroll the debate transcript to the referenced evidence entry (e.g. "S13" or "Moderator Round 4"). */
+function scrollToEvidence(entry: string) {
+  // Try direct statement ID first (e.g. "S13")
+  const el = document.getElementById(`stmt-${entry}`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.outline = '2px solid var(--color-acc, #3b82f6)';
+    setTimeout(() => { el.style.outline = ''; }, 2000);
+    return;
+  }
+  // Try parsing "Speaker Round N" format → find the Nth statement by that speaker
+  const match = entry.match(/^(.+?)\s+Round\s+(\d+)$/i);
+  if (match) {
+    const speaker = match[1].toLowerCase();
+    const round = parseInt(match[2], 10);
+    const cards = document.querySelectorAll<HTMLElement>('[data-entry-id]');
+    let count = 0;
+    for (const card of cards) {
+      const speakerEl = card.querySelector('.debate-statement-speaker');
+      if (speakerEl && speakerEl.textContent?.toLowerCase().includes(speaker)) {
+        count++;
+        if (count === round) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.style.outline = '2px solid var(--color-acc, #3b82f6)';
+          setTimeout(() => { card.style.outline = ''; }, 2000);
+          return;
+        }
+      }
+    }
+  }
+}
 
 const EDIT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   revise: { label: 'Revise', color: '#3b82f6' },
@@ -68,6 +101,27 @@ function EditCard({ edit, pover, editIndex }: {
   const typeInfo = EDIT_TYPE_LABELS[edit.edit_type] || EDIT_TYPE_LABELS.revise;
   const resolved = edit.status !== 'pending';
 
+  const [editing, setEditing] = useState(false);
+  const [editedLabel, setEditedLabel] = useState(edit.proposed_label);
+  const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  const isModified = editedLabel !== edit.proposed_label
+                  || editedDescription !== edit.proposed_description;
+
+  const handleReset = () => {
+    setEditedLabel(edit.proposed_label);
+    setEditedDescription(edit.proposed_description);
+  };
+
+  const handleCancel = () => {
+    handleReset();
+    setEditing(false);
+  };
+
+  const isEmpty = editing && (!editedLabel.trim() || !editedDescription.trim());
+
   return (
     <div style={{
       padding: '10px 12px', borderRadius: 8,
@@ -111,7 +165,25 @@ function EditCard({ edit, pover, editIndex }: {
 
       {/* Label change */}
       <div style={{ fontSize: '0.75rem', marginBottom: 4 }}>
-        {edit.current_label && edit.current_label !== edit.proposed_label ? (
+        {editing ? (
+          <>
+            {edit.current_label && (
+              <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}{' → '}</span>
+            )}
+            <input
+              type="text"
+              value={editedLabel}
+              onChange={e => setEditedLabel(e.target.value)}
+              style={{
+                fontSize: '0.75rem', fontWeight: 600,
+                padding: '2px 6px', borderRadius: 4,
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-primary)', color: 'var(--text-primary)',
+                width: '60%',
+              }}
+            />
+          </>
+        ) : edit.current_label && edit.current_label !== edit.proposed_label ? (
           <>
             <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}</span>
             {' → '}
@@ -133,28 +205,84 @@ function EditCard({ edit, pover, editIndex }: {
           {edit.current_description}
         </div>
       )}
-      <div style={{
-        fontSize: '0.7rem', padding: '4px 8px',
-        background: 'rgba(34,197,94,0.06)', borderRadius: 4,
-        whiteSpace: 'pre-wrap', marginBottom: 6,
-        borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined,
-      }}>
-        {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
-          <>
-            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e', marginBottom: 2 }}>PROPOSED</div>
-            {diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
-              seg.type === 'added'
-                ? <mark key={i} style={{ background: 'rgba(34,197,94,0.25)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{seg.text}</mark>
-                : <span key={i}>{seg.text}</span>
+
+      {editing ? (
+        /* Edit mode — editable textarea with blue EDITED styling */
+        <div style={{
+          fontSize: '0.7rem', padding: '4px 8px',
+          background: 'rgba(59,130,246,0.06)', borderRadius: 4,
+          marginBottom: 6,
+          borderLeft: '3px solid rgba(59,130,246,0.3)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#3b82f6' }}>EDITED</span>
+            {isModified && (
+              <span style={{
+                padding: '0 4px', borderRadius: 4,
+                fontSize: '0.6rem', fontWeight: 600,
+                background: '#3b82f6', color: '#fff',
+              }}>Modified</span>
             )}
-          </>
-        ) : (
-          edit.proposed_description
-        )}
-      </div>
+          </div>
+          <textarea
+            value={editedDescription}
+            onChange={e => setEditedDescription(e.target.value)}
+            style={{
+              width: '100%', minHeight: 60, maxHeight: 300,
+              fontSize: '0.7rem', padding: '4px 6px',
+              border: '1px solid var(--border-color)', borderRadius: 4,
+              background: 'var(--bg-primary)', color: 'var(--text-primary)',
+              resize: 'vertical', fontFamily: 'inherit',
+              lineHeight: 1.5,
+            }}
+          />
+        </div>
+      ) : (
+        /* Review mode — diff-highlighted PROPOSED */
+        <div style={{
+          fontSize: '0.7rem', padding: '4px 8px',
+          background: 'rgba(34,197,94,0.06)', borderRadius: 4,
+          whiteSpace: 'pre-wrap', marginBottom: 6,
+          borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined,
+        }}>
+          {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#22c55e' }}>PROPOSED</span>
+                {!resolved && (
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    style={{ fontSize: '0.6rem', padding: '0 4px', marginLeft: 'auto' }}
+                    onClick={() => setEditing(true)}
+                  >&#9998; Edit</button>
+                )}
+              </div>
+              {diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
+                seg.type === 'added'
+                  ? <mark key={i} style={{ background: 'rgba(34,197,94,0.25)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{seg.text}</mark>
+                  : <span key={i}>{seg.text}</span>
+              )}
+            </>
+          ) : (
+            <>
+              {!resolved && edit.proposed_description && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{ flex: 1 }} />
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    style={{ fontSize: '0.6rem', padding: '0 4px' }}
+                    onClick={() => setEditing(true)}
+                  >&#9998; Edit</button>
+                </div>
+              )}
+              {edit.proposed_description}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Rationale */}
-      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 4 }}>
+      <div style={{ fontSize: '0.68rem', color: 'var(--text-primary)', fontStyle: 'italic', marginBottom: 4 }}>
         {edit.rationale}
       </div>
 
@@ -162,10 +290,18 @@ function EditCard({ edit, pover, editIndex }: {
       {edit.evidence_entries && edit.evidence_entries.length > 0 && (
         <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', marginBottom: 8 }}>
           Evidence: {edit.evidence_entries.map((e, i) => (
-            <code key={i} style={{
-              padding: '0 4px', marginRight: 3, borderRadius: 3,
-              background: 'var(--bg-secondary)', fontSize: '0.63rem',
-            }}>{e}</code>
+            <button
+              key={i}
+              className="btn btn-sm btn-ghost"
+              style={{
+                padding: '0 4px', marginRight: 3, borderRadius: 3,
+                background: 'var(--bg-secondary)', fontSize: '0.63rem',
+                fontFamily: 'monospace', cursor: 'pointer',
+                textDecoration: 'underline', color: 'var(--color-acc, #3b82f6)',
+              }}
+              title={`Scroll to ${e} in transcript`}
+              onClick={() => scrollToEvidence(e)}
+            >{e}</button>
           ))}
         </div>
       )}
@@ -176,10 +312,44 @@ function EditCard({ edit, pover, editIndex }: {
           <button
             className="btn btn-primary"
             style={{ fontSize: '0.7rem', padding: '3px 12px' }}
-            onClick={() => applyReflectionEdit(pover, editIndex)}
+            disabled={isEmpty || applying}
+            onClick={async () => {
+              setApplying(true);
+              setApplyError(null);
+              try {
+                const result = await applyReflectionEdit(pover, editIndex,
+                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined
+                );
+                if (!result.ok) {
+                  setApplyError(result.error ?? 'Save failed — check SaveBar for details');
+                }
+              } catch (err) {
+                setApplyError(String(err));
+              } finally {
+                setApplying(false);
+              }
+            }}
           >
-            Approve & Apply
+            {applying ? 'Saving…' : 'Approve & Apply'}
           </button>
+          {editing && isModified && (
+            <button
+              className="btn"
+              style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+              onClick={handleReset}
+            >
+              Reset
+            </button>
+          )}
+          {editing && (
+            <button
+              className="btn"
+              style={{ fontSize: '0.7rem', padding: '3px 10px' }}
+              onClick={handleCancel}
+            >
+              Cancel
+            </button>
+          )}
           <button
             className="btn"
             style={{ fontSize: '0.7rem', padding: '3px 10px' }}
@@ -187,6 +357,11 @@ function EditCard({ edit, pover, editIndex }: {
           >
             Dismiss
           </button>
+        </div>
+      )}
+      {applyError && (
+        <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4 }}>
+          {applyError}
         </div>
       )}
     </div>
@@ -247,11 +422,11 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
   const totalPending = reflections.reduce((sum, r) => sum + r.edits.filter(e => e.status === 'pending').length, 0);
   const totalApproved = reflections.reduce((sum, r) => sum + r.edits.filter(e => e.status === 'approved').length, 0);
 
-  const approveAll = () => {
+  const approveAll = async () => {
     for (const r of reflections) {
-      r.edits.forEach((e, i) => {
-        if (e.status === 'pending') applyReflectionEdit(r.pover, i);
-      });
+      for (let i = 0; i < r.edits.length; i++) {
+        if (r.edits[i].status === 'pending') await applyReflectionEdit(r.pover, i);
+      }
     }
   };
 
@@ -263,25 +438,63 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // Drag state
+  const [pos, setPos] = useState({ x: 0, y: 0 }); // offset from center
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag from header area, not buttons
+    if ((e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+  }, [pos.x, pos.y]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      setPos({
+        x: dragRef.current.origX + (e.clientX - dragRef.current.startX),
+        y: dragRef.current.origY + (e.clientY - dragRef.current.startY),
+      });
+    };
+    const onMouseUp = () => { dragRef.current = null; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   return (
     <div className="reflections-panel" style={{
       position: 'fixed', inset: 0, zIndex: 1100,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.5)',
-    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      pointerEvents: 'none',
+    }}>
       <div style={{
-        width: '90vw', maxWidth: 800, maxHeight: '85vh',
+        width: 800, height: '85vh',
+        minWidth: 400, minHeight: 300,
+        maxWidth: '95vw', maxHeight: '95vh',
+        resize: 'both', overflow: 'hidden',
         background: 'var(--bg-primary)', borderRadius: 12,
         border: '1px solid var(--border-color)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
         display: 'flex', flexDirection: 'column',
+        pointerEvents: 'auto',
+        transform: `translate(${pos.x}px, ${pos.y}px)`,
       }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--border-color)',
-        }}>
+        {/* Header — drag handle */}
+        <div
+          onMouseDown={onMouseDown}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--border-color)',
+            cursor: dragRef.current ? 'grabbing' : 'grab',
+            userSelect: 'none',
+          }}
+        >
           <h3 style={{ margin: 0, fontSize: '1rem', flex: 1 }}>Reflections</h3>
           {reflections.length > 0 && totalPending > 0 && (
             <>

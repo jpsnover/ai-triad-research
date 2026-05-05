@@ -125,7 +125,7 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
   const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const resp = await api.getCalibrationHistory();
         if (resp?.current) {

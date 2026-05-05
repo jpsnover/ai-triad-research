@@ -215,7 +215,7 @@ export function PromptInspector() {
     if (filesToLoad.length === 0) return;
 
     setPsPromptLoading(true);
-    Promise.all(
+    void Promise.all(
       filesToLoad.map(async (name) => {
         const result = await api.readPsPrompt(name);
         return [name, result.text ?? `(Error: ${result.error})`] as [string, string];
@@ -227,7 +227,7 @@ export function PromptInspector() {
         return next;
       });
     }).finally(() => setPsPromptLoading(false));
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
 
   // Phase C: Auto-updating preview — recomputes when selection, debate, or config changes
   const livePreview = useMemo<PromptPreviewResult | null>(() => {
@@ -241,7 +241,6 @@ export function PromptInspector() {
       return null;
     }
     // configVersion included to re-trigger when config knobs change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, hasActiveSession, activeDebate, configVersion]);
 
   // Clear baseline when switching prompts

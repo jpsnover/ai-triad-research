@@ -27,6 +27,7 @@ export const api: AppAPI = {
   // Conflict CRUD
   loadConflictFiles: () => window.electronAPI.loadConflictFiles(),
   loadConflictClusters: () => window.electronAPI.loadConflictClusters?.() ?? Promise.resolve(null),
+  loadAggregatedCruxes: () => window.electronAPI.loadAggregatedCruxes?.() ?? Promise.resolve(null),
   saveConflictFile: (id, data) => window.electronAPI.saveConflictFile(id, data),
   createConflictFile: (id, data) => window.electronAPI.createConflictFile(id, data),
   deleteConflictFile: (id) => window.electronAPI.deleteConflictFile(id),

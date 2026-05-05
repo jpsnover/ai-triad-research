@@ -194,6 +194,7 @@ const rawApi: AppAPI = {
   // Conflict CRUD
   loadConflictFiles: () => get('/api/conflicts'),
   loadConflictClusters: () => get('/api/conflicts/clusters'),
+  loadAggregatedCruxes: () => get('/api/cruxes'),
   saveConflictFile: (id, data) => put(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   createConflictFile: (id, data) => post(`/api/conflicts/${encodeURIComponent(id)}`, data).then(() => {}),
   deleteConflictFile: (id) => del(`/api/conflicts/${encodeURIComponent(id)}`).then(() => {}),

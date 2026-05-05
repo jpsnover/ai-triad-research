@@ -77,13 +77,12 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
 
   useEffect(() => {
     if (open) void reloadState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     if (!selected) { setContent(''); setDirty(false); return; }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const text = await getRebaseFile(selected);
       if (cancelled) return;
       setContent(text);

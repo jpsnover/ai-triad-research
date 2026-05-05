@@ -20,6 +20,7 @@ import {
   buildNodeSourceIndex,
   buildPolicySourceIndex,
   readPolicyRegistry,
+  readAggregatedCruxes,
   discoverSources,
   loadSummary,
   loadSnapshot,
@@ -98,6 +99,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-conflict-clusters', () => {
     return readConflictClusters();
+  });
+
+  ipcMain.handle('load-aggregated-cruxes', () => {
+    return readAggregatedCruxes();
   });
 
   // Dictionary
@@ -448,14 +453,14 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('open-external', (_event, url: string) => {
     // Only allow http/https URLs
     if (/^https?:\/\//i.test(url)) {
-      shell.openExternal(url);
+      void shell.openExternal(url);
     }
   });
 
   ipcMain.handle('open-file', (_event, filePath: string) => {
     // Only allow opening files that actually exist on disk
     if (fs.existsSync(filePath)) {
-      shell.openPath(filePath);
+      void shell.openPath(filePath);
     }
   });
 
@@ -700,7 +705,6 @@ export function registerIpcHandlers(): void {
     const filePath = result.filePath;
     const ext = filePath.split('.').pop()?.toLowerCase() || 'json';
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const debate = session as any;
 
     switch (ext) {

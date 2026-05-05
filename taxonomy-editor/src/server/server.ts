@@ -9,6 +9,7 @@
 
 import http from 'http';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { spawn, execFile, ChildProcess } from 'child_process';
@@ -90,6 +91,15 @@ get('/third-party-notices', (_req, res) => {
   }
 });
 
+get('/healthz', (_req, res) => {
+  const dataAvailable = fileIO.isDataAvailable();
+  if (dataAvailable) {
+    json(res, { status: 'healthy', dataRoot: fileIO.getDataRootPath() });
+  } else {
+    json(res, { status: 'unhealthy', reason: 'taxonomy data not found', dataRoot: fileIO.getDataRootPath() }, 503);
+  }
+});
+
 get('/health', (_req, res) => {
   json(res, {
     status: 'ok',
@@ -145,6 +155,12 @@ get('/api/conflicts', (_req, res) => {
 
 get('/api/conflicts/clusters', (_req, res) => {
   json(res, fileIO.readConflictClusters());
+});
+
+// ── Cruxes ──
+
+get('/api/cruxes', (_req, res) => {
+  json(res, fileIO.readAggregatedCruxes());
 });
 
 put('/api/conflicts/:id', (req, res, body) => {
@@ -242,13 +258,23 @@ post('/api/data/set-root', (_req, res, body) => {
 post('/api/data/clone', async (_req, res, body) => {
   const { targetPath } = body as { targetPath: string };
   try {
-    const result = await new Promise<{ success: boolean; message: string }>((resolve, reject) => {
-      execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', targetPath], { timeout: 300_000 }, (err) => {
-        if (err) reject(err);
-        else resolve({ success: true, message: 'Data repository cloned successfully.' });
+    // Clone to temp dir first, then copy contents — avoids permission issues
+    // when targetPath is root-owned (e.g. /data in Azure containers).
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-clone-'));
+    await new Promise<void>((resolve, reject) => {
+      execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: 300_000 }, (err) => {
+        if (err) reject(err); else resolve();
       });
     });
-    json(res, result);
+    const entries = fs.readdirSync(tmpDir).filter(f => f !== '.git');
+    fs.mkdirSync(targetPath, { recursive: true });
+    await new Promise<void>((resolve, reject) => {
+      execFile('cp', ['-a', ...entries.map(f => path.join(tmpDir, f)), targetPath], (err) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    json(res, { success: true, message: 'Data repository cloned successfully.' });
   } catch (err) {
     json(res, { success: false, message: String(err) });
   }
@@ -1302,7 +1328,8 @@ function isAdminRequest(req: http.IncomingMessage): boolean {
   return crypto.timingSafeEqual(keyBuf, expectedBuf);
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => { void handleRequest(req, res); });
+async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
   // S10: Security headers on all responses
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -1424,7 +1451,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(404);
     res.end('Not Found');
   });
-});
+}
 
 // ── WebSocket: Terminal ──
 

@@ -203,7 +203,7 @@ async function main(): Promise<void> {
       .slice(0, 5);
 
     const linkedNodeDescriptions: string[] = [];
-    for (const linkedId of sitNode.linked_nodes.slice(0, 10)) {
+    for (const linkedId of (sitNode.linked_nodes ?? []).slice(0, 10)) {
       for (const pov of POV_KEYS) {
         const node = taxonomy[pov].nodes.find(n => n.id === linkedId);
         if (node) linkedNodeDescriptions.push(`[${node.id}] ${node.label}: ${node.description.slice(0, 150)}`);

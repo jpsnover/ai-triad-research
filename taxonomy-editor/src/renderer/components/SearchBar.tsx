@@ -131,7 +131,7 @@ export function SearchBar() {
 
   // Check API key availability on mount and when dialog closes
   useEffect(() => {
-    checkApiKey();
+    void checkApiKey();
   }, [checkApiKey]);
 
   // Ctrl+F focuses input
@@ -164,7 +164,7 @@ export function SearchBar() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!findQuery.trim()) return;
     debounceRef.current = setTimeout(() => {
-      runSemanticSearch(findQuery, povScopes, aspectScopes);
+      void runSemanticSearch(findQuery, povScopes, aspectScopes);
     }, 800);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -277,7 +277,7 @@ export function SearchBar() {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (isSemantic && !e.shiftKey) {
-        runSemanticSearch(findQuery, povScopes, aspectScopes);
+        void runSemanticSearch(findQuery, povScopes, aspectScopes);
         setShowResults(true);
         setShowDropdown(true);
       } else if (e.shiftKey) {
@@ -316,13 +316,13 @@ export function SearchBar() {
   const handleModeChange = (mode: SearchMode) => {
     setFindMode(mode);
     if (mode === 'semantic') {
-      checkApiKey();
+      void checkApiKey();
     }
   };
 
   const handleApiKeyDialogClose = () => {
     setShowApiKeyDialog(false);
-    checkApiKey();
+    void checkApiKey();
   };
 
   const semanticDisabled = false;

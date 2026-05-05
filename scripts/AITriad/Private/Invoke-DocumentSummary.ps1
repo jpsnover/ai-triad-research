@@ -353,8 +353,14 @@ $ChunkText
     Write-Host "  │  ✓ Merged ($([int]$Elapsed.TotalSeconds)s total, $ChunkCount chunks)" -ForegroundColor Green
 
     # -- Density check on merged result (warn only, no retry for chunked) ----
+    # Scale floors by merge discount — chunked extraction produces less per-unit
+    # than single-pass because each chunk has limited cross-chunk context
     $WordCount = ($SnapshotText -split '\s+').Count
     $DensityFloors = Get-DensityFloors -WordCount $WordCount
+    $MergeDiscount = 1 / [Math]::Sqrt($ChunkCount)
+    $DensityFloors.KpMin = [Math]::Max(3, [int]($DensityFloors.KpMin * $MergeDiscount))
+    $DensityFloors.FcMin = [Math]::Max(2, [int]($DensityFloors.FcMin * $MergeDiscount))
+    $DensityFloors.UcMin = [Math]::Max(1, [int]($DensityFloors.UcMin * $MergeDiscount))
     $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
     if (-not $DensityCheck.Pass) {
         Write-Host "  │  ⚠ Merged density below floor: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
@@ -612,38 +618,73 @@ function Finalize-Summary {
     )
 
     # -- Schema validation (Gap 3.4) --------------------------------------------
+    # Use a helper that works on both PSCustomObject and OrderedDictionary
+    # (Merge-ChunkSummaries returns OrderedDictionary, single-call returns PSCustomObject)
+    function Has-Field($Obj, [string]$Name) {
+        if ($Obj -is [System.Collections.IDictionary]) { return $Obj.Contains($Name) }
+        if ($Obj.PSObject.Properties[$Name]) { return $true }
+        return $false
+    }
+    function Get-Field($Obj, [string]$Name) {
+        if ($Obj -is [System.Collections.IDictionary]) { return $Obj[$Name] }
+        return $Obj.$Name
+    }
+
     $Camps        = @('accelerationist','safetyist','skeptic')
     $SchemaErrors = [System.Collections.Generic.List[string]]::new()
 
-    $SoPropsCheck = $SummaryObject.PSObject.Properties
-    if (-not $SoPropsCheck['pov_summaries']) {
+    if (-not (Has-Field $SummaryObject 'pov_summaries')) {
         $SchemaErrors.Add("Missing required field: pov_summaries")
     } else {
+        $PovSums = Get-Field $SummaryObject 'pov_summaries'
         foreach ($Camp in $Camps) {
-            $CampData = $SummaryObject.pov_summaries.$Camp
+            $CampData = Get-Field $PovSums $Camp
             if ($null -eq $CampData) {
                 $SchemaErrors.Add("Missing camp in pov_summaries: $Camp")
-            } elseif (-not $CampData.PSObject.Properties['key_points'] -or $CampData.key_points -isnot [System.Array]) {
-                $SchemaErrors.Add("pov_summaries.$Camp.key_points missing or not an array")
+            } else {
+                $KP = Get-Field $CampData 'key_points'
+                if ($null -eq $KP) {
+                    $SchemaErrors.Add("pov_summaries.$Camp.key_points missing or not an array")
+                } else {
+                    # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars
+                    $KP = @($KP)
+                    if ($CampData -is [System.Collections.IDictionary]) { $CampData['key_points'] = $KP }
+                    else { $CampData.key_points = $KP }
+                }
             }
         }
     }
-    if (-not $SoPropsCheck['factual_claims']) {
+    if (-not (Has-Field $SummaryObject 'factual_claims')) {
         $SchemaErrors.Add("Missing required field: factual_claims")
-    } elseif ($SummaryObject.factual_claims -isnot [System.Array]) {
-        $SchemaErrors.Add("factual_claims is not an array")
+    } else {
+        $FC = Get-Field $SummaryObject 'factual_claims'
+        # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars
+        if ($null -ne $FC) {
+            $FC = @($FC)
+            # Write back the forced array so downstream code sees an array
+            if ($SummaryObject -is [System.Collections.IDictionary]) { $SummaryObject['factual_claims'] = $FC }
+            else { $SummaryObject.factual_claims = $FC }
+        } else {
+            $SchemaErrors.Add("Missing required field: factual_claims")
+        }
     }
-    if (-not $SoPropsCheck['unmapped_concepts']) {
-        $SchemaErrors.Add("Missing required field: unmapped_concepts")
-    } elseif ($SummaryObject.unmapped_concepts -isnot [System.Array]) {
-        $SchemaErrors.Add("unmapped_concepts is not an array")
+    if (-not (Has-Field $SummaryObject 'unmapped_concepts')) {
+        # Not an error — field may be absent if all concepts were resolved. Default to empty array.
+        if ($SummaryObject -is [System.Collections.IDictionary]) { $SummaryObject['unmapped_concepts'] = @() }
+        else { $SummaryObject | Add-Member -NotePropertyName 'unmapped_concepts' -NotePropertyValue @() -Force }
+    } else {
+        $UC = Get-Field $SummaryObject 'unmapped_concepts'
+        # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars; null → empty
+        $UC = if ($null -ne $UC) { @($UC) } else { @() }
+        if ($SummaryObject -is [System.Collections.IDictionary]) { $SummaryObject['unmapped_concepts'] = $UC }
+        else { $SummaryObject.unmapped_concepts = $UC }
     }
 
     foreach ($Err in $SchemaErrors) {
         Write-Host "  │  ✗ Schema: $Err" -ForegroundColor Red
     }
 
-    if ($SchemaErrors.Count -gt 0 -and -not $SoPropsCheck['pov_summaries']) {
+    if ($SchemaErrors.Count -gt 0 -and -not (Has-Field $SummaryObject 'pov_summaries')) {
         return @{ Success = $false; DocId = $ThisDocId; Error = "Schema validation failed: $($SchemaErrors -join '; ')" }
     }
 

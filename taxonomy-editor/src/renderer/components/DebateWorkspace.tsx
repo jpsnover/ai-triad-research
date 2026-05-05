@@ -562,8 +562,8 @@ function buildExplainPrompt(entry: TranscriptEntry): string {
 
 function handleExplainEntry(entry: TranscriptEntry) {
   const prompt = buildExplainPrompt(entry);
-  api.clipboardWriteText(prompt);
-  api.openExternal('https://gemini.google.com/app');
+  void api.clipboardWriteText(prompt);
+  void api.openExternal('https://gemini.google.com/app');
 }
 
 /** Wrapper that adds delete controls to any transcript entry */
@@ -760,7 +760,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
             </span>
             <button
               disabled={!!debateGenerating}
-              onClick={(e) => { e.stopPropagation(); askQuestion(`Explore this: ${topic}`); }}
+              onClick={(e) => { e.stopPropagation(); void askQuestion(`Explore this: ${topic}`); }}
               style={{
                 padding: '6px 18px', fontSize: '0.8rem', fontWeight: 700,
                 background: '#3b82f6', color: '#fff', border: 'none',
@@ -822,7 +822,7 @@ function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statement
             <button
               key={i}
               className="debate-probing-question-btn"
-              onClick={() => handleAsk(q)}
+              onClick={() => void handleAsk(q)}
               disabled={!!debateGenerating}
               title={[
                 q.targets?.length > 0 ? `Directed at: ${q.targets.map((t) => POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t).join(', ')}` : null,
@@ -882,13 +882,13 @@ function DebateContextMenu({
   }, [onClose]);
 
   const handleCopy = () => {
-    api.clipboardWriteText(menu.selectedText);
+    void api.clipboardWriteText(menu.selectedText);
     onClose();
   };
 
   const handleSearchGoogle = () => {
     const query = encodeURIComponent(menu.selectedText.slice(0, 200));
-    api.openExternal(`https://www.google.com/search?q=${query}`);
+    void api.openExternal(`https://www.google.com/search?q=${query}`);
     onClose();
   };
 
@@ -1381,7 +1381,7 @@ function ClarificationActions() {
           <div className="debate-clarification-buttons">
             <button
               className="btn btn-primary"
-              onClick={() => runClarification()}
+              onClick={() => void runClarification()}
             >
               Refine Topic
             </button>
@@ -1590,7 +1590,7 @@ function OpeningActions() {
           )}
         </div>
         <div className="debate-action-bar-inner">
-          <button className="btn btn-primary" onClick={() => runOpeningStatements()}>
+          <button className="btn btn-primary" onClick={() => void runOpeningStatements()}>
             Begin Opening Statements
           </button>
         </div>
@@ -1782,7 +1782,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
     }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
@@ -1894,7 +1894,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
             See code review UX1 — requires phaseTransitions.ts veto/force API. */}
         <button
           className="btn debate-synthesis-btn"
-          onClick={() => requestSynthesis()}
+          onClick={() => void requestSynthesis()}
           disabled={disabled}
           title="Generate a synthesis of agreements, disagreements, and open questions"
         >
@@ -1902,7 +1902,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         </button>
         <button
           className="btn debate-probe-btn"
-          onClick={() => requestProbingQuestions()}
+          onClick={() => void requestProbingQuestions()}
           disabled={disabled}
           title="Get AI-suggested probing questions to deepen the debate"
         >
@@ -1918,7 +1918,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         </button>
         <button
           className="btn debate-reflections-btn"
-          onClick={() => { setShowReflections(true); requestReflections(); }}
+          onClick={() => { setShowReflections(true); void requestReflections(); }}
           disabled={disabled}
           title="Each debater reflects on the debate and proposes taxonomy edits"
         >
@@ -2055,7 +2055,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   // Load comments when debate changes
   useEffect(() => {
     if (activeDebate) {
-      loadDebateComments(activeDebate.id);
+      void loadDebateComments(activeDebate.id);
     }
     return () => unloadComments();
   }, [activeDebate?.id, loadDebateComments, unloadComments]);
@@ -2065,7 +2065,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     setStoreFindQuery(query);
     setStoreFindMode('semantic');
     setToolbarPanel('search');
-    runSemanticSearch(query, new Set(), new Set());
+    void runSemanticSearch(query, new Set(), new Set());
   }, [runSemanticSearch, setStoreFindQuery, setStoreFindMode, setToolbarPanel]);
 
   // ── Find state ────────────────────────────────────────
@@ -2149,7 +2149,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     if (!activeDebate) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      saveDebate();
+      void saveDebate();
     }, 2000);
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -2167,7 +2167,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         : -1;
       const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
       if (uncompressed >= 8) {
-        compressOldTranscript();
+        void compressOldTranscript();
       }
     }
   }, [activeDebate?.transcript.length, debateGenerating]);

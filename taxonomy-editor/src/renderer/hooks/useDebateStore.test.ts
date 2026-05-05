@@ -38,7 +38,8 @@ const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
     loadEdges: vi.fn().mockResolvedValue(undefined),
     createPovNode: vi.fn().mockReturnValue('new-node-id'),
     updatePovNode: vi.fn(),
-    save: vi.fn(),
+    save: vi.fn().mockResolvedValue(undefined),
+    saveError: null as string | null,
   };
 
   return { mockApi, mockTaxonomyState };
@@ -1230,22 +1231,25 @@ describe('Reflection edits', () => {
   });
 
   describe('applyReflectionEdit', () => {
-    it('marks an edit as approved', () => {
+    it('marks an edit as approved after successful save and returns ok', async () => {
+      mockTaxonomyState.saveError = null;
       useDebateStore.setState({
         reflections: makeReflections(),
         activeDebateId: 'debate-1',
       });
 
-      useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+      const result = await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
 
       const edits = useDebateStore.getState().reflections[0].edits;
       expect(edits[0].status).toBe('approved');
+      expect(result).toEqual({ ok: true });
     });
 
-    it('calls taxonomy store for revise edits', () => {
+    it('calls taxonomy store for revise edits', async () => {
+      mockTaxonomyState.saveError = null;
       useDebateStore.setState({ reflections: makeReflections() });
 
-      useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
 
       expect(mockTaxonomyState.updatePovNode).toHaveBeenCalledWith(
         'accelerationist',
@@ -1255,23 +1259,81 @@ describe('Reflection edits', () => {
       expect(mockTaxonomyState.save).toHaveBeenCalled();
     });
 
-    it('calls taxonomy store for add edits', () => {
+    it('calls taxonomy store for add edits', async () => {
+      mockTaxonomyState.saveError = null;
       useDebateStore.setState({
         reflections: makeReflections(),
         activeDebateId: 'debate-1',
       });
 
-      useDebateStore.getState().applyReflectionEdit('accelerationist', 1);
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 1);
 
       expect(mockTaxonomyState.createPovNode).toHaveBeenCalledWith('accelerationist', 'Desires');
     });
 
-    it('does nothing for nonexistent reflection', () => {
+    it('does nothing for nonexistent reflection', async () => {
       useDebateStore.setState({ reflections: makeReflections() });
 
-      useDebateStore.getState().applyReflectionEdit('nonexistent-pov', 0);
+      await useDebateStore.getState().applyReflectionEdit('nonexistent-pov', 0);
 
       expect(mockTaxonomyState.updatePovNode).not.toHaveBeenCalled();
+    });
+
+    it('does not mark approved when save fails and returns error', async () => {
+      mockTaxonomyState.saveError = 'Validation failed';
+      useDebateStore.setState({ reflections: makeReflections() });
+
+      const result = await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+
+      const edits = useDebateStore.getState().reflections[0].edits;
+      expect(edits[0].status).toBe('pending');
+      expect(result).toEqual({ ok: false, error: 'Validation failed' });
+      expect(mockTaxonomyState.save).toHaveBeenCalled();
+    });
+
+    it('applies user-edited overrides instead of proposed text', async () => {
+      mockTaxonomyState.saveError = null;
+      useDebateStore.setState({ reflections: makeReflections() });
+
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 0, {
+        label: 'User-edited label',
+        description: 'User-edited description',
+      });
+
+      expect(mockTaxonomyState.updatePovNode).toHaveBeenCalledWith(
+        'accelerationist',
+        'acc-B-001',
+        expect.objectContaining({ label: 'User-edited label', description: 'User-edited description' }),
+      );
+      expect(mockTaxonomyState.save).toHaveBeenCalled();
+    });
+
+    it('falls back to proposed text when overrides are undefined', async () => {
+      mockTaxonomyState.saveError = null;
+      useDebateStore.setState({ reflections: makeReflections() });
+
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 0, undefined);
+
+      expect(mockTaxonomyState.updatePovNode).toHaveBeenCalledWith(
+        'accelerationist',
+        'acc-B-001',
+        expect.objectContaining({ label: 'New label', description: 'New desc' }),
+      );
+    });
+
+    it('applies partial overrides (label only)', async () => {
+      mockTaxonomyState.saveError = null;
+      useDebateStore.setState({ reflections: makeReflections() });
+
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 0, {
+        label: 'Custom label',
+      });
+
+      expect(mockTaxonomyState.updatePovNode).toHaveBeenCalledWith(
+        'accelerationist',
+        'acc-B-001',
+        expect.objectContaining({ label: 'Custom label', description: 'New desc' }),
+      );
     });
   });
 });

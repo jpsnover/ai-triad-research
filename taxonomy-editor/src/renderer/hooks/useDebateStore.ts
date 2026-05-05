@@ -124,7 +124,7 @@ async function generateTextWithProgress(
   prompt: string,
   model: string,
   activity: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
   timeoutMs?: number,
 ): Promise<{ text: string }> {
@@ -211,9 +211,9 @@ const TURN_EMBEDDING_WINDOW = 30;
 
 /** Push a user-visible warning into debateWarnings state (capped at 50). */
 function pushWarning(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get: () => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
   msg: string,
 ): void {
@@ -225,9 +225,9 @@ function pushWarning(
 
 /** Record diagnostic data for a transcript entry (only when diagnostics enabled) */
 function recordDiagnostic(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get: () => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
   entryId: string,
   data: Partial<EntryDiagnostics>,
@@ -281,9 +281,9 @@ function looksTruncated(s: string): boolean {
 
 /** Incrementally refresh debate.extraction_summary given a new trace. */
 function updateExtractionSummary(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get: () => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
 ): void {
   const debate = get().activeDebate as DebateSession | null;
@@ -352,7 +352,6 @@ function updateExtractionSummary(
 // `commitAnNodes` centralises the atomic mint-then-set pattern, asserts
 // no ID collisions, and logs before/after state so any clobber is visible.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function snapshotAnLengths(get: () => any): { nodeCount: number; edgeCount: number; maxNodeId: number } {
   const d = get().activeDebate;
   const an = d?.argument_network ?? { nodes: [], edges: [] };
@@ -398,14 +397,14 @@ interface AnCommitResult {
  * references a tentative node id are remapped via the returned idMap.
  */
 function commitAnNodes<N extends { id: string }, E extends { id: string; source: string }>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get: () => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
   label: string,
   newNodes: N[],
   newEdges: E[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   mergeExtras?: (fresh: any) => any,
 ): AnCommitResult {
   const before = snapshotAnLengths(get);
@@ -460,7 +459,6 @@ function commitAnNodes<N extends { id: string }, E extends { id: string; source:
  * Run an AN-length invariant check after any set() that might have touched
  * argument_network. If the array shrunk, something clobbered it.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function checkAnInvariants(label: string, get: () => any, expectedMinCount: number): void {
   const d = get().activeDebate;
   const count = d?.argument_network?.nodes?.length ?? 0;
@@ -478,9 +476,9 @@ async function extractClaimsAndUpdateAN(
   speaker: PoverId,
   entryId: string,
   taxonomyRefs: string[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get: () => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   set: (partial: any) => void,
   debaterClaims?: { claim: string; targets: string[] }[],
 ): Promise<void> {
@@ -1588,7 +1586,7 @@ interface DebateStore {
   // Phase 6: Reflections
   reflections: ReflectionResult[];
   requestReflections: () => Promise<void>;
-  applyReflectionEdit: (pover: string, editIndex: number) => void;
+  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
 
   // AN node editing
@@ -1670,14 +1668,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
     // Auto-open popup window when enabling; close when disabling
     if (enabled) {
-      api.openDiagnosticsWindow().then(() => {
+      void api.openDiagnosticsWindow().then(() => {
         set({ diagPopoutOpen: true });
         setTimeout(() => {
           api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
         }, 1000);
       }).catch(() => { /* ignore */ });
     } else {
-      try { api.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
+      try { void api.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
       set({ diagPopoutOpen: false });
     }
   },
@@ -1739,7 +1737,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     };
     await api.saveDebateSession(session);
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
-    api.setDebateTemperature(debateTemperature ?? null);
+    void api.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
     getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
     return id;
@@ -1878,7 +1876,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
       // Set temperature on the main process
-      api.setDebateTemperature(session.debate_temperature ?? null);
+      void api.setDebateTemperature(session.debate_temperature ?? null);
       getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err) } });
@@ -1920,7 +1918,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   closeDebate: () => {
     const closingId = get().activeDebateId;
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
-    api.setDebateTemperature(null);
+    void api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
     if (closingId) getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
   },
@@ -2390,7 +2388,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    saveDebate();
+    void saveDebate();
   },
 
   // ── Phase 3: Opening Statements ─────────────────────────
@@ -2518,7 +2516,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         // Extract claims in background (non-blocking)
         if (lastEntry) {
-          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+          void extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
         addTranscriptEntry({
@@ -2732,7 +2730,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             taxonomy_context: taxonomyBlock,
             commitment_context: commitBlock || undefined,
           });
-          extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+          void extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
       } catch (err) {
@@ -3136,7 +3134,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           commitment_context: commitBlock || undefined,
           stage_diagnostics: pipelineResult.stage_diagnostics,
         });
-        extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+        void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         // Post-turn summarization (DT-2)
         await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
 
@@ -3479,7 +3477,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const synthElapsedMs = Date.now() - synthStartMs;
       if (!isStillValid()) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    
       let synthesis: any = parseAIJson(text);
       if (!synthesis) {
         // Synthesis responses are often truncated by token limits.
@@ -4323,12 +4321,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     await saveDebate();
   },
 
-  applyReflectionEdit: (pover: string, editIndex: number) => {
+  applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => {
+    const startTime = performance.now();
     const { reflections } = get();
     const reflection = reflections.find(r => r.pover === pover);
-    if (!reflection || !reflection.edits[editIndex]) return;
+    const edit = reflection?.edits[editIndex];
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.called', data: { pover, editIndex, edit_type: edit?.edit_type, node_id: edit?.node_id, hasOverrides: !!overrides } });
+    if (!reflection || !edit) { getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'applyReflectionEdit.result', data: { ok: false, error: 'Edit not found', pover, editIndex } }); return { ok: false, error: 'Edit not found' }; }
 
-    const edit = reflection.edits[editIndex];
+    const finalLabel = overrides?.label ?? edit.proposed_label;
+    const finalDescription = overrides?.description ?? edit.proposed_description;
     const taxStore = useTaxonomyStore.getState();
     const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
 
@@ -4337,30 +4339,38 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (newId) {
         const debateId = get().activeDebateId;
         taxStore.updatePovNode(povKey, newId, {
-          label: edit.proposed_label,
-          description: edit.proposed_description,
+          label: finalLabel,
+          description: finalDescription,
           graph_attributes: defaultGraphAttributes(povKey, edit.category),
           debate_refs: debateId ? [debateId] : [],
         });
       }
     } else if (edit.node_id) {
       if (edit.edit_type === 'deprecate') {
-        const deprecatedDesc = edit.proposed_description || `[DEPRECATED] ${edit.current_description || ''}`;
+        const deprecatedDesc = finalDescription || `[DEPRECATED] ${edit.current_description || ''}`;
         taxStore.updatePovNode(povKey, edit.node_id, {
-          label: edit.proposed_label || edit.current_label || '',
+          label: finalLabel || edit.current_label || '',
           description: deprecatedDesc,
         });
       } else {
         taxStore.updatePovNode(povKey, edit.node_id, {
-          label: edit.proposed_label || edit.current_label || '',
-          description: edit.proposed_description,
+          label: finalLabel || edit.current_label || '',
+          description: finalDescription,
         });
       }
     }
 
-    taxStore.save();
+    await taxStore.save();
 
-    // Mark as approved
+    // Only mark as approved if save succeeded
+    const saveError = useTaxonomyStore.getState().saveError;
+    const duration = Math.round(performance.now() - startTime);
+    if (saveError) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: saveError, pover, editIndex, duration_ms: duration } });
+      return { ok: false, error: saveError };
+    }
+
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, duration_ms: duration } });
     const updated = reflections.map(r => {
       if (r.pover !== pover) return r;
       return {
@@ -4369,6 +4379,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       };
     });
     set({ reflections: updated });
+    return { ok: true };
   },
 
   dismissReflectionEdit: (pover: string, editIndex: number) => {

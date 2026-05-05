@@ -37,7 +37,7 @@ export function PovProgressionWindow() {
   // Load taxonomy files for label lookup
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const files = await Promise.all([
           api.loadTaxonomyFile('accelerationist').catch(() => null),

@@ -124,7 +124,7 @@ export function checkReferentialIntegrity(data: TaxonomyData): ValidationResult 
 
   // Check situation node linked_nodes
   for (const sit of data.situations.nodes) {
-    for (const linked of sit.linked_nodes) {
+    for (const linked of sit.linked_nodes ?? []) {
       if (!allIds.has(linked)) {
         issues.push(issue('warning', 'DANGLING_LINKED_NODE', sit.id,
           `linked_nodes entry '${linked}' does not exist`,

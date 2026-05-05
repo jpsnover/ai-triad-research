@@ -30,7 +30,9 @@
     "start:server": "node dist/server/server.js",
     "postinstall": "npx @electron/rebuild || true",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
     "@azure/identity": "^4.4.1",
@@ -59,9 +61,11 @@
     "cross-env": "^10.1.0",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
+    "eslint": "^10.3.0",
     "generate-license-file": "^4.1.1",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.10",
     "vitest": "^4.1.2",
     "wait-on": "^8.0.0"

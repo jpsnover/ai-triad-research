@@ -161,7 +161,7 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
   const [selectedModel, setSelectedModel] = useState<string>('all');
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const resp = await api.getCalibrationLog();
         setEntries((resp?.entries ?? []) as CalibrationEntry[]);

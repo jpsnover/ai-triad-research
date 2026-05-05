@@ -16,7 +16,7 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
   const [status, setStatus] = useState<'prompt' | 'downloading' | 'done' | 'error'>('prompt');
   const [message, setMessage] = useState('');
   const [downloadPath, setDownloadPath] = useState(dataRoot || '/data');
-  const [locatePath, setLocatePath] = useState('');
+  const [locatePath, setLocatePath] = useState(dataRoot || '/data');
 
   const handleLocateData = async () => {
     if (isWeb) {

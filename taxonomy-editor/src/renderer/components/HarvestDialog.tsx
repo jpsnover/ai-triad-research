@@ -189,7 +189,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
         })));
       }
     }
-  }, [activeDebate?.id, fileData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeDebate?.id, fileData]);
 
   // Fill in current steelman text from taxonomy store
   useEffect(() => {
@@ -205,7 +205,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
       }
       return s;
     }));
-  }, [steelmans.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [steelmans.length]);
 
   const toggleConflict = (id: string) => setConflicts(prev =>
     prev.map(c => c.id === id ? { ...c, checked: !c.checked } : c));
@@ -828,7 +828,7 @@ Return ONLY JSON (no markdown):
               {needsGeneration && (
                 <button
                   className="btn"
-                  onClick={() => { generateConflictDescriptions(); generateSteelmanCondensations(); generateConceptProposals(); }}
+                  onClick={() => { void generateConflictDescriptions(); void generateSteelmanCondensations(); void generateConceptProposals(); }}
                   disabled={generatingConflicts || generatingSteelmans}
                 >
                   {generatingConflicts || generatingSteelmans ? 'Generating...' : 'Generate Descriptions'}

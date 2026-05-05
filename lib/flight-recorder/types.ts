@@ -35,6 +35,11 @@ export type EventType =
   | 'state.error'
   // User interaction
   | 'user.action'
+  | 'ui.navigate'
+  | 'ui.select'
+  | 'ui.toggle'
+  // Store state changes
+  | 'state.change'
   // System
   | 'system.error'
   | 'system.warning'

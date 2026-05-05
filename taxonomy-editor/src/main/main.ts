@@ -111,7 +111,7 @@ function hardenWindow(win: BrowserWindow): void {
   });
   // S2: Deny new-window requests; open http(s) links externally
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
 }
@@ -143,11 +143,11 @@ function createWindow(): void {
   const isDev = !app.isPackaged && !hasFileArg;
   if (isDev) {
     console.log('[main] Loading dev URL: http://localhost:5173');
-    mainWindow.loadURL('http://localhost:5173');
+    void mainWindow.loadURL('http://localhost:5173');
   } else {
     const filePath = path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html');
     console.log('[main] Loading production build:', filePath);
-    mainWindow.loadFile(filePath);
+    void mainWindow.loadFile(filePath);
   }
 
   console.log('[main] BrowserWindow created, setting up event handlers...');
@@ -252,9 +252,9 @@ function createWindow(): void {
             hardenWindow(licensesWindow);
             try {
               const content = fs.readFileSync(noticesPath, 'utf-8');
-              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
+              void licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
             } catch {
-              licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
+              void licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
             }
           },
         },
@@ -271,7 +271,7 @@ process.on('unhandledRejection', (reason) => {
   console.error('[main] UNHANDLED REJECTION:', reason);
 });
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   console.log('[main] app.whenReady fired');
   registerIpcHandlers();
   console.log('[main] IPC handlers registered');
@@ -339,9 +339,9 @@ app.whenReady().then(() => {
     hardenWindow(diagWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
-      diagWindow.loadURL('http://localhost:5173#diagnostics-window');
+      void diagWindow.loadURL('http://localhost:5173#diagnostics-window');
     } else {
-      diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
+      void diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
     }
     diagWindow.on('closed', () => {
       diagWindow = null;
@@ -392,9 +392,9 @@ app.whenReady().then(() => {
     hardenWindow(povProgWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
-      povProgWindow.loadURL('http://localhost:5173#pov-progression-window');
+      void povProgWindow.loadURL('http://localhost:5173#pov-progression-window');
     } else {
-      povProgWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'pov-progression-window' });
+      void povProgWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'pov-progression-window' });
     }
     povProgWindow.on('closed', () => {
       povProgWindow = null;
@@ -427,9 +427,9 @@ app.whenReady().then(() => {
     hardenWindow(debateWindow);
     const isDev = !app.isPackaged;
     if (isDev) {
-      debateWindow.loadURL('http://localhost:5173#debate-window');
+      void debateWindow.loadURL('http://localhost:5173#debate-window');
     } else {
-      debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'debate-window' });
+      void debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'debate-window' });
     }
     // Send debate ID once the renderer is ready
     debateWindow.webContents.once('did-finish-load', () => {

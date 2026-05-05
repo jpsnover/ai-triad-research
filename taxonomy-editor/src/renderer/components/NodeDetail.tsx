@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import type { AggregatedCrux } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
@@ -175,7 +176,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         useTaxonomyStore.setState({ relatedNodeId: node.id, selectedEdge: null });
       }
       if (!edgesFile) {
-        loadEdges();
+        void loadEdges();
       }
     }
   }, [activeTab, node.id, relatedNodeId, edgesFile, loadEdges]);
@@ -276,7 +277,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             <OverflowMenu
               moveTargets={moveTargets}
               onDelete={() => setShowDelete(true)}
-              onAIAnalysis={() => useTaxonomyStore.getState().runNodeCritique(pov, node)}
+              onAIAnalysis={() => void useTaxonomyStore.getState().runNodeCritique(pov, node)}
             />
           )}
         </div>
@@ -449,7 +450,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
                               key={li}
                               className="lineage-inline-link"
                               href="#"
-                              onClick={(e) => { e.preventDefault(); api.openExternal(link.url); }}
+                              onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
                               title={link.url}
                             >
                               {link.label}
@@ -499,6 +500,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
         {activeTab === 'research' && (
           <div className="node-detail-research">
+            <RelatedCruxes nodeId={node.id} />
             <div className="node-detail-research-header">
               <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
               <button
@@ -530,5 +532,69 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         />
       )}
     </div>
+  );
+}
+
+// ── Related Cruxes (shown in Research tab) ──
+
+const CRUX_TYPE_COLORS: Record<string, string> = {
+  empirical: 'var(--color-acc, #3b82f6)',
+  values: 'var(--color-saf, #ef4444)',
+  definitional: 'var(--color-skp, #f59e0b)',
+};
+
+function RelatedCruxes({ nodeId }: { nodeId: string }) {
+  const { aggregatedCruxes, navigateToNode } = useTaxonomyStore();
+  if (!aggregatedCruxes) return null;
+
+  const related = aggregatedCruxes.filter(c => c.linked_node_ids.includes(nodeId));
+  if (related.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+        Related Cruxes ({related.length})
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {related.map(crux => (
+          <CruxChip key={crux.id} crux={crux} onClick={() => navigateToNode('cruxes', crux.id)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void }) {
+  const rs = crux.resolution_summary;
+  const dominant = rs.resolved > 0 && rs.active === 0 ? 'resolved' : rs.irreducible > 0 && rs.active === 0 ? 'irreducible' : 'active';
+
+  return (
+    <button
+      className="btn btn-sm btn-ghost"
+      onClick={onClick}
+      title={`${crux.statement}\n\nType: ${crux.type} | Status: ${dominant}`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        textAlign: 'left', padding: '4px 8px', fontSize: '0.75rem',
+        lineHeight: 1.3, width: '100%',
+      }}
+    >
+      <span
+        style={{
+          display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+          backgroundColor: CRUX_TYPE_COLORS[crux.type] ?? 'var(--text-muted)',
+          flexShrink: 0,
+        }}
+      />
+      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {crux.statement}
+      </span>
+      <span style={{
+        fontSize: '0.65rem', flexShrink: 0,
+        color: dominant === 'resolved' ? 'var(--color-saf)' : dominant === 'irreducible' ? 'var(--color-skp)' : 'var(--text-muted)',
+      }}>
+        {dominant}
+      </span>
+    </button>
   );
 }

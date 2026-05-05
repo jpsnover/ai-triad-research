@@ -13,25 +13,16 @@ import { NodeDetail } from './NodeDetail';
 import { SituationDetail } from './SituationDetail';
 import { NewNodeDialog } from './NewNodeDialog';
 import { PinnedPanel } from './PinnedPanel';
-import { SearchPanel } from './SearchPanel';
 import { SearchPreview } from './SearchPreview';
 import { AnalysisPanel } from './AnalysisPanel';
-import { AttributeFilterPanel } from './AttributeFilterPanel';
-import { AttributeInfoPanel } from './AttributeInfoPanel';
-import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
-import { LineagePanel } from './LineagePanel';
-import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
-import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
-import { TerminalPanel } from './TerminalPanel';
+import { PromptDetailPanel } from './PromptsPanel';
+import { FallacyDetailPanel } from './FallacyPanel';
+import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel, classifyLineage } from '../data/lineageCategories';
 import { POV_KEYS } from '@lib/debate/types';
-import { EdgeBrowser } from './EdgeBrowser';
-import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
-import { PolicyDashboard } from './PolicyDashboard';
-import { VocabularyPanel } from './VocabularyPanel';
 import { api } from '@bridge';
 
 interface PovTabProps {
@@ -100,8 +91,9 @@ export function PovTab({ pov }: PovTabProps) {
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [lineageSecondaryValue, setLineageSecondaryValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
-  // Clear pane 3 webview + secondary preview when a different lineage value is selected in pane 1
-  useEffect(() => { setLineageLinkUrl(null); setLineageSecondaryValue(null); }, [lineagePreviewValue]);
+  const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
+  // Clear pane 3 webview + secondary/ref previews when a different lineage value is selected in pane 1
+  useEffect(() => { setLineageLinkUrl(null); setLineageSecondaryValue(null); setRefPreviewNodeId(null); }, [lineagePreviewValue]);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
@@ -150,11 +142,11 @@ export function PovTab({ pov }: PovTabProps) {
   // Trigger clustering when sort mode switches to similarity
   useEffect(() => {
     if (sortMode === 'similarity') {
-      runClusterView(pov);
+      void runClusterView(pov);
     } else {
       clearClusterView();
     }
-  }, [sortMode, pov]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sortMode, pov]);
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
   // Auto-select first node when tab loads and nothing is selected
@@ -162,7 +154,7 @@ export function PovTab({ pov }: PovTabProps) {
     if (!selectedNodeId && orderedIds.length > 0) {
       setSelectedNodeId(orderedIds[0]);
     }
-  }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pov]);
 
   const selectedNode = file ? file.nodes.find(n => n.id === selectedNodeId) || null : null;
 
@@ -195,7 +187,7 @@ export function PovTab({ pov }: PovTabProps) {
 
   const handleAnalyze = (elementB: { label: string; description: string; category: string }) => {
     if (selectedNode) {
-      runAnalyzeDistinction(
+      void runAnalyzeDistinction(
         { label: selectedNode.label, description: selectedNode.description, category: selectedNode.category },
         elementB,
       );
@@ -230,12 +222,12 @@ export function PovTab({ pov }: PovTabProps) {
     prevShowAnalysis.current = showAnalysisPanel;
     if (showAnalysisPanel === wasShowing) return;
     const delta = pane3Width + 4;
-    api.isMaximized().then((max) => {
+    void api.isMaximized().then((max) => {
       if (max) return;
-      if (showAnalysisPanel) api.growWindow(delta);
-      else api.shrinkWindow(delta);
+      if (showAnalysisPanel) void api.growWindow(delta);
+      else void api.shrinkWindow(delta);
     });
-  }, [showAnalysisPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showAnalysisPanel]);
 
   // Grow/shrink window for Edge Detail panel (only in non-toolbar mode where it's a new Pane 3)
   // Skip when toolbar=related or when NodeDetail's Related tab is handling edges inline
@@ -247,12 +239,12 @@ export function PovTab({ pov }: PovTabProps) {
     if (toolbarPanel === 'related') return;
     if (relatedNodeId && !toolbarPanel) return; // NodeDetail Related tab is active
     const delta = edgeDetailWidth + 4;
-    api.isMaximized().then((max) => {
+    void api.isMaximized().then((max) => {
       if (max) return;
-      if (showEdgeDetail) api.growWindow(delta);
-      else api.shrinkWindow(delta);
+      if (showEdgeDetail) void api.growWindow(delta);
+      else void api.shrinkWindow(delta);
     });
-  }, [showEdgeDetail, toolbarPanel, relatedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showEdgeDetail, toolbarPanel, relatedNodeId]);
 
   // Auto-refresh related edges when selection changes while toolbar panel is open
   // Only trigger when the user explicitly opened the toolbar Related panel (not NodeDetail's Related tab)
@@ -260,7 +252,7 @@ export function PovTab({ pov }: PovTabProps) {
     if (toolbarPanel === 'related' && selectedNode) {
       showRelatedEdges(selectedNode.id);
     }
-  }, [selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedNodeId]);
 
   // (Similar search auto-refresh is handled by SearchPanel)
 
@@ -282,7 +274,7 @@ export function PovTab({ pov }: PovTabProps) {
       const povFile = state[p];
       if (!povFile) continue;
       for (const node of povFile.nodes) {
-        if (node.graph_attributes?.intellectual_lineage?.some(v => v.toLowerCase() === normalizedValue)) {
+        if (node.graph_attributes?.intellectual_lineage?.some(v => { const s = typeof v === 'string' ? v : (v as { name?: string })?.name; return s?.toLowerCase() === normalizedValue; })) {
           referencingNodes.push({ id: node.id, label: node.label, pov: p, category: node.category });
         }
       }
@@ -295,9 +287,9 @@ export function PovTab({ pov }: PovTabProps) {
           {referencingNodes.map(ref => (
             <button
               key={ref.id}
-              className="btn btn-sm btn-ghost lineage-ref-item"
-              onClick={() => useTaxonomyStore.getState().navigateToNode(ref.pov as any, ref.id)}
-              title={`Open ${ref.id} in ${ref.pov} tree`}
+              className={`btn btn-sm${refPreviewNodeId === ref.id ? '' : ' btn-ghost'} lineage-ref-item`}
+              onClick={() => setRefPreviewNodeId(refPreviewNodeId === ref.id ? null : ref.id)}
+              title={`Preview ${ref.id}`}
             >
               <span className={`pov-badge pov-badge-${ref.pov.slice(0, 3)}`}>{ref.pov.slice(0, 3).toUpperCase()}</span>
               <span className="lineage-ref-label">{ref.label}</span>
@@ -389,6 +381,80 @@ export function PovTab({ pov }: PovTabProps) {
       );
     };
 
+    const renderRefPreview = () => {
+      if (!refPreviewNodeId) return null;
+      const st = useTaxonomyStore.getState();
+      let refNode: (import('../types/taxonomy').PovNode & { pov: string }) | null = null;
+      for (const p of POV_KEYS) {
+        const found = st[p]?.nodes.find(n => n.id === refPreviewNodeId);
+        if (found) { refNode = { ...found, pov: p }; break; }
+      }
+      if (!refNode) return null;
+
+      const sv = refNode.graph_attributes?.steelman_vulnerability;
+      const svText = typeof sv === 'string' ? sv : sv
+        ? Object.entries(sv).map(([k, v]) => `${k}: ${v}`).join('\n')
+        : null;
+      const lineageItems = refNode.graph_attributes?.intellectual_lineage ?? [];
+
+      return (
+        <div className="lineage-detail-secondary">
+          <div className="lineage-detail-secondary-header">
+            <div>
+              <div className="lineage-detail-secondary-eyebrow">Referenced By</div>
+              <h3 className="lineage-detail-secondary-title">
+                <span className={`pov-badge pov-badge-${refNode.pov.slice(0, 3)}`}>{refNode.pov.slice(0, 3).toUpperCase()}</span>
+                {' '}{refNode.category && <span className="lineage-category-badge">{refNode.category}</span>}
+              </h3>
+              <h3 className="lineage-detail-secondary-title">{refNode.label}</h3>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85em' }}>{refNode.id}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => void useTaxonomyStore.getState().navigateToNode(refNode!.pov as any, refNode!.id)}
+                title="Go to this node"
+              >Go to</button>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => setRefPreviewNodeId(null)}
+                title="Close preview"
+              >Close</button>
+            </div>
+          </div>
+          <div className="lineage-detail-section">
+            <div className="lineage-detail-label">Description</div>
+            <p className="lineage-detail-text">{refNode.description}</p>
+          </div>
+          {svText && (
+            <div className="lineage-detail-section">
+              <div className="lineage-detail-label">Steelman Vulnerability</div>
+              <p className="lineage-detail-text">{svText}</p>
+            </div>
+          )}
+          {lineageItems.length > 0 && (
+            <div className="lineage-detail-section">
+              <div className="lineage-detail-label">Intellectual Lineage</div>
+              <div className="lineage-detail-links">
+                {lineageItems.map((v, i) => {
+                  const s = typeof v === 'string' ? v : (v as { name?: string })?.name;
+                  if (!s) return null;
+                  return (
+                    <button
+                      key={i}
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setLineagePreviewValue(s)}
+                      title={`View lineage: ${s}`}
+                    >{s}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
@@ -397,6 +463,7 @@ export function PovTab({ pov }: PovTabProps) {
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
         {renderReferencedBy()}
+        {renderRefPreview()}
         {renderSeeAlso()}
         {renderSecondary()}
       </div>
@@ -434,40 +501,11 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         )}
         {renderReferencedBy()}
+        {renderRefPreview()}
         {renderSeeAlso()}
         {renderSecondary()}
       </div>
     );
-  };
-
-  // Render the promoted panel content for Pane 1
-  const renderToolbarPane = () => {
-    switch (toolbarPanel) {
-      case 'search':
-        return <SearchPanel onAnalyze={handleAnalyze} onSelectResult={setSearchPreviewId} />;
-      case 'related':
-        return <RelatedEdgesPanel />;
-      case 'attrFilter':
-        return <AttributeFilterPanel />;
-      case 'attrInfo':
-        return <AttributeInfoPanel />;
-      case 'lineage':
-        return <LineagePanel onSelectValue={setLineagePreviewValue} />;
-      case 'prompts':
-        return <PromptsPanel onSelectPrompt={handleSelectPrompt} onInspectorToggle={setPromptInspectorActive} />;
-      case 'fallacy':
-        return <FallacyPanel onSelectFallacy={handleSelectFallacy} />;
-      case 'console':
-        return <TerminalPanel />;
-      case 'policyAlignment':
-        return <PolicyAlignmentPanel />;
-      case 'policyDashboard':
-        return <PolicyDashboard />;
-      case 'vocabulary':
-        return <VocabularyPanel />;
-      default:
-        return null;
-    }
   };
 
   if (!file) {
@@ -477,25 +515,29 @@ export function PovTab({ pov }: PovTabProps) {
   return (
     <div className="two-column">
       {/* Pane 1: Node list OR promoted toolbar panel */}
-      {toolbarPanel === 'search' ? (
-        <div className="list-panel" style={{ width }}>
-          {renderToolbarPane()}
-        </div>
-      ) : toolbarPanel === 'edges' ? (
+      {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
-          <EdgeBrowser />
-        </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary') ? (
-        <div className="list-panel list-panel-full">
-          {renderToolbarPane()}
-        </div>
-      ) : (hasToolbarPane && toolbarPanel === 'prompts' && promptInspectorActive) ? (
-        <div className="list-panel list-panel-full">
-          {renderToolbarPane()}
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={setSearchPreviewId}
+            onAnalyze={handleAnalyze}
+            onSelectLineageValue={setLineagePreviewValue}
+            onSelectFallacy={handleSelectFallacy}
+            onSelectPrompt={handleSelectPrompt}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : hasToolbarPane ? (
         <div className="list-panel" style={{ width }}>
-          {renderToolbarPane()}
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={setSearchPreviewId}
+            onAnalyze={handleAnalyze}
+            onSelectLineageValue={setLineagePreviewValue}
+            onSelectFallacy={handleSelectFallacy}
+            onSelectPrompt={handleSelectPrompt}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
@@ -536,7 +578,7 @@ export function PovTab({ pov }: PovTabProps) {
           </div>
         </div>
       )}
-      {toolbarPanel !== 'attrFilter' && toolbarPanel !== 'console' && toolbarPanel !== 'edges' && toolbarPanel !== 'policyAlignment' && toolbarPanel !== 'policyDashboard' && toolbarPanel !== 'vocabulary' && !(toolbarPanel === 'prompts' && promptInspectorActive) && (
+      {!isFullWidthPanel(toolbarPanel, promptInspectorActive) && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
@@ -552,13 +594,12 @@ export function PovTab({ pov }: PovTabProps) {
             <div className="detail-panel-empty">Select an edge to view details</div>
           )}
         </div>
-      ) : (toolbarPanel === 'attrFilter' || toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary') ? null
+      ) : isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
       : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />
         </div>
-      )
-      : toolbarPanel === 'prompts' ? null : toolbarPanel === 'fallacy' ? (
+      ) : toolbarPanel === 'fallacy' ? (
         <div className="detail-panel">
           <FallacyDetailPanel fallacyKey={selectedFallacyKey} onSelectNode={handleFallacyNodeSelect} />
         </div>

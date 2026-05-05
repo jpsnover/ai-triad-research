@@ -204,7 +204,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={(e) => {
         e.stopPropagation();
-        api.clipboardWriteText(text);
+        void api.clipboardWriteText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
@@ -577,7 +577,7 @@ function CommitmentsPanel({ commitments, nodes, onGoToNode }: {
           padding: '4px 0', minWidth: 140, fontSize: '0.72rem',
         }}>
           <button
-            onClick={() => { navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
+            onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
             style={{
               display: 'block', width: '100%', textAlign: 'left',
               padding: '5px 12px', border: 'none', background: 'transparent',
@@ -617,7 +617,7 @@ function HelpContent() {
       <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
         Reference: Chesnevar, C., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., & Willmott, S. (2006).
         "Towards an Argument Interchange Format." <em>The Knowledge Engineering Review</em>, 21(4), 293-316.
-        [<a href="#" onClick={(e) => { e.preventDefault(); api.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
+        [<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://jmvidal.cse.sc.edu/library/chesnevar06a.pdf'); }} style={{ color: '#f59e0b' }}>PDF</a>]
       </p>
       <p>The core building blocks are:</p>
       <ul>
@@ -1236,7 +1236,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                   {c.computed_strength != null && (
                     <span
                       title="QBAF post-propagation acceptability: average computed strength across this debater's claims after attack/support edges are applied. Higher = arguments are holding up well under challenge."
-                      style={{ marginLeft: 6, cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                      style={{ marginLeft: 6, cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                     >
                       QBAF: {c.computed_strength.toFixed(3)} ({c.scored_count ?? '?'} scored)
                     </span>
@@ -1244,7 +1244,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                   {c.computed_strength == null && (c.claim_count ?? 0) > 0 && (
                     <span
                       title="QBAF strength propagation has not run yet. Strengths will appear after the debate engine computes post-propagation acceptability scores."
-                      style={{ marginLeft: 6, fontStyle: 'italic', cursor: 'help' }}
+                      style={{ marginLeft: 6, fontStyle: 'italic', cursor: 'default' }}
                     >
                       (no QBAF scores yet)
                     </span>
@@ -1264,7 +1264,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             <div style={{ fontSize: '0.72rem', marginBottom: 4 }}>
               <strong
                 title={'Convergence measures how much the debaters are moving toward agreement on the current issue.\n\nThree weighted signals:\n• Cross-speaker support ratio (40%): Of all cross-speaker edges in the argument network, what fraction are supports vs. attacks? More support edges = higher convergence.\n• Concession rate (35%): How many claims on this issue have been conceded? More concessions = debaters yielding ground.\n• Stance alignment (25%): How many speaker pairs have at least one mutual support edge? Measures breadth of agreement across all participants.\n\nScore range: 0% (pure opposition) → 50% (baseline/unknown) → 100% (full agreement).\nWhen convergence exceeds the threshold, the moderator may suggest exploring a new topic.'}
-                style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
               >Convergence:</strong> {(trace.convergence_score * 100).toFixed(0)}%
               {trace.convergence_triggered && <span style={{ color: '#22c55e', marginLeft: 6, fontWeight: 700 }}>TRIGGERED</span>}
             </div>
@@ -1295,7 +1295,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               <div>
                 <strong
                   title={'Composite debate health score (0.0–1.0). Weighted average of 5 components:\n• Engagement ×0.25 — are debaters substantively engaging with each other\'s claims?\n• Novelty ×0.25 — are debaters introducing new ideas rather than recycling?\n• Responsiveness ×0.20 — are debaters taking concession opportunities when warranted?\n• Coverage ×0.15 — what fraction of relevant taxonomy nodes have been cited?\n• Balance ×0.15 — are all debaters getting roughly equal speaking time?\n\nComputed over a sliding window of the last 3 convergence signals.\nGreen (≥0.70): healthy debate. Amber (0.40–0.69): degrading. Red (<0.40): intervention likely needed.\nWhen a component drops below its SLI floor for 2+ consecutive turns, the moderator auto-triggers an intervention.'}
-                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                  style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                 >Health:</strong>{' '}
                 <span style={{ color: trace.health_score >= 0.7 ? '#22c55e' : trace.health_score >= 0.4 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
                   {trace.health_score.toFixed(2)}
@@ -1306,7 +1306,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               <div>
                 <strong
                   title={'Intervention budget — how many moderator interventions remain.\n\nBudget = ceil(exploration_rounds / 2.5). For a 20-round debate with ~17 exploration rounds, budget ≈ 7.\nEach intervention (except COMMIT) consumes 1 budget unit.\nWhen budget reaches 0, no further interventions can fire (except off-budget COMMIT moves in synthesis phase).\nThis prevents the moderator from over-intervening and dominating the debate.'}
-                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                  style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                 >Budget:</strong> {trace.budget_remaining}/{trace.budget_total}
               </div>
             )}
@@ -1314,7 +1314,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               <div>
                 <strong
                   title={'Cooldown — minimum rounds that must pass before the next intervention.\n\nAfter an intervention fires, the moderator enforces a 1-round gap before acting again.\nExempt from cooldown: Reconciliation (ACKNOWLEDGE, REVOICE), Elicitation (PIN, PROBE, CHALLENGE), and COMMIT.\n\n"ready" = cooldown expired, moderator can intervene if triggered.\n"N round(s)" = must wait N more rounds before the next intervention.'}
-                  style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                  style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                 >Cooldown:</strong> {trace.cooldown_rounds_left > 0 ? `${trace.cooldown_rounds_left} round(s)` : 'ready'}
               </div>
             )}
@@ -1330,7 +1330,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                   balance: 'Balance (weight: 0.15, SLI floor: 0.30)\n\nMeasures whether all debaters are getting roughly equal speaking time.\nComputed as: 1 − (max_turns − min_turns) / total_turns.\n1.0 = perfectly balanced; 0.0 = one debater completely dominated.\n\nLow balance means one debater is being sidelined — triggers procedural interventions (BALANCE, REDIRECT).',
                 };
                 return (
-                  <span key={k} title={tooltips[k] || k} style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--bg-primary)', border: '1px solid var(--border)', cursor: 'help' }}>
+                  <span key={k} title={tooltips[k] || k} style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--bg-primary)', border: '1px solid var(--border)', cursor: 'default' }}>
                     {k}: {(v as number).toFixed(2)}
                   </span>
                 );
@@ -1341,7 +1341,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 6 }}>
               <strong
                 title={'Burden — cumulative intervention load per debater.\n\nEach intervention adds a burden weight based on its family:\n• Elicitation (PIN, PROBE, CHALLENGE): 1.0 — most disruptive\n• Synthesis (COMPRESS, COMMIT): 0.8\n• Repair (CLARIFY, CHECK, SUMMARIZE): 0.75\n• Reflection (META-REFLECT): 0.6\n• Procedural (REDIRECT, BALANCE, SEQUENCE): 0.5\n• Reconciliation (ACKNOWLEDGE, REVOICE): 0.25 — least disruptive\n\nBurden cap: if a debater\'s burden exceeds 1.5× the average burden, high-burden moves (weight > 0.5) against that debater are suppressed.\nThis prevents the moderator from repeatedly targeting the same debater.'}
-                style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}
+                style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
               >Burden:</strong>{' '}
               {Object.entries(trace.burden_per_debater).map(([d, b]) => `${d}: ${(b as number).toFixed(2)}`).join(', ')}
             </div>
@@ -1458,7 +1458,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
 
         if (!editable) {
           return (
-            <span key={key} title={subScoreTip(key, v)} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'help' }}>
+            <span key={key} title={subScoreTip(key, v)} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'default' }}>
               {label}: {v.toFixed(2)}
             </span>
           );
@@ -1563,7 +1563,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
               </span>
             );
           })()}
-          {hasChildren && <span title={`${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim`} style={{ color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'help' }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
+          {hasChildren && <span title={`${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim`} style={{ color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'default' }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
@@ -1585,7 +1585,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                   {contribution != null && (
-                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'help', opacity: hasWeight ? 1 : 0.5 }}>
+                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
                       −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
                     </span>
                   )}
@@ -1627,7 +1627,7 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="RA-node" />
                   {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
                   {contributionS != null && (
-                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'help', opacity: hasWeightS ? 1 : 0.5 }}>
+                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
                       +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStrS.toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
                     </span>
                   )}
@@ -1738,7 +1738,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   // Load POV/situations taxonomy files once so we can resolve taxonomy_refs by id
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const files = await Promise.all([
           api.loadTaxonomyFile('accelerationist').catch(() => null),
@@ -3789,7 +3789,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             return (
                               <details key={i} style={{ margin: '4px 0' }}>
                                 <summary style={{ cursor: 'pointer' }}>
-                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'help' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                                   {outEdges.length > 0 && (
                                     <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
                                       [{edgeSummary}]
@@ -3824,7 +3824,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           })}
                           {diag.extracted_claims.rejected.map((c, i) => (
                             <div key={i} style={{ margin: '3px 0' }}>
-                              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'help' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                              <span style={{ color: '#ef4444' }}>✗</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nRejected: ${c.reason === 'low_overlap' ? 'overlap too low (not grounded)' : c.reason === 'duplicate_claim' ? 'duplicate (too similar to existing AN node)' : c.reason}.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
                               <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                             </div>
                           ))}
@@ -3844,7 +3844,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     }}
                   >
                     <button
-                      onClick={() => { navigator.clipboard.writeText(textCopyMenu.text); setTextCopyMenu(null); }}
+                      onClick={() => { void navigator.clipboard.writeText(textCopyMenu.text); setTextCopyMenu(null); }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '5px 12px', border: 'none', background: 'transparent',

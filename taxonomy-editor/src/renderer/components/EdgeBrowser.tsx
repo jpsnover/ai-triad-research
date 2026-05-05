@@ -128,7 +128,7 @@ export function EdgeBrowser() {
 
   // Load edges on mount
   useEffect(() => {
-    if (!edgesFile && !edgesLoading) loadEdges();
+    if (!edgesFile && !edgesLoading) void loadEdges();
   }, [edgesFile, edgesLoading, loadEdges]);
 
   // Build indexed edges
@@ -302,8 +302,8 @@ export function EdgeBrowser() {
           </div>
           <button className="btn btn-sm" onClick={resetFilters}>Reset</button>
           <span className="eb-count">{filteredEdges.length} / {indexedEdges.length}</span>
-          <button className="btn btn-sm eb-bulk-approve" onClick={() => handleBulkUpdate('approved')}>Approve ({filteredEdges.length})</button>
-          <button className="btn btn-sm eb-bulk-reject" onClick={() => handleBulkUpdate('rejected')}>Reject ({filteredEdges.length})</button>
+          <button className="btn btn-sm eb-bulk-approve" onClick={() => void handleBulkUpdate('approved')}>Approve ({filteredEdges.length})</button>
+          <button className="btn btn-sm eb-bulk-reject" onClick={() => void handleBulkUpdate('rejected')}>Reject ({filteredEdges.length})</button>
         </div>
       </div>
 
@@ -341,8 +341,8 @@ export function EdgeBrowser() {
                 {edge.status !== 'approved' && <span className={`eb-row-status status-${edge.status}`}>{edge.status}</span>}
                 {edge.status === 'proposed' && (
                   <span className="eb-row-actions">
-                    <button className="eb-row-btn eb-approve" onClick={(e) => { e.stopPropagation(); handleStatusUpdate(edge.index, 'approved'); }} title="Approve">&#10003;</button>
-                    <button className="eb-row-btn eb-reject" onClick={(e) => { e.stopPropagation(); handleStatusUpdate(edge.index, 'rejected'); }} title="Reject">&#10007;</button>
+                    <button className="eb-row-btn eb-approve" onClick={(e) => { e.stopPropagation(); void handleStatusUpdate(edge.index, 'approved'); }} title="Approve">&#10003;</button>
+                    <button className="eb-row-btn eb-reject" onClick={(e) => { e.stopPropagation(); void handleStatusUpdate(edge.index, 'rejected'); }} title="Reject">&#10007;</button>
                   </span>
                 )}
               </div>
@@ -408,14 +408,14 @@ export function EdgeBrowser() {
                 <div className="eb-detail-actions-left">
                   {selectedEdge.status === 'approved'
                     ? <span className="eb-status-label eb-status-approved">&#10003; Approved</span>
-                    : <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'approved', true)}>Approve</button>
+                    : <button className="btn btn-sm" onClick={() => void handleStatusUpdate(selectedEdge.index, 'approved', true)}>Approve</button>
                   }
                   {selectedEdge.status === 'rejected'
                     ? <span className="eb-status-label eb-status-rejected">&#10007; Rejected</span>
-                    : <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'rejected', true)}>Reject</button>
+                    : <button className="btn btn-sm" onClick={() => void handleStatusUpdate(selectedEdge.index, 'rejected', true)}>Reject</button>
                   }
-                  <button className="btn btn-sm" onClick={() => handleStatusUpdate(selectedEdge.index, 'proposed')}>Reset</button>
-                  <button className="btn btn-sm eb-swap-btn" onClick={() => handleSwapDirection(selectedEdge.index)} title="Swap source and target">&#8646; Swap</button>
+                  <button className="btn btn-sm" onClick={() => void handleStatusUpdate(selectedEdge.index, 'proposed')}>Reset</button>
+                  <button className="btn btn-sm eb-swap-btn" onClick={() => void handleSwapDirection(selectedEdge.index)} title="Swap source and target">&#8646; Swap</button>
                 </div>
                 <div className="eb-detail-nav">
                   <button className="btn btn-sm" disabled={currentFilteredIdx <= 0} onClick={goPrev}>&larr; Prev</button>

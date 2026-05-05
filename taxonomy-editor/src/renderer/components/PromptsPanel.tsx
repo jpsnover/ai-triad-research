@@ -231,7 +231,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
       }).catch(() => {});
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [generatePromptText]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [generatePromptText]);
 
   const handleCopy = async () => {
     try {

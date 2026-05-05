@@ -55,7 +55,7 @@ export function TerminalPanel() {
 
     // Send user input to the pty
     term.onData((data) => {
-      api.terminalWrite(data);
+      void api.terminalWrite(data);
     });
 
     // Receive pty output
@@ -70,14 +70,14 @@ export function TerminalPanel() {
     });
 
     // Spawn the pty
-    api.terminalSpawn().then(() => setStarted(true));
+    void api.terminalSpawn().then(() => setStarted(true));
 
     // Resize handling
     const resizeObserver = new ResizeObserver(() => {
       if (fitRef.current) {
         fitRef.current.fit();
         if (termRef.current) {
-          api.terminalResize(termRef.current.cols, termRef.current.rows);
+          void api.terminalResize(termRef.current.cols, termRef.current.rows);
         }
       }
     });

@@ -143,7 +143,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
     if (e.key === 'Enter') {
       e.preventDefault();
       if (mode === 'similar') {
-        runSimilarSearch();
+        void runSimilarSearch();
       } else if (matches.length > 0) {
         // Navigate to next match
         const next = (activeMatchIdx + 1) % matches.length;
@@ -160,7 +160,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
 
   useEffect(() => {
     if (matches.length > 0) scrollToMatch(activeMatchIdx);
-  }, [activeMatchIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeMatchIdx]);
 
   // Render content with highlights
   const highlightedContent = useMemo(() => {

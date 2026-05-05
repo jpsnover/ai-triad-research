@@ -7,17 +7,11 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewChatDialog } from './NewChatDialog';
 import { ChatWorkspace } from './ChatWorkspace';
-import { SearchPanel } from './SearchPanel';
 import { SearchPreview } from './SearchPreview';
-import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { FallacyPanel } from './FallacyPanel';
-import { EdgeBrowser } from './EdgeBrowser';
-import { TerminalPanel } from './TerminalPanel';
-import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
-import { PolicyDashboard } from './PolicyDashboard';
-import { VocabularyPanel } from './VocabularyPanel';
+import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import { POVER_INFO } from '../types/debate';
 import type { ChatSessionSummary, ChatMode } from '../types/chat';
 
@@ -49,12 +43,12 @@ export function ChatTab() {
   const [listCollapsed, setListCollapsed] = useState(false);
 
   useEffect(() => {
-    loadSessions();
+    void loadSessions();
   }, [loadSessions]);
 
   const handleSelect = (session: ChatSessionSummary) => {
     if (session.id !== activeChatId) {
-      loadChat(session.id);
+      void loadChat(session.id);
     }
   };
 
@@ -67,18 +61,14 @@ export function ChatTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
-        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
-          {toolbarPanel === 'search' && <SearchPanel onSelectResult={setSearchPreviewId} />}
-          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
-          {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
-          {toolbarPanel === 'edges' && <EdgeBrowser />}
-          {toolbarPanel === 'console' && <TerminalPanel />}
-          {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
-          {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
-          {toolbarPanel === 'vocabulary' && <VocabularyPanel />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary'].includes(toolbarPanel) && (
-            <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
-          )}
+        <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
+             style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={setSearchPreviewId}
+            onSelectPrompt={setSelectedPromptEntry}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
@@ -120,7 +110,7 @@ export function ChatTab() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && renameValue.trim()) {
                         e.stopPropagation();
-                        renameChat(s.id, renameValue.trim());
+                        void renameChat(s.id, renameValue.trim());
                         setRenamingId(null);
                       } else if (e.key === 'Escape') {
                         setRenamingId(null);
@@ -128,7 +118,7 @@ export function ChatTab() {
                     }}
                     onBlur={() => {
                       if (renameValue.trim() && renameValue.trim() !== s.title) {
-                        renameChat(s.id, renameValue.trim());
+                        void renameChat(s.id, renameValue.trim());
                       }
                       setRenamingId(null);
                     }}
@@ -156,7 +146,7 @@ export function ChatTab() {
                 {confirmDeleteId === s.id ? (
                   <div className="chat-session-item-confirm">
                     <span>Delete?</span>
-                    <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}>Yes</button>
+                    <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); void handleDelete(s.id); }}>Yes</button>
                     <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
                   </div>
                 ) : (
@@ -175,7 +165,7 @@ export function ChatTab() {
       )}
 
       {/* Right pane: context-dependent */}
-      {(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
+      {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
         : toolbarPanel === 'search' ? (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
@@ -188,6 +178,13 @@ export function ChatTab() {
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
             <PromptDetailPanel entry={selectedPromptEntry} />
+          </div>
+        </>
+      ) : toolbarPanel ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <div className="detail-panel-empty">Select an item in the {toolbarPanel} panel</div>
           </div>
         </>
       ) : (

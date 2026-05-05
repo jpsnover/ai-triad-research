@@ -305,7 +305,7 @@ $SnapshotText
         try {
             $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
             if ($Resolution.Resolved.Count -gt 0) {
-                $SummaryObject.unmapped_concepts = $Resolution.Remaining
+                $SummaryObject.unmapped_concepts = @($Resolution.Remaining)
                 Write-Verbose "Pipeline: resolved $($Resolution.Resolved.Count) unmapped concept(s)"
             }
         }

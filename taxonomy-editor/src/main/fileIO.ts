@@ -277,6 +277,14 @@ export function readPolicyRegistry(): unknown {
   return parseJsonFile(filePath);
 }
 
+export function readAggregatedCruxes(): unknown | null {
+  const filePath = path.join(activeTaxonomyDir, 'aggregated-cruxes.json');
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return parseJsonFile(filePath);
+  } catch { return null; }
+}
+
 export function readConflictClusters(): unknown | null {
   const filePath = path.join(CONFLICTS_DIR, '_conflict-clusters.json');
   if (!fs.existsSync(filePath)) return null;

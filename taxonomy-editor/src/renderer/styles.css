@@ -862,7 +862,7 @@ body {
   border-radius: 3px;
   margin-left: 6px;
   vertical-align: middle;
-  cursor: help;
+  cursor: default;
 }
 
 /* ─── Node list items ──────────────────────────────────── */
@@ -3787,7 +3787,7 @@ body {
   color: var(--text-muted);
   font-size: 0.55rem;
   font-weight: 700;
-  cursor: help;
+  cursor: default;
   padding: 0;
   line-height: 1;
   transition: all 0.15s;
@@ -7359,9 +7359,9 @@ body {
 .factcheck-detail-explanation { font-size: 0.62rem; line-height: 1.4; white-space: pre-wrap; color: var(--text-primary); }
 
 /* Intervention diagnostics */
-.diag-verification-verified { background: rgba(34,197,94,0.15); color: #22c55e; font-size: 0.5rem; cursor: help; }
-.diag-verification-disputed { background: rgba(239,68,68,0.15); color: #ef4444; font-size: 0.5rem; cursor: help; }
-.diag-verification-unverifiable { background: rgba(156,163,175,0.15); color: #9ca3af; font-size: 0.5rem; cursor: help; }
+.diag-verification-verified { background: rgba(34,197,94,0.15); color: #22c55e; font-size: 0.5rem; cursor: default; }
+.diag-verification-disputed { background: rgba(239,68,68,0.15); color: #ef4444; font-size: 0.5rem; cursor: default; }
+.diag-verification-unverifiable { background: rgba(156,163,175,0.15); color: #9ca3af; font-size: 0.5rem; cursor: default; }
 .diag-ledger-entry { margin: 4px 0; padding: 4px 0; border-bottom: 1px solid var(--border); }
 .diag-ledger-addressed { opacity: 0.6; }
 .diag-missing-arg { margin: 6px 0; padding: 4px 0; border-bottom: 1px solid var(--border); }
@@ -12349,7 +12349,7 @@ th[data-tooltip]::after {
 }
 /* Extraction detail grid: show tooltip to the right */
 .extraction-detail span[data-tooltip] {
-  cursor: help;
+  cursor: default;
 }
 .diag-timeline-legend {
   display: flex;

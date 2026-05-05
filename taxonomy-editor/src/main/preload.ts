@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadConflictClusters: (): Promise<unknown | null> =>
     ipcRenderer.invoke('load-conflict-clusters'),
 
+  loadAggregatedCruxes: (): Promise<unknown | null> =>
+    ipcRenderer.invoke('load-aggregated-cruxes'),
+
   // Summaries & Sources
   discoverSources: (): Promise<unknown[]> =>
     ipcRenderer.invoke('discover-sources'),

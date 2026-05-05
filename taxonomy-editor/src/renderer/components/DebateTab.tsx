@@ -7,20 +7,13 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewDebateDialog } from './NewDebateDialog';
-import { SearchPanel } from './SearchPanel';
 import { SearchPreview } from './SearchPreview';
-import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
+import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { FallacyPanel } from './FallacyPanel';
-import { EdgeBrowser } from './EdgeBrowser';
-import { TerminalPanel } from './TerminalPanel';
-import { PolicyAlignmentPanel } from './PolicyAlignmentPanel';
-import { PolicyDashboard } from './PolicyDashboard';
-import { VocabularyPanel } from './VocabularyPanel';
+import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import type { DebateSession } from '../types/debate';
 import { ParameterHistoryPanel } from './ParameterHistoryPanel';
-import { CalibrationDashboard } from './CalibrationDashboard';
 import { api } from '@bridge';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -128,12 +121,12 @@ export function DebateTab() {
   }, []);
 
   useEffect(() => {
-    loadSessions();
+    void loadSessions();
   }, [loadSessions]);
 
   const handleSelect = (session: { id: string }) => {
     if (session.id !== activeDebateId) {
-      loadDebate(session.id);
+      void loadDebate(session.id);
     }
   };
 
@@ -155,19 +148,14 @@ export function DebateTab() {
     <div className="two-column">
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
-        <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'calibration' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || toolbarPanel === 'calibration' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
-          {toolbarPanel === 'search' && <SearchPanel onSelectResult={(id) => setSearchPreviewId(id)} />}
-          {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
-          {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
-          {toolbarPanel === 'edges' && <EdgeBrowser />}
-          {toolbarPanel === 'console' && <TerminalPanel />}
-          {toolbarPanel === 'policyAlignment' && <PolicyAlignmentPanel />}
-          {toolbarPanel === 'policyDashboard' && <PolicyDashboard />}
-          {toolbarPanel === 'vocabulary' && <VocabularyPanel />}
-          {toolbarPanel === 'calibration' && <CalibrationDashboard />}
-          {!['search', 'prompts', 'fallacy', 'edges', 'console', 'policyAlignment', 'policyDashboard', 'vocabulary', 'calibration'].includes(toolbarPanel) && (
-            <div style={{ padding: 16, color: 'var(--text-muted)' }}>Panel: {toolbarPanel}</div>
-          )}
+        <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
+             style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
+          <ToolbarPaneRenderer
+            panel={toolbarPanel}
+            onSelectResult={(id) => setSearchPreviewId(id)}
+            onSelectPrompt={setSelectedPromptEntry}
+            onInspectorToggle={setPromptInspectorActive}
+          />
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
@@ -247,7 +235,7 @@ export function DebateTab() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && renameValue.trim()) {
                         e.stopPropagation();
-                        renameDebate(s.id, renameValue.trim());
+                        void renameDebate(s.id, renameValue.trim());
                         setRenamingId(null);
                       } else if (e.key === 'Escape') {
                         setRenamingId(null);
@@ -255,7 +243,7 @@ export function DebateTab() {
                     }}
                     onBlur={() => {
                       if (renameValue.trim() && renameValue.trim() !== s.title) {
-                        renameDebate(s.id, renameValue.trim());
+                        void renameDebate(s.id, renameValue.trim());
                       }
                       setRenamingId(null);
                     }}
@@ -318,25 +306,30 @@ export function DebateTab() {
         </div>
       )}
 
-      {toolbarPanel === 'search' && (
+      {/* Right pane: context-dependent */}
+      {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
+        : toolbarPanel === 'search' ? (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
             <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
           </div>
         </>
-      )}
-
-      {toolbarPanel === 'prompts' && !promptInspectorActive && (
+      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
             <PromptDetailPanel entry={selectedPromptEntry} />
           </div>
         </>
-      )}
-
-      {!toolbarPanel && (
+      ) : toolbarPanel ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <div className="detail-panel-empty">Select an item in the {toolbarPanel} panel</div>
+          </div>
+        </>
+      ) : (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
