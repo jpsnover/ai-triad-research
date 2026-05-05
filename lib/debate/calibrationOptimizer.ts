@@ -103,7 +103,7 @@ function optimizeExplorationExit(data: CalibrationDataPoint[]): OptimizationResu
  * Parameter 2: Embedding relevance threshold.
  * Minimize waste (1 - utilization) while keeping primary utilization high.
  */
-function optimizeRelevanceThreshold(data: CalibrationDataPoint[]): OptimizationResult | null {
+export function optimizeRelevanceThreshold(data: CalibrationDataPoint[]): OptimizationResult | null {
   const valid = data.filter(d => d.avg_utilization_rate != null);
   if (valid.length < 5) return null;
 
@@ -130,6 +130,79 @@ function optimizeRelevanceThreshold(data: CalibrationDataPoint[]): OptimizationR
     rationale: `Avg utilization ${(avgUtil * 100).toFixed(0)}%, primary utilization ${(avgPrimary * 100).toFixed(0)}%` +
       (recommended !== current ? ` — adjusting ${current} → ${recommended.toFixed(2)}` : ' — no change needed'),
   };
+}
+
+// ── Adaptive write-back ─────────────────────────────────────
+
+export interface AdaptiveState {
+  debates_since_last_adjustment: number;
+  last_adjusted_at: string | null;
+}
+
+/**
+ * Apply the relevance threshold recommendation to provisional-weights.json
+ * if safety rails pass. Called after each completed debate.
+ */
+export function applyRelevanceThresholdAdaptation(
+  recommendation: OptimizationResult | null,
+  state: AdaptiveState,
+  weightsPath?: string,
+): { applied: boolean; reason: string } {
+  if (!recommendation) return { applied: false, reason: 'no recommendation' };
+  if (recommendation.current_value === recommendation.recommended_value) {
+    return { applied: false, reason: 'no change needed' };
+  }
+
+  // Safety rail 1: minimum 5 debates since last adjustment
+  if (state.debates_since_last_adjustment < 5) {
+    return { applied: false, reason: `only ${state.debates_since_last_adjustment}/5 debates since last adjustment` };
+  }
+
+  // Safety rail 2: confidence must be at least medium
+  if (recommendation.confidence === 'low') {
+    return { applied: false, reason: 'confidence too low (need medium+)' };
+  }
+
+  // Safety rail 3: bounds check (redundant with optimizer, but defense-in-depth)
+  const newValue = recommendation.recommended_value as number;
+  if (newValue < 0.35 || newValue > 0.60) {
+    return { applied: false, reason: `recommended ${newValue} outside bounds [0.35, 0.60]` };
+  }
+
+  const targetPath = weightsPath ?? path.resolve(__dirname, 'provisional-weights.json');
+
+  try {
+    const raw = fs.readFileSync(targetPath, 'utf-8');
+    const weights = JSON.parse(raw);
+
+    // Safety rail 4: manual override
+    if (weights.relevance?.adaptation_enabled === false) {
+      return { applied: false, reason: 'adaptation_enabled is false (manual override)' };
+    }
+
+    const oldValue = weights.relevance?.embedding_threshold ?? 0.48;
+    if (!weights.relevance) weights.relevance = {};
+    weights.relevance.embedding_threshold = newValue;
+
+    // Record adjustment metadata
+    if (!weights.relevance.adaptation_history) weights.relevance.adaptation_history = [];
+    weights.relevance.adaptation_history.push({
+      from: oldValue,
+      to: newValue,
+      at: new Date().toISOString(),
+      rationale: recommendation.rationale,
+      data_points: recommendation.data_points_used,
+    });
+    // Keep only last 10 history entries
+    if (weights.relevance.adaptation_history.length > 10) {
+      weights.relevance.adaptation_history = weights.relevance.adaptation_history.slice(-10);
+    }
+
+    fs.writeFileSync(targetPath, JSON.stringify(weights, null, 2) + '\n', 'utf-8');
+    return { applied: true, reason: `adjusted ${oldValue} → ${newValue}: ${recommendation.rationale}` };
+  } catch (err) {
+    return { applied: false, reason: `write failed: ${(err as Error).message}` };
+  }
 }
 
 /**
@@ -780,7 +853,10 @@ export function recalibrateParameters(
           case 'budget.hard_multiplier':
             if (weights.budget) weights.budget.hard_multiplier = result.recommended_value as number;
             break;
-          // relevance_threshold, draft_temperature, attack_weights, recent_window,
+          case 'relevance_threshold':
+            if (weights.relevance) weights.relevance.embedding_threshold = result.recommended_value as number;
+            break;
+          // draft_temperature, attack_weights, recent_window,
           // crux thresholds, node caps, and recycling threshold are not yet in
           // provisional-weights.json — logged for manual review until externalized
         }

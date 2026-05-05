@@ -80,7 +80,11 @@ import {
   moderatorInterventionPrompt,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
-import { extractCalibrationData, appendCalibrationLog } from './calibrationLogger.js';
+import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
+import {
+  optimizeRelevanceThreshold,
+  applyRelevanceThresholdAdaptation,
+} from './calibrationOptimizer.js';
 import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
@@ -225,6 +229,8 @@ export class DebateEngine {
   private _midpointEvalDone = false;
   /** Cached opening statement embeddings for position drift detection. */
   private _openingEmbeddings = new Map<string, number[]>();
+  /** Cached opening claim embeddings for per-claim drift tracking. */
+  private _openingClaims = new Map<string, Array<{ id: string; text: string; embedding: number[] }>>();
   /** How many gap injections have fired so far (initial + responsive). */
   private _gapInjectionCount = 0;
   /** Accumulated context manifests across turns — for taxonomy gap analysis. */
@@ -308,6 +314,7 @@ export class DebateEngine {
 
       // Cache opening embeddings for position drift detection
       await this.cacheOpeningEmbeddings();
+      await this.cacheOpeningClaims();
 
       // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
       await this.runNeutralCheckpoint('baseline');
@@ -383,6 +390,9 @@ export class DebateEngine {
       const repoRoot = resolveRepoRoot(__engineDir);
       const dataRoot = resolveDataRoot(repoRoot);
       appendCalibrationLog(dataPoint, dataRoot);
+
+      // Post-debate adaptive threshold write-back
+      this.runPostDebateCalibration(dataRoot);
     } catch (calErr) {
       // Calibration logging failure never blocks debate completion
       this.warn('Calibration logging', calErr, 'Non-critical — debate results unaffected');
@@ -1927,6 +1937,7 @@ export class DebateEngine {
 
     // Position drift detection (non-blocking)
     this.trackPositionDrift(responder, statement, round).catch(err => this.warn('Position drift', String(err), 'Drift tracking skipped'));
+    this.trackPerClaimDrift(responder, round).catch(err => this.warn('Per-claim drift', String(err), 'Per-claim drift tracking skipped'));
 
     // Post-turn summarization (DT-2)
     this.summarizeEntry(entry).catch(err => this.warn('Summarization', String(err), 'Entry summarization skipped'));
@@ -2790,6 +2801,133 @@ export class DebateEngine {
   }
 
   /**
+   * Cache opening claim embeddings from the AN for per-claim drift tracking.
+   * Called after opening statements + first AN extraction.
+   */
+  private async cacheOpeningClaims(): Promise<void> {
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding) return;
+    const an = this.session.argument_network;
+    if (!an) return;
+
+    // Group opening AN nodes by speaker (turn_number 0..2 = opening round)
+    const bySpeaker = new Map<string, Array<{ id: string; text: string }>>();
+    const openingTurnMax = (this.config.activePovers?.length ?? 3) - 1;
+    for (const node of an.nodes) {
+      if (node.turn_number <= openingTurnMax && node.speaker && node.speaker !== 'system' && node.speaker !== 'document') {
+        const list = bySpeaker.get(node.speaker) ?? [];
+        list.push({ id: node.id, text: node.text });
+        bySpeaker.set(node.speaker, list);
+      }
+    }
+
+    for (const [speaker, nodes] of bySpeaker) {
+      const claims: Array<{ id: string; text: string; embedding: number[] }> = [];
+      for (const node of nodes.slice(0, 8)) {
+        try {
+          const { vector } = await adapter.computeQueryEmbedding(node.text.slice(0, 300));
+          claims.push({ id: node.id, text: node.text, embedding: vector });
+        } catch { /* non-critical */ }
+      }
+      if (claims.length > 0) {
+        this._openingClaims.set(speaker, claims);
+      }
+    }
+  }
+
+  /**
+   * Track per-claim drift: compare each opening claim embedding against
+   * current-round claims to classify as maintained/refined/abandoned.
+   */
+  private async trackPerClaimDrift(
+    speaker: Exclude<PoverId, 'user'>,
+    round: number,
+  ): Promise<void> {
+    const openingClaims = this._openingClaims.get(speaker);
+    if (!openingClaims || openingClaims.length === 0) return;
+
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding) return;
+
+    const an = this.session.argument_network;
+    if (!an) return;
+
+    // Get current-round AN nodes for this speaker
+    const currentTurnNumber = this.session.transcript
+      .filter(e => (e.type === 'statement' || e.type === 'opening') && e.speaker === speaker)
+      .length - 1;
+    const currentClaims = an.nodes.filter(n =>
+      n.speaker === speaker && n.turn_number === currentTurnNumber,
+    );
+    if (currentClaims.length === 0) return;
+
+    // Embed current claims
+    const currentEmbeddings: Array<{ id: string; embedding: number[] }> = [];
+    for (const claim of currentClaims.slice(0, 8)) {
+      try {
+        const { vector } = await adapter.computeQueryEmbedding(claim.text.slice(0, 300));
+        currentEmbeddings.push({ id: claim.id, embedding: vector });
+      } catch { /* skip */ }
+    }
+    if (currentEmbeddings.length === 0) return;
+
+    // Get conceded claim IDs for this speaker
+    const concededIds = new Set<string>();
+    const concessions = this.session.commitments?.[speaker]?.conceded ?? [];
+    for (const concText of concessions) {
+      // Match concession text against opening claim text (fuzzy)
+      for (const oc of openingClaims) {
+        if (oc.text.toLowerCase().includes(concText.toLowerCase().slice(0, 40))
+          || concText.toLowerCase().includes(oc.text.toLowerCase().slice(0, 40))) {
+          concededIds.add(oc.id);
+        }
+      }
+    }
+
+    // Compare each opening claim against current claims
+    const entries: import('./types.js').ClaimDriftEntry[] = [];
+    for (const opening of openingClaims) {
+      let bestSim = 0;
+      for (const current of currentEmbeddings) {
+        const sim = cosineSimilarity(current.embedding, opening.embedding);
+        if (sim > bestSim) bestSim = sim;
+      }
+
+      const concessionExempt = concededIds.has(opening.id);
+      let status: 'maintained' | 'refined' | 'abandoned';
+      if (bestSim >= 0.7) status = 'maintained';
+      else if (bestSim >= 0.3) status = 'refined';
+      else status = 'abandoned';
+
+      entries.push({ claim_id: opening.id, similarity: bestSim, status, concession_exempt: concessionExempt });
+    }
+
+    // Compute sycophancy score
+    const abandonedNoExcuse = entries.filter(e => e.status === 'abandoned' && !e.concession_exempt);
+    const sycophancyScore = abandonedNoExcuse.length / entries.length;
+
+    if (!this.session.per_claim_drift) this.session.per_claim_drift = [];
+    this.session.per_claim_drift.push({ round, speaker, claims: entries, sycophancy_score: sycophancyScore });
+
+    // Fire guard if >50% abandoned without concession after 3+ turns
+    if (sycophancyScore > 0.5 && round >= 3) {
+      const abandonedTexts = abandonedNoExcuse
+        .map(e => openingClaims.find(c => c.id === e.claim_id)?.text)
+        .filter(Boolean) as string[];
+      const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
+      const entry = this.addEntry({
+        type: 'system',
+        speaker: 'system',
+        content: `[Sycophancy guard — per-claim] ${speakerLabel} has abandoned ${abandonedNoExcuse.length}/${entries.length} opening claims without concession (score: ${sycophancyScore.toFixed(2)}). Abandoned: ${abandonedTexts.slice(0, 3).map(t => `"${t.slice(0, 60)}…"`).join(', ')}`,
+        taxonomy_refs: [],
+      });
+      this.recordDiagnostic(entry.id, {
+        raw_response: JSON.stringify({ speaker, round, sycophancy_score: sycophancyScore, claims: entries }),
+      });
+    }
+  }
+
+  /**
    * Track position drift: compare current response embedding against
    * the speaker's opening and each opponent's opening.
    */
@@ -2836,6 +2974,9 @@ export class DebateEngine {
    * AND no concessions were made during those turns.
    */
   private detectSycophancy(speaker: Exclude<PoverId, 'user'>, round: number): void {
+    // Per-claim tracking handles sycophancy detection when active
+    if (this._openingClaims.size > 0) return;
+
     const drift = this.session.position_drift ?? [];
     const speakerDrift = drift.filter(d => d.speaker === speaker);
     if (speakerDrift.length < 3) return;
@@ -2879,6 +3020,40 @@ export class DebateEngine {
     this.recordDiagnostic(sycEntry.id, {
       raw_response: JSON.stringify({ speaker, drifting_toward: driftingToward, recent_drift: recent }),
     });
+  }
+
+  // ── Post-debate calibration ──────────────────────────────────
+
+  /**
+   * After debate, run the relevance threshold optimizer and apply the
+   * recommendation if safety rails pass. Non-critical — failures are logged
+   * but never affect the completed debate.
+   */
+  private runPostDebateCalibration(dataRoot: string): void {
+    try {
+      const data = readCalibrationLog(dataRoot);
+      const recommendation = optimizeRelevanceThreshold(data);
+
+      // Count debates since last adjustment by checking adaptation_history
+      const weights = loadProvisionalWeights();
+      const history = (weights as Record<string, unknown> as { relevance?: { adaptation_history?: Array<{ at: string }> } }).relevance?.adaptation_history ?? [];
+      const lastAdjustedAt = history.length > 0 ? history[history.length - 1].at : null;
+      let debatesSince = data.length;
+      if (lastAdjustedAt) {
+        debatesSince = data.filter(d => d.timestamp > lastAdjustedAt).length;
+      }
+
+      const result = applyRelevanceThresholdAdaptation(
+        recommendation,
+        { debates_since_last_adjustment: debatesSince, last_adjusted_at: lastAdjustedAt },
+      );
+
+      if (result.applied) {
+        console.log(`[calibration] Relevance threshold adapted: ${result.reason}`);
+      }
+    } catch (err) {
+      this.warn('Post-debate calibration', err, 'Threshold adaptation skipped');
+    }
   }
 
   // ── Steelman validation ────────────────────────────────────
