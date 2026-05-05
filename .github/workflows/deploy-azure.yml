@@ -161,11 +161,19 @@ jobs:
         if: steps.health_check.outputs.healthy == 'true'
         run: |
           echo "New revision healthy — shifting 100% traffic"
-          az containerapp ingress traffic set \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --revision-weight "${{ steps.new_revision.outputs.revision }}=100"
-          echo "Traffic shifted to ${{ steps.new_revision.outputs.revision }}"
+          for attempt in 1 2 3; do
+            if az containerapp ingress traffic set \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --revision-weight "${{ steps.new_revision.outputs.revision }}=100" 2>&1; then
+              echo "Traffic shifted to ${{ steps.new_revision.outputs.revision }}"
+              exit 0
+            fi
+            echo "Traffic shift attempt $attempt failed (likely provisioning in progress) — retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::Traffic shift failed after 3 attempts"
+          exit 1
 
       - name: Rollback on failure
         if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
