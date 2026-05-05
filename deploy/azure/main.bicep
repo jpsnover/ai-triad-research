@@ -28,6 +28,13 @@ param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 @description('Unique suffix for globally unique resource names')
 param uniqueSuffix string = uniqueString(resourceGroup().id)
 
+// ── Resource Tags ──
+var tags = {
+  project: 'ai-triad-research'
+  environment: 'production'
+  'managed-by': 'bicep'
+}
+
 // ── OAuth identity providers ──
 // Bicep owns the container app's secret store. Pass the client secrets as
 // secure params at deploy time (the workflow reads them from GH Actions
@@ -113,6 +120,7 @@ var oauthSecrets = concat(
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-aitriad-${uniqueSuffix}'
   location: location
+  tags: tags
   properties: {
     sku: { name: 'PerGB2018' }
     retentionInDays: 30
@@ -124,6 +132,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: 'staitriad${uniqueSuffix}'
   location: location
+  tags: tags
   kind: 'StorageV2'
   sku: { name: 'Standard_LRS' }
   properties: {
@@ -135,6 +144,12 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
   parent: storageAccount
   name: 'default'
+  properties: {
+    shareDeleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+  }
 }
 
 resource dataShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
@@ -153,14 +168,46 @@ resource dataShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-0
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: 'kv-ait-${uniqueSuffix}'
   location: location
+  tags: tags
   properties: {
     tenantId: subscription().tenantId
     sku: { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7
+    softDeleteRetentionInDays: 30
     enablePurgeProtection: true
     publicNetworkAccess: 'Enabled'
+  }
+}
+
+// ── Key Vault Diagnostics ──
+// Sends audit events (secret reads, writes, deletes) to Log Analytics.
+
+resource kvDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: keyVault
+  name: 'kv-audit-logs'
+  properties: {
+    workspaceId: logAnalytics.id
+    logs: [
+      {
+        categoryGroup: 'audit'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
   }
 }
 
@@ -169,6 +216,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-aitriad'
   location: location
+  tags: tags
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -229,6 +277,7 @@ var containerEnv = githubWebhookSecretProvided
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'
   location: location
+  tags: tags
   identity: {
     type: 'SystemAssigned'
   }
@@ -307,6 +356,73 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+// ── Staging Container App ──
+// Separate app for staging deploys — shares the environment and storage but
+// runs independently so a bad staging deploy cannot affect production.
+
+resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'taxonomy-editor-staging'
+  location: location
+  tags: union(tags, { environment: 'staging' })
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 7862
+        transport: 'auto'
+        allowInsecure: false
+      }
+      secrets: oauthSecrets
+      registries: ghcrConfigured ? [
+        {
+          server: 'ghcr.io'
+          username: 'jpsnover'
+          passwordSecretRef: ghcrSecretName
+        }
+      ] : []
+    }
+    template: {
+      containers: [
+        {
+          name: 'taxonomy-editor'
+          image: containerImage
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: containerEnv
+          volumeMounts: [
+            { volumeName: 'data', mountPath: '/data-persistent' }
+          ]
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: { path: '/health', port: 7862 }
+              periodSeconds: 5
+              failureThreshold: 10
+            }
+          ]
+        }
+      ]
+      volumes: [
+        {
+          name: 'data'
+          storageName: 'taxonomy-data'
+          storageType: 'AzureFile'
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 1
+      }
+    }
+  }
+}
+
 // ── Role assignment: container app → Key Vault ──
 // Grants 'Key Vault Secrets Officer' (get/set/delete secrets) to the
 // container app's system-assigned managed identity on this vault only.
@@ -318,6 +434,16 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   name: guid(keyVault.id, containerApp.id, kvSecretsOfficerRoleId)
   properties: {
     principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
+  }
+}
+
+resource kvRoleAssignmentStaging 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, containerAppStaging.id, kvSecretsOfficerRoleId)
+  properties: {
+    principalId: containerAppStaging.identity.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
   }
@@ -374,6 +500,40 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
   }
 }
 
+// ── Budget Alert ──
+// Alerts at 80% and 100% of $5/month to catch cost overruns early.
+
+@description('Email address for budget alerts')
+param budgetAlertEmail string = ''
+
+var budgetAlertConfigured = !empty(budgetAlertEmail)
+
+resource budget 'Microsoft.Consumption/budgets@2023-11-01' = if (budgetAlertConfigured) {
+  name: 'budget-aitriad-monthly'
+  properties: {
+    category: 'Cost'
+    amount: 5
+    timeGrain: 'Monthly'
+    timePeriod: {
+      startDate: '2026-05-01'
+    }
+    notifications: {
+      warning80: {
+        enabled: true
+        operator: 'GreaterThanOrEqualTo'
+        threshold: 80
+        contactEmails: [ budgetAlertEmail ]
+      }
+      limit100: {
+        enabled: true
+        operator: 'GreaterThanOrEqualTo'
+        threshold: 100
+        contactEmails: [ budgetAlertEmail ]
+      }
+    }
+  }
+}
+
 // ── Outputs ──
 
 output appUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
@@ -383,3 +543,4 @@ output storageAccountName string = storageAccount.name
 output fileShareName string = dataShare.name
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
+output stagingUrl string = 'https://${containerAppStaging.properties.configuration.ingress.fqdn}'
