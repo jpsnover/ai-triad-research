@@ -138,7 +138,7 @@ CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
 
 # Default weights for multi-field embedding.  Must sum to 1.0.
 # Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
-DEFAULT_FIELD_WEIGHTS = (0.55, 0.35, 0.10, 0.0, 0.0)
+DEFAULT_FIELD_WEIGHTS = (0.611, 0.389, 0.0, 0.0, 0.0)
 
 
 def _load_lineage_categories():
@@ -211,6 +211,11 @@ def _compose_field_texts(node, lineage_map):
     seen = set()
     cat_labels = []
     for val in lineage_values:
+        # Handle both bare strings and enriched objects {"name": "...", ...}
+        if isinstance(val, dict):
+            val = val.get("name", "")
+        if not isinstance(val, str) or not val:
+            continue
         cat_label = lineage_map.get(val, "Other")
         if cat_label not in seen:
             seen.add(cat_label)
@@ -360,7 +365,8 @@ def cmd_generate(args):
         f"{len(conflict_texts)} conflicts ({len(all_texts)} total texts)...",
         file=sys.stderr,
     )
-    all_vecs = model.encode(all_texts, normalize_embeddings=True, show_progress_bar=True)
+    # Encode without pre-normalization — preserves raw magnitudes for weighted combination
+    all_vecs = model.encode(all_texts, normalize_embeddings=False, show_progress_bar=True)
 
     # Slice into per-field arrays
     desc_vecs = all_vecs[0:n]
@@ -372,6 +378,7 @@ def cmd_generate(args):
     conflict_vecs = all_vecs[5 * n + len(policy_texts) :]
 
     # ── Weighted combination for taxonomy nodes ──────────────────────
+    # Raw encoding + weight + single normalize fixes re-normalization distortion (t/268)
     node_vectors = (
         w_desc * desc_vecs
         + w_assumes * assumes_vecs
@@ -393,10 +400,20 @@ def cmd_generate(args):
             file=sys.stderr,
         )
 
-    # Re-normalize so downstream cosine similarity works correctly
+    # Single normalization for node vectors (the ONLY normalization step —
+    # no pre-normalization at encode time, so weight ratios are preserved)
     norms = np.linalg.norm(node_vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0  # avoid division by zero for empty nodes
+    norms[norms == 0] = 1.0
     node_vectors = node_vectors / norms
+
+    # Policies and conflicts: single-field, normalize individually
+    policy_norms = np.linalg.norm(policy_vecs, axis=1, keepdims=True)
+    policy_norms[policy_norms == 0] = 1.0
+    policy_vecs = policy_vecs / policy_norms
+
+    conflict_norms = np.linalg.norm(conflict_vecs, axis=1, keepdims=True)
+    conflict_norms[conflict_norms == 0] = 1.0
+    conflict_vecs = conflict_vecs / conflict_norms
 
     # ── Build output structure ───────────────────────────────────────
     nodes_dict = {}

@@ -66,7 +66,6 @@ import json
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import AgglomerativeClustering
-from sklearn.metrics.pairwise import cosine_similarity
 
 with open(${JSON.stringify(inputFile.replace(/\\/g, '/'))}) as f:
     data = json.load(f)
@@ -76,19 +75,36 @@ ids = data['ids']
 max_clusters = data['max_clusters']
 
 print(f"Encoding {len(texts)} texts...")
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer('all-MiniLM-L6-v2', trust_remote_code=False)
 embeddings = model.encode(texts, show_progress_bar=True)
 
 print(f"Clustering into max {max_clusters} clusters...")
-# Normalize embeddings so euclidean distance ~ cosine distance
 from sklearn.preprocessing import normalize
+from sklearn.metrics.pairwise import cosine_distances
 embeddings_norm = normalize(embeddings)
-# Ward linkage produces more balanced clusters
+
+# Average-linkage cosine — matches Get-EmbeddingClusters.ps1 reference impl
+# Use distance_threshold = 1 - min_similarity (0.55) for natural clustering,
+# then cap at max_clusters by iterative merging if needed
+min_similarity = 0.55
+dist_matrix = cosine_distances(embeddings_norm)
+
 clustering = AgglomerativeClustering(
-    n_clusters=max_clusters,
-    linkage='ward',
+    n_clusters=None,
+    distance_threshold=1 - min_similarity,
+    metric='precomputed',
+    linkage='average',
 )
-labels = clustering.fit_predict(embeddings_norm)
+labels = clustering.fit_predict(dist_matrix)
+
+# Cap at max_clusters: if too many, fall back to fixed n_clusters
+if len(set(labels)) > max_clusters:
+    clustering = AgglomerativeClustering(
+        n_clusters=max_clusters,
+        metric='precomputed',
+        linkage='average',
+    )
+    labels = clustering.fit_predict(dist_matrix)
 
 # Group IDs by cluster label
 clusters = {}
@@ -107,7 +123,8 @@ print("Done.")
 `);
 
   console.log(`  Computing embeddings + clustering for ${texts.length} texts...`);
-  execSync(`python "${scriptFile}"`, {
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  execSync(`${pythonCmd} "${scriptFile}"`, {
     maxBuffer: 1024 * 1024 * 200,
     encoding: 'utf-8',
     stdio: 'inherit',

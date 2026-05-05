@@ -12,6 +12,11 @@ export interface Cluster {
 /**
  * Agglomerative clustering of nodes based on embedding similarity.
  * Merges closest pairs until all intra-cluster similarity drops below threshold.
+ *
+ * Default maxClusters=6 is intentionally lower than the canonical 10 (used by
+ * Get-EmbeddingClusters.ps1 and compute-conflict-clusters.mjs) because this
+ * runs in the UI where fewer clusters produce a cleaner visual layout. Callers
+ * may pass a higher value when appropriate.
  */
 export function clusterByEmbedding(
   nodeIds: string[],

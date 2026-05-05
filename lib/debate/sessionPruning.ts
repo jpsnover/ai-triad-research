@@ -17,6 +17,10 @@ export function pruneSessionData(session: DebateSession): void {
     session.position_drift = session.position_drift.slice(-MAX_POSITION_DRIFT);
   }
 
+  if (session.per_claim_drift && session.per_claim_drift.length > MAX_POSITION_DRIFT) {
+    session.per_claim_drift = session.per_claim_drift.slice(-MAX_POSITION_DRIFT);
+  }
+
   if (session.turn_embeddings) {
     const keys = Object.keys(session.turn_embeddings);
     if (keys.length > MAX_TURN_EMBEDDINGS) {
