@@ -20,7 +20,7 @@ pdfminer.six==20240706
 python-slugify==8.0.4
 
 # Wayback Machine archival
-waybackpy==3.1.0
+waybackpy==3.0.6
 
 # AI API clients
 anthropic==0.52.0
