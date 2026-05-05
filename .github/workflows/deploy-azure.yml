@@ -100,29 +100,45 @@ jobs:
           echo "revision=$CURRENT" >> $GITHUB_OUTPUT
           echo "Current active revision: $CURRENT"
 
-      - name: Deploy new revision
+      - name: Deploy new revision (0% traffic)
         id: new_revision
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           SUFFIX="deploy-${SHORT_SHA}"
+          NEW_REV="${{ env.CONTAINER_APP_NAME }}--${SUFFIX}"
+
+          # Deploy new revision — in Multiple mode it starts with 0% traffic
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
             --revision-suffix "$SUFFIX" \
             --set-env-vars "DEPLOY_SHA=${{ github.sha }}" "DEPLOY_TAG=${{ steps.resolve_tag.outputs.tag }}"
-          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
 
-      - name: Verify deployment health
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
+          echo "revision=$NEW_REV" >> $GITHUB_OUTPUT
+
+      - name: Health check new revision
         id: health_check
         run: |
-          APP_URL="${{ steps.deploy.outputs.appUrl }}"
-          echo "Deployed to: $APP_URL"
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}"
+          # Get the revision-specific FQDN to test the new revision directly
+          REV_FQDN=$(az containerapp revision show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision "${{ steps.new_revision.outputs.revision }}" \
+            --query "properties.fqdn" -o tsv 2>/dev/null || echo "")
+
+          # Fall back to main app URL if revision FQDN unavailable
+          if [ -z "$REV_FQDN" ]; then
+            HEALTH_URL="${{ steps.deploy.outputs.appUrl }}/health"
+          else
+            HEALTH_URL="https://${REV_FQDN}/health"
+          fi
+          echo "Health check URL: $HEALTH_URL"
 
           HEALTHY="false"
           for i in $(seq 1 18); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/health" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed!"
               HEALTHY="true"
@@ -137,17 +153,26 @@ jobs:
             echo "::error::Health check failed after 3 minutes"
           fi
 
+      - name: Shift traffic to new revision
+        if: steps.health_check.outputs.healthy == 'true'
+        run: |
+          echo "New revision healthy — shifting 100% traffic"
+          az containerapp ingress traffic set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision-weight "${{ steps.new_revision.outputs.revision }}=100"
+          echo "Traffic shifted to ${{ steps.new_revision.outputs.revision }}"
+
       - name: Rollback on failure
         if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
         run: |
           echo "::error::New revision unhealthy — rolling back to ${{ steps.current_revision.outputs.revision }}"
           # Deactivate the failed revision
-          FAILED_REV="${{ env.CONTAINER_APP_NAME }}--${{ steps.new_revision.outputs.suffix }}"
           az containerapp revision deactivate \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --revision "$FAILED_REV" || true
-          # Route all traffic back to the previous revision
+            --revision "${{ steps.new_revision.outputs.revision }}" || true
+          # Ensure previous revision keeps 100% traffic
           az containerapp ingress traffic set \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
