@@ -140,18 +140,6 @@ $shareName   = $deployResult.properties.outputs.fileShareName.value
 
 Write-OK "Deployed: $appUrl"
 
-# ── Configure CORS ──
-
-Write-Step 'Setting CORS to restrict to app URL'
-
-az containerapp update `
-    --name $appName `
-    --resource-group $ResourceGroup `
-    --set-env-vars "ALLOWED_ORIGINS=$appUrl" `
-    --output none
-
-Write-OK "CORS restricted to $appUrl"
-
 # ── Seed data (optional) ──
 
 if ($SeedData) {

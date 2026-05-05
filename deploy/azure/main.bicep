@@ -198,7 +198,7 @@ resource storageMount 'Microsoft.App/managedEnvironments/storages@2024-03-01' = 
 
 var baseEnv = [
   { name: 'AI_TRIAD_DATA_ROOT', value: '/data' }
-  { name: 'ALLOWED_ORIGINS', value: '' } // Set after deployment: https://<app-fqdn>
+  { name: 'ALLOWED_ORIGINS', value: 'https://taxonomy-editor.${containerAppEnv.properties.defaultDomain}' }
   { name: 'HOME', value: '/home/aitriad' }
   { name: 'NODE_ENV', value: 'production' }
   // BYOK model: users enter keys via the app UI. In Azure the server
@@ -293,7 +293,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 3
         rules: [
           {

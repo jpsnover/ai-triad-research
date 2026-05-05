@@ -11,6 +11,11 @@ on:
         options:
           - production
           - staging
+      image_tag:
+        description: 'Image tag to deploy (e.g., 0.8.0). Leave empty for latest tagged version.'
+        required: false
+        default: ''
+        type: string
       enable_auth:
         description: 'Enforce sign-in gate (requires authorized-users.json on data volume)'
         required: false
@@ -40,6 +45,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve image tag
+        id: resolve_tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            # Use the git tag name if triggered from a tag context, else 'latest'
+            TAG="${GITHUB_REF_NAME#v}"
+            if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "tag=$TAG" >> $GITHUB_OUTPUT
+            else
+              echo "::warning::No explicit tag provided and not on a version ref — falling back to 'latest'"
+              echo "tag=latest" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "Deploying image tag: $(cat $GITHUB_OUTPUT | grep tag= | cut -d= -f2)"
+
       - name: Log in to Azure
         uses: azure/login@v2
         with:
@@ -54,7 +76,7 @@ jobs:
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: deploy/azure/main.bicep
           parameters: >-
-            containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
@@ -68,37 +90,79 @@ jobs:
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
             ghcrPassword=${{ secrets.GHCR_PAT }}
 
-      - name: Force new revision with latest image
+      - name: Get current active revision
+        id: current_revision
+        run: |
+          CURRENT=$(az containerapp revision list \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)
+          echo "revision=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current active revision: $CURRENT"
+
+      - name: Deploy new revision
+        id: new_revision
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          SUFFIX="deploy-${SHORT_SHA}"
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --revision-suffix "deploy-${SHORT_SHA}" \
-            --set-env-vars "ALLOWED_ORIGINS=${{ steps.deploy.outputs.appUrl }}" "DEPLOY_SHA=${{ github.sha }}"
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
+            --revision-suffix "$SUFFIX" \
+            --set-env-vars "DEPLOY_SHA=${{ github.sha }}" "DEPLOY_TAG=${{ steps.resolve_tag.outputs.tag }}"
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
 
-      - name: Verify deployment
+      - name: Verify deployment health
+        id: health_check
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
           echo "Deployed to: $APP_URL"
-          echo "API keys: BYOK — users enter via app UI"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}"
 
-          # Wait for container to start (scale from zero)
-          for i in $(seq 1 12); do
+          HEALTHY="false"
+          for i in $(seq 1 18); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/health" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed!"
-              exit 0
+              HEALTHY="true"
+              break
             fi
-            echo "Waiting for container to start... (attempt $i/12, status: $STATUS)"
+            echo "Waiting for container to start... (attempt $i/18, status: $STATUS)"
             sleep 10
           done
 
-          echo "::warning::Health check did not pass within 2 minutes. Container may still be starting."
+          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
+          if [ "$HEALTHY" != "true" ]; then
+            echo "::error::Health check failed after 3 minutes"
+          fi
+
+      - name: Rollback on failure
+        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
+        run: |
+          echo "::error::New revision unhealthy — rolling back to ${{ steps.current_revision.outputs.revision }}"
+          # Deactivate the failed revision
+          FAILED_REV="${{ env.CONTAINER_APP_NAME }}--${{ steps.new_revision.outputs.suffix }}"
+          az containerapp revision deactivate \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision "$FAILED_REV" || true
+          # Route all traffic back to the previous revision
+          az containerapp ingress traffic set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision-weight "${{ steps.current_revision.outputs.revision }}=100"
+          echo "Rollback complete. Previous revision restored."
+          exit 1
+
+      - name: Fail if unhealthy (no previous revision to rollback to)
+        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision == ''
+        run: |
+          echo "::error::Health check failed and no previous revision exists for rollback"
+          exit 1
 
       - name: Trigger data-repo initialization
-        if: inputs.enable_git_sync
+        if: inputs.enable_git_sync && steps.health_check.outputs.healthy == 'true'
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
           echo "Triggering git data-repo init via ${APP_URL}/api/sync/init..."
