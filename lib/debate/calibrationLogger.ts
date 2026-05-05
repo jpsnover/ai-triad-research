@@ -14,6 +14,7 @@
 
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import type { NeutralEvaluation } from './neutralEvaluator.js';
+import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -152,11 +153,23 @@ export interface CalibrationDataPoint {
   /** Max situation nodes cap used */
   situation_max_nodes: number;
 
+  // ── Per-claim drift / sycophancy ──
+  /** Whether the per-claim sycophancy guard fired during this debate */
+  sycophancy_guard_fired: boolean;
+  /** Highest per-claim sycophancy score across all speakers */
+  max_sycophancy_score: number;
+  /** Fraction of all opening claims that ended as 'abandoned' */
+  claims_abandoned_rate: number;
+
   // ── QBAF oscillation ──
   /** Whether QBAF damping was activated during the debate */
   qbaf_oscillation_detected: boolean;
   /** QBAF iterations in the final computation */
   qbaf_iterations: number;
+
+  // ── Claim outcomes (t/278 Phase 1) ──
+  /** Aggregate claim outcome stats: thrived/survived/died */
+  claim_outcome_summary: { total: number; thrived: number; survived: number; died: number; thrived_rate: number; died_rate: number } | null;
 
   // ── Confidence escalation ──
   /** Total confidence deferrals during this debate */
@@ -611,8 +624,31 @@ export function extractCalibrationData(
     situation_crux_alignment: sitCruxAlignment,
     situation_max_nodes: config.situationMaxNodes ?? 15,
 
+    sycophancy_guard_fired: (session.transcript ?? []).some(e => e.type === 'system' && e.content.includes('[Sycophancy guard]')),
+    max_sycophancy_score: (session.per_claim_drift ?? []).reduce((max, s) => Math.max(max, s.sycophancy_score), 0),
+    claims_abandoned_rate: (() => {
+      const snapshots = session.per_claim_drift ?? [];
+      if (snapshots.length === 0) return 0;
+      // Use latest snapshot per speaker
+      const bySpeaker = new Map<string, typeof snapshots[0]>();
+      for (const s of snapshots) bySpeaker.set(s.speaker, s);
+      let total = 0, abandoned = 0;
+      for (const s of bySpeaker.values()) {
+        total += s.claims.length;
+        abandoned += s.claims.filter(c => c.status === 'abandoned').length;
+      }
+      return total > 0 ? abandoned / total : 0;
+    })(),
+
     qbaf_oscillation_detected: session.last_qbaf_result?.oscillationDetected ?? false,
     qbaf_iterations: session.last_qbaf_result?.iterations ?? 0,
+
+    claim_outcome_summary: (() => {
+      const an = session.argument_network;
+      if (!an || an.nodes.length === 0) return null;
+      const outcomes = classifyClaimOutcomes(an.nodes, an.edges);
+      return summarizeOutcomes(outcomes);
+    })(),
 
     confidence_deferrals: session.adaptive_staging_diagnostics?.confidence_deferrals ?? 0,
     confidence_escalations: (() => {

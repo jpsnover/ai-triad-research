@@ -435,6 +435,8 @@ export interface DebateSession {
   unanswered_claims_ledger?: UnansweredClaimEntry[];
   /** Position drift snapshots per round — embedding similarity tracking for sycophancy detection. */
   position_drift?: DriftSnapshot[];
+  /** Per-claim drift tracking — decomposed position drift with sycophancy scoring. */
+  per_claim_drift?: PerClaimDriftSnapshot[];
   /** Missing arguments identified post-synthesis by a fresh LLM with no transcript context. */
   missing_arguments?: MissingArgument[];
   /** Post-debate taxonomy refinement suggestions with before/after descriptions. */
@@ -1150,6 +1152,49 @@ export interface DriftSnapshot {
   self_similarity: number;
   /** Cosine similarity of current response vs each opponent's opening statement. */
   opponent_similarities: Record<string, number>;
+}
+
+export interface ClaimDriftEntry {
+  /** AN node ID of the opening claim */
+  claim_id: string;
+  /** Cosine similarity of the best-matching current-turn claim */
+  similarity: number;
+  /** Drift classification */
+  status: 'maintained' | 'refined' | 'abandoned';
+  /** If concession tracker recorded a concession covering this claim */
+  concession_exempt: boolean;
+}
+
+export interface PerClaimDriftSnapshot {
+  round: number;
+  speaker: string;
+  claims: ClaimDriftEntry[];
+  /** Fraction of claims abandoned without concession */
+  sycophancy_score: number;
+}
+
+/** Post-debate classification of an AN node's outcome. */
+export interface ClaimOutcome {
+  claim_id: string;
+  speaker: string;
+  bdi_category?: 'belief' | 'desire' | 'intention';
+  argumentation_scheme?: string;
+  specificity?: 'precise' | 'general' | 'abstract';
+  text_length: number;
+  base_strength: number;
+  final_computed_strength: number;
+  reference_count: number;
+  outcome: 'thrived' | 'survived' | 'died';
+}
+
+/** Aggregate claim outcome stats for calibration logging. */
+export interface ClaimOutcomeSummary {
+  total: number;
+  thrived: number;
+  survived: number;
+  died: number;
+  thrived_rate: number;
+  died_rate: number;
 }
 
 /** Argument that was never raised during the debate — identified post-synthesis by a fresh LLM. */
