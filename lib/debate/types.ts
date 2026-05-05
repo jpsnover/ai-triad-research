@@ -1078,6 +1078,17 @@ export interface SynthesisResult {
   policy_implications?: PolicyImplication[];
   /** Coverage tracking — which source claims were discussed vs uncovered (CT-1). */
   claim_coverage?: ClaimCoverageEntry[];
+  /** Cruxes — key questions whose answers would change a debater's position. Extracted by Phase 1 synthesis. */
+  cruxes?: SynthesisCrux[];
+}
+
+export interface SynthesisCrux {
+  question: string;
+  if_yes?: string;
+  if_no?: string;
+  type?: 'EMPIRICAL' | 'VALUES' | 'DEFINITIONAL';
+  resolution_status?: 'resolved' | 'irreducible' | 'active';
+  resolution_evidence?: string;
 }
 
 export interface PreferenceEntry {
