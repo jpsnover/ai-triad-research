@@ -8,6 +8,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewDebateDialog } from './NewDebateDialog';
 import { SearchPanel } from './SearchPanel';
+import { SearchPreview } from './SearchPreview';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
@@ -321,10 +322,7 @@ export function DebateTab() {
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
-            {!searchPreviewId
-              ? <div className="detail-panel-empty">Select a search result to preview</div>
-              : <div className="detail-panel-empty">Node preview: {searchPreviewId}</div>
-            }
+            <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
           </div>
         </>
       )}

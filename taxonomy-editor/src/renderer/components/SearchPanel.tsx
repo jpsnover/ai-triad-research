@@ -155,6 +155,7 @@ interface SearchPanelProps {
 export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const {
     accelerationist, safetyist, skeptic, situations, conflicts,
+    activeTab,
     getLabelForId,
     findQuery, findMode, findCaseSensitive,
     setFindQuery, setFindMode, setFindCaseSensitive,
@@ -290,32 +291,50 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     }).slice(0, 20);
   }, [relatedQuery, allNodeIds, getLabelForId]);
 
+  // ─── Context filter: restrict results by active tab ────
+  const isPovTab = (['accelerationist', 'safetyist', 'skeptic'] as string[]).includes(activeTab);
+  const isSituationsTab = activeTab === 'situations';
+  const isConflictsTab = activeTab === 'conflicts';
+  const showAllTypes = !isPovTab && !isSituationsTab && !isConflictsTab;
+
   // ─── Taxonomy text results ────────────────────────────
   const taxResults = useMemo(() => {
     if (mode !== 'taxonomy' || isSemantic) return [];
     const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
     if (!regex) return [];
     const all: TaxResult[] = [];
-    for (const [pov, file] of [
-      ['accelerationist', accelerationist], ['safetyist', safetyist], ['skeptic', skeptic],
-    ] as const) {
-      if (file) for (const node of file.nodes) all.push(...searchPovNode(node, regex, pov));
+    if (showAllTypes || isPovTab) {
+      for (const [pov, file] of [
+        ['accelerationist', accelerationist], ['safetyist', safetyist], ['skeptic', skeptic],
+      ] as const) {
+        if (file) for (const node of file.nodes) all.push(...searchPovNode(node, regex, pov));
+      }
     }
-    if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
-    for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
+    if (showAllTypes || isSituationsTab) {
+      if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
+    }
+    if (showAllTypes || isConflictsTab) {
+      for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
+    }
     return dedupe(all);
-  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic]);
+  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic, showAllTypes, isPovTab, isSituationsTab, isConflictsTab]);
 
-  // Semantic results mapped
+  // Semantic results mapped + filtered by active tab
   const semResults: TaxResult[] = useMemo(() => {
     if (mode !== 'taxonomy' || !isSemantic) return [];
-    return (semanticResults || []).map(r => {
+    return (semanticResults || []).filter(r => {
+      if (showAllTypes) return true;
+      if (isPovTab) return !r.id.startsWith('conflict-') && !r.id.startsWith('sit-');
+      if (isSituationsTab) return r.id.startsWith('sit-');
+      if (isConflictsTab) return r.id.startsWith('conflict-');
+      return true;
+    }).map(r => {
       const label = getLabelForId(r.id);
       const tab: TabId = r.id.startsWith('conflict-') ? 'conflicts'
         : (nodePovFromId(r.id) as TabId) || 'skeptic';
       return { id: r.id, label, tab, field: 'semantic', matchText: '', score: r.score };
     });
-  }, [mode, isSemantic, semanticResults, getLabelForId]);
+  }, [mode, isSemantic, semanticResults, getLabelForId, showAllTypes, isPovTab, isSituationsTab, isConflictsTab]);
 
   const taxonomyResults = isSemantic ? semResults : taxResults;
 

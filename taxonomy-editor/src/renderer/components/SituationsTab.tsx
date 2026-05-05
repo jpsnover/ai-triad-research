@@ -8,10 +8,10 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { SituationDetail } from './SituationDetail';
-import { NodeDetail } from './NodeDetail';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PinnedPanel } from './PinnedPanel';
 import { SearchPanel } from './SearchPanel';
+import { SearchPreview } from './SearchPreview';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
 import { AttributeInfoPanel } from './AttributeInfoPanel';
 import { RelatedEdgesPanel } from './RelatedEdgesPanel';
@@ -27,8 +27,6 @@ import { getCategoryLabel } from '../data/lineageCategories';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
-import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
 export function SituationsTab() {
@@ -228,22 +226,7 @@ export function SituationsTab() {
     setActiveTab('debate');
   }, [selectedNode, createSituationDebate, setActiveTab]);
 
-  // Render the promoted panel content for Pane 1
-  // Render cross-POV node detail for search preview
-  const renderSearchPreview = () => {
-    if (!searchPreviewId) return <div className="detail-panel-empty">Select a search result to preview</div>;
-    const state = useTaxonomyStore.getState();
-    if (nodeTypeFromId(searchPreviewId) === 'situation') {
-      const node = state.situations?.nodes.find(n => n.id === searchPreviewId);
-      if (node) return <SituationDetail node={node} readOnly chipDepth={0} />;
-    } else {
-      for (const p of POV_KEYS) {
-        const node = state[p]?.nodes.find(n => n.id === searchPreviewId);
-        if (node) return <NodeDetail pov={p} node={node} readOnly chipDepth={0} />;
-      }
-    }
-    return <div className="detail-panel-empty">Node not found</div>;
-  };
+  // Search preview rendered via shared SearchPreview component
 
   // Render lineage about info for Pane 2
   const renderLineagePreview = () => {
@@ -424,7 +407,7 @@ export function SituationsTab() {
       {/* Pane 2: Detail (search preview, lineage preview, or normal detail) */}
       {toolbarPanel === 'search' ? (
         <div className="detail-panel">
-          {renderSearchPreview()}
+          <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
         </div>
       ) : toolbarPanel === 'related' ? (
         <div className="detail-panel">

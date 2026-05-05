@@ -14,6 +14,7 @@ import { PolicyDashboard } from './PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { SearchPanel } from './SearchPanel';
+import { SearchPreview } from './SearchPreview';
 import { FallacyPanel, FallacyDetailPanel } from './FallacyPanel';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import { getLineageInfo } from '../data/lineageLookup';
@@ -55,6 +56,7 @@ export function ConflictsTab() {
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
+  const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
@@ -193,7 +195,7 @@ export function ConflictsTab() {
 
   const renderToolbarPane = () => {
     switch (toolbarPanel) {
-      case 'search': return <SearchPanel onSelectResult={() => {}} />;
+      case 'search': return <SearchPanel onSelectResult={setSearchPreviewId} />;
       case 'lineage': return <LineagePanel onSelectValue={setLineagePreviewValue} />;
       case 'fallacy': return <FallacyPanel onSelectFallacy={setSelectedFallacyKey} />;
       case 'prompts': return <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />;
@@ -267,7 +269,11 @@ export function ConflictsTab() {
       {!isFullWidthPanel && (
         <div className="resize-handle" onMouseDown={onMouseDown} />
       )}
-      {isFullWidthPanel ? null : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+      {isFullWidthPanel ? null : toolbarPanel === 'search' ? (
+        <div className="detail-panel">
+          <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+        </div>
+      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <div className="detail-panel">
           <PromptDetailPanel entry={selectedPromptEntry} />
         </div>

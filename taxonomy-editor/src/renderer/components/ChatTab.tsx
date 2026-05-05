@@ -8,6 +8,7 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { NewChatDialog } from './NewChatDialog';
 import { ChatWorkspace } from './ChatWorkspace';
 import { SearchPanel } from './SearchPanel';
+import { SearchPreview } from './SearchPreview';
 import { PromptsPanel, PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
@@ -42,6 +43,7 @@ export function ChatTab() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
+  const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -66,7 +68,7 @@ export function ChatTab() {
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
         <div className={`list-panel${(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? ' list-panel-full' : ''}`} style={(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? undefined : { width }}>
-          {toolbarPanel === 'search' && <SearchPanel onSelectResult={() => {}} />}
+          {toolbarPanel === 'search' && <SearchPanel onSelectResult={setSearchPreviewId} />}
           {toolbarPanel === 'prompts' && <PromptsPanel onSelectPrompt={setSelectedPromptEntry} onInspectorToggle={setPromptInspectorActive} />}
           {toolbarPanel === 'fallacy' && <FallacyPanel onSelectFallacy={() => {}} />}
           {toolbarPanel === 'edges' && <EdgeBrowser />}
@@ -174,7 +176,14 @@ export function ChatTab() {
 
       {/* Right pane: context-dependent */}
       {(toolbarPanel === 'console' || toolbarPanel === 'edges' || toolbarPanel === 'policyAlignment' || toolbarPanel === 'policyDashboard' || toolbarPanel === 'vocabulary' || (toolbarPanel === 'prompts' && promptInspectorActive)) ? null
-        : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
+        : toolbarPanel === 'search' ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
+          </div>
+        </>
+      ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
