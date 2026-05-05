@@ -1,0 +1,29 @@
+name: GHCR Cleanup
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'  # Weekly, Sunday 4 AM UTC
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - taxonomy-editor
+          - ai-triad-base
+    steps:
+      - name: Delete untagged images older than 30 days
+        uses: snok/container-retention-policy@v3
+        with:
+          account: user
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: ${{ matrix.package }}
+          cut-off: 30 days ago UTC
+          keep-n-most-recent: 5
+          untagged-only: true
+          skip-shas: ${{ github.sha }}

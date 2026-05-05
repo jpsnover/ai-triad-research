@@ -1,7 +1,9 @@
+# syntax=docker/dockerfile:1.7
+
 # AI Triad Taxonomy Editor — Container Image
 # Multi-stage build: compile TypeScript, then copy artifacts to lean runtime.
 #
-# Requires the base image: ghcr.io/jpsnover/ai-triad-base:latest
+# Requires the base image: ghcr.io/jpsnover/ai-triad-base:<date-tag>
 # (see deploy/azure/Dockerfile.base)
 
 # ── Stage 1: Build ──
@@ -25,8 +27,6 @@ RUN npm ci
 
 # Copy source and build
 WORKDIR /build
-ARG CACHE_BUST=1
-RUN echo "Cache bust: $CACHE_BUST"
 COPY taxonomy-editor/package.json ./taxonomy-editor/
 COPY taxonomy-editor/src/ ./taxonomy-editor/src/
 COPY taxonomy-editor/tsconfig.json ./taxonomy-editor/
@@ -42,7 +42,11 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Runtime ──
-FROM ghcr.io/jpsnover/ai-triad-base:latest
+FROM ghcr.io/jpsnover/ai-triad-base:2026-05-01 AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
+LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
+LABEL org.opencontainers.image.licenses="MIT"
 
 VOLUME /data
 ENV AI_TRIAD_DATA_ROOT=/data
@@ -89,4 +93,5 @@ EXPOSE 7862
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s \
   CMD curl -f http://localhost:7862/health || exit 1
 
+ENTRYPOINT ["tini", "--"]
 CMD ["sh", "entrypoint.sh"]

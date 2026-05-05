@@ -1,0 +1,120 @@
+name: Health Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  APP_URL: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check health endpoint
+        id: health
+        run: |
+          FAILURES=0
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}/health" || echo "000")
+            if [ "$STATUS" != "200" ]; then
+              FAILURES=$((FAILURES + 1))
+              echo "Attempt $i failed (status: $STATUS)"
+            else
+              echo "Attempt $i passed"
+            fi
+            [ $i -lt 3 ] && sleep 30
+          done
+
+          echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+          if [ "$FAILURES" -eq 3 ]; then
+            echo "healthy=false" >> $GITHUB_OUTPUT
+          else
+            echo "healthy=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create issue on sustained failure
+        if: steps.health.outputs.healthy == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check for existing open issue to avoid duplicates
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'health-alert',
+              per_page: 1
+            });
+
+            if (existing.data.length > 0) {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body: `Still failing at ${new Date().toISOString()} — 3/3 health checks failed.`
+              });
+              console.log(`Updated existing issue #${existing.data[0].number}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Health check failure: taxonomy-editor unreachable`,
+                body: [
+                  `## Health Check Alert`,
+                  ``,
+                  `The Taxonomy Editor health endpoint failed 3 consecutive checks.`,
+                  ``,
+                  `- **URL:** \`${process.env.APP_URL}/health\``,
+                  `- **Time:** ${new Date().toISOString()}`,
+                  `- **Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                  ``,
+                  `### Troubleshooting`,
+                  ``,
+                  '```bash',
+                  `az containerapp show --name taxonomy-editor -g ai-triad --query "properties.runningStatus"`,
+                  `az containerapp logs show --name taxonomy-editor -g ai-triad --type console`,
+                  '```',
+                  ``,
+                  `Close this issue once the app is back online.`
+                ].join('\n'),
+                labels: ['health-alert', 'bug']
+              });
+              console.log('Created new health alert issue');
+            }
+
+      - name: Auto-close resolved issues
+        if: steps.health.outputs.healthy == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'health-alert',
+              per_page: 5
+            });
+
+            for (const issue of existing.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Resolved at ${new Date().toISOString()} — health check passing again.`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              console.log(`Auto-closed issue #${issue.number}`);
+            }

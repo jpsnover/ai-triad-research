@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
 #
 # Contains: Node 22, system packages, PowerShell 7, Python ML venv (torch,
@@ -11,16 +13,25 @@
 
 FROM node:22-bookworm-slim
 
-# System dependencies
+LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
+LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22, Python ML, PowerShell 7"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# System dependencies + build tools for native Node modules (node-pty)
+# Consolidated into a single apt-get to avoid stale package cache on a second invocation.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     pandoc \
     python3 \
     python3-pip \
     python3-venv \
+    python3-dev \
     poppler-utils \
     curl \
     libicu72 \
+    tini \
+    make \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # PowerShell 7
@@ -38,20 +49,15 @@ RUN ARCH=$(dpkg --print-architecture) \
 RUN python3 -m venv /opt/ml-env
 ENV PATH="/opt/ml-env/bin:$PATH"
 RUN pip install --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cpu
+    torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 
-# Python dependencies — COPY from repo so this layer updates when requirements change
-COPY scripts/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+# Python dependencies — pinned versions for reproducible builds.
+# Update pins: pip-compile --output-file=scripts/requirements-lock.txt scripts/requirements.txt
+COPY scripts/requirements-lock.txt /tmp/requirements-lock.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-lock.txt && rm /tmp/requirements-lock.txt
 
 # Pre-download embedding model (~90 MB) so first app start is fast
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-
-# Build tools for native Node modules (node-pty). Installed here so the app
-# Dockerfile can run npm ci without needing apt-get at all.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3-dev make g++ \
-    && rm -rf /var/lib/apt/lists/*
 
 # Non-root user
 RUN groupadd -r aitriad && useradd -r -g aitriad -d /home/aitriad -m aitriad

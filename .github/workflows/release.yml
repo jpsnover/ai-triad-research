@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PWSH_VERSION: '7.5'
 
 jobs:

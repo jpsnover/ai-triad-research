@@ -8,6 +8,7 @@ on:
     paths:
       - 'deploy/azure/Dockerfile.base'
       - 'scripts/requirements.txt'
+      - 'scripts/requirements-lock.txt'
 
 permissions:
   contents: read

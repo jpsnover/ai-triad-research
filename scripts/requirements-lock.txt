@@ -1,0 +1,35 @@
+# Pinned Python dependencies for Docker base image builds.
+# Ensures reproducible builds. Update by running:
+#   pip-compile --output-file=scripts/requirements-lock.txt scripts/requirements.txt
+#
+# Last pinned: 2026-05-05
+
+# HTTP and web fetching
+requests==2.32.3
+httpx==0.28.1
+
+# HTML to Markdown conversion
+markdownify==0.14.1
+trafilatura==2.0.0
+
+# PDF text extraction
+pypdf==5.4.0
+pdfminer.six==20240706
+
+# URL/slug utilities
+python-slugify==8.0.4
+
+# Wayback Machine archival
+waybackpy==3.1.0
+
+# AI API clients
+anthropic==0.52.0
+
+# Git inspection
+gitpython==3.1.44
+
+# Semantic embeddings and NLI
+sentence-transformers==3.4.1
+
+# Document conversion
+markitdown[all]==0.1.1

@@ -7,7 +7,10 @@ build/
 # Git and editor
 .git
 .gitignore
-*.md
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+docs/
 
 # Logs
 *.log
@@ -33,6 +36,13 @@ vitest.config.*
 *.swp
 *.swo
 *~
+
+# Environment / secrets
+.env
+.env.*
+
+# CI (not needed in build context)
+.github/
 
 # OS files
 .DS_Store

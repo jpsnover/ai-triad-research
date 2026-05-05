@@ -32,6 +32,10 @@ permissions:
   packages: read
   id-token: write  # For Azure OIDC login
 
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/taxonomy-editor

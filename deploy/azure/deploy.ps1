@@ -63,13 +63,22 @@ param(
 
     [switch]$SkipLogin,
 
+    # OAuth providers (optional — leave empty for anonymous-only deployment)
+    [string]$GoogleClientId = '',
+    [string]$GoogleClientSecret = '',
+    [string]$GitHubClientId = '',
+    [string]$GitHubClientSecret = '',
+
     # GitHub sync (Phase-2/3) options. Leave empty to keep the feature off.
     [switch]$EnableGitSync,
     [string]$GitHubRepo = '',
     [string]$GitHubAppId = '',
     [string]$GitHubAppInstallationId = '',
     [string]$GitHubAppPrivateKeySecretName = '',
-    [string]$GitHubWebhookSecret = ''
+    [string]$GitHubWebhookSecret = '',
+
+    # Budget alert email (optional)
+    [string]$BudgetAlertEmail = ''
 )
 
 Set-StrictMode -Version Latest
@@ -80,6 +89,26 @@ $ErrorActionPreference = 'Stop'
 function Write-Step { param([string]$Message) Write-Host "`n==> $Message" -ForegroundColor Cyan }
 function Write-OK   { param([string]$Message) Write-Host "    $Message" -ForegroundColor Green }
 function Write-Warn { param([string]$Message) Write-Host "    $Message" -ForegroundColor Yellow }
+
+# ── Load .env file (if present) ──
+# Fills in any unset parameters from deploy/azure/.env
+
+$envFile = Join-Path $PSScriptRoot '.env'
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*([A-Z_]+)\s*=\s*(.+)$' -and $_ -notmatch '^\s*#') {
+            $key = $Matches[1]; $val = $Matches[2].Trim()
+            switch ($key) {
+                'GOOGLE_CLIENT_ID'      { if (-not $GoogleClientId)     { $GoogleClientId = $val } }
+                'GOOGLE_CLIENT_SECRET'  { if (-not $GoogleClientSecret) { $GoogleClientSecret = $val } }
+                'GITHUB_CLIENT_ID'      { if (-not $GitHubClientId)     { $GitHubClientId = $val } }
+                'GITHUB_CLIENT_SECRET'  { if (-not $GitHubClientSecret) { $GitHubClientSecret = $val } }
+                'BUDGET_ALERT_EMAIL'    { if (-not $BudgetAlertEmail)   { $BudgetAlertEmail = $val } }
+            }
+        }
+    }
+    Write-Host "    Loaded settings from .env" -ForegroundColor DarkGray
+}
 
 # ── Pre-flight checks ──
 
@@ -120,12 +149,17 @@ if (-not (Test-Path $bicepFile)) {
 }
 
 $deployParams = @("containerImage=$ContainerImage")
+if ($GoogleClientId)                { $deployParams += "googleClientId=$GoogleClientId" }
+if ($GoogleClientSecret)            { $deployParams += "googleClientSecret=$GoogleClientSecret" }
+if ($GitHubClientId)                { $deployParams += "githubClientId=$GitHubClientId" }
+if ($GitHubClientSecret)            { $deployParams += "githubClientSecret=$GitHubClientSecret" }
 if ($EnableGitSync) { $deployParams += 'gitSyncEnabled=1' }
 if ($GitHubRepo)                    { $deployParams += "githubRepo=$GitHubRepo" }
 if ($GitHubAppId)                   { $deployParams += "githubAppId=$GitHubAppId" }
 if ($GitHubAppInstallationId)       { $deployParams += "githubAppInstallationId=$GitHubAppInstallationId" }
 if ($GitHubAppPrivateKeySecretName) { $deployParams += "githubAppPrivateKeySecretName=$GitHubAppPrivateKeySecretName" }
 if ($GitHubWebhookSecret)           { $deployParams += "githubWebhookSecret=$GitHubWebhookSecret" }
+if ($BudgetAlertEmail)              { $deployParams += "budgetAlertEmail=$BudgetAlertEmail" }
 
 $deployResult = az deployment group create `
     --resource-group $ResourceGroup `

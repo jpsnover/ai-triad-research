@@ -1,0 +1,61 @@
+# Root .dockerignore — controls build context for taxonomy-editor/Dockerfile
+# (Docker context is repo root, not taxonomy-editor/)
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Other Electron apps (not needed for container build)
+poviewer/
+summary-viewer/
+
+# Build outputs and caches
+build/
+node_modules/
+taxonomy-editor/node_modules/
+taxonomy-editor/dist/
+taxonomy-editor/release/
+
+# Documentation and metadata
+*.md
+!taxonomy-editor/THIRD-PARTY-NOTICES.txt
+docs/
+AgentGuideLines/
+
+# CI/CD and deployment (not needed in image)
+.github/
+deploy/
+!deploy/azure/entrypoint.sh
+operations/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test files
+tests/
+**/*.test.ts
+**/*.spec.ts
+vitest.config.*
+
+# Orca / agent config
+.orca.yaml
+**/.orca.yaml
+**/.mcp.json
+**/AGENTS.md
+**/CLAUDE.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.template

@@ -52,7 +52,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: taxonomy-editor/package-lock.json
 
       - name: Install dependencies
         working-directory: taxonomy-editor
@@ -65,3 +67,47 @@ jobs:
       - name: Build
         working-directory: taxonomy-editor
         run: npm run build
+
+  test-container:
+    needs: [test-powershell, test-electron]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: taxonomy-editor/Dockerfile
+          push: false
+          load: true
+          tags: ai-triad-test:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container smoke test
+        run: |
+          docker run -d --name smoke-test -p 7862:7862 \
+            -e AI_TRIAD_DATA_ROOT=/data \
+            -v /tmp/test-data:/data \
+            ai-triad-test:ci
+          echo "Waiting for container to start..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Container health check passed!"
+              exit 0
+            fi
+            echo "  Attempt $i/12 — status: $STATUS"
+            sleep 5
+          done
+          echo "::error::Container smoke test failed — health check did not pass"
+          docker logs smoke-test
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f smoke-test || true

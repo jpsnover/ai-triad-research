@@ -30,7 +30,7 @@ jobs:
         shell: pwsh
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_MODEL:   ${{ secrets.AI_MODEL || 'claude-sonnet-4-6' }}
+          AI_MODEL:   ${{ vars.AI_MODEL || 'claude-sonnet-4-6' }}
         run: |
           Import-Module ./scripts/AITriad -Force
           Invoke-BatchSummary -ForceAll
