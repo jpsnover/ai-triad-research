@@ -316,21 +316,21 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           probes: [
             {
               type: 'Liveness'
-              httpGet: { path: '/health', port: 7862 }
+              httpGet: { path: '/healthz', port: 7862 }
               periodSeconds: 30
               failureThreshold: 3
             }
             {
               type: 'Readiness'
-              httpGet: { path: '/health', port: 7862 }
+              httpGet: { path: '/healthz', port: 7862 }
               periodSeconds: 10
               failureThreshold: 3
             }
             {
               type: 'Startup'
               httpGet: { path: '/health', port: 7862 }
-              periodSeconds: 5
-              failureThreshold: 10
+              periodSeconds: 10
+              failureThreshold: 30
             }
           ]
         }
