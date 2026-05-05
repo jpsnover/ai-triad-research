@@ -181,6 +181,9 @@ export function applyRelevanceThresholdAdaptation(
     }
 
     const oldValue = weights.relevance?.embedding_threshold ?? 0.48;
+    if (oldValue === newValue) {
+      return { applied: false, reason: 'file already at recommended value' };
+    }
     if (!weights.relevance) weights.relevance = {};
     weights.relevance.embedding_threshold = newValue;
 

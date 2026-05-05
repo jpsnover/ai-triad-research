@@ -17,9 +17,9 @@
   },
   "thresholds": {
     "exploration_exit": 0.65,
-    "synthesis_exit": 0.7,
-    "confidence_floor": 0.4,
-    "crux_semantic_novelty": 0.7
+    "synthesis_exit": 0.70,
+    "confidence_floor": 0.40,
+    "crux_semantic_novelty": 0.70
   },
   "phase_bounds": {
     "min_thesis_rounds": 2,
@@ -30,24 +30,12 @@
     "max_synthesis_rounds": 3,
     "max_total_rounds_default": 12,
     "max_regressions": 2,
-    "regression_ratchet": 0.1
+    "regression_ratchet": 0.10
   },
   "pacing_presets": {
-    "tight": {
-      "maxTotalRounds": 8,
-      "explorationExit": 0.55,
-      "synthesisExit": 0.6
-    },
-    "moderate": {
-      "maxTotalRounds": 12,
-      "explorationExit": 0.65,
-      "synthesisExit": 0.7
-    },
-    "thorough": {
-      "maxTotalRounds": 15,
-      "explorationExit": 0.8,
-      "synthesisExit": 0.8
-    }
+    "tight": { "maxTotalRounds": 8, "explorationExit": 0.55, "synthesisExit": 0.60 },
+    "moderate": { "maxTotalRounds": 12, "explorationExit": 0.65, "synthesisExit": 0.70 },
+    "thorough": { "maxTotalRounds": 15, "explorationExit": 0.80, "synthesisExit": 0.80 }
   },
   "network": {
     "gc_trigger": 175,
@@ -80,10 +68,15 @@
     "min_cross_pov_attackers": 1,
     "min_total_cross_pov_edges": 1
   },
+  "coverage": {
+    "discussed_threshold": 0.65,
+    "covered_threshold": 0.50,
+    "partial_threshold": 0.30
+  },
   "confidence": {
-    "floor": 0.4,
+    "floor": 0.40,
     "escalation_start": 3,
-    "floor_step": 0.1,
-    "minimum_floor": 0.2
+    "floor_step": 0.10,
+    "minimum_floor": 0.20
   }
 }

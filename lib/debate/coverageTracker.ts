@@ -15,6 +15,7 @@ import { ActionableError } from './errors.js';
 import type { DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ClaimCoverageEntry } from './types.js';
 import { computeQbafStrengths } from './qbaf.js';
 import type { QbafNode, QbafEdge } from './qbaf.js';
+import { loadProvisionalWeights } from './phaseTransitions.js';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -30,8 +31,19 @@ export interface CoverageResult {
 }
 
 export interface CoverageOptions {
-  /** Cosine similarity threshold for considering a claim "discussed". Default: 0.65. */
+  /** Cosine similarity threshold for considering a claim "discussed". Default from provisional-weights.json. */
   threshold?: number;
+}
+
+/** Load coverage thresholds from provisional-weights.json, falling back to defaults. */
+function getCoverageDefaults(): { discussed: number; covered: number; partial: number } {
+  const w = loadProvisionalWeights() as Record<string, unknown>;
+  const cov = (w as { coverage?: { discussed_threshold?: number; covered_threshold?: number; partial_threshold?: number } }).coverage;
+  return {
+    discussed: cov?.discussed_threshold ?? 0.65,
+    covered: cov?.covered_threshold ?? 0.50,
+    partial: cov?.partial_threshold ?? 0.30,
+  };
 }
 
 /** Tri-state coverage status for richer reporting (CT-1). */
@@ -87,7 +99,7 @@ export function computeCoverage(
   anVectors: Map<string, number[]>,
   options?: CoverageOptions,
 ): CoverageResult {
-  const threshold = options?.threshold ?? 0.65;
+  const threshold = options?.threshold ?? getCoverageDefaults().discussed;
 
   const entries: ClaimCoverageEntry[] = [];
 
@@ -142,7 +154,7 @@ export function computeCoverageByTextOverlap(
   anNodes: ArgumentNetworkNode[],
   options?: CoverageOptions,
 ): CoverageResult {
-  const threshold = options?.threshold ?? 0.65;
+  const threshold = options?.threshold ?? getCoverageDefaults().discussed;
 
   const entries: ClaimCoverageEntry[] = [];
 
@@ -204,8 +216,9 @@ export function computeCoverageMap(
   documentClaims: Array<{ id: string; text: string }>,
   options?: CoverageMapOptions,
 ): CoverageMap {
-  const partialThreshold = options?.partialThreshold ?? 0.3;
-  const coveredThreshold = options?.coveredThreshold ?? 0.5;
+  const defaults = getCoverageDefaults();
+  const partialThreshold = options?.partialThreshold ?? defaults.partial;
+  const coveredThreshold = options?.coveredThreshold ?? defaults.covered;
 
   if (coveredThreshold <= partialThreshold) {
     throw new ActionableError({
