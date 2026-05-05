@@ -18,7 +18,7 @@ import type {
   TranscriptEntry,
 } from './types.js';
 import { computePragmaticConvergence, computeSynthesisPragmaticSignal } from './pragmaticSignals.js';
-import { computeSchemeStagnation, computeSchemeCoverageFactor } from './schemeStagnation.js';
+import { computeSchemeStagnationCombined, computeSchemeCoverageFactor } from './schemeStagnation.js';
 import {
   computeExtractionConfidence,
   computeStabilityConfidence,
@@ -290,7 +290,16 @@ export function buildSignalRegistry(): Signal[] {
         const allSchemes = ctx.network.nodes
           .filter(n => n.argumentation_scheme)
           .map(n => n.argumentation_scheme!);
-        return computeSchemeStagnation(recentSchemes, allSchemes);
+        // Group recent schemes by turn for bigram diversity
+        const byTurn = new Map<number, string[]>();
+        for (const n of ctx.network.nodes) {
+          if (recentTurnNumbers.has(n.turn_number) && n.argumentation_scheme) {
+            const list = byTurn.get(n.turn_number) ?? [];
+            list.push(n.argumentation_scheme);
+            byTurn.set(n.turn_number, list);
+          }
+        }
+        return computeSchemeStagnationCombined(recentSchemes, allSchemes, [...byTurn.values()]);
       },
     },
   ];
