@@ -2,6 +2,8 @@ name: Base Image
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'  # Rebuild monthly (1st of each month) for OS security patches
   push:
     paths:
       - 'deploy/azure/Dockerfile.base'
@@ -34,13 +36,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate date tag
+        id: date_tag
+        run: echo "tag=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/azure/Dockerfile.base
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date_tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
