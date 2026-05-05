@@ -228,10 +228,14 @@ async function ensureSessionBranch(): Promise<string> {
   const current = await getCurrentBranchRaw().catch(() => '');
   if (current === branch) return branch;
 
-  if (await localBranchExists(branch)) {
-    await git(['checkout', branch]);
-  } else {
-    await git(['checkout', '-b', branch]);
+  const exists = await localBranchExists(branch);
+  const tryCheckout = await gitSafe(exists ? ['checkout', branch] : ['checkout', '-b', branch]);
+  if (!tryCheckout.ok) {
+    // Dirty working tree blocks branch switch — stash, switch, pop
+    console.log(`[gitRepoStore] checkout blocked by dirty tree, stashing...`);
+    await git(['stash', '--include-untracked']);
+    await git(exists ? ['checkout', branch] : ['checkout', '-b', branch]);
+    await gitSafe(['stash', 'pop']);
   }
   return branch;
 }

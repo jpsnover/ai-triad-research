@@ -51,10 +51,19 @@ function Split-DocumentChunks {
 
     Set-StrictMode -Version Latest
 
-    # Calibrated token estimation: 1 token ≈ 4.0 chars (conservative)
-    # Calibration (2026-04-03): mean=3.96, median=4.41 across 20 docs via Gemini countTokens.
-    # Using 4.0 (slightly conservative) to avoid underestimating token usage.
-    function Est-Tokens([string]$s) { [int]($s.Length / 4) }
+    # Content-type-aware token estimation (t/274)
+    # Academic prose: 3.8 chars/token (calibrated from project corpus)
+    # Code-heavy: 2.8 | Citation-heavy: 3.2 | Default: 3.8
+    function Get-TokenRatio([string]$s) {
+        if ($s.Length -lt 100) { return 3.8 }
+        $CodeDensity = ([regex]::Matches($s, '[{}()\[\];=<>]')).Count / [Math]::Max(1, $s.Length)
+        $UrlDensity  = ([regex]::Matches($s, 'https?://')).Count / [Math]::Max(1, ($s.Length / 1000))
+        if ($CodeDensity -gt 0.03) { return 2.8 }
+        if ($UrlDensity -gt 2.0)   { return 3.2 }
+        return 3.8
+    }
+    $TokenRatio = Get-TokenRatio $Text
+    function Est-Tokens([string]$s) { [int]($s.Length / $TokenRatio) }
 
     $TotalTokens = Est-Tokens $Text
 

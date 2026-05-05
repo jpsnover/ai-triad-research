@@ -1287,6 +1287,21 @@ const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 const AZURE_AUTH_ENABLED = process.env.WEBSITE_AUTH_ENABLED === 'True'
   || process.env.WEBSITE_AUTH_ENABLED === 'true';
 
+// S-ADMIN: Admin API key for headless scripts (e.g., Sync-AzureTriadData.ps1).
+// Set ADMIN_API_KEY on the container to enable. Minimum 16 chars enforced.
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+
+function isAdminRequest(req: http.IncomingMessage): boolean {
+  if (!ADMIN_API_KEY || ADMIN_API_KEY.length < 16) return false;
+  const key = (req.headers['x-admin-key'] as string) || '';
+  if (!key) return false;
+  // Constant-time comparison to prevent timing attacks
+  const keyBuf = Buffer.from(key);
+  const expectedBuf = Buffer.from(ADMIN_API_KEY);
+  if (keyBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(keyBuf, expectedBuf);
+}
+
 const server = http.createServer(async (req, res) => {
   // S10: Security headers on all responses
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1300,7 +1315,7 @@ const server = http.createServer(async (req, res) => {
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename, X-Admin-Key');
   if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -1346,7 +1361,7 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Set-Cookie', 'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
   }
 
-  if (!isPublicPath && !authDisabled) {
+  if (!isPublicPath && !authDisabled && !isAdminRequest(req)) {
     if (authOptional) {
       // Optional mode: show login page unless user signed in or chose anonymous
       if (!principalName) {
