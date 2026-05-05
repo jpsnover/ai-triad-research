@@ -60,14 +60,25 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Determine push mode
+        id: push_mode
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.push }}" == "true" ]]; then
+            echo "push=true" >> $GITHUB_OUTPUT
+            echo "load=false" >> $GITHUB_OUTPUT
+          else
+            echo "push=false" >> $GITHUB_OUTPUT
+            echo "load=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: taxonomy-editor/Dockerfile
-          push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push) }}
-          load: true
+          push: ${{ steps.push_mode.outputs.push }}
+          load: ${{ steps.push_mode.outputs.load }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
