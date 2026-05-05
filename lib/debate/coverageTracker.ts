@@ -79,11 +79,31 @@ export interface CoverageMapOptions {
   coveredThreshold?: number;
 }
 
+// ── Utilities ─────────────────────────────────────────────
+
+/**
+ * Prefix a claim's text with its BDI category for cross-comparison
+ * against genus-differentia taxonomy nodes. Adds category tokens that
+ * boost Jaccard overlap with taxonomy descriptions starting
+ * "A [Belief|Desire|Intention] within...".
+ */
+export function prefixClaimForTaxonomyComparison(
+  claimText: string,
+  bdiCategory?: string,
+): string {
+  if (!bdiCategory) return claimText;
+  const cat = bdiCategory.charAt(0).toUpperCase() + bdiCategory.slice(1).toLowerCase();
+  return `${cat} claim: ${claimText}`;
+}
+
 // ── Engine ────────────────────────────────────────────────
 
 /**
  * Compute coverage: match each source document claim against all AN nodes
  * using cosine similarity of their embedding vectors.
+ *
+ * NOTE: For best results, callers should prefix claim text with BDI category
+ * before computing embeddings: `prefixClaimForTaxonomyComparison(text, category)`
  *
  * @param sourceClaims - Document i-nodes with embedding vectors
  * @param anNodes - Argument network nodes with embedding vectors
@@ -213,7 +233,7 @@ export function computeCoverageByTextOverlap(
  */
 export function computeCoverageMap(
   anNodes: ArgumentNetworkNode[],
-  documentClaims: Array<{ id: string; text: string }>,
+  documentClaims: Array<{ id: string; text: string; bdi_category?: string }>,
   options?: CoverageMapOptions,
 ): CoverageMap {
   const defaults = getCoverageDefaults();
@@ -238,7 +258,8 @@ export function computeCoverageMap(
   const coverage: CoverageMapEntry[] = [];
 
   for (const claim of documentClaims) {
-    const claimTokens = tokenize(claim.text);
+    const prefixedText = prefixClaimForTaxonomyComparison(claim.text, claim.bdi_category);
+    const claimTokens = tokenize(prefixedText);
     let bestScore = 0;
     const matchedAnNodes: string[] = [];
 

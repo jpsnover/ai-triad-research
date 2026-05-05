@@ -1984,7 +1984,7 @@ export class DebateEngine {
       const anEdges = this.session.argument_network?.edges ?? [];
       if (anNodes.length > 0) {
         try {
-          const documentClaims = this.session.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
+          const documentClaims = this.session.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text, bdi_category: n.type }));
           const coverageMap = computeCoverageMap(anNodes, documentClaims);
           const sw = computeStrengthWeightedCoverage(coverageMap, anNodes, anEdges);
           const weightByClaimId = new Map(sw.claim_weights.map(w => [w.claimId, w.weight]));
