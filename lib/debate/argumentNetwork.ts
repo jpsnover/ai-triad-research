@@ -38,6 +38,24 @@ PREFERRED DOMAIN TERMINOLOGY — use these standardized terms when the claim exp
 - "dual-use" — technology with both beneficial and harmful applications
 - "red-teaming" — adversarial testing to identify system vulnerabilities
 - "deployment guardrails" — constraints on AI system behavior in production
+- "formal verification" — mathematical proof that a system meets its specification
+- "pre-deployment verification" — testing and validation before releasing an AI system
+- "frontier models" — the most capable AI models at the boundary of current technology
+- "deceptive alignment" — AI system appearing aligned during training while pursuing different objectives
+- "systemic risk" — risk of cascading failures across interconnected systems
+- "human-in-the-loop" — requiring human oversight at decision points in automated systems
+- "catastrophic failure" — failure mode with severe, potentially irreversible consequences
+- "safety-washing" — superficial safety claims used to deflect genuine accountability
+- "regulatory sandboxes" — controlled environments for testing innovation under regulatory oversight
+- "liability regime" — legal framework assigning responsibility for AI-caused harms
+- "strict liability" — legal liability without requiring proof of fault or negligence
+- "moat" / "barrier to entry" — competitive advantages that prevent new market participants
+- "race to the bottom" — competitive dynamic where safety standards decrease to reduce costs
+- "performative compliance" — appearing to meet requirements without genuine implementation
+- "lock-in effects" — mechanisms that prevent switching away from a technology or vendor
+- "human agency" — the capacity for humans to make autonomous decisions in AI-mediated contexts
+- "adversarial robustness" — resilience of AI systems against deliberately crafted malicious inputs
+- "capability elicitation" — methods for discovering and measuring what an AI system can do
 These are advisory — use the debater's exact phrasing when it's already precise.
 `;
 
