@@ -261,13 +261,19 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: containerEnv
           volumeMounts: [
-            { volumeName: 'data', mountPath: '/data' }
+            { volumeName: 'data', mountPath: '/data-persistent' }
           ]
           probes: [
             {
               type: 'Liveness'
               httpGet: { path: '/health', port: 7862 }
               periodSeconds: 30
+              failureThreshold: 3
+            }
+            {
+              type: 'Readiness'
+              httpGet: { path: '/health', port: 7862 }
+              periodSeconds: 10
               failureThreshold: 3
             }
             {
@@ -287,8 +293,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
-        maxReplicas: 1
+        minReplicas: 1
+        maxReplicas: 3
         rules: [
           {
             name: 'http-scaler'

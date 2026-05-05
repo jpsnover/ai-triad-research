@@ -78,6 +78,10 @@ COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/THIRD-PARTY-N
 # 5. PTY broker script (Python, not compiled by tsc — copy to where config.ts expects it)
 COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/pty-broker.py
 
+# 6. Entrypoint — copies Azure Files data to local ephemeral storage before starting
+#    the app, eliminating SMB latency for all runtime reads.
+COPY --chown=aitriad:aitriad deploy/azure/entrypoint.sh ./entrypoint.sh
+
 USER aitriad
 
 EXPOSE 7862
@@ -85,4 +89,4 @@ EXPOSE 7862
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s \
   CMD curl -f http://localhost:7862/health || exit 1
 
-CMD ["node", "dist/server/taxonomy-editor/src/server/server.js"]
+CMD ["sh", "entrypoint.sh"]
