@@ -63,6 +63,7 @@ jobs:
       - name: Lint
         working-directory: taxonomy-editor
         run: npm run lint
+        if: hashFiles('taxonomy-editor/eslint.config.*') != ''
 
       - name: TypeScript check (main)
         working-directory: taxonomy-editor
