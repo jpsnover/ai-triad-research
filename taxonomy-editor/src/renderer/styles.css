@@ -5233,6 +5233,29 @@ body {
   gap: 4px;
 }
 
+.lineage-ref-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+}
+.lineage-ref-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.pov-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.pov-badge-acc { color: var(--color-acc); border: 1px solid var(--color-acc); }
+.pov-badge-saf { color: var(--color-saf); border: 1px solid var(--color-saf); }
+.pov-badge-skp { color: var(--color-skp); border: 1px solid var(--color-skp); }
+
 .lineage-detail-secondary {
   margin-top: 16px;
   padding: 12px 14px;
