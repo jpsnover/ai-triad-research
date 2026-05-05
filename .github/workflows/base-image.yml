@@ -32,6 +32,7 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: deploy/azure/Dockerfile.base
+          failure-threshold: error
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
