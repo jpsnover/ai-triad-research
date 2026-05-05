@@ -268,4 +268,41 @@ describe('computeQbafStrengths', () => {
     expect(result.strengths.get('a')!).toBeLessThanOrEqual(1);
     expect(result.converged).toBe(true);
   });
+
+  // ── Oscillation handling ──────────────────────────────────
+
+  describe('oscillation handling', () => {
+    it('converges on a 3-node attack cycle with damping', () => {
+      // High base_strength + weight 1.0 creates slow-decaying oscillation
+      // that triggers damping after 3 non-decreasing delta iterations
+      const n: QbafNode[] = [
+        { id: 'A', base_strength: 0.96 },
+        { id: 'B', base_strength: 0.96 },
+        { id: 'C', base_strength: 0.96 },
+      ];
+      const e: QbafEdge[] = [
+        edge('A', 'B', 'attacks', 1.0, 'rebut'),
+        edge('B', 'C', 'attacks', 1.0, 'rebut'),
+        edge('C', 'A', 'attacks', 1.0, 'rebut'),
+      ];
+
+      const result = computeQbafStrengths(n, e);
+      expect(result.converged).toBe(true);
+      expect(result.oscillationDetected).toBe(true);
+      expect(result.iterations).toBeLessThan(100);
+      // Strengths should be symmetric due to symmetric graph
+      const vals = [...result.strengths.values()];
+      expect(Math.abs(vals[0] - vals[1])).toBeLessThan(0.01);
+      expect(Math.abs(vals[1] - vals[2])).toBeLessThan(0.01);
+    });
+
+    it('does not activate damping on acyclic graphs', () => {
+      const result = computeQbafStrengths(
+        nodes(['X', 0.8], ['Y', 0.6]),
+        [edge('X', 'Y', 'attacks', 0.5, 'rebut')],
+      );
+      expect(result.converged).toBe(true);
+      expect(result.oscillationDetected).toBeFalsy();
+    });
+  });
 });

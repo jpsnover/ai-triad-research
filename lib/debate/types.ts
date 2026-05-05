@@ -474,6 +474,8 @@ export interface DebateSession {
   moderator_state?: ModeratorState;
   /** Adaptive staging diagnostics — signal telemetry, phase transitions, GC events. Present when useAdaptiveStaging is enabled. */
   adaptive_staging_diagnostics?: AdaptiveStagingDiagnostics;
+  /** Last QBAF computation result metadata (oscillation detection, iteration count). */
+  last_qbaf_result?: { iterations: number; converged: boolean; oscillationDetected?: boolean };
   /** Per-crux resolution tracking — state machine tracking crux lifecycle. Absent in pre-crux-resolution debates. */
   crux_tracker?: TrackedCrux[];
   /** How this debate was created: 'cli' (headless runner), 'gui' (Electron app), or absent (pre-origin debates). */

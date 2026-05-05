@@ -152,6 +152,12 @@ export interface CalibrationDataPoint {
   /** Max situation nodes cap used */
   situation_max_nodes: number;
 
+  // ── QBAF oscillation ──
+  /** Whether QBAF damping was activated during the debate */
+  qbaf_oscillation_detected: boolean;
+  /** QBAF iterations in the final computation */
+  qbaf_iterations: number;
+
   // ── Confidence escalation ──
   /** Total confidence deferrals during this debate */
   confidence_deferrals: number;
@@ -604,6 +610,9 @@ export function extractCalibrationData(
     situation_nodes_referenced: sitNodesReferenced,
     situation_crux_alignment: sitCruxAlignment,
     situation_max_nodes: config.situationMaxNodes ?? 15,
+
+    qbaf_oscillation_detected: session.last_qbaf_result?.oscillationDetected ?? false,
+    qbaf_iterations: session.last_qbaf_result?.iterations ?? 0,
 
     confidence_deferrals: session.adaptive_staging_diagnostics?.confidence_deferrals ?? 0,
     confidence_escalations: (() => {

@@ -44,6 +44,7 @@ interface ProvisionalWeights {
   pacing_presets: Record<string, { maxTotalRounds: number; explorationExit: number; synthesisExit: number }>;
   network: Record<string, number>;
   budget: Record<string, number>;
+  crux_detection?: { min_base_strength: number; min_cross_pov_attackers: number; min_total_cross_pov_edges: number };
 }
 
 let _cachedWeights: ProvisionalWeights | null = null;
@@ -381,6 +382,9 @@ export function detectCruxNodes(
   nodes: ReadonlyArray<SignalContext['network']['nodes'][0]>,
   edges: ReadonlyArray<SignalContext['network']['edges'][0]>,
 ): { id: string; crossPovAttackCount: number; computedStrength: number }[] {
+  const w = loadProvisionalWeights();
+  const cd = w.crux_detection ?? { min_base_strength: 0.3, min_cross_pov_attackers: 1, min_total_cross_pov_edges: 1 };
+
   // P5: O(N+E) via pre-built indexes instead of O(N*E) nested scans
   const nodeById = new Map<string, SignalContext['network']['nodes'][0]>();
   for (const n of nodes) nodeById.set(n.id, n);
@@ -396,16 +400,27 @@ export function detectCruxNodes(
 
   const cruxes: { id: string; crossPovAttackCount: number; computedStrength: number }[] = [];
   for (const node of nodes) {
-    if ((node.computed_strength ?? 0) <= 0.5) continue;
+    // Filter by base_strength (not computed_strength — QBAF reduces strength under attack,
+    // which would exclude the most contested nodes, the exact opposite of what we want)
+    const baseStr = node.base_strength ?? node.computed_strength ?? 0.5;
+    if (baseStr < cd.min_base_strength) continue;
+
     const sources = attacksByTarget.get(node.id);
     if (!sources) continue;
+
+    // Count cross-POV attackers (different speaker than node owner)
+    const crossPovSources: string[] = [];
     const attackerSpeakers = new Set<string>();
     for (const srcId of sources) {
       const src = nodeById.get(srcId);
-      if (src?.speaker) attackerSpeakers.add(src.speaker);
+      if (src?.speaker && src.speaker !== node.speaker) {
+        crossPovSources.push(srcId);
+        attackerSpeakers.add(src.speaker);
+      }
     }
-    if (attackerSpeakers.size >= 2) {
-      cruxes.push({ id: node.id, crossPovAttackCount: attackerSpeakers.size, computedStrength: node.computed_strength });
+
+    if (attackerSpeakers.size >= cd.min_cross_pov_attackers && crossPovSources.length >= cd.min_total_cross_pov_edges) {
+      cruxes.push({ id: node.id, crossPovAttackCount: attackerSpeakers.size, computedStrength: node.computed_strength ?? baseStr });
     }
   }
 

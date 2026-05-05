@@ -35,6 +35,7 @@ export interface QbafResult {
   strengths: Map<string, number>;
   iterations: number;
   converged: boolean;
+  oscillationDetected?: boolean;
 }
 
 // ── Default attack type weights ───────────────────────────
@@ -97,18 +98,22 @@ export function computeQbafStrengths(
     map.get(e.target)!.push({ sourceId: e.source, weight: effectiveWeight });
   }
 
-  // Iterate until convergence
+  // Iterate until convergence (Jacobi-style: all nodes read from previous iteration)
   let converged = false;
   let iterations = 0;
+  let priorDelta = Infinity;
+  let oscillationCount = 0;
+  let damping = 0; // 0 = no damping, activates on oscillation
 
   for (let iter = 0; iter < maxIter; iter++) {
     iterations = iter + 1;
     let maxDelta = 0;
+    const nextStrengths = new Map<string, number>();
 
     for (const n of nodes) {
       const base = clamp(n.base_strength);
 
-      // Aggregate attack influence
+      // Aggregate attack influence (reads from previous iteration)
       const attackEdges = attacks.get(n.id) ?? [];
       let aggAtt = 0;
       for (const a of attackEdges) {
@@ -116,7 +121,7 @@ export function computeQbafStrengths(
       }
       aggAtt = clamp(aggAtt);
 
-      // Aggregate support influence
+      // Aggregate support influence (reads from previous iteration)
       const supportEdges = supports.get(n.id) ?? [];
       let aggSup = 0;
       for (const s of supportEdges) {
@@ -125,19 +130,42 @@ export function computeQbafStrengths(
       aggSup = clamp(aggSup);
 
       // DF-QuAD update rule
-      const newStrength = clamp(base * (1 - aggAtt) * (1 + aggSup));
+      let newStrength = clamp(base * (1 - aggAtt) * (1 + aggSup));
+
+      // Apply damping if oscillation detected
+      if (damping > 0) {
+        const prev = strengths.get(n.id) ?? 0;
+        newStrength = (1 - damping) * newStrength + damping * prev;
+      }
+
       const delta = Math.abs(newStrength - (strengths.get(n.id) ?? 0));
       if (delta > maxDelta) maxDelta = delta;
-      strengths.set(n.id, newStrength);
+      nextStrengths.set(n.id, newStrength);
     }
+
+    // Bulk update (Jacobi: apply all changes after computing all nodes)
+    for (const [id, val] of nextStrengths) strengths.set(id, val);
 
     if (maxDelta < threshold) {
       converged = true;
       break;
     }
+
+    // Oscillation detection: if max_delta isn't decreasing, count it
+    if (maxDelta > priorDelta * 0.95) {
+      oscillationCount++;
+    } else {
+      oscillationCount = 0;
+    }
+    priorDelta = maxDelta;
+
+    // Activate damping after 3 consecutive non-decreasing iterations
+    if (oscillationCount >= 3 && damping === 0) {
+      damping = 0.3;
+    }
   }
 
-  return { strengths, iterations, converged };
+  return { strengths, iterations, converged, oscillationDetected: damping > 0 };
 }
 
 // ── Convergence integration ───────────────────────────────

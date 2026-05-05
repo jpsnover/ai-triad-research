@@ -713,7 +713,7 @@ export class DebateEngine {
         cruxNodes: detectCruxNodes(
           an.nodes.map(n => ({
             id: n.id, speaker: n.speaker, computed_strength: n.computed_strength ?? 0.5,
-            taxonomy_refs: [], turn_number: n.turn_number,
+            base_strength: n.base_strength, taxonomy_refs: [], turn_number: n.turn_number,
           })),
           an.edges.map(e => ({
             id: e.id, source: e.source, target: e.target,
@@ -3260,6 +3260,10 @@ Return ONLY JSON (no markdown, no code fences):
         attack_type: e.attack_type,
       }));
       const result = computeQbafStrengths(qbafNodes, qbafEdges);
+      this.session.last_qbaf_result = { iterations: result.iterations, converged: result.converged, oscillationDetected: result.oscillationDetected };
+      if (!result.converged) {
+        console.warn(`[qbaf-non-convergence] iterations=${result.iterations} oscillation=${result.oscillationDetected} nodes=${qbafNodes.length} edges=${qbafEdges.length}`);
+      }
       for (const node of an.nodes) {
         const strength = result.strengths.get(node.id);
         if (strength !== undefined) node.computed_strength = strength;

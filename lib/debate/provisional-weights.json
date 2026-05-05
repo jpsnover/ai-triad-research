@@ -61,6 +61,11 @@
     "max_pov_nodes": 35,
     "max_situations": 15
   },
+  "crux_detection": {
+    "min_base_strength": 0.3,
+    "min_cross_pov_attackers": 1,
+    "min_total_cross_pov_edges": 1
+  },
   "confidence": {
     "floor": 0.40,
     "escalation_start": 3,

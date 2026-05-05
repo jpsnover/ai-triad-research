@@ -469,7 +469,7 @@ describe('detectCruxNodes', () => {
     expect(cruxes[0].crossPovAttackCount).toBe(2);
   });
 
-  it('does not flag a node attacked by only 1 speaker', () => {
+  it('detects a node attacked by 1 cross-POV speaker (default threshold)', () => {
     const nodes = [
       makeNode('A', 'prometheus', 1, 0.7),
       makeNode('B', 'sentinel', 2, 0.6),
@@ -477,18 +477,33 @@ describe('detectCruxNodes', () => {
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
     ];
-    expect(detectCruxNodes(nodes, edges)).toEqual([]);
+    const cruxes = detectCruxNodes(nodes, edges);
+    expect(cruxes).toHaveLength(1);
+    expect(cruxes[0].id).toBe('A');
+    expect(cruxes[0].crossPovAttackCount).toBe(1);
   });
 
-  it('does not flag a node with computed_strength <= 0.5', () => {
+  it('uses base_strength for filtering (not computed_strength)', () => {
+    // Node A has low computed_strength (attacked by QBAF) but decent base_strength
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.4), // below 0.5 threshold
+      makeNode('A', 'prometheus', 1, 0.2, { base_strength: 0.5 }),
       makeNode('B', 'sentinel', 2, 0.6),
-      makeNode('C', 'cassandra', 2, 0.8),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
-      makeEdge('e2', 'C', 'A', 'attacks'),
+    ];
+    const cruxes = detectCruxNodes(nodes, edges);
+    expect(cruxes).toHaveLength(1);
+    expect(cruxes[0].id).toBe('A');
+  });
+
+  it('excludes nodes with base_strength below min threshold', () => {
+    const nodes = [
+      makeNode('A', 'prometheus', 1, 0.7, { base_strength: 0.2 }), // below 0.3
+      makeNode('B', 'sentinel', 2, 0.6),
+    ];
+    const edges = [
+      makeEdge('e1', 'B', 'A', 'attacks'),
     ];
     expect(detectCruxNodes(nodes, edges)).toEqual([]);
   });
@@ -516,7 +531,19 @@ describe('detectCruxNodes', () => {
       makeEdge('e1', 'B1', 'A', 'attacks'),
       makeEdge('e2', 'B2', 'A', 'attacks'),
     ];
-    // Only 1 distinct attacker speaker, so not a crux
+    const cruxes = detectCruxNodes(nodes, edges);
+    expect(cruxes).toHaveLength(1);
+    expect(cruxes[0].crossPovAttackCount).toBe(1); // 1 distinct speaker, 2 edges
+  });
+
+  it('ignores same-speaker attacks (not cross-POV)', () => {
+    const nodes = [
+      makeNode('A', 'prometheus', 1, 0.7),
+      makeNode('B', 'prometheus', 2, 0.6), // same speaker
+    ];
+    const edges = [
+      makeEdge('e1', 'B', 'A', 'attacks'),
+    ];
     expect(detectCruxNodes(nodes, edges)).toEqual([]);
   });
 });
