@@ -1,0 +1,37 @@
+# Local testing for the Azure Container Apps deployment.
+# Replicates the production environment: Azure Files mount at /data-persistent,
+# entrypoint copies to /data, app serves from local disk.
+#
+# Usage:
+#   # Build and test (from repo root):
+#   docker compose -f deploy/azure/docker-compose.test.yml up --build
+#
+#   # With test data (create deploy/azure/test-data/ with minimal taxonomy):
+#   docker compose -f deploy/azure/docker-compose.test.yml up --build
+#
+#   # Verify:
+#   curl http://localhost:7862/health    # Should return 200
+#   curl http://localhost:7862/status    # Copy progress (when implemented)
+
+services:
+  taxonomy-editor:
+    build:
+      context: ../..
+      dockerfile: taxonomy-editor/Dockerfile
+    ports:
+      - "7862:7862"
+    volumes:
+      - ./test-data:/data-persistent:ro
+    environment:
+      - AI_TRIAD_DATA_ROOT=/data
+      - NODE_ENV=production
+      - AUTH_DISABLED=1
+      - DEPLOY_TAG=local-test
+      - DEPLOY_SHA=local
+    healthcheck:
+      # Matches ACA startup probe: 10s interval, 30 failures = 5 min max
+      test: curl -f http://localhost:7862/health || exit 1
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
