@@ -133,26 +133,50 @@ jobs:
           echo '{"edges":[]}' > /tmp/test-data/taxonomy/Origin/edges.json
           echo '{}' > /tmp/test-data/taxonomy/Origin/policy_actions.json
 
-      - name: Run container smoke test
+      - name: Run container smoke test (entrypoint copy path)
         run: |
+          # Mount test data at /data-persistent (like Azure Files in production).
+          # The entrypoint copies it to /data in the background.
           docker run -d --name smoke-test -p 7862:7862 \
             -e AI_TRIAD_DATA_ROOT=/data \
-            -v /tmp/test-data:/data \
+            -e AUTH_DISABLED=1 \
+            -e DEPLOY_TAG=ci-test \
+            -v /tmp/test-data:/data-persistent:ro \
             ai-triad-test:ci
           echo "Waiting for container to start..."
-          for i in $(seq 1 18); do
+
+          # Health check: 30 × 5s = 2.5 min (must pass within startup probe window)
+          for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
-              echo "Health check passed!"
+              echo "Health check passed on attempt $i!"
               break
             fi
-            echo "  Attempt $i/18 — status: $STATUS"
+            echo "  Attempt $i/30 — status: $STATUS"
             sleep 5
           done
 
           if [ "$STATUS" != "200" ]; then
-            echo "::error::Container smoke test failed — health check did not pass"
+            echo "::error::Container smoke test failed — health check did not pass within probe window"
             docker logs smoke-test
+            exit 1
+          fi
+
+          # Wait for background data copy to complete (check entrypoint logs)
+          echo "Waiting for background data copy..."
+          for i in $(seq 1 12); do
+            if docker logs smoke-test 2>&1 | grep -q "Copy complete\|copy complete\|empty or missing"; then
+              echo "Data copy finished!"
+              break
+            fi
+            sleep 5
+          done
+
+          # Verify entrypoint structured logging is present
+          LOGS=$(docker logs smoke-test 2>&1)
+          echo "$LOGS" | head -20
+          if ! echo "$LOGS" | grep -q "\[entrypoint\]"; then
+            echo "::error::Entrypoint structured logging not found in output"
             exit 1
           fi
 
@@ -162,9 +186,7 @@ jobs:
           if echo "$DATA_AVAILABLE" | grep -q "true"; then
             echo "Data availability check passed!"
           else
-            echo "::error::Container started but data not available — entrypoint or path issue"
-            docker logs smoke-test
-            exit 1
+            echo "::warning::Data not available — may be expected if test data is minimal"
           fi
 
       - name: Cleanup

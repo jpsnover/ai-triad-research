@@ -73,6 +73,35 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Preview Bicep changes (what-if)
+        run: |
+          echo "Previewing infrastructure changes..."
+          RESULT=$(az deployment group what-if \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --template-file deploy/azure/main.bicep \
+            --parameters \
+              containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
+              googleClientId=${{ secrets.GOOGLE_CLIENT_ID }} \
+              googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }} \
+              githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }} \
+              authDisabled=${{ inputs.enable_auth && '' || '1' }} \
+              gitSyncEnabled=${{ inputs.enable_git_sync && '1' || '' }} \
+              githubRepo=${{ vars.SYNC_GITHUB_REPO }} \
+              githubAppId=${{ vars.SYNC_GITHUB_APP_ID }} \
+              githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }} \
+              githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }} \
+              githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
+              ghcrPassword=${{ secrets.GHCR_PAT }} \
+            --no-pretty-print 2>&1) || true
+          echo "$RESULT"
+
+          # Fail on unexpected deletes (but allow NoChange and Modify)
+          if echo "$RESULT" | grep -q '"changeType":"Delete"'; then
+            echo "::error::Bicep what-if detected resource DELETIONS — review before deploying"
+            exit 1
+          fi
+
       - name: Deploy Bicep template
         uses: azure/arm-deploy@v2
         id: deploy
