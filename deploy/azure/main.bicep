@@ -535,6 +535,56 @@ resource budget 'Microsoft.Consumption/budgets@2023-11-01' = if (budgetAlertConf
   }
 }
 
+// ── Container Restart Loop Alert ──
+// Fires when a revision has 5+ restart events in 10 minutes.
+// Uses the Log Analytics workspace connected to the Container Apps Environment.
+
+resource restartAlertActionGroup 'Microsoft.Insights/actionGroups@2023-09-01-preview' = if (budgetAlertConfigured) {
+  name: 'ag-aitriad-restart-alert'
+  location: 'global'
+  tags: tags
+  properties: {
+    groupShortName: 'RestartLoop'
+    enabled: true
+    emailReceivers: budgetAlertConfigured ? [
+      { name: 'owner', emailAddress: budgetAlertEmail, useCommonAlertSchema: true }
+    ] : []
+  }
+}
+
+resource restartLoopAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-restart-loop'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Container Restart Loop Detected'
+    description: 'Fires when a container revision restarts 5+ times in 10 minutes — likely a crash loop from a bad deploy.'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT10M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppSystemLogs_CL
+            | where Reason_s in ("ContainerBackOff", "StoppingContainer")
+            | summarize RestartCount = count() by RevisionName_s
+            | where RestartCount > 5
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 // ── Outputs ──
 
 output appUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
