@@ -1,0 +1,24 @@
+{
+  "_orca": {
+    "managed": true,
+    "managedServers": [
+      "orca"
+    ]
+  },
+  "mcpServers": {
+    "orca": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "/Applications/Orca.app/Contents/Resources/app/extensions/orca-extension/dist/mcp-relay.sh",
+        "--socket",
+        "/var/folders/vy/kq3z69md60bf5_2d9r1fyz7r0000gn/T/orca-mcp/docs-269055fa/orca.sock"
+      ],
+      "env": {
+        "ORCA_WORKSPACE_ROOT": "/Users/jsnover/source/repos/ai-triad-research/docs",
+        "ORCA_EXTENSION_PATH": "/Applications/Orca.app/Contents/Resources/app/extensions/orca-extension",
+        "ORCA_TEMPLATES_DIR": "/Applications/Orca.app/Contents/Resources/app/extensions/orca-extension/dist/templates"
+      }
+    }
+  }
+}

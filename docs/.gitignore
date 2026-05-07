@@ -1,0 +1,9 @@
+
+
+# Orca: auto-generated config symlinks in profile subdirectories
+**/.mcp.json
+!/.mcp.json
+.github/hooks/orca-status.json
+**/.factory/mcp.json
+**/.factory/settings.json
+.github/instructions/orca-identity.instructions.md
