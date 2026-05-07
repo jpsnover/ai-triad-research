@@ -244,6 +244,7 @@ jobs:
           az containerapp logs show \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision "${{ steps.new_revision.outputs.revision }}" \
             --type console --tail 100 2>/dev/null || echo "(no console logs)"
 
           echo ""
