@@ -25,6 +25,7 @@ import * as gitStore from './gitRepoStore';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth';
 import * as proxyTiers from './proxyTiers';
 import * as rateLimiter from './rateLimiter';
+import * as analytics from './analytics';
 
 // ── Express-like micro-router (zero dependencies) ──
 
@@ -112,6 +113,16 @@ get('/health', (_req, res) => {
     dataRoot: getDataRoot(),
     memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
   });
+});
+
+get('/status', (_req, res) => {
+  const statusFile = '/tmp/copy-status.json';
+  try {
+    const raw = fs.readFileSync(statusFile, 'utf-8');
+    json(res, JSON.parse(raw));
+  } catch {
+    json(res, { state: 'unknown' });
+  }
 });
 
 // ── Taxonomy directories ──
@@ -951,6 +962,53 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
   json(res, { ok: true });
 });
 
+// ── Analytics ──
+
+get('/api/auth/me', (req, res) => {
+  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '_anonymous';
+  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+  json(res, { user: principalName, idp });
+});
+
+post('/api/analytics/event', (_req, res, body) => {
+  const raw = (body as { events?: unknown[] }).events;
+  if (!Array.isArray(raw)) { json(res, { error: 'events array required' }, 400); return; }
+  // Sanitize: only keep events that have the required string fields
+  const events: analytics.AnalyticsEvent[] = [];
+  for (const e of raw) {
+    if (typeof e !== 'object' || e === null) continue;
+    const o = e as Record<string, unknown>;
+    if (typeof o.user !== 'string' || typeof o.session_id !== 'string' ||
+        typeof o.timestamp !== 'string' || typeof o.event_type !== 'string' ||
+        typeof o.category !== 'string') continue;
+    events.push({
+      user: o.user.slice(0, 200),
+      session_id: o.session_id.slice(0, 100),
+      timestamp: o.timestamp.slice(0, 30),
+      event_type: o.event_type.slice(0, 100),
+      category: o.category.slice(0, 50),
+      detail: (typeof o.detail === 'object' && o.detail !== null ? o.detail : {}) as Record<string, unknown>,
+      duration_ms: typeof o.duration_ms === 'number' ? o.duration_ms : undefined,
+    });
+  }
+  analytics.appendEvents(events);
+  json(res, { ok: true, count: events.length });
+});
+
+get('/api/analytics/query', (req, res) => {
+  const url = new URL(req.url!, 'http://localhost');
+  const from = url.searchParams.get('from') || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const to = url.searchParams.get('to') || new Date().toISOString().slice(0, 10);
+  const user = url.searchParams.get('user') || undefined;
+  const sessionId = url.searchParams.get('session_id') || undefined;
+
+  if (user || sessionId) {
+    json(res, { events: analytics.queryRawEvents(from, to, user, sessionId) });
+  } else {
+    json(res, analytics.queryAggregated(from, to));
+  }
+});
+
 // ── Focus node (inter-app communication) ──
 
 post('/focus-node', (_req, res, body) => {
@@ -1362,6 +1420,8 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   // /api/sync/webhook/github is public: GitHub POSTs unauthenticated; the
   // handler does its own HMAC verification against GITHUB_WEBHOOK_SECRET.
   const isPublicPath = urlPath === '/health'
+    || urlPath === '/healthz'
+    || urlPath === '/status'
     || urlPath === '/api/models'
     || urlPath === '/api/sync/webhook/github'
     || urlPath.startsWith('/.auth/');
@@ -1643,6 +1703,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 server.listen(PORT, () => {
   console.log(`[server] Taxonomy Editor running at http://localhost:${PORT}`);
   console.log(`[server] Data root: ${getDataRoot()}`);
+
+  // Initialize analytics storage (daily NDJSON files + 90-day pruning)
+  try { analytics.initAnalytics(getDataRoot()); } catch (e) { console.warn('[server] Analytics init failed:', e); }
 
   gitStore.initDataRepo().then(r => {
     if (!r.ok) console.error(`[server] Git data-repo init failed: ${r.error}`);

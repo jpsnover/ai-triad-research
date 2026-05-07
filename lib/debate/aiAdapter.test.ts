@@ -300,7 +300,7 @@ describe('aiAdapter', () => {
       expect(callCount).toBe(2);
     });
 
-    it('exhausts maxRetries (3) and throws on persistent 429', async () => {
+    it('exhausts maxRetries (5) and throws on persistent 429', async () => {
       process.env.GEMINI_API_KEY = 'test-key';
       mockFetch.mockImplementation(async () => freshResponse({ error: 'rate limited' }, 429));
 
@@ -309,10 +309,10 @@ describe('aiAdapter', () => {
 
       await expect(runWithTimers(adapter.generateText('test', 'gemini-2.5-flash')))
         .rejects.toThrow(/429/);
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(5);
     });
 
-    it('uses exponential backoff delays: 5s, 15s, 45s', async () => {
+    it('uses exponential backoff delays', async () => {
       process.env.GEMINI_API_KEY = 'test-key';
       const fetchTimes: number[] = [];
       mockFetch.mockImplementation(async () => {
@@ -325,13 +325,14 @@ describe('aiAdapter', () => {
 
       await runWithTimers(adapter.generateText('test', 'gemini-2.5-flash').catch(() => {}));
 
-      expect(fetchTimes).toHaveLength(3);
+      expect(fetchTimes).toHaveLength(5);
+      // Exponential: 2^1=2s, 2^2=4s, 2^3=8s, 2^4=16s
       const delay1 = fetchTimes[1] - fetchTimes[0];
       const delay2 = fetchTimes[2] - fetchTimes[1];
-      expect(delay1).toBeGreaterThanOrEqual(4_000);
-      expect(delay1).toBeLessThan(7_000);
-      expect(delay2).toBeGreaterThanOrEqual(14_000);
-      expect(delay2).toBeLessThan(17_000);
+      expect(delay1).toBeGreaterThanOrEqual(1_500);
+      expect(delay1).toBeLessThan(4_000);
+      expect(delay2).toBeGreaterThanOrEqual(3_000);
+      expect(delay2).toBeLessThan(6_000);
     });
 
     // NOTE: This documents a real bug — all ActionableErrors from backend
@@ -347,8 +348,8 @@ describe('aiAdapter', () => {
 
       await expect(runWithTimers(adapter.generateText('test', 'gemini-2.5-flash')))
         .rejects.toThrow(/401/);
-      // All 3 retries are consumed even for 401, because "generate" matches "rate"
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+      // All 5 retries are consumed even for 401, because "generate" matches "rate"
+      expect(mockFetch).toHaveBeenCalledTimes(5);
     });
   });
 

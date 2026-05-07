@@ -364,7 +364,7 @@ function ProgressIndicator() {
   return (
     <div className="debate-progress-indicator">
       <span className="debate-progress-activity">{debateActivity}</span>
-      {debateProgress && debateProgress.attempt > 1 && (
+      {debateProgress && (debateProgress.attempt > 1 || debateProgress.phase === 'retry') && (
         <span className="debate-progress-retry">
           Retry {debateProgress.attempt}/{debateProgress.maxRetries}
           {debateProgress.backoffSeconds ? ` (waiting ${debateProgress.backoffSeconds}s)` : ''}

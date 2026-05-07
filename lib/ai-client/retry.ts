@@ -37,9 +37,9 @@ export interface RetryConfig {
 }
 
 export const CLI_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 3,
-  strategy: 'fixed',
-  fixedDelays: [5, 15, 45],
+  maxRetries: 5,
+  strategy: 'exponential',
+  maxBackoffS: 60,
 };
 
 export const SERVER_RETRY_CONFIG: RetryConfig = {
@@ -68,6 +68,7 @@ export async function withRetry<T>(
         lower.includes('socket hang up') || lower.includes('network') ||
         lower.includes('timed out');
       if (!isRetryable || attempt === config.maxRetries) throw err;
+      if (lower.includes('per day') || lower.includes('rpd') || lower.includes('daily')) throw err;
       const delay = config.strategy === 'fixed'
         ? (config.fixedDelays?.[attempt - 1] ?? 45)
         : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
@@ -111,6 +112,18 @@ export async function retryableFetch(opts: {
       let retryBody = '';
       try { retryBody = await response.text(); } catch { /* ignore */ }
       const { limitType, limitMessage } = parseRateLimitType(retryBody);
+      if (limitType === 'RPD') {
+        throw new ActionableError({
+          goal: `Generate text via ${opts.label}`,
+          problem: `Daily API quota exhausted. ${limitMessage}`,
+          location: `ai-client.retryableFetch(${opts.label})`,
+          nextSteps: [
+            'Switch to a different model (Settings → AI Model)',
+            'Wait until quota resets (midnight PT)',
+            'Upgrade to a paid API tier',
+          ],
+        });
+      }
       if (attempt === config.maxRetries) {
         throw new ActionableError({
           goal: `Generate text via ${opts.label}`,
@@ -119,7 +132,7 @@ export async function retryableFetch(opts: {
           nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check the API provider status page'],
         });
       }
-      const backoff = limitType === 'RPD' ? Math.min(2 ** (attempt + 2), 60) : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
+      const backoff = Math.min(2 ** attempt, config.maxBackoffS ?? 30);
       opts.onRetry?.({ attempt, maxRetries: config.maxRetries, backoffSeconds: backoff, limitType, limitMessage });
       await new Promise(r => setTimeout(r, backoff * 1000));
       continue;

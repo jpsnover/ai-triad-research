@@ -640,11 +640,19 @@ export function discreteBdiScore(value: string): number {
  * Map a fact-check verdict + confidence to a numeric base_strength for Belief claims.
  * Closes the belief-scoring asymmetry (theory-of-success §4.4) by using retrieval-augmented
  * verification as a proxy for empirical claim strength.
+ *
+ * When `evidenceStrength` is provided (from the evidence QBAF pipeline), it takes
+ * precedence over the single-verdict mapping.
  */
 export function factCheckToBaseStrength(
   verdict: string,
   confidence?: string,
+  evidenceStrength?: number,
 ): number {
+  // Evidence QBAF result takes precedence when available
+  if (evidenceStrength !== undefined) {
+    return Math.max(0, Math.min(1, evidenceStrength));
+  }
   const conf = (confidence ?? 'medium').toLowerCase();
   switch (verdict) {
     case 'verified':
@@ -838,6 +846,24 @@ export function processExtractedClaims(
       specificity: claim.specificity as ArgumentNetworkNode['specificity'],
       steelman_of: claim.steelman_of || undefined,
     };
+
+    // BDI composite scoring: for Desires and Intentions with sub-scores,
+    // use the mean of the 3 calibrated criteria as base_strength (Q-0: r=0.65/0.71).
+    // Beliefs excluded (r≈0.20) — evidence QBAF handles those separately.
+    if (node.bdi_category === 'desire' && node.bdi_sub_scores) {
+      const { values_grounding, tradeoff_acknowledgment, precedent_citation } = node.bdi_sub_scores;
+      if (values_grounding != null || tradeoff_acknowledgment != null || precedent_citation != null) {
+        node.base_strength = ((values_grounding ?? 0.5) + (tradeoff_acknowledgment ?? 0.5) + (precedent_citation ?? 0.5)) / 3;
+        node.scoring_method = 'bdi_composite';
+      }
+    } else if (node.bdi_category === 'intention' && node.bdi_sub_scores) {
+      const { mechanism_specificity, scope_bounding, failure_mode_addressing } = node.bdi_sub_scores;
+      if (mechanism_specificity != null || scope_bounding != null || failure_mode_addressing != null) {
+        node.base_strength = ((mechanism_specificity ?? 0.5) + (scope_bounding ?? 0.5) + (failure_mode_addressing ?? 0.5)) / 3;
+        node.scoring_method = 'bdi_composite';
+      }
+    }
+
     newNodes.push(node);
     allNodes.push(node);
     priorIds.add(nodeId);

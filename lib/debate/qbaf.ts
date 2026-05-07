@@ -248,6 +248,34 @@ export function computeFactCheckStrength(
   };
 }
 
+// ── Edge attribution (HDE B1) ─────────────────────────────
+
+/**
+ * Compute removal-based edge attribution for a target node.
+ * For each incoming edge, removes it, re-runs QBAF, and measures the strength delta.
+ * Positive attribution = edge was helping (support), negative = edge was hurting (attack).
+ * Called on-demand for node inspection, not on every propagation.
+ */
+export function computeEdgeAttribution(
+  nodes: QbafNode[],
+  edges: QbafEdge[],
+  targetNodeId: string,
+  options?: QbafOptions,
+): Map<string, number> {
+  const baseline = computeQbafStrengths(nodes, edges, options);
+  const baseStrength = baseline.strengths.get(targetNodeId) ?? 0;
+  const attributions = new Map<string, number>();
+
+  const targetEdges = edges.filter(e => e.target === targetNodeId);
+  for (const edge of targetEdges) {
+    const reduced = edges.filter(e => e !== edge);
+    const result = computeQbafStrengths(nodes, reduced, options);
+    const without = result.strengths.get(targetNodeId) ?? 0;
+    attributions.set(`${edge.source}→${edge.target}`, baseStrength - without);
+  }
+  return attributions;
+}
+
 // ── Helpers ───────────────────────────────────────────────
 
 function clamp(v: number): number {

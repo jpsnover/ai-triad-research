@@ -47,6 +47,8 @@ export interface GenerateOptions extends SharedGenerateOptions {
 
 export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
+  /** Optional callback for retry progress events. Set by the engine to surface retries in the UI. */
+  onRetryProgress?: (info: { attempt: number; maxRetries: number; backoffSeconds: number; message: string }) => void;
 }
 
 /**
@@ -183,7 +185,18 @@ export async function countTokens(
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
   const registry = loadRegistry(repoRoot);
 
-  const retryLog = (msg: string) => process.stderr.write(msg + '\n');
+  const retryLog = (msg: string) => {
+    process.stderr.write(msg + '\n');
+    const match = msg.match(/attempt (\d+)\/(\d+) failed .+waiting (\d+)s/);
+    if (match) {
+      adapter.onRetryProgress?.({
+        attempt: parseInt(match[1], 10),
+        maxRetries: parseInt(match[2], 10),
+        backoffSeconds: parseInt(match[3], 10),
+        message: msg,
+      });
+    }
+  };
 
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend } = resolveModel(registry, model);

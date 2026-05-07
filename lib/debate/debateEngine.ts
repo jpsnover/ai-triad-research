@@ -85,7 +85,9 @@ import {
   optimizeRelevanceThreshold,
   applyRelevanceThresholdAdaptation,
 } from './calibrationOptimizer.js';
-import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
+import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
+import { retrieveEvidence } from './evidenceRetriever.js';
+import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
@@ -201,6 +203,10 @@ export interface DebateConfig {
   allowEarlyTermination?: boolean;
   /** AbortSignal for external cancellation. When aborted, the engine stops at the next checkpoint. */
   signal?: AbortSignal;
+  /** Minimum delay (ms) between consecutive API calls. 0 = no throttle (default). Recommended: 500-1000 for free-tier APIs. */
+  throttleMs?: number;
+  /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
+  perturbation?: import('./types').PerturbationConfig;
 }
 
 export interface DebateProgress {
@@ -209,6 +215,8 @@ export interface DebateProgress {
   round?: number;
   totalRounds?: number;
   message: string;
+  /** Present when phase is 'retry' — retry attempt details. */
+  retry?: { attempt: number; maxRetries: number; backoffSeconds: number };
 }
 
 // ── Engine ────────────────────────────────────────────────
@@ -221,6 +229,7 @@ export class DebateEngine {
   private onProgress?: (p: DebateProgress) => void;
   private apiCallCount = 0;
   private totalResponseTimeMs = 0;
+  private lastApiCallTime = 0;
   /** Last computed injection manifest — stored on transcript entries for usage analysis. */
   private _lastInjectionManifest: ContextInjectionManifest | null = null;
   /** Speaker mapping for neutral evaluator — built once, reused across checkpoints. */
@@ -233,6 +242,8 @@ export class DebateEngine {
   private _openingClaims = new Map<string, Array<{ id: string; text: string; embedding: number[] }>>();
   /** How many gap injections have fired so far (initial + responsive). */
   private _gapInjectionCount = 0;
+  /** Perturbation injection transcript entry ID — set when perturbation fires. */
+  private _perturbationEntryId: string | null = null;
   /** Accumulated context manifests across turns — for taxonomy gap analysis. */
   private _contextManifests: ContextManifestEntry[] = [];
   /** Lazy-built set of every taxonomy node id in the loaded taxonomy. */
@@ -276,6 +287,7 @@ export class DebateEngine {
   private async generateWithModel(
     prompt: string, label: string, model: string, timeoutMs?: number,
   ): Promise<string> {
+    await this.throttle();
     this.progress('generating', undefined, label);
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, model, {
@@ -283,6 +295,7 @@ export class DebateEngine {
       timeoutMs: timeoutMs ?? 120_000,
       signal: this.config.signal,
     });
+    this.lastApiCallTime = Date.now();
     this.apiCallCount++;
     this.totalResponseTimeMs += Date.now() - start;
     return text;
@@ -296,6 +309,15 @@ export class DebateEngine {
 
   async run(onProgress?: (p: DebateProgress) => void): Promise<DebateSession> {
     this.onProgress = onProgress;
+    if (this.adapter.onRetryProgress === undefined) {
+      this.adapter.onRetryProgress = (info) => {
+        this.onProgress?.({
+          phase: 'retry',
+          message: `Retry attempt ${info.attempt}/${info.maxRetries}, waiting ${info.backoffSeconds}s...`,
+          retry: { attempt: info.attempt, maxRetries: info.maxRetries, backoffSeconds: info.backoffSeconds },
+        });
+      };
+    }
     this.initSession();
 
     try {
@@ -349,6 +371,9 @@ export class DebateEngine {
 
       // Phase 4g: Situation debate_refs extraction (t/193 — deterministic, needs transcript + situations)
       this.runSituationRefExtraction();
+
+      // Phase 4h: Perturbation result computation (evaluation/benchmark only)
+      this.computePerturbationResult();
     } catch (err) {
       // If the debate was cancelled via AbortSignal, set phase to cancelled and return partial session
       if (this.config.signal?.aborted) {
@@ -487,7 +512,18 @@ export class DebateEngine {
 
   // ── AI call wrapper ────────────────────────────────────────
 
+  private async throttle(): Promise<void> {
+    const delay = this.config.throttleMs ?? 0;
+    if (delay > 0 && this.lastApiCallTime > 0) {
+      const elapsed = Date.now() - this.lastApiCallTime;
+      if (elapsed < delay) {
+        await new Promise(r => setTimeout(r, delay - elapsed));
+      }
+    }
+  }
+
   private async generate(prompt: string, label: string, timeoutMs?: number): Promise<string> {
+    await this.throttle();
     this.progress('generating', undefined, label);
     const start = Date.now();
     const text = await this.adapter.generateText(prompt, this.config.model, {
@@ -496,12 +532,14 @@ export class DebateEngine {
       signal: this.config.signal,
     });
     const elapsed = Date.now() - start;
+    this.lastApiCallTime = Date.now();
     this.apiCallCount++;
     this.totalResponseTimeMs += elapsed;
     return text;
   }
 
   private async generateWithEvaluator(prompt: string, label: string, timeoutMs?: number): Promise<string> {
+    await this.throttle();
     const evalModel = this.config.evaluatorModel ?? this.config.model;
     this.progress('generating', undefined, label);
     const start = Date.now();
@@ -511,6 +549,7 @@ export class DebateEngine {
       signal: this.config.signal,
     });
     const elapsed = Date.now() - start;
+    this.lastApiCallTime = Date.now();
     this.apiCallCount++;
     this.totalResponseTimeMs += elapsed;
     return text;
@@ -544,6 +583,55 @@ export class DebateEngine {
         nextSteps: ['Start a new debate if desired'],
       });
     }
+  }
+
+  // ── Perturbation testing (HDE B2) ─────────────────────
+
+  /** Inject an adversarial perturbation prompt as a system entry. */
+  private injectPerturbation(round: number): void {
+    const perturbation = this.config.perturbation!;
+    this.progress('debate', undefined, `Perturbation injection at round ${round}`);
+    const entry = this.addEntry({
+      type: 'system',
+      speaker: 'system',
+      content: perturbation.prompt,
+      taxonomy_refs: [],
+      metadata: { perturbation: true, round },
+    });
+    this._perturbationEntryId = entry.id;
+  }
+
+  /** Compute SysAR from ArCo signals before and after perturbation injection. */
+  private computePerturbationResult(): void {
+    const perturbation = this.config.perturbation;
+    if (!perturbation || !this._perturbationEntryId) return;
+
+    const signals = this.session.convergence_signals ?? [];
+    const injectionRound = perturbation.inject_at_turn;
+    const window = perturbation.measure_recovery_window ?? 3;
+
+    // Split signals into pre and post injection
+    const preSignals = signals.filter(s => s.round <= injectionRound && s.arco);
+    const postSignals = signals.filter(s => s.round > injectionRound && s.round <= injectionRound + window && s.arco);
+
+    const preArco = preSignals.length > 0
+      ? preSignals.reduce((sum, s) => sum + s.arco!.turn_similarity, 0) / preSignals.length
+      : 0.5; // Default baseline if no pre-injection ArCo available
+    const postArco = postSignals.length > 0
+      ? postSignals.reduce((sum, s) => sum + s.arco!.turn_similarity, 0) / postSignals.length
+      : 0;
+    const sysar = preArco > 0 ? postArco / preArco : 0;
+
+    this.session.perturbation_result = {
+      prompt: perturbation.prompt,
+      injected_at_round: injectionRound,
+      injection_entry_id: this._perturbationEntryId,
+      pre_arco: preArco,
+      post_arco: postArco,
+      sysar,
+      recovery_window: postSignals.length,
+      resilient: sysar >= 0.8,
+    };
   }
 
   /** Post-turn summarization (DT-2): generate brief + medium summaries. Non-blocking — failure is logged, not thrown. */
@@ -1235,6 +1323,7 @@ export class DebateEngine {
         audience: this.config.audience,
         model: this.config.model,
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
+        doctrinalBoundaries: info.doctrinal_boundaries,
         ...(this.config.temperature != null ? {
           stageTemperatures: {
             brief_temperature: this.config.temperature,
@@ -1314,6 +1403,11 @@ export class DebateEngine {
       this.progress('debate', undefined, `Cross-respond round ${round}/${this.config.rounds} [${phase}]`, round);
       await this.runCrossRespondRound(round, phase);
 
+      // Perturbation injection (evaluation/benchmark only)
+      if (this.config.perturbation && round === this.config.perturbation.inject_at_turn) {
+        this.injectPerturbation(round);
+      }
+
       // Network GC — same topology-aware pruning as adaptive mode
       const an = this.session.argument_network;
       if (an && !gcRan && needsGc(an.nodes.length, w.network.gc_trigger)) {
@@ -1376,6 +1470,11 @@ export class DebateEngine {
 
       // Run the cross-respond round
       await this.runCrossRespondRound(round, phase);
+
+      // Perturbation injection (evaluation/benchmark only)
+      if (this.config.perturbation && round === this.config.perturbation.inject_at_turn) {
+        this.injectPerturbation(round);
+      }
 
       // Update peak trackers after claims extraction
       const thisRoundStatements = this.session.transcript
@@ -1769,6 +1868,7 @@ export class DebateEngine {
       availablePovNodeIds,
       crossPovNodeIds,
       priorFlaggedHints,
+      doctrinalBoundaries: info.doctrinal_boundaries,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
@@ -3115,6 +3215,9 @@ export class DebateEngine {
   /**
    * After claim extraction, auto-fact-check precise Belief claims via web search.
    * Cap at 2 per turn. Updates node verification_status and inserts system warning if disputed.
+   *
+   * When source corpus is available, runs evidence QBAF pipeline (retrieve → classify → QBAF)
+   * for richer strength scoring. Falls back to single-verdict web search when sources are absent.
    */
   private async verifyPreciseClaims(newNodes: ArgumentNetworkNode[]): Promise<void> {
     const adapter = this.adapter as ExtendedAIAdapter;
@@ -3125,8 +3228,23 @@ export class DebateEngine {
     );
     if (preciseBeliefs.length === 0) return;
 
+    // Resolve sources directory for evidence QBAF (lazy, on-demand)
+    let sourcesDir: string | null = null;
+    try {
+      const __engineDir = path.dirname(fileURLToPath(import.meta.url));
+      const repoRoot = resolveRepoRoot(__engineDir);
+      sourcesDir = resolveSourcesDir(repoRoot);
+    } catch { /* sources unavailable — fall back to single-verdict */ }
+
     for (const node of preciseBeliefs.slice(0, 2)) {
       try {
+        // ── Evidence QBAF path: retrieve from source corpus, classify, compute strength
+        if (sourcesDir) {
+          const evidenceResult = await this.runEvidenceQbaf(node, sourcesDir);
+          if (evidenceResult) continue; // Successfully scored via evidence QBAF
+        }
+
+        // ── Fallback: single-verdict web search
         const prompt = `Verify this empirical claim using web search evidence.
 
 Claim: "${node.text}"
@@ -3185,6 +3303,74 @@ Return ONLY JSON (no markdown, no code fences):
         });
       }
     }
+  }
+
+  /**
+   * Run evidence QBAF pipeline for a single Belief claim:
+   * 1. Retrieve top-K evidence from source corpus
+   * 2. LLM classifies as support/contradict/irrelevant
+   * 3. Build QBAF sub-graph and compute strength
+   * Returns true if evidence was found and claim was scored.
+   */
+  private async runEvidenceQbaf(
+    node: ArgumentNetworkNode,
+    sourcesDir: string,
+  ): Promise<boolean> {
+    const evidenceItems = retrieveEvidence(node.text, sourcesDir, {
+      topK: 10,
+      nodeEmbeddings: this.taxonomy.embeddings,
+    });
+
+    if (evidenceItems.length === 0) return false;
+
+    const evalModel = this.config.evaluatorModel ?? this.config.model;
+    const result = await buildEvidenceQbaf(
+      node.text,
+      evidenceItems,
+      this.adapter,
+      evalModel,
+      {
+        standardizedTerms: this.config.vocabulary?.standardizedTerms,
+        claimBaseStrength: 0.5,
+      },
+    );
+
+    if (result.evidence_items.length === 0) return false;
+
+    // Update node with evidence QBAF results
+    node.base_strength = factCheckToBaseStrength('evidence_qbaf', undefined, result.computed_strength);
+    node.scoring_method = 'fact_check';
+    node.verification_status = result.computed_strength >= 0.6 ? 'verified'
+      : result.computed_strength <= 0.4 ? 'disputed' : 'unverifiable';
+    node.evidence_graph = {
+      evidence_items: result.evidence_items,
+      computed_strength: result.computed_strength,
+      qbaf_iterations: result.qbaf_iterations,
+    };
+
+    // Log to transcript
+    const supportCount = result.evidence_items.filter(e => e.relation === 'support').length;
+    const contradictCount = result.evidence_items.filter(e => e.relation === 'contradict').length;
+    this.session.transcript.push({
+      id: generateId(),
+      timestamp: nowISO(),
+      type: 'fact-check',
+      speaker: 'system',
+      content: `Claim ${node.id} — evidence QBAF: strength=${result.computed_strength.toFixed(2)} (${supportCount} support, ${contradictCount} contradict, ${result.qbaf_iterations} iterations)`,
+      taxonomy_refs: [],
+      metadata: {
+        source: 'evidence_qbaf',
+        claim_id: node.id,
+        claim_text: node.text,
+        evidence_count: result.evidence_items.length,
+        support_count: supportCount,
+        contradict_count: contradictCount,
+        computed_strength: result.computed_strength,
+        qbaf_iterations: result.qbaf_iterations,
+      },
+    });
+
+    return true;
   }
 
   // ── Claim extraction ───────────────────────────────────────

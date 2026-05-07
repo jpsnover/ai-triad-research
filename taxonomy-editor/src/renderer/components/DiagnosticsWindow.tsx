@@ -1567,6 +1567,52 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
+      {/* NL strength explanation (B2) */}
+      {(attacks.length > 0 || supports.length > 0) && (() => {
+        const base = node.base_strength ?? 0.5;
+        const computed = computedStrength ?? node.computed_strength ?? base;
+        const band = computed >= 0.8 ? 'accepted' : computed >= 0.5 ? 'moderate' : computed >= 0.3 ? 'weak' : 'rejected';
+        const truncate = (t: string, n: number) => t.length > n ? t.slice(0, n) + '…' : t;
+        // Find strongest attacker by contribution
+        let strongestAtk: { text: string; contribution: number } | null = null;
+        for (const a of attacks) {
+          const src = strengthMap?.get(a.source);
+          if (src == null) continue;
+          const w = a.weight ?? 0.5;
+          const mult = ATTACK_TYPE_WEIGHTS[a.attack_type ?? 'rebut'] ?? 1.0;
+          const contrib = src * w * mult;
+          if (!strongestAtk || contrib > strongestAtk.contribution) {
+            const srcNode = allNodes.find(n => n.id === a.source);
+            strongestAtk = { text: srcNode ? truncate(srcNode.text, 60) : a.source, contribution: contrib };
+          }
+        }
+        // Find strongest supporter by contribution
+        let strongestSup: { text: string; contribution: number } | null = null;
+        for (const s of supports) {
+          const src = strengthMap?.get(s.source);
+          if (src == null) continue;
+          const w = s.weight ?? 0.5;
+          const contrib = src * w;
+          if (!strongestSup || contrib > strongestSup.contribution) {
+            const srcNode = allNodes.find(n => n.id === s.source);
+            strongestSup = { text: srcNode ? truncate(srcNode.text, 60) : s.source, contribution: contrib };
+          }
+        }
+        // Build explanation
+        let explanation = `${band} (${computed.toFixed(2)})`;
+        if (strongestSup && strongestAtk) {
+          explanation += ` because "${strongestSup.text}" (+${strongestSup.contribution.toFixed(2)}) even though "${strongestAtk.text}" (−${strongestAtk.contribution.toFixed(2)})`;
+        } else if (strongestSup) {
+          explanation += ` because "${strongestSup.text}" (+${strongestSup.contribution.toFixed(2)})`;
+        } else if (strongestAtk) {
+          explanation += ` despite "${strongestAtk.text}" (−${strongestAtk.contribution.toFixed(2)})`;
+        }
+        return (
+          <div style={{ paddingLeft: 18, marginTop: 2, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            {explanation}
+          </div>
+        );
+      })()}
       {node.bdi_sub_scores && <SubScoreRow node={node} onUpdateSubScore={onUpdateSubScore} />}
 
       {/* Edges — shown when expanded */}

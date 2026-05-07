@@ -134,6 +134,7 @@ export interface TurnPipelineInput {
   model: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
+  doctrinalBoundaries?: string[];
 }
 
 export type StageGenerateFn = (
@@ -188,6 +189,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     audience: input.audience,
     pendingIntervention: input.pendingIntervention,
     phaseContext: input.phaseContext,
+    doctrinalBoundaries: input.doctrinalBoundaries,
   };
 }
 
@@ -414,6 +416,7 @@ export interface OpeningPipelineInput {
   model: string;
   stageTemperatures?: TurnStageConfig;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
+  doctrinalBoundaries?: string[];
 }
 
 export async function runOpeningPipeline(
@@ -437,6 +440,7 @@ export async function runOpeningPipeline(
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
     userSeedClaims: input.userSeedClaims,
+    doctrinalBoundaries: input.doctrinalBoundaries,
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();

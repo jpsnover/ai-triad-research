@@ -119,6 +119,23 @@ function getConfiguredModel(): string {
   }
 }
 
+/** Normalize progress from either flat shape (Electron IPC) or nested retry shape (lib DebateProgress). */
+function normalizeProgress(p: Record<string, unknown>): { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } {
+  // Lib DebateProgress: { phase: 'retry', retry: { attempt, maxRetries, backoffSeconds }, message }
+  const retry = p.retry as { attempt: number; maxRetries: number; backoffSeconds: number } | undefined;
+  if (retry && typeof retry === 'object') {
+    return {
+      attempt: retry.attempt,
+      maxRetries: retry.maxRetries,
+      backoffSeconds: retry.backoffSeconds,
+      limitMessage: p.message as string | undefined,
+      phase: p.phase as string | undefined,
+    };
+  }
+  // Flat shape from Electron IPC: { attempt, maxRetries, backoffSeconds, limitType, limitMessage }
+  return p as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string };
+}
+
 /** Call generateText with progress tracking — subscribes to onGenerateTextProgress */
 async function generateTextWithProgress(
   prompt: string,
@@ -130,7 +147,7 @@ async function generateTextWithProgress(
 ): Promise<{ text: string }> {
   set({ debateActivity: activity, debateProgress: null });
   const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
-    set({ debateProgress: progress });
+    set({ debateProgress: normalizeProgress(progress) });
   });
   try {
     const result = await api.generateText(prompt, model, timeoutMs);
@@ -1124,7 +1141,7 @@ function makeStageGenerate(
   return async (prompt, _model, options, label) => {
     set({ debateActivity: label, debateProgress: null });
     const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
-      set({ debateProgress: progress as { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } });
+      set({ debateProgress: normalizeProgress(progress) });
     });
     try {
       const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
@@ -1517,7 +1534,7 @@ interface DebateStore {
   setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
   setEntryDisplayTier: (entryId: string, tier: 'brief' | 'medium' | 'detailed') => void;
-  debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string } | null;
+  debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
   debateModel: string | null; // debate-specific model override (null = use global)

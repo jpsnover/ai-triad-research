@@ -50,7 +50,7 @@ Abstract argumentation frameworks (Dung, 1995) compute argument acceptability fr
 
 The Argument Interchange Format (AIF, Chesnevar et al., 2006; Rahwan et al., 2007) provides a standardized vocabulary for representing arguments: I-nodes (information — claims), S-nodes (scheme — reasoning patterns), and CA-nodes (conflict — attacks). Tools like OVA (Janier and Reed, 2014) and AIFdb (Lawrence et al., 2012) implement AIF for manual and semi-automated annotation.
 
-My contribution is twofold: (1) I apply QBAF to real policy discourse at scale with calibrated base scores (existing QBAF work primarily uses synthetic data or small-scale experiments), and (2) I discover and address a BDI-layer-dependent asymmetry in base score calibration that has not been reported in prior work.
+My contribution is twofold: (1) I apply QBAF to real policy discourse at scale with calibrated base scores (existing QBAF work primarily uses synthetic data or small-scale experiments), and (2) I discover and address a BDI-layer-dependent asymmetry in base score calibration that has not been reported in prior work. The decision to compute QBAF strengths algorithmically rather than delegating evaluation to LLMs is supported by Sanayei et al. (2025), who demonstrate that LLMs achieve only moderate alignment with QuAD-family gradual semantics on naturalistic debate corpora, with performance degrading as input length increases and discourse structure is disrupted — precisely the conditions that characterize multi-turn policy debates.
 
 ### 2.4 Ontology-Grounded NLP
 
@@ -58,9 +58,11 @@ Ontologies have been used in NLP for knowledge representation (Guarino et al., 2
 
 I adopt a composite ontology: DOLCE D&S provides the perspectival framework (three POV "descriptions" of shared "situations"), BDI provides agent characterization (structuring each perspective's internal reasoning), and AIF provides argumentation vocabulary (formalizing how perspectives interact). Critically, I adopt ontological *vocabulary* — naming conventions, category tests, and description patterns — rather than formal OWL/RDF triples. This "vocabulary over formalism" approach provides sufficient grounding for discourse analysis without the engineering overhead of formal ontology reasoning.
 
+The BDI categories used here align with formal DOLCE-grounded BDI semantics (BDI Ontology, arXiv:2511.17162): our Beliefs map to `Belief ⊑ CognitiveEntity ⊑ MentalState` in DOLCE-UltraLite, our `assumes` field corresponds to `Justification ⊑ dul:Description` (the rationale underlying a mental state), and our BDI causal chain (Beliefs ground Desires which motivate Intentions) matches their axioms `Belief ⊑ ∃motivates.Desire` and `Intention ⊑ ∃fulfils.Desire`. The formal ontology (288 axioms, 22 classes, 71 properties in OWL 2) validates our category choices while our vocabulary approach trades inferential power for engineering pragmatism at deployment scale.
+
 ### 2.5 LLM-as-Debater and Multi-Agent Argumentation
 
-Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks.
+Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks. Critically, pure LLM approaches to structured reasoning systematically collapse multi-path decision processes into single narratives: Hude (2025) demonstrates a 10× accuracy improvement (88.74% vs 8.61%) when LLMs operate within a graph-constrained neurosymbolic architecture rather than unconstrained generation, with the pure LLM missing 90% of required reasoning steps by selecting the most plausible interpretation rather than exploring alternatives. This finding generalizes beyond legal reasoning — any domain requiring systematic exploration of competing interpretations (including multi-perspective policy analysis) benefits from explicit structural constraint on LLM reasoning.
 
 A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002). Crucially, unlike prior multi-agent debate systems that treat LLM outputs as final, this system applies a neural-symbolic architecture: each debate turn passes through a 4-stage pipeline with deterministic JSON chaining, two-stage validation (9 symbolic rules + neural quality assessment), and produces outcomes explainable through deterministic graph traversal rather than further neural inference.
 
@@ -76,7 +78,25 @@ Analogical reasoning has been studied as a mechanism for creative problem-solvin
 
 The system implements a **neural-symbolic architecture** in which every neural component (LLM-based content generation, soft judgment, scheme classification) is paired with a symbolic counterpart (deterministic validation, QBAF strength propagation, BFS graph traversal, move-edge classification) that constrains, verifies, or explains the neural output. This dual architecture is not incidental — it is the central design principle that enables both the creativity of LLM-based argumentation and the auditability required for policy analysis tools. Neural components generate argumentative content, classify reasoning patterns, and assess soft qualities like argument advancement. Symbolic components enforce structural constraints (move type validity, node existence, statement length), propagate formal argument strength (DF-QuAD gradual semantics), compute convergence diagnostics from the argument network, and produce deterministic explanations of debate outcomes through graph traversal. Every LLM output passes through symbolic validation before entering the argument network, and every outcome is explainable through deterministic computation over that network.
 
-The system implements a five-stage pipeline: **ingest** (document conversion and metadata extraction), **extract** (claim identification with confidence assessment), **argue** (multi-agent debate with ontology-grounded context), **synthesize** (argument mapping, preference resolution, disagreement typing), and **evolve** (taxonomy updates via debate harvest, concession accumulation, reflections, and health analysis).
+The system implements a five-stage pipeline: **ingest** (document conversion and metadata extraction), **extract** (claim identification with confidence assessment), **argue** (multi-agent debate with ontology-grounded context), **synthesize** (argument mapping, preference resolution, disagreement typing), and **evolve** (taxonomy updates via debate harvest, concession accumulation, reflections, and health analysis). This pipeline instantiates a "Triples-to-Beliefs-to-Triples" cycle (cf. BDI Ontology, arXiv:2511.17162): structured taxonomy knowledge is injected into agents as BDI-organized worldviews (T→B), agents reason and debate within that structure, and their evolved mental states — captured through reflections, concession harvesting, and gap analysis — project back as taxonomy updates (B→T). The taxonomy is not a static resource consumed by the debate; it is a living structure that the debate refines.
+
+### 3.0 The Determinate-Indeterminate Boundary
+
+Following Hart (1961) and Hude (2025), we decompose reasoning into **determinate operations** — tasks with one correct answer, encoded in the graph — and **interpretive judgments** where the LLM exercises bounded discretion within constraints set by the graph structure. This boundary is not an engineering convenience but a principled design decision grounded in Hart's concept of the "penumbra": where rules run out and context-dependent judgment begins.
+
+| Determinate (symbolic) | Indeterminate (neural) |
+|---|---|
+| QBAF strength propagation (DF-QuAD gradual semantics) | Claim generation (DRAFT stage content) |
+| Phase transition predicates (6-signal composite) | Argumentation scheme classification |
+| Convergence diagnostics (7 deterministic metrics) | BDI category disambiguation |
+| Network garbage collection (tiered pruning rules) | Concession detection |
+| Commitment store consistency checking | Steelman validation |
+| Turn validation (9 symbolic rules) | Turn quality assessment |
+| Graph traversal for dialectic traces | Metaphor reframing |
+
+The graph structure controls when and where LLMs are invoked: the taxonomy determines what context agents receive, the argument network determines what claims need engagement, and QBAF strengths determine what is strong enough to warrant response. LLMs exercise interpretive judgment only at designated points — content generation, scheme classification, quality assessment — always bounded by the graph's structural constraints. This ensures that every LLM invocation receives structured context, operates within defined boundaries, and produces output that is validated against deterministic rules before entering the argument network. Notably, argument strength computation is kept entirely symbolic: Sanayei et al. (2025) show that LLMs achieve only moderate alignment with QuAD-family gradual semantics and degrade on longer, structurally disrupted inputs — precisely the conditions of multi-turn debate. Our DF-QuAD computation avoids this limitation by design.
+
+The practical consequence is that system failures are traceable to specific architectural decisions rather than stochastic model variation. Following Hude's error analysis methodology, we categorize failures as *architectural* (inherent to the decomposition — e.g., Belief scoring requires external verification unavailable to the LLM), *prompt-level* (fixable by instruction improvement — e.g., BDI misclassification), *parameter-level* (fixable by calibration — e.g., convergence thresholds), or *stochastic* (random model variation). This classification determines the appropriate fix path: architectural failures need redesign, not prompt tweaking.
 
 ### 3.1 Ontological Grounding Layer
 
@@ -260,7 +280,7 @@ The Beliefs calibration failure is not a prompt engineering problem — it refle
 
 **Beliefs claims require external verification.** Whether an empirical claim accurately represents its cited source, whether the source is peer-reviewed, and whether the claim is consistent with the broader evidence base requires access to information outside the claim text — the actual source document, the journal database, the state of scientific consensus. The AI lacks reliable access to this external information and defaults to assessing surface features (assertive language, hedging words) rather than evidential quality.
 
-This asymmetry generalizes beyond this system: any automated argumentation system that attempts to score argument strength must contend with the fact that empirical claims require fundamentally different assessment infrastructure than normative or strategic claims.
+This asymmetry generalizes beyond this system: any automated argumentation system that attempts to score argument strength must contend with the fact that empirical claims require fundamentally different assessment infrastructure than normative or strategic claims. This finding parallels Hude (2025), who demonstrates that 78% of errors in a graph-constrained legal reasoning system trace to a single architectural limitation (dynamic role assignment), not to stochastic model behavior. In both cases, the failure is a property of the decomposition — which tasks are delegated to the LLM and which are handled symbolically — not a deficiency in the model itself. The implication is that Belief scoring cannot be fixed by better prompts; it requires architectural change (such as retrieval-augmented evidence graphs that provide the external verification the LLM lacks).
 
 ### 5.4 Evaluation (E2)
 
@@ -747,9 +767,9 @@ The moderator bias mechanism (triggered by isolated high-strength claims with no
 
 ### 8.7 Neural-Symbolic Architecture for Explainable Argumentation
 
-The system's most distinctive architectural property is the systematic pairing of neural and symbolic computation at every layer. This is not an ad-hoc combination — it reflects a principled design philosophy: neural components handle tasks that require creativity, language understanding, and soft judgment (content generation, scheme classification, argumentative quality assessment), while symbolic components handle tasks that require precision, reproducibility, and auditability (validation, strength propagation, convergence measurement, outcome explanation).
+The system's most distinctive architectural property is the systematic pairing of neural and symbolic computation at every layer. This is not an ad-hoc combination — it reflects the principled determinate-indeterminate decomposition described in Section 3.0: determinate operations (those with one correct answer) are encoded symbolically, while interpretive judgments (those admitting multiple reasonable interpretations) are delegated to LLMs bounded by graph constraints. Hude (2025) demonstrates the power of this decomposition in legal reasoning, achieving a 10× accuracy improvement over unconstrained LLMs. Our system applies the same principle to multi-perspective argumentative discourse, where the taxonomy graph, argument network, and QBAF propagation provide the structural backbone that constrains, verifies, and explains neural outputs at every layer.
 
-**The 4-stage turn pipeline (Section 6.2)** exemplifies this pairing at the micro level. The pipeline structure — stage ordering, JSON schemas, typed outputs, inter-stage chaining — is entirely symbolic. The content generated within each stage is entirely neural. This decomposition provides two critical properties that a single neural call cannot: *localizability* (a citation error is traced to the CITE stage, not to "the model") and *independent tunability* (the DRAFT stage can run at temperature 0.7 for creativity while CITE runs at 0.15 for precision, rather than forcing a single temperature to serve competing demands).
+**The 4-stage turn pipeline (Section 6.2)** exemplifies this pairing at the micro level. The pipeline structure — stage ordering, JSON schemas, typed outputs, inter-stage chaining — is entirely symbolic. The content generated within each stage is entirely neural. This decomposition provides two critical properties that a single neural call cannot: *localizability* (a citation error is traced to the CITE stage, not to "the model") and *independent tunability* (the DRAFT stage can run at temperature 0.7 for creativity while CITE runs at 0.15 for precision, rather than forcing a single temperature to serve competing demands). This decomposition also mitigates the length and discourse-disruption degradation that Sanayei et al. (2025) document in LLM-as-judge settings: by decomposing each turn into bounded subtasks, no single LLM call must process the full debate context holistically.
 
 **Turn validation (Section 6.3)** exemplifies the pairing at the quality-control level. The 9 deterministic rules of Stage A catch errors that are objectively verifiable (a non-existent node ID, a statement with only 2 paragraphs) without consuming any LLM calls. The neural Stage B assesses qualities that resist formalization (whether a turn genuinely "advances" the debate). Neither layer alone suffices: purely symbolic validation would miss argumentative quality issues, while purely neural validation would miss structural errors that the LLM generates confidently.
 
@@ -764,6 +784,8 @@ The system's most distinctive architectural property is the systematic pairing o
 This architecture addresses a fundamental tension in multi-agent debate systems. Pure neural systems (multiple LLM agents debating with unstructured outputs) are creative but opaque — they produce interesting debates whose outcomes cannot be explained or audited. Pure symbolic systems (formal argumentation frameworks with hand-coded arguments) are auditable but brittle — they cannot generate novel arguments or assess soft argumentative qualities. The neural-symbolic pairing provides both: neural creativity in content generation and symbolic rigor in validation, measurement, and explanation.
 
 The practical consequence is that every claim the system makes about debate outcomes is backed by a verifiable computation. "This position prevailed" is backed by a dialectic trace through the QBAF. "This debate is converging" is backed by seven deterministic metrics. "This turn is valid" is backed by 10 symbolic rules plus a neural quality assessment. This dual backing makes the system suitable for policy analysis contexts where trust in computational tools requires more than "the AI said so."
+
+Our DF-QuAD implementation is formally an instance of aggregative QBAF semantics (Munro et al., 2026, Proposition 1), using product aggregation for both attacks and supports with a multiplicative combining function. While 515 variants exist within the aggregative framework, empirical comparison across all reviewed papers — ArgRAG (Zhu et al., 2025), the unified framework (Alfano et al., 2026), and this aggregative analysis — shows only minor performance differences between semantics choices. The architectural decision to use formal gradual semantics is more consequential than which specific semantics is selected. Future work could explore asymmetric aggregation (different functions for attacks vs. supports) for regulatory contexts where burden of proof is asymmetric.
 
 ### 8.8 Addressing the Fixed-Role Critique
 
@@ -911,6 +933,8 @@ ALDayel, A. and Magdy, W. (2021). Stance detection with BERT embeddings for web 
 
 Baroni, P., Rago, M., and Toni, F. (2019). From fine-grained properties to broad principles for gradual argumentation: A principled spectrum. *International Journal of Approximate Reasoning*, 105:252-286.
 
+BDI Ontology (2025). The Belief-Desire-Intention Ontology for modelling mental reality and agency. *arXiv preprint arXiv:2511.17162*.
+
 Bratman, M. (1987). *Intention, Plans, and Practical Reason*. Harvard University Press.
 
 Cayrol, C. and Lagasquie-Schiex, M.-C. (2005). On the acceptability of arguments in bipolar argumentation frameworks. *Proceedings of the 8th European Conference on Symbolic and Quantitative Approaches to Reasoning with Uncertainty (ECSQARU)*, pages 378-389.
@@ -933,7 +957,11 @@ Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similari
 
 Guarino, N., Oberle, D., and Staab, S. (2009). What is an ontology? In *Handbook on Ontologies*, pages 1-17. Springer.
 
+Hart, H. L. A. (1961). *The Concept of Law*. Oxford University Press.
+
 Holyoak, K. J. and Thagard, P. (1995). *Mental Leaps: Analogy in Creative Thought*. MIT Press.
+
+Hude, Z. (2025). Where has legal knowledge gone: Constraining LLMs with knowledge graphs for interpretable reasoning. Available at: https://github.com/hudetova/Gardner2025.
 
 Janier, M. and Reed, C. (2014). OVA+: An argument analysis interface. *Proceedings of the 5th International Conference on Computational Models of Argument (COMMA)*.
 
@@ -957,6 +985,8 @@ Luo, Y., Liu, Z., Shi, Y., and Zhang, Y. (2024). Exploring the sensitivity of LL
 
 Masolo, C., Borgo, S., Gangemi, A., Guarino, N., and Oltramari, A. (2003). WonderWeb deliverable D18: Ontology library (final). *IST Project 2001-33052 WonderWeb*.
 
+Munro, R., et al. (2026). Aggregative semantics for quantitative bipolar argumentation frameworks. *arXiv preprint arXiv:2603.06067*.
+
 Mayer, T., Cabrio, E., and Villata, S. (2020). Transformer-based argument mining for healthcare applications. *Proceedings of the 24th European Conference on Artificial Intelligence (ECAI)*.
 
 Mohammad, S. M., Kiritchenko, S., Sobhani, P., Zhu, X., and Cherry, C. (2016). SemEval-2016 task 6: Detecting stance in tweets. *Proceedings of the 10th International Workshop on Semantic Evaluation (SemEval)*.
@@ -972,6 +1002,8 @@ Rago, A., Toni, F., Aurisicchio, M., and Baroni, P. (2016). Discontinuity-free d
 Rahwan, I., Zablith, F., and Reed, C. (2007). Laying the foundations for a world wide argument web. *Artificial Intelligence*, 171(10-15):897-921.
 
 Rao, A. S. and Georgeff, M. P. (1991). Modeling rational agents within a BDI-architecture. *Proceedings of the 2nd International Conference on Principles of Knowledge Representation and Reasoning (KR)*.
+
+Sanayei, A., Vesic, S., Blanco, E., and Surdeanu, M. (2025). Can LLMs judge debates? Evaluating non-linear reasoning via argumentation theory semantics. *Findings of the Association for Computational Linguistics: EMNLP 2025*, pages 21244-21262.
 
 Smith, B., Ashburner, M., Rosse, C., et al. (2015). The OBO Foundry: coordinated evolution of ontologies to support biomedical data integration. *Nature Biotechnology*, 25(11):1251-1255.
 

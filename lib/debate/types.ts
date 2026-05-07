@@ -488,6 +488,40 @@ export interface DebateSession {
     /** CLI-only: the resolved config values. */
     config_summary?: Record<string, unknown>;
   };
+  /** Perturbation testing result — present only for evaluation/benchmark debates with perturbation injection. */
+  perturbation_result?: PerturbationResult;
+}
+
+// ── Perturbation testing (HDE Section B2) ───────────────
+
+/** Configuration for adversarial perturbation injection during evaluation debates. */
+export interface PerturbationConfig {
+  /** Round at which to inject the adversarial prompt (1-indexed). */
+  inject_at_turn: number;
+  /** The adversarial prompt text to inject. */
+  prompt: string;
+  /** Number of turns after injection to measure recovery over. Default: 3. */
+  measure_recovery_window?: number;
+}
+
+/** Result of perturbation testing — SysAR (System Argumentation Resilience). */
+export interface PerturbationResult {
+  /** The injected perturbation prompt. */
+  prompt: string;
+  /** Round at which perturbation was injected. */
+  injected_at_round: number;
+  /** Transcript entry ID of the perturbation injection. */
+  injection_entry_id: string;
+  /** Mean ArCo over the window before injection (baseline). */
+  pre_arco: number;
+  /** Mean ArCo over the recovery window after injection. */
+  post_arco: number;
+  /** SysAR = post_arco / pre_arco. Values near 1.0 indicate full recovery. */
+  sysar: number;
+  /** Number of turns in the recovery window. */
+  recovery_window: number;
+  /** Whether the system showed resilience (SysAR >= 0.8). */
+  resilient: boolean;
 }
 
 export interface ConvergenceSignals {
@@ -531,6 +565,15 @@ export interface ConvergenceSignals {
     used_this_turn: boolean;
     cumulative_count: number;
     cumulative_follow_through: number;
+  };
+  /** ArCo (Argument Coherence) — semantic relevance of this turn to the debate topic.
+   *  Per-turn similarity between the turn embedding and the topic embedding.
+   *  phase_mean is the running mean ArCo across all turns in the current phase.
+   *  Absent when topic embedding is unavailable. */
+  arco?: {
+    turn_similarity: number;
+    phase_mean: number;
+    drift_warning: boolean;
   };
 }
 
@@ -666,8 +709,8 @@ export interface ArgumentNetworkNode {
   base_strength?: number;
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
   computed_strength?: number;
-  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification. */
-  scoring_method?: 'ai_rubric' | 'human' | 'default_pending' | 'fact_check';
+  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification, 'bdi_composite' for Desires/Intentions scored by sub-score composite. */
+  scoring_method?: 'ai_rubric' | 'human' | 'default_pending' | 'fact_check' | 'bdi_composite';
   /** Per-BDI-criterion sub-scores from claim extraction. Absent in pre-BDI-separation debates. */
   bdi_sub_scores?: BdiSubScores;
   /** Q-0 calibration confidence for this BDI category (Beliefs: 0.3, Desires: 0.65, Intentions: 0.71). */
@@ -682,6 +725,18 @@ export interface ArgumentNetworkNode {
   verification_status?: 'verified' | 'disputed' | 'unverifiable' | 'pending';
   /** Evidence summary from inline verification. */
   verification_evidence?: string;
+  /** Evidence QBAF sub-graph: source-corpus evidence items, classification, and computed strength. */
+  evidence_graph?: {
+    evidence_items: {
+      id: string;
+      source_doc_id: string;
+      text: string;
+      relation: 'support' | 'contradict';
+      similarity: number;
+    }[];
+    computed_strength: number;
+    qbaf_iterations: number;
+  };
 }
 
 export interface ArgumentNetworkEdge {
@@ -1149,24 +1204,40 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
   pov: string;
   color: string;
   personality: string;
+  doctrinal_boundaries: string[];
 }> = {
   prometheus: {
     label: 'Prometheus',
     pov: 'accelerationist',
     color: 'var(--color-acc)',
     personality: 'Confident, forward-looking, frames risk as cost-of-inaction',
+    doctrinal_boundaries: [
+      'REJECT: Precautionary principle as default stance',
+      'REJECT: Capability limitations as permanent constraints',
+      'REJECT: Regulatory capture framing of all governance',
+    ],
   },
   sentinel: {
     label: 'Sentinel',
     pov: 'safetyist',
     color: 'var(--color-saf)',
     personality: 'Methodical, evidence-driven, frames progress as conditional-on-safeguards',
+    doctrinal_boundaries: [
+      'REJECT: Dismissing existential risk as speculative',
+      'REJECT: Speed-over-safety framing of development timelines',
+      'REJECT: Market self-regulation as sufficient governance',
+    ],
   },
   cassandra: {
     label: 'Cassandra',
     pov: 'skeptic',
     color: 'var(--color-skp)',
     personality: 'Wry, pragmatic, challenges assumptions from both sides',
+    doctrinal_boundaries: [
+      'REJECT: Binary framing of AI risk (existential vs trivial)',
+      'REJECT: Techno-determinism (both utopian and dystopian)',
+      'REJECT: Insider expertise as sole legitimate perspective',
+    ],
   },
 };
 

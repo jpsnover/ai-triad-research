@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../hooks/useTaxonomyStore';
+import { useDebateStore } from '../hooks/useDebateStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { HighlightedTextarea } from './HighlightedField';
 import { TypeaheadSelect } from './TypeaheadSelect';
@@ -500,6 +501,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
         {activeTab === 'research' && (
           <div className="node-detail-research">
+            <EvidenceGraphSection nodeId={node.id} />
             <RelatedCruxes nodeId={node.id} />
             <div className="node-detail-research-header">
               <span className="node-detail-research-desc">Research prompt for this position. Edit as needed, then copy to clipboard.</span>
@@ -596,5 +598,115 @@ function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void
         {dominant}
       </span>
     </button>
+  );
+}
+
+// ── Evidence QBAF Graph (shown in Research tab) ──
+
+interface EvidenceItem {
+  id: string;
+  source_doc_id: string;
+  text: string;
+  relation: 'support' | 'contradict';
+  similarity: number;
+}
+
+interface EvidenceGraphData {
+  evidence_items: EvidenceItem[];
+  computed_strength: number;
+  qbaf_iterations: number;
+}
+
+function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
+  const activeDebate = useDebateStore(s => s.activeDebate);
+
+  const evidenceNodes = useMemo(() => {
+    const an = activeDebate?.argument_network;
+    if (!an) return [];
+    return an.nodes.filter(
+      n => n.taxonomy_refs?.includes(nodeId) && n.evidence_graph
+    );
+  }, [activeDebate, nodeId]);
+
+  if (evidenceNodes.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+        Evidence Graph ({evidenceNodes.length} claim{evidenceNodes.length !== 1 ? 's' : ''})
+      </div>
+      {evidenceNodes.map(node => {
+        const eg = node.evidence_graph as EvidenceGraphData;
+        const sorted = [...eg.evidence_items].sort((a, b) => {
+          if (a.relation !== b.relation) return a.relation === 'contradict' ? -1 : 1;
+          return b.similarity - a.similarity;
+        });
+        const supports = sorted.filter(e => e.relation === 'support');
+        const contradicts = sorted.filter(e => e.relation === 'contradict');
+        const barPct = Math.round(eg.computed_strength * 100);
+        const barColor = eg.computed_strength >= 0.7 ? '#22c55e' : eg.computed_strength >= 0.4 ? '#f59e0b' : '#ef4444';
+        return (
+          <div key={node.id} style={{
+            marginBottom: 8, padding: '8px 10px', borderRadius: 6,
+            border: '1px solid var(--border-color)', background: 'var(--bg-secondary)',
+          }}>
+            <div style={{ fontSize: '0.75rem', marginBottom: 6, lineHeight: 1.4 }}>
+              {node.text}
+            </div>
+            {/* Strength bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{
+                flex: 1, height: 6, borderRadius: 3,
+                background: 'var(--bg-primary)',
+              }}>
+                <div style={{
+                  width: `${barPct}%`, height: '100%', borderRadius: 3,
+                  background: barColor, transition: 'width 0.3s',
+                }} />
+              </div>
+              <span style={{
+                fontSize: '0.7rem', fontWeight: 700, color: barColor, minWidth: 40,
+              }}>
+                {eg.computed_strength.toFixed(2)}
+              </span>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                {eg.qbaf_iterations} iter
+              </span>
+            </div>
+            {/* Evidence items */}
+            {sorted.map(item => (
+              <div key={item.id} style={{
+                marginBottom: 4, padding: '4px 8px', borderRadius: 4,
+                borderLeft: `3px solid ${item.relation === 'support' ? '#22c55e' : '#ef4444'}`,
+                background: item.relation === 'support' ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{
+                    fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                    background: item.relation === 'support' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    color: item.relation === 'support' ? '#22c55e' : '#ef4444',
+                  }}>
+                    {item.relation === 'support' ? 'SUPPORTS' : 'CONTRADICTS'}
+                  </span>
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                    {(item.similarity * 100).toFixed(0)}% sim
+                  </span>
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.source_doc_id}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'var(--text-primary)' }}>
+                  {item.text}
+                </div>
+              </div>
+            ))}
+            {/* Summary line */}
+            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              {supports.length} supporting, {contradicts.length} contradicting
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

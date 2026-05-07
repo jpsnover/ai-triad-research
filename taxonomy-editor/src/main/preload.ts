@@ -136,6 +136,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Flight recorder
   dumpFlightRecorder: (ndjson: string): Promise<{ filePath: string; filename: string }> =>
     ipcRenderer.invoke('dump-flight-recorder', ndjson),
+  forwardFlightEvent: (event: unknown): void => {
+    ipcRenderer.send('forward-flight-event', event);
+  },
+  onFlightEventFromPopup: (callback: (_e: unknown, payload: unknown) => void) => {
+    ipcRenderer.on('flight-event-from-popup', callback as (...args: unknown[]) => void);
+  },
   openFile: (filePath: string): Promise<void> =>
     ipcRenderer.invoke('open-file', filePath).then(() => {}),
 

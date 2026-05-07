@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD } from './convergenceSignals.js';
+import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD } from './convergenceSignals.js';
 import type {
   PoverId,
   TranscriptEntry,
@@ -1190,5 +1190,138 @@ describe('computeConvergenceSignals — edge cases', () => {
       'ec8', 'prometheus', [entry], [sp, at], [edge], [],
     );
     expect(result.strongest_opposing).not.toBeNull();
+  });
+});
+
+// ── ArCo (Argument Coherence) ──────────────────────────────
+
+describe('ARCO_DRIFT_THRESHOLD', () => {
+  it('is exported as 0.5', () => {
+    expect(ARCO_DRIFT_THRESHOLD).toBe(0.5);
+  });
+});
+
+describe('computeConvergenceSignals — arco', () => {
+  it('is absent when no topicEmbedding provided', () => {
+    const entry = makeEntry({ id: 'arco-1' });
+    const embeddings = new Map([['arco-1', makeEmbedding(1)]]);
+    const result = computeConvergenceSignals(
+      'arco-1', 'prometheus', [entry], [], [], [],
+      embeddings, undefined, undefined,
+    );
+    expect(result.arco).toBeUndefined();
+  });
+
+  it('is absent when no turnEmbeddings provided', () => {
+    const entry = makeEntry({ id: 'arco-2' });
+    const topicEmbed = makeEmbedding(1);
+    const result = computeConvergenceSignals(
+      'arco-2', 'prometheus', [entry], [], [], [],
+      undefined, undefined, topicEmbed,
+    );
+    expect(result.arco).toBeUndefined();
+  });
+
+  it('is absent when current entry has no embedding', () => {
+    const entry = makeEntry({ id: 'arco-3' });
+    const embeddings = new Map([['other-entry', makeEmbedding(1)]]);
+    const topicEmbed = makeEmbedding(1);
+    const result = computeConvergenceSignals(
+      'arco-3', 'prometheus', [entry], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(result.arco).toBeUndefined();
+  });
+
+  it('computes high turn_similarity for similar embeddings', () => {
+    const entry = makeEntry({ id: 'arco-4' });
+    const topicEmbed = makeEmbedding(42);
+    const turnEmbed = makeSimilarEmbedding(42);
+    const embeddings = new Map([['arco-4', turnEmbed]]);
+    const result = computeConvergenceSignals(
+      'arco-4', 'prometheus', [entry], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(result.arco).toBeDefined();
+    expect(result.arco!.turn_similarity).toBeGreaterThan(0.99);
+    expect(result.arco!.drift_warning).toBe(false);
+  });
+
+  it('computes low turn_similarity for dissimilar embeddings', () => {
+    const entry = makeEntry({ id: 'arco-5' });
+    const topicEmbed = makeEmbedding(42);
+    const turnEmbed = makeDissimilarEmbedding(42);
+    const embeddings = new Map([['arco-5', turnEmbed]]);
+    const result = computeConvergenceSignals(
+      'arco-5', 'prometheus', [entry], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(result.arco).toBeDefined();
+    expect(result.arco!.turn_similarity).toBeLessThan(0.5);
+  });
+
+  it('sets drift_warning when phase_mean < ARCO_DRIFT_THRESHOLD', () => {
+    const entry = makeEntry({ id: 'arco-6' });
+    const topicEmbed = makeEmbedding(42);
+    const turnEmbed = makeDissimilarEmbedding(42);
+    const embeddings = new Map([['arco-6', turnEmbed]]);
+    const result = computeConvergenceSignals(
+      'arco-6', 'prometheus', [entry], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(result.arco).toBeDefined();
+    expect(result.arco!.drift_warning).toBe(true);
+  });
+
+  it('phase_mean averages across same-phase signals', () => {
+    const e1 = makeEntry({ id: 'arco-7a', metadata: { phase: 'exploration' } });
+    const e2 = makeEntry({ id: 'arco-7b', metadata: { phase: 'exploration' } });
+    const topicEmbed = makeEmbedding(10);
+    // First turn: high similarity
+    const embed1 = makeSimilarEmbedding(10);
+    // Second turn: dissimilar
+    const embed2 = makeDissimilarEmbedding(10);
+    const embeddings = new Map([['arco-7a', embed1], ['arco-7b', embed2]]);
+
+    // Compute first signal
+    const sig1 = computeConvergenceSignals(
+      'arco-7a', 'prometheus', [e1, e2], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(sig1.arco).toBeDefined();
+    const firstSim = sig1.arco!.turn_similarity;
+    expect(firstSim).toBeGreaterThan(0.99);
+
+    // Compute second signal with first as existing
+    const sig2 = computeConvergenceSignals(
+      'arco-7b', 'sentinel', [e1, e2], [], [], [sig1],
+      embeddings, undefined, topicEmbed,
+    );
+    expect(sig2.arco).toBeDefined();
+    const secondSim = sig2.arco!.turn_similarity;
+    // Phase mean should be average of both
+    expect(sig2.arco!.phase_mean).toBeCloseTo((firstSim + secondSim) / 2, 5);
+  });
+
+  it('phase_mean does not include signals from different phases', () => {
+    const e1 = makeEntry({ id: 'arco-8a', metadata: { phase: 'thesis-antithesis' } });
+    const e2 = makeEntry({ id: 'arco-8b', metadata: { phase: 'exploration' } });
+    const topicEmbed = makeEmbedding(20);
+    const embed1 = makeDissimilarEmbedding(20); // low similarity
+    const embed2 = makeSimilarEmbedding(20);     // high similarity
+    const embeddings = new Map([['arco-8a', embed1], ['arco-8b', embed2]]);
+
+    const sig1 = computeConvergenceSignals(
+      'arco-8a', 'prometheus', [e1, e2], [], [], [],
+      embeddings, undefined, topicEmbed,
+    );
+
+    const sig2 = computeConvergenceSignals(
+      'arco-8b', 'prometheus', [e1, e2], [], [], [sig1],
+      embeddings, undefined, topicEmbed,
+    );
+    // sig2 phase_mean should only reflect the current (exploration) phase turn
+    expect(sig2.arco).toBeDefined();
+    expect(sig2.arco!.phase_mean).toBeCloseTo(sig2.arco!.turn_similarity, 5);
   });
 });

@@ -11,7 +11,7 @@
  */
 
 import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { TriggerType } from '@lib/flight-recorder/types';
+import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
 import { showDumpToast } from './dumpToast';
 
@@ -80,6 +80,60 @@ async function persistDump(
   }
 }
 
+// ── Popup shim ──────────────────────────────────────────────────────────
+
+/**
+ * Creates a thin flight recorder shim for popup windows.
+ * Stamps _origin on each event and forwards to the main window's recorder via IPC.
+ * No local ring buffer or dump logic.
+ */
+function createPopupShim(origin: string): FlightRecorder {
+  // Create a minimal recorder (capacity 1 — we don't buffer locally)
+  const shim = new FlightRecorder({ capacity: 1, dumpOnError: false });
+
+  const electronAPI = (window as unknown as { electronAPI: { forwardFlightEvent: (event: RecordInput) => void } }).electronAPI;
+
+  // Override record to forward via IPC instead of buffering locally
+  shim.record = (input: RecordInput) => {
+    const stamped: RecordInput = {
+      ...input,
+      data: { ...input.data, _origin: origin },
+    };
+    try {
+      electronAPI.forwardFlightEvent(stamped);
+    } catch {
+      // Main window may have closed — silently drop
+    }
+  };
+
+  // Forward dictionary registrations to main recorder
+  const originalIntern = shim.intern.bind(shim);
+  shim.intern = (category: string, value: string) => {
+    const handle = originalIntern(category, value);
+    // Forward prefixed registration
+    try {
+      electronAPI.forwardFlightEvent({
+        type: 'lifecycle',
+        component: 'flight-recorder',
+        level: 'debug',
+        message: `Dictionary registration from ${origin}`,
+        data: { _origin: origin, _dict_category: category, _dict_value: `${origin}/${value}` },
+      });
+    } catch { /* silently drop */ }
+    return handle;
+  };
+
+  shim.record({
+    type: 'lifecycle',
+    component: 'flight-recorder',
+    level: 'info',
+    message: `Popup shim initialized (forwarding to main)`,
+    data: { origin },
+  });
+
+  return shim;
+}
+
 // ── Initialization ───────────────────────────────────────────────────────
 
 let initialized = false;
@@ -88,7 +142,23 @@ export function initFlightRecorder(): FlightRecorder {
   if (initialized) return getGlobalRecorder()!;
   initialized = true;
 
-  const recorder = new FlightRecorder({ capacity: 1000, dumpOnError: true });
+  // Identify which window this recorder belongs to
+  const hash = window.location.hash;
+  const isPopup = hash.startsWith('#debate-window') || hash === '#diagnostics-window' || hash === '#pov-progression-window';
+  const windowId = hash.startsWith('#debate-window')
+    ? `debate:${new URLSearchParams(hash.split('?')[1] || '').get('debateId')?.slice(0, 8) || 'unknown'}`
+    : hash === '#diagnostics-window' ? 'diagnostics'
+    : hash === '#pov-progression-window' ? 'pov-progression'
+    : 'main';
+
+  // Popup windows use a thin IPC shim — no local buffer, forward everything to main
+  if (isPopup && typeof (window as unknown as { electronAPI?: { forwardFlightEvent?: unknown } }).electronAPI?.forwardFlightEvent === 'function') {
+    const shim = createPopupShim(windowId);
+    setGlobalRecorder(shim);
+    return shim;
+  }
+
+  const recorder = new FlightRecorder({ capacity: 3000, dumpOnError: true });
   setGlobalRecorder(recorder);
 
   // Register known dictionary entries
@@ -110,8 +180,14 @@ export function initFlightRecorder(): FlightRecorder {
   recorder.intern('pov', 'sentinel');
   recorder.intern('pov', 'cassandra');
 
-  // Identify which window this recorder belongs to
-  const windowId = window.location.hash.startsWith('#debate-window') ? 'debate-popout' : 'main';
+  // Wrap record() to stamp _origin on all events
+  const originalRecord = recorder.record.bind(recorder);
+  recorder.record = (input: RecordInput) => {
+    originalRecord({
+      ...input,
+      data: { ...input.data, _origin: input.data?._origin ?? windowId },
+    });
+  };
 
   // Record startup event
   recorder.record({
@@ -119,7 +195,7 @@ export function initFlightRecorder(): FlightRecorder {
     component: recorder.intern('component', 'flight-recorder') as string | number,
     level: 'info',
     message: 'Flight recorder initialized',
-    data: { capacity: 1000, window: windowId },
+    data: { capacity: 3000, window: windowId },
   });
 
   // ── Context provider (active debate info for dump header) ──
@@ -153,6 +229,23 @@ export function initFlightRecorder(): FlightRecorder {
       return {};
     }
   });
+
+  // ── Receive forwarded events from popup windows (main window only) ──
+
+  if (!isPopup) {
+    const electronAPI = (window as unknown as { electronAPI?: { onFlightEventFromPopup?: (cb: (_e: unknown, payload: unknown) => void) => void } }).electronAPI;
+    if (electronAPI?.onFlightEventFromPopup) {
+      electronAPI.onFlightEventFromPopup((_e, payload) => {
+        const event = payload as RecordInput;
+        // Handle dictionary registration forwarding
+        if (event.data?._dict_category && event.data?._dict_value) {
+          recorder.intern(event.data._dict_category as string, event.data._dict_value as string);
+        }
+        // Record into main buffer (already has _origin stamped by popup shim)
+        recorder.record(event);
+      });
+    }
+  }
 
   // ── Auto-dump triggers ──
 

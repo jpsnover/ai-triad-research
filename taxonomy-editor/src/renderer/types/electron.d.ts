@@ -70,6 +70,7 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
   openFile: (filePath: string) => Promise<void>;
+  forwardFlightEvent?: (event: unknown) => void;
   buildNodeSourceIndex: () => Promise<unknown>;
   buildPolicySourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;

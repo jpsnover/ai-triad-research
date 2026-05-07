@@ -15,6 +15,7 @@ import type { QbafNode, QbafEdge } from './qbaf.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
 
 export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
+export const ARCO_DRIFT_THRESHOLD = 0.5;
 
 export function computeConvergenceSignals(
   entryId: string,
@@ -25,6 +26,7 @@ export function computeConvergenceSignals(
   existingSignals: ConvergenceSignals[],
   turnEmbeddings?: Map<string, number[]>,
   precomputedStrengths?: Map<string, number>,
+  topicEmbedding?: number[],
 ): ConvergenceSignals {
   const entryIdx = transcript.findIndex(e => e.id === entryId);
   const entry = transcript[entryIdx];
@@ -157,6 +159,38 @@ export function computeConvergenceSignals(
   const followedThroughThisTurn = cruxUsedThisTurn && collaborative > 0 ? 1 : 0;
   const cumulativeFollowThrough = priorFollowThrough + followedThroughThisTurn;
 
+  // 8. ArCo (Argument Coherence) — semantic relevance to debate topic
+  let arco: ConvergenceSignals['arco'];
+  if (topicEmbedding && turnEmbeddings) {
+    const currentEmbed = turnEmbeddings.get(entryId);
+    if (currentEmbed) {
+      const turnSimilarity = cosineSimilarity(currentEmbed, topicEmbedding);
+
+      // Phase mean: find the current phase from the most recent transcript metadata
+      const currentPhase = (meta?.debate_phase as string) ?? (meta?.phase as string);
+      // Collect ArCo values from same-phase signals (all speakers)
+      const samePhaseArcos: number[] = [];
+      for (const sig of existingSignals) {
+        if (sig.arco) {
+          const sigEntry = transcript.find(e => e.id === sig.entry_id);
+          const sigMeta = sigEntry?.metadata as Record<string, unknown> | undefined;
+          const sigPhase = (sigMeta?.debate_phase as string) ?? (sigMeta?.phase as string);
+          if (sigPhase === currentPhase || (!currentPhase && !sigPhase)) {
+            samePhaseArcos.push(sig.arco.turn_similarity);
+          }
+        }
+      }
+      samePhaseArcos.push(turnSimilarity);
+      const phaseMean = samePhaseArcos.reduce((a, b) => a + b, 0) / samePhaseArcos.length;
+
+      arco = {
+        turn_similarity: turnSimilarity,
+        phase_mean: phaseMean,
+        drift_warning: phaseMean < ARCO_DRIFT_THRESHOLD,
+      };
+    }
+  }
+
   return {
     entry_id: entryId,
     round,
@@ -168,5 +202,6 @@ export function computeConvergenceSignals(
     concession_opportunity: { strong_attacks_faced: strongAttacksFaced, concession_used: concessionUsed, outcome: concessionOutcome },
     position_delta: { overlap_with_opening: overlapWithOpening, drift },
     crux_rate: { used_this_turn: cruxUsedThisTurn, cumulative_count: cumulativeCruxCount, cumulative_follow_through: cumulativeFollowThrough },
+    arco,
   };
 }

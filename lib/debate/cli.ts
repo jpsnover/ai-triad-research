@@ -48,6 +48,12 @@ interface CLIConfig {
   pacing?: 'tight' | 'moderate' | 'thorough';
   maxTotalRounds?: number;
   allowEarlyTermination?: boolean;
+  throttleMs?: number;
+  perturbation?: {
+    inject_at_turn: number;
+    prompt: string;
+    measure_recovery_window?: number;
+  };
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -60,6 +66,8 @@ interface ParsedArgs {
   configPath: string;
   disableTurnValidation: boolean;
   maxTurnRetries?: 0 | 1 | 2;
+  perturbationPrompt?: string;
+  perturbationTurn?: number;
 }
 
 function parseArgs(): ParsedArgs {
@@ -71,7 +79,7 @@ function parseArgs(): ParsedArgs {
   else if (args.includes('--stdin')) configPath = '-';
 
   if (!configPath) {
-    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2]');
+    console.error('Usage: npx tsx lib/debate/cli.ts --config <path.json> [--no-turn-validation] [--max-turn-retries 0|1|2] [--perturbation <prompt> --perturbation-turn <N>]');
     process.exit(1);
   }
 
@@ -89,11 +97,41 @@ function parseArgs(): ParsedArgs {
     maxTurnRetries = n as 0 | 1 | 2;
   }
 
-  return { configPath, disableTurnValidation, maxTurnRetries };
+  let perturbationPrompt: string | undefined;
+  const pertIdx = args.indexOf('--perturbation');
+  if (pertIdx >= 0 && args[pertIdx + 1]) perturbationPrompt = args[pertIdx + 1];
+
+  let perturbationTurn: number | undefined;
+  const pertTurnIdx = args.indexOf('--perturbation-turn');
+  if (pertTurnIdx >= 0 && args[pertTurnIdx + 1]) perturbationTurn = parseInt(args[pertTurnIdx + 1], 10);
+
+  return { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn };
+}
+
+function resolvePerturbationConfig(
+  config: CLIConfig,
+  cliPrompt?: string,
+  cliTurn?: number,
+): import('./types').PerturbationConfig | undefined {
+  // CLI flags override config file
+  if (cliPrompt) {
+    return {
+      inject_at_turn: cliTurn ?? 2,
+      prompt: cliPrompt,
+      measure_recovery_window: 3,
+    };
+  }
+  return config.perturbation
+    ? {
+        inject_at_turn: config.perturbation.inject_at_turn,
+        prompt: config.perturbation.prompt,
+        measure_recovery_window: config.perturbation.measure_recovery_window ?? 3,
+      }
+    : undefined;
 }
 
 async function main(): Promise<void> {
-  const { configPath, disableTurnValidation, maxTurnRetries } = parseArgs();
+  const { configPath, disableTurnValidation, maxTurnRetries, perturbationPrompt, perturbationTurn } = parseArgs();
   let configText: string;
 
   if (configPath === '-') {
@@ -308,6 +346,8 @@ async function main(): Promise<void> {
     pacing: config.pacing,
     maxTotalRounds: config.maxTotalRounds,
     allowEarlyTermination: config.allowEarlyTermination,
+    throttleMs: config.throttleMs,
+    perturbation: resolvePerturbationConfig(config, perturbationPrompt, perturbationTurn),
   };
 
   // Run debate
@@ -451,6 +491,7 @@ async function main(): Promise<void> {
       claimsAccepted: session.diagnostics?.overview.claims_accepted ?? 0,
       claimsRejected: session.diagnostics?.overview.claims_rejected ?? 0,
     },
+    ...(session.perturbation_result ? { perturbation: session.perturbation_result } : {}),
   };
 
   console.log(JSON.stringify(result, null, 2));

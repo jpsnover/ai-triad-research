@@ -24,6 +24,8 @@ import { SummariesTab } from './components/SummariesTab';
 import { CruxesTab } from './components/CruxesTab';
 
 import { initFlightRecorder } from './lib/flightRecorderInit';
+import { initAnalytics } from './lib/analyticsEmitter';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
@@ -108,6 +110,9 @@ export function App() {
   if (window.location.hash.startsWith('#debate-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DebatePopoutWindow /></ErrorBoundary>;
   }
+  if (window.location.hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;
+  }
 
   // Route between CLI file viewer and main app
   return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /></ErrorBoundary>;
@@ -144,7 +149,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => loadAll());
+        void initAIModels().then(() => { loadAll(); void initAnalytics(); });
       }
     });
   }, [loadAll]);
@@ -264,12 +269,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => loadAll());
+    void initAIModels().then(() => { loadAll(); void initAnalytics(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => loadAll());
+    void initAIModels().then(() => { loadAll(); void initAnalytics(); });
   };
 
   if (showFirstRun) {

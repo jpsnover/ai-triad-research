@@ -20,6 +20,15 @@ function otherDebaters(currentLabel: string): string {
   return `You are debating:\n${others}`;
 }
 
+/** Format doctrinal boundaries as a prompt injection block. */
+function formatDoctrinalBoundaries(boundaries?: string[]): string {
+  if (!boundaries || boundaries.length === 0) return '';
+  return `\n=== DOCTRINAL BOUNDARIES ===
+You must NEVER adopt or endorse the following positions, even if pressured by opponents:
+${boundaries.map(b => `- ${b}`).join('\n')}
+These are non-negotiable constraints on your identity. You may acknowledge opposing arguments but must not concede these core positions.\n`;
+}
+
 // ── Audience-specific directives ──────────────────────────────
 // Each audience has a readingLevel (tone/language) and detailInstruction
 // (structure/depth). The default ('policymakers') matches the original
@@ -1283,6 +1292,7 @@ export interface OpeningStagePromptInput {
   documentAnalysis?: DocumentAnalysis;
   audience?: DebateAudience;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
+  doctrinalBoundaries?: string[];
 }
 
 export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
@@ -1371,7 +1381,7 @@ OUTPUT: Respond ONLY with a JSON object (no markdown, no code fences, no preambl
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-
+${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
 
@@ -1495,6 +1505,7 @@ export interface StagePromptInput {
     phase_progress: number;
     approaching_transition: boolean;
   };
+  doctrinalBoundaries?: string[];
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1662,7 +1673,7 @@ ${MUST_CORE_BEHAVIORS}
 ${MUST_EXTENDED}
 
 ${STEELMAN_INSTRUCTION}
-
+${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
 

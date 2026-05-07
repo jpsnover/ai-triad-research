@@ -83,10 +83,16 @@ export function registerIpcHandlers(): void {
     return readTaxonomyFile(pov);
   });
 
-  ipcMain.handle('save-taxonomy-file', (_event, pov: string, data: unknown) => {
+  ipcMain.handle('save-taxonomy-file', (event, pov: string, data: unknown) => {
     const parsed = VALID_POV.safeParse(pov);
     if (!parsed.success) throw new ActionableError({ goal: 'Save taxonomy file', problem: `Invalid POV: ${pov}`, location: 'ipcHandlers:save-taxonomy-file', nextSteps: ['Use a valid POV name'] });
     writeTaxonomyFile(parsed.data, data);
+    // Notify all other windows to reload taxonomy data
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.webContents !== event.sender) {
+        win.webContents.send('reload-taxonomy');
+      }
+    }
   });
 
   ipcMain.handle('load-policy-registry', () => {
@@ -836,6 +842,16 @@ export function registerIpcHandlers(): void {
       return { entries, validationReport };
     } catch {
       return { entries: [], validationReport: null };
+    }
+  });
+
+  // ── Flight recorder: forward events from popup windows to main ──
+  ipcMain.on('forward-flight-event', (event, payload: unknown) => {
+    // Forward to the main window's renderer (which owns the real recorder)
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.webContents !== event.sender) {
+        win.webContents.send('flight-event-from-popup', payload);
+      }
     }
   });
 

@@ -38,6 +38,7 @@ export interface ConflictFile {
 interface AiTriadConfig {
   data_root: string;
   taxonomy_dir: string;
+  sources_dir?: string;
   conflicts_dir: string;
   debates_dir: string;
 }
@@ -93,6 +94,17 @@ export function resolveDataRoot(repoRoot: string): string {
     });
   }
   return dataRoot;
+}
+
+/**
+ * Resolve the sources directory path. Returns null if it doesn't exist
+ * (sources are optional — evidence retrieval gracefully degrades).
+ */
+export function resolveSourcesDir(repoRoot: string): string | null {
+  const dataRoot = resolveDataRoot(repoRoot);
+  const config = loadConfig(repoRoot);
+  const sourcesDir = path.join(dataRoot, config.sources_dir ?? 'sources');
+  return fs.existsSync(sourcesDir) ? sourcesDir : null;
 }
 
 function loadConfig(repoRoot: string): AiTriadConfig {
