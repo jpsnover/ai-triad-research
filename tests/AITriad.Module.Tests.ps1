@@ -22,9 +22,11 @@ BeforeDiscovery {
         $cfg = Get-Content -Raw $configPath | ConvertFrom-Json
         $dataRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $cfg.data_root))
         $taxDir = Join-Path $dataRoot $cfg.taxonomy_dir
-        $HasDataRepo = Test-Path $taxDir
+        # Verify actual POV data files exist (not just the directory or schema files)
+        $HasDataRepo = (Test-Path $taxDir) -and
+            (Test-Path (Join-Path $taxDir 'accelerationist.json'))
     } else {
-        $HasDataRepo = Test-Path (Join-Path $repoRoot 'taxonomy' 'Origin')
+        $HasDataRepo = Test-Path (Join-Path $repoRoot 'taxonomy' 'Origin' 'accelerationist.json')
     }
 }
 

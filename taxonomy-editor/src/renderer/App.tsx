@@ -149,7 +149,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { loadAll(); void initAnalytics(); });
+        void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
       }
     });
   }, [loadAll]);
@@ -269,12 +269,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { loadAll(); void initAnalytics(); });
+    void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { loadAll(); void initAnalytics(); });
+    void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
   };
 
   if (showFirstRun) {
