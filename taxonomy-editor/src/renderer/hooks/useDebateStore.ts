@@ -69,6 +69,8 @@ import type { PoverResponseMeta, MoveAnnotation } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { resolveTurnValidationConfig } from '@lib/debate/turnValidator';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
+import { computeProcessReward } from '@lib/debate/processReward';
+import type { ProcessRewardEntry } from '@lib/debate/types';
 import { updateCruxTracker } from '@lib/debate/cruxResolution';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
 import {
@@ -90,7 +92,7 @@ import {
   computeConvergenceScore,
   detectCruxNodes,
 } from '@lib/debate/phaseTransitions';
-import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal } from '@lib/debate/types';
+import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal, DebatePhase } from '@lib/debate/types';
 import { computeDebateHealthScore } from '@lib/debate/moderator';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
@@ -812,6 +814,43 @@ async function extractClaimsAndUpdateAN(
           );
           patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
           getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_disposition: sig.move_disposition?.ratio, engagement_depth: sig.engagement_depth?.ratio, recycling_rate: sig.recycling_rate?.avg_self_overlap, crux_rate: sig.crux_rate?.cumulative_count } });
+
+          // 4b. Process reward — continuous turn quality score (PRM-adjacent signal)
+          const turnTrail = get().activeDebate?.turn_validations?.[entryId];
+          const turnValidation = turnTrail?.final;
+          if (turnValidation) {
+            const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
+            const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
+            const moveTypes = (entryMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
+            const phase = ((entryMeta?.debate_phase as string) ?? 'exploration') as DebatePhase;
+
+            // Count prior turn's distinct moves for diversity comparison
+            const priorSpeakerEntry = baseDebate.transcript
+              .filter((e: { speaker: string; type: string }) => e.speaker === speaker && e.type === 'statement')
+              .slice(-2)[0]; // second-to-last statement by this speaker
+            const priorMeta = priorSpeakerEntry?.metadata as Record<string, unknown> | undefined;
+            const priorMoves = (priorMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
+
+            const pr = computeProcessReward({
+              convergenceSignals: sig,
+              turnValidation,
+              phase,
+              moveCount: moveTypes.length,
+              priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
+              taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
+            });
+
+            const prEntry: ProcessRewardEntry = {
+              entry_id: entryId,
+              round: sig.round,
+              speaker,
+              phase,
+              score: pr.score,
+              components: pr.components,
+            };
+            patches.process_rewards = [...(baseDebate.process_rewards ?? []), prEntry];
+            getGlobalRecorder()?.record({ type: 'debate.signal', component: 'process-reward', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: `Process reward: ${pr.score.toFixed(3)}`, data: { score: pr.score, ...pr.components } });
+          }
         } catch (convErr) {
           console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
           pushWarning(get, set, 'Convergence analysis skipped this turn');
@@ -1413,7 +1452,7 @@ function buildCrossRespondPrompt(
   docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis);
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis, info.doctrinal_boundaries);
 }
 
 function buildDebateSynthesisPrompt(
@@ -3375,6 +3414,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
             },
           },
+          processRewards: (postDebate.process_rewards ?? []).slice(-12).map(pr => ({
+            round: pr.round, score: pr.score,
+          })),
           phase: {
             current: advanced.current_phase,
             allPovsResponded: true,
@@ -4259,6 +4301,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         commitBlock || undefined,
         convBlock,
         activeDebate.audience,
+        info.doctrinal_boundaries,
       );
 
       try {

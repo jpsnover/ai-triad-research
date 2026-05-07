@@ -7731,6 +7731,11 @@ body {
   border-color: var(--focus-ring);
 }
 
+.debate-taxonomy-pill-primary {
+  font-weight: 600;
+  border-width: 2px;
+}
+
 .debate-taxonomy-refs-section {
   margin-top: 8px;
 }

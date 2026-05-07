@@ -585,6 +585,28 @@ export class DebateEngine {
     }
   }
 
+  /** Enrich taxonomy refs with relevance scores and primary flags from the last injection manifest. */
+  private enrichTaxonomyRefs(refs: TaxonomyRef[]): void {
+    const manifest = this._lastInjectionManifest;
+    if (!manifest) return;
+
+    const scoreMap = new Map<string, number>();
+    if (manifest.nodeScores && manifest.povNodeIds) {
+      for (let i = 0; i < manifest.povNodeIds.length; i++) {
+        if (i < manifest.nodeScores.length) {
+          scoreMap.set(manifest.povNodeIds[i], manifest.nodeScores[i]);
+        }
+      }
+    }
+    const primarySet = new Set(manifest.povPrimaryIds);
+
+    for (const ref of refs) {
+      const score = scoreMap.get(ref.node_id);
+      if (score != null) ref.relevance_score = score;
+      if (primarySet.has(ref.node_id)) ref.primary = true;
+    }
+  }
+
   // ── Perturbation testing (HDE B2) ─────────────────────
 
   /** Inject an adversarial perturbation prompt as a system entry. */
@@ -804,6 +826,10 @@ export class DebateEngine {
           strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
         },
       },
+
+      processRewards: (this.session.process_rewards ?? []).slice(-12).map(pr => ({
+        round: pr.round, score: pr.score,
+      })),
 
       phase: {
         current: state.current_phase,
@@ -1340,6 +1366,7 @@ export class DebateEngine {
         (_stage, label) => this.progress('opening', poverId, label),
       );
       const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, this.getKnownNodeIds());
+      this.enrichTaxonomyRefs(taxonomyRefs);
 
       const entry = this.addEntry({
         type: 'opening',
@@ -1957,6 +1984,7 @@ export class DebateEngine {
     this.checkAborted();
     const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
+    this.enrichTaxonomyRefs(taxonomyRefs);
 
     const entry = this.addEntry({
       type: 'statement',
@@ -1978,7 +2006,7 @@ export class DebateEngine {
         debate_phase: phase,
         position_update: meta.position_update,
         turn_validation_outcome: validation.outcome,
-        turn_validation_score: validation.score,
+        turn_validation_score: validation.process_reward,
         turn_validation_attempts: attempts.length,
         turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
         concession_candidates_offered: concessionCandidateIds.length > 0 ? concessionCandidateIds : undefined,

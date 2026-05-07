@@ -407,6 +407,7 @@ export async function debateToPackage(
   if (fullSession.dialectic_traces) fullDiagnostics.dialectic_traces = fullSession.dialectic_traces;
   if (fullSession.convergence_radar) fullDiagnostics.convergence_radar = fullSession.convergence_radar;
   if (fullSession.convergence_signals) fullDiagnostics.convergence_signals = fullSession.convergence_signals;
+  if (fullSession.process_rewards) fullDiagnostics.process_rewards = fullSession.process_rewards;
   if (Object.keys(fullDiagnostics).length > 0) {
     zip.file(`${slug}-diagnostics.json`, JSON.stringify(fullDiagnostics, null, 2) + '\n');
   }

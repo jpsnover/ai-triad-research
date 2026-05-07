@@ -185,7 +185,7 @@ describe('Session initialization (via run)', () => {
 
   const makeValidationResponse = () => JSON.stringify({
     outcome: 'accept',
-    score: 0.8,
+    process_reward: 0.8,
     flags: [],
     clarifies_taxonomy: [],
   });
@@ -456,7 +456,7 @@ describe('Progress callbacks', () => {
         trigger_reasoning: 'test',
         trigger_evidence: 'test',
         outcome: 'accept',
-        score: 0.8,
+        process_reward: 0.8,
         flags: [],
         clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },

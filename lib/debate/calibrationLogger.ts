@@ -178,6 +178,16 @@ export interface CalibrationDataPoint {
   confidence_escalations: number;
   /** Predominant bottleneck: extraction, stability, or none */
   confidence_bottleneck: 'extraction' | 'stability' | 'none';
+
+  // ── Process reward (PRM-adjacent signal) ──
+  /** Per-turn process reward scores for correlation with convergence signals */
+  process_reward_series: { round: number; speaker: string; score: number; components: Record<string, number> }[] | null;
+  /** Mean process reward across all turns */
+  process_reward_mean: number | null;
+  /** Standard deviation of process rewards */
+  process_reward_stddev: number | null;
+  /** Minimum process reward (identifies weakest turns) */
+  process_reward_min: number | null;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -672,6 +682,35 @@ export function extractCalibrationData(
       }
       if (extLow === 0 && stabLow === 0) return 'none' as const;
       return extLow >= stabLow ? 'extraction' as const : 'stability' as const;
+    })(),
+
+    // Process reward series + summary stats
+    process_reward_series: (() => {
+      const prs = session.process_rewards;
+      if (!prs || prs.length === 0) return null;
+      return prs.map(pr => ({
+        round: pr.round,
+        speaker: pr.speaker,
+        score: pr.score,
+        components: pr.components,
+      }));
+    })(),
+    process_reward_mean: (() => {
+      const prs = session.process_rewards;
+      if (!prs || prs.length === 0) return null;
+      return prs.reduce((s, pr) => s + pr.score, 0) / prs.length;
+    })(),
+    process_reward_stddev: (() => {
+      const prs = session.process_rewards;
+      if (!prs || prs.length === 0) return null;
+      const mean = prs.reduce((s, pr) => s + pr.score, 0) / prs.length;
+      const variance = prs.reduce((s, pr) => s + (pr.score - mean) ** 2, 0) / prs.length;
+      return Math.sqrt(variance);
+    })(),
+    process_reward_min: (() => {
+      const prs = session.process_rewards;
+      if (!prs || prs.length === 0) return null;
+      return Math.min(...prs.map(pr => pr.score));
     })(),
   };
 }

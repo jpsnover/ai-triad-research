@@ -815,7 +815,7 @@ describe('validateTurn orchestrator', () => {
     });
     const r = await validateTurn(p);
     expect(r.outcome).toBe('skipped');
-    expect(r.score).toBe(1);
+    expect(r.process_reward).toBe(1);
     expect(r.judge_used).toBe(false);
   });
 
@@ -1058,7 +1058,7 @@ describe('score calculation', () => {
         }),
     });
     const r = await validateTurn(p);
-    expect(r.score).toBeCloseTo(1.0, 5);
+    expect(r.process_reward).toBeCloseTo(1.0, 5);
     expect(r.dimensions.schema.pass).toBe(true);
     expect(r.dimensions.grounding.pass).toBe(true);
     expect(r.dimensions.advancement.pass).toBe(true);
@@ -1070,17 +1070,17 @@ describe('score calculation', () => {
     const p = makeParams();
     const r = await validateTurn(p);
     // schema=1*0.4 + grounding=1*0.3 + advancement=1*0.2 + clarifies=0*0.1 = 0.9
-    expect(r.score).toBeCloseTo(0.9, 5);
+    expect(r.process_reward).toBeCloseTo(0.9, 5);
   });
 
-  it('returns lower score with schema failure', async () => {
+  it('returns lower process_reward with schema failure', async () => {
     const p = makeParams({
       meta: { ...makeParams().meta, disagreement_type: 'INVALID' },
       config: resolveTurnValidationConfig({ enabled: true, maxRetries: 0, deterministicOnly: true }),
     });
     const r = await validateTurn(p);
-    // schema fails: score should be < 0.9
-    expect(r.score).toBeLessThan(0.9);
+    // schema fails: process_reward should be < 0.9
+    expect(r.process_reward).toBeLessThan(0.9);
     expect(r.dimensions.schema.pass).toBe(false);
   });
 });

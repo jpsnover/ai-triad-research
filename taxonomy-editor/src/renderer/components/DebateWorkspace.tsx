@@ -238,14 +238,19 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
     inspectNode(taxRef.node_id);
   };
 
+  const scoreLabel = taxRef.relevance_score != null
+    ? ` (${taxRef.relevance_score.toFixed(2)})`
+    : '';
+  const primaryMarker = taxRef.primary ? '★ ' : '';
+
   return (
     <span
-      className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
+      className={`debate-taxonomy-pill debate-taxonomy-pill-clickable${taxRef.primary ? ' debate-taxonomy-pill-primary' : ''}`}
       style={{ borderColor: colorVar, color: colorVar }}
-      title={`${label}\n${taxRef.relevance}`}
+      title={`${primaryMarker}${label}${scoreLabel}\n${taxRef.relevance}`}
       onClick={handleClick}
     >
-      {taxRef.node_id}
+      {primaryMarker}{taxRef.node_id}{scoreLabel}
     </span>
   );
 }
@@ -281,7 +286,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
   return (
     <div className="debate-taxonomy-refs-section">
       <div className="debate-taxonomy-refs">
-        {refs.map((taxRef) => (
+        {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => (
           <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
         ))}
         {polRefs.map((polRef, i) => {

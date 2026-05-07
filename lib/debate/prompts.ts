@@ -1188,6 +1188,7 @@ export function crossRespondPrompt(
   priorFlaggedHints?: string[],
   crossPovNodeIds?: string[],
   audience?: DebateAudience,
+  doctrinalBoundaries?: string[],
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -1233,7 +1234,7 @@ Your personality: ${personality}.
 ${otherDebaters(label)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
-
+${formatDoctrinalBoundaries(doctrinalBoundaries)}
 ${allInstructions(phase)}
 
 ${taxonomyContext}
@@ -1339,7 +1340,7 @@ export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: st
   return `You are ${input.label}, planning the structure of your opening statement.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
-
+${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
 
@@ -1599,7 +1600,7 @@ Consider how the moderator's point relates to your own position and plan a brief
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
-
+${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
 ${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}
@@ -2551,6 +2552,7 @@ export function reflectionPrompt(
   commitments?: string,
   convergenceSignals?: string,
   audience?: DebateAudience,
+  doctrinalBoundaries?: string[],
 ): string {
   const nodesBlock = taxonomyNodes.map(n =>
     `[${n.id}] (${n.category}) "${n.label}"\n  ${n.description}`
@@ -2571,7 +2573,7 @@ export function reflectionPrompt(
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${getReadingLevel(audience)}
-
+${formatDoctrinalBoundaries(doctrinalBoundaries)}
 You have just finished a structured debate on:
 "${topic}"
 
@@ -2668,7 +2670,7 @@ export function moderatorSelectionPrompt(
     : '';
 
   const phaseObjective = phase === 'thesis-antithesis'
-    ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence.\n`
+    ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence.\nIMPORTANT: Do NOT declare stagnation during this phase. Positions are still being established — stagnation requires at least 3 rounds of cross-engagement before it can be diagnosed. Use CHALLENGE only for direct self-contradictions, not for failure to engage (which is expected when positions are still being laid out).\n`
     : phase === 'exploration'
     ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to name conditions under which they would change their mind, explore edge cases, and explicitly acknowledge agreement before exploring remaining disagreements.\n`
     : phase === 'synthesis'

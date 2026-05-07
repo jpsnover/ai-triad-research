@@ -2,8 +2,18 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
- * Per-turn debate validation — runs a Stage-A deterministic gate and an
- * optional Stage-B LLM judge against a just-returned debater response.
+ * Hybrid process reward model for per-turn debate validation.
+ *
+ * Combines deterministic symbolic verification (Stage-A: 9 structural rules)
+ * with an optional neural judge (Stage-B: LLM quality assessment). Unlike
+ * standard PRMs that rely on a single neural verifier, this hybrid approach
+ * provides transparent, reproducible base scoring with neural augmentation
+ * for soft quality dimensions (argument advancement, taxonomy clarification).
+ *
+ * The process reward (formerly "score") evaluates each debate turn as an
+ * intermediate reasoning step — correct process matters independent of
+ * final debate outcome (Lightman et al. 2023).
+ *
  * See docs/debate-turn-validation.md for the design, and
  * specs/debate-turn-validation-impl.md for the implementation spec.
  */
@@ -514,7 +524,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
 
   // Intervention compliance check — if a moderator intervention preceded this turn,
   // verify the debater included the required response field.
-  // Hard-compliance failures are schema errors (fail the schema dimension → score ≤ 0.60).
+  // Hard-compliance failures are schema errors (fail the schema dimension → process_reward ≤ 0.60).
   if (p.pendingIntervention) {
     const rawMeta = (p.meta as Record<string, unknown>) ?? {};
     const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
@@ -609,7 +619,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     outcome = 'pass';
   }
 
-  const score =
+  const process_reward =
     0.4 * (dims.schema.pass ? 1 : 0) +
     0.3 * (dims.grounding.pass ? 1 : 0) +
     0.2 * (dims.advancement.pass ? 1 : 0) +
@@ -617,7 +627,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
 
   return {
     outcome,
-    score,
+    process_reward,
     dimensions: dims,
     repairHints,
     clarifies_taxonomy: judge?.clarifies_taxonomy ?? [],
@@ -626,10 +636,10 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
   };
 }
 
-function zeroValidation(outcome: TurnValidation['outcome'], score: number): TurnValidation {
+function zeroValidation(outcome: TurnValidation['outcome'], process_reward: number): TurnValidation {
   return {
     outcome,
-    score,
+    process_reward,
     dimensions: {
       schema:      { pass: true, issues: [] },
       grounding:   { pass: true, issues: [] },

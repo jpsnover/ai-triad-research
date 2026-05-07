@@ -153,6 +153,20 @@ export type StageProgressFn = (stage: TurnStageId, label: string) => void;
 
 // ── Defaults ────────────────────────────────────────────
 
+/**
+ * Temperature gradient implements process-reward-shaped sampling (Lightman
+ * et al. 2023). Analytical stages use low variance for precision; the
+ * generative stage uses high variance for expressive diversity:
+ *
+ *  - brief / cite  (0.15): deterministic — situation assessment and grounding
+ *    verification should be precise, mirroring greedy decoding in PRM
+ *    best-of-N verification steps.
+ *  - plan          (0.4):  moderate — strategy selection benefits from some
+ *    exploration while remaining coherent.
+ *  - draft         (0.7):  high variance — creative argument generation needs
+ *    sampling diversity, analogous to the candidate-generation step that a
+ *    process reward model subsequently scores.
+ */
 export const DEFAULT_STAGE_TEMPERATURES: Required<TurnStageConfig> = {
   brief_temperature: 0.15,
   plan_temperature: 0.4,

@@ -90,3 +90,30 @@ Recurring failure patterns and how to prevent them. Maintained by the Sage agent
 **Root Cause:** `as` assertions bypass TypeScript's structural type checking. When an upstream type changes shape, the compiler cannot flag consumers that cast the old shape — they compile cleanly and fail at runtime. The second instance adds a compounding factor: format migrations that only verify the visible (rendered) consumers and miss non-visible consumers (prompt builders, serializers, API callers).
 **Prevention:** (1) Never use `as` to cast a function's return value or a data field to a different shape — if the types don't align, fix the source or add a proper type guard, (2) sibling functions (same module, parallel purpose) must use consistent return types, (3) when changing a data format (e.g., `string[]` → `{ question, options }[]`), grep for ALL consumers of that field across the entire repo — not just rendering code, but also prompt builders, serializers, and API callers, (4) treat `as` casts in the codebase as tech debt — each one is a potential silent failure point after the next upstream change.
 **Applies To:** All profiles. Two instances in one day — this is a systemic risk anywhere `as` is used on shared data structures.
+
+## [Build] Deploy Pipelines Without Failure Diagnostics (Blind Retry Anti-Pattern)
+
+**Pattern:** A deploy pipeline rolls back on health check failure without ever collecting container logs or revision state. Every failure produces the same generic message regardless of cause (OOM, crash, image pull, probe misconfiguration), leading to a blind retry cycle where 10+ fix commits address symptoms without seeing the actual error.
+**Instances:**
+- 2026-05-07: Azure Container Apps deploy — 5 consecutive failures (#64–#68), 10+ fix commits over 3 days, all adding retries/timeouts/startup reordering. None ever checked container console or system logs. The actual cause (OOM kill, exit code 137) was only visible in logs the pipeline never retrieved (e/28, t/401).
+**Root Cause:** The workflow's failure path went straight to rollback without a diagnostics step. The only output was "Health check failed after 5 minutes" — no differentiation between failure modes. Engineers iterated on guesses instead of evidence.
+**Prevention:** Every deploy pipeline must collect diagnostics BEFORE rollback: (1) container/application logs (`--type console`), (2) system events (`--type system`) for OOM, probe failures, image pull errors, (3) revision state (running state, health state, replica count). Critical: target the specific failed revision by name — without `--revision`, the platform connects to whichever replica is available (likely the healthy old one, not the failed new one). Print these in the CI output so the next person debugging has evidence, not just a pass/fail. This is the single highest-impact fix — it breaks the blind retry cycle.
+**Applies To:** All profiles working on deploy pipelines (DevOps, SRE). Relevant to any CI/CD workflow with health checks.
+
+## [Build] Stale Resource Accumulation From Failed Deployments
+
+**Pattern:** Failed deployments leave orphaned revisions/containers running. The rollback step only deactivates the latest failed revision, never cleaning up older stale ones. Over multiple failures, these accumulate and consume all available environment resources (CPU, RAM), causing subsequent deploys to fail from resource exhaustion — a cascading failure where each attempt makes the next one worse.
+**Instances:**
+- 2026-05-07: Azure Container Apps — 7 active revisions with 9 total replicas consuming 4.5 CPU / 9 GiB RAM. New revisions were OOM-killed (exit code 137) because stale revisions from prior failed deploys consumed all available resources. Container logs showed the app started successfully but was killed shortly after (e/28, t/401).
+**Root Cause:** The deploy workflow's rollback only deactivated the single latest failed revision. It had no cleanup step for older stale revisions. After 5+ failures, the environment was saturated.
+**Prevention:** Deploy pipelines must include a "cleanup stale revisions" step that runs BEFORE deploying: deactivate all revisions except the current traffic-bearing one. This prevents resource exhaustion from accumulated failures. Also set explicit resource limits per revision so a single runaway can't starve the environment.
+**Applies To:** DevOps, SRE. Any platform with revision-based deployments (Azure Container Apps, Cloud Run, Knative).
+
+## [Build] Missing Timeouts on Health Check HTTP Requests
+
+**Pattern:** Health check curl/HTTP commands in deploy pipelines omit connection and response timeouts. When the target is down, each probe waits for the platform's gateway timeout (e.g., Envoy's 4-minute default) instead of failing fast, turning a 5-minute health check loop into a 2-hour wait.
+**Instances:**
+- 2026-05-07: Azure Container Apps deploy — `curl -s -o /dev/null -w "%{http_code}"` with no `--max-time` or `--connect-timeout`. Each of 30 attempts waited ~4 minutes for a 504 (Envoy gateway timeout) + 10s sleep = 2h 5m total. The container was dead within 30 seconds but the pipeline didn't notice for 2 hours (e/28, t/401).
+**Root Cause:** The curl command was written for the happy path (fast response) without considering the failure path (gateway timeout). No one noticed because the 2h runtime was attributed to "Azure being slow" rather than a missing flag.
+**Prevention:** All HTTP health checks in CI/CD must include explicit timeouts: `--connect-timeout 5 --max-time 15` (or equivalent for non-curl clients). The total health check loop duration should be calculable from the retry count and per-attempt timeout — if it exceeds expectations, the timeouts are wrong. Review existing pipelines for this gap.
+**Applies To:** DevOps, SRE. Any deploy pipeline with HTTP health checks.

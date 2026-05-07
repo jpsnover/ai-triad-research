@@ -31,6 +31,7 @@ export * from './coverageTracker.js';
 export * from './debateExport.js';
 export * from './turnPipeline.js';
 export * from './convergenceSignals.js';
+export * from './processReward.js';
 export * from './cruxResolution.js';
 export * from './tieredCompression.js';
 export * from './moderator.js';

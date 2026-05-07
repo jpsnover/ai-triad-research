@@ -302,6 +302,33 @@ export function buildSignalRegistry(): Signal[] {
         return computeSchemeStagnationCombined(recentSchemes, allSchemes, [...byTurn.values()]);
       },
     },
+    {
+      id: 'process_reward_trend',
+      weight: w.saturation.process_reward_trend ?? 0.10,
+      enabled: true,
+      maturity: 'post-validation' as const,
+      compute: (ctx: SignalContext) => {
+        // Declining process rewards → higher saturation (debate exhaustion).
+        // Uses the last 4 turns. If fewer than 2 data points, returns 0 (no signal).
+        const recent = ctx.processRewards.slice(-4);
+        if (recent.length < 2) return 0;
+
+        // Simple linear slope over the window
+        const n = recent.length;
+        const xMean = (n - 1) / 2;
+        const yMean = recent.reduce((s, r) => s + r.score, 0) / n;
+        let numerator = 0, denominator = 0;
+        for (let i = 0; i < n; i++) {
+          numerator += (i - xMean) * (recent[i].score - yMean);
+          denominator += (i - xMean) ** 2;
+        }
+        const slope = denominator > 0 ? numerator / denominator : 0;
+
+        // Negative slope (declining rewards) → saturation signal ∈ (0, 1]
+        // Positive slope (improving rewards) → 0 (no saturation pressure)
+        return slope < 0 ? Math.min(1, Math.abs(slope) * 4) : 0;
+      },
+    },
   ];
 }
 

@@ -3,10 +3,13 @@
 
 import type {
   PoverId,
+  DebatePhase,
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
+  ProcessRewardEntry,
+  TurnValidation,
 } from './types.js';
 import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers.js';
 import type { MoveAnnotation } from './helpers.js';
@@ -204,4 +207,91 @@ export function computeConvergenceSignals(
     crux_rate: { used_this_turn: cruxUsedThisTurn, cumulative_count: cumulativeCruxCount, cumulative_follow_through: cumulativeFollowThrough },
     arco,
   };
+}
+
+// ── Process reward computation (PRM) ─────────────────────
+// Computes a continuous [0,1] per-turn quality score from convergence signals
+// and turn validation grounding. This is the "process reward" in PRM terms:
+// each debate turn is an intermediate reasoning step evaluated independently
+// of the final debate outcome.
+
+/** Default component weights for the process reward composite. */
+export const PROCESS_REWARD_WEIGHTS = {
+  engagement: 0.25,
+  novelty: 0.25,
+  consistency: 0.20,
+  grounding: 0.15,
+  move_quality: 0.15,
+} as const;
+
+export interface ProcessRewardInput {
+  convergenceSignals: ConvergenceSignals;
+  turnValidation: TurnValidation;
+  phase: DebatePhase;
+  /** Number of dialectical moves in this turn. */
+  moveCount: number;
+  /** Number of moves in the prior turn by the same speaker (for diversity). */
+  priorMoveCount?: number;
+  /** Number of taxonomy refs attached to this turn. */
+  taxonomyRefCount: number;
+}
+
+/**
+ * Compute a continuous process reward from convergence signals, turn
+ * validation, and move metadata.
+ *
+ * Components (each in [0,1]):
+ *  - engagement:    engagement_depth.ratio (are claims targeting prior arguments?)
+ *  - novelty:       1 - recycling_rate (is the turn saying something new?)
+ *  - consistency:   concession coherence (did the debater concede when warranted?)
+ *  - grounding:     taxonomy ref density, boosted by validation grounding pass
+ *  - move_quality:  move diversity + phase-appropriate disposition
+ */
+export function computeProcessReward(input: ProcessRewardInput): { score: number; components: ProcessRewardEntry['components'] } {
+  const w = PROCESS_REWARD_WEIGHTS;
+  const sig = input.convergenceSignals;
+
+  // 1. Engagement — ratio of targeted to standalone claims
+  const engagement = sig.engagement_depth?.ratio ?? 0;
+
+  // 2. Novelty — inverse of recycling rate (prefer semantic if available)
+  const recycling = sig.recycling_rate?.semantic_max_similarity
+    ?? sig.recycling_rate?.avg_self_overlap
+    ?? 0;
+  const novelty = Math.max(0, 1 - recycling);
+
+  // 3. Consistency — concession coherence
+  //    taken = 1.0 (conceded under pressure), missed = 0.3 (ignored strong attack),
+  //    none = 0.7 (no pressure, neutral)
+  const concessionOutcome = sig.concession_opportunity?.outcome ?? 'none';
+  const consistency = concessionOutcome === 'taken' ? 1.0
+    : concessionOutcome === 'missed' ? 0.3
+    : 0.7;
+
+  // 4. Grounding — taxonomy ref density clamped to [0,1], boosted if validation
+  //    grounding dimension passed
+  const refDensity = Math.min(1, input.taxonomyRefCount / 5);
+  const groundingBoost = input.turnValidation.dimensions.grounding.pass ? 0.2 : 0;
+  const grounding = Math.min(1, refDensity + groundingBoost);
+
+  // 5. Move quality — phase-appropriate disposition + diversity bonus
+  const moveRatio = sig.move_disposition?.ratio ?? 0.5;
+  const phaseAppropriate = input.phase === 'synthesis'
+    ? moveRatio  // collaboration valued in synthesis
+    : input.phase === 'thesis-antithesis'
+    ? 1 - moveRatio  // confrontation expected in thesis-antithesis
+    : 0.5 + 0.5 * (moveRatio - 0.5);  // neutral in exploration
+
+  // Diversity bonus: having a different number of moves from prior turn
+  const diversityBonus = input.priorMoveCount != null && input.moveCount !== input.priorMoveCount ? 0.1 : 0;
+  const move_quality = Math.min(1, phaseAppropriate + diversityBonus);
+
+  const score =
+    w.engagement * engagement +
+    w.novelty * novelty +
+    w.consistency * consistency +
+    w.grounding * grounding +
+    w.move_quality * move_quality;
+
+  return { score, components: { engagement, novelty, consistency, grounding, move_quality } };
 }

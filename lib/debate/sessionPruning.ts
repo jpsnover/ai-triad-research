@@ -4,6 +4,7 @@
 import type { DebateSession, ModeratorState } from './types.js';
 
 const MAX_CONVERGENCE_SIGNALS = 30;
+const MAX_PROCESS_REWARDS = 30;
 const MAX_POSITION_DRIFT = 30;
 const MAX_HEALTH_HISTORY = 20;
 const MAX_TURN_EMBEDDINGS = 20;
@@ -11,6 +12,10 @@ const MAX_TURN_EMBEDDINGS = 20;
 export function pruneSessionData(session: DebateSession): void {
   if (session.convergence_signals && session.convergence_signals.length > MAX_CONVERGENCE_SIGNALS) {
     session.convergence_signals = session.convergence_signals.slice(-MAX_CONVERGENCE_SIGNALS);
+  }
+
+  if (session.process_rewards && session.process_rewards.length > MAX_PROCESS_REWARDS) {
+    session.process_rewards = session.process_rewards.slice(-MAX_PROCESS_REWARDS);
   }
 
   if (session.position_drift && session.position_drift.length > MAX_POSITION_DRIFT) {

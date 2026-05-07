@@ -94,6 +94,7 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
       position_delta: { drift: 0.2 },
       concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
     },
+    processRewards: [],
     phase: {
       current: 'exploration',
       allPovsResponded: true,
@@ -117,6 +118,7 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
   if (overrides.transcript) merged.transcript = { ...defaults.transcript, ...overrides.transcript };
   if (overrides.priorSignals) merged.priorSignals = { ...defaults.priorSignals, ...overrides.priorSignals };
   if (overrides.convergenceSignals) merged.convergenceSignals = { ...defaults.convergenceSignals, ...overrides.convergenceSignals };
+  if (overrides.processRewards) merged.processRewards = overrides.processRewards;
   if (overrides.phase) merged.phase = { ...defaults.phase, ...overrides.phase };
   if (overrides.extraction) merged.extraction = { ...defaults.extraction, ...overrides.extraction };
   return merged;
@@ -322,9 +324,9 @@ describe('validateAdaptiveConfig', () => {
 describe('buildSignalRegistry', () => {
   beforeEach(() => resetWeightsCache());
 
-  it('returns 6 signals', () => {
+  it('returns 7 signals', () => {
     const signals = buildSignalRegistry();
-    expect(signals).toHaveLength(6);
+    expect(signals).toHaveLength(7);
   });
 
   it('all signals are enabled by default', () => {
@@ -332,16 +334,24 @@ describe('buildSignalRegistry', () => {
     expect(signals.every(s => s.enabled)).toBe(true);
   });
 
-  it('all signals have v1-ship maturity', () => {
+  it('all v1-ship signals are enabled; post-validation signals are also enabled', () => {
     const signals = buildSignalRegistry();
-    expect(signals.every(s => s.maturity === 'v1-ship')).toBe(true);
+    expect(signals.filter(s => s.maturity === 'v1-ship')).toHaveLength(6);
+    expect(signals.filter(s => s.maturity === 'post-validation')).toHaveLength(1);
+    expect(signals.every(s => s.enabled)).toBe(true);
   });
 
-  it('signal weights match saturation weights', () => {
+  it('signal weights match saturation weights (or documented fallback)', () => {
     const signals = buildSignalRegistry();
     const w = loadProvisionalWeights();
     for (const sig of signals) {
-      expect(sig.weight).toBe(w.saturation[sig.id]);
+      const configuredWeight = w.saturation[sig.id];
+      if (configuredWeight != null) {
+        expect(sig.weight).toBe(configuredWeight);
+      } else {
+        // Signal uses a hardcoded fallback (e.g. process_reward_trend)
+        expect(sig.weight).toBeGreaterThan(0);
+      }
     }
   });
 

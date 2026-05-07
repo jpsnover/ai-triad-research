@@ -99,6 +99,9 @@ export interface SignalContext {
     concession_opportunity: { outcome: string; strong_attacks_faced: number };
   };
 
+  /** Recent per-turn process reward scores (PRM). Empty array if unavailable. */
+  processRewards: ReadonlyArray<{ round: number; score: number }>;
+
   phase: {
     current: DebatePhase;
     allPovsResponded: boolean;
@@ -219,6 +222,10 @@ export type ArgumentationScheme =
 export interface TaxonomyRef {
   node_id: string;
   relevance: string;
+  /** Cosine similarity score [0,1] from context injection. Absent in pre-scoring debates. */
+  relevance_score?: number;
+  /** True if this node was in the top-5 per BDI category (primary tier). */
+  primary?: boolean;
 }
 
 export interface TranscriptEntry {
@@ -449,6 +456,8 @@ export interface DebateSession {
   turn_validations?: Record<string, TurnValidationTrail>;
   /** Per-turn convergence diagnostic signals — computed after claim extraction. */
   convergence_signals?: ConvergenceSignals[];
+  /** Per-turn process reward scores — continuous quality signal computed after convergence signals + turn validation. */
+  process_rewards?: ProcessRewardEntry[];
   /** Cached turn embeddings for semantic recycling detection. Keyed by transcript entry id. */
   turn_embeddings?: Record<string, number[]>;
   /** Mid-debate gap injections — cross-cutting arguments surfaced by the "fourth voice" analyzer. */
@@ -577,6 +586,24 @@ export interface ConvergenceSignals {
   };
 }
 
+/** Per-turn process reward entry — stored alongside convergence signals for correlation analysis. */
+export interface ProcessRewardEntry {
+  entry_id: string;
+  round: number;
+  speaker: PoverId;
+  phase: DebatePhase;
+  /** Composite process reward in [0,1]. Higher = better turn quality. */
+  score: number;
+  /** Per-component sub-scores in [0,1]. */
+  components: {
+    engagement: number;
+    novelty: number;
+    consistency: number;
+    grounding: number;
+    move_quality: number;
+  };
+}
+
 // ── Turn validation (see docs/debate-turn-validation.md) ──
 
 export interface TurnValidationConfig {
@@ -616,7 +643,9 @@ export interface TaxonomyClarificationHint {
 
 export interface TurnValidation {
   outcome: TurnValidationOutcome;
-  score: number;
+  /** Per-step process reward (Lightman et al. 2023) — evaluates this turn's
+   *  quality as an intermediate reasoning step, independent of debate outcome. */
+  process_reward: number;
   dimensions: TurnValidationDimensions;
   repairHints: string[];
   clarifies_taxonomy: TaxonomyClarificationHint[];
@@ -1215,6 +1244,7 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
       'REJECT: Precautionary principle as default stance',
       'REJECT: Capability limitations as permanent constraints',
       'REJECT: Regulatory capture framing of all governance',
+      'REJECT: Framing AI progress as inherently zero-sum between safety and capability',
     ],
   },
   sentinel: {
@@ -1226,6 +1256,7 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
       'REJECT: Dismissing existential risk as speculative',
       'REJECT: Speed-over-safety framing of development timelines',
       'REJECT: Market self-regulation as sufficient governance',
+      'REJECT: Competitive pressure as justification for deploying unverified systems',
     ],
   },
   cassandra: {
@@ -1237,6 +1268,7 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
       'REJECT: Binary framing of AI risk (existential vs trivial)',
       'REJECT: Techno-determinism (both utopian and dystopian)',
       'REJECT: Insider expertise as sole legitimate perspective',
+      'REJECT: Future hypothetical risks as reason to ignore present documented harms',
     ],
   },
 };
