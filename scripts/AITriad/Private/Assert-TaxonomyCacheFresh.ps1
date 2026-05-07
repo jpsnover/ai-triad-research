@@ -19,8 +19,10 @@ function Assert-TaxonomyCacheFresh {
     [CmdletBinding()]
     param()
 
-    # Cooldown: skip check if last reload was < 30s ago
-    if ($script:TaxonomyCacheLastCheck -and
+    # Cooldown: skip check if last reload was < 30s ago AND cache is populated.
+    # Always check when cache is empty (data may have become available since last check).
+    if ($script:TaxonomyData.Count -gt 0 -and
+        $script:TaxonomyCacheLastCheck -and
         ([DateTime]::UtcNow - $script:TaxonomyCacheLastCheck).TotalSeconds -lt 30) {
         return
     }

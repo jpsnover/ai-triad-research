@@ -129,6 +129,14 @@ function Get-Tax {
 
     Assert-TaxonomyCacheFresh
 
+    if ($script:TaxonomyData.Count -eq 0) {
+        Write-Verbose "Get-Tax: TaxonomyData is empty after cache check. TaxonomyDir=$(Get-TaxonomyDir), exists=$(Test-Path (Get-TaxonomyDir))"
+        if (Test-Path (Get-TaxonomyDir)) {
+            $files = Get-ChildItem (Get-TaxonomyDir) -Filter '*.json' -File
+            Write-Verbose "Get-Tax: $($files.Count) JSON files in dir: $($files.Name -join ', ')"
+        }
+    }
+
     # Merge collected pipeline IDs with any directly specified
     if ($CollectedIds.Count -gt 0) {
         $Id = @($CollectedIds | Select-Object -Unique)
