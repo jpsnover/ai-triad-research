@@ -402,13 +402,18 @@ export function validateRecommendation(
     state.required_gap = state.refill_gap;
   }
 
-  // Cooldown check (Reconciliation, COMMIT, and Elicitation exempt)
-  if (family !== 'reconciliation' && family !== 'elicitation' && move !== 'COMMIT' && state.rounds_since_last_intervention < state.required_gap) {
+  // Cooldown check (Reconciliation and COMMIT exempt)
+  if (family !== 'reconciliation' && move !== 'COMMIT' && state.rounds_since_last_intervention < state.required_gap) {
     return suppress(move, selection.target_debater, 'cooldown_active');
   }
 
   // Phase check
   if (!isPhaseAppropriate(move, state.phase)) {
+    return suppress(move, selection.target_debater, 'phase_mismatch');
+  }
+
+  // P4: Block CHALLENGE in thesis-antithesis before round 4 — positions still being established
+  if (move === 'CHALLENGE' && state.phase === 'thesis-antithesis' && state.round < 4) {
     return suppress(move, selection.target_debater, 'phase_mismatch');
   }
 
@@ -539,6 +544,7 @@ export interface TriggerEvaluationContext {
   sli_breaches: string[];
   budget_epoch: number;
   refill_gap: number;
+  convergence_signal_count: number;
 }
 
 export function computeTriggerEvaluationContext(
@@ -584,6 +590,7 @@ export function computeTriggerEvaluationContext(
     sli_breaches: breaches,
     budget_epoch: state.budget_epoch ?? 0,
     refill_gap: state.refill_gap ?? 1,
+    convergence_signal_count: state.health_history.length,
   };
 }
 
@@ -603,10 +610,12 @@ export function formatTriggerContext(ctx: TriggerEvaluationContext): string {
     .join(', ');
   lines.push(`Burden: ${burdenLines} (avg: ${ctx.avg_burden.toFixed(2)})`);
 
-  if (ctx.health_score) {
+  if (ctx.health_score && ctx.convergence_signal_count >= 3) {
     const h = ctx.health_score;
     lines.push(`Health: ${h.value.toFixed(2)} (engagement=${h.components.engagement.toFixed(2)}, novelty=${h.components.novelty.toFixed(2)}, responsiveness=${h.components.responsiveness.toFixed(2)}, coverage=${h.components.coverage.toFixed(2)}, balance=${h.components.balance.toFixed(2)})`);
     lines.push(`Trajectory: modifier=${ctx.trajectory_modifier.toFixed(2)}`);
+  } else if (ctx.health_score) {
+    lines.push(`Health: suppressed (${ctx.convergence_signal_count}/3 signals — too early to diagnose)`);
   }
 
   if (ctx.sli_breaches.length > 0) {

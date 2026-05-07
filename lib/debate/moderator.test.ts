@@ -598,6 +598,40 @@ describe('validateRecommendation', () => {
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
   });
+
+  it('suppresses CHALLENGE in thesis-antithesis before round 4', () => {
+    const state = makeState({
+      phase: 'thesis-antithesis',
+      round: 1,
+      rounds_since_last_intervention: 2,
+    });
+    const sel = makeSelection({ suggested_move: 'CHALLENGE', target_debater: 'prometheus' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(false);
+    expect(r.suppressed_reason).toBe('phase_mismatch');
+  });
+
+  it('allows CHALLENGE in thesis-antithesis at round 4+', () => {
+    const state = makeState({
+      phase: 'thesis-antithesis',
+      round: 4,
+      rounds_since_last_intervention: 2,
+    });
+    const sel = makeSelection({ suggested_move: 'CHALLENGE', target_debater: 'prometheus' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(true);
+  });
+
+  it('allows CHALLENGE in exploration at round 1', () => {
+    const state = makeState({
+      phase: 'exploration',
+      round: 1,
+      rounds_since_last_intervention: 2,
+    });
+    const sel = makeSelection({ suggested_move: 'CHALLENGE', target_debater: 'prometheus' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(true);
+  });
 });
 
 // ── updateModeratorState ─────────────────────────────────
@@ -653,7 +687,7 @@ describe('updateModeratorState', () => {
     expect(state.required_gap).toBe(1);
   });
 
-  it('elicitation family is cooldown-exempt', () => {
+  it('elicitation family is subject to cooldown', () => {
     const state = makeState({
       phase: 'exploration',
       rounds_since_last_intervention: 0,
@@ -661,7 +695,8 @@ describe('updateModeratorState', () => {
     });
     const sel = makeSelection({ suggested_move: 'PIN', target_debater: 'prometheus' });
     const r = validateRecommendation(sel, state);
-    expect(r.proceed).toBe(true);
+    expect(r.proceed).toBe(false);
+    expect(r.suppressed_reason).toBe('cooldown_active');
   });
 
   it('tracks burden per debater', () => {
@@ -984,6 +1019,41 @@ describe('formatTriggerContext', () => {
     expect(text).toContain('Burden:');
     expect(text).toContain('Turn counts:');
     expect(text).toContain('Intervention history:');
+  });
+
+  const makeHealth = (): import('./types.js').DebateHealthScore => ({
+    value: 0.72,
+    trend: 0.01,
+    consecutive_decline: 0,
+    components: { engagement: 0.8, novelty: 0.7, responsiveness: 0.6, coverage: 0.75, balance: 0.85 },
+  });
+
+  it('suppresses health scores when convergence signal count < 3', () => {
+    const state = makeState({
+      round: 2,
+      phase: 'thesis-antithesis',
+      health_history: [makeHealth(), makeHealth()],
+    });
+    const ctx = computeTriggerEvaluationContext(state, { prometheus: 1, sentinel: 1 });
+    expect(ctx.convergence_signal_count).toBe(2);
+    const text = formatTriggerContext(ctx);
+    expect(text).toContain('suppressed');
+    expect(text).toContain('2/3 signals');
+    expect(text).not.toContain('engagement=');
+  });
+
+  it('shows health scores when convergence signal count >= 3', () => {
+    const state = makeState({
+      round: 5,
+      phase: 'exploration',
+      health_history: [makeHealth(), makeHealth(), makeHealth()],
+    });
+    const ctx = computeTriggerEvaluationContext(state, { prometheus: 3, sentinel: 3 });
+    expect(ctx.convergence_signal_count).toBe(3);
+    const text = formatTriggerContext(ctx);
+    expect(text).toContain('Health: 0.72');
+    expect(text).toContain('engagement=');
+    expect(text).not.toContain('suppressed');
   });
 });
 

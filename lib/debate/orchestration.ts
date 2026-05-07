@@ -178,7 +178,7 @@ function checkMetaphorReframe(
 ): ReturnType<typeof selectReframingMetaphor> {
   if (round < 4) return null;
   const last3Moves = transcript
-    .filter(e => e.speaker !== 'system' && e.speaker !== 'user')
+    .filter(e => e.speaker !== 'system' && e.speaker !== 'user' && e.speaker !== 'moderator')
     .slice(-3)
     .flatMap(e => ((e.metadata as Record<string, unknown>)?.move_types as (string | { move_type?: string })[] ?? []))
     .map(m => getMoveName(m));
@@ -710,7 +710,7 @@ export async function executeTurnWithRetry(
 
 const SKIPPED_VALIDATION: TurnValidation = {
   outcome: 'skipped',
-  score: 1,
+  process_reward: 1,
   dimensions: {
     schema:      { pass: true, issues: [] },
     grounding:   { pass: true, issues: [] },
