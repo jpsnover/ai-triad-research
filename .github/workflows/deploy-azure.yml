@@ -133,6 +133,25 @@ jobs:
           echo "revision=$CURRENT" >> $GITHUB_OUTPUT
           echo "Current active revision: $CURRENT"
 
+      - name: Cleanup stale revisions
+        run: |
+          echo "Deactivating stale revisions to free resources..."
+          ACTIVE="${{ steps.current_revision.outputs.revision }}"
+          STALE=$(az containerapp revision list \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "[?properties.active && properties.trafficWeight == \`0\`].name" -o tsv)
+          for rev in $STALE; do
+            if [ "$rev" != "$ACTIVE" ]; then
+              echo "  Deactivating: $rev"
+              az containerapp revision deactivate \
+                --name ${{ env.CONTAINER_APP_NAME }} \
+                --resource-group ${{ env.RESOURCE_GROUP }} \
+                --revision "$rev" 2>/dev/null || true
+            fi
+          done
+          echo "Cleanup complete"
+
       - name: Deploy new revision (0% traffic)
         id: new_revision
         run: |
@@ -170,9 +189,11 @@ jobs:
           echo "Health check URL: $HEALTH_URL"
 
           # 30 attempts × 10s = 5 min — allows time for data copy + app init
+          # --max-time 15 prevents Envoy 504 gateway timeouts (~4min each) from
+          # turning a 5-minute check into a 2-hour wait.
           HEALTHY="false"
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$HEALTH_URL" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed!"
               HEALTHY="true"
@@ -206,6 +227,31 @@ jobs:
           done
           echo "::error::Traffic shift failed after 5 attempts"
           exit 1
+
+      - name: Collect failure diagnostics
+        if: steps.health_check.outputs.healthy != 'true'
+        run: |
+          echo "=== Revision Status ==="
+          az containerapp revision show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --revision "${{ steps.new_revision.outputs.revision }}" \
+            --query "{state:properties.runningState,health:properties.healthState,replicas:properties.replicas,reason:properties.statusMessage}" \
+            -o table 2>/dev/null || echo "(revision not found)"
+
+          echo ""
+          echo "=== Container Console Logs (last 100 lines) ==="
+          az containerapp logs show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --type console --tail 100 2>/dev/null || echo "(no console logs)"
+
+          echo ""
+          echo "=== System Events (last 50) ==="
+          az containerapp logs show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --type system --tail 50 2>/dev/null || echo "(no system logs)"
 
       - name: Re-authenticate before rollback
         if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
