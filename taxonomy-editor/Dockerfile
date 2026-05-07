@@ -13,6 +13,7 @@ WORKDIR /build
 
 # Native-module build deps for node-gyp (node-pty etc.)
 # Builder stage is discarded — no impact on runtime image size.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
@@ -42,7 +43,7 @@ WORKDIR /build/taxonomy-editor
 RUN npm run build:container
 
 # ── Stage 2: Runtime ──
-FROM ghcr.io/jpsnover/ai-triad-base:latest AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-05-05 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
