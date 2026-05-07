@@ -71,7 +71,9 @@ function ConvertTo-TaxonomyNode {
     # Cross-cutting file has interpretations and linked_nodes
     if ($null -ne $Node.PSObject.Properties['interpretations']) {
         $Obj.Interpretations = $Node.interpretations
-        $Obj.LinkedNodes     = @($Node.linked_nodes)
+    }
+    if ($null -ne $Node.PSObject.Properties['linked_nodes']) {
+        $Obj.LinkedNodes = @($Node.linked_nodes)
     }
 
     # Graph attributes (from Invoke-AttributeExtraction)
