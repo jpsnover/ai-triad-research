@@ -26,7 +26,7 @@ export interface GraphAttributes {
   audience?: string;
   emotional_register?: string;
   policy_actions?: { policy_id?: string; action: string; framing: string }[];
-  intellectual_lineage?: string[];
+  intellectual_lineage?: (string | { name: string; description?: string; url?: string; category?: string })[];
   /** Pre-Phase-6c: string. Post-Phase-6c: per-POV object. Check typeof. */
   steelman_vulnerability?: string | {
     from_accelerationist?: string;

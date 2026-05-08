@@ -168,7 +168,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         lines.push(`    Scope: ${n.graph_attributes.node_scope}`);
       }
       if (n.graph_attributes?.intellectual_lineage && n.graph_attributes.intellectual_lineage.length > 0) {
-        lines.push(`    Intellectual lineage: ${n.graph_attributes.intellectual_lineage.join('; ')}`);
+        lines.push(`    Intellectual lineage: ${n.graph_attributes.intellectual_lineage.map(l => typeof l === 'string' ? l : l.name).join('; ')}`);
       }
       if (n.graph_attributes?.assumes && n.graph_attributes.assumes.length > 0) {
         lines.push(`    Assumes: ${n.graph_attributes.assumes.join('; ')}`);

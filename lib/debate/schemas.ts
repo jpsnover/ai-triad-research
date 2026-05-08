@@ -79,7 +79,7 @@ export const GraphAttributesSchema = z.strictObject({
     action: z.string(),
     framing: z.string(),
   })).optional(),
-  intellectual_lineage: z.array(z.string()).optional(),
+  intellectual_lineage: z.array(z.union([z.string(), z.object({ name: z.string(), description: z.string().optional(), url: z.string().optional(), category: z.string().optional() })])).optional(),
   steelman_vulnerability: SteelmanVulnerabilitySchema.optional(),
   possible_fallacies: z.array(PossibleFallacySchema).optional(),
   node_scope: NodeScopeSchema.optional(),
