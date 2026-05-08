@@ -91,8 +91,31 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     } catch (validationErr) {
       const detail = validationErr instanceof Error ? validationErr.message : String(validationErr);
       console.error(`[gitRepoStore] .git exists but validation failed: ${detail}`);
+      // Capture filesystem diagnostics for debugging
+      let diag = '';
+      try {
+        const gitDir = path.join(dataRoot, '.git');
+        const entries = fs.readdirSync(gitDir).map(f => {
+          try { const s = fs.statSync(path.join(gitDir, f)); return `${f} (${s.isDirectory() ? 'dir' : s.size + 'b'})`; }
+          catch { return `${f} (stat failed)`; }
+        });
+        diag = `; .git/ contents: [${entries.join(', ')}]`;
+        // Check if HEAD file exists and what it contains
+        const headPath = path.join(gitDir, 'HEAD');
+        if (fs.existsSync(headPath)) {
+          const headContent = fs.readFileSync(headPath, 'utf-8').trim();
+          diag += `; HEAD=${headContent}`;
+        } else {
+          diag += '; HEAD file missing';
+        }
+        // Check git version
+        try {
+          const { stdout: gitVer } = await execFileP('git', ['--version'], { timeout: 5000 });
+          diag += `; ${gitVer.trim()}`;
+        } catch { /* ignore */ }
+      } catch { /* ignore diag errors */ }
       // Don't delete .git/ — return error so retry can try again after copy completes
-      const r: InitError = { ok: false, error: `.git exists but validation failed: ${detail}` };
+      const r: InitError = { ok: false, error: `.git exists but validation failed: ${detail}${diag}` };
       lastInitResult = { ...r, timestamp: new Date().toISOString() };
       return r;
     }
