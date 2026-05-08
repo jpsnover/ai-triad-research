@@ -1707,11 +1707,21 @@ server.listen(PORT, () => {
   // Initialize analytics storage (daily NDJSON files + 90-day pruning)
   try { analytics.initAnalytics(getDataRoot()); } catch (e) { console.warn('[server] Analytics init failed:', e); }
 
-  gitStore.initDataRepo().then(r => {
-    if (!r.ok) console.error(`[server] Git data-repo init failed: ${r.error}`);
-    else if (r.action === 'initialized') console.log(`[server] ${r.message}`);
-    else console.log(`[server] Git sync: ${r.message}`);
-  }).catch(err => {
-    console.error(`[server] Git data-repo init error: ${err}`);
-  });
+  // Git init with retry — the background entrypoint copy may not have
+  // delivered .git/ or data files yet when the server starts.
+  const tryGitInit = async (attempt: number, maxAttempts: number, delayMs: number) => {
+    const r = await gitStore.initDataRepo();
+    if (r.ok) {
+      if (r.action === 'initialized') console.log(`[server] ${r.message}`);
+      else console.log(`[server] Git sync: ${r.message}`);
+      return;
+    }
+    if (attempt < maxAttempts) {
+      console.log(`[server] Git init attempt ${attempt}/${maxAttempts} failed (${r.error}), retrying in ${delayMs / 1000}s...`);
+      setTimeout(() => void tryGitInit(attempt + 1, maxAttempts, delayMs), delayMs);
+    } else {
+      console.error(`[server] Git data-repo init failed after ${maxAttempts} attempts: ${r.error}`);
+    }
+  };
+  void tryGitInit(1, 6, 15_000);
 });
