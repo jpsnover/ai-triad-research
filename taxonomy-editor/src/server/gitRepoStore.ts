@@ -69,9 +69,15 @@ export interface InitError {
  * Safe to call repeatedly — no-ops if .git already exists or if the feature
  * flag is off.
  */
+/** Last init result — queryable via /api/sync/init-status for debugging. */
+let lastInitResult: (InitResult | InitError) & { timestamp: string; attempt?: number } | null = null;
+export function getLastInitResult() { return lastInitResult; }
+
 export async function initDataRepo(): Promise<InitResult | InitError> {
   if (!isFeatureFlagEnabled()) {
-    return { ok: true, action: 'skipped', message: 'GIT_SYNC_ENABLED is not set.' };
+    const r: InitResult = { ok: true, action: 'skipped', message: 'GIT_SYNC_ENABLED is not set.' };
+    lastInitResult = { ...r, timestamp: new Date().toISOString() };
+    return r;
   }
   if (dataRootHasGit()) {
     const dataRoot = getDataRoot();
@@ -79,10 +85,16 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     try {
       await execFileP('git', ['config', '--global', '--add', 'safe.directory', dataRoot], opts);
       await execFileP('git', ['rev-parse', 'HEAD'], opts);
-      return { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
-    } catch {
-      console.log('[gitRepoStore] .git exists but repo is broken — removing and re-cloning...');
-      fs.rmSync(path.join(dataRoot, '.git'), { recursive: true, force: true });
+      const r: InitResult = { ok: true, action: 'already-exists', message: 'Data repo already initialized.' };
+      lastInitResult = { ...r, timestamp: new Date().toISOString() };
+      return r;
+    } catch (validationErr) {
+      const detail = validationErr instanceof Error ? validationErr.message : String(validationErr);
+      console.error(`[gitRepoStore] .git exists but validation failed: ${detail}`);
+      // Don't delete .git/ — return error so retry can try again after copy completes
+      const r: InitError = { ok: false, error: `.git exists but validation failed: ${detail}` };
+      lastInitResult = { ...r, timestamp: new Date().toISOString() };
+      return r;
     }
   }
 
@@ -118,11 +130,15 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     await execFileP('git', ['branch', '-M', 'main'], opts);
 
     console.log(`[gitRepoStore] Data repo initialized successfully.`);
-    return { ok: true, action: 'initialized', message: `Initialized data repo from ${repoSlug}.` };
+    const r: InitResult = { ok: true, action: 'initialized', message: `Initialized data repo from ${repoSlug}.` };
+    lastInitResult = { ...r, timestamp: new Date().toISOString() };
+    return r;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[gitRepoStore] initDataRepo failed: ${msg}`);
-    return { ok: false, error: msg };
+    const r: InitError = { ok: false, error: msg };
+    lastInitResult = { ...r, timestamp: new Date().toISOString() };
+    return r;
   }
 }
 

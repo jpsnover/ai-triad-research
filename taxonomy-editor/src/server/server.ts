@@ -602,7 +602,7 @@ put('/api/debates', (_req, res, body) => {
     // Log calibration data if debate has synthesis (completed debate)
     try {
       const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
-      if (session?.transcript?.some(e => e.type === 'synthesis')) {
+      if (session?.transcript?.some(e => e.type === 'concluding')) {
         const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
         const dataPoint = extractCalibrationData(session, 'azure' as const);
         appendCalibrationLog(dataPoint, getDataRoot());
@@ -751,6 +751,10 @@ post('/api/sync/init', async (_req, res) => {
   try {
     json(res, await gitStore.initDataRepo());
   } catch (err) { error(res, String(err)); }
+});
+
+get('/api/sync/init-status', (_req, res) => {
+  json(res, gitStore.getLastInitResult() ?? { message: 'No init attempt yet' });
 });
 
 post('/api/sync/credentials', async (_req, res, body) => {
