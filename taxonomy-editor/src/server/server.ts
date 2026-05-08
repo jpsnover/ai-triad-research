@@ -1727,5 +1727,5 @@ server.listen(PORT, () => {
       console.error(`[server] Git data-repo init failed after ${maxAttempts} attempts: ${r.error}`);
     }
   };
-  void tryGitInit(1, 6, 15_000);
+  void tryGitInit(1, 12, 15_000);
 });
