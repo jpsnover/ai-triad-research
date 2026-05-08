@@ -51,6 +51,16 @@ mkdir -p "$DATA_LOCAL"
     if [ -d "$DATA_REMOTE" ] && [ "$(ls -A "$DATA_REMOTE" 2>/dev/null)" ]; then
         log "Background copy starting ($TOTAL_DIRS directories)..."
 
+        # Copy .git FIRST if sync enabled — it's tiny (436K blobless clone)
+        # and initDataRepo retries need it before the full data copy finishes.
+        if [ "$GIT_SYNC_ENABLED" = "1" ] && [ -d "$DATA_REMOTE/.git" ]; then
+            GIT_START=$(date +%s)
+            write_status "copying" ".git" 0 0
+            cp -a "$DATA_REMOTE/.git" "$DATA_LOCAL/.git" 2>/dev/null || true
+            GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
+            log "Copied .git ($GIT_SIZE, $(($(date +%s) - GIT_START))s) [priority]"
+        fi
+
         for dir in $COPY_DIRS; do
             if [ -d "$DATA_REMOTE/$dir" ]; then
                 DIR_START=$(date +%s)
@@ -70,16 +80,7 @@ mkdir -p "$DATA_LOCAL"
         log "Copying top-level files..."
         find "$DATA_REMOTE" -maxdepth 1 -type f -exec cp {} "$DATA_LOCAL/" \; 2>/dev/null || true
 
-        # If git sync is enabled, copy .git too
-        if [ "$GIT_SYNC_ENABLED" = "1" ] && [ -d "$DATA_REMOTE/.git" ]; then
-            GIT_START=$(date +%s)
-            write_status "copying" ".git" $COPIED $(($(date +%s) - COPY_START))
-            log "Git sync enabled — copying .git..."
-            cp -a "$DATA_REMOTE/.git" "$DATA_LOCAL/.git" 2>/dev/null || true
-            GIT_END=$(date +%s)
-            GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
-            log "Copied .git ($GIT_SIZE, $((GIT_END - GIT_START))s)"
-        fi
+        # .git already copied at the top (priority copy)
 
         COPY_END=$(date +%s)
         TOTAL_SIZE=$(du -sh "$DATA_LOCAL" 2>/dev/null | cut -f1)
